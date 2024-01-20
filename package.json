@@ -1,0 +1,22 @@
+{
+  "name": "juice-sdk",
+  "description": "Juicebox SDK monorepo",
+  "main": "index.js",
+  "repository": "https://github.com/jbx-protocol/juice-sdk",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "./packages/*"
+  ],
+  "scripts": {
+    "build:core": "yarn --cwd packages/core build",
+    "build:react": "yarn --cwd packages/react build",
+    "build": "yarn build:core && yarn build:react",
+    "gen:addresses": "ts-node scripts/generateAddresses.ts"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.0",
+    "wagmi": "^1.4.11"
+  },
+  "version": "1.0.7-alpha"
+}
