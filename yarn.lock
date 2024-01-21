@@ -2651,17 +2651,8 @@ JSONStream@^1.3.5:
     jsonparse "^1.2.0"
     through ">=2.2.7 <3"
 
-juice-sdk-core@^2.0.2-alpha:
-  version "2.0.2-alpha"
-  resolved "https://registry.npmjs.org/juice-sdk-core/-/juice-sdk-core-2.0.2-alpha.tgz"
-  integrity sha512-U4Wz1kKm4KGTh2fCPVU8EKwcHNeTsvNQWCfYQtG+loHwROzY0XQzTEr++pPiRWIsEv6+SCeffWZnqED2eodpmQ==
-  dependencies:
-    bs58 "^5.0.0"
-    fpnum "^0.0.16"
-    viem "^1.21.4"
-
-"juice-sdk-core@file:/Users/aeolian/code/juice-sdk-v4/packages/core":
-  version "2.0.3-alpha"
+juice-sdk-core@^2.0.4-alpha, "juice-sdk-core@file:/Users/aeolian/code/juice-sdk-v4/packages/core":
+  version "2.0.4-alpha"
   resolved "file:packages/core"
   dependencies:
     bs58 "^5.0.0"
@@ -2669,11 +2660,11 @@ juice-sdk-core@^2.0.2-alpha:
     viem "^1.21.4"
 
 "juice-sdk-react@file:/Users/aeolian/code/juice-sdk-v4/packages/react":
-  version "0.0.1-alpha"
+  version "0.0.2-alpha"
   resolved "file:packages/react"
   dependencies:
     fpnum "^0.0.16"
-    juice-sdk-core "^2.0.1-alpha"
+    juice-sdk-core "^2.0.4-alpha"
 
 keccak@^3.0.1:
   version "3.0.4"

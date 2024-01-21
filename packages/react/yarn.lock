@@ -2835,10 +2835,10 @@ jsonparse@^1.2.0:
   resolved "https://registry.yarnpkg.com/jsonparse/-/jsonparse-1.3.1.tgz#3f4dae4a91fac315f71062f8521cc239f1366280"
   integrity sha512-POQXvpdL69+CluYsillJ7SUhKvytYjW9vG/GKpnf+xP8UWgYEM/RaMzHHofbALDiKbbP1W8UEYmgGl39WkPZsg==
 
-juice-sdk-core@^2.0.2-alpha:
-  version "2.0.2-alpha"
-  resolved "https://registry.yarnpkg.com/juice-sdk-core/-/juice-sdk-core-2.0.2-alpha.tgz#44f280a96fbcf6b9c690bab328ea8d3062b8d2aa"
-  integrity sha512-U4Wz1kKm4KGTh2fCPVU8EKwcHNeTsvNQWCfYQtG+loHwROzY0XQzTEr++pPiRWIsEv6+SCeffWZnqED2eodpmQ==
+juice-sdk-core@^2.0.4-alpha:
+  version "2.0.4-alpha"
+  resolved "https://registry.yarnpkg.com/juice-sdk-core/-/juice-sdk-core-2.0.4-alpha.tgz#3865f5a2ce7ea2af84ab5f052639f2804092509c"
+  integrity sha512-6ci9aID7NJnkiCkLI+gCnbOF7dw9s9OI51yXbUJTahC0cY2p6FoEaEflbYYv40cBhrlhug0LGhRRHFR6i+3TrA==
   dependencies:
     bs58 "^5.0.0"
     fpnum "^0.0.16"

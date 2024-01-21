@@ -70,6 +70,19 @@ export class Ether extends FixedInt<18> {
 }
 
 /**
+ * A JB project's token.
+ *
+ * Has a decimal precision of 18.
+ *
+ * @extends FixedInt
+ */
+export class JBProjectToken extends FixedInt<18> {
+  constructor(value: bigint) {
+    super(value, 18);
+  }
+}
+
+/**
  * ruleset weight.
  *
  * Has a decimal precision of 18.
