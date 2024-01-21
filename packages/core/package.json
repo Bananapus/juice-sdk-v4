@@ -1,6 +1,6 @@
 {
   "name": "juice-sdk-core",
-  "version": "2.0.4-alpha",
+  "version": "2.0.5-alpha",
   "module": "./dist/esm/index.js",
   "main": "./dist/cjs/index.js",
   "types": "./dist/cjs/index.d.ts",
@@ -18,13 +18,16 @@
   },
   "dependencies": {
     "bs58": "^5.0.0",
-    "fpnum": "^0.0.16",
+    "fpnum": "^0.0.16"
+  },
+  "peerDependencies": {
     "viem": "^1.21.4"
   },
   "devDependencies": {
     "@types/bs58": "^4.0.4",
     "@wagmi/cli": "^1.5.2",
     "patch-package": "^8.0.0",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "viem": "^1.21.4"
   }
 }
