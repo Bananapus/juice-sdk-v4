@@ -13,6 +13,10 @@
   },
   "author": "tomquirk",
   "license": "ISC",
+  "dependencies": {
+    "fpnum": "^0.0.16",
+    "juice-sdk-core": "^2.0.2-alpha"
+  },
   "devDependencies": {
     "@types/node": "^20.11.5",
     "@types/react": "^18.2.21",
@@ -24,20 +28,16 @@
     "ts-node": "^10.9.1",
     "tsup": "^8.0.1",
     "typescript": "^5.2.2",
-    "viem": "^1.0.0",
+    "viem": "^1.21.4",
     "vitest": "^1.2.1",
     "wagmi": "^1.4.11"
   },
   "peerDependencies": {
     "react": "^18.2.0",
-    "viem": "^1.18.2",
-    "wagmi": "^1.4.5"
+    "viem": "^1.21.4",
+    "wagmi": "^1.4.11"
   },
   "files": [
     "dist"
-  ],
-  "dependencies": {
-    "fpnum": "^0.0.16",
-    "juice-sdk-core": "^2.0.1-alpha"
-  }
+  ]
 }

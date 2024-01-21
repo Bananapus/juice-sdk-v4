@@ -1,8 +1,7 @@
 {
-  "name": "juice-sdk",
-  "description": "Juicebox SDK monorepo",
-  "main": "index.js",
-  "repository": "https://github.com/jbx-protocol/juice-sdk",
+  "name": "juice-sdk-v4",
+  "description": "Juicebox V4 SDK monorepo",
+  "repository": "https://github.com/jbx-protocol/juice-sdk-v4",
   "license": "MIT",
   "private": true,
   "workspaces": [
@@ -17,6 +16,5 @@
   "devDependencies": {
     "patch-package": "^8.0.0",
     "wagmi": "^1.4.11"
-  },
-  "version": "1.0.7-alpha"
+  }
 }

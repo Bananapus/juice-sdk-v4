@@ -1,5 +1,4 @@
-import { Address } from "viem";
-import { ReadContractResult } from "wagmi/dist/actions";
+import { Address, ContractFunctionResult } from "viem";
 import { jbControllerABI } from "./generated/juicebox";
 import {
   DecayRate,
@@ -183,7 +182,7 @@ export type ReservedTokensGroupedSplits =
  * Juicebox ruleset cycle data.
  */
 export type JBRulesetMetadata = Omit<
-  ReadContractResult<typeof jbControllerABI, "currentRulesetOf">[1],
+  ContractFunctionResult<typeof jbControllerABI, "currentRulesetOf">[1],
   "redemptionRate" | "reservedRate"
 > & {
   redemptionRate: RedemptionRate;
@@ -194,7 +193,7 @@ export type JBRulesetMetadata = Omit<
  * Juicebox ruleset cycle.
  */
 export type JBRulesetData = Omit<
-  ReadContractResult<typeof jbControllerABI, "currentRulesetOf">[0],
+  ContractFunctionResult<typeof jbControllerABI, "currentRulesetOf">[0],
   "weight" | "decayRate"
 > & {
   weight: RulesetWeight;

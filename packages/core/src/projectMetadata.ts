@@ -1,28 +1,23 @@
 import { Address, PublicClient, getContract } from "viem";
-import { optimismSepolia, sepolia } from "viem/chains";
-import { jbProjectsABI, jbProjectsAddress } from "./generated/juicebox";
+import { jbControllerABI } from "./generated/juicebox";
 import { JBProjectMetadata } from "./types";
 import { ipfsGatewayUrl } from "./utils/ipfs";
-
-type JBChainId = typeof sepolia.id | typeof optimismSepolia.id;
 
 const getMetadataCid = async (
   publicClient: PublicClient,
   args: {
+    jbControllerAddress: Address;
     projectId: bigint;
-    domain: bigint;
   }
 ) => {
-  const chainId = (await publicClient.getChainId()) as JBChainId;
-  const JBProjects = await getContract({
-    address: jbProjectsAddress[chainId] as Address,
-    abi: jbProjectsABI,
+  const JBController = await getContract({
+    address: args.jbControllerAddress,
+    abi: jbControllerABI,
     publicClient,
   });
 
-  const metadataCid = (await JBProjects.read.metadataContentOf([
+  const metadataCid = (await JBController.read.metadataOf([
     args.projectId,
-    args.domain,
   ])) as string;
 
   return metadataCid;
@@ -31,8 +26,8 @@ const getMetadataCid = async (
 export const getProjectMetadata = async (
   publicClient: PublicClient,
   args: {
+    jbControllerAddress: Address;
     projectId: bigint;
-    domain: bigint;
   },
   opts?: {
     ipfsGatewayHostname?: string;
