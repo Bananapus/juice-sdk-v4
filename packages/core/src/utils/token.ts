@@ -49,10 +49,6 @@ export const getTokenBPrice = (
   const oneTokenA = FixedInt.parse("1", tokenADecimals);
   const weightRatio = BigInt(10 ** tokenADecimals);
 
-  const x = (oneTokenA.val * cycleParams.weight.val) / weightRatio;
-
-  console.log({ x });
-
   // 1 Token A = x Token B
   const tokenBQuote = getTokenAToBQuote(oneTokenA, cycleParams);
   if (tokenBQuote.payerTokens === 0n) return new FixedInt(0n, tokenADecimals);
