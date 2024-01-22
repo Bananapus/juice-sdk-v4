@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "bs58": "^5.0.0",
-    "fpnum": "^0.0.16"
+    "fpnum": "^0.0.16",
+    "juice-sdk-core": "^2.0.7-alpha"
   },
   "peerDependencies": {
     "viem": "^1.21.4"
