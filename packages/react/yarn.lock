@@ -2835,14 +2835,13 @@ jsonparse@^1.2.0:
   resolved "https://registry.yarnpkg.com/jsonparse/-/jsonparse-1.3.1.tgz#3f4dae4a91fac315f71062f8521cc239f1366280"
   integrity sha512-POQXvpdL69+CluYsillJ7SUhKvytYjW9vG/GKpnf+xP8UWgYEM/RaMzHHofbALDiKbbP1W8UEYmgGl39WkPZsg==
 
-juice-sdk-core@^2.0.4-alpha:
-  version "2.0.4-alpha"
-  resolved "https://registry.yarnpkg.com/juice-sdk-core/-/juice-sdk-core-2.0.4-alpha.tgz#3865f5a2ce7ea2af84ab5f052639f2804092509c"
-  integrity sha512-6ci9aID7NJnkiCkLI+gCnbOF7dw9s9OI51yXbUJTahC0cY2p6FoEaEflbYYv40cBhrlhug0LGhRRHFR6i+3TrA==
+juice-sdk-core@^2.0.7-alpha:
+  version "2.0.7-alpha"
+  resolved "https://registry.yarnpkg.com/juice-sdk-core/-/juice-sdk-core-2.0.7-alpha.tgz#59634dc7bccbc6797aa5fbc6c10989475fcb4845"
+  integrity sha512-hleKHS5AdUK1uOOyt3CqPRqypmLFC/usEytZi/4VQIBzbBnz2B1IX7wpVXlkYuPGyvOdA7KmRy9JlfITUoGBaA==
   dependencies:
     bs58 "^5.0.0"
     fpnum "^0.0.16"
-    viem "^1.21.4"
 
 keccak@^3.0.1:
   version "3.0.4"
