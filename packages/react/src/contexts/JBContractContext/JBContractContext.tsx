@@ -5,7 +5,6 @@ import {
   useJbControllerFundAccessLimits,
   useJbDirectoryControllerOf,
   useJbDirectoryPrimaryTerminalOf,
-  useJbMultiTerminalStore,
 } from "../../generated/juicebox";
 import { AsyncData, AsyncDataNone } from "../types";
 
@@ -16,7 +15,6 @@ export type JBContractContextData = {
   projectId: bigint;
   contracts: {
     primaryNativeTerminal: AsyncData<Address>;
-    primaryNativeTerminalStore: AsyncData<Address>;
     controller: AsyncData<Address>;
     fundAccessLimits: AsyncData<Address>;
   };
@@ -38,7 +36,6 @@ export const JBContractContext = createContext<JBContractContextData>({
    */
   contracts: {
     primaryNativeTerminal: AsyncDataNone,
-    primaryNativeTerminalStore: AsyncDataNone,
     controller: AsyncDataNone,
     fundAccessLimits: AsyncDataNone,
   },
@@ -52,7 +49,6 @@ export function useJBContractContext() {
 export enum DynamicContract {
   "Controller",
   "PrimaryNativePaymentTerminal",
-  "PrimaryNativePaymentTerminalStore",
   "FundAccessLimits",
 }
 
@@ -83,13 +79,6 @@ export const JBContractProvider = ({
       ? [projectId, NATIVE_TOKEN]
       : undefined,
   });
-  const primaryNativeTerminalStore = useJbMultiTerminalStore({
-    address: primaryNativeTerminal.data,
-    enabled: enabled([
-      DynamicContract.PrimaryNativePaymentTerminal,
-      DynamicContract.PrimaryNativePaymentTerminalStore,
-    ]),
-  });
   const controller = useJbDirectoryControllerOf({
     args: [projectId],
     enabled: enabled([DynamicContract.Controller]),
@@ -107,12 +96,10 @@ export const JBContractProvider = ({
     <JBContractContext.Provider
       value={{
         projectId,
-
         contracts: {
           controller,
           fundAccessLimits,
           primaryNativeTerminal,
-          primaryNativeTerminalStore,
         },
       }}
     >
