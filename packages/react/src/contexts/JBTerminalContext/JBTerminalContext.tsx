@@ -1,12 +1,10 @@
-import {
-    jbMultiTerminalABI
-} from "juice-sdk-core";
+import { jbMultiTerminalABI } from "juice-sdk-core";
 import { PropsWithChildren, createContext, useContext } from "react";
 import { Address } from "viem";
 import { ReadContractResult } from "wagmi/dist/actions";
 import {
-    useJbMultiTerminalAccountingContextsOf,
-    useJbMultiTerminalStore
+  useJbMultiTerminalAccountingContextsOf,
+  useJbMultiTerminalStore,
 } from "../../generated/juicebox";
 import { AsyncData, AsyncDataNone } from "../types";
 
@@ -46,7 +44,7 @@ export function useJBTerminalContext() {
 }
 
 type JBRulesetProviderProps = PropsWithChildren<{
-  address: Address;
+  address: Address | undefined;
 }>;
 
 /**
