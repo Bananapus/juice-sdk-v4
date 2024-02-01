@@ -8,12 +8,17 @@ import {
   JBTokenProvider,
   JBTokenProviderProps,
 } from "../JBTokenContext/JBTokenContext";
+import {
+  JBProjectMetadataProvider,
+  JBProjectMetadataProviderProps,
+} from "../JBProjectMetadataContext/JBProjectMetadataContext";
 
 type JBProjectProviderProps = PropsWithChildren<{
   projectId: bigint;
   ctxProps?: {
     token: JBTokenProviderProps;
     contract: JBContractProviderProps;
+    metadata: JBProjectMetadataProviderProps;
   };
 }>;
 
@@ -33,7 +38,9 @@ export const JBProjectProvider = ({
   return (
     <JBContractProvider projectId={projectId} {...ctxProps?.contract}>
       <JBRulesetProvider>
-        <JBTokenProvider {...ctxProps?.token}>{children}</JBTokenProvider>
+        <JBProjectMetadataProvider {...ctxProps?.metadata}>
+          <JBTokenProvider {...ctxProps?.token}>{children}</JBTokenProvider>
+        </JBProjectMetadataProvider>
       </JBRulesetProvider>
     </JBContractProvider>
   );

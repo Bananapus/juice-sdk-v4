@@ -58,6 +58,10 @@ export function useProjectMetadata({
   );
 }
 
+export type JBProjectMetadataProviderProps = {
+  ipfsGatewayHostname?: string;
+};
+
 /**
  * Provides the metadata for the project in context.
  *
@@ -68,8 +72,7 @@ export const JBProjectMetadataProvider = ({
   ipfsGatewayHostname,
 }: {
   children: React.ReactNode;
-  ipfsGatewayHostname: string;
-}) => {
+} & JBProjectMetadataProviderProps) => {
   const { projectId, contracts } = useJBContractContext();
   const metadata = useProjectMetadata({
     projectId,
