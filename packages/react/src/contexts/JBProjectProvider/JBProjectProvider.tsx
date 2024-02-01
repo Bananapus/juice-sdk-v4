@@ -16,9 +16,9 @@ import {
 type JBProjectProviderProps = PropsWithChildren<{
   projectId: bigint;
   ctxProps?: {
-    token: JBTokenProviderProps;
-    contract: JBContractProviderProps;
-    metadata: JBProjectMetadataProviderProps;
+    token?: JBTokenProviderProps;
+    contract?: JBContractProviderProps;
+    metadata?: JBProjectMetadataProviderProps;
   };
 }>;
 
