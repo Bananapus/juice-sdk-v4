@@ -32,10 +32,8 @@ export const JBProjectProvider = ({
 }: JBProjectProviderProps) => {
   return (
     <JBContractProvider projectId={projectId} {...ctxProps?.contract}>
-      <JBRulesetProvider projectId={projectId}>
-        <JBTokenProvider projectId={projectId} {...ctxProps?.token}>
-          {children}
-        </JBTokenProvider>
+      <JBRulesetProvider>
+        <JBTokenProvider {...ctxProps?.token}>{children}</JBTokenProvider>
       </JBRulesetProvider>
     </JBContractProvider>
   );

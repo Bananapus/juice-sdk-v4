@@ -35,7 +35,6 @@ export const getProjectMetadata = async (
 ): Promise<JBProjectMetadata | undefined> => {
   const metadataCid = await getMetadataCid(publicClient, args);
   const ipfsUrl = ipfsGatewayUrl(metadataCid, opts?.ipfsGatewayHostname);
-  // TODO: Use juiceFetch here.
   const res = (await fetch(ipfsUrl).then((res) => res.json())) as
     | JBProjectMetadata
     | undefined;

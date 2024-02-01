@@ -18,21 +18,12 @@ type JBAccountingContext = ReadContractResult<
   "accountingContextsOf"
 >[0];
 
-/**
- * Context for the current ruleset of a project.
- */
 export type JBTerminalContext = {
-  /**
-   * The current ruleset of the project.
-   */
   address: Address | undefined;
   accountingContexts: AsyncData<readonly JBAccountingContext[] | undefined>;
   store: AsyncData<Address>;
 };
 
-/**
- * Context for the project's current ruleset.
- */
 export const JBTerminalContext = createContext<JBTerminalContext>({
   address: undefined,
   accountingContexts: AsyncDataNone,
@@ -43,19 +34,14 @@ export function useJBTerminalContext() {
   return useContext(JBTerminalContext);
 }
 
-type JBRulesetProviderProps = PropsWithChildren<{
+type JBTerminalProviderProps = PropsWithChildren<{
   address: Address | undefined;
 }>;
 
-/**
- * Provides the current ruleset for a project.
- *
- * @note depends on JBContractContext
- */
 export const JBTerminalProvider = ({
   address,
   children,
-}: JBRulesetProviderProps) => {
+}: JBTerminalProviderProps) => {
   const { data: store, isLoading: isStoreLoading } = useJbMultiTerminalStore({
     address,
   });

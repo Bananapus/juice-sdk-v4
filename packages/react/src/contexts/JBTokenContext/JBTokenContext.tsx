@@ -47,7 +47,6 @@ export function useJBTokenContext() {
 }
 
 export type JBTokenProviderProps = PropsWithChildren<{
-  projectId: bigint;
   withTotalOutstanding?: boolean;
 }>;
 
@@ -57,11 +56,11 @@ export type JBTokenProviderProps = PropsWithChildren<{
  * @note depends on JBContractContext
  */
 export const JBTokenProvider = ({
-  projectId,
   children,
   withTotalOutstanding,
 }: JBTokenProviderProps) => {
   const {
+    projectId,
     contracts: { controller },
   } = useJBContractContext();
 
@@ -78,7 +77,7 @@ export const JBTokenProvider = ({
 
   const totalOutstandingRes =
     useJbControllerTotalTokenSupplyWithReservedTokensOf({
-      address: controller?.data,
+      address: controller?.data ?? undefined,
       args: withTotalOutstanding ? [projectId] : undefined,
       enabled: withTotalOutstanding && controller?.data !== undefined,
     });

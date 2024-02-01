@@ -1,6 +1,6 @@
 export interface AsyncData<T> {
   isLoading: boolean;
-  data: T | undefined;
+  data: T | undefined | null;
 }
 
 const AsyncDataNone: AsyncData<any> = {

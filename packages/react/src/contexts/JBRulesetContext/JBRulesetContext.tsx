@@ -67,23 +67,20 @@ export function useJBRulesetMetadata() {
   return rulesetMetadata;
 }
 
-type JBRulesetProviderProps = PropsWithChildren<{
-  projectId: bigint;
-}>;
-
 /**
  * Provides the current ruleset for a project.
  *
  * @note depends on JBContractContext
  */
 export const JBRulesetProvider = ({
-  projectId,
   children,
-}: JBRulesetProviderProps) => {
-  const { contracts } = useJBContractContext();
+}: {
+  children: React.ReactNode;
+}) => {
+  const { contracts, projectId } = useJBContractContext();
 
   const { data: ruleset, isLoading } = useJbControllerCurrentRulesetOf({
-    address: contracts?.controller?.data,
+    address: contracts?.controller?.data ?? undefined,
     args: [projectId],
     select([ruleset, rulesetMetadata]) {
       return {
