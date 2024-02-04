@@ -9,10 +9,10 @@
     "dist/**/*"
   ],
   "scripts": {
-    "pregenerate": "yarn patch-package",
+    "pregenerate": "yarn patch-package && ts-node ../../scripts/generateAddresses.ts",
     "generate": "wagmi generate",
     "prebuild": "rm -Rf dist/",
-    "build": "yarn build:esm && yarn build:cjs",
+    "build": "yarn generate && yarn build:esm && yarn build:cjs",
     "build:esm": "tsc --project ./tsconfig.json",
     "build:cjs": "tsc --project ./tsconfig.cjs.json"
   },

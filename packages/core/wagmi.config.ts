@@ -1,19 +1,21 @@
 import { defineConfig } from "@wagmi/cli";
-import { etherscan, react } from "@wagmi/cli/plugins";
+import { etherscan } from "@wagmi/cli/plugins";
 import dotenv from "dotenv";
-import { optimismSepolia, sepolia } from "wagmi/chains";
-import addresses from "../../addresses.json";
+import { mainnet } from "wagmi/chains";
+import { CHAINS } from "../../juice.config";
+import addresses from "./addresses.json";
 
 dotenv.config();
 
 const juiceboxContracts = Object.keys(addresses).map((name) => {
   return {
     name,
-    address: {
-      [sepolia.id]: (addresses as any)[name].sepolia as `0x${string}`,
-      [optimismSepolia.id]: (addresses as any)[name]
-        .optimismSepolia as `0x${string}`,
-    },
+    address: CHAINS.reduce((acc, chainId) => {
+      return {
+        ...acc,
+        [chainId]: (addresses as any)[name][chainId] as `0x${string}`,
+      };
+    }, {}) as Record<keyof typeof CHAINS, `0x${string}`>,
   };
 });
 
@@ -23,7 +25,7 @@ export default defineConfig([
     plugins: [
       etherscan({
         apiKey: process.env.ETHERSCAN_API_KEY!,
-        chainId: sepolia.id,
+        chainId: mainnet.id, // the default chain. Shouldn't actually be used because we define the chainId+address for each contract.
         contracts: [...juiceboxContracts],
       }),
     ],

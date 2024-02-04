@@ -7,9 +7,9 @@
   "type": "module",
   "scripts": {
     "test": "vitest",
-    "pregenerate": "yarn patch-package",
+    "pregenerate": "yarn patch-package && ts-node ../../scripts/generateAddresses.ts",
     "generate": "wagmi generate",
-    "build": "tsup && tsc --emitDeclarationOnly"
+    "build": "yarn generate && tsup && tsc --emitDeclarationOnly"
   },
   "author": "tomquirk",
   "license": "ISC",
