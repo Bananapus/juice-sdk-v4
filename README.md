@@ -19,6 +19,7 @@ Juice SDK is based on Yarn workspaces. Each package in the `packages/` directory
 
 > Note: `juice-sdk-react` depends on `juice-sdk-core`.
 
+1. Populate the `.env` file based on the `.env.example`.
 1. Install dependencies for both packages.
 
    ```
