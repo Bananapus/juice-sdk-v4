@@ -5,5 +5,6 @@ const opSepoliaChainId = 11155420 as const;
  * Chains to generate addresses for.
  */
 const CHAINS = [sepoliaChainId, opSepoliaChainId] as const;
+const DEFAULT_CHAIN = sepoliaChainId;
 
-export { CHAINS };
+export { CHAINS, DEFAULT_CHAIN };

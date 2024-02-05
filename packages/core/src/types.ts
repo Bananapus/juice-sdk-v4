@@ -173,13 +173,13 @@ export interface GroupedSplits<G> {
 export type ETHPayoutGroupedSplits = GroupedSplits<SplitGroup.ETHPayout>;
 
 /**
- * Splits that are reserved for a project's token.
+ * Splits for a project's reserved token list.
  */
 export type ReservedTokensGroupedSplits =
   GroupedSplits<SplitGroup.ReservedTokens>;
 
 /**
- * Juicebox ruleset cycle data.
+ * Juicebox ruleset metadata.
  */
 export type JBRulesetMetadata = Omit<
   ContractFunctionResult<typeof jbControllerABI, "currentRulesetOf">[1],
@@ -190,7 +190,7 @@ export type JBRulesetMetadata = Omit<
 };
 
 /**
- * Juicebox ruleset cycle.
+ * Juicebox ruleset.
  */
 export type JBRulesetData = Omit<
   ContractFunctionResult<typeof jbControllerABI, "currentRulesetOf">[0],

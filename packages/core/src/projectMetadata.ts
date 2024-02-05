@@ -1,8 +1,11 @@
 import { Address, PublicClient, getContract } from "viem";
-import { jbControllerABI } from "./generated/juicebox";
+import { jbControllerABI, readJbDirectory } from "./generated/juicebox";
 import { JBProjectMetadata } from "./types";
 import { ipfsGatewayUrl } from "./utils/ipfs";
 
+/**
+ * Fetch the onchain metadata CID for the given project, using the given JBController contract.
+ */
 const getMetadataCid = async (
   publicClient: PublicClient,
   args: {
@@ -16,13 +19,23 @@ const getMetadataCid = async (
     publicClient,
   });
 
-  const metadataCid = (await JBController.read.metadataOf([
-    args.projectId,
-  ])) as string;
+  const x = await readJbDirectory({
+    functionName: "controllerOf",
+    args: [args.projectId],
+  });
+
+  const metadataCid = await JBController.read.uriOf([args.projectId]);
 
   return metadataCid;
 };
 
+/**
+ * Fetch the project metadata for the given [projectId]
+ * @param publicClient - The Viem Public Client to use for fetching on-chain data.
+ * @link https://viem.sh/docs/clients/public.html
+ * @param opts.ipfsGatewayHostname - The hostname of the IPFS gateway to use. Defaults to "ipfs.io"
+ *
+ */
 export const getProjectMetadata = async (
   publicClient: PublicClient,
   args: {

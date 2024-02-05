@@ -1,10 +1,25 @@
+import {
+  getContract,
+  GetContractArgs,
+  readContract,
+  ReadContractConfig,
+  writeContract,
+  WriteContractMode,
+  WriteContractArgs,
+  WriteContractPreparedArgs,
+  WriteContractUnpreparedArgs,
+  prepareWriteContract,
+  PrepareWriteContractConfig,
+} from 'wagmi/actions'
+import { Address } from 'wagmi'
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBController
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x719c79da361Ce133e9621a6f682Eff5DAB44E016)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8c392FeF6bfEca79de5b7b43CDEe08B3Bd9d4ac4)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
  */
 export const jbControllerABI = [
   {
@@ -721,7 +736,7 @@ export const jbControllerABI = [
     type: 'function',
     inputs: [
       { name: 'owner', internalType: 'address', type: 'address' },
-      { name: 'projectMetadata', internalType: 'string', type: 'string' },
+      { name: 'projectUri', internalType: 'string', type: 'string' },
       {
         name: 'rulesetConfigurations',
         internalType: 'struct JBRulesetConfig[]',
@@ -1082,13 +1097,6 @@ export const jbControllerABI = [
     outputs: [{ name: 'rulesetId', internalType: 'uint256', type: 'uint256' }],
   },
   {
-    stateMutability: 'view',
-    type: 'function',
-    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
-    name: 'metadataOf',
-    outputs: [{ name: '', internalType: 'string', type: 'string' }],
-  },
-  {
     stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
@@ -1290,13 +1298,27 @@ export const jbControllerABI = [
     outputs: [{ name: 'rulesetId', internalType: 'uint256', type: 'uint256' }],
   },
   {
+    stateMutability: 'nonpayable',
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'contract IERC165', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'receiveMigrationFrom',
+    outputs: [],
+  },
+  {
     stateMutability: 'view',
     type: 'function',
-    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
-    name: 'queuedRulesetsOf',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'startingId', internalType: 'uint256', type: 'uint256' },
+      { name: 'size', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'rulesetsOf',
     outputs: [
       {
-        name: 'queuedRulesets',
+        name: 'rulesets',
         internalType: 'struct JBRulesetWithMetadata[]',
         type: 'tuple[]',
         components: [
@@ -1387,16 +1409,6 @@ export const jbControllerABI = [
     stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
-      { name: 'from', internalType: 'contract IERC165', type: 'address' },
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'receiveMigrationFrom',
-    outputs: [],
-  },
-  {
-    stateMutability: 'nonpayable',
-    type: 'function',
-    inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'memo', internalType: 'string', type: 'string' },
     ],
@@ -1409,16 +1421,6 @@ export const jbControllerABI = [
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'setControllerAllowed',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
-  },
-  {
-    stateMutability: 'nonpayable',
-    type: 'function',
-    inputs: [
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      { name: 'metadata', internalType: 'string', type: 'string' },
-    ],
-    name: 'setMetadataOf',
-    outputs: [],
   },
   {
     stateMutability: 'nonpayable',
@@ -1478,6 +1480,16 @@ export const jbControllerABI = [
       { name: 'token', internalType: 'contract IJBToken', type: 'address' },
     ],
     name: 'setTokenFor',
+    outputs: [],
+  },
+  {
+    stateMutability: 'nonpayable',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'metadata', internalType: 'string', type: 'string' },
+    ],
+    name: 'setUriOf',
     outputs: [],
   },
   {
@@ -1576,20 +1588,27 @@ export const jbControllerABI = [
       },
     ],
   },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'uriOf',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+  },
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x719c79da361Ce133e9621a6f682Eff5DAB44E016)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8c392FeF6bfEca79de5b7b43CDEe08B3Bd9d4ac4)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
  */
 export const jbControllerAddress = {
-  11155111: '0x719c79da361Ce133e9621a6f682Eff5DAB44E016',
-  11155420: '0x8c392FeF6bfEca79de5b7b43CDEe08B3Bd9d4ac4',
+  11155111: '0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA',
+  11155420: '0x5B77E39c145AE9f9b9272FbD1f866226ae482432',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x719c79da361Ce133e9621a6f682Eff5DAB44E016)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8c392FeF6bfEca79de5b7b43CDEe08B3Bd9d4ac4)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
  */
 export const jbControllerConfig = {
   address: jbControllerAddress,
@@ -1601,8 +1620,8 @@ export const jbControllerConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x499ca8d58C84509f665f19722ccC5e77B4615ACD)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3bFfAFD76C495cFf542Cef8aA26fC9e35c8f3778)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xcc90d826186BdaF48A3e54b585562DcAe335395c)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3465E29595F0e68dc341C8Bfc6be1b43e0B4452B)
  */
 export const jbDirectoryABI = [
   {
@@ -1918,17 +1937,17 @@ export const jbDirectoryABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x499ca8d58C84509f665f19722ccC5e77B4615ACD)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3bFfAFD76C495cFf542Cef8aA26fC9e35c8f3778)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xcc90d826186BdaF48A3e54b585562DcAe335395c)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3465E29595F0e68dc341C8Bfc6be1b43e0B4452B)
  */
 export const jbDirectoryAddress = {
-  11155111: '0x499ca8d58C84509f665f19722ccC5e77B4615ACD',
-  11155420: '0x3bFfAFD76C495cFf542Cef8aA26fC9e35c8f3778',
+  11155111: '0xcc90d826186BdaF48A3e54b585562DcAe335395c',
+  11155420: '0x3465E29595F0e68dc341C8Bfc6be1b43e0B4452B',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x499ca8d58C84509f665f19722ccC5e77B4615ACD)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3bFfAFD76C495cFf542Cef8aA26fC9e35c8f3778)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xcc90d826186BdaF48A3e54b585562DcAe335395c)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3465E29595F0e68dc341C8Bfc6be1b43e0B4452B)
  */
 export const jbDirectoryConfig = {
   address: jbDirectoryAddress,
@@ -1940,8 +1959,8 @@ export const jbDirectoryConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xc1Ce30883c7C25050BFE1F3e9139842bAc809E3a)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x98aB3D768D8134c57c963EE0ddd316F0E277f033)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x53d512b0196b7b44119FEA30Cbb9D27759De04D7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4508f2e6E03303b548940fC6F17988B548BaFE03)
  */
 export const jbMultiTerminalABI = [
   {
@@ -3102,17 +3121,17 @@ export const jbMultiTerminalABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xc1Ce30883c7C25050BFE1F3e9139842bAc809E3a)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x98aB3D768D8134c57c963EE0ddd316F0E277f033)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x53d512b0196b7b44119FEA30Cbb9D27759De04D7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4508f2e6E03303b548940fC6F17988B548BaFE03)
  */
 export const jbMultiTerminalAddress = {
-  11155111: '0xc1Ce30883c7C25050BFE1F3e9139842bAc809E3a',
-  11155420: '0x98aB3D768D8134c57c963EE0ddd316F0E277f033',
+  11155111: '0x53d512b0196b7b44119FEA30Cbb9D27759De04D7',
+  11155420: '0x4508f2e6E03303b548940fC6F17988B548BaFE03',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xc1Ce30883c7C25050BFE1F3e9139842bAc809E3a)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x98aB3D768D8134c57c963EE0ddd316F0E277f033)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x53d512b0196b7b44119FEA30Cbb9D27759De04D7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4508f2e6E03303b548940fC6F17988B548BaFE03)
  */
 export const jbMultiTerminalConfig = {
   address: jbMultiTerminalAddress,
@@ -3124,8 +3143,8 @@ export const jbMultiTerminalConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xDd68353f90B9c82eF1e6adf1F0f458c5f02534d6)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7DF9C20A66dDAb3346ff8EAD69e6127e36722764)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x91B7D7a9014863538a8629344b378387a15B3d4a)
  */
 export const jbPermissionsABI = [
   { stateMutability: 'nonpayable', type: 'constructor', inputs: [] },
@@ -3244,17 +3263,17 @@ export const jbPermissionsABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xDd68353f90B9c82eF1e6adf1F0f458c5f02534d6)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7DF9C20A66dDAb3346ff8EAD69e6127e36722764)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x91B7D7a9014863538a8629344b378387a15B3d4a)
  */
 export const jbPermissionsAddress = {
-  11155111: '0xDd68353f90B9c82eF1e6adf1F0f458c5f02534d6',
-  11155420: '0x7DF9C20A66dDAb3346ff8EAD69e6127e36722764',
+  11155111: '0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6',
+  11155420: '0x91B7D7a9014863538a8629344b378387a15B3d4a',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xDd68353f90B9c82eF1e6adf1F0f458c5f02534d6)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7DF9C20A66dDAb3346ff8EAD69e6127e36722764)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x91B7D7a9014863538a8629344b378387a15B3d4a)
  */
 export const jbPermissionsConfig = {
   address: jbPermissionsAddress,
@@ -3266,8 +3285,8 @@ export const jbPermissionsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3bFfAFD76C495cFf542Cef8aA26fC9e35c8f3778)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xDd68353f90B9c82eF1e6adf1F0f458c5f02534d6)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4D6eF7e81D77dd157DF3f407FE7eAe730CB664c5)
  */
 export const jbProjectsABI = [
   {
@@ -3819,17 +3838,17 @@ export const jbProjectsABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3bFfAFD76C495cFf542Cef8aA26fC9e35c8f3778)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xDd68353f90B9c82eF1e6adf1F0f458c5f02534d6)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4D6eF7e81D77dd157DF3f407FE7eAe730CB664c5)
  */
 export const jbProjectsAddress = {
-  11155111: '0x3bFfAFD76C495cFf542Cef8aA26fC9e35c8f3778',
-  11155420: '0xDd68353f90B9c82eF1e6adf1F0f458c5f02534d6',
+  11155111: '0xd9F46397A9B0A6dE65683303A11066F3597f03F7',
+  11155420: '0x4D6eF7e81D77dd157DF3f407FE7eAe730CB664c5',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3bFfAFD76C495cFf542Cef8aA26fC9e35c8f3778)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xDd68353f90B9c82eF1e6adf1F0f458c5f02534d6)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4D6eF7e81D77dd157DF3f407FE7eAe730CB664c5)
  */
 export const jbProjectsConfig = {
   address: jbProjectsAddress,
@@ -3841,8 +3860,8 @@ export const jbProjectsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e5e08Af158b4E4fdb77ee68873FE9Ac582BF4bC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF1a10C55D13bFea9d1CFE47540F6eC7b84f8377D)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2c8379feFecD5bEaC5e7fd76523E2ea561339e6e)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
  */
 export const jbRulesetsABI = [
   {
@@ -4118,11 +4137,15 @@ export const jbRulesetsABI = [
   {
     stateMutability: 'view',
     type: 'function',
-    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
-    name: 'queuedRulesetsOf',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'startingId', internalType: 'uint256', type: 'uint256' },
+      { name: 'size', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'rulesetsOf',
     outputs: [
       {
-        name: 'queuedRulesets',
+        name: 'rulesets',
         internalType: 'struct JBRuleset[]',
         type: 'tuple[]',
         components: [
@@ -4181,17 +4204,17 @@ export const jbRulesetsABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e5e08Af158b4E4fdb77ee68873FE9Ac582BF4bC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF1a10C55D13bFea9d1CFE47540F6eC7b84f8377D)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2c8379feFecD5bEaC5e7fd76523E2ea561339e6e)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
  */
 export const jbRulesetsAddress = {
-  11155111: '0x9e5e08Af158b4E4fdb77ee68873FE9Ac582BF4bC',
-  11155420: '0xF1a10C55D13bFea9d1CFE47540F6eC7b84f8377D',
+  11155111: '0x2c8379feFecD5bEaC5e7fd76523E2ea561339e6e',
+  11155420: '0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e5e08Af158b4E4fdb77ee68873FE9Ac582BF4bC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF1a10C55D13bFea9d1CFE47540F6eC7b84f8377D)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2c8379feFecD5bEaC5e7fd76523E2ea561339e6e)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
  */
 export const jbRulesetsConfig = {
   address: jbRulesetsAddress,
@@ -4203,8 +4226,8 @@ export const jbRulesetsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF1a10C55D13bFea9d1CFE47540F6eC7b84f8377D)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x499ca8d58C84509f665f19722ccC5e77B4615ACD)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x22Af5C4ABC845a7697f2EBE897406E24A38f6846)
  */
 export const jbSplitsABI = [
   {
@@ -4372,17 +4395,17 @@ export const jbSplitsABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF1a10C55D13bFea9d1CFE47540F6eC7b84f8377D)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x499ca8d58C84509f665f19722ccC5e77B4615ACD)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x22Af5C4ABC845a7697f2EBE897406E24A38f6846)
  */
 export const jbSplitsAddress = {
-  11155111: '0xF1a10C55D13bFea9d1CFE47540F6eC7b84f8377D',
-  11155420: '0x499ca8d58C84509f665f19722ccC5e77B4615ACD',
+  11155111: '0x5B77E39c145AE9f9b9272FbD1f866226ae482432',
+  11155420: '0x22Af5C4ABC845a7697f2EBE897406E24A38f6846',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF1a10C55D13bFea9d1CFE47540F6eC7b84f8377D)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x499ca8d58C84509f665f19722ccC5e77B4615ACD)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x22Af5C4ABC845a7697f2EBE897406E24A38f6846)
  */
 export const jbSplitsConfig = {
   address: jbSplitsAddress,
@@ -4394,8 +4417,8 @@ export const jbSplitsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0EE03cc18403862D2Bf17c8E65A28Bf0685Ce041)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xEACa4242B1DaAf00cC61431F32dE22e8fB76386F)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa17419a0b0a2F40C5B65E766137eD1b70aaC2b2d)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
  */
 export const jbTerminalStoreABI = [
   {
@@ -4803,17 +4826,17 @@ export const jbTerminalStoreABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0EE03cc18403862D2Bf17c8E65A28Bf0685Ce041)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xEACa4242B1DaAf00cC61431F32dE22e8fB76386F)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa17419a0b0a2F40C5B65E766137eD1b70aaC2b2d)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
  */
 export const jbTerminalStoreAddress = {
-  11155111: '0x0EE03cc18403862D2Bf17c8E65A28Bf0685Ce041',
-  11155420: '0xEACa4242B1DaAf00cC61431F32dE22e8fB76386F',
+  11155111: '0xa17419a0b0a2F40C5B65E766137eD1b70aaC2b2d',
+  11155420: '0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0EE03cc18403862D2Bf17c8E65A28Bf0685Ce041)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xEACa4242B1DaAf00cC61431F32dE22e8fB76386F)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa17419a0b0a2F40C5B65E766137eD1b70aaC2b2d)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
  */
 export const jbTerminalStoreConfig = {
   address: jbTerminalStoreAddress,
@@ -4825,8 +4848,8 @@ export const jbTerminalStoreConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x1A38F9f596E656f35F767B34Cf057f6fbe67F80A)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e5e08Af158b4E4fdb77ee68873FE9Ac582BF4bC)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x339D5aC03f7dEb2edcf88D0Da5289136800D3872)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
  */
 export const jbTokensABI = [
   {
@@ -5202,19 +5225,976 @@ export const jbTokensABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x1A38F9f596E656f35F767B34Cf057f6fbe67F80A)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e5e08Af158b4E4fdb77ee68873FE9Ac582BF4bC)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x339D5aC03f7dEb2edcf88D0Da5289136800D3872)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
  */
 export const jbTokensAddress = {
-  11155111: '0x1A38F9f596E656f35F767B34Cf057f6fbe67F80A',
-  11155420: '0x9e5e08Af158b4E4fdb77ee68873FE9Ac582BF4bC',
+  11155111: '0x339D5aC03f7dEb2edcf88D0Da5289136800D3872',
+  11155420: '0xd9F46397A9B0A6dE65683303A11066F3597f03F7',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x1A38F9f596E656f35F767B34Cf057f6fbe67F80A)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e5e08Af158b4E4fdb77ee68873FE9Ac582BF4bC)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x339D5aC03f7dEb2edcf88D0Da5289136800D3872)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
  */
 export const jbTokensConfig = {
   address: jbTokensAddress,
   abi: jbTokensABI,
 } as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Core
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Wraps __{@link getContract}__ with `abi` set to __{@link jbControllerABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ */
+export function getJbController(
+  config: Omit<GetContractArgs, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbControllerAddress
+    address?: Address
+  },
+) {
+  return getContract({
+    abi: jbControllerABI,
+    address:
+      jbControllerAddress[config.chainId as keyof typeof jbControllerAddress],
+    ...config,
+  })
+}
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ */
+export function readJbController<
+  TAbi extends readonly unknown[] = typeof jbControllerABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<ReadContractConfig<TAbi, TFunctionName>, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbControllerAddress
+    address?: Address
+  },
+) {
+  return readContract({
+    abi: jbControllerABI,
+    address:
+      jbControllerAddress[config.chainId as keyof typeof jbControllerAddress],
+    ...config,
+  } as unknown as ReadContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ */
+export function writeJbController<
+  TFunctionName extends string,
+  TMode extends WriteContractMode,
+  TChainId extends number = keyof typeof jbControllerAddress,
+>(
+  config:
+    | (Omit<
+        WriteContractPreparedArgs<typeof jbControllerABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbControllerAddress
+      })
+    | (Omit<
+        WriteContractUnpreparedArgs<typeof jbControllerABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbControllerAddress
+      }),
+) {
+  return writeContract({
+    abi: jbControllerABI,
+    address:
+      jbControllerAddress[config.chainId as keyof typeof jbControllerAddress],
+    ...config,
+  } as unknown as WriteContractArgs<typeof jbControllerABI, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link prepareWriteContract}__ with `abi` set to __{@link jbControllerABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ */
+export function prepareWriteJbController<
+  TAbi extends readonly unknown[] = typeof jbControllerABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<
+    PrepareWriteContractConfig<TAbi, TFunctionName>,
+    'abi' | 'address'
+  > & { chainId?: keyof typeof jbControllerAddress; address?: Address },
+) {
+  return prepareWriteContract({
+    abi: jbControllerABI,
+    address:
+      jbControllerAddress[config.chainId as keyof typeof jbControllerAddress],
+    ...config,
+  } as unknown as PrepareWriteContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link getContract}__ with `abi` set to __{@link jbDirectoryABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xcc90d826186BdaF48A3e54b585562DcAe335395c)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3465E29595F0e68dc341C8Bfc6be1b43e0B4452B)
+ */
+export function getJbDirectory(
+  config: Omit<GetContractArgs, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbDirectoryAddress
+    address?: Address
+  },
+) {
+  return getContract({
+    abi: jbDirectoryABI,
+    address:
+      jbDirectoryAddress[config.chainId as keyof typeof jbDirectoryAddress],
+    ...config,
+  })
+}
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xcc90d826186BdaF48A3e54b585562DcAe335395c)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3465E29595F0e68dc341C8Bfc6be1b43e0B4452B)
+ */
+export function readJbDirectory<
+  TAbi extends readonly unknown[] = typeof jbDirectoryABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<ReadContractConfig<TAbi, TFunctionName>, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbDirectoryAddress
+    address?: Address
+  },
+) {
+  return readContract({
+    abi: jbDirectoryABI,
+    address:
+      jbDirectoryAddress[config.chainId as keyof typeof jbDirectoryAddress],
+    ...config,
+  } as unknown as ReadContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xcc90d826186BdaF48A3e54b585562DcAe335395c)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3465E29595F0e68dc341C8Bfc6be1b43e0B4452B)
+ */
+export function writeJbDirectory<
+  TFunctionName extends string,
+  TMode extends WriteContractMode,
+  TChainId extends number = keyof typeof jbDirectoryAddress,
+>(
+  config:
+    | (Omit<
+        WriteContractPreparedArgs<typeof jbDirectoryABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbDirectoryAddress
+      })
+    | (Omit<
+        WriteContractUnpreparedArgs<typeof jbDirectoryABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbDirectoryAddress
+      }),
+) {
+  return writeContract({
+    abi: jbDirectoryABI,
+    address:
+      jbDirectoryAddress[config.chainId as keyof typeof jbDirectoryAddress],
+    ...config,
+  } as unknown as WriteContractArgs<typeof jbDirectoryABI, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link prepareWriteContract}__ with `abi` set to __{@link jbDirectoryABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xcc90d826186BdaF48A3e54b585562DcAe335395c)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3465E29595F0e68dc341C8Bfc6be1b43e0B4452B)
+ */
+export function prepareWriteJbDirectory<
+  TAbi extends readonly unknown[] = typeof jbDirectoryABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<
+    PrepareWriteContractConfig<TAbi, TFunctionName>,
+    'abi' | 'address'
+  > & { chainId?: keyof typeof jbDirectoryAddress; address?: Address },
+) {
+  return prepareWriteContract({
+    abi: jbDirectoryABI,
+    address:
+      jbDirectoryAddress[config.chainId as keyof typeof jbDirectoryAddress],
+    ...config,
+  } as unknown as PrepareWriteContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link getContract}__ with `abi` set to __{@link jbMultiTerminalABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x53d512b0196b7b44119FEA30Cbb9D27759De04D7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4508f2e6E03303b548940fC6F17988B548BaFE03)
+ */
+export function getJbMultiTerminal(
+  config: Omit<GetContractArgs, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbMultiTerminalAddress
+    address?: Address
+  },
+) {
+  return getContract({
+    abi: jbMultiTerminalABI,
+    address:
+      jbMultiTerminalAddress[
+        config.chainId as keyof typeof jbMultiTerminalAddress
+      ],
+    ...config,
+  })
+}
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x53d512b0196b7b44119FEA30Cbb9D27759De04D7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4508f2e6E03303b548940fC6F17988B548BaFE03)
+ */
+export function readJbMultiTerminal<
+  TAbi extends readonly unknown[] = typeof jbMultiTerminalABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<ReadContractConfig<TAbi, TFunctionName>, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbMultiTerminalAddress
+    address?: Address
+  },
+) {
+  return readContract({
+    abi: jbMultiTerminalABI,
+    address:
+      jbMultiTerminalAddress[
+        config.chainId as keyof typeof jbMultiTerminalAddress
+      ],
+    ...config,
+  } as unknown as ReadContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x53d512b0196b7b44119FEA30Cbb9D27759De04D7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4508f2e6E03303b548940fC6F17988B548BaFE03)
+ */
+export function writeJbMultiTerminal<
+  TFunctionName extends string,
+  TMode extends WriteContractMode,
+  TChainId extends number = keyof typeof jbMultiTerminalAddress,
+>(
+  config:
+    | (Omit<
+        WriteContractPreparedArgs<typeof jbMultiTerminalABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbMultiTerminalAddress
+      })
+    | (Omit<
+        WriteContractUnpreparedArgs<typeof jbMultiTerminalABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbMultiTerminalAddress
+      }),
+) {
+  return writeContract({
+    abi: jbMultiTerminalABI,
+    address:
+      jbMultiTerminalAddress[
+        config.chainId as keyof typeof jbMultiTerminalAddress
+      ],
+    ...config,
+  } as unknown as WriteContractArgs<typeof jbMultiTerminalABI, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link prepareWriteContract}__ with `abi` set to __{@link jbMultiTerminalABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x53d512b0196b7b44119FEA30Cbb9D27759De04D7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4508f2e6E03303b548940fC6F17988B548BaFE03)
+ */
+export function prepareWriteJbMultiTerminal<
+  TAbi extends readonly unknown[] = typeof jbMultiTerminalABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<
+    PrepareWriteContractConfig<TAbi, TFunctionName>,
+    'abi' | 'address'
+  > & { chainId?: keyof typeof jbMultiTerminalAddress; address?: Address },
+) {
+  return prepareWriteContract({
+    abi: jbMultiTerminalABI,
+    address:
+      jbMultiTerminalAddress[
+        config.chainId as keyof typeof jbMultiTerminalAddress
+      ],
+    ...config,
+  } as unknown as PrepareWriteContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link getContract}__ with `abi` set to __{@link jbPermissionsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x91B7D7a9014863538a8629344b378387a15B3d4a)
+ */
+export function getJbPermissions(
+  config: Omit<GetContractArgs, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbPermissionsAddress
+    address?: Address
+  },
+) {
+  return getContract({
+    abi: jbPermissionsABI,
+    address:
+      jbPermissionsAddress[config.chainId as keyof typeof jbPermissionsAddress],
+    ...config,
+  })
+}
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbPermissionsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x91B7D7a9014863538a8629344b378387a15B3d4a)
+ */
+export function readJbPermissions<
+  TAbi extends readonly unknown[] = typeof jbPermissionsABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<ReadContractConfig<TAbi, TFunctionName>, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbPermissionsAddress
+    address?: Address
+  },
+) {
+  return readContract({
+    abi: jbPermissionsABI,
+    address:
+      jbPermissionsAddress[config.chainId as keyof typeof jbPermissionsAddress],
+    ...config,
+  } as unknown as ReadContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPermissionsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x91B7D7a9014863538a8629344b378387a15B3d4a)
+ */
+export function writeJbPermissions<
+  TFunctionName extends string,
+  TMode extends WriteContractMode,
+  TChainId extends number = keyof typeof jbPermissionsAddress,
+>(
+  config:
+    | (Omit<
+        WriteContractPreparedArgs<typeof jbPermissionsABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbPermissionsAddress
+      })
+    | (Omit<
+        WriteContractUnpreparedArgs<typeof jbPermissionsABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbPermissionsAddress
+      }),
+) {
+  return writeContract({
+    abi: jbPermissionsABI,
+    address:
+      jbPermissionsAddress[config.chainId as keyof typeof jbPermissionsAddress],
+    ...config,
+  } as unknown as WriteContractArgs<typeof jbPermissionsABI, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link prepareWriteContract}__ with `abi` set to __{@link jbPermissionsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x91B7D7a9014863538a8629344b378387a15B3d4a)
+ */
+export function prepareWriteJbPermissions<
+  TAbi extends readonly unknown[] = typeof jbPermissionsABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<
+    PrepareWriteContractConfig<TAbi, TFunctionName>,
+    'abi' | 'address'
+  > & { chainId?: keyof typeof jbPermissionsAddress; address?: Address },
+) {
+  return prepareWriteContract({
+    abi: jbPermissionsABI,
+    address:
+      jbPermissionsAddress[config.chainId as keyof typeof jbPermissionsAddress],
+    ...config,
+  } as unknown as PrepareWriteContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link getContract}__ with `abi` set to __{@link jbProjectsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4D6eF7e81D77dd157DF3f407FE7eAe730CB664c5)
+ */
+export function getJbProjects(
+  config: Omit<GetContractArgs, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbProjectsAddress
+    address?: Address
+  },
+) {
+  return getContract({
+    abi: jbProjectsABI,
+    address:
+      jbProjectsAddress[config.chainId as keyof typeof jbProjectsAddress],
+    ...config,
+  })
+}
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4D6eF7e81D77dd157DF3f407FE7eAe730CB664c5)
+ */
+export function readJbProjects<
+  TAbi extends readonly unknown[] = typeof jbProjectsABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<ReadContractConfig<TAbi, TFunctionName>, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbProjectsAddress
+    address?: Address
+  },
+) {
+  return readContract({
+    abi: jbProjectsABI,
+    address:
+      jbProjectsAddress[config.chainId as keyof typeof jbProjectsAddress],
+    ...config,
+  } as unknown as ReadContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4D6eF7e81D77dd157DF3f407FE7eAe730CB664c5)
+ */
+export function writeJbProjects<
+  TFunctionName extends string,
+  TMode extends WriteContractMode,
+  TChainId extends number = keyof typeof jbProjectsAddress,
+>(
+  config:
+    | (Omit<
+        WriteContractPreparedArgs<typeof jbProjectsABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbProjectsAddress
+      })
+    | (Omit<
+        WriteContractUnpreparedArgs<typeof jbProjectsABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbProjectsAddress
+      }),
+) {
+  return writeContract({
+    abi: jbProjectsABI,
+    address:
+      jbProjectsAddress[config.chainId as keyof typeof jbProjectsAddress],
+    ...config,
+  } as unknown as WriteContractArgs<typeof jbProjectsABI, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link prepareWriteContract}__ with `abi` set to __{@link jbProjectsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4D6eF7e81D77dd157DF3f407FE7eAe730CB664c5)
+ */
+export function prepareWriteJbProjects<
+  TAbi extends readonly unknown[] = typeof jbProjectsABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<
+    PrepareWriteContractConfig<TAbi, TFunctionName>,
+    'abi' | 'address'
+  > & { chainId?: keyof typeof jbProjectsAddress; address?: Address },
+) {
+  return prepareWriteContract({
+    abi: jbProjectsABI,
+    address:
+      jbProjectsAddress[config.chainId as keyof typeof jbProjectsAddress],
+    ...config,
+  } as unknown as PrepareWriteContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link getContract}__ with `abi` set to __{@link jbRulesetsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2c8379feFecD5bEaC5e7fd76523E2ea561339e6e)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ */
+export function getJbRulesets(
+  config: Omit<GetContractArgs, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbRulesetsAddress
+    address?: Address
+  },
+) {
+  return getContract({
+    abi: jbRulesetsABI,
+    address:
+      jbRulesetsAddress[config.chainId as keyof typeof jbRulesetsAddress],
+    ...config,
+  })
+}
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2c8379feFecD5bEaC5e7fd76523E2ea561339e6e)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ */
+export function readJbRulesets<
+  TAbi extends readonly unknown[] = typeof jbRulesetsABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<ReadContractConfig<TAbi, TFunctionName>, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbRulesetsAddress
+    address?: Address
+  },
+) {
+  return readContract({
+    abi: jbRulesetsABI,
+    address:
+      jbRulesetsAddress[config.chainId as keyof typeof jbRulesetsAddress],
+    ...config,
+  } as unknown as ReadContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbRulesetsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2c8379feFecD5bEaC5e7fd76523E2ea561339e6e)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ */
+export function writeJbRulesets<
+  TFunctionName extends string,
+  TMode extends WriteContractMode,
+  TChainId extends number = keyof typeof jbRulesetsAddress,
+>(
+  config:
+    | (Omit<
+        WriteContractPreparedArgs<typeof jbRulesetsABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbRulesetsAddress
+      })
+    | (Omit<
+        WriteContractUnpreparedArgs<typeof jbRulesetsABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbRulesetsAddress
+      }),
+) {
+  return writeContract({
+    abi: jbRulesetsABI,
+    address:
+      jbRulesetsAddress[config.chainId as keyof typeof jbRulesetsAddress],
+    ...config,
+  } as unknown as WriteContractArgs<typeof jbRulesetsABI, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link prepareWriteContract}__ with `abi` set to __{@link jbRulesetsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2c8379feFecD5bEaC5e7fd76523E2ea561339e6e)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xc8f6dDDBCB5F894a7f023FA94aBCfd1FBD20E9a6)
+ */
+export function prepareWriteJbRulesets<
+  TAbi extends readonly unknown[] = typeof jbRulesetsABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<
+    PrepareWriteContractConfig<TAbi, TFunctionName>,
+    'abi' | 'address'
+  > & { chainId?: keyof typeof jbRulesetsAddress; address?: Address },
+) {
+  return prepareWriteContract({
+    abi: jbRulesetsABI,
+    address:
+      jbRulesetsAddress[config.chainId as keyof typeof jbRulesetsAddress],
+    ...config,
+  } as unknown as PrepareWriteContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link getContract}__ with `abi` set to __{@link jbSplitsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x22Af5C4ABC845a7697f2EBE897406E24A38f6846)
+ */
+export function getJbSplits(
+  config: Omit<GetContractArgs, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbSplitsAddress
+    address?: Address
+  },
+) {
+  return getContract({
+    abi: jbSplitsABI,
+    address: jbSplitsAddress[config.chainId as keyof typeof jbSplitsAddress],
+    ...config,
+  })
+}
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSplitsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x22Af5C4ABC845a7697f2EBE897406E24A38f6846)
+ */
+export function readJbSplits<
+  TAbi extends readonly unknown[] = typeof jbSplitsABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<ReadContractConfig<TAbi, TFunctionName>, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbSplitsAddress
+    address?: Address
+  },
+) {
+  return readContract({
+    abi: jbSplitsABI,
+    address: jbSplitsAddress[config.chainId as keyof typeof jbSplitsAddress],
+    ...config,
+  } as unknown as ReadContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSplitsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x22Af5C4ABC845a7697f2EBE897406E24A38f6846)
+ */
+export function writeJbSplits<
+  TFunctionName extends string,
+  TMode extends WriteContractMode,
+  TChainId extends number = keyof typeof jbSplitsAddress,
+>(
+  config:
+    | (Omit<
+        WriteContractPreparedArgs<typeof jbSplitsABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbSplitsAddress
+      })
+    | (Omit<
+        WriteContractUnpreparedArgs<typeof jbSplitsABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbSplitsAddress
+      }),
+) {
+  return writeContract({
+    abi: jbSplitsABI,
+    address: jbSplitsAddress[config.chainId as keyof typeof jbSplitsAddress],
+    ...config,
+  } as unknown as WriteContractArgs<typeof jbSplitsABI, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link prepareWriteContract}__ with `abi` set to __{@link jbSplitsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5B77E39c145AE9f9b9272FbD1f866226ae482432)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x22Af5C4ABC845a7697f2EBE897406E24A38f6846)
+ */
+export function prepareWriteJbSplits<
+  TAbi extends readonly unknown[] = typeof jbSplitsABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<
+    PrepareWriteContractConfig<TAbi, TFunctionName>,
+    'abi' | 'address'
+  > & { chainId?: keyof typeof jbSplitsAddress; address?: Address },
+) {
+  return prepareWriteContract({
+    abi: jbSplitsABI,
+    address: jbSplitsAddress[config.chainId as keyof typeof jbSplitsAddress],
+    ...config,
+  } as unknown as PrepareWriteContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link getContract}__ with `abi` set to __{@link jbTerminalStoreABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa17419a0b0a2F40C5B65E766137eD1b70aaC2b2d)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ */
+export function getJbTerminalStore(
+  config: Omit<GetContractArgs, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbTerminalStoreAddress
+    address?: Address
+  },
+) {
+  return getContract({
+    abi: jbTerminalStoreABI,
+    address:
+      jbTerminalStoreAddress[
+        config.chainId as keyof typeof jbTerminalStoreAddress
+      ],
+    ...config,
+  })
+}
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa17419a0b0a2F40C5B65E766137eD1b70aaC2b2d)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ */
+export function readJbTerminalStore<
+  TAbi extends readonly unknown[] = typeof jbTerminalStoreABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<ReadContractConfig<TAbi, TFunctionName>, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbTerminalStoreAddress
+    address?: Address
+  },
+) {
+  return readContract({
+    abi: jbTerminalStoreABI,
+    address:
+      jbTerminalStoreAddress[
+        config.chainId as keyof typeof jbTerminalStoreAddress
+      ],
+    ...config,
+  } as unknown as ReadContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTerminalStoreABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa17419a0b0a2F40C5B65E766137eD1b70aaC2b2d)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ */
+export function writeJbTerminalStore<
+  TFunctionName extends string,
+  TMode extends WriteContractMode,
+  TChainId extends number = keyof typeof jbTerminalStoreAddress,
+>(
+  config:
+    | (Omit<
+        WriteContractPreparedArgs<typeof jbTerminalStoreABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbTerminalStoreAddress
+      })
+    | (Omit<
+        WriteContractUnpreparedArgs<typeof jbTerminalStoreABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbTerminalStoreAddress
+      }),
+) {
+  return writeContract({
+    abi: jbTerminalStoreABI,
+    address:
+      jbTerminalStoreAddress[
+        config.chainId as keyof typeof jbTerminalStoreAddress
+      ],
+    ...config,
+  } as unknown as WriteContractArgs<typeof jbTerminalStoreABI, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link prepareWriteContract}__ with `abi` set to __{@link jbTerminalStoreABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa17419a0b0a2F40C5B65E766137eD1b70aaC2b2d)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xE84d5Ca464daD7E43459D092726cCbd98D4Db5FA)
+ */
+export function prepareWriteJbTerminalStore<
+  TAbi extends readonly unknown[] = typeof jbTerminalStoreABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<
+    PrepareWriteContractConfig<TAbi, TFunctionName>,
+    'abi' | 'address'
+  > & { chainId?: keyof typeof jbTerminalStoreAddress; address?: Address },
+) {
+  return prepareWriteContract({
+    abi: jbTerminalStoreABI,
+    address:
+      jbTerminalStoreAddress[
+        config.chainId as keyof typeof jbTerminalStoreAddress
+      ],
+    ...config,
+  } as unknown as PrepareWriteContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link getContract}__ with `abi` set to __{@link jbTokensABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x339D5aC03f7dEb2edcf88D0Da5289136800D3872)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ */
+export function getJbTokens(
+  config: Omit<GetContractArgs, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbTokensAddress
+    address?: Address
+  },
+) {
+  return getContract({
+    abi: jbTokensABI,
+    address: jbTokensAddress[config.chainId as keyof typeof jbTokensAddress],
+    ...config,
+  })
+}
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x339D5aC03f7dEb2edcf88D0Da5289136800D3872)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ */
+export function readJbTokens<
+  TAbi extends readonly unknown[] = typeof jbTokensABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<ReadContractConfig<TAbi, TFunctionName>, 'abi' | 'address'> & {
+    chainId?: keyof typeof jbTokensAddress
+    address?: Address
+  },
+) {
+  return readContract({
+    abi: jbTokensABI,
+    address: jbTokensAddress[config.chainId as keyof typeof jbTokensAddress],
+    ...config,
+  } as unknown as ReadContractConfig<TAbi, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x339D5aC03f7dEb2edcf88D0Da5289136800D3872)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ */
+export function writeJbTokens<
+  TFunctionName extends string,
+  TMode extends WriteContractMode,
+  TChainId extends number = keyof typeof jbTokensAddress,
+>(
+  config:
+    | (Omit<
+        WriteContractPreparedArgs<typeof jbTokensABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbTokensAddress
+      })
+    | (Omit<
+        WriteContractUnpreparedArgs<typeof jbTokensABI, TFunctionName>,
+        'abi' | 'address'
+      > & {
+        mode: TMode
+        chainId?: TMode extends 'prepared'
+          ? TChainId
+          : keyof typeof jbTokensAddress
+      }),
+) {
+  return writeContract({
+    abi: jbTokensABI,
+    address: jbTokensAddress[config.chainId as keyof typeof jbTokensAddress],
+    ...config,
+  } as unknown as WriteContractArgs<typeof jbTokensABI, TFunctionName>)
+}
+
+/**
+ * Wraps __{@link prepareWriteContract}__ with `abi` set to __{@link jbTokensABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x339D5aC03f7dEb2edcf88D0Da5289136800D3872)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd9F46397A9B0A6dE65683303A11066F3597f03F7)
+ */
+export function prepareWriteJbTokens<
+  TAbi extends readonly unknown[] = typeof jbTokensABI,
+  TFunctionName extends string = string,
+>(
+  config: Omit<
+    PrepareWriteContractConfig<TAbi, TFunctionName>,
+    'abi' | 'address'
+  > & { chainId?: keyof typeof jbTokensAddress; address?: Address },
+) {
+  return prepareWriteContract({
+    abi: jbTokensABI,
+    address: jbTokensAddress[config.chainId as keyof typeof jbTokensAddress],
+    ...config,
+  } as unknown as PrepareWriteContractConfig<TAbi, TFunctionName>)
+}
