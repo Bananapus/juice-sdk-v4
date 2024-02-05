@@ -42,6 +42,15 @@ The build process for each package is roughly as follows:
 
 To build each package, run `yarn build` from the root directory.
 
+#### Wagmi CLI patch
+
+Out-of-the-box Wagmi CLI is inadequate for our needs. We apply a patch to the package (using [patch-package](https://www.npmjs.com/package/patch-package)) that changes the following:
+
+| Patch                                                                    | Why                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Accept optional `address` arg in contract read/write functions and hooks | Not all Juicebox projects use the same contract addresses. Juicebox contracts store references to other Juicebox contracts, and it's common to need to call a function on a specific contract address instead of the 'default' address given in the Forge deployment manifest. For example, two projects might use different payment terminal contracts. This patch lets developers pass a 'custom' address to read/write functions. |
+| Add Optimism Sepolia as a possible codegen target                        | Juicebox contracts are deployed on Optimism Sepolia (chain ID `11155420`). This patch means Wagmi CLI will generate Optimism Sepolia-compatible code.                                                                                                                                                                                                                                                                                |
+
 ### Add or update contract addresses
 
 The `scripts/generateAddresses.ts` script produces an `addresses.json` which contains the contract addresses Wagmi CLI will use for codegen.
