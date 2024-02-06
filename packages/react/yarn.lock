@@ -2843,6 +2843,15 @@ juice-sdk-core@^2.0.7-alpha:
     bs58 "^5.0.0"
     fpnum "^0.0.16"
 
+juice-sdk-core@^2.0.8-alpha:
+  version "2.0.8-alpha"
+  resolved "https://registry.yarnpkg.com/juice-sdk-core/-/juice-sdk-core-2.0.8-alpha.tgz#6b42e0d1ac44fa9b18bf9348abf7796847cde88f"
+  integrity sha512-I7V1mmOI16K7uZDxKPt8EfF28eUjG/f4BBWvcxFCoHrjPgeq7eNiOqJC9BHUgGlMmdAISazvdrlrK4nI0LjfoA==
+  dependencies:
+    bs58 "^5.0.0"
+    fpnum "^0.0.16"
+    juice-sdk-core "^2.0.7-alpha"
+
 keccak@^3.0.1:
   version "3.0.4"
   resolved "https://registry.yarnpkg.com/keccak/-/keccak-3.0.4.tgz#edc09b89e633c0549da444432ecf062ffadee86d"
