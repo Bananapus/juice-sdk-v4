@@ -19,11 +19,6 @@ const getMetadataCid = async (
     publicClient,
   });
 
-  const x = await readJbDirectory({
-    functionName: "controllerOf",
-    args: [args.projectId],
-  });
-
   const metadataCid = await JBController.read.uriOf([args.projectId]);
 
   return metadataCid;
