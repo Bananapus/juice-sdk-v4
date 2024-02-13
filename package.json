@@ -3,7 +3,6 @@
   "description": "Juicebox V4 SDK monorepo",
   "repository": "https://github.com/jbx-protocol/juice-sdk-v4",
   "license": "MIT",
-  "private": true,
   "workspaces": [
     "./packages/*"
   ],
@@ -11,7 +10,8 @@
     "build:core": "yarn --cwd packages/core build",
     "build:react": "yarn --cwd packages/react build",
     "build": "yarn build:core && yarn build:react",
-    "gen:addresses": "ts-node scripts/generateAddresses.ts"
+    "gen:addresses": "ts-node scripts/generateAddresses.ts",
+    "publish-all": "yarn --cwd packages/core publish && yarn --cwd packages/react publish"
   },
   "devDependencies": {
     "patch-package": "^8.0.0",
