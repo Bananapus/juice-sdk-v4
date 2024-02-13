@@ -16,5 +16,6 @@
   "devDependencies": {
     "patch-package": "^8.0.0",
     "wagmi": "^1.4.11"
-  }
+  },
+  "version": "2.0.11-alpha"
 }
