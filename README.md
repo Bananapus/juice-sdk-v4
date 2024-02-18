@@ -1,7 +1,5 @@
 # juice-sdk-v4
 
-> ⚠️ WORK IN PROGRESS - NOT READY FOR PRODUCTION USE ⚠️
-
 A JavaScript SDK for building applications on the [Juicebox protocol](https://docs.juicebox.money/).
 
 ## Usage
