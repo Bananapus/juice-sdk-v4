@@ -1,6 +1,6 @@
 import { NATIVE_TOKEN } from "juice-sdk-core";
 import { PropsWithChildren, createContext, useContext } from "react";
-import { Address } from "viem";
+import { Address, isAddressEqual, zeroAddress } from "viem";
 import {
   useJbControllerFundAccessLimits,
   useJbDirectoryControllerOf,
@@ -83,9 +83,13 @@ export const JBContractProvider = ({
     args: [projectId],
     enabled: enabled([DynamicContract.Controller]),
   });
+  const controllerAddress = controller.data;
 
   const fundAccessLimits = useJbControllerFundAccessLimits({
-    address: controller.data,
+    address:
+      controllerAddress && isAddressEqual(controllerAddress, zeroAddress)
+        ? undefined
+        : controllerAddress,
     enabled: enabled([
       DynamicContract.Controller,
       DynamicContract.FundAccessLimits,

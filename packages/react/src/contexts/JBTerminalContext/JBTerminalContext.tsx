@@ -1,6 +1,6 @@
 import { jbMultiTerminalABI } from "juice-sdk-core";
 import { PropsWithChildren, createContext, useContext } from "react";
-import { Address } from "viem";
+import { Address, isAddressEqual, zeroAddress } from "viem";
 import { ReadContractResult } from "wagmi/dist/actions";
 import {
   useJbMultiTerminalAccountingContextsOf,
@@ -43,11 +43,13 @@ export const JBTerminalProvider = ({
   children,
 }: JBTerminalProviderProps) => {
   const { data: store, isLoading: isStoreLoading } = useJbMultiTerminalStore({
-    address,
+    address:
+      address && isAddressEqual(address, zeroAddress) ? undefined : address,
   });
   const { data: accountingContexts, isLoading: accountingContextsLoading } =
     useJbMultiTerminalAccountingContextsOf({
-      address,
+      address:
+        address && isAddressEqual(address, zeroAddress) ? undefined : address,
     });
 
   return (

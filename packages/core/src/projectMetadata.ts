@@ -1,5 +1,11 @@
-import { Address, PublicClient, getContract } from "viem";
-import { jbControllerABI, readJbDirectory } from "./generated/juicebox";
+import {
+  Address,
+  PublicClient,
+  getContract,
+  isAddressEqual,
+  zeroAddress,
+} from "viem";
+import { jbControllerABI } from "./generated/juicebox";
 import { JBProjectMetadata } from "./types";
 import { ipfsGatewayUrl } from "./utils/ipfs";
 
@@ -13,6 +19,10 @@ const getMetadataCid = async (
     projectId: bigint;
   }
 ) => {
+  if (isAddressEqual(args.jbControllerAddress, zeroAddress)) {
+    return;
+  }
+
   const JBController = await getContract({
     address: args.jbControllerAddress,
     abi: jbControllerABI,
@@ -42,6 +52,9 @@ export const getProjectMetadata = async (
   }
 ): Promise<JBProjectMetadata | undefined> => {
   const metadataCid = await getMetadataCid(publicClient, args);
+  if (!metadataCid) {
+    return;
+  }
   const ipfsUrl = ipfsGatewayUrl(metadataCid, opts?.ipfsGatewayHostname);
   const res = (await fetch(ipfsUrl).then((res) => res.json())) as
     | JBProjectMetadata
