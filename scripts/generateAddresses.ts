@@ -20,7 +20,7 @@ export enum JBContracts {
  * @link https://github.com/Bananapus/juice-contracts-v4
  */
 async function fetchLatestDeploymentFile(chainId: number) {
-  const url = `https://github.com/Bananapus/juice-contracts-v4/raw/main/broadcast/Deploy.s.sol/${chainId}/run-latest.json`;
+  const url = `https://github.com/Bananapus/nana-core/raw/main/broadcast/Deploy.s.sol/${chainId}/run-latest.json`;
   const response = await fetch(url);
   const file = await response.text();
 
