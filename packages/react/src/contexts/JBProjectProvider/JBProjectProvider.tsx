@@ -12,6 +12,7 @@ import {
   JBProjectMetadataProvider,
   JBProjectMetadataProviderProps,
 } from "../JBProjectMetadataContext/JBProjectMetadataContext";
+import { JBCurrentDataHookProvider } from "../JBDataHookContext/JBCurrentDataHookContext";
 
 type JBProjectProviderProps = PropsWithChildren<{
   projectId: bigint;
@@ -39,7 +40,9 @@ export const JBProjectProvider = ({
     <JBContractProvider projectId={projectId} {...ctxProps?.contract}>
       <JBRulesetProvider>
         <JBProjectMetadataProvider {...ctxProps?.metadata}>
-          <JBTokenProvider {...ctxProps?.token}>{children}</JBTokenProvider>
+          <JBCurrentDataHookProvider>
+            <JBTokenProvider {...ctxProps?.token}>{children}</JBTokenProvider>
+          </JBCurrentDataHookProvider>
         </JBProjectMetadataProvider>
       </JBRulesetProvider>
     </JBContractProvider>
