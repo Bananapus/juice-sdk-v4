@@ -1,9 +1,9 @@
-import { DEFAULT_ALLOW_OVERSPENDING } from "juice-sdk-core";
-import { Hash, encodeAbiParameters } from "viem";
+import { DEFAULT_ALLOW_OVERSPENDING, createHookMetadata } from "juice-sdk-core";
 import {
-  JBDataSourceName,
-  useJBDataSourceContext,
-} from "../../../contexts/JBDataSourceContext/JBDataSourceContext";
+  JBDataHookName,
+  useJBDataHookContext,
+} from "src/contexts/JBDataHookContext/JBDataHookContext";
+import { Hash, encodeAbiParameters } from "viem";
 
 const IJBTiered721Delegate_V3_4_PAY_ID = "0x37323150"; // "721P", encoded as bytes4
 
@@ -39,9 +39,9 @@ export function usePreparePayMetadata({
 }: {
   jb721Delegate?: { tierIdsToMint: bigint[] };
 } = {}): Hash | null {
-  const dataSource = useJBDataSourceContext();
+  const dataHook = useJBDataHookContext();
   if (
-    dataSource.data?.name !== JBDataSourceName.JB721Delegate ||
+    dataHook.data?.name !== JBDataHookName.JB721Delegate ||
     !jb721Delegate ||
     jb721Delegate.tierIdsToMint.length === 0
   ) {
