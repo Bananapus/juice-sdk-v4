@@ -4,4 +4,5 @@ export * from "./contexts/JBProjectProvider/JBProjectProvider";
 export * from "./contexts/JBRulesetContext/JBRulesetContext";
 export * from "./contexts/JBTerminalContext/JBTerminalContext";
 export * from "./contexts/JBTokenContext/JBTokenContext";
+export * from "./contexts/JBDataHookContext/JBDataHookContext";
 export * from "./generated/juicebox";
