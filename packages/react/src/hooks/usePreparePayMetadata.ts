@@ -3,16 +3,18 @@ import {
   JBDataHookName,
   useJBDataHookContext,
 } from "src/contexts/JBDataHookContext/JBDataHookContext";
-import { Hash, encodeAbiParameters } from "viem";
+import { Address, Hash, encodeAbiParameters } from "viem";
 
-const IJBTiered721Delegate_V3_4_PAY_ID = "0x37323150"; // "721P", encoded as bytes4
+function getJB721DelegateId(dataHook: Address) {
+  return dataHook.slice(10); // first 4 bytes
+}
 
 interface Jb721DelegateV3_2PayMetadata {
   tierIdsToMint: bigint[];
   allowOverspending?: boolean;
 }
 
-function encodeJB721DelegateV3_4PayMetadata(
+function encodeJB721DelegatePayMetadata(
   metadata: Jb721DelegateV3_2PayMetadata
 ) {
   const args = [
@@ -48,12 +50,12 @@ export function usePreparePayMetadata({
     return null;
   }
 
-  const jb721DelegateMetadata = encodeJB721DelegateV3_4PayMetadata({
+  const jb721DelegateMetadata = encodeJB721DelegatePayMetadata({
     tierIdsToMint: jb721Delegate.tierIdsToMint,
     allowOverspending: DEFAULT_ALLOW_OVERSPENDING,
   });
 
-  const delegateIds: string[] = [IJBTiered721Delegate_V3_4_PAY_ID];
+  const delegateIds: string[] = [getJB721DelegateId(dataHook.data.address)];
   const metadatas: string[] = [jb721DelegateMetadata];
 
   return createHookMetadata(delegateIds, metadatas) as Hash;
