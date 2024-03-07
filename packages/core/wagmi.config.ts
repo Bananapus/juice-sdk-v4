@@ -29,9 +29,10 @@ export default defineConfig([
         chainId: DEFAULT_CHAIN, // the default chain. Shouldn't actually be used because we define the chainId+address for each contract.
         contracts: [...juiceboxContracts],
       }),
-      actions({
-        watchContractEvent: false,
-      }),
+      // actions({
+      //   watchContractEvent: false,
+      // }),
+      // TODO this imports wagmi/actions, which is an esm-only module. we need it to be a cjs. it should be using viem/actions under the hood, but its not.
     ],
   },
 ]);
