@@ -4,8 +4,10 @@
 
 ## Installation
 
+Install the `juice-sdk-react` for React, and it's peer dependency: `juice-sdk-core`.
+
 ```
-npm install juice-sdk-react
+npm install juice-sdk-react juice-sdk-core
 ```
 
 ## Usage
