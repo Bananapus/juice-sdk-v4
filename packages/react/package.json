@@ -1,6 +1,6 @@
 {
   "name": "juice-sdk-react",
-  "version": "0.0.18-alpha",
+  "version": "0.0.19-alpha",
   "description": "Wagmi hooks for Juicebox V4",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,8 +14,7 @@
   "author": "tomquirk",
   "license": "ISC",
   "dependencies": {
-    "fpnum": "^0.0.16",
-    "juice-sdk-core": "^2.0.14-alpha"
+    "fpnum": "^0.0.16"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
@@ -33,6 +32,7 @@
     "wagmi": "^1.4.11"
   },
   "peerDependencies": {
+    "juice-sdk-core": "^2.0.14-alpha",
     "react": "^18.2.0",
     "viem": "^1.21.4",
     "wagmi": "^1.4.11"
