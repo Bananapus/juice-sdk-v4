@@ -1,9 +1,10 @@
 import { JBProjectMetadata, getProjectMetadata } from "juice-sdk-core";
 import { createContext, useContext } from "react";
 import { Address } from "viem";
-import { useChainId, usePublicClient, useQuery } from "wagmi";
-import { useJBContractContext } from "../JBContractContext/JBContractContext";
+import { useChainId, usePublicClient } from "wagmi";
+import { useReadJbContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
+import { useQuery } from "wagmi/dist/types/utils/query";
 
 export type JBProjectMetadataContext = {
   metadata: AsyncData<JBProjectMetadata>;
@@ -15,7 +16,7 @@ export const JBProjectMetadataContext = createContext<JBProjectMetadataContext>(
   }
 );
 
-export function useJBProjectMetadataContext() {
+export function useReadJbProjectMetadataContext() {
   return useContext(JBProjectMetadataContext);
 }
 
@@ -31,15 +32,15 @@ export function useProjectMetadata({
   const chainId = useChainId();
   const publicClient = usePublicClient({ chainId });
 
-  return useQuery(
-    [
+  return useQuery({
+    queryKey: [
       "juice-sdk",
       "useProjectMetadata",
       projectId?.toString(),
       jbControllerAddress,
       ipfsGatewayHostname,
     ],
-    async () => {
+    queryFn: async () => {
       if (!projectId || !jbControllerAddress) return null;
 
       const response = await getProjectMetadata(
@@ -54,8 +55,8 @@ export function useProjectMetadata({
       );
 
       return response;
-    }
-  );
+    },
+  });
 }
 
 export type JBProjectMetadataProviderProps = {
@@ -73,7 +74,7 @@ export const JBProjectMetadataProvider = ({
 }: {
   children: React.ReactNode;
 } & JBProjectMetadataProviderProps) => {
-  const { projectId, contracts } = useJBContractContext();
+  const { projectId, contracts } = useReadJbContractContext();
   const metadata = useProjectMetadata({
     projectId,
     jbControllerAddress: contracts.controller.data ?? undefined,

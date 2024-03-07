@@ -1,5 +1,5 @@
-import { Address, ContractFunctionResult } from "viem";
-import { jbControllerABI } from "./generated/juicebox";
+import { Address, ContractFunctionReturnType } from "viem";
+import { jbControllerAbi } from "./generated/juicebox";
 import {
   DecayRate,
   RedemptionRate,
@@ -23,11 +23,8 @@ export const projectTagOptions = [
   "software",
 ] as const;
 
-export type ProjectTagName = typeof projectTagOptions extends Readonly<
-  Array<infer T>
->
-  ? T
-  : never;
+export type ProjectTagName =
+  typeof projectTagOptions extends Readonly<Array<infer T>> ? T : never;
 
 /**
  * The metadata associated with a juicebox project.
@@ -182,7 +179,11 @@ export type ReservedTokensGroupedSplits =
  * Juicebox ruleset metadata.
  */
 export type JBRulesetMetadata = Omit<
-  ContractFunctionResult<typeof jbControllerABI, "currentRulesetOf">[1],
+  ContractFunctionReturnType<
+    typeof jbControllerAbi,
+    "view",
+    "currentRulesetOf"
+  >[1],
   "redemptionRate" | "reservedRate"
 > & {
   redemptionRate: RedemptionRate;
@@ -193,7 +194,11 @@ export type JBRulesetMetadata = Omit<
  * Juicebox ruleset.
  */
 export type JBRulesetData = Omit<
-  ContractFunctionResult<typeof jbControllerABI, "currentRulesetOf">[0],
+  ContractFunctionReturnType<
+    typeof jbControllerAbi,
+    "view",
+    "currentRulesetOf"
+  >[0],
   "weight" | "decayRate"
 > & {
   weight: RulesetWeight;

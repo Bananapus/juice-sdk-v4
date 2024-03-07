@@ -1,7 +1,7 @@
 import { DEFAULT_ALLOW_OVERSPENDING, createHookMetadata } from "juice-sdk-core";
 import {
   JBDataHookName,
-  useJBDataHookContext,
+  useJbDataHookContext,
 } from "src/contexts/JBDataHookContext/JBDataHookContext";
 import { Address, Hash, encodeAbiParameters } from "viem";
 
@@ -41,7 +41,7 @@ export function usePreparePayMetadata({
 }: {
   jb721Delegate?: { tierIdsToMint: bigint[] };
 } = {}): Hash | null {
-  const dataHook = useJBDataHookContext();
+  const dataHook = useJbDataHookContext();
   if (
     dataHook.data?.name !== JBDataHookName.JB721Delegate ||
     !jb721Delegate ||

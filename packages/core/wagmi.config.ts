@@ -1,5 +1,5 @@
 import { defineConfig } from "@wagmi/cli";
-import { actions, etherscan } from "@wagmi/cli/plugins";
+import { etherscan } from "@wagmi/cli/plugins";
 import dotenv from "dotenv";
 import { Address } from "viem";
 import { CHAINS, DEFAULT_CHAIN } from "../../juice.config";

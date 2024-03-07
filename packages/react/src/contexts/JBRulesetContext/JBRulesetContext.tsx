@@ -8,9 +8,9 @@ import { PropsWithChildren, createContext, useContext } from "react";
 import { ReadContractResult } from "wagmi/dist/actions";
 import {
   jbControllerABI,
-  useJbControllerCurrentRulesetOf,
+  useReadJbControllerCurrentRulesetOf,
 } from "../../generated/juicebox";
-import { useJBContractContext } from "../JBContractContext/JBContractContext";
+import { useReadJbContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
 
 /**
@@ -51,18 +51,18 @@ export const JBRulesetContext = createContext<JBRulesetContext>({
   rulesetMetadata: AsyncDataNone,
 });
 
-export function useJBRulesetContext() {
+export function useJbRulesetContext() {
   return useContext(JBRulesetContext);
 }
 
-export function useJBRuleset() {
-  const { ruleset } = useJBRulesetContext();
+export function useJbRuleset() {
+  const { ruleset } = useJbRulesetContext();
 
   return ruleset;
 }
 
-export function useJBRulesetMetadata() {
-  const { rulesetMetadata } = useJBRulesetContext();
+export function useReadJbRulesetMetadata() {
+  const { rulesetMetadata } = useJbRulesetContext();
 
   return rulesetMetadata;
 }
@@ -77,24 +77,26 @@ export const JBRulesetProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const { contracts, projectId } = useJBContractContext();
+  const { contracts, projectId } = useReadJbContractContext();
 
-  const { data: ruleset, isLoading } = useJbControllerCurrentRulesetOf({
+  const { data: ruleset, isLoading } = useReadJbControllerCurrentRulesetOf({
     address: contracts?.controller?.data ?? undefined,
     args: [projectId],
-    select([ruleset, rulesetMetadata]) {
-      return {
-        data: {
-          ...ruleset,
-          weight: new RulesetWeight(ruleset.weight),
-          decayRate: new DecayRate(ruleset.decayRate),
-        },
-        metadata: {
-          ...rulesetMetadata,
-          redemptionRate: new RedemptionRate(rulesetMetadata.redemptionRate),
-          reservedRate: new ReservedRate(rulesetMetadata.reservedRate),
-        },
-      };
+    query: {
+      select([ruleset, rulesetMetadata]) {
+        return {
+          data: {
+            ...ruleset,
+            weight: new RulesetWeight(ruleset.weight),
+            decayRate: new DecayRate(ruleset.decayRate),
+          },
+          metadata: {
+            ...rulesetMetadata,
+            redemptionRate: new RedemptionRate(rulesetMetadata.redemptionRate),
+            reservedRate: new ReservedRate(rulesetMetadata.reservedRate),
+          },
+        };
+      },
     },
   });
 

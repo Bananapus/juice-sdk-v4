@@ -3,8 +3,8 @@ import { PropsWithChildren, createContext, useContext } from "react";
 import { Address, isAddressEqual, zeroAddress } from "viem";
 import { ReadContractResult } from "wagmi/dist/actions";
 import {
-  useJbMultiTerminalAccountingContextsOf,
-  useJbMultiTerminalStore,
+  useReadJbMultiTerminalAccountingContextsOf,
+  useReadJbMultiTerminalStore,
 } from "../../generated/juicebox";
 import { AsyncData, AsyncDataNone } from "../types";
 
@@ -30,7 +30,7 @@ export const JBTerminalContext = createContext<JBTerminalContext>({
   store: AsyncDataNone,
 });
 
-export function useJBTerminalContext() {
+export function useReadJbTerminalContext() {
   return useContext(JBTerminalContext);
 }
 
@@ -42,12 +42,12 @@ export const JBTerminalProvider = ({
   address,
   children,
 }: JBTerminalProviderProps) => {
-  const { data: store, isLoading: isStoreLoading } = useJbMultiTerminalStore({
+  const { data: store, isLoading: isStoreLoading } = useReadJbMultiTerminalStore({
     address:
       address && isAddressEqual(address, zeroAddress) ? undefined : address,
   });
   const { data: accountingContexts, isLoading: accountingContextsLoading } =
-    useJbMultiTerminalAccountingContextsOf({
+    useReadJbMultiTerminalAccountingContextsOf({
       address:
         address && isAddressEqual(address, zeroAddress) ? undefined : address,
     });

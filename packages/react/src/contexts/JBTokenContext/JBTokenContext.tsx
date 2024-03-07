@@ -4,10 +4,10 @@ import { isAddressEqual, zeroAddress } from "viem";
 import { useToken } from "wagmi";
 import { FetchTokenResult } from "wagmi/dist/actions";
 import {
-  useJbControllerTotalTokenSupplyWithReservedTokensOf,
-  useJbTokensTokenOf,
+  useReadJbControllerTotalTokenSupplyWithReservedTokensOf,
+  useReadJbTokensTokenOf,
 } from "../../generated/juicebox";
-import { useJBContractContext } from "../JBContractContext/JBContractContext";
+import { useReadJbContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
 
 /**
@@ -42,7 +42,7 @@ export const JBTokenContext = createContext<JBTokenContextData>({
   totalOutstanding: AsyncDataNone,
 });
 
-export function useJBTokenContext() {
+export function useReadJbTokenContext() {
   return useContext(JBTokenContext);
 }
 
@@ -62,9 +62,9 @@ export const JBTokenProvider = ({
   const {
     projectId,
     contracts: { controller },
-  } = useJBContractContext();
+  } = useReadJbContractContext();
 
-  const { data: tokenAddress } = useJbTokensTokenOf({
+  const { data: tokenAddress } = useReadJbTokensTokenOf({
     args: [projectId],
   });
   const fetchTokenEnabled = Boolean(
@@ -76,7 +76,7 @@ export const JBTokenProvider = ({
   });
 
   const totalOutstandingRes =
-    useJbControllerTotalTokenSupplyWithReservedTokensOf({
+    useReadJbControllerTotalTokenSupplyWithReservedTokensOf({
       address: controller?.data ?? undefined,
       args: withTotalOutstanding ? [projectId] : undefined,
       enabled: withTotalOutstanding && controller?.data !== undefined,

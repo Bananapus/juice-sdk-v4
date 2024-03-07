@@ -4,11 +4,10 @@
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export const jbControllerABI = [
+export const jbControllerAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -40,6 +39,7 @@ export const jbControllerABI = [
       },
       { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'error',
@@ -473,16 +473,15 @@ export const jbControllerABI = [
     name: 'SetMetadata',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'FUND_ACCESS_LIMITS',
@@ -493,54 +492,54 @@ export const jbControllerABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PERMISSIONS',
     outputs: [
       { name: '', internalType: 'contract IJBPermissions', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PROJECTS',
     outputs: [
       { name: '', internalType: 'contract IJBProjects', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'RULESETS',
     outputs: [
       { name: '', internalType: 'contract IJBRulesets', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'SPLITS',
     outputs: [
       { name: '', internalType: 'contract IJBSplits', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'TOKENS',
     outputs: [
       { name: '', internalType: 'contract IJBTokens', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -550,9 +549,9 @@ export const jbControllerABI = [
     ],
     name: 'burnTokensOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -562,9 +561,9 @@ export const jbControllerABI = [
     ],
     name: 'claimTokensFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'currentRulesetOf',
@@ -625,9 +624,9 @@ export const jbControllerABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -639,9 +638,9 @@ export const jbControllerABI = [
     outputs: [
       { name: 'token', internalType: 'contract IJBToken', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -705,16 +704,16 @@ export const jbControllerABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
     name: 'isTrustedForwarder',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'latestQueuedRulesetOf',
@@ -780,9 +779,9 @@ export const jbControllerABI = [
         type: 'uint8',
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'owner', internalType: 'address', type: 'address' },
@@ -963,9 +962,9 @@ export const jbControllerABI = [
     ],
     name: 'launchProjectFor',
     outputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1145,9 +1144,9 @@ export const jbControllerABI = [
     ],
     name: 'launchRulesetsFor',
     outputs: [{ name: 'rulesetId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1155,9 +1154,9 @@ export const jbControllerABI = [
     ],
     name: 'migrateController',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1174,9 +1173,9 @@ export const jbControllerABI = [
         type: 'uint256',
       },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       {
@@ -1192,16 +1191,16 @@ export const jbControllerABI = [
     ],
     name: 'payReservedTokenToTerminal',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'pendingReservedTokenBalanceOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1364,9 +1363,9 @@ export const jbControllerABI = [
     ],
     name: 'queueRulesetsOf',
     outputs: [{ name: 'rulesetId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'from', internalType: 'contract IERC165', type: 'address' },
@@ -1374,9 +1373,9 @@ export const jbControllerABI = [
     ],
     name: 'receiveMigrationFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1472,9 +1471,9 @@ export const jbControllerABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1482,16 +1481,16 @@ export const jbControllerABI = [
     ],
     name: 'sendReservedTokensToSplitsOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'setControllerAllowed',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1532,16 +1531,16 @@ export const jbControllerABI = [
     ],
     name: 'setSplitGroupsOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'setTerminalsAllowed',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1549,9 +1548,9 @@ export const jbControllerABI = [
     ],
     name: 'setTokenFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1559,23 +1558,23 @@ export const jbControllerABI = [
     ],
     name: 'setUriOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
     name: 'supportsInterface',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'totalTokenSupplyWithReservedTokensOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -1585,16 +1584,16 @@ export const jbControllerABI = [
     ],
     name: 'transferCreditsFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'trustedForwarder',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'upcomingRulesetOf',
@@ -1655,19 +1654,20 @@ export const jbControllerABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'uriOf',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
 export const jbControllerAddress = {
   11155111: '0x02AF7F7E55459592C93DBD25A55f110149DdfaeC',
@@ -1676,11 +1676,11 @@ export const jbControllerAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
 export const jbControllerConfig = {
   address: jbControllerAddress,
-  abi: jbControllerABI,
+  abi: jbControllerAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1689,11 +1689,10 @@ export const jbControllerConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export const jbDirectoryABI = [
+export const jbDirectoryAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -1708,6 +1707,7 @@ export const jbDirectoryABI = [
       },
       { name: 'owner', internalType: 'address', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'DUPLICATE_TERMINALS' },
   { type: 'error', inputs: [], name: 'INVALID_PROJECT_ID_IN_DIRECTORY' },
@@ -1866,39 +1866,38 @@ export const jbDirectoryABI = [
     name: 'SetTerminals',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PERMISSIONS',
     outputs: [
       { name: '', internalType: 'contract IJBPermissions', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PROJECTS',
     outputs: [
       { name: '', internalType: 'contract IJBProjects', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'controllerOf',
     outputs: [{ name: '', internalType: 'contract IERC165', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'addr', internalType: 'address', type: 'address' }],
     name: 'isAllowedToSetFirstController',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1910,16 +1909,16 @@ export const jbDirectoryABI = [
     ],
     name: 'isTerminalOf',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'owner',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1929,16 +1928,16 @@ export const jbDirectoryABI = [
     outputs: [
       { name: '', internalType: 'contract IJBTerminal', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [],
     name: 'renounceOwnership',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1946,9 +1945,9 @@ export const jbDirectoryABI = [
     ],
     name: 'setControllerOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'addr', internalType: 'address', type: 'address' },
@@ -1956,9 +1955,9 @@ export const jbDirectoryABI = [
     ],
     name: 'setIsAllowedToSetFirstController',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1971,9 +1970,9 @@ export const jbDirectoryABI = [
     ],
     name: 'setPrimaryTerminalOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1985,28 +1984,29 @@ export const jbDirectoryABI = [
     ],
     name: 'setTerminalsOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'terminalsOf',
     outputs: [
       { name: '', internalType: 'contract IJBTerminal[]', type: 'address[]' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
     name: 'transferOwnership',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
 export const jbDirectoryAddress = {
   11155111: '0x4a0E06016e11d15C34B9902ECca70f7582A174A9',
@@ -2015,11 +2015,11 @@ export const jbDirectoryAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
 export const jbDirectoryConfig = {
   address: jbDirectoryAddress,
-  abi: jbDirectoryABI,
+  abi: jbDirectoryAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2028,11 +2028,10 @@ export const jbDirectoryConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export const jbMultiTerminalABI = [
+export const jbMultiTerminalAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -2064,6 +2063,7 @@ export const jbMultiTerminalABI = [
       { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
       { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'ACCOUNTING_CONTEXT_ALREADY_SET' },
   {
@@ -2858,23 +2858,22 @@ export const jbMultiTerminalABI = [
     name: 'UseAllowance',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'FEE',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'FEELESS_ADDRESSES',
@@ -2885,52 +2884,52 @@ export const jbMultiTerminalABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PERMISSIONS',
     outputs: [
       { name: '', internalType: 'contract IJBPermissions', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PERMIT2',
     outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PROJECTS',
     outputs: [
       { name: '', internalType: 'contract IJBProjects', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'SPLITS',
     outputs: [
       { name: '', internalType: 'contract IJBSplits', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'STORE',
     outputs: [
       { name: '', internalType: 'contract IJBTerminalStore', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -2949,9 +2948,9 @@ export const jbMultiTerminalABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'accountingContextsOf',
@@ -2967,9 +2966,9 @@ export const jbMultiTerminalABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -2977,9 +2976,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'addAccountingContextsFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'payable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -2991,9 +2990,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'addToBalanceOf',
     outputs: [],
+    stateMutability: 'payable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3002,9 +3001,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'currentSurplusOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       {
@@ -3041,9 +3040,9 @@ export const jbMultiTerminalABI = [
     outputs: [
       { name: 'netPayoutAmount', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3058,9 +3057,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'executeProcessFee',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3079,16 +3078,16 @@ export const jbMultiTerminalABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
     name: 'isTrustedForwarder',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3097,9 +3096,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'migrateBalanceOf',
     outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'payable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3118,9 +3117,9 @@ export const jbMultiTerminalABI = [
         type: 'uint256',
       },
     ],
+    stateMutability: 'payable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3128,9 +3127,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'processHeldFeesOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -3145,9 +3144,9 @@ export const jbMultiTerminalABI = [
     outputs: [
       { name: 'reclaimAmount', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3160,23 +3159,23 @@ export const jbMultiTerminalABI = [
     outputs: [
       { name: 'amountPaidOut', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
     name: 'supportsInterface',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'trustedForwarder',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3191,12 +3190,13 @@ export const jbMultiTerminalABI = [
     outputs: [
       { name: 'amountPaidOut', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
 export const jbMultiTerminalAddress = {
   11155111: '0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc',
@@ -3205,11 +3205,11 @@ export const jbMultiTerminalAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
 export const jbMultiTerminalConfig = {
   address: jbMultiTerminalAddress,
-  abi: jbMultiTerminalABI,
+  abi: jbMultiTerminalAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3218,10 +3218,10 @@ export const jbMultiTerminalConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export const jbPermissionsABI = [
-  { stateMutability: 'nonpayable', type: 'constructor', inputs: [] },
+export const jbPermissionsAbi = [
+  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
   { type: 'error', inputs: [], name: 'PERMISSION_ID_OUT_OF_BOUNDS' },
   { type: 'error', inputs: [], name: 'UNAUTHORIZED' },
   {
@@ -3268,16 +3268,15 @@ export const jbPermissionsABI = [
     name: 'OperatorPermissionsSet',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PERMISSIONS',
     outputs: [
       { name: '', internalType: 'contract IJBPermissions', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'operator', internalType: 'address', type: 'address' },
@@ -3287,9 +3286,9 @@ export const jbPermissionsABI = [
     ],
     name: 'hasPermission',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'operator', internalType: 'address', type: 'address' },
@@ -3299,9 +3298,9 @@ export const jbPermissionsABI = [
     ],
     name: 'hasPermissions',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'operator', internalType: 'address', type: 'address' },
@@ -3310,9 +3309,9 @@ export const jbPermissionsABI = [
     ],
     name: 'permissionsOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'account', internalType: 'address', type: 'address' },
@@ -3333,12 +3332,13 @@ export const jbPermissionsABI = [
     ],
     name: 'setPermissionsFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
 export const jbPermissionsAddress = {
   11155111: '0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20',
@@ -3347,11 +3347,11 @@ export const jbPermissionsAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
 export const jbPermissionsConfig = {
   address: jbPermissionsAddress,
-  abi: jbPermissionsABI,
+  abi: jbPermissionsAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3360,13 +3360,13 @@ export const jbPermissionsConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export const jbProjectsABI = [
+export const jbProjectsAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'CheckpointUnorderedInsertion' },
   { type: 'error', inputs: [], name: 'ECDSAInvalidSignature' },
@@ -3648,14 +3648,13 @@ export const jbProjectsABI = [
     name: 'Transfer',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'CLOCK_MODE',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'to', internalType: 'address', type: 'address' },
@@ -3663,44 +3662,44 @@ export const jbProjectsABI = [
     ],
     name: 'approve',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
     name: 'balanceOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'clock',
     outputs: [{ name: '', internalType: 'uint48', type: 'uint48' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'count',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
     name: 'createFor',
     outputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [{ name: 'delegatee', internalType: 'address', type: 'address' }],
     name: 'delegate',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'delegatee', internalType: 'address', type: 'address' },
@@ -3712,16 +3711,16 @@ export const jbProjectsABI = [
     ],
     name: 'delegateBySig',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
     name: 'delegates',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'eip712Domain',
@@ -3734,23 +3733,23 @@ export const jbProjectsABI = [
       { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
       { name: 'extensions', internalType: 'uint256[]', type: 'uint256[]' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
     name: 'getApproved',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'timepoint', internalType: 'uint256', type: 'uint256' }],
     name: 'getPastTotalSupply',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'account', internalType: 'address', type: 'address' },
@@ -3758,16 +3757,16 @@ export const jbProjectsABI = [
     ],
     name: 'getPastVotes',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
     name: 'getVotes',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'owner', internalType: 'address', type: 'address' },
@@ -3775,44 +3774,44 @@ export const jbProjectsABI = [
     ],
     name: 'isApprovedForAll',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'name',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
     name: 'nonces',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'owner',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
     name: 'ownerOf',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [],
     name: 'renounceOwnership',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'from', internalType: 'address', type: 'address' },
@@ -3821,9 +3820,9 @@ export const jbProjectsABI = [
     ],
     name: 'safeTransferFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'from', internalType: 'address', type: 'address' },
@@ -3833,9 +3832,9 @@ export const jbProjectsABI = [
     ],
     name: 'safeTransferFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'operator', internalType: 'address', type: 'address' },
@@ -3843,9 +3842,9 @@ export const jbProjectsABI = [
     ],
     name: 'setApprovalForAll',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       {
@@ -3856,30 +3855,30 @@ export const jbProjectsABI = [
     ],
     name: 'setTokenUriResolver',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
     name: 'supportsInterface',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'symbol',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'tokenURI',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'tokenUriResolver',
@@ -3890,9 +3889,9 @@ export const jbProjectsABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'from', internalType: 'address', type: 'address' },
@@ -3901,19 +3900,20 @@ export const jbProjectsABI = [
     ],
     name: 'transferFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
     name: 'transferOwnership',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
 export const jbProjectsAddress = {
   11155111: '0xA2344fc40695cc7626904CCD4ef919487AffC184',
@@ -3922,11 +3922,11 @@ export const jbProjectsAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
 export const jbProjectsConfig = {
   address: jbProjectsAddress,
-  abi: jbProjectsABI,
+  abi: jbProjectsAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3935,11 +3935,10 @@ export const jbProjectsConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export const jbRulesetsABI = [
+export const jbRulesetsAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -3948,6 +3947,7 @@ export const jbRulesetsABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'BLOCK_ALREADY_CONTAINS_RULESET' },
   { type: 'error', inputs: [], name: 'CONTROLLER_UNAUTHORIZED' },
@@ -4052,25 +4052,24 @@ export const jbRulesetsABI = [
     name: 'RulesetQueued',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'currentApprovalStatusForLatestRulesetOf',
     outputs: [
       { name: '', internalType: 'enum JBApprovalStatus', type: 'uint8' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'currentOf',
@@ -4096,9 +4095,9 @@ export const jbRulesetsABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4127,9 +4126,9 @@ export const jbRulesetsABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'latestQueuedRulesetOf',
@@ -4160,16 +4159,16 @@ export const jbRulesetsABI = [
         type: 'uint8',
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'latestRulesetIdOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4207,9 +4206,9 @@ export const jbRulesetsABI = [
         ],
       },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4239,9 +4238,9 @@ export const jbRulesetsABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'upcomingRulesetOf',
@@ -4267,19 +4266,20 @@ export const jbRulesetsABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'updateRulesetWeightCache',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
 export const jbRulesetsAddress = {
   11155111: '0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2',
@@ -4288,11 +4288,11 @@ export const jbRulesetsAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
 export const jbRulesetsConfig = {
   address: jbRulesetsAddress,
-  abi: jbRulesetsABI,
+  abi: jbRulesetsAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4301,11 +4301,10 @@ export const jbRulesetsConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export const jbSplitsABI = [
+export const jbSplitsAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -4314,6 +4313,7 @@ export const jbSplitsABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'CONTROLLER_UNAUTHORIZED' },
   { type: 'error', inputs: [], name: 'INVALID_LOCKED_UNTIL' },
@@ -4375,23 +4375,22 @@ export const jbSplitsABI = [
     name: 'SetSplit',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'FALLBACK_RULESET_ID',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4432,9 +4431,9 @@ export const jbSplitsABI = [
     ],
     name: 'setSplitGroupsOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4465,12 +4464,13 @@ export const jbSplitsABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
 export const jbSplitsAddress = {
   11155111: '0x2C55541689Be91d8912f383749A4Fd3C267A63f4',
@@ -4479,11 +4479,11 @@ export const jbSplitsAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
 export const jbSplitsConfig = {
   address: jbSplitsAddress,
-  abi: jbSplitsABI,
+  abi: jbSplitsAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4492,11 +4492,10 @@ export const jbSplitsConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export const jbTerminalStoreABI = [
+export const jbTerminalStoreAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -4511,6 +4510,7 @@ export const jbTerminalStoreABI = [
       },
       { name: 'prices', internalType: 'contract IJBPrices', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'INADEQUATE_CONTROLLER_ALLOWANCE' },
   { type: 'error', inputs: [], name: 'INADEQUATE_TERMINAL_STORE_BALANCE' },
@@ -4531,34 +4531,33 @@ export const jbTerminalStoreABI = [
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
   { type: 'error', inputs: [], name: 'TERMINAL_MIGRATION_NOT_ALLOWED' },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PRICES',
     outputs: [
       { name: '', internalType: 'contract IJBPrices', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'RULESETS',
     outputs: [
       { name: '', internalType: 'contract IJBRulesets', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'terminal', internalType: 'address', type: 'address' },
@@ -4567,9 +4566,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'balanceOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'terminal', internalType: 'address', type: 'address' },
@@ -4591,9 +4590,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'currentReclaimableSurplusOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4603,9 +4602,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'currentReclaimableSurplusOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'terminal', internalType: 'address', type: 'address' },
@@ -4625,9 +4624,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'currentSurplusOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4636,9 +4635,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'currentTotalSurplusOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4647,9 +4646,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'recordAddedBalanceFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'payer', internalType: 'address', type: 'address' },
@@ -4706,9 +4705,9 @@ export const jbTerminalStoreABI = [
         ],
       },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4749,9 +4748,9 @@ export const jbTerminalStoreABI = [
       },
       { name: 'amountPaidOut', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -4818,9 +4817,9 @@ export const jbTerminalStoreABI = [
         ],
       },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4828,9 +4827,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'recordTerminalMigration',
     outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4871,9 +4870,9 @@ export const jbTerminalStoreABI = [
       },
       { name: 'usedAmount', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'terminal', internalType: 'address', type: 'address' },
@@ -4884,9 +4883,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'usedPayoutLimitOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'terminal', internalType: 'address', type: 'address' },
@@ -4897,12 +4896,13 @@ export const jbTerminalStoreABI = [
     ],
     name: 'usedSurplusAllowanceOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
 export const jbTerminalStoreAddress = {
   11155111: '0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b',
@@ -4911,11 +4911,11 @@ export const jbTerminalStoreAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
 export const jbTerminalStoreConfig = {
   address: jbTerminalStoreAddress,
-  abi: jbTerminalStoreABI,
+  abi: jbTerminalStoreAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4924,11 +4924,10 @@ export const jbTerminalStoreConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export const jbTokensABI = [
+export const jbTokensAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -4937,6 +4936,7 @@ export const jbTokensABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'CONTROLLER_UNAUTHORIZED' },
   { type: 'error', inputs: [], name: 'EMPTY_NAME' },
@@ -5174,16 +5174,15 @@ export const jbTokensABI = [
     name: 'TransferCredits',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5192,9 +5191,9 @@ export const jbTokensABI = [
     ],
     name: 'burnFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5204,9 +5203,9 @@ export const jbTokensABI = [
     ],
     name: 'claimTokensFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5214,9 +5213,9 @@ export const jbTokensABI = [
     ],
     name: 'creditBalanceOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -5228,9 +5227,9 @@ export const jbTokensABI = [
     outputs: [
       { name: 'token', internalType: 'contract IJBToken', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5239,18 +5238,18 @@ export const jbTokensABI = [
     ],
     name: 'mintFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'token', internalType: 'contract IJBToken', type: 'address' },
     ],
     name: 'projectIdOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -5258,16 +5257,16 @@ export const jbTokensABI = [
     ],
     name: 'setTokenFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'tokenOf',
     outputs: [{ name: '', internalType: 'contract IJBToken', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5275,25 +5274,25 @@ export const jbTokensABI = [
     ],
     name: 'totalBalanceOf',
     outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'totalCreditSupplyOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'totalSupplyOf',
     outputs: [
       { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5303,12 +5302,13 @@ export const jbTokensABI = [
     ],
     name: 'transferCreditsFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
 export const jbTokensAddress = {
   11155111: '0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709',
@@ -5317,9 +5317,9 @@ export const jbTokensAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
 export const jbTokensConfig = {
   address: jbTokensAddress,
-  abi: jbTokensABI,
+  abi: jbTokensAbi,
 } as const

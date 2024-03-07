@@ -1,6 +1,6 @@
 import { PropsWithChildren, createContext, useContext, useMemo } from "react";
 import { useJb721DelegateVersion } from "src/hooks/jb721Delegate/useJb721DelegateVersion";
-import { Address } from "wagmi";
+import { Address } from "viem";
 import { AsyncData, AsyncDataLoading, AsyncDataNone } from "../types";
 
 export enum JBDataHookName {
@@ -31,7 +31,7 @@ export type JBDataHookContextData = AsyncData<{
 export const JBDataHookContext =
   createContext<JBDataHookContextData>(AsyncDataNone);
 
-export function useJBDataHookContext() {
+export function useJbDataHookContext() {
   return useContext(JBDataHookContext);
 }
 

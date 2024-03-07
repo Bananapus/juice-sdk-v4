@@ -1,4 +1,4 @@
-import { useJBRulesetMetadata } from "../JBRulesetContext/JBRulesetContext";
+import { useReadJbRulesetMetadata } from "../JBRulesetContext/JBRulesetContext";
 import { JBDataHookProvider } from "./JBDataHookContext";
 
 /**
@@ -11,7 +11,7 @@ export function JBCurrentDataHookProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { data } = useJBRulesetMetadata();
+  const { data } = useReadJbRulesetMetadata();
   const dataHookAddress = data?.dataHook;
 
   return (

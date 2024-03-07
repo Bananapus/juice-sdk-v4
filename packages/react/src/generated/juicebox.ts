@@ -1,21 +1,9 @@
 import {
-  Address,
-  useNetwork,
-  useChainId,
-  useContractRead,
-  UseContractReadConfig,
-  useContractWrite,
-  UseContractWriteConfig,
-  usePrepareContractWrite,
-  UsePrepareContractWriteConfig,
-  useContractEvent,
-  UseContractEventConfig,
-} from 'wagmi'
-import {
-  ReadContractResult,
-  WriteContractMode,
-  PrepareWriteContractResult,
-} from 'wagmi/actions'
+  createUseReadContract,
+  createUseWriteContract,
+  createUseSimulateContract,
+  createUseWatchContractEvent,
+} from 'wagmi/codegen'
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBController
@@ -23,11 +11,10 @@ import {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export const jbControllerABI = [
+export const jbControllerAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -59,6 +46,7 @@ export const jbControllerABI = [
       },
       { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'error',
@@ -492,16 +480,15 @@ export const jbControllerABI = [
     name: 'SetMetadata',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'FUND_ACCESS_LIMITS',
@@ -512,54 +499,54 @@ export const jbControllerABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PERMISSIONS',
     outputs: [
       { name: '', internalType: 'contract IJBPermissions', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PROJECTS',
     outputs: [
       { name: '', internalType: 'contract IJBProjects', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'RULESETS',
     outputs: [
       { name: '', internalType: 'contract IJBRulesets', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'SPLITS',
     outputs: [
       { name: '', internalType: 'contract IJBSplits', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'TOKENS',
     outputs: [
       { name: '', internalType: 'contract IJBTokens', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -569,9 +556,9 @@ export const jbControllerABI = [
     ],
     name: 'burnTokensOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -581,9 +568,9 @@ export const jbControllerABI = [
     ],
     name: 'claimTokensFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'currentRulesetOf',
@@ -644,9 +631,9 @@ export const jbControllerABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -658,9 +645,9 @@ export const jbControllerABI = [
     outputs: [
       { name: 'token', internalType: 'contract IJBToken', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -724,16 +711,16 @@ export const jbControllerABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
     name: 'isTrustedForwarder',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'latestQueuedRulesetOf',
@@ -799,9 +786,9 @@ export const jbControllerABI = [
         type: 'uint8',
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'owner', internalType: 'address', type: 'address' },
@@ -982,9 +969,9 @@ export const jbControllerABI = [
     ],
     name: 'launchProjectFor',
     outputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1164,9 +1151,9 @@ export const jbControllerABI = [
     ],
     name: 'launchRulesetsFor',
     outputs: [{ name: 'rulesetId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1174,9 +1161,9 @@ export const jbControllerABI = [
     ],
     name: 'migrateController',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1193,9 +1180,9 @@ export const jbControllerABI = [
         type: 'uint256',
       },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       {
@@ -1211,16 +1198,16 @@ export const jbControllerABI = [
     ],
     name: 'payReservedTokenToTerminal',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'pendingReservedTokenBalanceOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1383,9 +1370,9 @@ export const jbControllerABI = [
     ],
     name: 'queueRulesetsOf',
     outputs: [{ name: 'rulesetId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'from', internalType: 'contract IERC165', type: 'address' },
@@ -1393,9 +1380,9 @@ export const jbControllerABI = [
     ],
     name: 'receiveMigrationFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1491,9 +1478,9 @@ export const jbControllerABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1501,16 +1488,16 @@ export const jbControllerABI = [
     ],
     name: 'sendReservedTokensToSplitsOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'setControllerAllowed',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1551,16 +1538,16 @@ export const jbControllerABI = [
     ],
     name: 'setSplitGroupsOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'setTerminalsAllowed',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1568,9 +1555,9 @@ export const jbControllerABI = [
     ],
     name: 'setTokenFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1578,23 +1565,23 @@ export const jbControllerABI = [
     ],
     name: 'setUriOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
     name: 'supportsInterface',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'totalTokenSupplyWithReservedTokensOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -1604,16 +1591,16 @@ export const jbControllerABI = [
     ],
     name: 'transferCreditsFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'trustedForwarder',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'upcomingRulesetOf',
@@ -1674,19 +1661,20 @@ export const jbControllerABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'uriOf',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
 export const jbControllerAddress = {
   11155111: '0x02AF7F7E55459592C93DBD25A55f110149DdfaeC',
@@ -1695,11 +1683,11 @@ export const jbControllerAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
 export const jbControllerConfig = {
   address: jbControllerAddress,
-  abi: jbControllerABI,
+  abi: jbControllerAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1708,11 +1696,10 @@ export const jbControllerConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export const jbDirectoryABI = [
+export const jbDirectoryAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -1727,6 +1714,7 @@ export const jbDirectoryABI = [
       },
       { name: 'owner', internalType: 'address', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'DUPLICATE_TERMINALS' },
   { type: 'error', inputs: [], name: 'INVALID_PROJECT_ID_IN_DIRECTORY' },
@@ -1885,39 +1873,38 @@ export const jbDirectoryABI = [
     name: 'SetTerminals',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PERMISSIONS',
     outputs: [
       { name: '', internalType: 'contract IJBPermissions', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PROJECTS',
     outputs: [
       { name: '', internalType: 'contract IJBProjects', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'controllerOf',
     outputs: [{ name: '', internalType: 'contract IERC165', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'addr', internalType: 'address', type: 'address' }],
     name: 'isAllowedToSetFirstController',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1929,16 +1916,16 @@ export const jbDirectoryABI = [
     ],
     name: 'isTerminalOf',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'owner',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1948,16 +1935,16 @@ export const jbDirectoryABI = [
     outputs: [
       { name: '', internalType: 'contract IJBTerminal', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [],
     name: 'renounceOwnership',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1965,9 +1952,9 @@ export const jbDirectoryABI = [
     ],
     name: 'setControllerOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'addr', internalType: 'address', type: 'address' },
@@ -1975,9 +1962,9 @@ export const jbDirectoryABI = [
     ],
     name: 'setIsAllowedToSetFirstController',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -1990,9 +1977,9 @@ export const jbDirectoryABI = [
     ],
     name: 'setPrimaryTerminalOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -2004,28 +1991,29 @@ export const jbDirectoryABI = [
     ],
     name: 'setTerminalsOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'terminalsOf',
     outputs: [
       { name: '', internalType: 'contract IJBTerminal[]', type: 'address[]' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
     name: 'transferOwnership',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
 export const jbDirectoryAddress = {
   11155111: '0x4a0E06016e11d15C34B9902ECca70f7582A174A9',
@@ -2034,11 +2022,11 @@ export const jbDirectoryAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
 export const jbDirectoryConfig = {
   address: jbDirectoryAddress,
-  abi: jbDirectoryABI,
+  abi: jbDirectoryAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2047,11 +2035,10 @@ export const jbDirectoryConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export const jbMultiTerminalABI = [
+export const jbMultiTerminalAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -2083,6 +2070,7 @@ export const jbMultiTerminalABI = [
       { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
       { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'ACCOUNTING_CONTEXT_ALREADY_SET' },
   {
@@ -2877,23 +2865,22 @@ export const jbMultiTerminalABI = [
     name: 'UseAllowance',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'FEE',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'FEELESS_ADDRESSES',
@@ -2904,52 +2891,52 @@ export const jbMultiTerminalABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PERMISSIONS',
     outputs: [
       { name: '', internalType: 'contract IJBPermissions', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PERMIT2',
     outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PROJECTS',
     outputs: [
       { name: '', internalType: 'contract IJBProjects', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'SPLITS',
     outputs: [
       { name: '', internalType: 'contract IJBSplits', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'STORE',
     outputs: [
       { name: '', internalType: 'contract IJBTerminalStore', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -2968,9 +2955,9 @@ export const jbMultiTerminalABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'accountingContextsOf',
@@ -2986,9 +2973,9 @@ export const jbMultiTerminalABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -2996,9 +2983,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'addAccountingContextsFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'payable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3010,9 +2997,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'addToBalanceOf',
     outputs: [],
+    stateMutability: 'payable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3021,9 +3008,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'currentSurplusOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       {
@@ -3060,9 +3047,9 @@ export const jbMultiTerminalABI = [
     outputs: [
       { name: 'netPayoutAmount', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3077,9 +3064,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'executeProcessFee',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3098,16 +3085,16 @@ export const jbMultiTerminalABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
     name: 'isTrustedForwarder',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3116,9 +3103,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'migrateBalanceOf',
     outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'payable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3137,9 +3124,9 @@ export const jbMultiTerminalABI = [
         type: 'uint256',
       },
     ],
+    stateMutability: 'payable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3147,9 +3134,9 @@ export const jbMultiTerminalABI = [
     ],
     name: 'processHeldFeesOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -3164,9 +3151,9 @@ export const jbMultiTerminalABI = [
     outputs: [
       { name: 'reclaimAmount', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3179,23 +3166,23 @@ export const jbMultiTerminalABI = [
     outputs: [
       { name: 'amountPaidOut', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
     name: 'supportsInterface',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'trustedForwarder',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -3210,12 +3197,13 @@ export const jbMultiTerminalABI = [
     outputs: [
       { name: 'amountPaidOut', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
 export const jbMultiTerminalAddress = {
   11155111: '0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc',
@@ -3224,11 +3212,11 @@ export const jbMultiTerminalAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
 export const jbMultiTerminalConfig = {
   address: jbMultiTerminalAddress,
-  abi: jbMultiTerminalABI,
+  abi: jbMultiTerminalAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3237,10 +3225,10 @@ export const jbMultiTerminalConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export const jbPermissionsABI = [
-  { stateMutability: 'nonpayable', type: 'constructor', inputs: [] },
+export const jbPermissionsAbi = [
+  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
   { type: 'error', inputs: [], name: 'PERMISSION_ID_OUT_OF_BOUNDS' },
   { type: 'error', inputs: [], name: 'UNAUTHORIZED' },
   {
@@ -3287,16 +3275,15 @@ export const jbPermissionsABI = [
     name: 'OperatorPermissionsSet',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PERMISSIONS',
     outputs: [
       { name: '', internalType: 'contract IJBPermissions', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'operator', internalType: 'address', type: 'address' },
@@ -3306,9 +3293,9 @@ export const jbPermissionsABI = [
     ],
     name: 'hasPermission',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'operator', internalType: 'address', type: 'address' },
@@ -3318,9 +3305,9 @@ export const jbPermissionsABI = [
     ],
     name: 'hasPermissions',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'operator', internalType: 'address', type: 'address' },
@@ -3329,9 +3316,9 @@ export const jbPermissionsABI = [
     ],
     name: 'permissionsOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'account', internalType: 'address', type: 'address' },
@@ -3352,12 +3339,13 @@ export const jbPermissionsABI = [
     ],
     name: 'setPermissionsFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
 export const jbPermissionsAddress = {
   11155111: '0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20',
@@ -3366,11 +3354,11 @@ export const jbPermissionsAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
 export const jbPermissionsConfig = {
   address: jbPermissionsAddress,
-  abi: jbPermissionsABI,
+  abi: jbPermissionsAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3379,13 +3367,13 @@ export const jbPermissionsConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export const jbProjectsABI = [
+export const jbProjectsAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'CheckpointUnorderedInsertion' },
   { type: 'error', inputs: [], name: 'ECDSAInvalidSignature' },
@@ -3667,14 +3655,13 @@ export const jbProjectsABI = [
     name: 'Transfer',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'CLOCK_MODE',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'to', internalType: 'address', type: 'address' },
@@ -3682,44 +3669,44 @@ export const jbProjectsABI = [
     ],
     name: 'approve',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
     name: 'balanceOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'clock',
     outputs: [{ name: '', internalType: 'uint48', type: 'uint48' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'count',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
     name: 'createFor',
     outputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [{ name: 'delegatee', internalType: 'address', type: 'address' }],
     name: 'delegate',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'delegatee', internalType: 'address', type: 'address' },
@@ -3731,16 +3718,16 @@ export const jbProjectsABI = [
     ],
     name: 'delegateBySig',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
     name: 'delegates',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'eip712Domain',
@@ -3753,23 +3740,23 @@ export const jbProjectsABI = [
       { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
       { name: 'extensions', internalType: 'uint256[]', type: 'uint256[]' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
     name: 'getApproved',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'timepoint', internalType: 'uint256', type: 'uint256' }],
     name: 'getPastTotalSupply',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'account', internalType: 'address', type: 'address' },
@@ -3777,16 +3764,16 @@ export const jbProjectsABI = [
     ],
     name: 'getPastVotes',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
     name: 'getVotes',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'owner', internalType: 'address', type: 'address' },
@@ -3794,44 +3781,44 @@ export const jbProjectsABI = [
     ],
     name: 'isApprovedForAll',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'name',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
     name: 'nonces',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'owner',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
     name: 'ownerOf',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [],
     name: 'renounceOwnership',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'from', internalType: 'address', type: 'address' },
@@ -3840,9 +3827,9 @@ export const jbProjectsABI = [
     ],
     name: 'safeTransferFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'from', internalType: 'address', type: 'address' },
@@ -3852,9 +3839,9 @@ export const jbProjectsABI = [
     ],
     name: 'safeTransferFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'operator', internalType: 'address', type: 'address' },
@@ -3862,9 +3849,9 @@ export const jbProjectsABI = [
     ],
     name: 'setApprovalForAll',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       {
@@ -3875,30 +3862,30 @@ export const jbProjectsABI = [
     ],
     name: 'setTokenUriResolver',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
     name: 'supportsInterface',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'symbol',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'tokenURI',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'tokenUriResolver',
@@ -3909,9 +3896,9 @@ export const jbProjectsABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'from', internalType: 'address', type: 'address' },
@@ -3920,19 +3907,20 @@ export const jbProjectsABI = [
     ],
     name: 'transferFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
     name: 'transferOwnership',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
 export const jbProjectsAddress = {
   11155111: '0xA2344fc40695cc7626904CCD4ef919487AffC184',
@@ -3941,11 +3929,11 @@ export const jbProjectsAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
 export const jbProjectsConfig = {
   address: jbProjectsAddress,
-  abi: jbProjectsABI,
+  abi: jbProjectsAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3954,11 +3942,10 @@ export const jbProjectsConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export const jbRulesetsABI = [
+export const jbRulesetsAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -3967,6 +3954,7 @@ export const jbRulesetsABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'BLOCK_ALREADY_CONTAINS_RULESET' },
   { type: 'error', inputs: [], name: 'CONTROLLER_UNAUTHORIZED' },
@@ -4071,25 +4059,24 @@ export const jbRulesetsABI = [
     name: 'RulesetQueued',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'currentApprovalStatusForLatestRulesetOf',
     outputs: [
       { name: '', internalType: 'enum JBApprovalStatus', type: 'uint8' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'currentOf',
@@ -4115,9 +4102,9 @@ export const jbRulesetsABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4146,9 +4133,9 @@ export const jbRulesetsABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'latestQueuedRulesetOf',
@@ -4179,16 +4166,16 @@ export const jbRulesetsABI = [
         type: 'uint8',
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'latestRulesetIdOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4226,9 +4213,9 @@ export const jbRulesetsABI = [
         ],
       },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4258,9 +4245,9 @@ export const jbRulesetsABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'upcomingRulesetOf',
@@ -4286,19 +4273,20 @@ export const jbRulesetsABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'updateRulesetWeightCache',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
 export const jbRulesetsAddress = {
   11155111: '0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2',
@@ -4307,11 +4295,11 @@ export const jbRulesetsAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
 export const jbRulesetsConfig = {
   address: jbRulesetsAddress,
-  abi: jbRulesetsABI,
+  abi: jbRulesetsAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4320,11 +4308,10 @@ export const jbRulesetsConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export const jbSplitsABI = [
+export const jbSplitsAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -4333,6 +4320,7 @@ export const jbSplitsABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'CONTROLLER_UNAUTHORIZED' },
   { type: 'error', inputs: [], name: 'INVALID_LOCKED_UNTIL' },
@@ -4394,23 +4382,22 @@ export const jbSplitsABI = [
     name: 'SetSplit',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'FALLBACK_RULESET_ID',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4451,9 +4438,9 @@ export const jbSplitsABI = [
     ],
     name: 'setSplitGroupsOf',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4484,12 +4471,13 @@ export const jbSplitsABI = [
         ],
       },
     ],
+    stateMutability: 'view',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
 export const jbSplitsAddress = {
   11155111: '0x2C55541689Be91d8912f383749A4Fd3C267A63f4',
@@ -4498,11 +4486,11 @@ export const jbSplitsAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
 export const jbSplitsConfig = {
   address: jbSplitsAddress,
-  abi: jbSplitsABI,
+  abi: jbSplitsAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4511,11 +4499,10 @@ export const jbSplitsConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export const jbTerminalStoreABI = [
+export const jbTerminalStoreAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -4530,6 +4517,7 @@ export const jbTerminalStoreABI = [
       },
       { name: 'prices', internalType: 'contract IJBPrices', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'INADEQUATE_CONTROLLER_ALLOWANCE' },
   { type: 'error', inputs: [], name: 'INADEQUATE_TERMINAL_STORE_BALANCE' },
@@ -4550,34 +4538,33 @@ export const jbTerminalStoreABI = [
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
   { type: 'error', inputs: [], name: 'TERMINAL_MIGRATION_NOT_ALLOWED' },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'PRICES',
     outputs: [
       { name: '', internalType: 'contract IJBPrices', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'RULESETS',
     outputs: [
       { name: '', internalType: 'contract IJBRulesets', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'terminal', internalType: 'address', type: 'address' },
@@ -4586,9 +4573,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'balanceOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'terminal', internalType: 'address', type: 'address' },
@@ -4610,9 +4597,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'currentReclaimableSurplusOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4622,9 +4609,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'currentReclaimableSurplusOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'terminal', internalType: 'address', type: 'address' },
@@ -4644,9 +4631,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'currentSurplusOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4655,9 +4642,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'currentTotalSurplusOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4666,9 +4653,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'recordAddedBalanceFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'payer', internalType: 'address', type: 'address' },
@@ -4725,9 +4712,9 @@ export const jbTerminalStoreABI = [
         ],
       },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4768,9 +4755,9 @@ export const jbTerminalStoreABI = [
       },
       { name: 'amountPaidOut', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -4837,9 +4824,9 @@ export const jbTerminalStoreABI = [
         ],
       },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4847,9 +4834,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'recordTerminalMigration',
     outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -4890,9 +4877,9 @@ export const jbTerminalStoreABI = [
       },
       { name: 'usedAmount', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'terminal', internalType: 'address', type: 'address' },
@@ -4903,9 +4890,9 @@ export const jbTerminalStoreABI = [
     ],
     name: 'usedPayoutLimitOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'terminal', internalType: 'address', type: 'address' },
@@ -4916,12 +4903,13 @@ export const jbTerminalStoreABI = [
     ],
     name: 'usedSurplusAllowanceOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
 export const jbTerminalStoreAddress = {
   11155111: '0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b',
@@ -4930,11 +4918,11 @@ export const jbTerminalStoreAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
 export const jbTerminalStoreConfig = {
   address: jbTerminalStoreAddress,
-  abi: jbTerminalStoreABI,
+  abi: jbTerminalStoreAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4943,11 +4931,10 @@ export const jbTerminalStoreConfig = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export const jbTokensABI = [
+export const jbTokensAbi = [
   {
-    stateMutability: 'nonpayable',
     type: 'constructor',
     inputs: [
       {
@@ -4956,6 +4943,7 @@ export const jbTokensABI = [
         type: 'address',
       },
     ],
+    stateMutability: 'nonpayable',
   },
   { type: 'error', inputs: [], name: 'CONTROLLER_UNAUTHORIZED' },
   { type: 'error', inputs: [], name: 'EMPTY_NAME' },
@@ -5193,16 +5181,15 @@ export const jbTokensABI = [
     name: 'TransferCredits',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [],
     name: 'DIRECTORY',
     outputs: [
       { name: '', internalType: 'contract IJBDirectory', type: 'address' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5211,9 +5198,9 @@ export const jbTokensABI = [
     ],
     name: 'burnFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5223,9 +5210,9 @@ export const jbTokensABI = [
     ],
     name: 'claimTokensFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5233,9 +5220,9 @@ export const jbTokensABI = [
     ],
     name: 'creditBalanceOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -5247,9 +5234,9 @@ export const jbTokensABI = [
     outputs: [
       { name: 'token', internalType: 'contract IJBToken', type: 'address' },
     ],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5258,18 +5245,18 @@ export const jbTokensABI = [
     ],
     name: 'mintFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'token', internalType: 'contract IJBToken', type: 'address' },
     ],
     name: 'projectIdOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
@@ -5277,16 +5264,16 @@ export const jbTokensABI = [
     ],
     name: 'setTokenFor',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'tokenOf',
     outputs: [{ name: '', internalType: 'contract IJBToken', type: 'address' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5294,25 +5281,25 @@ export const jbTokensABI = [
     ],
     name: 'totalBalanceOf',
     outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'totalCreditSupplyOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'view',
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'totalSupplyOf',
     outputs: [
       { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'view',
   },
   {
-    stateMutability: 'nonpayable',
     type: 'function',
     inputs: [
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -5322,12 +5309,13 @@ export const jbTokensABI = [
     ],
     name: 'transferCreditsFrom',
     outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
 export const jbTokensAddress = {
   11155111: '0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709',
@@ -5336,11 +5324,11 @@ export const jbTokensAddress = {
 
 /**
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
 export const jbTokensConfig = {
   address: jbTokensAddress,
-  abi: jbTokensABI,
+  abi: jbTokensAbi,
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5348,9502 +5336,3707 @@ export const jbTokensConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerRead<
-  TFunctionName extends string,
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbController = /*#__PURE__*/ createUseReadContract({
+  abi: jbControllerAbi,
+  address: jbControllerAddress,
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"DIRECTORY"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"DIRECTORY"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerDirectory<
-  TFunctionName extends 'DIRECTORY',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerDirectory = /*#__PURE__*/ createUseReadContract(
+  {
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'DIRECTORY',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  },
+)
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"FUND_ACCESS_LIMITS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"FUND_ACCESS_LIMITS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerFundAccessLimits<
-  TFunctionName extends 'FUND_ACCESS_LIMITS',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerFundAccessLimits =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'FUND_ACCESS_LIMITS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"PERMISSIONS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"PERMISSIONS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerPermissions<
-  TFunctionName extends 'PERMISSIONS',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerPermissions =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'PERMISSIONS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"PROJECTS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"PROJECTS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerProjects<
-  TFunctionName extends 'PROJECTS',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'PROJECTS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbControllerProjects = /*#__PURE__*/ createUseReadContract({
+  abi: jbControllerAbi,
+  address: jbControllerAddress,
+  functionName: 'PROJECTS',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"RULESETS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"RULESETS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerRulesets<
-  TFunctionName extends 'RULESETS',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'RULESETS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbControllerRulesets = /*#__PURE__*/ createUseReadContract({
+  abi: jbControllerAbi,
+  address: jbControllerAddress,
+  functionName: 'RULESETS',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"SPLITS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"SPLITS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSplits<
-  TFunctionName extends 'SPLITS',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'SPLITS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbControllerSplits = /*#__PURE__*/ createUseReadContract({
+  abi: jbControllerAbi,
+  address: jbControllerAddress,
+  functionName: 'SPLITS',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"TOKENS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"TOKENS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerTokens<
-  TFunctionName extends 'TOKENS',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'TOKENS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbControllerTokens = /*#__PURE__*/ createUseReadContract({
+  abi: jbControllerAbi,
+  address: jbControllerAddress,
+  functionName: 'TOKENS',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"currentRulesetOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"currentRulesetOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerCurrentRulesetOf<
-  TFunctionName extends 'currentRulesetOf',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerCurrentRulesetOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'currentRulesetOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"getRulesetOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"getRulesetOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerGetRulesetOf<
-  TFunctionName extends 'getRulesetOf',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerGetRulesetOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'getRulesetOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"isTrustedForwarder"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"isTrustedForwarder"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerIsTrustedForwarder<
-  TFunctionName extends 'isTrustedForwarder',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerIsTrustedForwarder =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'isTrustedForwarder',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"latestQueuedRulesetOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"latestQueuedRulesetOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerLatestQueuedRulesetOf<
-  TFunctionName extends 'latestQueuedRulesetOf',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerLatestQueuedRulesetOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'latestQueuedRulesetOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"pendingReservedTokenBalanceOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"pendingReservedTokenBalanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerPendingReservedTokenBalanceOf<
-  TFunctionName extends 'pendingReservedTokenBalanceOf',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerPendingReservedTokenBalanceOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'pendingReservedTokenBalanceOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"rulesetsOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"rulesetsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerRulesetsOf<
-  TFunctionName extends 'rulesetsOf',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerRulesetsOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'rulesetsOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"setControllerAllowed"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setControllerAllowed"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSetControllerAllowed<
-  TFunctionName extends 'setControllerAllowed',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerSetControllerAllowed =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'setControllerAllowed',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"setTerminalsAllowed"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setTerminalsAllowed"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSetTerminalsAllowed<
-  TFunctionName extends 'setTerminalsAllowed',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerSetTerminalsAllowed =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'setTerminalsAllowed',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"supportsInterface"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"supportsInterface"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSupportsInterface<
-  TFunctionName extends 'supportsInterface',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerSupportsInterface =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'supportsInterface',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"totalTokenSupplyWithReservedTokensOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"totalTokenSupplyWithReservedTokensOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerTotalTokenSupplyWithReservedTokensOf<
-  TFunctionName extends 'totalTokenSupplyWithReservedTokensOf',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerTotalTokenSupplyWithReservedTokensOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'totalTokenSupplyWithReservedTokensOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"trustedForwarder"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"trustedForwarder"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerTrustedForwarder<
-  TFunctionName extends 'trustedForwarder',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerTrustedForwarder =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'trustedForwarder',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"upcomingRulesetOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"upcomingRulesetOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerUpcomingRulesetOf<
-  TFunctionName extends 'upcomingRulesetOf',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useReadJbControllerUpcomingRulesetOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'upcomingRulesetOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"uriOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"uriOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerUriOf<
-  TFunctionName extends 'uriOf',
-  TSelectData = ReadContractResult<typeof jbControllerABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbControllerABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'uriOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbControllerABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbControllerUriOf = /*#__PURE__*/ createUseReadContract({
+  abi: jbControllerAbi,
+  address: jbControllerAddress,
+  functionName: 'uriOf',
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerWrite<
-  TFunctionName extends string,
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          string
-        >['request']['abi'],
-        TFunctionName,
-        TMode
-      > & { address?: Address; chainId?: TChainId }
-    : UseContractWriteConfig<typeof jbControllerABI, TFunctionName, TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, TFunctionName, TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    ...config,
-  } as any)
-}
+export const useWriteJbController = /*#__PURE__*/ createUseWriteContract({
+  abi: jbControllerAbi,
+  address: jbControllerAddress,
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"burnTokensOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"burnTokensOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerBurnTokensOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'burnTokensOf'
-        >['request']['abi'],
-        'burnTokensOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'burnTokensOf'
-      }
-    : UseContractWriteConfig<typeof jbControllerABI, 'burnTokensOf', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'burnTokensOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'burnTokensOf', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerBurnTokensOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'burnTokensOf',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"claimTokensFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"claimTokensFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerClaimTokensFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'claimTokensFor'
-        >['request']['abi'],
-        'claimTokensFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'claimTokensFor'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'claimTokensFor',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'claimTokensFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'claimTokensFor', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerClaimTokensFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'claimTokensFor',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"deployERC20For"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"deployERC20For"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerDeployErc20For<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'deployERC20For'
-        >['request']['abi'],
-        'deployERC20For',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'deployERC20For'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'deployERC20For',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'deployERC20For'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'deployERC20For', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerDeployErc20For =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'deployERC20For',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"launchProjectFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"launchProjectFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerLaunchProjectFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'launchProjectFor'
-        >['request']['abi'],
-        'launchProjectFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'launchProjectFor'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'launchProjectFor',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'launchProjectFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'launchProjectFor', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerLaunchProjectFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'launchProjectFor',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"launchRulesetsFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"launchRulesetsFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerLaunchRulesetsFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'launchRulesetsFor'
-        >['request']['abi'],
-        'launchRulesetsFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'launchRulesetsFor'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'launchRulesetsFor',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'launchRulesetsFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'launchRulesetsFor', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerLaunchRulesetsFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'launchRulesetsFor',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"migrateController"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"migrateController"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerMigrateController<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'migrateController'
-        >['request']['abi'],
-        'migrateController',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'migrateController'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'migrateController',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'migrateController'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'migrateController', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerMigrateController =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'migrateController',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"mintTokensOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"mintTokensOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerMintTokensOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'mintTokensOf'
-        >['request']['abi'],
-        'mintTokensOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'mintTokensOf'
-      }
-    : UseContractWriteConfig<typeof jbControllerABI, 'mintTokensOf', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'mintTokensOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'mintTokensOf', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerMintTokensOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'mintTokensOf',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"payReservedTokenToTerminal"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"payReservedTokenToTerminal"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerPayReservedTokenToTerminal<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'payReservedTokenToTerminal'
-        >['request']['abi'],
-        'payReservedTokenToTerminal',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'payReservedTokenToTerminal'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'payReservedTokenToTerminal',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'payReservedTokenToTerminal'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbControllerABI,
-    'payReservedTokenToTerminal',
-    TMode
-  >({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerPayReservedTokenToTerminal =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'payReservedTokenToTerminal',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"queueRulesetsOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"queueRulesetsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerQueueRulesetsOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'queueRulesetsOf'
-        >['request']['abi'],
-        'queueRulesetsOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'queueRulesetsOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'queueRulesetsOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'queueRulesetsOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'queueRulesetsOf', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerQueueRulesetsOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'queueRulesetsOf',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"receiveMigrationFrom"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"receiveMigrationFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerReceiveMigrationFrom<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'receiveMigrationFrom'
-        >['request']['abi'],
-        'receiveMigrationFrom',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'receiveMigrationFrom'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'receiveMigrationFrom',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'receiveMigrationFrom'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbControllerABI,
-    'receiveMigrationFrom',
-    TMode
-  >({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerReceiveMigrationFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'receiveMigrationFrom',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"sendReservedTokensToSplitsOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"sendReservedTokensToSplitsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSendReservedTokensToSplitsOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'sendReservedTokensToSplitsOf'
-        >['request']['abi'],
-        'sendReservedTokensToSplitsOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'sendReservedTokensToSplitsOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'sendReservedTokensToSplitsOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'sendReservedTokensToSplitsOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbControllerABI,
-    'sendReservedTokensToSplitsOf',
-    TMode
-  >({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerSendReservedTokensToSplitsOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'sendReservedTokensToSplitsOf',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"setSplitGroupsOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setSplitGroupsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSetSplitGroupsOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'setSplitGroupsOf'
-        >['request']['abi'],
-        'setSplitGroupsOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setSplitGroupsOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'setSplitGroupsOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setSplitGroupsOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'setSplitGroupsOf', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerSetSplitGroupsOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'setSplitGroupsOf',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"setTokenFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setTokenFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSetTokenFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'setTokenFor'
-        >['request']['abi'],
-        'setTokenFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setTokenFor'
-      }
-    : UseContractWriteConfig<typeof jbControllerABI, 'setTokenFor', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setTokenFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'setTokenFor', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerSetTokenFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'setTokenFor',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"setUriOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setUriOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSetUriOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'setUriOf'
-        >['request']['abi'],
-        'setUriOf',
-        TMode
-      > & { address?: Address; chainId?: TChainId; functionName?: 'setUriOf' }
-    : UseContractWriteConfig<typeof jbControllerABI, 'setUriOf', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setUriOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'setUriOf', TMode>({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerSetUriOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'setUriOf',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"transferCreditsFrom"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"transferCreditsFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerTransferCreditsFrom<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbControllerAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbControllerABI,
-          'transferCreditsFrom'
-        >['request']['abi'],
-        'transferCreditsFrom',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'transferCreditsFrom'
-      }
-    : UseContractWriteConfig<
-        typeof jbControllerABI,
-        'transferCreditsFrom',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'transferCreditsFrom'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbControllerABI, 'transferCreditsFrom', TMode>(
-    {
-      abi: jbControllerABI,
-      address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-      functionName: 'transferCreditsFrom',
-      ...config,
-    } as any,
-  )
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerWrite<TFunctionName extends string>(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, TFunctionName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbControllerABI, TFunctionName>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"burnTokensOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerBurnTokensOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'burnTokensOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'burnTokensOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbControllerABI, 'burnTokensOf'>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"claimTokensFor"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerClaimTokensFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'claimTokensFor'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'claimTokensFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbControllerABI, 'claimTokensFor'>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"deployERC20For"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerDeployErc20For(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'deployERC20For'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'deployERC20For',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbControllerABI, 'deployERC20For'>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"launchProjectFor"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerLaunchProjectFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'launchProjectFor'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'launchProjectFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbControllerABI,
-    'launchProjectFor'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"launchRulesetsFor"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerLaunchRulesetsFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'launchRulesetsFor'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'launchRulesetsFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbControllerABI,
-    'launchRulesetsFor'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"migrateController"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerMigrateController(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'migrateController'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'migrateController',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbControllerABI,
-    'migrateController'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"mintTokensOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerMintTokensOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'mintTokensOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'mintTokensOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbControllerABI, 'mintTokensOf'>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"payReservedTokenToTerminal"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerPayReservedTokenToTerminal(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbControllerABI,
-      'payReservedTokenToTerminal'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'payReservedTokenToTerminal',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbControllerABI,
-    'payReservedTokenToTerminal'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"queueRulesetsOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerQueueRulesetsOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'queueRulesetsOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'queueRulesetsOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbControllerABI, 'queueRulesetsOf'>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"receiveMigrationFrom"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerReceiveMigrationFrom(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbControllerABI,
-      'receiveMigrationFrom'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'receiveMigrationFrom',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbControllerABI,
-    'receiveMigrationFrom'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"sendReservedTokensToSplitsOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerSendReservedTokensToSplitsOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbControllerABI,
-      'sendReservedTokensToSplitsOf'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'sendReservedTokensToSplitsOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbControllerABI,
-    'sendReservedTokensToSplitsOf'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"setSplitGroupsOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerSetSplitGroupsOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'setSplitGroupsOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'setSplitGroupsOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbControllerABI,
-    'setSplitGroupsOf'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"setTokenFor"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerSetTokenFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'setTokenFor'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'setTokenFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbControllerABI, 'setTokenFor'>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"setUriOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerSetUriOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbControllerABI, 'setUriOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    functionName: 'setUriOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbControllerABI, 'setUriOf'>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbControllerABI}__ and `functionName` set to `"transferCreditsFrom"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
- */
-export function usePrepareJbControllerTransferCreditsFrom(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbControllerABI,
-      'transferCreditsFrom'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWriteJbControllerTransferCreditsFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     functionName: 'transferCreditsFrom',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbControllerABI,
-    'transferCreditsFrom'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerEvent<TEventName extends string>(
-  config: Omit<
-    UseContractEventConfig<typeof jbControllerABI, TEventName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
-    ...config,
-  } as UseContractEventConfig<typeof jbControllerABI, TEventName>)
-}
+export const useSimulateJbController = /*#__PURE__*/ createUseSimulateContract({
+  abi: jbControllerAbi,
+  address: jbControllerAddress,
+})
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"BurnTokens"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"burnTokensOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerBurnTokensEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbControllerABI, 'BurnTokens'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useSimulateJbControllerBurnTokensOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'burnTokensOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"claimTokensFor"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerClaimTokensFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'claimTokensFor',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"deployERC20For"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerDeployErc20For =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'deployERC20For',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"launchProjectFor"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerLaunchProjectFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'launchProjectFor',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"launchRulesetsFor"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerLaunchRulesetsFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'launchRulesetsFor',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"migrateController"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerMigrateController =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'migrateController',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"mintTokensOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerMintTokensOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'mintTokensOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"payReservedTokenToTerminal"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerPayReservedTokenToTerminal =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'payReservedTokenToTerminal',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"queueRulesetsOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerQueueRulesetsOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'queueRulesetsOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"receiveMigrationFrom"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerReceiveMigrationFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'receiveMigrationFrom',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"sendReservedTokensToSplitsOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerSendReservedTokensToSplitsOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'sendReservedTokensToSplitsOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setSplitGroupsOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerSetSplitGroupsOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'setSplitGroupsOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setTokenFor"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerSetTokenFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'setTokenFor',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setUriOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerSetUriOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'setUriOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"transferCreditsFrom"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useSimulateJbControllerTransferCreditsFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+    functionName: 'transferCreditsFrom',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useWatchJbControllerEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"BurnTokens"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ */
+export const useWatchJbControllerBurnTokensEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'BurnTokens',
-    ...config,
-  } as UseContractEventConfig<typeof jbControllerABI, 'BurnTokens'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"LaunchProject"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"LaunchProject"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerLaunchProjectEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbControllerABI, 'LaunchProject'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWatchJbControllerLaunchProjectEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'LaunchProject',
-    ...config,
-  } as UseContractEventConfig<typeof jbControllerABI, 'LaunchProject'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"LaunchRulesets"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"LaunchRulesets"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerLaunchRulesetsEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbControllerABI, 'LaunchRulesets'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWatchJbControllerLaunchRulesetsEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'LaunchRulesets',
-    ...config,
-  } as UseContractEventConfig<typeof jbControllerABI, 'LaunchRulesets'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"MigrateController"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"MigrateController"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerMigrateControllerEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbControllerABI, 'MigrateController'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWatchJbControllerMigrateControllerEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'MigrateController',
-    ...config,
-  } as UseContractEventConfig<typeof jbControllerABI, 'MigrateController'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"MintTokens"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"MintTokens"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerMintTokensEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbControllerABI, 'MintTokens'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWatchJbControllerMintTokensEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'MintTokens',
-    ...config,
-  } as UseContractEventConfig<typeof jbControllerABI, 'MintTokens'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"PrepMigration"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"PrepMigration"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerPrepMigrationEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbControllerABI, 'PrepMigration'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWatchJbControllerPrepMigrationEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'PrepMigration',
-    ...config,
-  } as UseContractEventConfig<typeof jbControllerABI, 'PrepMigration'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"QueueRulesets"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"QueueRulesets"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerQueueRulesetsEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbControllerABI, 'QueueRulesets'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWatchJbControllerQueueRulesetsEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'QueueRulesets',
-    ...config,
-  } as UseContractEventConfig<typeof jbControllerABI, 'QueueRulesets'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"ReservedDistributionReverted"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"ReservedDistributionReverted"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerReservedDistributionRevertedEvent(
-  config: Omit<
-    UseContractEventConfig<
-      typeof jbControllerABI,
-      'ReservedDistributionReverted'
-    >,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWatchJbControllerReservedDistributionRevertedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'ReservedDistributionReverted',
-    ...config,
-  } as UseContractEventConfig<
-    typeof jbControllerABI,
-    'ReservedDistributionReverted'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"SendReservedTokensToSplit"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"SendReservedTokensToSplit"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSendReservedTokensToSplitEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbControllerABI, 'SendReservedTokensToSplit'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWatchJbControllerSendReservedTokensToSplitEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'SendReservedTokensToSplit',
-    ...config,
-  } as UseContractEventConfig<
-    typeof jbControllerABI,
-    'SendReservedTokensToSplit'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"SendReservedTokensToSplits"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"SendReservedTokensToSplits"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSendReservedTokensToSplitsEvent(
-  config: Omit<
-    UseContractEventConfig<
-      typeof jbControllerABI,
-      'SendReservedTokensToSplits'
-    >,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWatchJbControllerSendReservedTokensToSplitsEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'SendReservedTokensToSplits',
-    ...config,
-  } as UseContractEventConfig<
-    typeof jbControllerABI,
-    'SendReservedTokensToSplits'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbControllerABI}__ and `eventName` set to `"SetMetadata"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"SetMetadata"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
  */
-export function useJbControllerSetMetadataEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbControllerABI, 'SetMetadata'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbControllerAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbControllerABI,
-    address: jbControllerAddress[chainId as keyof typeof jbControllerAddress],
+export const useWatchJbControllerSetMetadataEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbControllerAbi,
+    address: jbControllerAddress,
     eventName: 'SetMetadata',
-    ...config,
-  } as UseContractEventConfig<typeof jbControllerABI, 'SetMetadata'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbDirectoryABI}__.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbDirectoryAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryRead<
-  TFunctionName extends string,
-  TSelectData = ReadContractResult<typeof jbDirectoryABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    ...config,
-  } as UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>)
-}
+export const useReadJbDirectory = /*#__PURE__*/ createUseReadContract({
+  abi: jbDirectoryAbi,
+  address: jbDirectoryAddress,
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"PERMISSIONS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"PERMISSIONS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryPermissions<
-  TFunctionName extends 'PERMISSIONS',
-  TSelectData = ReadContractResult<typeof jbDirectoryABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useReadJbDirectoryPermissions =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'PERMISSIONS',
-    ...config,
-  } as UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"PROJECTS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"PROJECTS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryProjects<
-  TFunctionName extends 'PROJECTS',
-  TSelectData = ReadContractResult<typeof jbDirectoryABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    functionName: 'PROJECTS',
-    ...config,
-  } as UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>)
-}
+export const useReadJbDirectoryProjects = /*#__PURE__*/ createUseReadContract({
+  abi: jbDirectoryAbi,
+  address: jbDirectoryAddress,
+  functionName: 'PROJECTS',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"controllerOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"controllerOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryControllerOf<
-  TFunctionName extends 'controllerOf',
-  TSelectData = ReadContractResult<typeof jbDirectoryABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useReadJbDirectoryControllerOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'controllerOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"isAllowedToSetFirstController"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"isAllowedToSetFirstController"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryIsAllowedToSetFirstController<
-  TFunctionName extends 'isAllowedToSetFirstController',
-  TSelectData = ReadContractResult<typeof jbDirectoryABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useReadJbDirectoryIsAllowedToSetFirstController =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'isAllowedToSetFirstController',
-    ...config,
-  } as UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"isTerminalOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"isTerminalOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryIsTerminalOf<
-  TFunctionName extends 'isTerminalOf',
-  TSelectData = ReadContractResult<typeof jbDirectoryABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useReadJbDirectoryIsTerminalOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'isTerminalOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"owner"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"owner"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryOwner<
-  TFunctionName extends 'owner',
-  TSelectData = ReadContractResult<typeof jbDirectoryABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    functionName: 'owner',
-    ...config,
-  } as UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>)
-}
+export const useReadJbDirectoryOwner = /*#__PURE__*/ createUseReadContract({
+  abi: jbDirectoryAbi,
+  address: jbDirectoryAddress,
+  functionName: 'owner',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"primaryTerminalOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"primaryTerminalOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryPrimaryTerminalOf<
-  TFunctionName extends 'primaryTerminalOf',
-  TSelectData = ReadContractResult<typeof jbDirectoryABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useReadJbDirectoryPrimaryTerminalOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'primaryTerminalOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"terminalsOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"terminalsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryTerminalsOf<
-  TFunctionName extends 'terminalsOf',
-  TSelectData = ReadContractResult<typeof jbDirectoryABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useReadJbDirectoryTerminalsOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'terminalsOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbDirectoryABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbDirectoryAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryWrite<
-  TFunctionName extends string,
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbDirectoryAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbDirectoryABI,
-          string
-        >['request']['abi'],
-        TFunctionName,
-        TMode
-      > & { address?: Address; chainId?: TChainId }
-    : UseContractWriteConfig<typeof jbDirectoryABI, TFunctionName, TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbDirectoryABI, TFunctionName, TMode>({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    ...config,
-  } as any)
-}
+export const useWriteJbDirectory = /*#__PURE__*/ createUseWriteContract({
+  abi: jbDirectoryAbi,
+  address: jbDirectoryAddress,
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"renounceOwnership"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"renounceOwnership"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryRenounceOwnership<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbDirectoryAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbDirectoryABI,
-          'renounceOwnership'
-        >['request']['abi'],
-        'renounceOwnership',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'renounceOwnership'
-      }
-    : UseContractWriteConfig<
-        typeof jbDirectoryABI,
-        'renounceOwnership',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'renounceOwnership'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbDirectoryABI, 'renounceOwnership', TMode>({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWriteJbDirectoryRenounceOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'renounceOwnership',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"setControllerOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setControllerOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectorySetControllerOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbDirectoryAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbDirectoryABI,
-          'setControllerOf'
-        >['request']['abi'],
-        'setControllerOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setControllerOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbDirectoryABI,
-        'setControllerOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setControllerOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbDirectoryABI, 'setControllerOf', TMode>({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWriteJbDirectorySetControllerOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'setControllerOf',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"setIsAllowedToSetFirstController"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setIsAllowedToSetFirstController"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectorySetIsAllowedToSetFirstController<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbDirectoryAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbDirectoryABI,
-          'setIsAllowedToSetFirstController'
-        >['request']['abi'],
-        'setIsAllowedToSetFirstController',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setIsAllowedToSetFirstController'
-      }
-    : UseContractWriteConfig<
-        typeof jbDirectoryABI,
-        'setIsAllowedToSetFirstController',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setIsAllowedToSetFirstController'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbDirectoryABI,
-    'setIsAllowedToSetFirstController',
-    TMode
-  >({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWriteJbDirectorySetIsAllowedToSetFirstController =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'setIsAllowedToSetFirstController',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"setPrimaryTerminalOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setPrimaryTerminalOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectorySetPrimaryTerminalOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbDirectoryAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbDirectoryABI,
-          'setPrimaryTerminalOf'
-        >['request']['abi'],
-        'setPrimaryTerminalOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setPrimaryTerminalOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbDirectoryABI,
-        'setPrimaryTerminalOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setPrimaryTerminalOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbDirectoryABI, 'setPrimaryTerminalOf', TMode>(
-    {
-      abi: jbDirectoryABI,
-      address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-      functionName: 'setPrimaryTerminalOf',
-      ...config,
-    } as any,
-  )
-}
-
-/**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"setTerminalsOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
- */
-export function useJbDirectorySetTerminalsOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbDirectoryAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbDirectoryABI,
-          'setTerminalsOf'
-        >['request']['abi'],
-        'setTerminalsOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setTerminalsOf'
-      }
-    : UseContractWriteConfig<typeof jbDirectoryABI, 'setTerminalsOf', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setTerminalsOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbDirectoryABI, 'setTerminalsOf', TMode>({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    functionName: 'setTerminalsOf',
-    ...config,
-  } as any)
-}
-
-/**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"transferOwnership"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
- */
-export function useJbDirectoryTransferOwnership<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbDirectoryAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbDirectoryABI,
-          'transferOwnership'
-        >['request']['abi'],
-        'transferOwnership',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'transferOwnership'
-      }
-    : UseContractWriteConfig<
-        typeof jbDirectoryABI,
-        'transferOwnership',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'transferOwnership'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbDirectoryABI, 'transferOwnership', TMode>({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    functionName: 'transferOwnership',
-    ...config,
-  } as any)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
- */
-export function usePrepareJbDirectoryWrite<TFunctionName extends string>(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbDirectoryABI, TFunctionName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbDirectoryABI, TFunctionName>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"renounceOwnership"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
- */
-export function usePrepareJbDirectoryRenounceOwnership(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbDirectoryABI, 'renounceOwnership'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    functionName: 'renounceOwnership',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbDirectoryABI,
-    'renounceOwnership'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"setControllerOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
- */
-export function usePrepareJbDirectorySetControllerOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbDirectoryABI, 'setControllerOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    functionName: 'setControllerOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbDirectoryABI, 'setControllerOf'>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"setIsAllowedToSetFirstController"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
- */
-export function usePrepareJbDirectorySetIsAllowedToSetFirstController(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbDirectoryABI,
-      'setIsAllowedToSetFirstController'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    functionName: 'setIsAllowedToSetFirstController',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbDirectoryABI,
-    'setIsAllowedToSetFirstController'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"setPrimaryTerminalOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
- */
-export function usePrepareJbDirectorySetPrimaryTerminalOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbDirectoryABI,
-      'setPrimaryTerminalOf'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWriteJbDirectorySetPrimaryTerminalOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'setPrimaryTerminalOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbDirectoryABI,
-    'setPrimaryTerminalOf'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"setTerminalsOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setTerminalsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function usePrepareJbDirectorySetTerminalsOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbDirectoryABI, 'setTerminalsOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWriteJbDirectorySetTerminalsOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'setTerminalsOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbDirectoryABI, 'setTerminalsOf'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbDirectoryABI}__ and `functionName` set to `"transferOwnership"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"transferOwnership"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function usePrepareJbDirectoryTransferOwnership(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbDirectoryABI, 'transferOwnership'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWriteJbDirectoryTransferOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     functionName: 'transferOwnership',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbDirectoryABI,
-    'transferOwnership'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbDirectoryABI}__.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryEvent<TEventName extends string>(
-  config: Omit<
-    UseContractEventConfig<typeof jbDirectoryABI, TEventName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
-    ...config,
-  } as UseContractEventConfig<typeof jbDirectoryABI, TEventName>)
-}
+export const useSimulateJbDirectory = /*#__PURE__*/ createUseSimulateContract({
+  abi: jbDirectoryAbi,
+  address: jbDirectoryAddress,
+})
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbDirectoryABI}__ and `eventName` set to `"AddTerminal"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"renounceOwnership"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryAddTerminalEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbDirectoryABI, 'AddTerminal'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useSimulateJbDirectoryRenounceOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setControllerOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ */
+export const useSimulateJbDirectorySetControllerOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
+    functionName: 'setControllerOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setIsAllowedToSetFirstController"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ */
+export const useSimulateJbDirectorySetIsAllowedToSetFirstController =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
+    functionName: 'setIsAllowedToSetFirstController',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setPrimaryTerminalOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ */
+export const useSimulateJbDirectorySetPrimaryTerminalOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
+    functionName: 'setPrimaryTerminalOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setTerminalsOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ */
+export const useSimulateJbDirectorySetTerminalsOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
+    functionName: 'setTerminalsOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ */
+export const useSimulateJbDirectoryTransferOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ */
+export const useWatchJbDirectoryEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"AddTerminal"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ */
+export const useWatchJbDirectoryAddTerminalEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     eventName: 'AddTerminal',
-    ...config,
-  } as UseContractEventConfig<typeof jbDirectoryABI, 'AddTerminal'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbDirectoryABI}__ and `eventName` set to `"OwnershipTransferred"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"OwnershipTransferred"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectoryOwnershipTransferredEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbDirectoryABI, 'OwnershipTransferred'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWatchJbDirectoryOwnershipTransferredEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     eventName: 'OwnershipTransferred',
-    ...config,
-  } as UseContractEventConfig<typeof jbDirectoryABI, 'OwnershipTransferred'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbDirectoryABI}__ and `eventName` set to `"SetController"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetController"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectorySetControllerEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbDirectoryABI, 'SetController'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWatchJbDirectorySetControllerEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     eventName: 'SetController',
-    ...config,
-  } as UseContractEventConfig<typeof jbDirectoryABI, 'SetController'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbDirectoryABI}__ and `eventName` set to `"SetIsAllowedToSetFirstController"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetIsAllowedToSetFirstController"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectorySetIsAllowedToSetFirstControllerEvent(
-  config: Omit<
-    UseContractEventConfig<
-      typeof jbDirectoryABI,
-      'SetIsAllowedToSetFirstController'
-    >,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWatchJbDirectorySetIsAllowedToSetFirstControllerEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     eventName: 'SetIsAllowedToSetFirstController',
-    ...config,
-  } as UseContractEventConfig<
-    typeof jbDirectoryABI,
-    'SetIsAllowedToSetFirstController'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbDirectoryABI}__ and `eventName` set to `"SetPrimaryTerminal"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetPrimaryTerminal"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectorySetPrimaryTerminalEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbDirectoryABI, 'SetPrimaryTerminal'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWatchJbDirectorySetPrimaryTerminalEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     eventName: 'SetPrimaryTerminal',
-    ...config,
-  } as UseContractEventConfig<typeof jbDirectoryABI, 'SetPrimaryTerminal'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbDirectoryABI}__ and `eventName` set to `"SetTerminals"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetTerminals"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
  */
-export function useJbDirectorySetTerminalsEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbDirectoryABI, 'SetTerminals'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbDirectoryAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbDirectoryABI,
-    address: jbDirectoryAddress[chainId as keyof typeof jbDirectoryAddress],
+export const useWatchJbDirectorySetTerminalsEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbDirectoryAbi,
+    address: jbDirectoryAddress,
     eventName: 'SetTerminals',
-    ...config,
-  } as UseContractEventConfig<typeof jbDirectoryABI, 'SetTerminals'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalRead<
-  TFunctionName extends string,
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbMultiTerminal = /*#__PURE__*/ createUseReadContract({
+  abi: jbMultiTerminalAbi,
+  address: jbMultiTerminalAddress,
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"DIRECTORY"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"DIRECTORY"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalDirectory<
-  TFunctionName extends 'DIRECTORY',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalDirectory =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'DIRECTORY',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"FEE"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"FEE"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalFee<
-  TFunctionName extends 'FEE',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'FEE',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbMultiTerminalFee = /*#__PURE__*/ createUseReadContract({
+  abi: jbMultiTerminalAbi,
+  address: jbMultiTerminalAddress,
+  functionName: 'FEE',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"FEELESS_ADDRESSES"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"FEELESS_ADDRESSES"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalFeelessAddresses<
-  TFunctionName extends 'FEELESS_ADDRESSES',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalFeelessAddresses =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'FEELESS_ADDRESSES',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"PERMISSIONS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"PERMISSIONS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalPermissions<
-  TFunctionName extends 'PERMISSIONS',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalPermissions =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'PERMISSIONS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"PERMIT2"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"PERMIT2"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalPermit2<
-  TFunctionName extends 'PERMIT2',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalPermit2 =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'PERMIT2',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"PROJECTS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"PROJECTS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalProjects<
-  TFunctionName extends 'PROJECTS',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalProjects =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'PROJECTS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"SPLITS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"SPLITS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalSplits<
-  TFunctionName extends 'SPLITS',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalSplits = /*#__PURE__*/ createUseReadContract(
+  {
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'SPLITS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  },
+)
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"STORE"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"STORE"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalStore<
-  TFunctionName extends 'STORE',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'STORE',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbMultiTerminalStore = /*#__PURE__*/ createUseReadContract({
+  abi: jbMultiTerminalAbi,
+  address: jbMultiTerminalAddress,
+  functionName: 'STORE',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"accountingContextForTokenOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"accountingContextForTokenOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalAccountingContextForTokenOf<
-  TFunctionName extends 'accountingContextForTokenOf',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalAccountingContextForTokenOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'accountingContextForTokenOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"accountingContextsOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"accountingContextsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalAccountingContextsOf<
-  TFunctionName extends 'accountingContextsOf',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalAccountingContextsOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'accountingContextsOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"currentSurplusOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"currentSurplusOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalCurrentSurplusOf<
-  TFunctionName extends 'currentSurplusOf',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalCurrentSurplusOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'currentSurplusOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"heldFeesOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"heldFeesOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalHeldFeesOf<
-  TFunctionName extends 'heldFeesOf',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalHeldFeesOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'heldFeesOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"isTrustedForwarder"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"isTrustedForwarder"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalIsTrustedForwarder<
-  TFunctionName extends 'isTrustedForwarder',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalIsTrustedForwarder =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'isTrustedForwarder',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"supportsInterface"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"supportsInterface"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalSupportsInterface<
-  TFunctionName extends 'supportsInterface',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalSupportsInterface =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'supportsInterface',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"trustedForwarder"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"trustedForwarder"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalTrustedForwarder<
-  TFunctionName extends 'trustedForwarder',
-  TSelectData = ReadContractResult<typeof jbMultiTerminalABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbMultiTerminalABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useReadJbMultiTerminalTrustedForwarder =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'trustedForwarder',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbMultiTerminalABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalWrite<
-  TFunctionName extends string,
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          string
-        >['request']['abi'],
-        TFunctionName,
-        TMode
-      > & { address?: Address; chainId?: TChainId }
-    : UseContractWriteConfig<
-        typeof jbMultiTerminalABI,
-        TFunctionName,
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbMultiTerminalABI, TFunctionName, TMode>({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    ...config,
-  } as any)
-}
+export const useWriteJbMultiTerminal = /*#__PURE__*/ createUseWriteContract({
+  abi: jbMultiTerminalAbi,
+  address: jbMultiTerminalAddress,
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"addAccountingContextsFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"addAccountingContextsFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalAddAccountingContextsFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          'addAccountingContextsFor'
-        >['request']['abi'],
-        'addAccountingContextsFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'addAccountingContextsFor'
-      }
-    : UseContractWriteConfig<
-        typeof jbMultiTerminalABI,
-        'addAccountingContextsFor',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'addAccountingContextsFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbMultiTerminalABI,
-    'addAccountingContextsFor',
-    TMode
-  >({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWriteJbMultiTerminalAddAccountingContextsFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'addAccountingContextsFor',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"addToBalanceOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"addToBalanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalAddToBalanceOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          'addToBalanceOf'
-        >['request']['abi'],
-        'addToBalanceOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'addToBalanceOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbMultiTerminalABI,
-        'addToBalanceOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'addToBalanceOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbMultiTerminalABI, 'addToBalanceOf', TMode>({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWriteJbMultiTerminalAddToBalanceOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'addToBalanceOf',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"executePayout"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"executePayout"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalExecutePayout<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          'executePayout'
-        >['request']['abi'],
-        'executePayout',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'executePayout'
-      }
-    : UseContractWriteConfig<
-        typeof jbMultiTerminalABI,
-        'executePayout',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'executePayout'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbMultiTerminalABI, 'executePayout', TMode>({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWriteJbMultiTerminalExecutePayout =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'executePayout',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"executeProcessFee"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"executeProcessFee"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalExecuteProcessFee<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          'executeProcessFee'
-        >['request']['abi'],
-        'executeProcessFee',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'executeProcessFee'
-      }
-    : UseContractWriteConfig<
-        typeof jbMultiTerminalABI,
-        'executeProcessFee',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'executeProcessFee'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbMultiTerminalABI,
-    'executeProcessFee',
-    TMode
-  >({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWriteJbMultiTerminalExecuteProcessFee =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'executeProcessFee',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"migrateBalanceOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"migrateBalanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalMigrateBalanceOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          'migrateBalanceOf'
-        >['request']['abi'],
-        'migrateBalanceOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'migrateBalanceOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbMultiTerminalABI,
-        'migrateBalanceOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'migrateBalanceOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbMultiTerminalABI, 'migrateBalanceOf', TMode>(
-    {
-      abi: jbMultiTerminalABI,
-      address:
-        jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-      functionName: 'migrateBalanceOf',
-      ...config,
-    } as any,
-  )
-}
-
-/**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"pay"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function useJbMultiTerminalPay<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          'pay'
-        >['request']['abi'],
-        'pay',
-        TMode
-      > & { address?: Address; chainId?: TChainId; functionName?: 'pay' }
-    : UseContractWriteConfig<typeof jbMultiTerminalABI, 'pay', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'pay'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbMultiTerminalABI, 'pay', TMode>({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'pay',
-    ...config,
-  } as any)
-}
-
-/**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"processHeldFeesOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function useJbMultiTerminalProcessHeldFeesOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          'processHeldFeesOf'
-        >['request']['abi'],
-        'processHeldFeesOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'processHeldFeesOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbMultiTerminalABI,
-        'processHeldFeesOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'processHeldFeesOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbMultiTerminalABI,
-    'processHeldFeesOf',
-    TMode
-  >({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'processHeldFeesOf',
-    ...config,
-  } as any)
-}
-
-/**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"redeemTokensOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function useJbMultiTerminalRedeemTokensOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          'redeemTokensOf'
-        >['request']['abi'],
-        'redeemTokensOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'redeemTokensOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbMultiTerminalABI,
-        'redeemTokensOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'redeemTokensOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbMultiTerminalABI, 'redeemTokensOf', TMode>({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'redeemTokensOf',
-    ...config,
-  } as any)
-}
-
-/**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"sendPayoutsOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function useJbMultiTerminalSendPayoutsOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          'sendPayoutsOf'
-        >['request']['abi'],
-        'sendPayoutsOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'sendPayoutsOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbMultiTerminalABI,
-        'sendPayoutsOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'sendPayoutsOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbMultiTerminalABI, 'sendPayoutsOf', TMode>({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'sendPayoutsOf',
-    ...config,
-  } as any)
-}
-
-/**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"useAllowanceOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function useJbMultiTerminalUseAllowanceOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbMultiTerminalAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbMultiTerminalABI,
-          'useAllowanceOf'
-        >['request']['abi'],
-        'useAllowanceOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'useAllowanceOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbMultiTerminalABI,
-        'useAllowanceOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'useAllowanceOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbMultiTerminalABI, 'useAllowanceOf', TMode>({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'useAllowanceOf',
-    ...config,
-  } as any)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function usePrepareJbMultiTerminalWrite<TFunctionName extends string>(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbMultiTerminalABI, TFunctionName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbMultiTerminalABI, TFunctionName>)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"addAccountingContextsFor"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function usePrepareJbMultiTerminalAddAccountingContextsFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbMultiTerminalABI,
-      'addAccountingContextsFor'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'addAccountingContextsFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbMultiTerminalABI,
-    'addAccountingContextsFor'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"addToBalanceOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function usePrepareJbMultiTerminalAddToBalanceOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbMultiTerminalABI, 'addToBalanceOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'addToBalanceOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbMultiTerminalABI,
-    'addToBalanceOf'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"executePayout"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function usePrepareJbMultiTerminalExecutePayout(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbMultiTerminalABI, 'executePayout'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'executePayout',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbMultiTerminalABI,
-    'executePayout'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"executeProcessFee"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function usePrepareJbMultiTerminalExecuteProcessFee(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbMultiTerminalABI,
-      'executeProcessFee'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'executeProcessFee',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbMultiTerminalABI,
-    'executeProcessFee'
-  >)
-}
-
-/**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"migrateBalanceOf"`.
- *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
- */
-export function usePrepareJbMultiTerminalMigrateBalanceOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbMultiTerminalABI,
-      'migrateBalanceOf'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWriteJbMultiTerminalMigrateBalanceOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'migrateBalanceOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbMultiTerminalABI,
-    'migrateBalanceOf'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"pay"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"pay"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function usePrepareJbMultiTerminalPay(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbMultiTerminalABI, 'pay'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    functionName: 'pay',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbMultiTerminalABI, 'pay'>)
-}
+export const useWriteJbMultiTerminalPay = /*#__PURE__*/ createUseWriteContract({
+  abi: jbMultiTerminalAbi,
+  address: jbMultiTerminalAddress,
+  functionName: 'pay',
+})
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"processHeldFeesOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"processHeldFeesOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function usePrepareJbMultiTerminalProcessHeldFeesOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbMultiTerminalABI,
-      'processHeldFeesOf'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWriteJbMultiTerminalProcessHeldFeesOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'processHeldFeesOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbMultiTerminalABI,
-    'processHeldFeesOf'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"redeemTokensOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"redeemTokensOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function usePrepareJbMultiTerminalRedeemTokensOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbMultiTerminalABI, 'redeemTokensOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWriteJbMultiTerminalRedeemTokensOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'redeemTokensOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbMultiTerminalABI,
-    'redeemTokensOf'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"sendPayoutsOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"sendPayoutsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function usePrepareJbMultiTerminalSendPayoutsOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbMultiTerminalABI, 'sendPayoutsOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWriteJbMultiTerminalSendPayoutsOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'sendPayoutsOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbMultiTerminalABI,
-    'sendPayoutsOf'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `functionName` set to `"useAllowanceOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"useAllowanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function usePrepareJbMultiTerminalUseAllowanceOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbMultiTerminalABI, 'useAllowanceOf'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWriteJbMultiTerminalUseAllowanceOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     functionName: 'useAllowanceOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbMultiTerminalABI,
-    'useAllowanceOf'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalEvent<TEventName extends string>(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, TEventName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, TEventName>)
-}
+export const useSimulateJbMultiTerminal =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"AddToBalance"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"addAccountingContextsFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalAddToBalanceEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'AddToBalance'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useSimulateJbMultiTerminalAddAccountingContextsFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+    functionName: 'addAccountingContextsFor',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"addToBalanceOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useSimulateJbMultiTerminalAddToBalanceOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+    functionName: 'addToBalanceOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"executePayout"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useSimulateJbMultiTerminalExecutePayout =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+    functionName: 'executePayout',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"executeProcessFee"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useSimulateJbMultiTerminalExecuteProcessFee =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+    functionName: 'executeProcessFee',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"migrateBalanceOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useSimulateJbMultiTerminalMigrateBalanceOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+    functionName: 'migrateBalanceOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"pay"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useSimulateJbMultiTerminalPay =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+    functionName: 'pay',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"processHeldFeesOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useSimulateJbMultiTerminalProcessHeldFeesOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+    functionName: 'processHeldFeesOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"redeemTokensOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useSimulateJbMultiTerminalRedeemTokensOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+    functionName: 'redeemTokensOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"sendPayoutsOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useSimulateJbMultiTerminalSendPayoutsOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+    functionName: 'sendPayoutsOf',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"useAllowanceOf"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useSimulateJbMultiTerminalUseAllowanceOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+    functionName: 'useAllowanceOf',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useWatchJbMultiTerminalEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"AddToBalance"`
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ */
+export const useWatchJbMultiTerminalAddToBalanceEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'AddToBalance',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'AddToBalance'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"FeeReverted"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"FeeReverted"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalFeeRevertedEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'FeeReverted'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalFeeRevertedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'FeeReverted',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'FeeReverted'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"HoldFee"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"HoldFee"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalHoldFeeEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'HoldFee'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalHoldFeeEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'HoldFee',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'HoldFee'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"HookAfterRecordPay"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"HookAfterRecordPay"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalHookAfterRecordPayEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'HookAfterRecordPay'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalHookAfterRecordPayEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'HookAfterRecordPay',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'HookAfterRecordPay'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"HookAfterRecordRedeem"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"HookAfterRecordRedeem"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalHookAfterRecordRedeemEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'HookAfterRecordRedeem'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalHookAfterRecordRedeemEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'HookAfterRecordRedeem',
-    ...config,
-  } as UseContractEventConfig<
-    typeof jbMultiTerminalABI,
-    'HookAfterRecordRedeem'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"MigrateTerminal"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"MigrateTerminal"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalMigrateTerminalEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'MigrateTerminal'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalMigrateTerminalEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'MigrateTerminal',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'MigrateTerminal'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"Pay"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"Pay"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalPayEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'Pay'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalPayEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'Pay',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'Pay'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"PayoutReverted"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"PayoutReverted"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalPayoutRevertedEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'PayoutReverted'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalPayoutRevertedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'PayoutReverted',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'PayoutReverted'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"ProcessFee"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"ProcessFee"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalProcessFeeEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'ProcessFee'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalProcessFeeEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'ProcessFee',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'ProcessFee'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"RedeemTokens"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"RedeemTokens"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalRedeemTokensEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'RedeemTokens'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalRedeemTokensEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'RedeemTokens',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'RedeemTokens'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"ReturnHeldFees"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"ReturnHeldFees"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalReturnHeldFeesEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'ReturnHeldFees'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalReturnHeldFeesEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'ReturnHeldFees',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'ReturnHeldFees'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"SendPayoutToSplit"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"SendPayoutToSplit"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalSendPayoutToSplitEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'SendPayoutToSplit'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalSendPayoutToSplitEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'SendPayoutToSplit',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'SendPayoutToSplit'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"SendPayouts"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"SendPayouts"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalSendPayoutsEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'SendPayouts'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalSendPayoutsEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'SendPayouts',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'SendPayouts'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"SetAccountingContext"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"SetAccountingContext"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalSetAccountingContextEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'SetAccountingContext'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalSetAccountingContextEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'SetAccountingContext',
-    ...config,
-  } as UseContractEventConfig<
-    typeof jbMultiTerminalABI,
-    'SetAccountingContext'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbMultiTerminalABI}__ and `eventName` set to `"UseAllowance"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"UseAllowance"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
  */
-export function useJbMultiTerminalUseAllowanceEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbMultiTerminalABI, 'UseAllowance'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbMultiTerminalAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbMultiTerminalABI,
-    address:
-      jbMultiTerminalAddress[chainId as keyof typeof jbMultiTerminalAddress],
+export const useWatchJbMultiTerminalUseAllowanceEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbMultiTerminalAbi,
+    address: jbMultiTerminalAddress,
     eventName: 'UseAllowance',
-    ...config,
-  } as UseContractEventConfig<typeof jbMultiTerminalABI, 'UseAllowance'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbPermissionsABI}__.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbPermissionsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function useJbPermissionsRead<
-  TFunctionName extends string,
-  TSelectData = ReadContractResult<typeof jbPermissionsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbPermissionsABI, TFunctionName, TSelectData>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbPermissionsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbPermissionsABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbPermissions = /*#__PURE__*/ createUseReadContract({
+  abi: jbPermissionsAbi,
+  address: jbPermissionsAddress,
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbPermissionsABI}__ and `functionName` set to `"PERMISSIONS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"PERMISSIONS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function useJbPermissionsPermissions<
-  TFunctionName extends 'PERMISSIONS',
-  TSelectData = ReadContractResult<typeof jbPermissionsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbPermissionsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbPermissionsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
+export const useReadJbPermissionsPermissions =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbPermissionsAbi,
+    address: jbPermissionsAddress,
     functionName: 'PERMISSIONS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbPermissionsABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbPermissionsABI}__ and `functionName` set to `"hasPermission"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"hasPermission"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function useJbPermissionsHasPermission<
-  TFunctionName extends 'hasPermission',
-  TSelectData = ReadContractResult<typeof jbPermissionsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbPermissionsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbPermissionsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
+export const useReadJbPermissionsHasPermission =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbPermissionsAbi,
+    address: jbPermissionsAddress,
     functionName: 'hasPermission',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbPermissionsABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbPermissionsABI}__ and `functionName` set to `"hasPermissions"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"hasPermissions"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function useJbPermissionsHasPermissions<
-  TFunctionName extends 'hasPermissions',
-  TSelectData = ReadContractResult<typeof jbPermissionsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbPermissionsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbPermissionsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
+export const useReadJbPermissionsHasPermissions =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbPermissionsAbi,
+    address: jbPermissionsAddress,
     functionName: 'hasPermissions',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbPermissionsABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbPermissionsABI}__ and `functionName` set to `"permissionsOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"permissionsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function useJbPermissionsPermissionsOf<
-  TFunctionName extends 'permissionsOf',
-  TSelectData = ReadContractResult<typeof jbPermissionsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbPermissionsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbPermissionsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
+export const useReadJbPermissionsPermissionsOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbPermissionsAbi,
+    address: jbPermissionsAddress,
     functionName: 'permissionsOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbPermissionsABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbPermissionsABI}__.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbPermissionsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function useJbPermissionsWrite<
-  TFunctionName extends string,
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbPermissionsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbPermissionsABI,
-          string
-        >['request']['abi'],
-        TFunctionName,
-        TMode
-      > & { address?: Address; chainId?: TChainId }
-    : UseContractWriteConfig<typeof jbPermissionsABI, TFunctionName, TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbPermissionsABI, TFunctionName, TMode>({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
-    ...config,
-  } as any)
-}
+export const useWriteJbPermissions = /*#__PURE__*/ createUseWriteContract({
+  abi: jbPermissionsAbi,
+  address: jbPermissionsAddress,
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbPermissionsABI}__ and `functionName` set to `"setPermissionsFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"setPermissionsFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function useJbPermissionsSetPermissionsFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbPermissionsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbPermissionsABI,
-          'setPermissionsFor'
-        >['request']['abi'],
-        'setPermissionsFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setPermissionsFor'
-      }
-    : UseContractWriteConfig<
-        typeof jbPermissionsABI,
-        'setPermissionsFor',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setPermissionsFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbPermissionsABI, 'setPermissionsFor', TMode>({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
+export const useWriteJbPermissionsSetPermissionsFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbPermissionsAbi,
+    address: jbPermissionsAddress,
     functionName: 'setPermissionsFor',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbPermissionsABI}__.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbPermissionsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function usePrepareJbPermissionsWrite<TFunctionName extends string>(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbPermissionsABI, TFunctionName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbPermissionsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbPermissionsABI, TFunctionName>)
-}
+export const useSimulateJbPermissions = /*#__PURE__*/ createUseSimulateContract(
+  { abi: jbPermissionsAbi, address: jbPermissionsAddress },
+)
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbPermissionsABI}__ and `functionName` set to `"setPermissionsFor"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"setPermissionsFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function usePrepareJbPermissionsSetPermissionsFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbPermissionsABI, 'setPermissionsFor'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbPermissionsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
+export const useSimulateJbPermissionsSetPermissionsFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbPermissionsAbi,
+    address: jbPermissionsAddress,
     functionName: 'setPermissionsFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbPermissionsABI,
-    'setPermissionsFor'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbPermissionsABI}__.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbPermissionsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function useJbPermissionsEvent<TEventName extends string>(
-  config: Omit<
-    UseContractEventConfig<typeof jbPermissionsABI, TEventName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbPermissionsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
-    ...config,
-  } as UseContractEventConfig<typeof jbPermissionsABI, TEventName>)
-}
+export const useWatchJbPermissionsEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbPermissionsAbi,
+    address: jbPermissionsAddress,
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbPermissionsABI}__ and `eventName` set to `"OperatorPermissionsSet"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbPermissionsAbi}__ and `eventName` set to `"OperatorPermissionsSet"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
  */
-export function useJbPermissionsOperatorPermissionsSetEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbPermissionsABI, 'OperatorPermissionsSet'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbPermissionsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbPermissionsABI,
-    address: jbPermissionsAddress[chainId as keyof typeof jbPermissionsAddress],
+export const useWatchJbPermissionsOperatorPermissionsSetEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbPermissionsAbi,
+    address: jbPermissionsAddress,
     eventName: 'OperatorPermissionsSet',
-    ...config,
-  } as UseContractEventConfig<
-    typeof jbPermissionsABI,
-    'OperatorPermissionsSet'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsRead<
-  TFunctionName extends string,
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjects = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"CLOCK_MODE"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"CLOCK_MODE"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsClockMode<
-  TFunctionName extends 'CLOCK_MODE',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'CLOCK_MODE',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsClockMode = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'CLOCK_MODE',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"balanceOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"balanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsBalanceOf<
-  TFunctionName extends 'balanceOf',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'balanceOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsBalanceOf = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'balanceOf',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"clock"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"clock"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsClock<
-  TFunctionName extends 'clock',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'clock',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsClock = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'clock',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"count"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"count"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsCount<
-  TFunctionName extends 'count',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'count',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsCount = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'count',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"delegates"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"delegates"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsDelegates<
-  TFunctionName extends 'delegates',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'delegates',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsDelegates = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'delegates',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"eip712Domain"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"eip712Domain"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsEip712Domain<
-  TFunctionName extends 'eip712Domain',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useReadJbProjectsEip712Domain =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'eip712Domain',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"getApproved"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"getApproved"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsGetApproved<
-  TFunctionName extends 'getApproved',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useReadJbProjectsGetApproved = /*#__PURE__*/ createUseReadContract(
+  {
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'getApproved',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+  },
+)
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"getPastTotalSupply"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"getPastTotalSupply"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsGetPastTotalSupply<
-  TFunctionName extends 'getPastTotalSupply',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useReadJbProjectsGetPastTotalSupply =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'getPastTotalSupply',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"getPastVotes"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"getPastVotes"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsGetPastVotes<
-  TFunctionName extends 'getPastVotes',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useReadJbProjectsGetPastVotes =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'getPastVotes',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"getVotes"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"getVotes"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsGetVotes<
-  TFunctionName extends 'getVotes',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'getVotes',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsGetVotes = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'getVotes',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"isApprovedForAll"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"isApprovedForAll"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsIsApprovedForAll<
-  TFunctionName extends 'isApprovedForAll',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useReadJbProjectsIsApprovedForAll =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'isApprovedForAll',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"name"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"name"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsName<
-  TFunctionName extends 'name',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'name',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsName = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'name',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"nonces"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"nonces"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsNonces<
-  TFunctionName extends 'nonces',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'nonces',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsNonces = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'nonces',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"owner"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"owner"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsOwner<
-  TFunctionName extends 'owner',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'owner',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsOwner = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'owner',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"ownerOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"ownerOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsOwnerOf<
-  TFunctionName extends 'ownerOf',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'ownerOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsOwnerOf = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'ownerOf',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"supportsInterface"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"supportsInterface"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsSupportsInterface<
-  TFunctionName extends 'supportsInterface',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useReadJbProjectsSupportsInterface =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'supportsInterface',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"symbol"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"symbol"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsSymbol<
-  TFunctionName extends 'symbol',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'symbol',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsSymbol = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'symbol',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"tokenURI"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"tokenURI"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsTokenUri<
-  TFunctionName extends 'tokenURI',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'tokenURI',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbProjectsTokenUri = /*#__PURE__*/ createUseReadContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'tokenURI',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"tokenUriResolver"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"tokenUriResolver"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsTokenUriResolver<
-  TFunctionName extends 'tokenUriResolver',
-  TSelectData = ReadContractResult<typeof jbProjectsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useReadJbProjectsTokenUriResolver =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'tokenUriResolver',
-    ...config,
-  } as UseContractReadConfig<typeof jbProjectsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsWrite<
-  TFunctionName extends string,
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          string
-        >['request']['abi'],
-        TFunctionName,
-        TMode
-      > & { address?: Address; chainId?: TChainId }
-    : UseContractWriteConfig<typeof jbProjectsABI, TFunctionName, TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, TFunctionName, TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    ...config,
-  } as any)
-}
+export const useWriteJbProjects = /*#__PURE__*/ createUseWriteContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"approve"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"approve"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsApprove<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          'approve'
-        >['request']['abi'],
-        'approve',
-        TMode
-      > & { address?: Address; chainId?: TChainId; functionName?: 'approve' }
-    : UseContractWriteConfig<typeof jbProjectsABI, 'approve', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'approve'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, 'approve', TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'approve',
-    ...config,
-  } as any)
-}
+export const useWriteJbProjectsApprove = /*#__PURE__*/ createUseWriteContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'approve',
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"createFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"createFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsCreateFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          'createFor'
-        >['request']['abi'],
-        'createFor',
-        TMode
-      > & { address?: Address; chainId?: TChainId; functionName?: 'createFor' }
-    : UseContractWriteConfig<typeof jbProjectsABI, 'createFor', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'createFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, 'createFor', TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'createFor',
-    ...config,
-  } as any)
-}
+export const useWriteJbProjectsCreateFor = /*#__PURE__*/ createUseWriteContract(
+  { abi: jbProjectsAbi, address: jbProjectsAddress, functionName: 'createFor' },
+)
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"delegate"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"delegate"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsDelegate<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          'delegate'
-        >['request']['abi'],
-        'delegate',
-        TMode
-      > & { address?: Address; chainId?: TChainId; functionName?: 'delegate' }
-    : UseContractWriteConfig<typeof jbProjectsABI, 'delegate', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'delegate'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, 'delegate', TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    functionName: 'delegate',
-    ...config,
-  } as any)
-}
+export const useWriteJbProjectsDelegate = /*#__PURE__*/ createUseWriteContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+  functionName: 'delegate',
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"delegateBySig"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"delegateBySig"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsDelegateBySig<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          'delegateBySig'
-        >['request']['abi'],
-        'delegateBySig',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'delegateBySig'
-      }
-    : UseContractWriteConfig<typeof jbProjectsABI, 'delegateBySig', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'delegateBySig'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, 'delegateBySig', TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWriteJbProjectsDelegateBySig =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'delegateBySig',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"renounceOwnership"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"renounceOwnership"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsRenounceOwnership<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          'renounceOwnership'
-        >['request']['abi'],
-        'renounceOwnership',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'renounceOwnership'
-      }
-    : UseContractWriteConfig<
-        typeof jbProjectsABI,
-        'renounceOwnership',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'renounceOwnership'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, 'renounceOwnership', TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWriteJbProjectsRenounceOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'renounceOwnership',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"safeTransferFrom"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"safeTransferFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsSafeTransferFrom<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          'safeTransferFrom'
-        >['request']['abi'],
-        'safeTransferFrom',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'safeTransferFrom'
-      }
-    : UseContractWriteConfig<
-        typeof jbProjectsABI,
-        'safeTransferFrom',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'safeTransferFrom'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, 'safeTransferFrom', TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWriteJbProjectsSafeTransferFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'safeTransferFrom',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"setApprovalForAll"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setApprovalForAll"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsSetApprovalForAll<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          'setApprovalForAll'
-        >['request']['abi'],
-        'setApprovalForAll',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setApprovalForAll'
-      }
-    : UseContractWriteConfig<
-        typeof jbProjectsABI,
-        'setApprovalForAll',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setApprovalForAll'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, 'setApprovalForAll', TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWriteJbProjectsSetApprovalForAll =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'setApprovalForAll',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"setTokenUriResolver"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setTokenUriResolver"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsSetTokenUriResolver<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          'setTokenUriResolver'
-        >['request']['abi'],
-        'setTokenUriResolver',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setTokenUriResolver'
-      }
-    : UseContractWriteConfig<
-        typeof jbProjectsABI,
-        'setTokenUriResolver',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setTokenUriResolver'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, 'setTokenUriResolver', TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWriteJbProjectsSetTokenUriResolver =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'setTokenUriResolver',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"transferFrom"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsTransferFrom<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          'transferFrom'
-        >['request']['abi'],
-        'transferFrom',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'transferFrom'
-      }
-    : UseContractWriteConfig<typeof jbProjectsABI, 'transferFrom', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'transferFrom'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, 'transferFrom', TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWriteJbProjectsTransferFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'transferFrom',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"transferOwnership"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferOwnership"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsTransferOwnership<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbProjectsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbProjectsABI,
-          'transferOwnership'
-        >['request']['abi'],
-        'transferOwnership',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'transferOwnership'
-      }
-    : UseContractWriteConfig<
-        typeof jbProjectsABI,
-        'transferOwnership',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'transferOwnership'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbProjectsABI, 'transferOwnership', TMode>({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWriteJbProjectsTransferOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'transferOwnership',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsWrite<TFunctionName extends string>(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, TFunctionName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbProjectsABI, TFunctionName>)
-}
+export const useSimulateJbProjects = /*#__PURE__*/ createUseSimulateContract({
+  abi: jbProjectsAbi,
+  address: jbProjectsAddress,
+})
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"approve"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"approve"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsApprove(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, 'approve'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useSimulateJbProjectsApprove =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'approve',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbProjectsABI, 'approve'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"createFor"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"createFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsCreateFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, 'createFor'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useSimulateJbProjectsCreateFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'createFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbProjectsABI, 'createFor'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"delegate"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"delegate"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsDelegate(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, 'delegate'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useSimulateJbProjectsDelegate =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'delegate',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbProjectsABI, 'delegate'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"delegateBySig"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"delegateBySig"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsDelegateBySig(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, 'delegateBySig'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useSimulateJbProjectsDelegateBySig =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'delegateBySig',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbProjectsABI, 'delegateBySig'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"renounceOwnership"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"renounceOwnership"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsRenounceOwnership(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, 'renounceOwnership'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useSimulateJbProjectsRenounceOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'renounceOwnership',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbProjectsABI, 'renounceOwnership'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"safeTransferFrom"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"safeTransferFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsSafeTransferFrom(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, 'safeTransferFrom'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useSimulateJbProjectsSafeTransferFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'safeTransferFrom',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbProjectsABI, 'safeTransferFrom'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"setApprovalForAll"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setApprovalForAll"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsSetApprovalForAll(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, 'setApprovalForAll'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useSimulateJbProjectsSetApprovalForAll =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'setApprovalForAll',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbProjectsABI, 'setApprovalForAll'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"setTokenUriResolver"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setTokenUriResolver"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsSetTokenUriResolver(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, 'setTokenUriResolver'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useSimulateJbProjectsSetTokenUriResolver =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'setTokenUriResolver',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbProjectsABI,
-    'setTokenUriResolver'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"transferFrom"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsTransferFrom(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, 'transferFrom'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useSimulateJbProjectsTransferFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'transferFrom',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbProjectsABI, 'transferFrom'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbProjectsABI}__ and `functionName` set to `"transferOwnership"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferOwnership"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function usePrepareJbProjectsTransferOwnership(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbProjectsABI, 'transferOwnership'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useSimulateJbProjectsTransferOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     functionName: 'transferOwnership',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbProjectsABI, 'transferOwnership'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbProjectsABI}__.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsEvent<TEventName extends string>(
-  config: Omit<
-    UseContractEventConfig<typeof jbProjectsABI, TEventName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
-    ...config,
-  } as UseContractEventConfig<typeof jbProjectsABI, TEventName>)
-}
+export const useWatchJbProjectsEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbProjectsABI}__ and `eventName` set to `"Approval"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"Approval"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsApprovalEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbProjectsABI, 'Approval'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWatchJbProjectsApprovalEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     eventName: 'Approval',
-    ...config,
-  } as UseContractEventConfig<typeof jbProjectsABI, 'Approval'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbProjectsABI}__ and `eventName` set to `"ApprovalForAll"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"ApprovalForAll"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsApprovalForAllEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbProjectsABI, 'ApprovalForAll'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWatchJbProjectsApprovalForAllEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     eventName: 'ApprovalForAll',
-    ...config,
-  } as UseContractEventConfig<typeof jbProjectsABI, 'ApprovalForAll'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbProjectsABI}__ and `eventName` set to `"Create"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"Create"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsCreateEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbProjectsABI, 'Create'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWatchJbProjectsCreateEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     eventName: 'Create',
-    ...config,
-  } as UseContractEventConfig<typeof jbProjectsABI, 'Create'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbProjectsABI}__ and `eventName` set to `"DelegateChanged"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"DelegateChanged"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsDelegateChangedEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbProjectsABI, 'DelegateChanged'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWatchJbProjectsDelegateChangedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     eventName: 'DelegateChanged',
-    ...config,
-  } as UseContractEventConfig<typeof jbProjectsABI, 'DelegateChanged'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbProjectsABI}__ and `eventName` set to `"DelegateVotesChanged"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"DelegateVotesChanged"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsDelegateVotesChangedEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbProjectsABI, 'DelegateVotesChanged'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWatchJbProjectsDelegateVotesChangedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     eventName: 'DelegateVotesChanged',
-    ...config,
-  } as UseContractEventConfig<typeof jbProjectsABI, 'DelegateVotesChanged'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbProjectsABI}__ and `eventName` set to `"EIP712DomainChanged"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"EIP712DomainChanged"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsEip712DomainChangedEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbProjectsABI, 'EIP712DomainChanged'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWatchJbProjectsEip712DomainChangedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     eventName: 'EIP712DomainChanged',
-    ...config,
-  } as UseContractEventConfig<typeof jbProjectsABI, 'EIP712DomainChanged'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbProjectsABI}__ and `eventName` set to `"OwnershipTransferred"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"OwnershipTransferred"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsOwnershipTransferredEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbProjectsABI, 'OwnershipTransferred'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWatchJbProjectsOwnershipTransferredEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     eventName: 'OwnershipTransferred',
-    ...config,
-  } as UseContractEventConfig<typeof jbProjectsABI, 'OwnershipTransferred'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbProjectsABI}__ and `eventName` set to `"SetTokenUriResolver"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"SetTokenUriResolver"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsSetTokenUriResolverEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbProjectsABI, 'SetTokenUriResolver'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWatchJbProjectsSetTokenUriResolverEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     eventName: 'SetTokenUriResolver',
-    ...config,
-  } as UseContractEventConfig<typeof jbProjectsABI, 'SetTokenUriResolver'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbProjectsABI}__ and `eventName` set to `"Transfer"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"Transfer"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
  */
-export function useJbProjectsTransferEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbProjectsABI, 'Transfer'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbProjectsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbProjectsABI,
-    address: jbProjectsAddress[chainId as keyof typeof jbProjectsAddress],
+export const useWatchJbProjectsTransferEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbProjectsAbi,
+    address: jbProjectsAddress,
     eventName: 'Transfer',
-    ...config,
-  } as UseContractEventConfig<typeof jbProjectsABI, 'Transfer'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbRulesetsABI}__.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbRulesetsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsRead<
-  TFunctionName extends string,
-  TSelectData = ReadContractResult<typeof jbRulesetsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
-    ...config,
-  } as UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbRulesets = /*#__PURE__*/ createUseReadContract({
+  abi: jbRulesetsAbi,
+  address: jbRulesetsAddress,
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"DIRECTORY"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"DIRECTORY"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsDirectory<
-  TFunctionName extends 'DIRECTORY',
-  TSelectData = ReadContractResult<typeof jbRulesetsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
-    functionName: 'DIRECTORY',
-    ...config,
-  } as UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbRulesetsDirectory = /*#__PURE__*/ createUseReadContract({
+  abi: jbRulesetsAbi,
+  address: jbRulesetsAddress,
+  functionName: 'DIRECTORY',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"currentApprovalStatusForLatestRulesetOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"currentApprovalStatusForLatestRulesetOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsCurrentApprovalStatusForLatestRulesetOf<
-  TFunctionName extends 'currentApprovalStatusForLatestRulesetOf',
-  TSelectData = ReadContractResult<typeof jbRulesetsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
+export const useReadJbRulesetsCurrentApprovalStatusForLatestRulesetOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
     functionName: 'currentApprovalStatusForLatestRulesetOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"currentOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"currentOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsCurrentOf<
-  TFunctionName extends 'currentOf',
-  TSelectData = ReadContractResult<typeof jbRulesetsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
-    functionName: 'currentOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbRulesetsCurrentOf = /*#__PURE__*/ createUseReadContract({
+  abi: jbRulesetsAbi,
+  address: jbRulesetsAddress,
+  functionName: 'currentOf',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"getRulesetOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"getRulesetOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsGetRulesetOf<
-  TFunctionName extends 'getRulesetOf',
-  TSelectData = ReadContractResult<typeof jbRulesetsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
+export const useReadJbRulesetsGetRulesetOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
     functionName: 'getRulesetOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"latestQueuedRulesetOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"latestQueuedRulesetOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsLatestQueuedRulesetOf<
-  TFunctionName extends 'latestQueuedRulesetOf',
-  TSelectData = ReadContractResult<typeof jbRulesetsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
+export const useReadJbRulesetsLatestQueuedRulesetOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
     functionName: 'latestQueuedRulesetOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"latestRulesetIdOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"latestRulesetIdOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsLatestRulesetIdOf<
-  TFunctionName extends 'latestRulesetIdOf',
-  TSelectData = ReadContractResult<typeof jbRulesetsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
+export const useReadJbRulesetsLatestRulesetIdOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
     functionName: 'latestRulesetIdOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"rulesetsOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"rulesetsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsRulesetsOf<
-  TFunctionName extends 'rulesetsOf',
-  TSelectData = ReadContractResult<typeof jbRulesetsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
-    functionName: 'rulesetsOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbRulesetsRulesetsOf = /*#__PURE__*/ createUseReadContract({
+  abi: jbRulesetsAbi,
+  address: jbRulesetsAddress,
+  functionName: 'rulesetsOf',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"upcomingRulesetOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"upcomingRulesetOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsUpcomingRulesetOf<
-  TFunctionName extends 'upcomingRulesetOf',
-  TSelectData = ReadContractResult<typeof jbRulesetsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
+export const useReadJbRulesetsUpcomingRulesetOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
     functionName: 'upcomingRulesetOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbRulesetsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbRulesetsABI}__.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbRulesetsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsWrite<
-  TFunctionName extends string,
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbRulesetsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbRulesetsABI,
-          string
-        >['request']['abi'],
-        TFunctionName,
-        TMode
-      > & { address?: Address; chainId?: TChainId }
-    : UseContractWriteConfig<typeof jbRulesetsABI, TFunctionName, TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbRulesetsABI, TFunctionName, TMode>({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
-    ...config,
-  } as any)
-}
+export const useWriteJbRulesets = /*#__PURE__*/ createUseWriteContract({
+  abi: jbRulesetsAbi,
+  address: jbRulesetsAddress,
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"queueFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"queueFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsQueueFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbRulesetsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbRulesetsABI,
-          'queueFor'
-        >['request']['abi'],
-        'queueFor',
-        TMode
-      > & { address?: Address; chainId?: TChainId; functionName?: 'queueFor' }
-    : UseContractWriteConfig<typeof jbRulesetsABI, 'queueFor', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'queueFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbRulesetsABI, 'queueFor', TMode>({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
-    functionName: 'queueFor',
-    ...config,
-  } as any)
-}
+export const useWriteJbRulesetsQueueFor = /*#__PURE__*/ createUseWriteContract({
+  abi: jbRulesetsAbi,
+  address: jbRulesetsAddress,
+  functionName: 'queueFor',
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"updateRulesetWeightCache"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"updateRulesetWeightCache"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsUpdateRulesetWeightCache<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbRulesetsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbRulesetsABI,
-          'updateRulesetWeightCache'
-        >['request']['abi'],
-        'updateRulesetWeightCache',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'updateRulesetWeightCache'
-      }
-    : UseContractWriteConfig<
-        typeof jbRulesetsABI,
-        'updateRulesetWeightCache',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'updateRulesetWeightCache'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbRulesetsABI,
-    'updateRulesetWeightCache',
-    TMode
-  >({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
+export const useWriteJbRulesetsUpdateRulesetWeightCache =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
     functionName: 'updateRulesetWeightCache',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbRulesetsABI}__.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbRulesetsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function usePrepareJbRulesetsWrite<TFunctionName extends string>(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbRulesetsABI, TFunctionName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbRulesetsABI, TFunctionName>)
-}
+export const useSimulateJbRulesets = /*#__PURE__*/ createUseSimulateContract({
+  abi: jbRulesetsAbi,
+  address: jbRulesetsAddress,
+})
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"queueFor"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"queueFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function usePrepareJbRulesetsQueueFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbRulesetsABI, 'queueFor'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
+export const useSimulateJbRulesetsQueueFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
     functionName: 'queueFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbRulesetsABI, 'queueFor'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbRulesetsABI}__ and `functionName` set to `"updateRulesetWeightCache"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"updateRulesetWeightCache"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function usePrepareJbRulesetsUpdateRulesetWeightCache(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbRulesetsABI,
-      'updateRulesetWeightCache'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
+export const useSimulateJbRulesetsUpdateRulesetWeightCache =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
     functionName: 'updateRulesetWeightCache',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbRulesetsABI,
-    'updateRulesetWeightCache'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbRulesetsABI}__.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsEvent<TEventName extends string>(
-  config: Omit<
-    UseContractEventConfig<typeof jbRulesetsABI, TEventName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
-    ...config,
-  } as UseContractEventConfig<typeof jbRulesetsABI, TEventName>)
-}
+export const useWatchJbRulesetsEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbRulesetsABI}__ and `eventName` set to `"RulesetInitialized"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__ and `eventName` set to `"RulesetInitialized"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsRulesetInitializedEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbRulesetsABI, 'RulesetInitialized'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
+export const useWatchJbRulesetsRulesetInitializedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
     eventName: 'RulesetInitialized',
-    ...config,
-  } as UseContractEventConfig<typeof jbRulesetsABI, 'RulesetInitialized'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbRulesetsABI}__ and `eventName` set to `"RulesetQueued"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__ and `eventName` set to `"RulesetQueued"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
  */
-export function useJbRulesetsRulesetQueuedEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbRulesetsABI, 'RulesetQueued'>,
-    'abi' | 'address' | 'eventName'
-  > & {
-    chainId?: keyof typeof jbRulesetsAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbRulesetsABI,
-    address: jbRulesetsAddress[chainId as keyof typeof jbRulesetsAddress],
+export const useWatchJbRulesetsRulesetQueuedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbRulesetsAbi,
+    address: jbRulesetsAddress,
     eventName: 'RulesetQueued',
-    ...config,
-  } as UseContractEventConfig<typeof jbRulesetsABI, 'RulesetQueued'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbSplitsABI}__.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbSplitsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export function useJbSplitsRead<
-  TFunctionName extends string,
-  TSelectData = ReadContractResult<typeof jbSplitsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbSplitsABI, TFunctionName, TSelectData>,
-    'abi' | 'address'
-  > & { chainId?: keyof typeof jbSplitsAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbSplitsABI,
-    address: jbSplitsAddress[chainId as keyof typeof jbSplitsAddress],
-    ...config,
-  } as UseContractReadConfig<typeof jbSplitsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbSplits = /*#__PURE__*/ createUseReadContract({
+  abi: jbSplitsAbi,
+  address: jbSplitsAddress,
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbSplitsABI}__ and `functionName` set to `"DIRECTORY"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"DIRECTORY"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export function useJbSplitsDirectory<
-  TFunctionName extends 'DIRECTORY',
-  TSelectData = ReadContractResult<typeof jbSplitsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbSplitsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbSplitsAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbSplitsABI,
-    address: jbSplitsAddress[chainId as keyof typeof jbSplitsAddress],
-    functionName: 'DIRECTORY',
-    ...config,
-  } as UseContractReadConfig<typeof jbSplitsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbSplitsDirectory = /*#__PURE__*/ createUseReadContract({
+  abi: jbSplitsAbi,
+  address: jbSplitsAddress,
+  functionName: 'DIRECTORY',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbSplitsABI}__ and `functionName` set to `"FALLBACK_RULESET_ID"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"FALLBACK_RULESET_ID"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export function useJbSplitsFallbackRulesetId<
-  TFunctionName extends 'FALLBACK_RULESET_ID',
-  TSelectData = ReadContractResult<typeof jbSplitsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbSplitsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbSplitsAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbSplitsABI,
-    address: jbSplitsAddress[chainId as keyof typeof jbSplitsAddress],
+export const useReadJbSplitsFallbackRulesetId =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbSplitsAbi,
+    address: jbSplitsAddress,
     functionName: 'FALLBACK_RULESET_ID',
-    ...config,
-  } as UseContractReadConfig<typeof jbSplitsABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbSplitsABI}__ and `functionName` set to `"splitsOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"splitsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export function useJbSplitsSplitsOf<
-  TFunctionName extends 'splitsOf',
-  TSelectData = ReadContractResult<typeof jbSplitsABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbSplitsABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbSplitsAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbSplitsABI,
-    address: jbSplitsAddress[chainId as keyof typeof jbSplitsAddress],
-    functionName: 'splitsOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbSplitsABI, TFunctionName, TSelectData>)
-}
+export const useReadJbSplitsSplitsOf = /*#__PURE__*/ createUseReadContract({
+  abi: jbSplitsAbi,
+  address: jbSplitsAddress,
+  functionName: 'splitsOf',
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbSplitsABI}__.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbSplitsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export function useJbSplitsWrite<
-  TFunctionName extends string,
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbSplitsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbSplitsABI,
-          string
-        >['request']['abi'],
-        TFunctionName,
-        TMode
-      > & { address?: Address; chainId?: TChainId }
-    : UseContractWriteConfig<typeof jbSplitsABI, TFunctionName, TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbSplitsABI, TFunctionName, TMode>({
-    abi: jbSplitsABI,
-    address: jbSplitsAddress[chainId as keyof typeof jbSplitsAddress],
-    ...config,
-  } as any)
-}
+export const useWriteJbSplits = /*#__PURE__*/ createUseWriteContract({
+  abi: jbSplitsAbi,
+  address: jbSplitsAddress,
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbSplitsABI}__ and `functionName` set to `"setSplitGroupsOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"setSplitGroupsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export function useJbSplitsSetSplitGroupsOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbSplitsAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbSplitsABI,
-          'setSplitGroupsOf'
-        >['request']['abi'],
-        'setSplitGroupsOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setSplitGroupsOf'
-      }
-    : UseContractWriteConfig<typeof jbSplitsABI, 'setSplitGroupsOf', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setSplitGroupsOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbSplitsABI, 'setSplitGroupsOf', TMode>({
-    abi: jbSplitsABI,
-    address: jbSplitsAddress[chainId as keyof typeof jbSplitsAddress],
+export const useWriteJbSplitsSetSplitGroupsOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbSplitsAbi,
+    address: jbSplitsAddress,
     functionName: 'setSplitGroupsOf',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbSplitsABI}__.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbSplitsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export function usePrepareJbSplitsWrite<TFunctionName extends string>(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbSplitsABI, TFunctionName>,
-    'abi' | 'address'
-  > & { chainId?: keyof typeof jbSplitsAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbSplitsABI,
-    address: jbSplitsAddress[chainId as keyof typeof jbSplitsAddress],
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbSplitsABI, TFunctionName>)
-}
+export const useSimulateJbSplits = /*#__PURE__*/ createUseSimulateContract({
+  abi: jbSplitsAbi,
+  address: jbSplitsAddress,
+})
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbSplitsABI}__ and `functionName` set to `"setSplitGroupsOf"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"setSplitGroupsOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export function usePrepareJbSplitsSetSplitGroupsOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbSplitsABI, 'setSplitGroupsOf'>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbSplitsAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbSplitsABI,
-    address: jbSplitsAddress[chainId as keyof typeof jbSplitsAddress],
+export const useSimulateJbSplitsSetSplitGroupsOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbSplitsAbi,
+    address: jbSplitsAddress,
     functionName: 'setSplitGroupsOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbSplitsABI, 'setSplitGroupsOf'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbSplitsABI}__.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbSplitsAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export function useJbSplitsEvent<TEventName extends string>(
-  config: Omit<
-    UseContractEventConfig<typeof jbSplitsABI, TEventName>,
-    'abi' | 'address'
-  > & { chainId?: keyof typeof jbSplitsAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbSplitsABI,
-    address: jbSplitsAddress[chainId as keyof typeof jbSplitsAddress],
-    ...config,
-  } as UseContractEventConfig<typeof jbSplitsABI, TEventName>)
-}
+export const useWatchJbSplitsEvent = /*#__PURE__*/ createUseWatchContractEvent({
+  abi: jbSplitsAbi,
+  address: jbSplitsAddress,
+})
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbSplitsABI}__ and `eventName` set to `"SetSplit"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbSplitsAbi}__ and `eventName` set to `"SetSplit"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
  */
-export function useJbSplitsSetSplitEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbSplitsABI, 'SetSplit'>,
-    'abi' | 'address' | 'eventName'
-  > & { chainId?: keyof typeof jbSplitsAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbSplitsABI,
-    address: jbSplitsAddress[chainId as keyof typeof jbSplitsAddress],
+export const useWatchJbSplitsSetSplitEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbSplitsAbi,
+    address: jbSplitsAddress,
     eventName: 'SetSplit',
-    ...config,
-  } as UseContractEventConfig<typeof jbSplitsABI, 'SetSplit'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTerminalStoreABI}__.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreRead<
-  TFunctionName extends string,
-  TSelectData = ReadContractResult<typeof jbTerminalStoreABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbTerminalStoreABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbTerminalStoreABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+export const useReadJbTerminalStore = /*#__PURE__*/ createUseReadContract({
+  abi: jbTerminalStoreAbi,
+  address: jbTerminalStoreAddress,
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"DIRECTORY"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"DIRECTORY"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreDirectory<
-  TFunctionName extends 'DIRECTORY',
-  TSelectData = ReadContractResult<typeof jbTerminalStoreABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbTerminalStoreABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useReadJbTerminalStoreDirectory =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'DIRECTORY',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbTerminalStoreABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"PRICES"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"PRICES"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStorePrices<
-  TFunctionName extends 'PRICES',
-  TSelectData = ReadContractResult<typeof jbTerminalStoreABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbTerminalStoreABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useReadJbTerminalStorePrices = /*#__PURE__*/ createUseReadContract(
+  {
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'PRICES',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbTerminalStoreABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  },
+)
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"RULESETS"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"RULESETS"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreRulesets<
-  TFunctionName extends 'RULESETS',
-  TSelectData = ReadContractResult<typeof jbTerminalStoreABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbTerminalStoreABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useReadJbTerminalStoreRulesets =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'RULESETS',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbTerminalStoreABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"balanceOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"balanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreBalanceOf<
-  TFunctionName extends 'balanceOf',
-  TSelectData = ReadContractResult<typeof jbTerminalStoreABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbTerminalStoreABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useReadJbTerminalStoreBalanceOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'balanceOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbTerminalStoreABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"currentReclaimableSurplusOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"currentReclaimableSurplusOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreCurrentReclaimableSurplusOf<
-  TFunctionName extends 'currentReclaimableSurplusOf',
-  TSelectData = ReadContractResult<typeof jbTerminalStoreABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbTerminalStoreABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useReadJbTerminalStoreCurrentReclaimableSurplusOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'currentReclaimableSurplusOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbTerminalStoreABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"currentSurplusOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"currentSurplusOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreCurrentSurplusOf<
-  TFunctionName extends 'currentSurplusOf',
-  TSelectData = ReadContractResult<typeof jbTerminalStoreABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbTerminalStoreABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useReadJbTerminalStoreCurrentSurplusOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'currentSurplusOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbTerminalStoreABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"currentTotalSurplusOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"currentTotalSurplusOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreCurrentTotalSurplusOf<
-  TFunctionName extends 'currentTotalSurplusOf',
-  TSelectData = ReadContractResult<typeof jbTerminalStoreABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbTerminalStoreABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useReadJbTerminalStoreCurrentTotalSurplusOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'currentTotalSurplusOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbTerminalStoreABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"usedPayoutLimitOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"usedPayoutLimitOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreUsedPayoutLimitOf<
-  TFunctionName extends 'usedPayoutLimitOf',
-  TSelectData = ReadContractResult<typeof jbTerminalStoreABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbTerminalStoreABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useReadJbTerminalStoreUsedPayoutLimitOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'usedPayoutLimitOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbTerminalStoreABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"usedSurplusAllowanceOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"usedSurplusAllowanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreUsedSurplusAllowanceOf<
-  TFunctionName extends 'usedSurplusAllowanceOf',
-  TSelectData = ReadContractResult<typeof jbTerminalStoreABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<
-      typeof jbTerminalStoreABI,
-      TFunctionName,
-      TSelectData
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useReadJbTerminalStoreUsedSurplusAllowanceOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'usedSurplusAllowanceOf',
-    ...config,
-  } as UseContractReadConfig<
-    typeof jbTerminalStoreABI,
-    TFunctionName,
-    TSelectData
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreWrite<
-  TFunctionName extends string,
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTerminalStoreAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTerminalStoreABI,
-          string
-        >['request']['abi'],
-        TFunctionName,
-        TMode
-      > & { address?: Address; chainId?: TChainId }
-    : UseContractWriteConfig<
-        typeof jbTerminalStoreABI,
-        TFunctionName,
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbTerminalStoreABI, TFunctionName, TMode>({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
-    ...config,
-  } as any)
-}
+export const useWriteJbTerminalStore = /*#__PURE__*/ createUseWriteContract({
+  abi: jbTerminalStoreAbi,
+  address: jbTerminalStoreAddress,
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordAddedBalanceFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordAddedBalanceFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreRecordAddedBalanceFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTerminalStoreAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTerminalStoreABI,
-          'recordAddedBalanceFor'
-        >['request']['abi'],
-        'recordAddedBalanceFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordAddedBalanceFor'
-      }
-    : UseContractWriteConfig<
-        typeof jbTerminalStoreABI,
-        'recordAddedBalanceFor',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordAddedBalanceFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbTerminalStoreABI,
-    'recordAddedBalanceFor',
-    TMode
-  >({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useWriteJbTerminalStoreRecordAddedBalanceFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordAddedBalanceFor',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordPaymentFrom"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordPaymentFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreRecordPaymentFrom<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTerminalStoreAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTerminalStoreABI,
-          'recordPaymentFrom'
-        >['request']['abi'],
-        'recordPaymentFrom',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordPaymentFrom'
-      }
-    : UseContractWriteConfig<
-        typeof jbTerminalStoreABI,
-        'recordPaymentFrom',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordPaymentFrom'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbTerminalStoreABI,
-    'recordPaymentFrom',
-    TMode
-  >({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useWriteJbTerminalStoreRecordPaymentFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordPaymentFrom',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordPayoutFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordPayoutFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreRecordPayoutFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTerminalStoreAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTerminalStoreABI,
-          'recordPayoutFor'
-        >['request']['abi'],
-        'recordPayoutFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordPayoutFor'
-      }
-    : UseContractWriteConfig<
-        typeof jbTerminalStoreABI,
-        'recordPayoutFor',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordPayoutFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbTerminalStoreABI, 'recordPayoutFor', TMode>({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useWriteJbTerminalStoreRecordPayoutFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordPayoutFor',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordRedemptionFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordRedemptionFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreRecordRedemptionFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTerminalStoreAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTerminalStoreABI,
-          'recordRedemptionFor'
-        >['request']['abi'],
-        'recordRedemptionFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordRedemptionFor'
-      }
-    : UseContractWriteConfig<
-        typeof jbTerminalStoreABI,
-        'recordRedemptionFor',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordRedemptionFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbTerminalStoreABI,
-    'recordRedemptionFor',
-    TMode
-  >({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useWriteJbTerminalStoreRecordRedemptionFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordRedemptionFor',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordTerminalMigration"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordTerminalMigration"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreRecordTerminalMigration<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTerminalStoreAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTerminalStoreABI,
-          'recordTerminalMigration'
-        >['request']['abi'],
-        'recordTerminalMigration',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordTerminalMigration'
-      }
-    : UseContractWriteConfig<
-        typeof jbTerminalStoreABI,
-        'recordTerminalMigration',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordTerminalMigration'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbTerminalStoreABI,
-    'recordTerminalMigration',
-    TMode
-  >({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useWriteJbTerminalStoreRecordTerminalMigration =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordTerminalMigration',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordUsedAllowanceOf"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordUsedAllowanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function useJbTerminalStoreRecordUsedAllowanceOf<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTerminalStoreAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTerminalStoreABI,
-          'recordUsedAllowanceOf'
-        >['request']['abi'],
-        'recordUsedAllowanceOf',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordUsedAllowanceOf'
-      }
-    : UseContractWriteConfig<
-        typeof jbTerminalStoreABI,
-        'recordUsedAllowanceOf',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'recordUsedAllowanceOf'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<
-    typeof jbTerminalStoreABI,
-    'recordUsedAllowanceOf',
-    TMode
-  >({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useWriteJbTerminalStoreRecordUsedAllowanceOf =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordUsedAllowanceOf',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function usePrepareJbTerminalStoreWrite<TFunctionName extends string>(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbTerminalStoreABI, TFunctionName>,
-    'abi' | 'address'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbTerminalStoreABI, TFunctionName>)
-}
+export const useSimulateJbTerminalStore =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordAddedBalanceFor"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordAddedBalanceFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function usePrepareJbTerminalStoreRecordAddedBalanceFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbTerminalStoreABI,
-      'recordAddedBalanceFor'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useSimulateJbTerminalStoreRecordAddedBalanceFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordAddedBalanceFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbTerminalStoreABI,
-    'recordAddedBalanceFor'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordPaymentFrom"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordPaymentFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function usePrepareJbTerminalStoreRecordPaymentFrom(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbTerminalStoreABI,
-      'recordPaymentFrom'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useSimulateJbTerminalStoreRecordPaymentFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordPaymentFrom',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbTerminalStoreABI,
-    'recordPaymentFrom'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordPayoutFor"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordPayoutFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function usePrepareJbTerminalStoreRecordPayoutFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbTerminalStoreABI, 'recordPayoutFor'>,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useSimulateJbTerminalStoreRecordPayoutFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordPayoutFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbTerminalStoreABI,
-    'recordPayoutFor'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordRedemptionFor"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordRedemptionFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function usePrepareJbTerminalStoreRecordRedemptionFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbTerminalStoreABI,
-      'recordRedemptionFor'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useSimulateJbTerminalStoreRecordRedemptionFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordRedemptionFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbTerminalStoreABI,
-    'recordRedemptionFor'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordTerminalMigration"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordTerminalMigration"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function usePrepareJbTerminalStoreRecordTerminalMigration(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbTerminalStoreABI,
-      'recordTerminalMigration'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useSimulateJbTerminalStoreRecordTerminalMigration =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordTerminalMigration',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbTerminalStoreABI,
-    'recordTerminalMigration'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTerminalStoreABI}__ and `functionName` set to `"recordUsedAllowanceOf"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordUsedAllowanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
  */
-export function usePrepareJbTerminalStoreRecordUsedAllowanceOf(
-  config: Omit<
-    UsePrepareContractWriteConfig<
-      typeof jbTerminalStoreABI,
-      'recordUsedAllowanceOf'
-    >,
-    'abi' | 'address' | 'functionName'
-  > & {
-    chainId?: keyof typeof jbTerminalStoreAddress
-    address?: Address
-  } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTerminalStoreABI,
-    address:
-      jbTerminalStoreAddress[chainId as keyof typeof jbTerminalStoreAddress],
+export const useSimulateJbTerminalStoreRecordUsedAllowanceOf =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTerminalStoreAbi,
+    address: jbTerminalStoreAddress,
     functionName: 'recordUsedAllowanceOf',
-    ...config,
-  } as UsePrepareContractWriteConfig<
-    typeof jbTerminalStoreABI,
-    'recordUsedAllowanceOf'
-  >)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTokensABI}__.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTokensAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensRead<
-  TFunctionName extends string,
-  TSelectData = ReadContractResult<typeof jbTokensABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>,
-    'abi' | 'address'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    ...config,
-  } as UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>)
-}
+export const useReadJbTokens = /*#__PURE__*/ createUseReadContract({
+  abi: jbTokensAbi,
+  address: jbTokensAddress,
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"DIRECTORY"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"DIRECTORY"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensDirectory<
-  TFunctionName extends 'DIRECTORY',
-  TSelectData = ReadContractResult<typeof jbTokensABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    functionName: 'DIRECTORY',
-    ...config,
-  } as UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>)
-}
+export const useReadJbTokensDirectory = /*#__PURE__*/ createUseReadContract({
+  abi: jbTokensAbi,
+  address: jbTokensAddress,
+  functionName: 'DIRECTORY',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"creditBalanceOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"creditBalanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensCreditBalanceOf<
-  TFunctionName extends 'creditBalanceOf',
-  TSelectData = ReadContractResult<typeof jbTokensABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useReadJbTokensCreditBalanceOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'creditBalanceOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"projectIdOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"projectIdOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensProjectIdOf<
-  TFunctionName extends 'projectIdOf',
-  TSelectData = ReadContractResult<typeof jbTokensABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    functionName: 'projectIdOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>)
-}
+export const useReadJbTokensProjectIdOf = /*#__PURE__*/ createUseReadContract({
+  abi: jbTokensAbi,
+  address: jbTokensAddress,
+  functionName: 'projectIdOf',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"tokenOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"tokenOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensTokenOf<
-  TFunctionName extends 'tokenOf',
-  TSelectData = ReadContractResult<typeof jbTokensABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    functionName: 'tokenOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>)
-}
+export const useReadJbTokensTokenOf = /*#__PURE__*/ createUseReadContract({
+  abi: jbTokensAbi,
+  address: jbTokensAddress,
+  functionName: 'tokenOf',
+})
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"totalBalanceOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"totalBalanceOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensTotalBalanceOf<
-  TFunctionName extends 'totalBalanceOf',
-  TSelectData = ReadContractResult<typeof jbTokensABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useReadJbTokensTotalBalanceOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'totalBalanceOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"totalCreditSupplyOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"totalCreditSupplyOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensTotalCreditSupplyOf<
-  TFunctionName extends 'totalCreditSupplyOf',
-  TSelectData = ReadContractResult<typeof jbTokensABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useReadJbTokensTotalCreditSupplyOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'totalCreditSupplyOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>)
-}
+  })
 
 /**
- * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"totalSupplyOf"`.
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"totalSupplyOf"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensTotalSupplyOf<
-  TFunctionName extends 'totalSupplyOf',
-  TSelectData = ReadContractResult<typeof jbTokensABI, TFunctionName>,
->(
-  config: Omit<
-    UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractRead({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    functionName: 'totalSupplyOf',
-    ...config,
-  } as UseContractReadConfig<typeof jbTokensABI, TFunctionName, TSelectData>)
-}
+export const useReadJbTokensTotalSupplyOf = /*#__PURE__*/ createUseReadContract(
+  { abi: jbTokensAbi, address: jbTokensAddress, functionName: 'totalSupplyOf' },
+)
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTokensABI}__.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTokensAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensWrite<
-  TFunctionName extends string,
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTokensAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTokensABI,
-          string
-        >['request']['abi'],
-        TFunctionName,
-        TMode
-      > & { address?: Address; chainId?: TChainId }
-    : UseContractWriteConfig<typeof jbTokensABI, TFunctionName, TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbTokensABI, TFunctionName, TMode>({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    ...config,
-  } as any)
-}
+export const useWriteJbTokens = /*#__PURE__*/ createUseWriteContract({
+  abi: jbTokensAbi,
+  address: jbTokensAddress,
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"burnFrom"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"burnFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensBurnFrom<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTokensAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTokensABI,
-          'burnFrom'
-        >['request']['abi'],
-        'burnFrom',
-        TMode
-      > & { address?: Address; chainId?: TChainId; functionName?: 'burnFrom' }
-    : UseContractWriteConfig<typeof jbTokensABI, 'burnFrom', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'burnFrom'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbTokensABI, 'burnFrom', TMode>({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    functionName: 'burnFrom',
-    ...config,
-  } as any)
-}
+export const useWriteJbTokensBurnFrom = /*#__PURE__*/ createUseWriteContract({
+  abi: jbTokensAbi,
+  address: jbTokensAddress,
+  functionName: 'burnFrom',
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"claimTokensFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"claimTokensFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensClaimTokensFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTokensAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTokensABI,
-          'claimTokensFor'
-        >['request']['abi'],
-        'claimTokensFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'claimTokensFor'
-      }
-    : UseContractWriteConfig<typeof jbTokensABI, 'claimTokensFor', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'claimTokensFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbTokensABI, 'claimTokensFor', TMode>({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useWriteJbTokensClaimTokensFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'claimTokensFor',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"deployERC20For"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"deployERC20For"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensDeployErc20For<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTokensAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTokensABI,
-          'deployERC20For'
-        >['request']['abi'],
-        'deployERC20For',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'deployERC20For'
-      }
-    : UseContractWriteConfig<typeof jbTokensABI, 'deployERC20For', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'deployERC20For'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbTokensABI, 'deployERC20For', TMode>({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useWriteJbTokensDeployErc20For =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'deployERC20For',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"mintFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"mintFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensMintFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTokensAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTokensABI,
-          'mintFor'
-        >['request']['abi'],
-        'mintFor',
-        TMode
-      > & { address?: Address; chainId?: TChainId; functionName?: 'mintFor' }
-    : UseContractWriteConfig<typeof jbTokensABI, 'mintFor', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'mintFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbTokensABI, 'mintFor', TMode>({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    functionName: 'mintFor',
-    ...config,
-  } as any)
-}
+export const useWriteJbTokensMintFor = /*#__PURE__*/ createUseWriteContract({
+  abi: jbTokensAbi,
+  address: jbTokensAddress,
+  functionName: 'mintFor',
+})
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"setTokenFor"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"setTokenFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensSetTokenFor<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTokensAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTokensABI,
-          'setTokenFor'
-        >['request']['abi'],
-        'setTokenFor',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setTokenFor'
-      }
-    : UseContractWriteConfig<typeof jbTokensABI, 'setTokenFor', TMode> & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'setTokenFor'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbTokensABI, 'setTokenFor', TMode>({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    functionName: 'setTokenFor',
-    ...config,
-  } as any)
-}
+export const useWriteJbTokensSetTokenFor = /*#__PURE__*/ createUseWriteContract(
+  { abi: jbTokensAbi, address: jbTokensAddress, functionName: 'setTokenFor' },
+)
 
 /**
- * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"transferCreditsFrom"`.
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"transferCreditsFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensTransferCreditsFrom<
-  TMode extends WriteContractMode = undefined,
-  TChainId extends number = keyof typeof jbTokensAddress,
->(
-  config: TMode extends 'prepared'
-    ? UseContractWriteConfig<
-        PrepareWriteContractResult<
-          typeof jbTokensABI,
-          'transferCreditsFrom'
-        >['request']['abi'],
-        'transferCreditsFrom',
-        TMode
-      > & {
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'transferCreditsFrom'
-      }
-    : UseContractWriteConfig<
-        typeof jbTokensABI,
-        'transferCreditsFrom',
-        TMode
-      > & {
-        abi?: never
-        address?: Address
-        chainId?: TChainId
-        functionName?: 'transferCreditsFrom'
-      } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractWrite<typeof jbTokensABI, 'transferCreditsFrom', TMode>({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useWriteJbTokensTransferCreditsFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'transferCreditsFrom',
-    ...config,
-  } as any)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTokensABI}__.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTokensAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function usePrepareJbTokensWrite<TFunctionName extends string>(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbTokensABI, TFunctionName>,
-    'abi' | 'address'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbTokensABI, TFunctionName>)
-}
+export const useSimulateJbTokens = /*#__PURE__*/ createUseSimulateContract({
+  abi: jbTokensAbi,
+  address: jbTokensAddress,
+})
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"burnFrom"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"burnFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function usePrepareJbTokensBurnFrom(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbTokensABI, 'burnFrom'>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useSimulateJbTokensBurnFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'burnFrom',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbTokensABI, 'burnFrom'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"claimTokensFor"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"claimTokensFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function usePrepareJbTokensClaimTokensFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbTokensABI, 'claimTokensFor'>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useSimulateJbTokensClaimTokensFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'claimTokensFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbTokensABI, 'claimTokensFor'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"deployERC20For"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"deployERC20For"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function usePrepareJbTokensDeployErc20For(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbTokensABI, 'deployERC20For'>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useSimulateJbTokensDeployErc20For =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'deployERC20For',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbTokensABI, 'deployERC20For'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"mintFor"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"mintFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function usePrepareJbTokensMintFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbTokensABI, 'mintFor'>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useSimulateJbTokensMintFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'mintFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbTokensABI, 'mintFor'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"setTokenFor"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"setTokenFor"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function usePrepareJbTokensSetTokenFor(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbTokensABI, 'setTokenFor'>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useSimulateJbTokensSetTokenFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'setTokenFor',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbTokensABI, 'setTokenFor'>)
-}
+  })
 
 /**
- * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbTokensABI}__ and `functionName` set to `"transferCreditsFrom"`.
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"transferCreditsFrom"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function usePrepareJbTokensTransferCreditsFrom(
-  config: Omit<
-    UsePrepareContractWriteConfig<typeof jbTokensABI, 'transferCreditsFrom'>,
-    'abi' | 'address' | 'functionName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return usePrepareContractWrite({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useSimulateJbTokensTransferCreditsFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     functionName: 'transferCreditsFrom',
-    ...config,
-  } as UsePrepareContractWriteConfig<typeof jbTokensABI, 'transferCreditsFrom'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbTokensABI}__.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensEvent<TEventName extends string>(
-  config: Omit<
-    UseContractEventConfig<typeof jbTokensABI, TEventName>,
-    'abi' | 'address'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
-    ...config,
-  } as UseContractEventConfig<typeof jbTokensABI, TEventName>)
-}
+export const useWatchJbTokensEvent = /*#__PURE__*/ createUseWatchContractEvent({
+  abi: jbTokensAbi,
+  address: jbTokensAddress,
+})
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbTokensABI}__ and `eventName` set to `"Burn"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"Burn"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensBurnEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbTokensABI, 'Burn'>,
-    'abi' | 'address' | 'eventName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useWatchJbTokensBurnEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     eventName: 'Burn',
-    ...config,
-  } as UseContractEventConfig<typeof jbTokensABI, 'Burn'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbTokensABI}__ and `eventName` set to `"ClaimTokens"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"ClaimTokens"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensClaimTokensEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbTokensABI, 'ClaimTokens'>,
-    'abi' | 'address' | 'eventName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useWatchJbTokensClaimTokensEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     eventName: 'ClaimTokens',
-    ...config,
-  } as UseContractEventConfig<typeof jbTokensABI, 'ClaimTokens'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbTokensABI}__ and `eventName` set to `"DeployERC20"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"DeployERC20"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensDeployErc20Event(
-  config: Omit<
-    UseContractEventConfig<typeof jbTokensABI, 'DeployERC20'>,
-    'abi' | 'address' | 'eventName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useWatchJbTokensDeployErc20Event =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     eventName: 'DeployERC20',
-    ...config,
-  } as UseContractEventConfig<typeof jbTokensABI, 'DeployERC20'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbTokensABI}__ and `eventName` set to `"Mint"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"Mint"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensMintEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbTokensABI, 'Mint'>,
-    'abi' | 'address' | 'eventName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useWatchJbTokensMintEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     eventName: 'Mint',
-    ...config,
-  } as UseContractEventConfig<typeof jbTokensABI, 'Mint'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbTokensABI}__ and `eventName` set to `"SetToken"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"SetToken"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensSetTokenEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbTokensABI, 'SetToken'>,
-    'abi' | 'address' | 'eventName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useWatchJbTokensSetTokenEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     eventName: 'SetToken',
-    ...config,
-  } as UseContractEventConfig<typeof jbTokensABI, 'SetToken'>)
-}
+  })
 
 /**
- * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbTokensABI}__ and `eventName` set to `"TransferCredits"`.
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"TransferCredits"`
  *
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
  */
-export function useJbTokensTransferCreditsEvent(
-  config: Omit<
-    UseContractEventConfig<typeof jbTokensABI, 'TransferCredits'>,
-    'abi' | 'address' | 'eventName'
-  > & { chainId?: keyof typeof jbTokensAddress; address?: Address } = {} as any,
-) {
-  const { chain } = useNetwork()
-  const defaultChainId = useChainId()
-  const chainId = config.chainId ?? chain?.id ?? defaultChainId
-  return useContractEvent({
-    abi: jbTokensABI,
-    address: jbTokensAddress[chainId as keyof typeof jbTokensAddress],
+export const useWatchJbTokensTransferCreditsEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: jbTokensAbi,
+    address: jbTokensAddress,
     eventName: 'TransferCredits',
-    ...config,
-  } as UseContractEventConfig<typeof jbTokensABI, 'TransferCredits'>)
-}
+  })

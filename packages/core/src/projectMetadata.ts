@@ -5,7 +5,7 @@ import {
   isAddressEqual,
   zeroAddress,
 } from "viem";
-import { jbControllerABI } from "./generated/juicebox";
+import { jbControllerAbi } from "./generated/juicebox";
 import { JBProjectMetadata } from "./types";
 import { ipfsGatewayUrl } from "./utils/ipfs";
 
@@ -25,8 +25,8 @@ const getMetadataCid = async (
 
   const JBController = await getContract({
     address: args.jbControllerAddress,
-    abi: jbControllerABI,
-    publicClient,
+    abi: jbControllerAbi,
+    client: publicClient,
   });
 
   const metadataCid = await JBController.read.uriOf([args.projectId]);
