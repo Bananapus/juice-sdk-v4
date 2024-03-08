@@ -41,6 +41,8 @@ export type JBDataHookProviderProps = PropsWithChildren<{
 
 /**
  * Provides information about a given dataHook.
+ * ONLY SUPPORTS JB721Delegate!
+ * @TODO support other dataHooks (e.g. buy-back delegate)
  *
  * @note depends on JBContractContext
  */
@@ -48,28 +50,20 @@ export const JBDataHookProvider = ({
   dataHookAddress,
   children,
 }: JBDataHookProviderProps) => {
-  const { data: jb721DelegateVersion, isLoading } =
-    useJb721DelegateVersion(dataHookAddress);
-
-  // TODO in future, support other dataHooks (e.g. buy-back delegate)
   const data = useMemo(() => {
-    if (isLoading) {
-      return AsyncDataLoading;
+    if (!dataHookAddress) {
+      return AsyncDataNone;
     }
 
-    if (!isLoading && jb721DelegateVersion) {
-      return {
-        isLoading: false,
-        data: {
-          name: JBDataHookName.JB721Delegate,
-          version: jb721DelegateVersion,
-          address: dataHookAddress,
-        },
-      };
-    }
-
-    return AsyncDataNone;
-  }, [isLoading, jb721DelegateVersion]);
+    return {
+      isLoading: false,
+      data: {
+        name: JBDataHookName.JB721Delegate,
+        version: "0",
+        address: dataHookAddress,
+      },
+    };
+  }, []);
 
   return (
     <JBDataHookContext.Provider value={data}>

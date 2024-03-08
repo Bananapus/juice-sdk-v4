@@ -53,7 +53,7 @@ export function useProjectMetadata({
         }
       );
 
-      return response;
+      return response ?? null;
     }
   );
 }

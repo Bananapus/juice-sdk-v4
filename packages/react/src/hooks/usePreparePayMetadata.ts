@@ -42,21 +42,23 @@ export function usePreparePayMetadata({
   jb721Delegate?: { tierIdsToMint: bigint[] };
 } = {}): Hash | null {
   const dataHook = useJBDataHookContext();
+
+  const delegateIds: string[] = [];
+  const metadatas: string[] = [];
+
   if (
-    dataHook.data?.name !== JBDataHookName.JB721Delegate ||
-    !jb721Delegate ||
-    jb721Delegate.tierIdsToMint.length === 0
+    jb721Delegate &&
+    dataHook.data &&
+    jb721Delegate.tierIdsToMint.length > 0
   ) {
-    return null;
+    const jb721DelegateMetadata = encodeJB721DelegatePayMetadata({
+      tierIdsToMint: jb721Delegate.tierIdsToMint,
+      allowOverspending: DEFAULT_ALLOW_OVERSPENDING,
+    });
+
+    delegateIds.push(getJB721DelegateId(dataHook.data.address));
+    metadatas.push(jb721DelegateMetadata);
   }
-
-  const jb721DelegateMetadata = encodeJB721DelegatePayMetadata({
-    tierIdsToMint: jb721Delegate.tierIdsToMint,
-    allowOverspending: DEFAULT_ALLOW_OVERSPENDING,
-  });
-
-  const delegateIds: string[] = [getJB721DelegateId(dataHook.data.address)];
-  const metadatas: string[] = [jb721DelegateMetadata];
 
   return createHookMetadata(delegateIds, metadatas) as Hash;
 }
