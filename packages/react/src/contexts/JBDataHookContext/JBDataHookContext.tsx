@@ -1,10 +1,9 @@
 import { PropsWithChildren, createContext, useContext, useMemo } from "react";
-import { useJb721DelegateVersion } from "src/hooks/jb721Delegate/useJb721DelegateVersion";
 import { Address } from "wagmi";
-import { AsyncData, AsyncDataLoading, AsyncDataNone } from "../types";
+import { AsyncData, AsyncDataNone } from "../types";
 
 export enum JBDataHookName {
-  JB721Delegate = "JB721Delegate",
+  JB721Hook = "JB721Hook",
 }
 
 /**
@@ -58,7 +57,7 @@ export const JBDataHookProvider = ({
     return {
       isLoading: false,
       data: {
-        name: JBDataHookName.JB721Delegate,
+        name: JBDataHookName.JB721Hook,
         version: "0",
         address: dataHookAddress,
       },
