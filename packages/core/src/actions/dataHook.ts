@@ -1,7 +1,7 @@
 import {
   jbAddressRegistryABI,
   jbAddressRegistryAddress,
-} from "src/generated/juicebox";
+} from "../generated/juicebox";
 import { Address, PublicClient, getContract, isAddressEqual } from "viem";
 
 // TODO add

@@ -33,7 +33,7 @@
     "wagmi": "^1.4.11"
   },
   "peerDependencies": {
-    "juice-sdk-core": "^2.0.14-alpha",
+    "juice-sdk-core": "^2.0.16-alpha",
     "react": "^18.2.0",
     "viem": "^1.21.4",
     "wagmi": "^1.4.11"
