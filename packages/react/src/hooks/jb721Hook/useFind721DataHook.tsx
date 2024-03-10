@@ -13,11 +13,11 @@ export function useFind721DataHook() {
   const rulesetId = ruleset.data?.id;
   const dataHookAddress = data?.dataHookAddress;
 
-  if (!data || !rulesetId || !dataHookAddress) return null;
-
   const jb721DataHookQuery = useQuery(
-    ["dataHook", data.dataHookAddress, projectId, rulesetId],
-    async function jb721DataHookQueryFn() {
+    ["dataHook", projectId, rulesetId, dataHookAddress],
+    async () => {
+      if (!rulesetId || !dataHookAddress) return null;
+
       const jb721DataHook = await find721DataHook(publicClient, {
         dataHookAddress,
         projectId,

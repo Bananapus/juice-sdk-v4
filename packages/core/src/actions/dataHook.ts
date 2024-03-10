@@ -1,8 +1,14 @@
 import {
+  Address,
+  PublicClient,
+  getContract,
+  isAddressEqual,
+  zeroAddress,
+} from "viem";
+import {
   jbAddressRegistryABI,
   jbAddressRegistryAddress,
 } from "../generated/juicebox";
-import { Address, PublicClient, getContract, isAddressEqual } from "viem";
 
 // TODO add
 const JB_721_HOOK_DEPLOYER_ADDRESSES = {
@@ -94,9 +100,20 @@ export async function getHookSpecifications(
     {
       projectId: args.projectId,
       rulesetId: args.rulesetId,
-      // TODO more, when someone/some usecase asks for more context!
+      terminal: zeroAddress,
+      beneficiary: zeroAddress,
+      amount: {
+        token: zeroAddress,
+        value: 0n,
+        decimals: 0n,
+        currency: 0n,
+      },
+      payer: zeroAddress,
+      weight: 0n,
+      reservedRate: 0n,
+      metadata: zeroAddress,
     },
-  ] as typeof dataHook.read.beforePayRecordedWith.arguments);
+  ]);
 
   return hookSpecifications;
 }
