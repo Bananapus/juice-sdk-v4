@@ -1,4 +1,76 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBAddressRegistry
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export const jbAddressRegistryABI = [
+  { stateMutability: 'nonpayable', type: 'constructor', inputs: [] },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'addr', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'deployer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'AddressRegistered',
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [{ name: 'addr', internalType: 'address', type: 'address' }],
+    name: 'deployerOf',
+    outputs: [{ name: 'deployer', internalType: 'address', type: 'address' }],
+  },
+  {
+    stateMutability: 'nonpayable',
+    type: 'function',
+    inputs: [
+      { name: 'deployer', internalType: 'address', type: 'address' },
+      { name: 'nonce', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'registerAddress',
+    outputs: [],
+  },
+  {
+    stateMutability: 'nonpayable',
+    type: 'function',
+    inputs: [
+      { name: 'deployer', internalType: 'address', type: 'address' },
+      { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'bytecode', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'registerAddress',
+    outputs: [],
+  },
+] as const
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export const jbAddressRegistryAddress = {
+  11155111: '0x903412238A2A8507D3b202399536E34B404Abb0C',
+  11155420: '0x4fd2e89F2D22b931203f061e65C1180569575299',
+} as const
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export const jbAddressRegistryConfig = {
+  address: jbAddressRegistryAddress,
+  abi: jbAddressRegistryABI,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBController
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -18,6 +18,78 @@ import {
 } from 'wagmi/actions'
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBAddressRegistry
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export const jbAddressRegistryABI = [
+  { stateMutability: 'nonpayable', type: 'constructor', inputs: [] },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'addr', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'deployer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'AddressRegistered',
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [{ name: 'addr', internalType: 'address', type: 'address' }],
+    name: 'deployerOf',
+    outputs: [{ name: 'deployer', internalType: 'address', type: 'address' }],
+  },
+  {
+    stateMutability: 'nonpayable',
+    type: 'function',
+    inputs: [
+      { name: 'deployer', internalType: 'address', type: 'address' },
+      { name: 'nonce', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'registerAddress',
+    outputs: [],
+  },
+  {
+    stateMutability: 'nonpayable',
+    type: 'function',
+    inputs: [
+      { name: 'deployer', internalType: 'address', type: 'address' },
+      { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'bytecode', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'registerAddress',
+    outputs: [],
+  },
+] as const
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export const jbAddressRegistryAddress = {
+  11155111: '0x903412238A2A8507D3b202399536E34B404Abb0C',
+  11155420: '0x4fd2e89F2D22b931203f061e65C1180569575299',
+} as const
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export const jbAddressRegistryConfig = {
+  address: jbAddressRegistryAddress,
+  abi: jbAddressRegistryABI,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBController
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -5346,6 +5418,303 @@ export const jbTokensConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // React
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbAddressRegistryABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export function useJbAddressRegistryRead<
+  TFunctionName extends string,
+  TSelectData = ReadContractResult<typeof jbAddressRegistryABI, TFunctionName>,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jbAddressRegistryABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address'
+  > & {
+    chainId?: keyof typeof jbAddressRegistryAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jbAddressRegistryABI,
+    address:
+      jbAddressRegistryAddress[
+        chainId as keyof typeof jbAddressRegistryAddress
+      ],
+    ...config,
+  } as UseContractReadConfig<
+    typeof jbAddressRegistryABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbAddressRegistryABI}__ and `functionName` set to `"deployerOf"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export function useJbAddressRegistryDeployerOf<
+  TFunctionName extends 'deployerOf',
+  TSelectData = ReadContractResult<typeof jbAddressRegistryABI, TFunctionName>,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jbAddressRegistryABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jbAddressRegistryAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jbAddressRegistryABI,
+    address:
+      jbAddressRegistryAddress[
+        chainId as keyof typeof jbAddressRegistryAddress
+      ],
+    functionName: 'deployerOf',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jbAddressRegistryABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbAddressRegistryABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export function useJbAddressRegistryWrite<
+  TFunctionName extends string,
+  TMode extends WriteContractMode = undefined,
+  TChainId extends number = keyof typeof jbAddressRegistryAddress,
+>(
+  config: TMode extends 'prepared'
+    ? UseContractWriteConfig<
+        PrepareWriteContractResult<
+          typeof jbAddressRegistryABI,
+          string
+        >['request']['abi'],
+        TFunctionName,
+        TMode
+      > & { address?: Address; chainId?: TChainId }
+    : UseContractWriteConfig<
+        typeof jbAddressRegistryABI,
+        TFunctionName,
+        TMode
+      > & {
+        abi?: never
+        address?: Address
+        chainId?: TChainId
+      } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractWrite<typeof jbAddressRegistryABI, TFunctionName, TMode>({
+    abi: jbAddressRegistryABI,
+    address:
+      jbAddressRegistryAddress[
+        chainId as keyof typeof jbAddressRegistryAddress
+      ],
+    ...config,
+  } as any)
+}
+
+/**
+ * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbAddressRegistryABI}__ and `functionName` set to `"registerAddress"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export function useJbAddressRegistryRegisterAddress<
+  TMode extends WriteContractMode = undefined,
+  TChainId extends number = keyof typeof jbAddressRegistryAddress,
+>(
+  config: TMode extends 'prepared'
+    ? UseContractWriteConfig<
+        PrepareWriteContractResult<
+          typeof jbAddressRegistryABI,
+          'registerAddress'
+        >['request']['abi'],
+        'registerAddress',
+        TMode
+      > & {
+        address?: Address
+        chainId?: TChainId
+        functionName?: 'registerAddress'
+      }
+    : UseContractWriteConfig<
+        typeof jbAddressRegistryABI,
+        'registerAddress',
+        TMode
+      > & {
+        abi?: never
+        address?: Address
+        chainId?: TChainId
+        functionName?: 'registerAddress'
+      } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractWrite<
+    typeof jbAddressRegistryABI,
+    'registerAddress',
+    TMode
+  >({
+    abi: jbAddressRegistryABI,
+    address:
+      jbAddressRegistryAddress[
+        chainId as keyof typeof jbAddressRegistryAddress
+      ],
+    functionName: 'registerAddress',
+    ...config,
+  } as any)
+}
+
+/**
+ * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbAddressRegistryABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export function usePrepareJbAddressRegistryWrite<TFunctionName extends string>(
+  config: Omit<
+    UsePrepareContractWriteConfig<typeof jbAddressRegistryABI, TFunctionName>,
+    'abi' | 'address'
+  > & {
+    chainId?: keyof typeof jbAddressRegistryAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return usePrepareContractWrite({
+    abi: jbAddressRegistryABI,
+    address:
+      jbAddressRegistryAddress[
+        chainId as keyof typeof jbAddressRegistryAddress
+      ],
+    ...config,
+  } as UsePrepareContractWriteConfig<
+    typeof jbAddressRegistryABI,
+    TFunctionName
+  >)
+}
+
+/**
+ * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbAddressRegistryABI}__ and `functionName` set to `"registerAddress"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export function usePrepareJbAddressRegistryRegisterAddress(
+  config: Omit<
+    UsePrepareContractWriteConfig<
+      typeof jbAddressRegistryABI,
+      'registerAddress'
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jbAddressRegistryAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return usePrepareContractWrite({
+    abi: jbAddressRegistryABI,
+    address:
+      jbAddressRegistryAddress[
+        chainId as keyof typeof jbAddressRegistryAddress
+      ],
+    functionName: 'registerAddress',
+    ...config,
+  } as UsePrepareContractWriteConfig<
+    typeof jbAddressRegistryABI,
+    'registerAddress'
+  >)
+}
+
+/**
+ * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbAddressRegistryABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export function useJbAddressRegistryEvent<TEventName extends string>(
+  config: Omit<
+    UseContractEventConfig<typeof jbAddressRegistryABI, TEventName>,
+    'abi' | 'address'
+  > & {
+    chainId?: keyof typeof jbAddressRegistryAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractEvent({
+    abi: jbAddressRegistryABI,
+    address:
+      jbAddressRegistryAddress[
+        chainId as keyof typeof jbAddressRegistryAddress
+      ],
+    ...config,
+  } as UseContractEventConfig<typeof jbAddressRegistryABI, TEventName>)
+}
+
+/**
+ * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbAddressRegistryABI}__ and `eventName` set to `"AddressRegistered"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x903412238A2A8507D3b202399536E34B404Abb0C)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4fd2e89F2D22b931203f061e65C1180569575299)
+ */
+export function useJbAddressRegistryAddressRegisteredEvent(
+  config: Omit<
+    UseContractEventConfig<typeof jbAddressRegistryABI, 'AddressRegistered'>,
+    'abi' | 'address' | 'eventName'
+  > & {
+    chainId?: keyof typeof jbAddressRegistryAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractEvent({
+    abi: jbAddressRegistryABI,
+    address:
+      jbAddressRegistryAddress[
+        chainId as keyof typeof jbAddressRegistryAddress
+      ],
+    eventName: 'AddressRegistered',
+    ...config,
+  } as UseContractEventConfig<typeof jbAddressRegistryABI, 'AddressRegistered'>)
+}
 
 /**
  * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbControllerABI}__.

@@ -2,7 +2,7 @@ import { addressFor, ForgeDeploy } from "forge-run-parser";
 import fs from "fs";
 import { CHAINS } from "../juice.config";
 
-export enum JBContracts {
+enum JBContracts {
   JBController = "JBController",
   JBDirectory = "JBDirectory",
   JBMultiTerminal = "JBMultiTerminal",
@@ -26,6 +26,13 @@ async function fetchLatestDeploymentFile(chainId: number) {
 
   return JSON.parse(file) as unknown as ForgeDeploy;
 }
+
+const EXTRAS = {
+  JBAddressRegistry: {
+    "11155111": "0x903412238A2A8507D3b202399536E34B404Abb0C",
+    "11155420": "0x4fd2e89F2D22b931203f061e65C1180569575299",
+  },
+};
 
 /**
  * Download the latest deployment manifest for each chain and generate a JSON file with the addresses.
@@ -51,7 +58,7 @@ async function main() {
     })
   );
 
-  const contractNameToAddresses = Object.values(JBContracts).reduce(
+  let contractNameToAddresses = Object.values(JBContracts).reduce(
     (acc, contractName, i) => {
       return {
         ...acc,
@@ -60,6 +67,12 @@ async function main() {
     },
     {}
   );
+
+  // add in extras
+  contractNameToAddresses = {
+    ...contractNameToAddresses,
+    ...EXTRAS,
+  };
 
   fs.writeFileSync("addresses.json", JSON.stringify(contractNameToAddresses));
 

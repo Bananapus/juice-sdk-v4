@@ -6,12 +6,12 @@ function getJB721HookId(dataHook: Address) {
   return dataHook.slice(0, 10); // first 4 bytes
 }
 
-interface Jb721HookV3_2PayMetadata {
+interface Jb721HookPayMetadata {
   tierIdsToMint: bigint[];
   allowOverspending?: boolean;
 }
 
-function encodeJB721HookPayMetadata(metadata: Jb721HookV3_2PayMetadata) {
+function encodeJB721HookPayMetadata(metadata: Jb721HookPayMetadata) {
   const args = [
     metadata.allowOverspending ?? DEFAULT_ALLOW_OVERSPENDING,
     metadata.tierIdsToMint.map(Number),
@@ -34,20 +34,18 @@ function encodeJB721HookPayMetadata(metadata: Jb721HookV3_2PayMetadata) {
 export function usePreparePayMetadata({
   jb721Hook,
 }: {
-  jb721Hook?: { tierIdsToMint: bigint[] };
+  jb721Hook?: { dataHookAddress: Address; tierIdsToMint: bigint[] };
 } = {}): Hash | null {
-  const dataHook = useJBDataHookContext();
-
   const HookIds: string[] = [];
   const metadatas: string[] = [];
 
-  if (jb721Hook && dataHook.data && jb721Hook.tierIdsToMint.length > 0) {
+  if (jb721Hook && jb721Hook.tierIdsToMint.length > 0) {
     const jb721HookMetadata = encodeJB721HookPayMetadata({
       tierIdsToMint: jb721Hook.tierIdsToMint,
       allowOverspending: DEFAULT_ALLOW_OVERSPENDING,
     });
 
-    HookIds.push(getJB721HookId(dataHook.data.address));
+    HookIds.push(getJB721HookId(jb721Hook.dataHookAddress));
     metadatas.push(jb721HookMetadata);
   }
 

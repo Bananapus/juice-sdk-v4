@@ -2,26 +2,14 @@ import { PropsWithChildren, createContext, useContext, useMemo } from "react";
 import { Address } from "wagmi";
 import { AsyncData, AsyncDataNone } from "../types";
 
-export enum JBDataHookName {
-  JB721Hook = "JB721Hook",
-}
-
 /**
  * Data structure for the context for a given dataHook.
  */
 export type JBDataHookContextData = AsyncData<{
   /**
-   * The name of the dataHook.
-   */
-  name: JBDataHookName;
-  /**
-   * The version of the dataHook (in whatever verisoning scheme the dataHook uses)
-   */
-  version: string;
-  /**
    * Address of the dataHook.
    */
-  address: Address;
+  dataHookAddress: Address;
 }>;
 
 /**
@@ -57,11 +45,9 @@ export const JBDataHookProvider = ({
     return {
       isLoading: false,
       data: {
-        name: JBDataHookName.JB721Hook,
-        version: "0",
-        address: dataHookAddress,
+        dataHookAddress,
       },
-    };
+    } as JBDataHookContextData;
   }, []);
 
   return (

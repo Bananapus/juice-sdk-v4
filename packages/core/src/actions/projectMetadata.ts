@@ -5,9 +5,9 @@ import {
   isAddressEqual,
   zeroAddress,
 } from "viem";
-import { jbControllerABI } from "./generated/juicebox";
-import { JBProjectMetadata } from "./types";
-import { ipfsGatewayUrl } from "./utils/ipfs";
+import { jbControllerABI } from "../generated/juicebox";
+import { JBProjectMetadata } from "../types";
+import { ipfsGatewayUrl } from "../utils/ipfs";
 
 /**
  * Fetch the onchain metadata CID for the given project, using the given JBController contract.
