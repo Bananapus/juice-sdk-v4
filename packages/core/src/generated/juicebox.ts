@@ -2095,6 +2095,237 @@ export const jbDirectoryConfig = {
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBFundAccessLimits
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export const jbFundAccessLimitsABI = [
+  {
+    stateMutability: 'nonpayable',
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+    ],
+  },
+  { type: 'error', inputs: [], name: 'CONTROLLER_UNAUTHORIZED' },
+  { type: 'error', inputs: [], name: 'INVALID_PAYOUT_LIMIT' },
+  { type: 'error', inputs: [], name: 'INVALID_PAYOUT_LIMIT_CURRENCY' },
+  { type: 'error', inputs: [], name: 'INVALID_PAYOUT_LIMIT_CURRENCY_ORDERING' },
+  { type: 'error', inputs: [], name: 'INVALID_SURPLUS_ALLOWANCE' },
+  { type: 'error', inputs: [], name: 'INVALID_SURPLUS_ALLOWANCE_CURRENCY' },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'INVALID_SURPLUS_ALLOWANCE_CURRENCY_ORDERING',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rulesetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'limits',
+        internalType: 'struct JBFundAccessLimitGroup',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'payoutLimits',
+            internalType: 'struct JBCurrencyAmount[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'amount', internalType: 'uint256', type: 'uint256' },
+              { name: 'currency', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'surplusAllowances',
+            internalType: 'struct JBCurrencyAmount[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'amount', internalType: 'uint256', type: 'uint256' },
+              { name: 'currency', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetFundAccessLimits',
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminal', internalType: 'address', type: 'address' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'payoutLimitOf',
+    outputs: [
+      { name: 'payoutLimit', internalType: 'uint256', type: 'uint256' },
+    ],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminal', internalType: 'address', type: 'address' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'payoutLimitsOf',
+    outputs: [
+      {
+        name: 'payoutLimits',
+        internalType: 'struct JBCurrencyAmount[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'currency', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+  },
+  {
+    stateMutability: 'nonpayable',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'fundAccessLimitGroup',
+        internalType: 'struct JBFundAccessLimitGroup[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'payoutLimits',
+            internalType: 'struct JBCurrencyAmount[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'amount', internalType: 'uint256', type: 'uint256' },
+              { name: 'currency', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'surplusAllowances',
+            internalType: 'struct JBCurrencyAmount[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'amount', internalType: 'uint256', type: 'uint256' },
+              { name: 'currency', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+        ],
+      },
+    ],
+    name: 'setFundAccessLimitsFor',
+    outputs: [],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminal', internalType: 'address', type: 'address' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'surplusAllowanceOf',
+    outputs: [
+      { name: 'surplusAllowance', internalType: 'uint256', type: 'uint256' },
+    ],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminal', internalType: 'address', type: 'address' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'surplusAllowancesOf',
+    outputs: [
+      {
+        name: 'surplusAllowances',
+        internalType: 'struct JBCurrencyAmount[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'currency', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+  },
+] as const
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export const jbFundAccessLimitsAddress = {
+  11155111: '0x3F02fA05baf3E456d03a414BCb853de5b7906580',
+  11155420: '0x914191b11F0773b91C8242633FB2d1903F63fb5d',
+} as const
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export const jbFundAccessLimitsConfig = {
+  address: jbFundAccessLimitsAddress,
+  abi: jbFundAccessLimitsABI,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBMultiTerminal
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

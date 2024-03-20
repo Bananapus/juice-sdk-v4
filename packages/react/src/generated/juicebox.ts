@@ -2114,6 +2114,237 @@ export const jbDirectoryConfig = {
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBFundAccessLimits
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export const jbFundAccessLimitsABI = [
+  {
+    stateMutability: 'nonpayable',
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+    ],
+  },
+  { type: 'error', inputs: [], name: 'CONTROLLER_UNAUTHORIZED' },
+  { type: 'error', inputs: [], name: 'INVALID_PAYOUT_LIMIT' },
+  { type: 'error', inputs: [], name: 'INVALID_PAYOUT_LIMIT_CURRENCY' },
+  { type: 'error', inputs: [], name: 'INVALID_PAYOUT_LIMIT_CURRENCY_ORDERING' },
+  { type: 'error', inputs: [], name: 'INVALID_SURPLUS_ALLOWANCE' },
+  { type: 'error', inputs: [], name: 'INVALID_SURPLUS_ALLOWANCE_CURRENCY' },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'INVALID_SURPLUS_ALLOWANCE_CURRENCY_ORDERING',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rulesetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'limits',
+        internalType: 'struct JBFundAccessLimitGroup',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'payoutLimits',
+            internalType: 'struct JBCurrencyAmount[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'amount', internalType: 'uint256', type: 'uint256' },
+              { name: 'currency', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'surplusAllowances',
+            internalType: 'struct JBCurrencyAmount[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'amount', internalType: 'uint256', type: 'uint256' },
+              { name: 'currency', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetFundAccessLimits',
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminal', internalType: 'address', type: 'address' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'payoutLimitOf',
+    outputs: [
+      { name: 'payoutLimit', internalType: 'uint256', type: 'uint256' },
+    ],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminal', internalType: 'address', type: 'address' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'payoutLimitsOf',
+    outputs: [
+      {
+        name: 'payoutLimits',
+        internalType: 'struct JBCurrencyAmount[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'currency', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+  },
+  {
+    stateMutability: 'nonpayable',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'fundAccessLimitGroup',
+        internalType: 'struct JBFundAccessLimitGroup[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'payoutLimits',
+            internalType: 'struct JBCurrencyAmount[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'amount', internalType: 'uint256', type: 'uint256' },
+              { name: 'currency', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'surplusAllowances',
+            internalType: 'struct JBCurrencyAmount[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'amount', internalType: 'uint256', type: 'uint256' },
+              { name: 'currency', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+        ],
+      },
+    ],
+    name: 'setFundAccessLimitsFor',
+    outputs: [],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminal', internalType: 'address', type: 'address' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'surplusAllowanceOf',
+    outputs: [
+      { name: 'surplusAllowance', internalType: 'uint256', type: 'uint256' },
+    ],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminal', internalType: 'address', type: 'address' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'surplusAllowancesOf',
+    outputs: [
+      {
+        name: 'surplusAllowances',
+        internalType: 'struct JBCurrencyAmount[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'currency', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+  },
+] as const
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export const jbFundAccessLimitsAddress = {
+  11155111: '0x3F02fA05baf3E456d03a414BCb853de5b7906580',
+  11155420: '0x914191b11F0773b91C8242633FB2d1903F63fb5d',
+} as const
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export const jbFundAccessLimitsConfig = {
+  address: jbFundAccessLimitsAddress,
+  abi: jbFundAccessLimitsABI,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBMultiTerminal
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -8842,6 +9073,506 @@ export function useJbDirectorySetTerminalsEvent(
     eventName: 'SetTerminals',
     ...config,
   } as UseContractEventConfig<typeof jbDirectoryABI, 'SetTerminals'>)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbFundAccessLimitsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsRead<
+  TFunctionName extends string,
+  TSelectData = ReadContractResult<typeof jbFundAccessLimitsABI, TFunctionName>,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jbFundAccessLimitsABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    ...config,
+  } as UseContractReadConfig<
+    typeof jbFundAccessLimitsABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbFundAccessLimitsABI}__ and `functionName` set to `"DIRECTORY"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsDirectory<
+  TFunctionName extends 'DIRECTORY',
+  TSelectData = ReadContractResult<typeof jbFundAccessLimitsABI, TFunctionName>,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jbFundAccessLimitsABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    functionName: 'DIRECTORY',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jbFundAccessLimitsABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbFundAccessLimitsABI}__ and `functionName` set to `"payoutLimitOf"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsPayoutLimitOf<
+  TFunctionName extends 'payoutLimitOf',
+  TSelectData = ReadContractResult<typeof jbFundAccessLimitsABI, TFunctionName>,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jbFundAccessLimitsABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    functionName: 'payoutLimitOf',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jbFundAccessLimitsABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbFundAccessLimitsABI}__ and `functionName` set to `"payoutLimitsOf"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsPayoutLimitsOf<
+  TFunctionName extends 'payoutLimitsOf',
+  TSelectData = ReadContractResult<typeof jbFundAccessLimitsABI, TFunctionName>,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jbFundAccessLimitsABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    functionName: 'payoutLimitsOf',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jbFundAccessLimitsABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbFundAccessLimitsABI}__ and `functionName` set to `"supportsInterface"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsSupportsInterface<
+  TFunctionName extends 'supportsInterface',
+  TSelectData = ReadContractResult<typeof jbFundAccessLimitsABI, TFunctionName>,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jbFundAccessLimitsABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    functionName: 'supportsInterface',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jbFundAccessLimitsABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbFundAccessLimitsABI}__ and `functionName` set to `"surplusAllowanceOf"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsSurplusAllowanceOf<
+  TFunctionName extends 'surplusAllowanceOf',
+  TSelectData = ReadContractResult<typeof jbFundAccessLimitsABI, TFunctionName>,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jbFundAccessLimitsABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    functionName: 'surplusAllowanceOf',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jbFundAccessLimitsABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbFundAccessLimitsABI}__ and `functionName` set to `"surplusAllowancesOf"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsSurplusAllowancesOf<
+  TFunctionName extends 'surplusAllowancesOf',
+  TSelectData = ReadContractResult<typeof jbFundAccessLimitsABI, TFunctionName>,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jbFundAccessLimitsABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    functionName: 'surplusAllowancesOf',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jbFundAccessLimitsABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbFundAccessLimitsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsWrite<
+  TFunctionName extends string,
+  TMode extends WriteContractMode = undefined,
+  TChainId extends number = keyof typeof jbFundAccessLimitsAddress,
+>(
+  config: TMode extends 'prepared'
+    ? UseContractWriteConfig<
+        PrepareWriteContractResult<
+          typeof jbFundAccessLimitsABI,
+          string
+        >['request']['abi'],
+        TFunctionName,
+        TMode
+      > & { address?: Address; chainId?: TChainId }
+    : UseContractWriteConfig<
+        typeof jbFundAccessLimitsABI,
+        TFunctionName,
+        TMode
+      > & {
+        abi?: never
+        address?: Address
+        chainId?: TChainId
+      } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractWrite<typeof jbFundAccessLimitsABI, TFunctionName, TMode>({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    ...config,
+  } as any)
+}
+
+/**
+ * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jbFundAccessLimitsABI}__ and `functionName` set to `"setFundAccessLimitsFor"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsSetFundAccessLimitsFor<
+  TMode extends WriteContractMode = undefined,
+  TChainId extends number = keyof typeof jbFundAccessLimitsAddress,
+>(
+  config: TMode extends 'prepared'
+    ? UseContractWriteConfig<
+        PrepareWriteContractResult<
+          typeof jbFundAccessLimitsABI,
+          'setFundAccessLimitsFor'
+        >['request']['abi'],
+        'setFundAccessLimitsFor',
+        TMode
+      > & {
+        address?: Address
+        chainId?: TChainId
+        functionName?: 'setFundAccessLimitsFor'
+      }
+    : UseContractWriteConfig<
+        typeof jbFundAccessLimitsABI,
+        'setFundAccessLimitsFor',
+        TMode
+      > & {
+        abi?: never
+        address?: Address
+        chainId?: TChainId
+        functionName?: 'setFundAccessLimitsFor'
+      } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractWrite<
+    typeof jbFundAccessLimitsABI,
+    'setFundAccessLimitsFor',
+    TMode
+  >({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    functionName: 'setFundAccessLimitsFor',
+    ...config,
+  } as any)
+}
+
+/**
+ * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbFundAccessLimitsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function usePrepareJbFundAccessLimitsWrite<TFunctionName extends string>(
+  config: Omit<
+    UsePrepareContractWriteConfig<typeof jbFundAccessLimitsABI, TFunctionName>,
+    'abi' | 'address'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return usePrepareContractWrite({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    ...config,
+  } as UsePrepareContractWriteConfig<
+    typeof jbFundAccessLimitsABI,
+    TFunctionName
+  >)
+}
+
+/**
+ * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jbFundAccessLimitsABI}__ and `functionName` set to `"setFundAccessLimitsFor"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function usePrepareJbFundAccessLimitsSetFundAccessLimitsFor(
+  config: Omit<
+    UsePrepareContractWriteConfig<
+      typeof jbFundAccessLimitsABI,
+      'setFundAccessLimitsFor'
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return usePrepareContractWrite({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    functionName: 'setFundAccessLimitsFor',
+    ...config,
+  } as UsePrepareContractWriteConfig<
+    typeof jbFundAccessLimitsABI,
+    'setFundAccessLimitsFor'
+  >)
+}
+
+/**
+ * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbFundAccessLimitsABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsEvent<TEventName extends string>(
+  config: Omit<
+    UseContractEventConfig<typeof jbFundAccessLimitsABI, TEventName>,
+    'abi' | 'address'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractEvent({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    ...config,
+  } as UseContractEventConfig<typeof jbFundAccessLimitsABI, TEventName>)
+}
+
+/**
+ * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jbFundAccessLimitsABI}__ and `eventName` set to `"SetFundAccessLimits"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ */
+export function useJbFundAccessLimitsSetFundAccessLimitsEvent(
+  config: Omit<
+    UseContractEventConfig<typeof jbFundAccessLimitsABI, 'SetFundAccessLimits'>,
+    'abi' | 'address' | 'eventName'
+  > & {
+    chainId?: keyof typeof jbFundAccessLimitsAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractEvent({
+    abi: jbFundAccessLimitsABI,
+    address:
+      jbFundAccessLimitsAddress[
+        chainId as keyof typeof jbFundAccessLimitsAddress
+      ],
+    eventName: 'SetFundAccessLimits',
+    ...config,
+  } as UseContractEventConfig<
+    typeof jbFundAccessLimitsABI,
+    'SetFundAccessLimits'
+  >)
 }
 
 /**

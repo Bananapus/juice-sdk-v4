@@ -12,6 +12,7 @@ enum JBContracts {
   JBSplits = "JBSplits",
   JBTokens = "JBTokens",
   JBTerminalStore = "JBTerminalStore",
+  JBFundAccessLimits = "JBFundAccessLimits",
 }
 
 /**
