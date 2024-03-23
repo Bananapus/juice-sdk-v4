@@ -42,7 +42,7 @@ describe("token", () => {
           reservedRate,
         });
 
-        expect(tokenBPrice.val).toBe(expectedTokenBPrice);
+        expect(tokenBPrice.value).toBe(expectedTokenBPrice);
       }
     );
   });

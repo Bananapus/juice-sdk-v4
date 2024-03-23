@@ -650,10 +650,10 @@ formdata-polyfill@^4.0.10:
   dependencies:
     fetch-blob "^3.1.2"
 
-fpnum@^0.0.16:
-  version "0.0.16"
-  resolved "https://registry.yarnpkg.com/fpnum/-/fpnum-0.0.16.tgz#210b18d591ae1ca15082868de7d046a89fad7ab0"
-  integrity sha512-XjBPC1TG0E6zAy71Tgm4g9RRSi+/EI6KysGP/PyyRjr+gMvXubS1oSs3NLsT4dnOA+bY1vP0L4Y4DIGz/wemaQ==
+fpnum@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/fpnum/-/fpnum-1.0.0.tgz#6f4e46d955632cad29100a48e45051f1c6436169"
+  integrity sha512-Sx8ciUp26NLM+OTNXrYm3Kq/8KCAiCFrvYMD3tcA7hjOemQ5Lpwuu7NKTElFiX5UCe83xk62BmJ6vfG/6SD2Yg==
 
 fs-extra@^10.1.0:
   version "10.1.0"

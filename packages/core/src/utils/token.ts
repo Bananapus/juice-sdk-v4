@@ -23,9 +23,9 @@ export const getTokenAToBQuote = <D extends number>(
 
   const weightRatio = BigInt(10 ** tokenAAmount.decimals);
 
-  const totalTokens = (weight.val * tokenAAmount.val) / weightRatio;
+  const totalTokens = (weight.value * tokenAAmount.value) / weightRatio;
   const reservedTokens =
-    (weight.val * reservedRate.val * tokenAAmount.val) /
+    (weight.value * reservedRate.value * tokenAAmount.value) /
     MAX_RESERVED_RATE /
     weightRatio;
 
@@ -72,7 +72,7 @@ export const getTokenBtoAQuote = <D extends number>(
   const tokenBPrice = getTokenBPrice(tokenADecimals, cycleParams);
   const oneTokenA = parseUnits("1", tokenADecimals);
 
-  const tokenAQuote = (tokenBPrice.val * tokenBAmount.val) / oneTokenA;
+  const tokenAQuote = (tokenBPrice.value * tokenBAmount.value) / oneTokenA;
   return new FixedInt(tokenAQuote, tokenADecimals);
 };
 

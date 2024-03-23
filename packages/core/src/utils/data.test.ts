@@ -11,7 +11,7 @@ describe("jb", () => {
     reservedRate.setPercentage(0.5);
     expect(reservedRate.format()).toEqual("0.5");
     expect(reservedRate.formatPercentage()).toEqual(50);
-    expect(reservedRate.val).toEqual(5_000n);
+    expect(reservedRate.value).toEqual(5_000n);
   });
 
   test("discount rate", () => {
@@ -23,6 +23,6 @@ describe("jb", () => {
     discountRate.setPercentage(0.5123);
     expect(discountRate.format()).toEqual("0.5123");
     expect(discountRate.formatPercentage()).toEqual(51.23);
-    expect(discountRate.val).toEqual(512_300_000n);
+    expect(discountRate.value).toEqual(512_300_000n);
   });
 });
