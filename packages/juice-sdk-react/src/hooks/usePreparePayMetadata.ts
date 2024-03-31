@@ -1,5 +1,4 @@
 import { DEFAULT_ALLOW_OVERSPENDING, createHookMetadata } from "juice-sdk-core";
-import { useJBDataHookContext } from "src/contexts/JBDataHookContext/JBDataHookContext";
 import { Address, Hash, encodeAbiParameters } from "viem";
 
 function getJB721HookId(dataHook: Address) {

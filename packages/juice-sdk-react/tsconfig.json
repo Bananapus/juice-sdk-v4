@@ -15,8 +15,14 @@
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "removeComments": false,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "composite": true
   },
+  "references": [
+    {
+      "path": "../juice-sdk-core"
+    }
+  ],
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "src/**/*.test.tsx", "src/**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "src/**/*.test.tsx", "src/**/*.test.ts", "wagmi.config.ts", "tsup.config.ts"]
 }

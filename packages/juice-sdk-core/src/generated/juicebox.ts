@@ -75,8 +75,8 @@ export const jbAddressRegistryConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x698d26DF9F8d5CF0Fd359D26aDD623602a2bC355)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x698d26DF9F8d5CF0Fd359D26aDD623602a2bC355)
  */
 export const jbControllerABI = [
   {
@@ -1738,17 +1738,17 @@ export const jbControllerABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x698d26DF9F8d5CF0Fd359D26aDD623602a2bC355)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x698d26DF9F8d5CF0Fd359D26aDD623602a2bC355)
  */
 export const jbControllerAddress = {
-  11155111: '0x02AF7F7E55459592C93DBD25A55f110149DdfaeC',
-  11155420: '0x221f338f8a909D6daFAE553567b03968bFf79Be5',
+  11155111: '0x698d26DF9F8d5CF0Fd359D26aDD623602a2bC355',
+  11155420: '0x698d26DF9F8d5CF0Fd359D26aDD623602a2bC355',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x02AF7F7E55459592C93DBD25A55f110149DdfaeC)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x221f338f8a909D6daFAE553567b03968bFf79Be5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x698d26DF9F8d5CF0Fd359D26aDD623602a2bC355)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x698d26DF9F8d5CF0Fd359D26aDD623602a2bC355)
  */
 export const jbControllerConfig = {
   address: jbControllerAddress,
@@ -1760,8 +1760,8 @@ export const jbControllerConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6A6988E79a621Fc7Ea74D67a31E9cefCcC98e949)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x6A6988E79a621Fc7Ea74D67a31E9cefCcC98e949)
  */
 export const jbDirectoryABI = [
   {
@@ -2077,17 +2077,17 @@ export const jbDirectoryABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6A6988E79a621Fc7Ea74D67a31E9cefCcC98e949)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x6A6988E79a621Fc7Ea74D67a31E9cefCcC98e949)
  */
 export const jbDirectoryAddress = {
-  11155111: '0x4a0E06016e11d15C34B9902ECca70f7582A174A9',
-  11155420: '0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c',
+  11155111: '0x6A6988E79a621Fc7Ea74D67a31E9cefCcC98e949',
+  11155420: '0x6A6988E79a621Fc7Ea74D67a31E9cefCcC98e949',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4a0E06016e11d15C34B9902ECca70f7582A174A9)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba2B0B3e9f930d0b8e5879487e33303438d3aa7c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6A6988E79a621Fc7Ea74D67a31E9cefCcC98e949)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x6A6988E79a621Fc7Ea74D67a31E9cefCcC98e949)
  */
 export const jbDirectoryConfig = {
   address: jbDirectoryAddress,
@@ -2099,8 +2099,8 @@ export const jbDirectoryConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF8eD3763480CA957316974BAB8FE4258d4fD0A17)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF8eD3763480CA957316974BAB8FE4258d4fD0A17)
  */
 export const jbFundAccessLimitsABI = [
   {
@@ -2308,17 +2308,17 @@ export const jbFundAccessLimitsABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF8eD3763480CA957316974BAB8FE4258d4fD0A17)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF8eD3763480CA957316974BAB8FE4258d4fD0A17)
  */
 export const jbFundAccessLimitsAddress = {
-  11155111: '0x3F02fA05baf3E456d03a414BCb853de5b7906580',
-  11155420: '0x914191b11F0773b91C8242633FB2d1903F63fb5d',
+  11155111: '0xF8eD3763480CA957316974BAB8FE4258d4fD0A17',
+  11155420: '0xF8eD3763480CA957316974BAB8FE4258d4fD0A17',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3F02fA05baf3E456d03a414BCb853de5b7906580)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x914191b11F0773b91C8242633FB2d1903F63fb5d)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF8eD3763480CA957316974BAB8FE4258d4fD0A17)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF8eD3763480CA957316974BAB8FE4258d4fD0A17)
  */
 export const jbFundAccessLimitsConfig = {
   address: jbFundAccessLimitsAddress,
@@ -2330,8 +2330,8 @@ export const jbFundAccessLimitsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd2e70177143C40d1CC657Dc2516B95b7FFF0dEe4)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd2e70177143C40d1CC657Dc2516B95b7FFF0dEe4)
  */
 export const jbMultiTerminalABI = [
   {
@@ -3498,17 +3498,17 @@ export const jbMultiTerminalABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd2e70177143C40d1CC657Dc2516B95b7FFF0dEe4)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd2e70177143C40d1CC657Dc2516B95b7FFF0dEe4)
  */
 export const jbMultiTerminalAddress = {
-  11155111: '0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc',
-  11155420: '0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866',
+  11155111: '0xd2e70177143C40d1CC657Dc2516B95b7FFF0dEe4',
+  11155420: '0xd2e70177143C40d1CC657Dc2516B95b7FFF0dEe4',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3980ae5F6C10aF7628cbf9246932333d6927d7Dc)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xcdF0B010fa61ac8D1fe567d1a81bCaC971802866)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd2e70177143C40d1CC657Dc2516B95b7FFF0dEe4)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd2e70177143C40d1CC657Dc2516B95b7FFF0dEe4)
  */
 export const jbMultiTerminalConfig = {
   address: jbMultiTerminalAddress,
@@ -3520,8 +3520,8 @@ export const jbMultiTerminalConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa1Ba58fcA530D0b011646167C9EB81F54d9C9dF6)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa1Ba58fcA530D0b011646167C9EB81F54d9C9dF6)
  */
 export const jbPermissionsABI = [
   { stateMutability: 'nonpayable', type: 'constructor', inputs: [] },
@@ -3640,17 +3640,17 @@ export const jbPermissionsABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa1Ba58fcA530D0b011646167C9EB81F54d9C9dF6)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa1Ba58fcA530D0b011646167C9EB81F54d9C9dF6)
  */
 export const jbPermissionsAddress = {
-  11155111: '0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20',
-  11155420: '0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541',
+  11155111: '0xa1Ba58fcA530D0b011646167C9EB81F54d9C9dF6',
+  11155420: '0xa1Ba58fcA530D0b011646167C9EB81F54d9C9dF6',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7f6318AbD7A6533E7deCeF89FE10Cd7985dbcd20)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4B24983d4546699Aa42EBa1eaBf189c08E6e8541)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa1Ba58fcA530D0b011646167C9EB81F54d9C9dF6)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa1Ba58fcA530D0b011646167C9EB81F54d9C9dF6)
  */
 export const jbPermissionsConfig = {
   address: jbPermissionsAddress,
@@ -3662,8 +3662,8 @@ export const jbPermissionsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x45452B26fe78D2b83247279F87c847F4F4A8FCEb)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x45452B26fe78D2b83247279F87c847F4F4A8FCEb)
  */
 export const jbProjectsABI = [
   {
@@ -4215,17 +4215,17 @@ export const jbProjectsABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x45452B26fe78D2b83247279F87c847F4F4A8FCEb)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x45452B26fe78D2b83247279F87c847F4F4A8FCEb)
  */
 export const jbProjectsAddress = {
-  11155111: '0xA2344fc40695cc7626904CCD4ef919487AffC184',
-  11155420: '0x65b25F762123CB4a2A950a45d820D9d4050E1a97',
+  11155111: '0x45452B26fe78D2b83247279F87c847F4F4A8FCEb',
+  11155420: '0x45452B26fe78D2b83247279F87c847F4F4A8FCEb',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xA2344fc40695cc7626904CCD4ef919487AffC184)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x65b25F762123CB4a2A950a45d820D9d4050E1a97)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x45452B26fe78D2b83247279F87c847F4F4A8FCEb)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x45452B26fe78D2b83247279F87c847F4F4A8FCEb)
  */
 export const jbProjectsConfig = {
   address: jbProjectsAddress,
@@ -4237,8 +4237,8 @@ export const jbProjectsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xDef756Ef46098Cb2109128D3458e01bcf58411D1)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xDef756Ef46098Cb2109128D3458e01bcf58411D1)
  */
 export const jbRulesetsABI = [
   {
@@ -4581,17 +4581,17 @@ export const jbRulesetsABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xDef756Ef46098Cb2109128D3458e01bcf58411D1)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xDef756Ef46098Cb2109128D3458e01bcf58411D1)
  */
 export const jbRulesetsAddress = {
-  11155111: '0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2',
-  11155420: '0x82Ef92b555a12187aa319097f1ca419CD27160d1',
+  11155111: '0xDef756Ef46098Cb2109128D3458e01bcf58411D1',
+  11155420: '0xDef756Ef46098Cb2109128D3458e01bcf58411D1',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x378B37147261Cb4ee39F1deadbdB1EfCfE467bD2)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x82Ef92b555a12187aa319097f1ca419CD27160d1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xDef756Ef46098Cb2109128D3458e01bcf58411D1)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xDef756Ef46098Cb2109128D3458e01bcf58411D1)
  */
 export const jbRulesetsConfig = {
   address: jbRulesetsAddress,
@@ -4603,8 +4603,8 @@ export const jbRulesetsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x59DD264E125b22Fb1a6a72F943982b132253Dfff)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x59DD264E125b22Fb1a6a72F943982b132253Dfff)
  */
 export const jbSplitsABI = [
   {
@@ -4772,17 +4772,17 @@ export const jbSplitsABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x59DD264E125b22Fb1a6a72F943982b132253Dfff)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x59DD264E125b22Fb1a6a72F943982b132253Dfff)
  */
 export const jbSplitsAddress = {
-  11155111: '0x2C55541689Be91d8912f383749A4Fd3C267A63f4',
-  11155420: '0x0dA1172F3a30710Af4943EB3E783c25B6562e60F',
+  11155111: '0x59DD264E125b22Fb1a6a72F943982b132253Dfff',
+  11155420: '0x59DD264E125b22Fb1a6a72F943982b132253Dfff',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2C55541689Be91d8912f383749A4Fd3C267A63f4)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0dA1172F3a30710Af4943EB3E783c25B6562e60F)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x59DD264E125b22Fb1a6a72F943982b132253Dfff)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x59DD264E125b22Fb1a6a72F943982b132253Dfff)
  */
 export const jbSplitsConfig = {
   address: jbSplitsAddress,
@@ -4794,8 +4794,8 @@ export const jbSplitsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4A13af5BbE0a9F8A7d4280f34d09638D2087eb0f)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4A13af5BbE0a9F8A7d4280f34d09638D2087eb0f)
  */
 export const jbTerminalStoreABI = [
   {
@@ -5204,17 +5204,17 @@ export const jbTerminalStoreABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4A13af5BbE0a9F8A7d4280f34d09638D2087eb0f)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4A13af5BbE0a9F8A7d4280f34d09638D2087eb0f)
  */
 export const jbTerminalStoreAddress = {
-  11155111: '0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b',
-  11155420: '0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1',
+  11155111: '0x4A13af5BbE0a9F8A7d4280f34d09638D2087eb0f',
+  11155420: '0x4A13af5BbE0a9F8A7d4280f34d09638D2087eb0f',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x6Fb249E55C472fF83dF6F3cDF09A0f414ea9635b)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe9DD4eA90e996d065A3d1082Dbd2adB69B3Ce5A1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x4A13af5BbE0a9F8A7d4280f34d09638D2087eb0f)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x4A13af5BbE0a9F8A7d4280f34d09638D2087eb0f)
  */
 export const jbTerminalStoreConfig = {
   address: jbTerminalStoreAddress,
@@ -5226,8 +5226,8 @@ export const jbTerminalStoreConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x266b64c59E45CCCAEEa8d34758c495A0517139f0)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x266b64c59E45CCCAEEa8d34758c495A0517139f0)
  */
 export const jbTokensABI = [
   {
@@ -5610,17 +5610,17 @@ export const jbTokensABI = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x266b64c59E45CCCAEEa8d34758c495A0517139f0)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x266b64c59E45CCCAEEa8d34758c495A0517139f0)
  */
 export const jbTokensAddress = {
-  11155111: '0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709',
-  11155420: '0x52E1280E04618d2579d4800d8ad457C5068d0cd4',
+  11155111: '0x266b64c59E45CCCAEEa8d34758c495A0517139f0',
+  11155420: '0x266b64c59E45CCCAEEa8d34758c495A0517139f0',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb2e00Cf642526a8a17d966F8f52605e77Bc6f709)
- * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x52E1280E04618d2579d4800d8ad457C5068d0cd4)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x266b64c59E45CCCAEEa8d34758c495A0517139f0)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x266b64c59E45CCCAEEa8d34758c495A0517139f0)
  */
 export const jbTokensConfig = {
   address: jbTokensAddress,

@@ -1,21 +1,14 @@
 {
-  "name": "juice-sdk-v4",
-  "description": "Juicebox V4 SDK monorepo",
-  "repository": "https://github.com/jbx-protocol/juice-sdk-v4",
-  "license": "MIT",
   "private": true,
   "workspaces": [
-    "./packages/*"
+    "./packages/juice-sdk-core",
+    "./packages/juice-sdk-react"
   ],
   "scripts": {
-    "build:core": "yarn --cwd packages/core build",
-    "build:react": "yarn --cwd packages/react build",
-    "build": "yarn build:core && yarn build:react",
-    "gen:addresses": "ts-node scripts/generateAddresses.ts",
-    "publish-all": "yarn --cwd packages/core publish && yarn --cwd packages/react publish"
-  },
-  "devDependencies": {
-    "patch-package": "^8.0.0",
-    "wagmi": "^1.4.11"
+    "build": "yarn workspaces run build",
+    "publish:core": "yarn workspace juice-sdk-core publish",
+    "publish:react": "yarn workspace juice-sdk-react publish",
+    "publish": "yarn publish:core && yarn publish:react",
+    "postinstall": "patch-package"
   }
 }

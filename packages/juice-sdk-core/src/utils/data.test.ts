@@ -1,4 +1,4 @@
-import { DiscountRate, ReservedRate } from "./data";
+import { DecayRate, ReservedRate } from "./data";
 import { describe, expect, test } from 'vitest'
 
 describe("jb", () => {
@@ -14,15 +14,15 @@ describe("jb", () => {
     expect(reservedRate.value).toEqual(5_000n);
   });
 
-  test("discount rate", () => {
-    const discountRateRaw = 200_000_000n; // 20%
-    const discountRate = new DiscountRate(discountRateRaw);
-    expect(discountRate.format()).toEqual("0.2");
-    expect(discountRate.toFloat()).toEqual(0.2);
+  test("decay rate", () => {
+    const decayRateRaw = 200_000_000n; // 20%
+    const decayRate = new DecayRate(decayRateRaw);
+    expect(decayRate.format()).toEqual("0.2");
+    expect(decayRate.toFloat()).toEqual(0.2);
 
-    discountRate.setPercentage(0.5123);
-    expect(discountRate.format()).toEqual("0.5123");
-    expect(discountRate.formatPercentage()).toEqual(51.23);
-    expect(discountRate.value).toEqual(512_300_000n);
+    decayRate.setPercentage(0.5123);
+    expect(decayRate.format()).toEqual("0.5123");
+    expect(decayRate.formatPercentage()).toEqual(51.23);
+    expect(decayRate.value).toEqual(512_300_000n);
   });
 });

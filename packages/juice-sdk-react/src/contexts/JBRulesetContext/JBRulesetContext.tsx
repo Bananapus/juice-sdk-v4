@@ -4,7 +4,7 @@ import {
   ReservedRate,
   RulesetWeight,
 } from "juice-sdk-core";
-import { PropsWithChildren, createContext, useContext } from "react";
+import { createContext, useContext } from "react";
 import { ReadContractResult } from "wagmi/dist/actions";
 import {
   jbControllerABI,

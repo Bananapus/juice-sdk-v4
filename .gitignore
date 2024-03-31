@@ -3,3 +3,4 @@ node_modules
 dist
 addresses.json
 .DS_Store
+*.tsbuildinfo

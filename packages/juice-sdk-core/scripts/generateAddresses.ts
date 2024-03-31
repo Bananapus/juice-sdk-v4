@@ -1,6 +1,6 @@
-import { addressFor, ForgeDeploy } from "forge-run-parser";
 import fs from "fs";
-import { CHAINS } from "../juice.config";
+import { Chain } from "viem";
+import { optimismSepolia, sepolia } from "viem/chains";
 
 enum JBContracts {
   JBController = "JBController",
@@ -15,17 +15,22 @@ enum JBContracts {
   JBFundAccessLimits = "JBFundAccessLimits",
 }
 
-/**
- * Fetch the latest Forge deployment manifest for a given chain ID. From GitHub.
- *
- * @link https://github.com/Bananapus/juice-contracts-v4
- */
-async function fetchLatestDeploymentFile(chainId: number) {
-  const url = `https://github.com/Bananapus/nana-core/raw/main/broadcast/Deploy.s.sol/${chainId}/run-latest.json`;
-  const response = await fetch(url);
-  const file = await response.text();
+async function importDeployment(
+  chain: Chain,
+  contractName: keyof typeof JBContracts
+) {
+  // TODO extremely flaky. add a const mapping of nana-core deployment chain names to chain ids
+  const deployment = await import(
+    `@bananapus/core/deployments/nana-core/${chain.name
+      .toLowerCase()
+      .split(" ")
+      .join("_")}/${contractName}.json`
+  );
 
-  return JSON.parse(file) as unknown as ForgeDeploy;
+  return deployment as unknown as {
+    address: string;
+    abi: unknown[];
+  };
 }
 
 const EXTRAS = {
@@ -40,22 +45,20 @@ const EXTRAS = {
  * Result file used in Wagmi CLI codegen.
  */
 async function main() {
-  const files = await Promise.all(
-    CHAINS.map((chainId) => fetchLatestDeploymentFile(chainId))
-  );
-
   const chainToContractAddress = await Promise.all(
     Object.values(JBContracts).map(async (contractName) => {
-      const addresses = await Promise.all(
-        files.map((file) => addressFor(contractName, file))
+      const deployment = await importDeployment(sepolia, contractName);
+      const deploymentOp = await importDeployment(
+        optimismSepolia,
+        contractName
       );
 
-      return addresses.reduce((acc, address, i) => {
-        return {
-          ...acc,
-          [CHAINS[i]]: address,
-        };
-      }, {});
+      // return addresses.reduce((acc, address, i) => {
+      return {
+        [sepolia.id]: deployment.address,
+        [optimismSepolia.id]: deploymentOp.address,
+      };
+      // }, {});
     })
   );
 
@@ -75,7 +78,7 @@ async function main() {
     ...EXTRAS,
   };
 
-  fs.writeFileSync("addresses.json", JSON.stringify(contractNameToAddresses));
+  fs.writeFileSync("src/generated/addresses.json", JSON.stringify(contractNameToAddresses));
 
   console.log("✅ Addresses generated and saved to addresses.json");
 }

@@ -15,8 +15,16 @@
     "skipLibCheck": true,
     "removeComments": false,
     "allowJs": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "composite": true
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "src/**/*.test.tsx", "src/**/*.test.ts"]
+  "exclude": ["dist", "src/**/*.test.tsx", "src/**/*.test.ts", "wagmi.config.ts", "scripts/**/*"],
+  "ts-node": {
+    // these options are overrides used only by ts-node
+    // same as the --compilerOptions flag and the TS_NODE_COMPILER_OPTIONS environment variable
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  }
 }
