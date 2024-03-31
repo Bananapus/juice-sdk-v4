@@ -11,7 +11,7 @@ index 04a78d1..e3d0261 100644
      420: string;
      137: string;
 diff --git a/node_modules/@wagmi/cli/dist/plugins/index.js b/node_modules/@wagmi/cli/dist/plugins/index.js
-index 8e23da2..98d869d 100644
+index 8e23da2..5484b44 100644
 --- a/node_modules/@wagmi/cli/dist/plugins/index.js
 +++ b/node_modules/@wagmi/cli/dist/plugins/index.js
 @@ -46,7 +46,8 @@ function actions(config = {}) {
@@ -50,9 +50,18 @@ index 8e23da2..98d869d 100644
              if (Object.keys(contract.address).length > 1) {
                innerHookParams.address = `${contract.meta.addressName}[chainId as keyof typeof ${contract.meta.addressName}]`;
                imports.add("useNetwork");
+@@ -1990,7 +1994,7 @@ function react(config = {}) {
+                   if (TChainId) {
+                     imports.add("Address");
+                     preparedTypeParams = `address?: Address; chainId?: TChainId; functionName?: '${item.name}'`;
+-                    unpreparedTypeParams = `address?: never; chainId?: TChainId; functionName?: '${item.name}'`;
++                    unpreparedTypeParams = `address?: Address; chainId?: TChainId; functionName?: '${item.name}'`;
+                   }
+                   imports.add("UseContractWriteConfig");
+                   if (!hasWriteContractMode)
 diff --git a/node_modules/@wagmi/cli/dist/plugins/index.js.orig b/node_modules/@wagmi/cli/dist/plugins/index.js.orig
 new file mode 100644
-index 0000000..eaa8429
+index 0000000..9298259
 --- /dev/null
 +++ b/node_modules/@wagmi/cli/dist/plugins/index.js.orig
 @@ -0,0 +1,2279 @@
@@ -1981,7 +1990,7 @@ index 0000000..eaa8429
 +              let typeParams_ = "";
 +              if (TChainId) {
 +                imports.add("Address");
-+                typeParams_ = "address?: never; chainId?: TChainId;";
++                typeParams_ = "address?: Address; chainId?: TChainId;";
 +              }
 +              imports.add("UseContractWriteConfig");
 +              if (!hasWriteContractMode)
@@ -2051,7 +2060,7 @@ index 0000000..eaa8429
 +                  if (TChainId) {
 +                    imports.add("Address");
 +                    preparedTypeParams = `address?: Address; chainId?: TChainId; functionName?: '${item.name}'`;
-+                    unpreparedTypeParams = `address?: never; chainId?: TChainId; functionName?: '${item.name}'`;
++                    unpreparedTypeParams = `address?: Address; chainId?: TChainId; functionName?: '${item.name}'`;
 +                  }
 +                  imports.add("UseContractWriteConfig");
 +                  if (!hasWriteContractMode)

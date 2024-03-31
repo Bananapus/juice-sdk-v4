@@ -5801,7 +5801,7 @@ export function useJbAddressRegistryRegisterAddress<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'registerAddress'
       } = {} as any,
@@ -6700,7 +6700,7 @@ export function useJbControllerBurnTokensOf<
       }
     : UseContractWriteConfig<typeof jbControllerABI, 'burnTokensOf', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'burnTokensOf'
       } = {} as any,
@@ -6745,7 +6745,7 @@ export function useJbControllerClaimTokensFor<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'claimTokensFor'
       } = {} as any,
@@ -6790,7 +6790,7 @@ export function useJbControllerDeployErc20For<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'deployERC20For'
       } = {} as any,
@@ -6835,7 +6835,7 @@ export function useJbControllerLaunchProjectFor<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'launchProjectFor'
       } = {} as any,
@@ -6880,7 +6880,7 @@ export function useJbControllerLaunchRulesetsFor<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'launchRulesetsFor'
       } = {} as any,
@@ -6925,7 +6925,7 @@ export function useJbControllerMigrateController<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'migrateController'
       } = {} as any,
@@ -6966,7 +6966,7 @@ export function useJbControllerMintTokensOf<
       }
     : UseContractWriteConfig<typeof jbControllerABI, 'mintTokensOf', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'mintTokensOf'
       } = {} as any,
@@ -7011,7 +7011,7 @@ export function useJbControllerPayReservedTokenToTerminal<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'payReservedTokenToTerminal'
       } = {} as any,
@@ -7060,7 +7060,7 @@ export function useJbControllerQueueRulesetsOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'queueRulesetsOf'
       } = {} as any,
@@ -7105,7 +7105,7 @@ export function useJbControllerReceiveMigrationFrom<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'receiveMigrationFrom'
       } = {} as any,
@@ -7154,7 +7154,7 @@ export function useJbControllerSendReservedTokensToSplitsOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'sendReservedTokensToSplitsOf'
       } = {} as any,
@@ -7203,7 +7203,7 @@ export function useJbControllerSetSplitGroupsOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setSplitGroupsOf'
       } = {} as any,
@@ -7244,7 +7244,7 @@ export function useJbControllerSetTokenFor<
       }
     : UseContractWriteConfig<typeof jbControllerABI, 'setTokenFor', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setTokenFor'
       } = {} as any,
@@ -7281,7 +7281,7 @@ export function useJbControllerSetUriOf<
       > & { address?: Address; chainId?: TChainId; functionName?: 'setUriOf' }
     : UseContractWriteConfig<typeof jbControllerABI, 'setUriOf', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setUriOf'
       } = {} as any,
@@ -7326,7 +7326,7 @@ export function useJbControllerTransferCreditsFrom<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'transferCreditsFrom'
       } = {} as any,
@@ -8446,7 +8446,7 @@ export function useJbDirectoryRenounceOwnership<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'renounceOwnership'
       } = {} as any,
@@ -8491,7 +8491,7 @@ export function useJbDirectorySetControllerOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setControllerOf'
       } = {} as any,
@@ -8536,7 +8536,7 @@ export function useJbDirectorySetIsAllowedToSetFirstController<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setIsAllowedToSetFirstController'
       } = {} as any,
@@ -8585,7 +8585,7 @@ export function useJbDirectorySetPrimaryTerminalOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setPrimaryTerminalOf'
       } = {} as any,
@@ -8628,7 +8628,7 @@ export function useJbDirectorySetTerminalsOf<
       }
     : UseContractWriteConfig<typeof jbDirectoryABI, 'setTerminalsOf', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setTerminalsOf'
       } = {} as any,
@@ -8673,7 +8673,7 @@ export function useJbDirectoryTransferOwnership<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'transferOwnership'
       } = {} as any,
@@ -9426,7 +9426,7 @@ export function useJbFundAccessLimitsSetFundAccessLimitsFor<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setFundAccessLimitsFor'
       } = {} as any,
@@ -10252,7 +10252,7 @@ export function useJbMultiTerminalAddAccountingContextsFor<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'addAccountingContextsFor'
       } = {} as any,
@@ -10302,7 +10302,7 @@ export function useJbMultiTerminalAddToBalanceOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'addToBalanceOf'
       } = {} as any,
@@ -10348,7 +10348,7 @@ export function useJbMultiTerminalExecutePayout<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'executePayout'
       } = {} as any,
@@ -10394,7 +10394,7 @@ export function useJbMultiTerminalExecuteProcessFee<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'executeProcessFee'
       } = {} as any,
@@ -10444,7 +10444,7 @@ export function useJbMultiTerminalMigrateBalanceOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'migrateBalanceOf'
       } = {} as any,
@@ -10484,7 +10484,7 @@ export function useJbMultiTerminalPay<
       > & { address?: Address; chainId?: TChainId; functionName?: 'pay' }
     : UseContractWriteConfig<typeof jbMultiTerminalABI, 'pay', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'pay'
       } = {} as any,
@@ -10530,7 +10530,7 @@ export function useJbMultiTerminalProcessHeldFeesOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'processHeldFeesOf'
       } = {} as any,
@@ -10580,7 +10580,7 @@ export function useJbMultiTerminalRedeemTokensOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'redeemTokensOf'
       } = {} as any,
@@ -10626,7 +10626,7 @@ export function useJbMultiTerminalSendPayoutsOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'sendPayoutsOf'
       } = {} as any,
@@ -10672,7 +10672,7 @@ export function useJbMultiTerminalUseAllowanceOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'useAllowanceOf'
       } = {} as any,
@@ -11690,7 +11690,7 @@ export function useJbPermissionsSetPermissionsFor<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setPermissionsFor'
       } = {} as any,
@@ -12450,7 +12450,7 @@ export function useJbProjectsApprove<
       > & { address?: Address; chainId?: TChainId; functionName?: 'approve' }
     : UseContractWriteConfig<typeof jbProjectsABI, 'approve', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'approve'
       } = {} as any,
@@ -12487,7 +12487,7 @@ export function useJbProjectsCreateFor<
       > & { address?: Address; chainId?: TChainId; functionName?: 'createFor' }
     : UseContractWriteConfig<typeof jbProjectsABI, 'createFor', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'createFor'
       } = {} as any,
@@ -12524,7 +12524,7 @@ export function useJbProjectsDelegate<
       > & { address?: Address; chainId?: TChainId; functionName?: 'delegate' }
     : UseContractWriteConfig<typeof jbProjectsABI, 'delegate', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'delegate'
       } = {} as any,
@@ -12565,7 +12565,7 @@ export function useJbProjectsDelegateBySig<
       }
     : UseContractWriteConfig<typeof jbProjectsABI, 'delegateBySig', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'delegateBySig'
       } = {} as any,
@@ -12610,7 +12610,7 @@ export function useJbProjectsRenounceOwnership<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'renounceOwnership'
       } = {} as any,
@@ -12655,7 +12655,7 @@ export function useJbProjectsSafeTransferFrom<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'safeTransferFrom'
       } = {} as any,
@@ -12700,7 +12700,7 @@ export function useJbProjectsSetApprovalForAll<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setApprovalForAll'
       } = {} as any,
@@ -12745,7 +12745,7 @@ export function useJbProjectsSetTokenUriResolver<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setTokenUriResolver'
       } = {} as any,
@@ -12786,7 +12786,7 @@ export function useJbProjectsTransferFrom<
       }
     : UseContractWriteConfig<typeof jbProjectsABI, 'transferFrom', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'transferFrom'
       } = {} as any,
@@ -12831,7 +12831,7 @@ export function useJbProjectsTransferOwnership<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'transferOwnership'
       } = {} as any,
@@ -13711,7 +13711,7 @@ export function useJbRulesetsQueueFor<
       > & { address?: Address; chainId?: TChainId; functionName?: 'queueFor' }
     : UseContractWriteConfig<typeof jbRulesetsABI, 'queueFor', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'queueFor'
       } = {} as any,
@@ -13756,7 +13756,7 @@ export function useJbRulesetsUpdateRulesetWeightCache<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'updateRulesetWeightCache'
       } = {} as any,
@@ -14100,7 +14100,7 @@ export function useJbSplitsSetSplitGroupsOf<
       }
     : UseContractWriteConfig<typeof jbSplitsABI, 'setSplitGroupsOf', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setSplitGroupsOf'
       } = {} as any,
@@ -14655,7 +14655,7 @@ export function useJbTerminalStoreRecordAddedBalanceFor<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'recordAddedBalanceFor'
       } = {} as any,
@@ -14705,7 +14705,7 @@ export function useJbTerminalStoreRecordPaymentFrom<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'recordPaymentFrom'
       } = {} as any,
@@ -14755,7 +14755,7 @@ export function useJbTerminalStoreRecordPayoutFor<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'recordPayoutFor'
       } = {} as any,
@@ -14801,7 +14801,7 @@ export function useJbTerminalStoreRecordRedemptionFor<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'recordRedemptionFor'
       } = {} as any,
@@ -14851,7 +14851,7 @@ export function useJbTerminalStoreRecordTerminalMigration<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'recordTerminalMigration'
       } = {} as any,
@@ -14901,7 +14901,7 @@ export function useJbTerminalStoreRecordUsedAllowanceOf<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'recordUsedAllowanceOf'
       } = {} as any,
@@ -15407,7 +15407,7 @@ export function useJbTokensBurnFrom<
       > & { address?: Address; chainId?: TChainId; functionName?: 'burnFrom' }
     : UseContractWriteConfig<typeof jbTokensABI, 'burnFrom', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'burnFrom'
       } = {} as any,
@@ -15448,7 +15448,7 @@ export function useJbTokensClaimTokensFor<
       }
     : UseContractWriteConfig<typeof jbTokensABI, 'claimTokensFor', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'claimTokensFor'
       } = {} as any,
@@ -15489,7 +15489,7 @@ export function useJbTokensDeployErc20For<
       }
     : UseContractWriteConfig<typeof jbTokensABI, 'deployERC20For', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'deployERC20For'
       } = {} as any,
@@ -15526,7 +15526,7 @@ export function useJbTokensMintFor<
       > & { address?: Address; chainId?: TChainId; functionName?: 'mintFor' }
     : UseContractWriteConfig<typeof jbTokensABI, 'mintFor', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'mintFor'
       } = {} as any,
@@ -15567,7 +15567,7 @@ export function useJbTokensSetTokenFor<
       }
     : UseContractWriteConfig<typeof jbTokensABI, 'setTokenFor', TMode> & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'setTokenFor'
       } = {} as any,
@@ -15612,7 +15612,7 @@ export function useJbTokensTransferCreditsFrom<
         TMode
       > & {
         abi?: never
-        address?: never
+        address?: Address
         chainId?: TChainId
         functionName?: 'transferCreditsFrom'
       } = {} as any,
