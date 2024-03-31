@@ -1,7 +1,7 @@
-diff --git a/node_modules/@wagmi/cli/dist/plugins/index.d.ts b/node_modules/@wagmi/cli/dist/plugins/index.d.ts
-index 04a78d1..e3d0261 100644
---- a/node_modules/@wagmi/cli/dist/plugins/index.d.ts
-+++ b/node_modules/@wagmi/cli/dist/plugins/index.d.ts
+diff --git a/dist/plugins/index.d.ts b/dist/plugins/index.d.ts
+index 04a78d1bcf1a63f9b30f6b6d4771ecab320a6039..e3d02613f8d49528041a45893d5e9bdb1b5527e0 100644
+--- a/dist/plugins/index.d.ts
++++ b/dist/plugins/index.d.ts
 @@ -114,6 +114,7 @@ declare const apiUrls: {
      1: string;
      5: string;
@@ -10,10 +10,10 @@ index 04a78d1..e3d0261 100644
      10: string;
      420: string;
      137: string;
-diff --git a/node_modules/@wagmi/cli/dist/plugins/index.js b/node_modules/@wagmi/cli/dist/plugins/index.js
-index 8e23da2..98d869d 100644
---- a/node_modules/@wagmi/cli/dist/plugins/index.js
-+++ b/node_modules/@wagmi/cli/dist/plugins/index.js
+diff --git a/dist/plugins/index.js b/dist/plugins/index.js
+index 8e23da2452b3a377040612e918d023a97386299c..98d869de455b266a20a44395ab9b40792f626e57 100644
+--- a/dist/plugins/index.js
++++ b/dist/plugins/index.js
 @@ -46,7 +46,8 @@ function actions(config = {}) {
          if (contract.meta.addressName) {
            omitted = `| 'address'`;
@@ -50,11 +50,11 @@ index 8e23da2..98d869d 100644
              if (Object.keys(contract.address).length > 1) {
                innerHookParams.address = `${contract.meta.addressName}[chainId as keyof typeof ${contract.meta.addressName}]`;
                imports.add("useNetwork");
-diff --git a/node_modules/@wagmi/cli/dist/plugins/index.js.orig b/node_modules/@wagmi/cli/dist/plugins/index.js.orig
+diff --git a/dist/plugins/index.js.orig b/dist/plugins/index.js.orig
 new file mode 100644
-index 0000000..eaa8429
+index 0000000000000000000000000000000000000000..eaa84297db7e7a31c56034f42484c5e2fdf2771d
 --- /dev/null
-+++ b/node_modules/@wagmi/cli/dist/plugins/index.js.orig
++++ b/dist/plugins/index.js.orig
 @@ -0,0 +1,2279 @@
 +import {
 +  fromZodError
@@ -2335,11 +2335,11 @@ index 0000000..eaa8429
 +  react,
 +  sourcify
 +};
-diff --git a/node_modules/@wagmi/cli/dist/plugins/index.js.rej b/node_modules/@wagmi/cli/dist/plugins/index.js.rej
+diff --git a/dist/plugins/index.js.rej b/dist/plugins/index.js.rej
 new file mode 100644
-index 0000000..9a44be7
+index 0000000000000000000000000000000000000000..9a44be74a47a9dceb8dedfb7b83456ecd37e7b38
 --- /dev/null
-+++ b/node_modules/@wagmi/cli/dist/plugins/index.js.rej
++++ b/dist/plugins/index.js.rej
 @@ -0,0 +1,18 @@
 +@@ -46,7 +46,7 @@
 +         if (contract.meta.addressName) {

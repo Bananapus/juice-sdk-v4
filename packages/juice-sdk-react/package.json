@@ -13,14 +13,13 @@
   },
   "author": "tomquirk",
   "license": "ISC",
-  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.11.5",
     "@types/react": "^18.2.21",
-    "@wagmi/cli": "^1.5.2",
+    "@wagmi/cli": "patch:@wagmi/cli@npm%3A1.5.2#~/.yarn/patches/@wagmi-cli-npm-1.5.2-e01a24e765.patch",
     "dotenv": "^16.3.2",
     "forge-run-parser": "^1.0.3",
-    "juice-sdk-core": "^4.0.0-alpha",
+    "juice-sdk-core": "workspace:^",
     "react": "^18.2.0",
     "ts-node": "^10.9.1",
     "tsup": "^8.0.1",
@@ -30,7 +29,7 @@
     "wagmi": "^1.4.11"
   },
   "peerDependencies": {
-    "juice-sdk-core": "^4.0.0-alpha",
+    "juice-sdk-core": "workspace:^",
     "react": "^18.2.0",
     "viem": "^1.21.4",
     "wagmi": "^1.4.11"

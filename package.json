@@ -1,14 +1,11 @@
 {
-  "private": true,
   "workspaces": [
     "./packages/juice-sdk-core",
     "./packages/juice-sdk-react"
   ],
   "scripts": {
-    "build": "yarn workspaces run build",
-    "publish:core": "yarn workspace juice-sdk-core publish",
-    "publish:react": "yarn workspace juice-sdk-react publish",
-    "publish": "yarn publish:core && yarn publish:react",
-    "postinstall": "patch-package"
-  }
+    "build": "yarn workspaces foreach --all -pt run build",
+    "publish": "yarn workspaces foreach --all -pt npm publish"
+  },
+  "packageManager": "yarn@4.1.1"
 }
