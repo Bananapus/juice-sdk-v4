@@ -19,7 +19,7 @@ async function importDeployment(
   chain: Chain,
   contractName: keyof typeof JBContracts
 ) {
-  // TODO extremely flaky. add a const mapping of nana-core deployment chain names to chain ids
+  // TODO extremely flaky. We should add a const mapping of nana-core deployment chain names to chain ids
   const deployment = await import(
     `@bananapus/core/deployments/nana-core/${chain.name
       .toLowerCase()

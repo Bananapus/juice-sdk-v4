@@ -20,8 +20,6 @@ const juiceboxContracts = Object.keys(addresses).map((name) => {
   };
 });
 
-console.log(juiceboxContracts)
-
 export default defineConfig([
   {
     out: "src/generated/juicebox.ts",
