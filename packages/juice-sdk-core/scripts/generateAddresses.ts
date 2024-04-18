@@ -2,7 +2,7 @@ import fs from "fs";
 import { Chain } from "viem";
 import { optimismSepolia, sepolia } from "viem/chains";
 
-enum JBContracts {
+enum JBCoreContracts {
   JBController = "JBController",
   JBDirectory = "JBDirectory",
   JBMultiTerminal = "JBMultiTerminal",
@@ -15,18 +15,34 @@ enum JBContracts {
   JBFundAccessLimits = "JBFundAccessLimits",
 }
 
-async function importDeployment(
-  chain: Chain,
-  contractName: keyof typeof JBContracts
-) {
-  // TODO extremely flaky. We should add a const mapping of nana-core deployment chain names to chain ids
-  const deployment = await import(
-    `@bananapus/core/deployments/nana-core/${chain.name
-      .toLowerCase()
-      .split(" ")
-      .join("_")}/${contractName}.json`
-  );
+enum JB721HookContracts {
+  JBAddressRegistry = "JBAddressRegistry",
+}
 
+function nanaCorePath(
+  chain: Chain,
+  contractName: keyof typeof JBCoreContracts
+) {
+  // TODO not robust, probably. We should add a const mapping of nana-core deployment chain names to chain ids
+  return `@bananapus/core/deployments/nana-core/${chain.name
+    .toLowerCase()
+    .split(" ")
+    .join("_")}/${contractName}.json`;
+}
+
+function nana721HookPath(
+  chain: Chain,
+  contractName: keyof typeof JB721HookContracts
+) {
+  // TODO not robust, probably. We should add a const mapping of nana-721-hook deployment chain names to chain ids
+  return `@bananapus/721-hook/deployments/nana-721-hook/${chain.name
+    .toLowerCase()
+    .split(" ")
+    .join("_")}/${contractName}.json`;
+}
+
+async function importDeployment(importPath: string) {
+  const deployment = await import(importPath);
   return deployment as unknown as {
     address: string;
     abi: unknown[];
@@ -35,22 +51,19 @@ async function importDeployment(
 
 const EXTRAS = {
   JBAddressRegistry: {
-    "11155111": "0x903412238A2A8507D3b202399536E34B404Abb0C",
-    "11155420": "0x4fd2e89F2D22b931203f061e65C1180569575299",
+    "11155111": "0x2012f03C32098e0a045d3e44df5bAD538e23a5FF",
+    "11155420": "0x2012f03C32098e0a045d3e44df5bAD538e23a5FF",
   },
 };
 
-/**
- * Download the latest deployment manifest for each chain and generate a JSON file with the addresses.
- * Result file used in Wagmi CLI codegen.
- */
-async function main() {
+async function generateNanaCoreAddresses() {
   const chainToContractAddress = await Promise.all(
-    Object.values(JBContracts).map(async (contractName) => {
-      const deployment = await importDeployment(sepolia, contractName);
+    Object.values(JBCoreContracts).map(async (contractName) => {
+      const deployment = await importDeployment(
+        nanaCorePath(sepolia, contractName)
+      );
       const deploymentOp = await importDeployment(
-        optimismSepolia,
-        contractName
+        nanaCorePath(optimismSepolia, contractName)
       );
 
       // return addresses.reduce((acc, address, i) => {
@@ -62,7 +75,7 @@ async function main() {
     })
   );
 
-  let contractNameToAddresses = Object.values(JBContracts).reduce(
+  const contractNameToAddresses = Object.values(JBCoreContracts).reduce(
     (acc, contractName, i) => {
       return {
         ...acc,
@@ -72,13 +85,57 @@ async function main() {
     {}
   );
 
-  // add in extras
-  contractNameToAddresses = {
-    ...contractNameToAddresses,
-    ...EXTRAS,
+  return contractNameToAddresses;
+}
+
+async function generateNana721HookAddresses() {
+  const chainToContractAddress = await Promise.all(
+    Object.values(JB721HookContracts).map(async (contractName) => {
+      const deployment = await importDeployment(
+        nana721HookPath(sepolia, contractName)
+      );
+      const deploymentOp = await importDeployment(
+        nana721HookPath(optimismSepolia, contractName)
+      );
+
+      // return addresses.reduce((acc, address, i) => {
+      return {
+        [sepolia.id]: deployment.address,
+        [optimismSepolia.id]: deploymentOp.address,
+      };
+      // }, {});
+    })
+  );
+
+  const contractNameToAddresses = Object.values(JB721HookContracts).reduce(
+    (acc, contractName, i) => {
+      return {
+        ...acc,
+        [contractName]: chainToContractAddress[i],
+      };
+    },
+    {}
+  );
+
+  return contractNameToAddresses;
+}
+
+/**
+ * Download the latest deployment manifest for each chain and generate a JSON file with the addresses.
+ * Result file used in Wagmi CLI codegen.
+ */
+async function main() {
+  const [nanaCoreAddresses, nana721HookAddresses] = await Promise.all([
+    generateNanaCoreAddresses(),
+    generateNana721HookAddresses(),
+  ]);
+
+  const addresses = {
+    ...nanaCoreAddresses,
+    ...nana721HookAddresses,
   };
 
-  fs.writeFileSync("src/generated/addresses.json", JSON.stringify(contractNameToAddresses));
+  fs.writeFileSync("src/generated/addresses.json", JSON.stringify(addresses));
 
   console.log("✅ Addresses generated and saved to addresses.json");
 }

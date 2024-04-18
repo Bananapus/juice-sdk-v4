@@ -24,7 +24,8 @@
     "viem": "^1.21.4"
   },
   "devDependencies": {
-    "@bananapus/core": "^0.0.7",
+    "@bananapus/core": "0.0.12",
+    "@bananapus/721-hook": "0.0.10",
     "@types/bs58": "^4.0.4",
     "@wagmi/cli": "^1.5.2",
     "patch-package": "^8.0.0",

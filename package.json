@@ -9,7 +9,8 @@
     "publish:core": "yarn workspace juice-sdk-core publish",
     "publish:react": "yarn workspace juice-sdk-react publish",
     "publish": "yarn publish:core && yarn publish:react",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "clean": "rm -Rf node_modules **/node_modules **/dist"
   },
   "packageManager": "yarn@1.22.22"
 }

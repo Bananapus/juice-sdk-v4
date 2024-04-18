@@ -4,6 +4,9 @@ import { useJBContractContext } from "../../contexts/JBContractContext/JBContrac
 import { useJBRulesetContext } from "../../contexts/JBRulesetContext/JBRulesetContext";
 import { useJBDataHookContext } from "../../contexts/JBDataHookContext/JBDataHookContext";
 
+/**
+ * Return the 721 data hook (if it exists) for the project and current ruleset in context.
+ */
 export function useFind721DataHook() {
   const { data } = useJBDataHookContext();
   const { projectId } = useJBContractContext();
