@@ -44,13 +44,13 @@
   dependencies:
     regenerator-runtime "^0.14.0"
 
-"@bananapus/721-hook@0.0.10":
-  version "0.0.10"
-  resolved "https://registry.yarnpkg.com/@bananapus/721-hook/-/721-hook-0.0.10.tgz#8765ab14a472e8867b92fd1703ffb8027f58a20c"
-  integrity sha512-fjIGfxFZNGhA3BH2+W5BJSVNOJZ6kUej8sdaEt+QVIaGPylB0zX3f/WiO7VC8Xaa2bFAaRIRvbQkBSzSUfaS8g==
+"@bananapus/721-hook@0.0.11":
+  version "0.0.11"
+  resolved "https://registry.yarnpkg.com/@bananapus/721-hook/-/721-hook-0.0.11.tgz#ff29399f0a177d4279875a7ac7038e15c687802f"
+  integrity sha512-HH4EuFzEGvY3VeLduyMzMaiaG/QjnmZvtoc6tY/C6ks2P/diSYUU5HMILjJAXnI7qM4YlcNiOpFw9xMsHcXbcg==
   dependencies:
     "@bananapus/address-registry" "^0.0.4"
-    "@bananapus/core" "^0.0.12"
+    "@bananapus/core" "^0.0.13"
     "@bananapus/ownable" "^0.0.6"
     "@bananapus/permission-ids" "^0.0.5"
     "@openzeppelin/contracts" "^5.0.2"
@@ -61,7 +61,18 @@
   resolved "https://registry.yarnpkg.com/@bananapus/address-registry/-/address-registry-0.0.4.tgz#a9a4b96726d64a471dca347662bdba1e5d33342a"
   integrity sha512-3VHv3IcgQqzvzijZXuQCSjQP30SiXb6njfdYPBzKRljNVWp0vQUUahicNpzUjuyzymAdQcgSH8xQBZedf3kT/w==
 
-"@bananapus/core@0.0.12", "@bananapus/core@^0.0.12":
+"@bananapus/core@0.0.13", "@bananapus/core@^0.0.13":
+  version "0.0.13"
+  resolved "https://registry.yarnpkg.com/@bananapus/core/-/core-0.0.13.tgz#803025d743f97ab81bb71d754dcd54dbd21e8ff4"
+  integrity sha512-JM3ozsFrqu9jPuD7EO5y1sobjiLmBcZfVGP4O/mpVBAMb/hi8n5HD07e1WLdOHyEE4sg5DCb2+XSFX23j7g+Ug==
+  dependencies:
+    "@bananapus/permission-ids" "^0.0.5"
+    "@chainlink/contracts" "^1.0.0"
+    "@openzeppelin/contracts" "^5.0.2"
+    "@prb/math" "^4.0.2"
+    "@uniswap/permit2" "github:Uniswap/permit2"
+
+"@bananapus/core@^0.0.12":
   version "0.0.12"
   resolved "https://registry.yarnpkg.com/@bananapus/core/-/core-0.0.12.tgz#89fd6724063d79e05a4ce781228092ed24d8a8b2"
   integrity sha512-p2kmwf05H+TWWCF/raca0Xh0hK9+im/7Tt5o8e/yDpI+tCr5vybd/UlFjyry+Q4w/t3FLkhAMQqA0anIKilBig==
