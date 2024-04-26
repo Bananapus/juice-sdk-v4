@@ -9,7 +9,12 @@ import {
 import { ONE_ETHER } from "../constants";
 
 /**
- * Return a quote for token mints for a given [payAmount].
+ * Return a quote for how much Token B to mint for a given `tokenAAmount`.
+ *
+ * Useful for when users specify how much they want to spend (Token A).
+ *
+ * Accounts for the ruleset's `weight` and `reservedRate`.
+ *
  * Returned quote contains:
  * - total tokens to be minted (JB ruleset `weight`).
  * - tokens reserved for project.
@@ -41,6 +46,8 @@ export const getTokenAToBQuote = <D extends number>(
 
 /**
  * Return the amount of Token A it costs to buy 1 Token B.
+ *
+ * Accounts for the ruleset's `weight` and `reservedRate`.
  */
 export const getTokenBPrice = (
   tokenADecimals: number,
@@ -59,10 +66,11 @@ export const getTokenBPrice = (
 };
 
 /**
- * Return the ETH cost to mint a given [tokensAmount] to the payer.
- * @param tokensAmount
- * @param cycleParams
- * @returns
+ * Return the amount of Token A it costs to mint a given `tokenBAmount`.
+ *
+ * Accounts for the ruleset's `weight` and `reservedRate`.
+ *
+ * Useful for when users specify the outcome they want (how much Token B they want).
  */
 export const getTokenBtoAQuote = <D extends number>(
   tokenBAmount: FixedInt<D>, // wei

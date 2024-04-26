@@ -1,5 +1,11 @@
 import { MAX_DECAY_RATE } from "./data";
 
+/**
+ * Derive the next ruleset's Weight value from the current ruleset.
+ *
+ * Useful when projecting a project's future Token B price.
+ * E.g. "In the next ruleset, how much will Token B cost, given the new Weight?"
+ */
 export function getNextRulesetWeight(currentRuleset: {
   weight: bigint;
   decayRate: bigint;
@@ -11,6 +17,9 @@ export function getNextRulesetWeight(currentRuleset: {
   return nextRulesetWeight;
 }
 
+/**
+ * Derive the previous ruleset's Weight value from the current ruleset.
+ */
 export function getPrevRulesetWeight(currentRuleset: {
   weight: bigint;
   decayRate: bigint;
