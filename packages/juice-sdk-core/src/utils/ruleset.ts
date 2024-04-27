@@ -1,4 +1,4 @@
-import { MAX_DECAY_RATE } from "./data";
+import { MAX_DECAY_RATE } from "../constants";
 
 /**
  * Derive the next ruleset's Weight value from the current ruleset.
