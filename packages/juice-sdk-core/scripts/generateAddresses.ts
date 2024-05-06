@@ -18,6 +18,7 @@ enum JBCoreContracts {
 enum JB721HookContracts {
   JBAddressRegistry = "JBAddressRegistry",
   JB721TiersHookDeployer = "JB721TiersHookDeployer",
+  JB721TiersHook = "JB721TiersHook",
 }
 
 function nanaCorePath(

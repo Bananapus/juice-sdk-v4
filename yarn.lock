@@ -44,13 +44,13 @@
   dependencies:
     regenerator-runtime "^0.14.0"
 
-"@bananapus/721-hook@0.0.11":
-  version "0.0.11"
-  resolved "https://registry.yarnpkg.com/@bananapus/721-hook/-/721-hook-0.0.11.tgz#ff29399f0a177d4279875a7ac7038e15c687802f"
-  integrity sha512-HH4EuFzEGvY3VeLduyMzMaiaG/QjnmZvtoc6tY/C6ks2P/diSYUU5HMILjJAXnI7qM4YlcNiOpFw9xMsHcXbcg==
+"@bananapus/721-hook@0.0.12":
+  version "0.0.12"
+  resolved "https://registry.yarnpkg.com/@bananapus/721-hook/-/721-hook-0.0.12.tgz#d0cdddbb5ef5c13517cdaf7945450c539ede9719"
+  integrity sha512-MbbppW4BNalertxspO4xdO9dW/7bievEOS/H2xS5nZjTo9sxwtLUF92HxEerFZWXyXRFjxjh+HGF/ic5Znjfqg==
   dependencies:
     "@bananapus/address-registry" "^0.0.4"
-    "@bananapus/core" "^0.0.13"
+    "@bananapus/core" "^0.0.14"
     "@bananapus/ownable" "^0.0.6"
     "@bananapus/permission-ids" "^0.0.5"
     "@openzeppelin/contracts" "^5.0.2"
@@ -61,13 +61,13 @@
   resolved "https://registry.yarnpkg.com/@bananapus/address-registry/-/address-registry-0.0.4.tgz#a9a4b96726d64a471dca347662bdba1e5d33342a"
   integrity sha512-3VHv3IcgQqzvzijZXuQCSjQP30SiXb6njfdYPBzKRljNVWp0vQUUahicNpzUjuyzymAdQcgSH8xQBZedf3kT/w==
 
-"@bananapus/core@0.0.13", "@bananapus/core@^0.0.13":
-  version "0.0.13"
-  resolved "https://registry.yarnpkg.com/@bananapus/core/-/core-0.0.13.tgz#803025d743f97ab81bb71d754dcd54dbd21e8ff4"
-  integrity sha512-JM3ozsFrqu9jPuD7EO5y1sobjiLmBcZfVGP4O/mpVBAMb/hi8n5HD07e1WLdOHyEE4sg5DCb2+XSFX23j7g+Ug==
+"@bananapus/core@0.0.14", "@bananapus/core@^0.0.14":
+  version "0.0.14"
+  resolved "https://registry.yarnpkg.com/@bananapus/core/-/core-0.0.14.tgz#dd9da3220731b1c6a80daebdbfa44ef51203a61e"
+  integrity sha512-0yEZAhai56c9IDR0T4j7An/lDkdu+2uMc8BdpX9sfpI8w5IhxDj9uv8lBPG9iMvOcILOqtYweFWK3eR3yRL1YA==
   dependencies:
     "@bananapus/permission-ids" "^0.0.5"
-    "@chainlink/contracts" "^1.0.0"
+    "@chainlink/contracts" "^1.1.0"
     "@openzeppelin/contracts" "^5.0.2"
     "@prb/math" "^4.0.2"
     "@uniswap/permit2" "github:Uniswap/permit2"
@@ -108,6 +108,19 @@
     "@openzeppelin/contracts-upgradeable" "4.9.3"
     "@scroll-tech/contracts" "0.1.0"
     semver "^7.5.4"
+
+"@chainlink/contracts@^1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@chainlink/contracts/-/contracts-1.1.0.tgz#7158db5771b9504d32d2235a5378ef56601a3e6c"
+  integrity sha512-J+gDUCnEOJ2ofCvy5L2VLrQ7DVs0NXK31w8MQrW6U1GpjzU1j+it7FOJHZMxZKGg7wDdWI06aWmCgFeiD1H+bA==
+  dependencies:
+    "@changesets/changelog-github" "^0.4.8"
+    "@changesets/cli" "~2.26.2"
+    "@eth-optimism/contracts" "0.6.0"
+    "@openzeppelin/contracts" "4.9.3"
+    "@openzeppelin/contracts-upgradeable" "4.9.3"
+    "@scroll-tech/contracts" "0.1.0"
+    semver "^7.6.0"
 
 "@changesets/apply-release-plan@^6.1.4":
   version "6.1.4"
@@ -5541,7 +5554,7 @@ safe-stable-stringify@^2.1.0:
   resolved "https://registry.yarnpkg.com/semver/-/semver-5.7.2.tgz#48d55db737c3287cd4835e17fa13feace1c41ef8"
   integrity sha512-cBznnQ9KjJqU67B52RMC65CMarK2600WFnbkcaiwWq3xy/5haFJlshgnpjovMVJ+Hff49d8GEn0b87C5pDQ10g==
 
-semver@^7.3.8, semver@^7.5.3, semver@^7.5.4:
+semver@^7.3.8, semver@^7.5.3, semver@^7.5.4, semver@^7.6.0:
   version "7.6.0"
   resolved "https://registry.yarnpkg.com/semver/-/semver-7.6.0.tgz#1a46a4db4bffcccd97b743b5005c8325f23d4e2d"
   integrity sha512-EnwXhrlwXMk9gKu5/flx5sv/an57AkRplG3hTK68W7FRDN+k+OWBj65M7719OkA82XLBxrcX0KSHj+X5COhOVg==
