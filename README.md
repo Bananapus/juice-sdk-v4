@@ -62,3 +62,27 @@ To add new contract addresses, modify the `generateAddresses` script to fetch an
 To update existing contract addresses, just run the script; it will pull the latest contract addresses from GitHub.
 
 To add support for a new chain, add its chain ID to `juice.config.ts` and run `yarn build`.
+
+### Local links
+
+In local development, linking juice-sdk to another local project or app requires some extra setup.
+Both juice-sdk and the local project need to depend on **the same `wagmi` on the filesystem**.
+
+The following describes how to link a local juice-sdk to another local project:
+
+1. Run `yarn link` in both `packages/juice-sdk-react` and `packages/juice-sdk-core`
+1. In `packages/juice-sdk-react`, run `yarn link "juice-sdk-core"`.
+1. In 2 separate processes, run `yarn dev` in both `packages/juice-sdk-react` and `packages/juice-sdk-core`.
+
+**In your local project**:
+1. Clear any build files `rm -Rf .next`
+1. Manually remove the project's `wagmi` dependency
+   ```sh
+   rm -Rf node_modules/wagmi
+   ```
+1. Symlink juice-sdk's `wagmi` dependency to the project's node_modules
+
+   ```sh
+   ln -s /absolute/path/to/juice-sdk/node_modules/wagmi node_modules
+   ```
+1. Run or build the project.
