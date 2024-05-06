@@ -3,7 +3,7 @@ import { etherscan, react } from "@wagmi/cli/plugins";
 import dotenv from "dotenv";
 import { Address } from "viem";
 import { CHAINS, DEFAULT_CHAIN } from "../../juice.config";
-import addresses from "juice-sdk-core/src/generated/addresses.json" assert { type: "json" };
+import addresses from "../juice-sdk-core/src/generated/addresses.json" assert { type: "json" };
 
 dotenv.config();
 
