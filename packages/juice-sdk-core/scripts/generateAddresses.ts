@@ -17,6 +17,7 @@ enum JBCoreContracts {
 
 enum JB721HookContracts {
   JBAddressRegistry = "JBAddressRegistry",
+  JB721TiersHookDeployer = "JB721TiersHookDeployer",
 }
 
 function nanaCorePath(
@@ -48,13 +49,6 @@ async function importDeployment(importPath: string) {
     abi: unknown[];
   };
 }
-
-const EXTRAS = {
-  JBAddressRegistry: {
-    "11155111": "0x2012f03C32098e0a045d3e44df5bAD538e23a5FF",
-    "11155420": "0x2012f03C32098e0a045d3e44df5bAD538e23a5FF",
-  },
-};
 
 async function generateNanaCoreAddresses() {
   const chainToContractAddress = await Promise.all(

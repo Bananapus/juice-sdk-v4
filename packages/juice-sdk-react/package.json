@@ -9,7 +9,8 @@
     "test": "vitest",
     "generate": "wagmi generate",
     "generate-types": "echo '🔧 Generating types...' && tsc --emitDeclarationOnly",
-    "build": "yarn generate && tsup && yarn generate-types"
+    "build": "yarn generate && tsup && yarn generate-types",
+    "dev": "tsup --watch"
   },
   "author": "tomquirk",
   "license": "ISC",

@@ -14,7 +14,8 @@
     "prebuild": "rm -Rf dist/",
     "build": "yarn generate && yarn build:esm && yarn build:cjs",
     "build:esm": "tsc --project ./tsconfig.json",
-    "build:cjs": "tsc --project ./tsconfig.cjs.json"
+    "build:cjs": "tsc --project ./tsconfig.cjs.json",
+    "dev": "tsc --project ./tsconfig.json --watch --preserveWatchOutput"
   },
   "dependencies": {
     "bs58": "^5.0.0",
