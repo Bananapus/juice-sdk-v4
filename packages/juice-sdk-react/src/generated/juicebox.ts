@@ -18,6 +18,267 @@ import {
 } from 'wagmi/actions'
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JB721TiersHookDeployer
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export const jb721TiersHookDeployerABI = [
+  {
+    stateMutability: 'nonpayable',
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract JB721TiersHook',
+        type: 'address',
+      },
+      {
+        name: 'store',
+        internalType: 'contract IJB721TiersHookStore',
+        type: 'address',
+      },
+      {
+        name: 'addressRegistry',
+        internalType: 'contract IJBAddressRegistry',
+        type: 'address',
+      },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+  },
+  { type: 'error', inputs: [], name: 'ERC1167FailedCreateClone' },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'newHook',
+        internalType: 'contract IJB721TiersHook',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'HookDeployed',
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [],
+    name: 'ADDRESS_REGISTRY',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBAddressRegistry',
+        type: 'address',
+      },
+    ],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [],
+    name: 'HOOK',
+    outputs: [
+      { name: '', internalType: 'contract JB721TiersHook', type: 'address' },
+    ],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [],
+    name: 'STORE',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJB721TiersHookStore',
+        type: 'address',
+      },
+    ],
+  },
+  {
+    stateMutability: 'nonpayable',
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'deployTiersHookConfig',
+        internalType: 'struct JBDeploy721TiersHookConfig',
+        type: 'tuple',
+        components: [
+          { name: 'name', internalType: 'string', type: 'string' },
+          { name: 'symbol', internalType: 'string', type: 'string' },
+          {
+            name: 'rulesets',
+            internalType: 'contract IJBRulesets',
+            type: 'address',
+          },
+          { name: 'baseUri', internalType: 'string', type: 'string' },
+          {
+            name: 'tokenUriResolver',
+            internalType: 'contract IJB721TokenUriResolver',
+            type: 'address',
+          },
+          { name: 'contractUri', internalType: 'string', type: 'string' },
+          {
+            name: 'tiersConfig',
+            internalType: 'struct JB721InitTiersConfig',
+            type: 'tuple',
+            components: [
+              {
+                name: 'tiers',
+                internalType: 'struct JB721TierConfig[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'price', internalType: 'uint104', type: 'uint104' },
+                  {
+                    name: 'initialSupply',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  {
+                    name: 'votingUnits',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  {
+                    name: 'reserveFrequency',
+                    internalType: 'uint16',
+                    type: 'uint16',
+                  },
+                  {
+                    name: 'reserveBeneficiary',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'encodedIPFSUri',
+                    internalType: 'bytes32',
+                    type: 'bytes32',
+                  },
+                  { name: 'category', internalType: 'uint24', type: 'uint24' },
+                  {
+                    name: 'allowOwnerMint',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useReserveBeneficiaryAsDefault',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'transfersPausable',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useVotingUnits',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'cannotBeRemoved',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                ],
+              },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              {
+                name: 'prices',
+                internalType: 'contract IJBPrices',
+                type: 'address',
+              },
+            ],
+          },
+          {
+            name: 'reserveBeneficiary',
+            internalType: 'address',
+            type: 'address',
+          },
+          {
+            name: 'flags',
+            internalType: 'struct JB721TiersHookFlags',
+            type: 'tuple',
+            components: [
+              {
+                name: 'noNewTiersWithReserves',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'noNewTiersWithVotes',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'noNewTiersWithOwnerMinting',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'preventOverspending',
+                internalType: 'bool',
+                type: 'bool',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    name: 'deployHookFor',
+    outputs: [
+      {
+        name: 'newHook',
+        internalType: 'contract IJB721TiersHook',
+        type: 'address',
+      },
+    ],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+  },
+  {
+    stateMutability: 'view',
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+  },
+] as const
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export const jb721TiersHookDeployerAddress = {
+  11155111: '0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC',
+  11155420: '0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC',
+} as const
+
+/**
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export const jb721TiersHookDeployerConfig = {
+  address: jb721TiersHookDeployerAddress,
+  abi: jb721TiersHookDeployerABI,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBAddressRegistry
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -5642,6 +5903,490 @@ export const jbTokensConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // React
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function useJb721TiersHookDeployerRead<
+  TFunctionName extends string,
+  TSelectData = ReadContractResult<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName
+  >,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jb721TiersHookDeployerABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address'
+  > & {
+    chainId?: keyof typeof jb721TiersHookDeployerAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    ...config,
+  } as UseContractReadConfig<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__ and `functionName` set to `"ADDRESS_REGISTRY"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function useJb721TiersHookDeployerAddressRegistry<
+  TFunctionName extends 'ADDRESS_REGISTRY',
+  TSelectData = ReadContractResult<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName
+  >,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jb721TiersHookDeployerABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jb721TiersHookDeployerAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    functionName: 'ADDRESS_REGISTRY',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__ and `functionName` set to `"HOOK"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function useJb721TiersHookDeployerHook<
+  TFunctionName extends 'HOOK',
+  TSelectData = ReadContractResult<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName
+  >,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jb721TiersHookDeployerABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jb721TiersHookDeployerAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    functionName: 'HOOK',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__ and `functionName` set to `"STORE"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function useJb721TiersHookDeployerStore<
+  TFunctionName extends 'STORE',
+  TSelectData = ReadContractResult<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName
+  >,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jb721TiersHookDeployerABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jb721TiersHookDeployerAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    functionName: 'STORE',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__ and `functionName` set to `"isTrustedForwarder"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function useJb721TiersHookDeployerIsTrustedForwarder<
+  TFunctionName extends 'isTrustedForwarder',
+  TSelectData = ReadContractResult<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName
+  >,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jb721TiersHookDeployerABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jb721TiersHookDeployerAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    functionName: 'isTrustedForwarder',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractRead}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__ and `functionName` set to `"trustedForwarder"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function useJb721TiersHookDeployerTrustedForwarder<
+  TFunctionName extends 'trustedForwarder',
+  TSelectData = ReadContractResult<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName
+  >,
+>(
+  config: Omit<
+    UseContractReadConfig<
+      typeof jb721TiersHookDeployerABI,
+      TFunctionName,
+      TSelectData
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jb721TiersHookDeployerAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractRead({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    functionName: 'trustedForwarder',
+    ...config,
+  } as UseContractReadConfig<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName,
+    TSelectData
+  >)
+}
+
+/**
+ * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function useJb721TiersHookDeployerWrite<
+  TFunctionName extends string,
+  TMode extends WriteContractMode = undefined,
+  TChainId extends number = keyof typeof jb721TiersHookDeployerAddress,
+>(
+  config: TMode extends 'prepared'
+    ? UseContractWriteConfig<
+        PrepareWriteContractResult<
+          typeof jb721TiersHookDeployerABI,
+          string
+        >['request']['abi'],
+        TFunctionName,
+        TMode
+      > & { address?: Address; chainId?: TChainId }
+    : UseContractWriteConfig<
+        typeof jb721TiersHookDeployerABI,
+        TFunctionName,
+        TMode
+      > & {
+        abi?: never
+        address?: never
+        chainId?: TChainId
+      } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractWrite<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName,
+    TMode
+  >({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    ...config,
+  } as any)
+}
+
+/**
+ * Wraps __{@link useContractWrite}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__ and `functionName` set to `"deployHookFor"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function useJb721TiersHookDeployerDeployHookFor<
+  TMode extends WriteContractMode = undefined,
+  TChainId extends number = keyof typeof jb721TiersHookDeployerAddress,
+>(
+  config: TMode extends 'prepared'
+    ? UseContractWriteConfig<
+        PrepareWriteContractResult<
+          typeof jb721TiersHookDeployerABI,
+          'deployHookFor'
+        >['request']['abi'],
+        'deployHookFor',
+        TMode
+      > & {
+        address?: Address
+        chainId?: TChainId
+        functionName?: 'deployHookFor'
+      }
+    : UseContractWriteConfig<
+        typeof jb721TiersHookDeployerABI,
+        'deployHookFor',
+        TMode
+      > & {
+        abi?: never
+        address?: Address
+        chainId?: TChainId
+        functionName?: 'deployHookFor'
+      } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractWrite<
+    typeof jb721TiersHookDeployerABI,
+    'deployHookFor',
+    TMode
+  >({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    functionName: 'deployHookFor',
+    ...config,
+  } as any)
+}
+
+/**
+ * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function usePrepareJb721TiersHookDeployerWrite<
+  TFunctionName extends string,
+>(
+  config: Omit<
+    UsePrepareContractWriteConfig<
+      typeof jb721TiersHookDeployerABI,
+      TFunctionName
+    >,
+    'abi' | 'address'
+  > & {
+    chainId?: keyof typeof jb721TiersHookDeployerAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return usePrepareContractWrite({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    ...config,
+  } as UsePrepareContractWriteConfig<
+    typeof jb721TiersHookDeployerABI,
+    TFunctionName
+  >)
+}
+
+/**
+ * Wraps __{@link usePrepareContractWrite}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__ and `functionName` set to `"deployHookFor"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function usePrepareJb721TiersHookDeployerDeployHookFor(
+  config: Omit<
+    UsePrepareContractWriteConfig<
+      typeof jb721TiersHookDeployerABI,
+      'deployHookFor'
+    >,
+    'abi' | 'address' | 'functionName'
+  > & {
+    chainId?: keyof typeof jb721TiersHookDeployerAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return usePrepareContractWrite({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    functionName: 'deployHookFor',
+    ...config,
+  } as UsePrepareContractWriteConfig<
+    typeof jb721TiersHookDeployerABI,
+    'deployHookFor'
+  >)
+}
+
+/**
+ * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function useJb721TiersHookDeployerEvent<TEventName extends string>(
+  config: Omit<
+    UseContractEventConfig<typeof jb721TiersHookDeployerABI, TEventName>,
+    'abi' | 'address'
+  > & {
+    chainId?: keyof typeof jb721TiersHookDeployerAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractEvent({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    ...config,
+  } as UseContractEventConfig<typeof jb721TiersHookDeployerABI, TEventName>)
+}
+
+/**
+ * Wraps __{@link useContractEvent}__ with `abi` set to __{@link jb721TiersHookDeployerABI}__ and `eventName` set to `"HookDeployed"`.
+ *
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ * - [__View Contract on Optimism Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xd3838B2875a06E61bEfc3679Ee2C8d88D61067dC)
+ */
+export function useJb721TiersHookDeployerHookDeployedEvent(
+  config: Omit<
+    UseContractEventConfig<typeof jb721TiersHookDeployerABI, 'HookDeployed'>,
+    'abi' | 'address' | 'eventName'
+  > & {
+    chainId?: keyof typeof jb721TiersHookDeployerAddress
+    address?: Address
+  } = {} as any,
+) {
+  const { chain } = useNetwork()
+  const defaultChainId = useChainId()
+  const chainId = config.chainId ?? chain?.id ?? defaultChainId
+  return useContractEvent({
+    abi: jb721TiersHookDeployerABI,
+    address:
+      jb721TiersHookDeployerAddress[
+        chainId as keyof typeof jb721TiersHookDeployerAddress
+      ],
+    eventName: 'HookDeployed',
+    ...config,
+  } as UseContractEventConfig<typeof jb721TiersHookDeployerABI, 'HookDeployed'>)
+}
 
 /**
  * Wraps __{@link useContractRead}__ with `abi` set to __{@link jbAddressRegistryABI}__.
