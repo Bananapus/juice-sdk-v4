@@ -48,7 +48,7 @@ export const JBDataHookProvider = ({
         dataHookAddress,
       },
     } as JBDataHookContextData;
-  }, []);
+  }, [dataHookAddress]);
 
   return (
     <JBDataHookContext.Provider value={data}>

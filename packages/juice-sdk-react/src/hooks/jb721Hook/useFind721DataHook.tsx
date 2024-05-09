@@ -15,6 +15,12 @@ export function useFind721DataHook() {
 
   const rulesetId = ruleset.data?.id;
   const dataHookAddress = data?.dataHookAddress;
+  // console.log("useFind721DataHook::args", {
+  //   projectId,
+  //   rulesetId,
+  //   dataHookAddress,
+  //   publicClient,
+  // });
 
   const jb721DataHookQuery = useQuery(
     ["dataHook", projectId, rulesetId, dataHookAddress],
@@ -26,6 +32,7 @@ export function useFind721DataHook() {
         projectId,
         rulesetId,
       });
+      // console.log("useFind721DataHook::final jb721DataHook", jb721DataHook);
 
       return jb721DataHook;
     }
