@@ -39,6 +39,8 @@ export function usePreparePayMetadata({
     dataHookAddress: jb721Hook?.dataHookAddress,
   });
 
+  console.log("usePreparePayMetadata::metadataId", metadataId);
+
   if (!jb721Hook || jb721Hook.tierIdsToMint.length == 0 || !metadataId) {
     return null;
   }
