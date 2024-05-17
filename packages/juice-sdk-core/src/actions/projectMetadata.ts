@@ -29,7 +29,10 @@ const getMetadataCid = async (
     publicClient,
   });
 
-  const metadataCid = await JBController.read.uriOf([args.projectId]);
+  // ipfs://cid or https://cid, probably
+  const metadataUri = await JBController.read.uriOf([args.projectId]);
+
+  const metadataCid = metadataUri.split("/").pop();
 
   return metadataCid;
 };
