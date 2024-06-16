@@ -1,16 +1,23 @@
 {
+  "name": "juice-sdk",
   "private": true,
-  "workspaces": [
-    "./packages/juice-sdk-core",
-    "./packages/juice-sdk-react"
-  ],
   "scripts": {
-    "build": "yarn workspaces run build",
-    "publish:core": "yarn workspace juice-sdk-core publish",
-    "publish:react": "yarn workspace juice-sdk-react publish",
-    "publish": "yarn publish:core && yarn publish:react",
-    "postinstall": "patch-package",
-    "clean": "rm -Rf node_modules **/node_modules **/dist"
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "pub": "npm publish --workspaces"
   },
-  "packageManager": "yarn@1.22.22"
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "turbo": "^2.0.4",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "npm@10.5.0",
+  "workspaces": [
+    "packages/*"
+  ]
 }
