@@ -4,7 +4,7 @@
   "description": "Wagmi hooks for Juicebox V4",
   "type": "module",
   "scripts": {
-    "test": "vitest",
+    "test": "vitest run",
     "generate": "wagmi generate",
     "generate-types": "echo '🔧 Generating types...' && tsc --emitDeclarationOnly",
     "build": "npm run generate && tsup && npm run generate-types",

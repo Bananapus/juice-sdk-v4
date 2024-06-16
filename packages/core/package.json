@@ -8,7 +8,8 @@
     "build": "npm run generate && npm run build:esm && npm run build:cjs",
     "build:esm": "tsc --project ./tsconfig.json",
     "build:cjs": "tsc --project ./tsconfig.cjs.json",
-    "dev": "tsc --project ./tsconfig.json --watch --preserveWatchOutput"
+    "dev": "tsc --project ./tsconfig.json --watch --preserveWatchOutput",
+    "test": "vitest run"
   },
   "exports": {
     ".": {
