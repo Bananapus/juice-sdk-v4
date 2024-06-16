@@ -1,0 +1,37 @@
+{
+  "name": "juice-sdk-react",
+  "version": "9.0.5-alpha",
+  "description": "Wagmi hooks for Juicebox V4",
+  "type": "module",
+  "scripts": {
+    "test": "vitest",
+    "generate": "wagmi generate",
+    "generate-types": "echo '🔧 Generating types...' && tsc --emitDeclarationOnly",
+    "build": "npm run generate && tsup && npm run generate-types",
+    "dev": "tsup --watch"
+  },
+  "author": "tomquirk",
+  "license": "ISC",
+  "peerDependencies": {
+    "juice-sdk-core": "*",
+    "viem": "^2.14.1",
+    "wagmi": "^2.10.2",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@jbm/wagmi-config": "*",
+    "@wagmi/cli": "^2.1.10",
+    "juice-sdk-core": "*",
+    "react": "^18.3.1",
+    "tsup": "^8.1.0",
+    "viem": "^2.14.1",
+    "wagmi": "^2.10.2"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  }
+}
