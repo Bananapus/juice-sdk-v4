@@ -1,0 +1,29 @@
+{
+  "name": "revnet-sdk",
+  "version": "0.0.1-alpha",
+  "type": "module",
+  "scripts": {
+    "generate": "wagmi generate",
+    "prebuild": "rm -Rf dist/",
+    "build": "npm run generate && npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc --project ./tsconfig.json",
+    "build:cjs": "tsc --project ./tsconfig.cjs.json",
+    "dev": "tsc --project ./tsconfig.json --watch --preserveWatchOutput"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "types": "./dist/esm/index.d.ts",
+  "devDependencies": {
+    "@wagmi/cli": "^2.1.10",
+    "typescript": "^5.4.5",
+    "viem": "^2.14.0",
+    "wagmi": "^2.10.2"
+  }
+}
