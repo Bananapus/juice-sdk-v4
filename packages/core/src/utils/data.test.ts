@@ -1,5 +1,5 @@
-import { DecayRate, ReservedRate } from "./data";
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest';
+import { DecayRate, ReservedRate } from "./data.js";
 
 describe("jb", () => {
   test("reserved rate", () => {

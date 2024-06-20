@@ -68,7 +68,6 @@ export const JBContractProvider = ({
   include,
   children,
 }: JBContractProviderProps) => {
-  console.log("hahahah");
   const enabled = (selector: DynamicContract[]) => {
     if (typeof include === "undefined") {
       return true;

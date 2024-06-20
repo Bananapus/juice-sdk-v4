@@ -1,11 +1,11 @@
 import { FixedInt } from "fpnum";
 import { parseUnits } from "viem";
-import { ReservedRate, RulesetWeight } from "./data";
+import { ReservedRate, RulesetWeight } from "./data.js";
 import {
   ONE_ETHER,
   MAX_REDEMPTION_RATE,
   MAX_RESERVED_RATE,
-} from "../constants";
+} from "../constants.js";
 
 /**
  * Return a quote for how much Token B to mint for a given `tokenAAmount`.

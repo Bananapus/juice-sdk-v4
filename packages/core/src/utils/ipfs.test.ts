@@ -1,15 +1,17 @@
-import { describe, expect, test } from 'vitest';
-import { ipfsGatewayUrl, encodeIpfsUri, decodeEncodedIpfsUri } from './ipfs';
 import bs58 from "bs58";
+import { describe, expect, test } from "vitest";
+import { decodeEncodedIpfsUri, encodeIpfsUri, ipfsGatewayUrl } from "./ipfs.js";
 
-const cid = 'QmbWqxBEKC3P8tqsKc98xmWNzrzDtRLMiMPL8wBuTGsMnR'
-const cidCorrespondingHex = 'c3c4733ec8affd06cf9e9ff50ffc6bcd2ec85a6170004bb709669c31de94391a'
+const cid = "QmbWqxBEKC3P8tqsKc98xmWNzrzDtRLMiMPL8wBuTGsMnR";
+const cidCorrespondingHex =
+  "c3c4733ec8affd06cf9e9ff50ffc6bcd2ec85a6170004bb709669c31de94391a";
 
 describe("IPFS utilities", () => {
-  
   test("generates IPFS gateway URL correctly", () => {
     expect(ipfsGatewayUrl(cid)).toEqual(`https://ipfs.io/ipfs/${cid}`);
-    expect(ipfsGatewayUrl(cid, "another-gateway.com")).toEqual(`https://another-gateway.com/ipfs/${cid}`);
+    expect(ipfsGatewayUrl(cid, "another-gateway.com")).toEqual(
+      `https://another-gateway.com/ipfs/${cid}`
+    );
     expect(ipfsGatewayUrl(undefined)).toEqual("https://ipfs.io/ipfs/undefined");
   });
 

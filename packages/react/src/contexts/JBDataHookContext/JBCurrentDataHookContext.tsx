@@ -1,3 +1,4 @@
+import { debug } from "src/debug";
 import { useJBRulesetMetadata } from "../JBRulesetContext/JBRulesetContext";
 import { JBDataHookProvider } from "./JBDataHookContext";
 
@@ -13,6 +14,8 @@ export function JBCurrentDataHookProvider({
 }) {
   const { data } = useJBRulesetMetadata();
   const dataHookAddress = data?.dataHook;
+
+  debug("JBCurrentDataHookContext", { dataHookAddress });
 
   return (
     <JBDataHookProvider dataHookAddress={dataHookAddress}>

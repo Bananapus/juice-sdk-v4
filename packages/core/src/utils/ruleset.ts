@@ -1,4 +1,4 @@
-import { MAX_DECAY_RATE } from "../constants";
+import { MAX_DECAY_RATE } from "../constants.js";
 
 /**
  * Derive the next ruleset's Weight value from the current ruleset.

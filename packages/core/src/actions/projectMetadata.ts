@@ -5,9 +5,9 @@ import {
   isAddressEqual,
   zeroAddress,
 } from "viem";
-import { jbControllerAbi } from "../generated/juicebox";
-import { JBProjectMetadata } from "../types";
-import { ipfsGatewayUrl } from "../utils/ipfs";
+import { jbControllerAbi } from "../generated/juicebox.js";
+import { JBProjectMetadata } from "../types.js";
+import { ipfsGatewayUrl } from "../utils/ipfs.js";
 
 /**
  * Fetch the onchain metadata CID for the given project, using the given JBController contract.
@@ -26,7 +26,7 @@ const getMetadataCid = async (
   const JBController = await getContract({
     address: args.jbControllerAddress,
     abi: jbControllerAbi,
-    client: publicClient
+    client: publicClient,
   });
 
   // ipfs://cid or https://cid, probably

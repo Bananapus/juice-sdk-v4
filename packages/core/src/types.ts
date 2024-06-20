@@ -1,11 +1,11 @@
 import { Address, ContractFunctionReturnType } from "viem";
-import { jbControllerAbi } from "./generated/juicebox";
+import { jbControllerAbi } from "./generated/juicebox.js";
 import {
   DecayRate,
   RedemptionRate,
   ReservedRate,
   RulesetWeight,
-} from "./utils/data";
+} from "./utils/data.js";
 
 export const projectTagOptions = [
   "art",

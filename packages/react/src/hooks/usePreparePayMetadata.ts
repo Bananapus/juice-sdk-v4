@@ -1,6 +1,7 @@
 import { DEFAULT_ALLOW_OVERSPENDING, createHookMetadata } from "juice-sdk-core";
 import { Address, Hash, encodeAbiParameters } from "viem";
 import { use721HookMetadataId } from "./jb721Hook/use721HookMetadataId";
+import { debug } from "src/debug";
 
 interface Jb721HookPayMetadata {
   tierIdsToMint: bigint[];
@@ -39,7 +40,7 @@ export function usePreparePayMetadata({
     dataHookAddress: jb721Hook?.dataHookAddress,
   });
 
-  console.log("usePreparePayMetadata::metadataId", metadataId);
+  debug("usePreparePayMetadata", { metadataId, jb721Hook });
 
   if (!jb721Hook || jb721Hook.tierIdsToMint.length == 0 || !metadataId) {
     return null;

@@ -1,8 +1,8 @@
 import { FixedInt } from "fpnum";
-import { ReservedRate } from "./data";
 import { parseEther, parseUnits } from "viem";
-import { getTokenAToBQuote, getTokenBPrice } from "./token";
 import { describe, expect, test } from "vitest";
+import { ReservedRate } from "./data.js";
+import { getTokenAToBQuote, getTokenBPrice } from "./token.js";
 
 describe("token", () => {
   describe("getTokenAToBQuote", () => {

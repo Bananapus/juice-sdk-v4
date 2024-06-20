@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { getNextRulesetWeight, getPrevRulesetWeight } from "./ruleset";
+import { getNextRulesetWeight, getPrevRulesetWeight } from "./ruleset.js";
 
 describe("Ruleset Weight utilities", () => {
   test.each`

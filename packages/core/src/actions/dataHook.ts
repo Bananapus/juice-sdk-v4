@@ -9,8 +9,8 @@ import {
   jb721TiersHookDeployerAddress,
   jbAddressRegistryAbi,
   jbAddressRegistryAddress,
-} from "../generated/juicebox";
-import { DATA_HOOK_Abi } from "./JB721TiersHookAbi";
+} from "../generated/juicebox.js";
+import { DATA_HOOK_Abi } from "./JB721TiersHookAbi.js";
 
 export async function getHookSpecifications(
   publicClient: PublicClient,
@@ -23,7 +23,7 @@ export async function getHookSpecifications(
   const dataHook = getContract({
     address: args.dataHookAddress,
     abi: DATA_HOOK_Abi,
-    client: publicClient
+    client: publicClient,
   });
 
   const [_, hookSpecifications] = await dataHook.read.beforePayRecordedWith([
@@ -82,7 +82,7 @@ export async function find721DataHook(
   const registry = getContract({
     address: registerAddress,
     abi: jbAddressRegistryAbi,
-    client: publicClient
+    client: publicClient,
   });
 
   const hookSpecs = await getHookSpecifications(publicClient, {

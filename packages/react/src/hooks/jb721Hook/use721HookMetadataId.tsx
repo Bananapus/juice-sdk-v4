@@ -11,23 +11,15 @@ export function use721HookMetadataId({
 }: {
   dataHookAddress: Address | undefined;
 }) {
-  const [hashedMetadataId, setHashedMetadataId] = useState<string | null>(null);
-
-  const { data: metadataTargetId } = useReadJb721TiersHookMetadataIdTarget({
+  const { data: hashedMetadataId } = useReadJb721TiersHookMetadataIdTarget({
     address: dataHookAddress,
     query: {
       enabled: !!dataHookAddress,
+      select(metadataTargetId) {
+        return createMetadataTargetIdPayHash(metadataTargetId, "pay");
+      },
     },
   });
-
-  useEffect(() => {
-    if (!metadataTargetId) {
-      return;
-    }
-
-    const newHash = createMetadataTargetIdPayHash(metadataTargetId, "pay");
-    setHashedMetadataId(newHash);
-  }, [metadataTargetId]);
 
   return hashedMetadataId;
 }

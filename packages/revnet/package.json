@@ -1,14 +1,13 @@
 {
   "name": "revnet-sdk",
-  "version": "0.0.1-alpha",
+  "version": "0.0.2-alpha",
   "type": "module",
   "scripts": {
     "generate": "wagmi generate",
-    "prebuild": "rm -Rf dist/",
-    "build": "npm run generate && npm run build:esm && npm run build:cjs",
-    "build:esm": "tsc --project ./tsconfig.json",
-    "build:cjs": "tsc --project ./tsconfig.cjs.json",
-    "dev": "tsc --project ./tsconfig.json --watch --preserveWatchOutput"
+    "prebuild": "rm -Rf dist",
+    "generate-types": "echo '🔧 Generating types...' && tsc --emitDeclarationOnly",
+    "build": "npm run generate && tsup && npm run generate-types",
+    "dev": "tsup --watch"
   },
   "exports": {
     ".": {
@@ -20,6 +19,11 @@
     "dist/**/*"
   ],
   "types": "./dist/esm/index.d.ts",
+  "peerDependencies": {
+    "viem": "^2.14.1",
+    "wagmi": "^2.10.2",
+    "react": "^18.3.1"
+  },
   "devDependencies": {
     "@wagmi/cli": "^2.1.10",
     "typescript": "^5.4.5",

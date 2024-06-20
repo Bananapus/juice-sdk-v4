@@ -4,7 +4,7 @@ import {
   MAX_REDEMPTION_RATE,
   MAX_RESERVED_RATE,
   SPLITS_TOTAL_PERCENT,
-} from "../constants";
+} from "../constants.js";
 
 /**
  * Reserved rate for a ruleset.
