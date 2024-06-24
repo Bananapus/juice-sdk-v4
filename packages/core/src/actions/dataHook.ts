@@ -45,6 +45,8 @@ export async function getHookSpecifications(
     },
   ]);
 
+  console.log("🧃 getHookSpecifications", { args, hookSpecifications });
+
   return hookSpecifications;
 }
 
@@ -73,12 +75,12 @@ export async function find721DataHook(
 
   const registerAddress =
     jbAddressRegistryAddress[chainId as keyof typeof jbAddressRegistryAddress];
-
   if (!registerAddress) {
     throw new Error(
       `[juice-sdk-core] No JBAddressRegistry address for chain ${chainId}.`
     );
   }
+
   const registry = getContract({
     address: registerAddress,
     abi: jbAddressRegistryAbi,
@@ -94,6 +96,11 @@ export async function find721DataHook(
   const res = await Promise.all(
     hookSpecs.map(async (h) => {
       const deployerOf = await registry.read.deployerOf([h.hook]);
+      console.log("🧃 deployerOf", {
+        hook: h.hook,
+        deployerOf,
+        deployerAddress,
+      });
       return isAddressEqual(deployerOf, deployerAddress as Address);
     })
   );

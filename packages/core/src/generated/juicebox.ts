@@ -1218,8 +1218,8 @@ export const jb721TiersHookAbi = [
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const jb721TiersHookDeployerAbi = [
   {
@@ -1457,17 +1457,17 @@ export const jb721TiersHookDeployerAbi = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const jb721TiersHookDeployerAddress = {
-  11155111: '0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01',
-  11155420: '0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01',
+  11155111: '0x554CE80D78f5438c73a9759D8BBb52a382138A59',
+  11155420: '0x554CE80D78f5438c73a9759D8BBb52a382138A59',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const jb721TiersHookDeployerConfig = {
   address: jb721TiersHookDeployerAddress,
