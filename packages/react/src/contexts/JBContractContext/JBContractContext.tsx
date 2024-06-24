@@ -1,4 +1,4 @@
-import { NATIVE_TOKEN } from "juice-sdk-core";
+import { NATIVE_TOKEN, jbDirectoryAddress } from "juice-sdk-core";
 import { PropsWithChildren, createContext, useContext } from "react";
 import { Address, isAddressEqual, zeroAddress } from "viem";
 import {
@@ -8,6 +8,7 @@ import {
 } from "../../generated/juicebox";
 import { AsyncData, AsyncDataNone } from "../types";
 import { debug } from "../../debug";
+import { useJBChainId } from "../JBChainContext/JBChainContext";
 
 /**
  * Context for project-specific contracts.
@@ -27,8 +28,6 @@ export type JBContractContextData = {
 export const JBContractContext = createContext<JBContractContextData>({
   /**
    * The project id of the Juicebox project.
-   *
-   * @default 0n
    */
   projectId: 0n,
 
@@ -68,6 +67,7 @@ export const JBContractProvider = ({
   include,
   children,
 }: JBContractProviderProps) => {
+  const chainId = useJBChainId();
   const enabled = (selector: DynamicContract[]) => {
     if (typeof include === "undefined") {
       return true;
@@ -77,11 +77,13 @@ export const JBContractProvider = ({
   };
 
   const primaryNativeTerminal = useReadJbDirectoryPrimaryTerminalOf({
+    chainId,
     args: enabled([DynamicContract.PrimaryNativePaymentTerminal])
       ? [projectId, NATIVE_TOKEN]
       : undefined,
   });
   const controller = useReadJbDirectoryControllerOf({
+    chainId,
     args: [projectId],
     query: {
       enabled: enabled([DynamicContract.Controller]),
@@ -90,6 +92,7 @@ export const JBContractProvider = ({
   const controllerAddress = controller.data;
 
   const fundAccessLimits = useReadJbControllerFundAccessLimits({
+    chainId,
     address:
       controllerAddress && isAddressEqual(controllerAddress, zeroAddress)
         ? undefined

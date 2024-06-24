@@ -1,21 +1,26 @@
 import { PropsWithChildren } from "react";
 import {
+  JBChainId,
+  JBChainProvider
+} from "../JBChainContext/JBChainContext";
+import {
   JBContractProvider,
   JBContractProviderProps,
 } from "../JBContractContext/JBContractContext";
+import { JBCurrentDataHookProvider } from "../JBDataHookContext/JBCurrentDataHookContext";
+import {
+  JBProjectMetadataProvider,
+  JBProjectMetadataProviderProps,
+} from "../JBProjectMetadataContext/JBProjectMetadataContext";
 import { JBRulesetProvider } from "../JBRulesetContext/JBRulesetContext";
 import {
   JBTokenProvider,
   JBTokenProviderProps,
 } from "../JBTokenContext/JBTokenContext";
-import {
-  JBProjectMetadataProvider,
-  JBProjectMetadataProviderProps,
-} from "../JBProjectMetadataContext/JBProjectMetadataContext";
-import { JBCurrentDataHookProvider } from "../JBDataHookContext/JBCurrentDataHookContext";
 
 type JBProjectProviderProps = PropsWithChildren<{
   projectId: bigint;
+  chainId: JBChainId;
   ctxProps?: {
     token?: JBTokenProviderProps;
     contract?: JBContractProviderProps;
@@ -33,18 +38,21 @@ type JBProjectProviderProps = PropsWithChildren<{
  */
 export const JBProjectProvider = ({
   projectId,
+  chainId,
   children,
   ctxProps,
 }: JBProjectProviderProps) => {
   return (
-    <JBContractProvider projectId={projectId} {...ctxProps?.contract}>
-      <JBRulesetProvider>
-        <JBProjectMetadataProvider {...ctxProps?.metadata}>
-          <JBCurrentDataHookProvider>
-            <JBTokenProvider {...ctxProps?.token}>{children}</JBTokenProvider>
-          </JBCurrentDataHookProvider>
-        </JBProjectMetadataProvider>
-      </JBRulesetProvider>
-    </JBContractProvider>
+    <JBChainProvider chainId={chainId}>
+      <JBContractProvider projectId={projectId} {...ctxProps?.contract}>
+        <JBRulesetProvider>
+          <JBProjectMetadataProvider {...ctxProps?.metadata}>
+            <JBCurrentDataHookProvider>
+              <JBTokenProvider {...ctxProps?.token}>{children}</JBTokenProvider>
+            </JBCurrentDataHookProvider>
+          </JBProjectMetadataProvider>
+        </JBRulesetProvider>
+      </JBContractProvider>
+    </JBChainProvider>
   );
 };

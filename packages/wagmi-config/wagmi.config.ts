@@ -45,12 +45,28 @@ function nanaCorePath(
   return `@bananapus/core/deployments/nana-core-testnet/${chainName}/${contractName}.json`;
 }
 
-function nana721HookPath(
+/**
+ * JBAddressRegistry didnt get deployed in the nana-721-hook-testnet.
+ * This function should be temporary fix unitl JBAddressRegistry is included in the nana-721-hook-testnet.
+ */
+function legacyNana721HookPath(
   chain: Chain,
   contractName: keyof typeof JB721HookContracts
 ) {
   const chainName = CHAIN_NAME[chain.id];
   return `@bananapus/721-hook/deployments/nana-721-hook/${chainName}/${contractName}.json`;
+}
+
+function nana721HookPath(
+  chain: Chain,
+  contractName: keyof typeof JB721HookContracts
+) {
+  if (contractName === JB721HookContracts.JBAddressRegistry) {
+    return legacyNana721HookPath(chain, contractName);
+  }
+
+  const chainName = CHAIN_NAME[chain.id];
+  return `@bananapus/721-hook/deployments/nana-721-hook-testnet/${chainName}/${contractName}.json`;
 }
 
 async function importDeployment(importPath: string) {

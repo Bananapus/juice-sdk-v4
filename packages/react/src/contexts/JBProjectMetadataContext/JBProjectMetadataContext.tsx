@@ -6,6 +6,7 @@ import { useQuery } from "wagmi/query";
 import { useJBContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
 import { debug } from "../../debug";
+import { useJBChainId } from "../JBChainContext/JBChainContext";
 
 export type JBProjectMetadataContext = {
   metadata: AsyncData<JBProjectMetadata>;
@@ -30,8 +31,10 @@ export function useProjectMetadata({
   jbControllerAddress: Address | undefined;
   ipfsGatewayHostname?: string;
 }) {
-  const chainId = useChainId();
-  const publicClient = usePublicClient({ chainId });
+  const chainId = useJBChainId();
+  const publicClient = usePublicClient({
+    chainId,
+  });
 
   return useQuery({
     queryKey: [

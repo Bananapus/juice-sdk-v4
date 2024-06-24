@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useJBChainId } from "src/contexts/JBChainContext/JBChainContext";
 import { useReadJb721TiersHookMetadataIdTarget } from "src/generated/juicebox";
 import { Address } from "viem";
 import { createMetadataTargetIdPayHash } from "./helpers";
@@ -11,7 +11,9 @@ export function use721HookMetadataId({
 }: {
   dataHookAddress: Address | undefined;
 }) {
+  const chainId = useJBChainId();
   const { data: hashedMetadataId } = useReadJb721TiersHookMetadataIdTarget({
+    chainId,
     address: dataHookAddress,
     query: {
       enabled: !!dataHookAddress,

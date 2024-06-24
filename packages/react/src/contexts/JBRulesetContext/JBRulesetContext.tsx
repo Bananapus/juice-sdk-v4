@@ -12,6 +12,7 @@ import {
 import { useJBContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
 import { ContractFunctionReturnType } from "viem";
+import { useJBChainId } from "../JBChainContext/JBChainContext";
 
 /**
  * Context for the current ruleset of a project.
@@ -86,8 +87,10 @@ export const JBRulesetProvider = ({
   children: React.ReactNode;
 }) => {
   const { contracts, projectId } = useJBContractContext();
+  const chainId = useJBChainId();
 
   const { data: ruleset, isLoading } = useReadJbControllerCurrentRulesetOf({
+    chainId,
     address: contracts?.controller?.data ?? undefined,
     args: [projectId],
     query: {

@@ -8,6 +8,7 @@ import {
 } from "../../generated/juicebox";
 import { useJBContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
+import { useJBChainId } from "../JBChainContext/JBChainContext";
 
 /**
  * Context for the token of a project.
@@ -58,24 +59,29 @@ export const JBTokenProvider = ({
   children,
   withTotalOutstanding,
 }: JBTokenProviderProps) => {
+  const chainId = useJBChainId();
+
   const {
     projectId,
     contracts: { controller },
   } = useJBContractContext();
 
   const { data: tokenAddress } = useReadJbTokensTokenOf({
+    chainId,
     args: [projectId],
   });
   const fetchTokenEnabled = Boolean(
     tokenAddress && !isAddressEqual(tokenAddress, zeroAddress)
   );
   const token = useToken({
+    chainId,
     address: fetchTokenEnabled ? tokenAddress : undefined,
     query: { enabled: fetchTokenEnabled },
   });
 
   const totalOutstandingRes =
     useReadJbControllerTotalTokenSupplyWithReservedTokensOf({
+      chainId,
       address: controller?.data ?? undefined,
       args: withTotalOutstanding ? [projectId] : undefined,
       query: {

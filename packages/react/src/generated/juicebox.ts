@@ -1225,8 +1225,8 @@ export const jb721TiersHookAbi = [
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const jb721TiersHookDeployerAbi = [
   {
@@ -1464,17 +1464,17 @@ export const jb721TiersHookDeployerAbi = [
 ] as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const jb721TiersHookDeployerAddress = {
-  11155111: '0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01',
-  11155420: '0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01',
+  11155111: '0x554CE80D78f5438c73a9759D8BBb52a382138A59',
+  11155420: '0x554CE80D78f5438c73a9759D8BBb52a382138A59',
 } as const
 
 /**
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const jb721TiersHookDeployerConfig = {
   address: jb721TiersHookDeployerAddress,
@@ -7492,8 +7492,8 @@ export const useWatchJb721TiersHookUsePayCreditsEvent =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useReadJb721TiersHookDeployer =
   /*#__PURE__*/ createUseReadContract({
@@ -7504,8 +7504,8 @@ export const useReadJb721TiersHookDeployer =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"ADDRESS_REGISTRY"`
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useReadJb721TiersHookDeployerAddressRegistry =
   /*#__PURE__*/ createUseReadContract({
@@ -7517,8 +7517,8 @@ export const useReadJb721TiersHookDeployerAddressRegistry =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"HOOK"`
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useReadJb721TiersHookDeployerHook =
   /*#__PURE__*/ createUseReadContract({
@@ -7530,8 +7530,8 @@ export const useReadJb721TiersHookDeployerHook =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"STORE"`
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useReadJb721TiersHookDeployerStore =
   /*#__PURE__*/ createUseReadContract({
@@ -7543,8 +7543,8 @@ export const useReadJb721TiersHookDeployerStore =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"isTrustedForwarder"`
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useReadJb721TiersHookDeployerIsTrustedForwarder =
   /*#__PURE__*/ createUseReadContract({
@@ -7556,8 +7556,8 @@ export const useReadJb721TiersHookDeployerIsTrustedForwarder =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"trustedForwarder"`
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useReadJb721TiersHookDeployerTrustedForwarder =
   /*#__PURE__*/ createUseReadContract({
@@ -7569,8 +7569,8 @@ export const useReadJb721TiersHookDeployerTrustedForwarder =
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useWriteJb721TiersHookDeployer =
   /*#__PURE__*/ createUseWriteContract({
@@ -7581,8 +7581,8 @@ export const useWriteJb721TiersHookDeployer =
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"deployHookFor"`
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useWriteJb721TiersHookDeployerDeployHookFor =
   /*#__PURE__*/ createUseWriteContract({
@@ -7594,8 +7594,8 @@ export const useWriteJb721TiersHookDeployerDeployHookFor =
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useSimulateJb721TiersHookDeployer =
   /*#__PURE__*/ createUseSimulateContract({
@@ -7606,8 +7606,8 @@ export const useSimulateJb721TiersHookDeployer =
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"deployHookFor"`
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useSimulateJb721TiersHookDeployerDeployHookFor =
   /*#__PURE__*/ createUseSimulateContract({
@@ -7619,8 +7619,8 @@ export const useSimulateJb721TiersHookDeployerDeployHookFor =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useWatchJb721TiersHookDeployerEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
@@ -7631,8 +7631,8 @@ export const useWatchJb721TiersHookDeployerEvent =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `eventName` set to `"HookDeployed"`
  *
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xF97086E4CeA8D11FCD64cb2E5dDE0Ab7588f5F01)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x554CE80D78f5438c73a9759D8BBb52a382138A59)
  */
 export const useWatchJb721TiersHookDeployerHookDeployedEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
