@@ -1,3 +1,4 @@
+export * from "./contexts/JBChainContext/JBChainContext";
 export * from "./contexts/JBContractContext/JBContractContext";
 export * from "./contexts/JBProjectMetadataContext/JBProjectMetadataContext";
 export * from "./contexts/JBProjectProvider/JBProjectProvider";
