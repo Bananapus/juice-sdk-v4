@@ -17,14 +17,14 @@ export function useSuckerPairs() {
   const query = useQuery({
     queryKey: ["suckerPairs", projectId, chainId],
     queryFn: async () => {
-      const jb721DataHook = await getSuckerPairs({
+      const pairs = await getSuckerPairs({
         config,
 
         chainId: 1,
         projectId,
       });
 
-      return jb721DataHook;
+      return pairs;
     },
   });
 

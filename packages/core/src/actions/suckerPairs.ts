@@ -1,4 +1,3 @@
-import { sepolia } from "@wagmi/core/chains";
 import { Address, PublicClient, getContract } from "viem";
 import { readBpSuckerRegistrySuckersOf } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
@@ -15,7 +14,7 @@ export async function getSuckerPairs({
   const client = config.getClient({ chainId }) as PublicClient;
 
   const suckers = await readBpSuckerRegistrySuckersOf(config, {
-    chainId: sepolia.id,
+    chainId: chainId as any, // TODO fix
     args: [projectId],
   });
 
@@ -50,3 +49,22 @@ export async function getSuckerPairs({
 
   return suckerPairs;
 }
+
+// // example, delete this.
+
+// const config = createConfig({
+//   chains: [sepolia],
+//   transports: {
+//     [sepolia.id]: http(
+//       `https://sepolia.infura.io/v3/c2838024e339438fbe8a31d6754efe8a`
+//     ),
+//   },
+// });
+
+// const x = await getSuckerPairs({
+//   config,
+//   chainId: sepolia.id,
+//   projectId: 2n,
+// });
+
+// console.log(x);
