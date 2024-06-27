@@ -25,7 +25,11 @@ enum JB721HookContracts {
   JB721TiersHook = "JB721TiersHook",
 }
 
-type Contracts = JB721HookContracts | JBCoreContracts;
+enum JBSuckerContracts {
+  BPSuckerRegistry = "BPSuckerRegistry",
+}
+
+type Contracts = JB721HookContracts | JBCoreContracts | JBSuckerContracts;
 
 const SUPPORTED_CHAINS = [
   sepolia,
@@ -51,11 +55,17 @@ const HAS_STATIC_ADDRESS: Contracts[] = [
   JBCoreContracts.JBTokens,
   JB721HookContracts.JBAddressRegistry,
   JB721HookContracts.JB721TiersHookDeployer,
+  JBSuckerContracts.BPSuckerRegistry,
 ];
 
 function nanaCorePath(chain: Chain, contractName: Contracts) {
   const chainName = CHAIN_NAME[chain.id];
   return `@bananapus/core/deployments/nana-core-testnet/${chainName}/${contractName}.json`;
+}
+
+function nanaSuckersPath(chain: Chain, contractName: Contracts) {
+  const chainName = CHAIN_NAME[chain.id];
+  return `@bananapus/suckers/deployments/nana-suckers-testnet/${chainName}/${contractName}.json`;
 }
 
 /**
@@ -122,6 +132,7 @@ async function buildContractConfig(
 async function buildNanaCoreContractConfig() {
   return buildContractConfig(Object.values(JBCoreContracts), nanaCorePath);
 }
+
 async function buildNana721ContractConfig() {
   return buildContractConfig(
     Object.values(JB721HookContracts),
@@ -129,9 +140,14 @@ async function buildNana721ContractConfig() {
   );
 }
 
+async function buildNanaSuckersContractConfig() {
+  return buildContractConfig(Object.values(JBSuckerContracts), nanaSuckersPath);
+}
+
 const coreContracts = await buildNanaCoreContractConfig();
 const contracts721 = await buildNana721ContractConfig();
-const contracts = [...coreContracts, ...contracts721];
+const contractsSuckers = await buildNanaSuckersContractConfig();
+const contracts = [...coreContracts, ...contracts721, ...contractsSuckers];
 
 export default {
   out: "src/generated.ts",

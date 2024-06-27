@@ -17,6 +17,7 @@ export function useFind721DataHook() {
 
   const rulesetId = ruleset.data?.id;
   const dataHookAddress = data?.dataHookAddress;
+
   debug("useFind721DataHook::args", {
     projectId,
     rulesetId,

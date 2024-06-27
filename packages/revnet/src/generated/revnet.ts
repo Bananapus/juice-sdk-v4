@@ -10,6 +10,8 @@ import {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1026,15 +1028,21 @@ export const revBasicDeployerAbi = [
 ] as const
 
 /**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
 export const revBasicDeployerAddress = {
+  84532: '0x645438EdC4E6388b99f50c27dce0235d70b8FA44',
+  421614: '0x645438EdC4E6388b99f50c27dce0235d70b8FA44',
   11155111: '0x645438EdC4E6388b99f50c27dce0235d70b8FA44',
   11155420: '0x645438EdC4E6388b99f50c27dce0235d70b8FA44',
 } as const
 
 /**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1050,6 +1058,8 @@ export const revBasicDeployerConfig = {
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1061,6 +1071,8 @@ export const useReadRevBasicDeployer = /*#__PURE__*/ createUseReadContract({
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"CONTROLLER"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1074,6 +1086,8 @@ export const useReadRevBasicDeployerController =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"EXIT_DELAY"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1087,6 +1101,8 @@ export const useReadRevBasicDeployerExitDelay =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"SUCKER_REGISTRY"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1100,6 +1116,8 @@ export const useReadRevBasicDeployerSuckerRegistry =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"allowedMintCountOf"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1113,6 +1131,8 @@ export const useReadRevBasicDeployerAllowedMintCountOf =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"beforePayRecordedWith"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1126,6 +1146,8 @@ export const useReadRevBasicDeployerBeforePayRecordedWith =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"beforeRedeemRecordedWith"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1139,6 +1161,8 @@ export const useReadRevBasicDeployerBeforeRedeemRecordedWith =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"buybackHookOf"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1152,6 +1176,8 @@ export const useReadRevBasicDeployerBuybackHookOf =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"exitDelayOf"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1165,6 +1191,8 @@ export const useReadRevBasicDeployerExitDelayOf =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"hasMintPermissionFor"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1178,6 +1206,8 @@ export const useReadRevBasicDeployerHasMintPermissionFor =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"isTrustedForwarder"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1191,6 +1221,8 @@ export const useReadRevBasicDeployerIsTrustedForwarder =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"onERC721Received"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1204,6 +1236,8 @@ export const useReadRevBasicDeployerOnErc721Received =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"payHookSpecificationsOf"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1217,6 +1251,8 @@ export const useReadRevBasicDeployerPayHookSpecificationsOf =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"supportsInterface"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1230,6 +1266,8 @@ export const useReadRevBasicDeployerSupportsInterface =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"trustedForwarder"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1243,6 +1281,8 @@ export const useReadRevBasicDeployerTrustedForwarder =
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1254,6 +1294,8 @@ export const useWriteRevBasicDeployer = /*#__PURE__*/ createUseWriteContract({
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"deploySuckersFor"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1267,6 +1309,8 @@ export const useWriteRevBasicDeployerDeploySuckersFor =
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"launchRevnetFor"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1280,6 +1324,8 @@ export const useWriteRevBasicDeployerLaunchRevnetFor =
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"mintFor"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1293,6 +1339,8 @@ export const useWriteRevBasicDeployerMintFor =
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"replaceSplitOperatorOf"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1306,6 +1354,8 @@ export const useWriteRevBasicDeployerReplaceSplitOperatorOf =
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1318,6 +1368,8 @@ export const useSimulateRevBasicDeployer =
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"deploySuckersFor"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1331,6 +1383,8 @@ export const useSimulateRevBasicDeployerDeploySuckersFor =
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"launchRevnetFor"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1344,6 +1398,8 @@ export const useSimulateRevBasicDeployerLaunchRevnetFor =
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"mintFor"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1357,6 +1413,8 @@ export const useSimulateRevBasicDeployerMintFor =
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"replaceSplitOperatorOf"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1370,6 +1428,8 @@ export const useSimulateRevBasicDeployerReplaceSplitOperatorOf =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1382,6 +1442,8 @@ export const useWatchRevBasicDeployerEvent =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"DeployRevnet"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1395,6 +1457,8 @@ export const useWatchRevBasicDeployerDeployRevnetEvent =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"DeploySuckers"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1408,6 +1472,8 @@ export const useWatchRevBasicDeployerDeploySuckersEvent =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"Mint"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1421,6 +1487,8 @@ export const useWatchRevBasicDeployerMintEvent =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"ReplaceSplitOperator"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */
@@ -1434,6 +1502,8 @@ export const useWatchRevBasicDeployerReplaceSplitOperatorEvent =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"StoreMintPotential"`
  *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
  */

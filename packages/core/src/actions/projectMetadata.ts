@@ -23,7 +23,7 @@ const getMetadataCid = async (
     return;
   }
 
-  const JBController = await getContract({
+  const JBController = getContract({
     address: args.jbControllerAddress,
     abi: jbControllerAbi,
     client: publicClient,

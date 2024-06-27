@@ -58,7 +58,6 @@ export const DATA_HOOK_Abi = [
         type: "tuple[]",
       },
     ],
-
     stateMutability: "view",
     type: "function",
   } as const,
