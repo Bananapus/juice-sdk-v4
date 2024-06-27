@@ -1,5 +1,10 @@
 import { Chain } from "viem";
-import { optimismSepolia, sepolia } from "viem/chains";
+import {
+  arbitrumSepolia,
+  baseSepolia,
+  optimismSepolia,
+  sepolia,
+} from "viem/chains";
 
 enum JBCoreContracts {
   JBController = "JBController",
@@ -20,15 +25,26 @@ enum JB721HookContracts {
   JB721TiersHook = "JB721TiersHook",
 }
 
+type Contracts = JB721HookContracts | JBCoreContracts;
+
+const SUPPORTED_CHAINS = [
+  sepolia,
+  optimismSepolia,
+  baseSepolia,
+  arbitrumSepolia,
+];
+
 /**
  * Name of chains, according to the nannypus deployment directory names
  */
 const CHAIN_NAME = {
   [sepolia.id]: "sepolia",
   [optimismSepolia.id]: "optimism_sepolia",
+  [arbitrumSepolia.id]: "arbitrum_sepolia",
+  [baseSepolia.id]: "base_sepolia",
 } as Record<number, string>;
 
-const HAS_STATIC_ADDRESS: (JB721HookContracts | JBCoreContracts)[] = [
+const HAS_STATIC_ADDRESS: Contracts[] = [
   JBCoreContracts.JBDirectory,
   JBCoreContracts.JBRulesets,
   JBCoreContracts.JBSplits,
@@ -37,10 +53,7 @@ const HAS_STATIC_ADDRESS: (JB721HookContracts | JBCoreContracts)[] = [
   JB721HookContracts.JB721TiersHookDeployer,
 ];
 
-function nanaCorePath(
-  chain: Chain,
-  contractName: keyof typeof JBCoreContracts
-) {
+function nanaCorePath(chain: Chain, contractName: Contracts) {
   const chainName = CHAIN_NAME[chain.id];
   return `@bananapus/core/deployments/nana-core-testnet/${chainName}/${contractName}.json`;
 }
@@ -49,18 +62,12 @@ function nanaCorePath(
  * JBAddressRegistry didnt get deployed in the nana-721-hook-testnet.
  * This function should be temporary fix unitl JBAddressRegistry is included in the nana-721-hook-testnet.
  */
-function legacyNana721HookPath(
-  chain: Chain,
-  contractName: keyof typeof JB721HookContracts
-) {
+function legacyNana721HookPath(chain: Chain, contractName: Contracts) {
   const chainName = CHAIN_NAME[chain.id];
   return `@bananapus/721-hook/deployments/nana-721-hook/${chainName}/${contractName}.json`;
 }
 
-function nana721HookPath(
-  chain: Chain,
-  contractName: keyof typeof JB721HookContracts
-) {
+function nana721HookPath(chain: Chain, contractName: Contracts) {
   if (contractName === JB721HookContracts.JBAddressRegistry) {
     return legacyNana721HookPath(chain, contractName);
   }
@@ -79,24 +86,31 @@ async function importDeployment(importPath: string) {
   };
 }
 
-async function buildNanaCoreContractConfig() {
+async function buildContractConfig(
+  contractNames: Contracts[],
+  getPath: (chain: Chain, contractName: Contracts) => string
+) {
   const chainToContractAddress = await Promise.all(
-    Object.values(JBCoreContracts).map(async (contractName) => {
-      const deployment = await importDeployment(
-        nanaCorePath(sepolia, contractName)
+    Object.values(contractNames).map(async (contractName) => {
+      // import deployment for each chain
+      const deployments = await Promise.all(
+        SUPPORTED_CHAINS.map(async (chain) =>
+          importDeployment(getPath(chain, contractName))
+        )
       );
-      const deploymentOp = await importDeployment(
-        nanaCorePath(optimismSepolia, contractName)
-      );
+
+      const address = SUPPORTED_CHAINS.reduce((acc: any, chain, i) => {
+        acc[chain.id] = deployments[i].address;
+        return acc;
+      }, {});
+
+      const abi = deployments[0].abi; // assume all deployments have the same ABI
 
       return {
         name: contractName,
-        abi: deployment.abi,
+        abi,
         address: HAS_STATIC_ADDRESS.includes(contractName)
-          ? {
-              [sepolia.id]: deployment.address,
-              [optimismSepolia.id]: deploymentOp.address,
-            }
+          ? address
           : undefined,
       };
     })
@@ -105,30 +119,14 @@ async function buildNanaCoreContractConfig() {
   return chainToContractAddress;
 }
 
+async function buildNanaCoreContractConfig() {
+  return buildContractConfig(Object.values(JBCoreContracts), nanaCorePath);
+}
 async function buildNana721ContractConfig() {
-  const chainToContractAddress = await Promise.all(
-    Object.values(JB721HookContracts).map(async (contractName) => {
-      const deployment = await importDeployment(
-        nana721HookPath(sepolia, contractName)
-      );
-      const deploymentOp = await importDeployment(
-        nana721HookPath(optimismSepolia, contractName)
-      );
-
-      return {
-        name: contractName,
-        abi: deployment.abi,
-        address: HAS_STATIC_ADDRESS.includes(contractName)
-          ? {
-              [sepolia.id]: deployment.address,
-              [optimismSepolia.id]: deploymentOp.address,
-            }
-          : null,
-      };
-    })
+  return buildContractConfig(
+    Object.values(JB721HookContracts),
+    nana721HookPath
   );
-
-  return chainToContractAddress;
 }
 
 const coreContracts = await buildNanaCoreContractConfig();
