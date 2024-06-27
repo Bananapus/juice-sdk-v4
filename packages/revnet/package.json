@@ -1,6 +1,6 @@
 {
   "name": "revnet-sdk",
-  "version": "0.0.3-alpha",
+  "version": "0.0.5-alpha",
   "type": "module",
   "scripts": {
     "generate": "wagmi generate",
@@ -10,15 +10,12 @@
     "dev": "tsup --watch"
   },
   "exports": {
-    ".": {
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js"
-    }
+    ".": "./dist/index.js"
   },
   "files": [
     "dist/**/*"
   ],
-  "types": "./dist/esm/index.d.ts",
+  "types": "./dist/index.d.ts",
   "peerDependencies": {
     "viem": "^2.14.1",
     "wagmi": "^2.10.2",
