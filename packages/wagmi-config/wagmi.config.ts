@@ -50,6 +50,7 @@ const CHAIN_NAME = {
 
 const HAS_STATIC_ADDRESS: Contracts[] = [
   JBCoreContracts.JBDirectory,
+  JBCoreContracts.JBProjects,
   JBCoreContracts.JBRulesets,
   JBCoreContracts.JBSplits,
   JBCoreContracts.JBTokens,
