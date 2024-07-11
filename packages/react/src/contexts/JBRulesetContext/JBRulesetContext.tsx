@@ -13,6 +13,7 @@ import { useJBContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
 import { ContractFunctionReturnType } from "viem";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
+import { debug } from "src/debug";
 
 /**
  * Context for the current ruleset of a project.
@@ -108,6 +109,17 @@ export const JBRulesetProvider = ({
           },
         };
       },
+    },
+  });
+
+  debug("JBRulesetContext", {
+    ruleset: {
+      data: ruleset?.data,
+      isLoading,
+    },
+    rulesetMetadata: {
+      data: ruleset?.metadata,
+      isLoading,
     },
   });
 
