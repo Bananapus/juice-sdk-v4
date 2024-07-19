@@ -44,6 +44,9 @@ type JBTerminalProviderProps = PropsWithChildren<{
   address: Address | undefined;
 }>;
 
+/**
+ * Provide details about a given terminal.
+ */
 export const JBTerminalProvider = ({
   address,
   children,

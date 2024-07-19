@@ -1,13 +1,10 @@
 import { PropsWithChildren } from "react";
-import {
-  JBChainId,
-  JBChainProvider
-} from "../JBChainContext/JBChainContext";
+import { JBChainId, JBChainProvider } from "../JBChainContext/JBChainContext";
 import {
   JBContractProvider,
   JBContractProviderProps,
 } from "../JBContractContext/JBContractContext";
-import { JBCurrentDataHookProvider } from "../JBDataHookContext/JBCurrentDataHookContext";
+import { JBCurrentDataHookProvider } from "../JBDataHookContext/JBCurrentDataHookProvider";
 import {
   JBProjectMetadataProvider,
   JBProjectMetadataProviderProps,
@@ -17,6 +14,7 @@ import {
   JBTokenProvider,
   JBTokenProviderProps,
 } from "../JBTokenContext/JBTokenContext";
+import { JBPrimaryNativeTerminalProvider } from "../JBTerminalContext/JBPrimaryNativeTerminalProvider";
 
 type JBProjectProviderProps = PropsWithChildren<{
   projectId: bigint;
@@ -48,7 +46,11 @@ export const JBProjectProvider = ({
         <JBRulesetProvider>
           <JBProjectMetadataProvider {...ctxProps?.metadata}>
             <JBCurrentDataHookProvider>
-              <JBTokenProvider {...ctxProps?.token}>{children}</JBTokenProvider>
+              <JBPrimaryNativeTerminalProvider>
+                <JBTokenProvider {...ctxProps?.token}>
+                  {children}
+                </JBTokenProvider>
+              </JBPrimaryNativeTerminalProvider>
             </JBCurrentDataHookProvider>
           </JBProjectMetadataProvider>
         </JBRulesetProvider>
