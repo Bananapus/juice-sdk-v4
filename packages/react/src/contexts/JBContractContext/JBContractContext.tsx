@@ -3,6 +3,9 @@ import { PropsWithChildren, createContext, useContext } from "react";
 import { Address, isAddressEqual, zeroAddress } from "viem";
 import {
   useReadJbControllerFundAccessLimits,
+  useReadJbControllerRulesets,
+  useReadJbControllerSplits,
+  useReadJbControllerTokens,
   useReadJbDirectoryControllerOf,
   useReadJbDirectoryPrimaryTerminalOf,
 } from "../../generated/juicebox";
@@ -19,6 +22,9 @@ export type JBContractContextData = {
     primaryNativeTerminal: AsyncData<Address>;
     controller: AsyncData<Address>;
     fundAccessLimits: AsyncData<Address>;
+    rulesets: AsyncData<Address>;
+    tokens: AsyncData<Address>;
+    splits: AsyncData<Address>;
   };
 };
 
@@ -38,6 +44,9 @@ export const JBContractContext = createContext<JBContractContextData>({
     primaryNativeTerminal: AsyncDataNone,
     controller: AsyncDataNone,
     fundAccessLimits: AsyncDataNone,
+    rulesets: AsyncDataNone,
+    tokens: AsyncDataNone,
+    splits: AsyncDataNone,
   },
 });
 
@@ -50,6 +59,9 @@ export enum DynamicContract {
   "Controller",
   "PrimaryNativePaymentTerminal",
   "FundAccessLimits",
+  "Tokens",
+  "Splits",
+  "Rulesets",
 }
 
 export type JBContractProviderProps = PropsWithChildren<{
@@ -91,17 +103,41 @@ export const JBContractProvider = ({
   });
   const controllerAddress = controller.data;
 
+  const hasController =
+    controllerAddress && !isAddressEqual(controllerAddress, zeroAddress);
+
   const fundAccessLimits = useReadJbControllerFundAccessLimits({
     chainId,
-    address:
-      controllerAddress && isAddressEqual(controllerAddress, zeroAddress)
-        ? undefined
-        : controllerAddress,
+    address: hasController ? controllerAddress : undefined,
     query: {
       enabled: enabled([
         DynamicContract.Controller,
         DynamicContract.FundAccessLimits,
       ]),
+    },
+  });
+
+  const rulesets = useReadJbControllerRulesets({
+    chainId,
+    address: hasController ? controllerAddress : undefined,
+    query: {
+      enabled: enabled([DynamicContract.Controller, DynamicContract.Rulesets]),
+    },
+  });
+
+  const tokens = useReadJbControllerTokens({
+    chainId,
+    address: hasController ? controllerAddress : undefined,
+    query: {
+      enabled: enabled([DynamicContract.Controller, DynamicContract.Tokens]),
+    },
+  });
+
+  const splits = useReadJbControllerSplits({
+    chainId,
+    address: hasController ? controllerAddress : undefined,
+    query: {
+      enabled: enabled([DynamicContract.Controller, DynamicContract.Splits]),
     },
   });
 
@@ -111,6 +147,9 @@ export const JBContractProvider = ({
       controller,
       fundAccessLimits,
       primaryNativeTerminal,
+      rulesets,
+      tokens,
+      splits,
     },
   });
 
@@ -122,6 +161,9 @@ export const JBContractProvider = ({
           controller,
           fundAccessLimits,
           primaryNativeTerminal,
+          rulesets,
+          tokens,
+          splits,
         },
       }}
     >
