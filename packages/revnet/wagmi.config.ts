@@ -26,17 +26,21 @@ function revnetCorePath(
   contractName: keyof typeof RevnetCoreContracts
 ) {
   const chainName = CHAIN_NAME[chain.id];
-  //   return `@rev-net/core/deployments/revnet-core/${chainName}/${contractName}.json`;
-  return `https://raw.githubusercontent.com/rev-net/revnet-core/main/deployments/revnet-core-testnet/${chainName}/REVBasicDeployer.json`;
+  return `@rev-net/core/deployments/revnet-core-testnet/${chainName}/${contractName}.json`;
+  // return `https://raw.githubusercontent.com/rev-net/revnet-core/main/deployments/revnet-core-testnet/${chainName}/REVBasicDeployer.json`;
 }
 
 async function importDeployment(importPath: string) {
-  //   const { default: deployment } = await import(importPath);
-  const deployment = await fetch(importPath).then((res) => res.json());
-  return deployment as unknown as {
-    address: string;
-    abi: unknown[];
-  };
+  const { default: deployment } = await import(importPath, {
+    assert: { type: "json" },
+  });
+  return deployment;
+
+  // const deployment = await fetch(importPath).then((res) => res.json());
+  // return deployment as unknown as {
+  //   address: string;
+  //   abi: unknown[];
+  // };
 }
 
 async function buildRevnetCoreContractConfig() {
