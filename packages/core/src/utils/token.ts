@@ -1,10 +1,10 @@
 import { FixedInt } from "fpnum";
 import { parseUnits } from "viem";
-import { ReservedRate, RulesetWeight } from "./data.js";
+import { ReservedPercent, RulesetWeight } from "./data.js";
 import {
   ONE_ETHER,
   MAX_REDEMPTION_RATE,
-  MAX_RESERVED_RATE,
+  MAX_RESERVED_PERCENT,
 } from "../constants.js";
 
 /**
@@ -21,7 +21,7 @@ import {
  */
 export const getTokenAToBQuote = <D extends number>(
   tokenAAmount: FixedInt<D>, // wei
-  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedRate }
+  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedPercent }
 ) => {
   const { weight, reservedPercent } = cycleParams;
 
@@ -30,7 +30,7 @@ export const getTokenAToBQuote = <D extends number>(
   const totalTokens = (weight.value * tokenAAmount.value) / weightRatio;
   const reservedTokens =
     (weight.value * reservedPercent.value * tokenAAmount.value) /
-    MAX_RESERVED_RATE /
+    MAX_RESERVED_PERCENT /
     weightRatio;
 
   const payerTokens = totalTokens - reservedTokens;
@@ -50,7 +50,7 @@ export const getTokenAToBQuote = <D extends number>(
  */
 export const getTokenBPrice = (
   tokenADecimals: number,
-  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedRate }
+  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedPercent }
 ) => {
   const oneTokenA = FixedInt.parse("1", tokenADecimals);
   const weightRatio = BigInt(10 ** tokenADecimals);
@@ -74,7 +74,7 @@ export const getTokenBPrice = (
 export const getTokenBtoAQuote = <D extends number>(
   tokenBAmount: FixedInt<D>, // wei
   tokenADecimals: number,
-  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedRate }
+  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedPercent }
 ) => {
   const tokenBPrice = getTokenBPrice(tokenADecimals, cycleParams);
   const oneTokenA = parseUnits("1", tokenADecimals);

@@ -13,7 +13,7 @@ Choose the package that best serves your needs.
 
 ### Working with data
 
-The Juicebox contracts use [fixed-point representations](https://medium.com/cementdao/fixed-point-math-in-solidity-616f4508c6e8) of data extensively. To make this data easier to work with, Juice SDK uses [`fpnum`](https://github.com/peeldao/fpnum) for common Juicebox datatypes. These include Reserved Rate, Redemption Rate, Weight, Decay Rate and so on. See [`utils/data.ts`](./packages/core/src/utils/data.ts) for a full reference to all available data types.
+The Juicebox contracts use [fixed-point representations](https://medium.com/cementdao/fixed-point-math-in-solidity-616f4508c6e8) of data extensively. To make this data easier to work with, Juice SDK uses [`fpnum`](https://github.com/peeldao/fpnum) for common Juicebox datatypes. These include Reserved Percent, Redemption Rate, Weight, Decay Percent and so on. See [`utils/data.ts`](./packages/core/src/utils/data.ts) for a full reference to all available data types.
 
 ## Development
 

@@ -1,7 +1,7 @@
 import {
-  DecayRate,
+  DecayPercent,
   RedemptionRate,
-  ReservedRate,
+  ReservedPercent,
   RulesetWeight,
 } from "juice-sdk-core";
 import { createContext, useContext } from "react";
@@ -32,7 +32,7 @@ export type JBRulesetContext = {
       "weight" | "decayPercent"
     > & {
       weight: RulesetWeight;
-      decayPercent: DecayRate;
+      decayPercent: DecayPercent;
     }
   >;
   /**
@@ -48,7 +48,7 @@ export type JBRulesetContext = {
       "redemptionRate" | "reservedPercent"
     > & {
       redemptionRate: RedemptionRate;
-      reservedPercent: ReservedRate;
+      reservedPercent: ReservedPercent;
     }
   >;
 };
@@ -100,12 +100,12 @@ export const JBRulesetProvider = ({
           data: {
             ...ruleset,
             weight: new RulesetWeight(ruleset.weight),
-            decayPercent: new DecayRate(BigInt(ruleset.decayPercent)),
+            decayPercent: new DecayPercent(BigInt(ruleset.decayPercent)),
           },
           metadata: {
             ...rulesetMetadata,
             redemptionRate: new RedemptionRate(BigInt(rulesetMetadata.redemptionRate)),
-            reservedPercent: new ReservedRate(BigInt(rulesetMetadata.reservedPercent))
+            reservedPercent: new ReservedPercent(BigInt(rulesetMetadata.reservedPercent))
           },
         };
       },

@@ -1,9 +1,9 @@
 import { Address, ContractFunctionReturnType } from "viem";
 import { jbControllerAbi } from "./generated/juicebox.js";
 import {
-  DecayRate,
+  DecayPercent,
   RedemptionRate,
-  ReservedRate,
+  ReservedPercent,
   RulesetWeight,
 } from "./utils/data.js";
 
@@ -186,7 +186,7 @@ export type JBRuleset = ContractFunctionReturnType<
  */
 export type JBRulesetData = Omit<JBRuleset[0], "weight" | "decayPercent"> & {
   weight: RulesetWeight;
-  decayPercent: DecayRate;
+  decayPercent: DecayPercent;
 };
 
 /**
@@ -197,5 +197,5 @@ export type JBRulesetMetadata = Omit<
   "redemptionRate" | "reservedPercent"
 > & {
   redemptionRate: RedemptionRate;
-  reservedPercent: ReservedRate;
+  reservedPercent: ReservedPercent;
 };

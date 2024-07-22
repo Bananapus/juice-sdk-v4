@@ -1,8 +1,8 @@
 import { FixedInt, FixedPortion } from "fpnum";
 import {
-  MAX_DECAY_RATE,
+  MAX_DECAY_PERCENT,
   MAX_REDEMPTION_RATE,
-  MAX_RESERVED_RATE,
+  MAX_RESERVED_PERCENT,
   SPLITS_TOTAL_PERCENT,
 } from "../constants.js";
 
@@ -13,9 +13,9 @@ import {
  *
  * @extends FixedPortion
  */
-export class ReservedRate extends FixedPortion<4> {
+export class ReservedPercent extends FixedPortion<4> {
   constructor(value: bigint) {
-    super(value, 4, MAX_RESERVED_RATE);
+    super(value, 4, MAX_RESERVED_PERCENT);
   }
 }
 
@@ -39,9 +39,9 @@ export class RedemptionRate extends FixedPortion<4> {
 
  * @extends FixedPortion
  */
-export class DecayRate extends FixedPortion<9> {
+export class DecayPercent extends FixedPortion<9> {
   constructor(value: bigint) {
-    super(value, 9, MAX_DECAY_RATE);
+    super(value, 9, MAX_DECAY_PERCENT);
   }
 }
 

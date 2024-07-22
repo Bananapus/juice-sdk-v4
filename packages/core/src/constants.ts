@@ -22,7 +22,7 @@ export const DEFAULT_ALLOW_OVERSPENDING = true;
  *
  * @link JBConstants.sol
  */
-export const MAX_RESERVED_RATE = 10_000n;
+export const MAX_RESERVED_PERCENT = 10_000n;
 
 /**
  * The maximum value for a ruleset's Redemption Rate.
@@ -36,7 +36,7 @@ export const MAX_REDEMPTION_RATE = 10_000n;
  *
  * @link JBConstants.sol
  */
-export const MAX_DECAY_RATE = 1_000_000_000n;
+export const MAX_DECAY_PERCENT = 1_000_000_000n;
 
 /**
  * @link JBConstants.sol

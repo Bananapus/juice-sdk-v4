@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { DecayRate, ReservedRate } from "./data.js";
+import { DecayPercent, ReservedPercent } from "./data.js";
 
 describe("jb", () => {
   test("reserved rate", () => {
     const reservedPercentRaw = 2_345n; // 23.45%
-    const reservedPercent: ReservedRate = new ReservedRate(reservedPercentRaw);
+    const reservedPercent: ReservedPercent = new ReservedPercent(reservedPercentRaw);
     expect(reservedPercent.format()).toEqual("0.2345");
     expect(reservedPercent.toFloat()).toEqual(0.2345);
 
@@ -16,7 +16,7 @@ describe("jb", () => {
 
   test("decay rate", () => {
     const decayPercentRaw = 200_000_000n; // 20%
-    const decayPercent = new DecayRate(decayPercentRaw);
+    const decayPercent = new DecayPercent(decayPercentRaw);
     expect(decayPercent.format()).toEqual("0.2");
     expect(decayPercent.toFloat()).toEqual(0.2);
 
