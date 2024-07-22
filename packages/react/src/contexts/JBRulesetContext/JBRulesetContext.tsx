@@ -29,10 +29,10 @@ export type JBRulesetContext = {
         "view",
         "currentRulesetOf"
       >[0],
-      "weight" | "decayRate"
+      "weight" | "decayPercent"
     > & {
       weight: RulesetWeight;
-      decayRate: DecayRate;
+      decayPercent: DecayRate;
     }
   >;
   /**
@@ -45,10 +45,10 @@ export type JBRulesetContext = {
         "view",
         "currentRulesetOf"
       >[1],
-      "redemptionRate" | "reservedRate"
+      "redemptionRate" | "reservedPercent"
     > & {
       redemptionRate: RedemptionRate;
-      reservedRate: ReservedRate;
+      reservedPercent: ReservedRate;
     }
   >;
 };
@@ -100,12 +100,12 @@ export const JBRulesetProvider = ({
           data: {
             ...ruleset,
             weight: new RulesetWeight(ruleset.weight),
-            decayRate: new DecayRate(ruleset.decayRate),
+            decayPercent: new DecayRate(BigInt(ruleset.decayPercent)),
           },
           metadata: {
             ...rulesetMetadata,
-            redemptionRate: new RedemptionRate(rulesetMetadata.redemptionRate),
-            reservedRate: new ReservedRate(rulesetMetadata.reservedRate),
+            redemptionRate: new RedemptionRate(BigInt(rulesetMetadata.redemptionRate)),
+            reservedPercent: new ReservedRate(BigInt(rulesetMetadata.reservedPercent))
           },
         };
       },

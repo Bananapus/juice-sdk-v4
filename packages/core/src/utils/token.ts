@@ -12,7 +12,7 @@ import {
  *
  * Useful for when users specify how much they want to spend (Token A).
  *
- * Accounts for the ruleset's `weight` and `reservedRate`.
+ * Accounts for the ruleset's `weight` and `reservedPercent`.
  *
  * Returned quote contains:
  * - total tokens to be minted (JB ruleset `weight`).
@@ -21,15 +21,15 @@ import {
  */
 export const getTokenAToBQuote = <D extends number>(
   tokenAAmount: FixedInt<D>, // wei
-  cycleParams: { weight: RulesetWeight; reservedRate: ReservedRate }
+  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedRate }
 ) => {
-  const { weight, reservedRate } = cycleParams;
+  const { weight, reservedPercent } = cycleParams;
 
   const weightRatio = BigInt(10 ** tokenAAmount.decimals);
 
   const totalTokens = (weight.value * tokenAAmount.value) / weightRatio;
   const reservedTokens =
-    (weight.value * reservedRate.value * tokenAAmount.value) /
+    (weight.value * reservedPercent.value * tokenAAmount.value) /
     MAX_RESERVED_RATE /
     weightRatio;
 
@@ -46,11 +46,11 @@ export const getTokenAToBQuote = <D extends number>(
 /**
  * Return the amount of Token A it costs to buy 1 Token B.
  *
- * Accounts for the ruleset's `weight` and `reservedRate`.
+ * Accounts for the ruleset's `weight` and `reservedPercent`.
  */
 export const getTokenBPrice = (
   tokenADecimals: number,
-  cycleParams: { weight: RulesetWeight; reservedRate: ReservedRate }
+  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedRate }
 ) => {
   const oneTokenA = FixedInt.parse("1", tokenADecimals);
   const weightRatio = BigInt(10 ** tokenADecimals);
@@ -67,14 +67,14 @@ export const getTokenBPrice = (
 /**
  * Return the amount of Token A it costs to mint a given `tokenBAmount`.
  *
- * Accounts for the ruleset's `weight` and `reservedRate`.
+ * Accounts for the ruleset's `weight` and `reservedPercent`.
  *
  * Useful for when users specify the outcome they want (how much Token B they want).
  */
 export const getTokenBtoAQuote = <D extends number>(
   tokenBAmount: FixedInt<D>, // wei
   tokenADecimals: number,
-  cycleParams: { weight: RulesetWeight; reservedRate: ReservedRate }
+  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedRate }
 ) => {
   const tokenBPrice = getTokenBPrice(tokenADecimals, cycleParams);
   const oneTokenA = parseUnits("1", tokenADecimals);

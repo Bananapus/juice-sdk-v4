@@ -184,9 +184,9 @@ export type JBRuleset = ContractFunctionReturnType<
 /**
  * Juicebox ruleset.
  */
-export type JBRulesetData = Omit<JBRuleset[0], "weight" | "decayRate"> & {
+export type JBRulesetData = Omit<JBRuleset[0], "weight" | "decayPercent"> & {
   weight: RulesetWeight;
-  decayRate: DecayRate;
+  decayPercent: DecayRate;
 };
 
 /**
@@ -194,8 +194,8 @@ export type JBRulesetData = Omit<JBRuleset[0], "weight" | "decayRate"> & {
  */
 export type JBRulesetMetadata = Omit<
   JBRuleset[1],
-  "redemptionRate" | "reservedRate"
+  "redemptionRate" | "reservedPercent"
 > & {
   redemptionRate: RedemptionRate;
-  reservedRate: ReservedRate;
+  reservedPercent: ReservedRate;
 };

@@ -8,10 +8,10 @@ import { MAX_DECAY_RATE } from "../constants.js";
  */
 export function getNextRulesetWeight(currentRuleset: {
   weight: bigint;
-  decayRate: bigint;
+  decayPercent: bigint;
 }) {
   const nextRulesetWeight =
-    (currentRuleset.weight * (MAX_DECAY_RATE - currentRuleset.decayRate)) /
+    (currentRuleset.weight * (MAX_DECAY_RATE - currentRuleset.decayPercent)) /
     MAX_DECAY_RATE;
 
   return nextRulesetWeight;
@@ -22,12 +22,12 @@ export function getNextRulesetWeight(currentRuleset: {
  */
 export function getPrevRulesetWeight(currentRuleset: {
   weight: bigint;
-  decayRate: bigint;
+  decayPercent: bigint;
 }) {
   // reverse of getNextRulesetWeight
   const prevRulesetWeight =
     (currentRuleset.weight * MAX_DECAY_RATE) /
-    (MAX_DECAY_RATE - currentRuleset.decayRate);
+    (MAX_DECAY_RATE - currentRuleset.decayPercent);
 
   return prevRulesetWeight;
 }

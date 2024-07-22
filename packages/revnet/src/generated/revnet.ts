@@ -10,10 +10,10 @@ import {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const revBasicDeployerAbi = [
   {
@@ -26,12 +26,19 @@ export const revBasicDeployerAbi = [
       },
       {
         name: 'suckerRegistry',
-        internalType: 'contract IBPSuckerRegistry',
+        internalType: 'contract IJBSuckerRegistry',
         type: 'address',
       },
-      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+      { name: 'feeRevnetId', internalType: 'uint256', type: 'uint256' },
     ],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'CASH_OUT_DELAY',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -45,7 +52,14 @@ export const revBasicDeployerAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'EXIT_DELAY',
+    name: 'FEE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'FEE_REVNET_ID',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
@@ -54,9 +68,58 @@ export const revBasicDeployerAbi = [
     inputs: [],
     name: 'SUCKER_REGISTRY',
     outputs: [
-      { name: '', internalType: 'contract IBPSuckerRegistry', type: 'address' },
+      { name: '', internalType: 'contract IJBSuckerRegistry', type: 'address' },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAfterRedeemRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'redeemCount', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'reclaimedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'redemptionRate', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'beneficiary',
+            internalType: 'address payable',
+            type: 'address',
+          },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'redeemerMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'afterRedeemRecordedWith',
+    outputs: [],
+    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -85,16 +148,16 @@ export const revBasicDeployerAbi = [
             type: 'tuple',
             components: [
               { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
               { name: 'value', internalType: 'uint256', type: 'uint256' },
-              { name: 'decimals', internalType: 'uint256', type: 'uint256' },
-              { name: 'currency', internalType: 'uint256', type: 'uint256' },
             ],
           },
           { name: 'projectId', internalType: 'uint256', type: 'uint256' },
           { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
           { name: 'beneficiary', internalType: 'address', type: 'address' },
           { name: 'weight', internalType: 'uint256', type: 'uint256' },
-          { name: 'reservedRate', internalType: 'uint256', type: 'uint256' },
+          { name: 'reservedPercent', internalType: 'uint256', type: 'uint256' },
           { name: 'metadata', internalType: 'bytes', type: 'bytes' },
         ],
       },
@@ -139,9 +202,9 @@ export const revBasicDeployerAbi = [
             type: 'tuple',
             components: [
               { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
               { name: 'value', internalType: 'uint256', type: 'uint256' },
-              { name: 'decimals', internalType: 'uint256', type: 'uint256' },
-              { name: 'currency', internalType: 'uint256', type: 'uint256' },
             ],
           },
           { name: 'useTotalSurplus', internalType: 'bool', type: 'bool' },
@@ -156,7 +219,7 @@ export const revBasicDeployerAbi = [
       { name: '', internalType: 'uint256', type: 'uint256' },
       { name: '', internalType: 'uint256', type: 'uint256' },
       {
-        name: 'specifications',
+        name: 'hookSpecifications',
         internalType: 'struct JBRedeemHookSpecification[]',
         type: 'tuple[]',
         components: [
@@ -187,79 +250,11 @@ export const revBasicDeployerAbi = [
   },
   {
     type: 'function',
-    inputs: [
-      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
-      { name: 'encodedConfiguration', internalType: 'bytes', type: 'bytes' },
-      {
-        name: 'suckerDeploymentConfiguration',
-        internalType: 'struct REVSuckerDeploymentConfig',
-        type: 'tuple',
-        components: [
-          {
-            name: 'deployerConfigurations',
-            internalType: 'struct BPSuckerDeployerConfig[]',
-            type: 'tuple[]',
-            components: [
-              {
-                name: 'deployer',
-                internalType: 'contract IBPSuckerDeployer',
-                type: 'address',
-              },
-              {
-                name: 'mappings',
-                internalType: 'struct BPTokenMapping[]',
-                type: 'tuple[]',
-                components: [
-                  {
-                    name: 'localToken',
-                    internalType: 'address',
-                    type: 'address',
-                  },
-                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
-                  {
-                    name: 'remoteToken',
-                    internalType: 'address',
-                    type: 'address',
-                  },
-                  {
-                    name: 'minBridgeAmount',
-                    internalType: 'uint256',
-                    type: 'uint256',
-                  },
-                ],
-              },
-            ],
-          },
-          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
-        ],
-      },
-    ],
-    name: 'deploySuckersFor',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
-    name: 'exitDelayOf',
-    outputs: [{ name: 'exitDelay', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
-      { name: 'addr', internalType: 'address', type: 'address' },
+    name: 'cashOutDelayOf',
+    outputs: [
+      { name: 'cashOutDelay', internalType: 'uint256', type: 'uint256' },
     ],
-    name: 'hasMintPermissionFor',
-    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
-    name: 'isTrustedForwarder',
-    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'view',
   },
   {
@@ -283,11 +278,7 @@ export const revBasicDeployerAbi = [
             ],
           },
           { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
-          {
-            name: 'initialSplitOperator',
-            internalType: 'address',
-            type: 'address',
-          },
+          { name: 'splitOperator', internalType: 'address', type: 'address' },
           {
             name: 'stageConfigurations',
             internalType: 'struct REVStageConfig[]',
@@ -303,8 +294,8 @@ export const revBasicDeployerAbi = [
                 internalType: 'struct REVMintConfig[]',
                 type: 'tuple[]',
                 components: [
-                  { name: 'chainId', internalType: 'uint256', type: 'uint256' },
-                  { name: 'count', internalType: 'uint256', type: 'uint256' },
+                  { name: 'chainId', internalType: 'uint32', type: 'uint32' },
+                  { name: 'count', internalType: 'uint104', type: 'uint104' },
                   {
                     name: 'beneficiary',
                     internalType: 'address',
@@ -312,24 +303,24 @@ export const revBasicDeployerAbi = [
                   },
                 ],
               },
-              { name: 'splitRate', internalType: 'uint16', type: 'uint16' },
+              { name: 'splitPercent', internalType: 'uint16', type: 'uint16' },
               {
-                name: 'initialIssuanceRate',
+                name: 'initialIssuance',
                 internalType: 'uint112',
                 type: 'uint112',
               },
               {
-                name: 'priceCeilingIncreaseFrequency',
-                internalType: 'uint40',
-                type: 'uint40',
-              },
-              {
-                name: 'priceCeilingIncreasePercentage',
+                name: 'issuanceDecayFrequency',
                 internalType: 'uint32',
                 type: 'uint32',
               },
               {
-                name: 'priceFloorTaxIntensity',
+                name: 'issuanceDecayPercent',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'cashOutTaxRate',
                 internalType: 'uint16',
                 type: 'uint16',
               },
@@ -348,9 +339,14 @@ export const revBasicDeployerAbi = [
             type: 'address',
           },
           {
-            name: 'tokensToAccept',
-            internalType: 'address[]',
-            type: 'address[]',
+            name: 'accountingContextsToAccept',
+            internalType: 'struct JBAccountingContext[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+            ],
           },
         ],
       },
@@ -388,17 +384,17 @@ export const revBasicDeployerAbi = [
         components: [
           {
             name: 'deployerConfigurations',
-            internalType: 'struct BPSuckerDeployerConfig[]',
+            internalType: 'struct JBSuckerDeployerConfig[]',
             type: 'tuple[]',
             components: [
               {
                 name: 'deployer',
-                internalType: 'contract IBPSuckerDeployer',
+                internalType: 'contract IJBSuckerDeployer',
                 type: 'address',
               },
               {
                 name: 'mappings',
-                internalType: 'struct BPTokenMapping[]',
+                internalType: 'struct JBTokenMapping[]',
                 type: 'tuple[]',
                 components: [
                   {
@@ -425,9 +421,82 @@ export const revBasicDeployerAbi = [
         ],
       },
     ],
-    name: 'launchRevnetFor',
+    name: 'deployFor',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'encodedConfiguration', internalType: 'bytes', type: 'bytes' },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+      },
+    ],
+    name: 'deploySuckersFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'addr', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasMintPermissionFor',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'addr', internalType: 'address', type: 'address' },
+    ],
+    name: 'isSplitOperatorOf',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -486,16 +555,9 @@ export const revBasicDeployerAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    inputs: [{ name: '', internalType: 'bytes4', type: 'bytes4' }],
     name: 'supportsInterface',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'trustedForwarder',
-    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
@@ -506,6 +568,12 @@ export const revBasicDeployerAbi = [
         name: 'revnetId',
         internalType: 'uint256',
         type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'suckerSalt',
+        internalType: 'bytes32',
+        type: 'bytes32',
         indexed: true,
       },
       {
@@ -525,11 +593,7 @@ export const revBasicDeployerAbi = [
             ],
           },
           { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
-          {
-            name: 'initialSplitOperator',
-            internalType: 'address',
-            type: 'address',
-          },
+          { name: 'splitOperator', internalType: 'address', type: 'address' },
           {
             name: 'stageConfigurations',
             internalType: 'struct REVStageConfig[]',
@@ -545,8 +609,8 @@ export const revBasicDeployerAbi = [
                 internalType: 'struct REVMintConfig[]',
                 type: 'tuple[]',
                 components: [
-                  { name: 'chainId', internalType: 'uint256', type: 'uint256' },
-                  { name: 'count', internalType: 'uint256', type: 'uint256' },
+                  { name: 'chainId', internalType: 'uint32', type: 'uint32' },
+                  { name: 'count', internalType: 'uint104', type: 'uint104' },
                   {
                     name: 'beneficiary',
                     internalType: 'address',
@@ -554,24 +618,24 @@ export const revBasicDeployerAbi = [
                   },
                 ],
               },
-              { name: 'splitRate', internalType: 'uint16', type: 'uint16' },
+              { name: 'splitPercent', internalType: 'uint16', type: 'uint16' },
               {
-                name: 'initialIssuanceRate',
+                name: 'initialIssuance',
                 internalType: 'uint112',
                 type: 'uint112',
               },
               {
-                name: 'priceCeilingIncreaseFrequency',
-                internalType: 'uint40',
-                type: 'uint40',
-              },
-              {
-                name: 'priceCeilingIncreasePercentage',
+                name: 'issuanceDecayFrequency',
                 internalType: 'uint32',
                 type: 'uint32',
               },
               {
-                name: 'priceFloorTaxIntensity',
+                name: 'issuanceDecayPercent',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'cashOutTaxRate',
                 internalType: 'uint16',
                 type: 'uint16',
               },
@@ -591,9 +655,14 @@ export const revBasicDeployerAbi = [
             type: 'address',
           },
           {
-            name: 'tokensToAccept',
-            internalType: 'address[]',
-            type: 'address[]',
+            name: 'accountingContextsToAccept',
+            internalType: 'struct JBAccountingContext[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+            ],
           },
         ],
         indexed: false,
@@ -633,17 +702,17 @@ export const revBasicDeployerAbi = [
         components: [
           {
             name: 'deployerConfigurations',
-            internalType: 'struct BPSuckerDeployerConfig[]',
+            internalType: 'struct JBSuckerDeployerConfig[]',
             type: 'tuple[]',
             components: [
               {
                 name: 'deployer',
-                internalType: 'contract IBPSuckerDeployer',
+                internalType: 'contract IJBSuckerDeployer',
                 type: 'address',
               },
               {
                 name: 'mappings',
-                internalType: 'struct BPTokenMapping[]',
+                internalType: 'struct JBTokenMapping[]',
                 type: 'tuple[]',
                 components: [
                   {
@@ -677,12 +746,12 @@ export const revBasicDeployerAbi = [
         components: [
           {
             name: 'mustStartAtOrAfter',
-            internalType: 'uint256',
-            type: 'uint256',
+            internalType: 'uint48',
+            type: 'uint48',
           },
-          { name: 'duration', internalType: 'uint256', type: 'uint256' },
-          { name: 'weight', internalType: 'uint256', type: 'uint256' },
-          { name: 'decayRate', internalType: 'uint256', type: 'uint256' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'decayPercent', internalType: 'uint32', type: 'uint32' },
           {
             name: 'approvalHook',
             internalType: 'contract IJBRulesetApprovalHook',
@@ -694,20 +763,16 @@ export const revBasicDeployerAbi = [
             type: 'tuple',
             components: [
               {
-                name: 'reservedRate',
-                internalType: 'uint256',
-                type: 'uint256',
+                name: 'reservedPercent',
+                internalType: 'uint16',
+                type: 'uint16',
               },
               {
                 name: 'redemptionRate',
-                internalType: 'uint256',
-                type: 'uint256',
+                internalType: 'uint16',
+                type: 'uint16',
               },
-              {
-                name: 'baseCurrency',
-                internalType: 'uint256',
-                type: 'uint256',
-              },
+              { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
               { name: 'pausePay', internalType: 'bool', type: 'bool' },
               {
                 name: 'pauseCreditTransfers',
@@ -732,6 +797,12 @@ export const revBasicDeployerAbi = [
                 type: 'bool',
               },
               {
+                name: 'allowAddAccountingContext',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'allowAddPriceFeed', internalType: 'bool', type: 'bool' },
+              {
                 name: 'ownerMustSendPayouts',
                 internalType: 'bool',
                 type: 'bool',
@@ -749,7 +820,7 @@ export const revBasicDeployerAbi = [
                 type: 'bool',
               },
               { name: 'dataHook', internalType: 'address', type: 'address' },
-              { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+              { name: 'metadata', internalType: 'uint16', type: 'uint16' },
             ],
           },
           {
@@ -768,12 +839,8 @@ export const revBasicDeployerAbi = [
                     internalType: 'bool',
                     type: 'bool',
                   },
-                  { name: 'percent', internalType: 'uint256', type: 'uint256' },
-                  {
-                    name: 'projectId',
-                    internalType: 'uint256',
-                    type: 'uint256',
-                  },
+                  { name: 'percent', internalType: 'uint32', type: 'uint32' },
+                  { name: 'projectId', internalType: 'uint56', type: 'uint56' },
                   {
                     name: 'beneficiary',
                     internalType: 'address payable',
@@ -781,8 +848,8 @@ export const revBasicDeployerAbi = [
                   },
                   {
                     name: 'lockedUntil',
-                    internalType: 'uint256',
-                    type: 'uint256',
+                    internalType: 'uint48',
+                    type: 'uint48',
                   },
                   {
                     name: 'hook',
@@ -805,12 +872,8 @@ export const revBasicDeployerAbi = [
                 internalType: 'struct JBCurrencyAmount[]',
                 type: 'tuple[]',
                 components: [
-                  { name: 'amount', internalType: 'uint256', type: 'uint256' },
-                  {
-                    name: 'currency',
-                    internalType: 'uint256',
-                    type: 'uint256',
-                  },
+                  { name: 'amount', internalType: 'uint224', type: 'uint224' },
+                  { name: 'currency', internalType: 'uint32', type: 'uint32' },
                 ],
               },
               {
@@ -818,12 +881,8 @@ export const revBasicDeployerAbi = [
                 internalType: 'struct JBCurrencyAmount[]',
                 type: 'tuple[]',
                 components: [
-                  { name: 'amount', internalType: 'uint256', type: 'uint256' },
-                  {
-                    name: 'currency',
-                    internalType: 'uint256',
-                    type: 'uint256',
-                  },
+                  { name: 'amount', internalType: 'uint224', type: 'uint224' },
+                  { name: 'currency', internalType: 'uint32', type: 'uint32' },
                 ],
               },
             ],
@@ -835,12 +894,6 @@ export const revBasicDeployerAbi = [
         name: 'encodedConfiguration',
         internalType: 'bytes',
         type: 'bytes',
-        indexed: false,
-      },
-      {
-        name: 'isInProgress',
-        internalType: 'bool',
-        type: 'bool',
         indexed: false,
       },
       {
@@ -876,17 +929,17 @@ export const revBasicDeployerAbi = [
         components: [
           {
             name: 'deployerConfigurations',
-            internalType: 'struct BPSuckerDeployerConfig[]',
+            internalType: 'struct JBSuckerDeployerConfig[]',
             type: 'tuple[]',
             components: [
               {
                 name: 'deployer',
-                internalType: 'contract IBPSuckerDeployer',
+                internalType: 'contract IJBSuckerDeployer',
                 type: 'address',
               },
               {
                 name: 'mappings',
-                internalType: 'struct BPTokenMapping[]',
+                internalType: 'struct JBTokenMapping[]',
                 type: 'tuple[]',
                 components: [
                   {
@@ -992,6 +1045,62 @@ export const revBasicDeployerAbi = [
         name: 'revnetId',
         internalType: 'uint256',
         type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'additionalOperator',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'permissionIds',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetAdditionalOperator',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'cashOutDelay',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetCashOutDelay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
         indexed: true,
       },
       {
@@ -1021,30 +1130,40 @@ export const revBasicDeployerAbi = [
     ],
     name: 'StoreMintPotential',
   },
-  { type: 'error', inputs: [], name: 'REVBasicDeployer_BadStageTimes' },
-  { type: 'error', inputs: [], name: 'REVBasicDeployer_ExitDelayInEffect' },
-  { type: 'error', inputs: [], name: 'REVBasicDeployer_StageNotStarted' },
-  { type: 'error', inputs: [], name: 'REVBasicDeployer_Unauthorized' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  { type: 'error', inputs: [], name: 'REVBasic_BadStageTimes' },
+  { type: 'error', inputs: [], name: 'REVBasic_CashOutDelayInEffect' },
+  { type: 'error', inputs: [], name: 'REVBasic_StageNotStarted' },
+  { type: 'error', inputs: [], name: 'REVBasic_StagesRequired' },
+  { type: 'error', inputs: [], name: 'REVBasic_Unauthorized' },
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const revBasicDeployerAddress = {
-  84532: '0x645438EdC4E6388b99f50c27dce0235d70b8FA44',
-  421614: '0x645438EdC4E6388b99f50c27dce0235d70b8FA44',
-  11155111: '0x645438EdC4E6388b99f50c27dce0235d70b8FA44',
-  11155420: '0x645438EdC4E6388b99f50c27dce0235d70b8FA44',
+  84532: '0x34dEfA1601e7b462992166737d1EABdBB395efa1',
+  421614: '0x34dEfA1601e7b462992166737d1EABdBB395efa1',
+  11155111: '0x34dEfA1601e7b462992166737d1EABdBB395efa1',
+  11155420: '0x34dEfA1601e7b462992166737d1EABdBB395efa1',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const revBasicDeployerConfig = {
   address: revBasicDeployerAddress,
@@ -1058,10 +1177,10 @@ export const revBasicDeployerConfig = {
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployer = /*#__PURE__*/ createUseReadContract({
   abi: revBasicDeployerAbi,
@@ -1069,12 +1188,27 @@ export const useReadRevBasicDeployer = /*#__PURE__*/ createUseReadContract({
 })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"CASH_OUT_DELAY"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ */
+export const useReadRevBasicDeployerCashOutDelay =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revBasicDeployerAbi,
+    address: revBasicDeployerAddress,
+    functionName: 'CASH_OUT_DELAY',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"CONTROLLER"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployerController =
   /*#__PURE__*/ createUseReadContract({
@@ -1084,27 +1218,41 @@ export const useReadRevBasicDeployerController =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"EXIT_DELAY"`
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"FEE"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
-export const useReadRevBasicDeployerExitDelay =
+export const useReadRevBasicDeployerFee = /*#__PURE__*/ createUseReadContract({
+  abi: revBasicDeployerAbi,
+  address: revBasicDeployerAddress,
+  functionName: 'FEE',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"FEE_REVNET_ID"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ */
+export const useReadRevBasicDeployerFeeRevnetId =
   /*#__PURE__*/ createUseReadContract({
     abi: revBasicDeployerAbi,
     address: revBasicDeployerAddress,
-    functionName: 'EXIT_DELAY',
+    functionName: 'FEE_REVNET_ID',
   })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"SUCKER_REGISTRY"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployerSuckerRegistry =
   /*#__PURE__*/ createUseReadContract({
@@ -1116,10 +1264,10 @@ export const useReadRevBasicDeployerSuckerRegistry =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"allowedMintCountOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployerAllowedMintCountOf =
   /*#__PURE__*/ createUseReadContract({
@@ -1131,10 +1279,10 @@ export const useReadRevBasicDeployerAllowedMintCountOf =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"beforePayRecordedWith"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployerBeforePayRecordedWith =
   /*#__PURE__*/ createUseReadContract({
@@ -1146,10 +1294,10 @@ export const useReadRevBasicDeployerBeforePayRecordedWith =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"beforeRedeemRecordedWith"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployerBeforeRedeemRecordedWith =
   /*#__PURE__*/ createUseReadContract({
@@ -1161,10 +1309,10 @@ export const useReadRevBasicDeployerBeforeRedeemRecordedWith =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"buybackHookOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployerBuybackHookOf =
   /*#__PURE__*/ createUseReadContract({
@@ -1174,27 +1322,27 @@ export const useReadRevBasicDeployerBuybackHookOf =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"exitDelayOf"`
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"cashOutDelayOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
-export const useReadRevBasicDeployerExitDelayOf =
+export const useReadRevBasicDeployerCashOutDelayOf =
   /*#__PURE__*/ createUseReadContract({
     abi: revBasicDeployerAbi,
     address: revBasicDeployerAddress,
-    functionName: 'exitDelayOf',
+    functionName: 'cashOutDelayOf',
   })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"hasMintPermissionFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployerHasMintPermissionFor =
   /*#__PURE__*/ createUseReadContract({
@@ -1204,27 +1352,27 @@ export const useReadRevBasicDeployerHasMintPermissionFor =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"isTrustedForwarder"`
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"isSplitOperatorOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
-export const useReadRevBasicDeployerIsTrustedForwarder =
+export const useReadRevBasicDeployerIsSplitOperatorOf =
   /*#__PURE__*/ createUseReadContract({
     abi: revBasicDeployerAbi,
     address: revBasicDeployerAddress,
-    functionName: 'isTrustedForwarder',
+    functionName: 'isSplitOperatorOf',
   })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"onERC721Received"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployerOnErc721Received =
   /*#__PURE__*/ createUseReadContract({
@@ -1236,10 +1384,10 @@ export const useReadRevBasicDeployerOnErc721Received =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"payHookSpecificationsOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployerPayHookSpecificationsOf =
   /*#__PURE__*/ createUseReadContract({
@@ -1251,10 +1399,10 @@ export const useReadRevBasicDeployerPayHookSpecificationsOf =
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"supportsInterface"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useReadRevBasicDeployerSupportsInterface =
   /*#__PURE__*/ createUseReadContract({
@@ -1264,27 +1412,12 @@ export const useReadRevBasicDeployerSupportsInterface =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"trustedForwarder"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- */
-export const useReadRevBasicDeployerTrustedForwarder =
-  /*#__PURE__*/ createUseReadContract({
-    abi: revBasicDeployerAbi,
-    address: revBasicDeployerAddress,
-    functionName: 'trustedForwarder',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useWriteRevBasicDeployer = /*#__PURE__*/ createUseWriteContract({
   abi: revBasicDeployerAbi,
@@ -1292,12 +1425,42 @@ export const useWriteRevBasicDeployer = /*#__PURE__*/ createUseWriteContract({
 })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"afterRedeemRecordedWith"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ */
+export const useWriteRevBasicDeployerAfterRedeemRecordedWith =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: revBasicDeployerAbi,
+    address: revBasicDeployerAddress,
+    functionName: 'afterRedeemRecordedWith',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"deployFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ */
+export const useWriteRevBasicDeployerDeployFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: revBasicDeployerAbi,
+    address: revBasicDeployerAddress,
+    functionName: 'deployFor',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"deploySuckersFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useWriteRevBasicDeployerDeploySuckersFor =
   /*#__PURE__*/ createUseWriteContract({
@@ -1307,27 +1470,12 @@ export const useWriteRevBasicDeployerDeploySuckersFor =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"launchRevnetFor"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- */
-export const useWriteRevBasicDeployerLaunchRevnetFor =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: revBasicDeployerAbi,
-    address: revBasicDeployerAddress,
-    functionName: 'launchRevnetFor',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"mintFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useWriteRevBasicDeployerMintFor =
   /*#__PURE__*/ createUseWriteContract({
@@ -1339,10 +1487,10 @@ export const useWriteRevBasicDeployerMintFor =
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"replaceSplitOperatorOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useWriteRevBasicDeployerReplaceSplitOperatorOf =
   /*#__PURE__*/ createUseWriteContract({
@@ -1354,10 +1502,10 @@ export const useWriteRevBasicDeployerReplaceSplitOperatorOf =
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useSimulateRevBasicDeployer =
   /*#__PURE__*/ createUseSimulateContract({
@@ -1366,12 +1514,42 @@ export const useSimulateRevBasicDeployer =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"afterRedeemRecordedWith"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ */
+export const useSimulateRevBasicDeployerAfterRedeemRecordedWith =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revBasicDeployerAbi,
+    address: revBasicDeployerAddress,
+    functionName: 'afterRedeemRecordedWith',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"deployFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ */
+export const useSimulateRevBasicDeployerDeployFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revBasicDeployerAbi,
+    address: revBasicDeployerAddress,
+    functionName: 'deployFor',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"deploySuckersFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useSimulateRevBasicDeployerDeploySuckersFor =
   /*#__PURE__*/ createUseSimulateContract({
@@ -1381,27 +1559,12 @@ export const useSimulateRevBasicDeployerDeploySuckersFor =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"launchRevnetFor"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- */
-export const useSimulateRevBasicDeployerLaunchRevnetFor =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: revBasicDeployerAbi,
-    address: revBasicDeployerAddress,
-    functionName: 'launchRevnetFor',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"mintFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useSimulateRevBasicDeployerMintFor =
   /*#__PURE__*/ createUseSimulateContract({
@@ -1413,10 +1576,10 @@ export const useSimulateRevBasicDeployerMintFor =
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `functionName` set to `"replaceSplitOperatorOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useSimulateRevBasicDeployerReplaceSplitOperatorOf =
   /*#__PURE__*/ createUseSimulateContract({
@@ -1428,10 +1591,10 @@ export const useSimulateRevBasicDeployerReplaceSplitOperatorOf =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useWatchRevBasicDeployerEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
@@ -1442,10 +1605,10 @@ export const useWatchRevBasicDeployerEvent =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"DeployRevnet"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useWatchRevBasicDeployerDeployRevnetEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
@@ -1457,10 +1620,10 @@ export const useWatchRevBasicDeployerDeployRevnetEvent =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"DeploySuckers"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useWatchRevBasicDeployerDeploySuckersEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
@@ -1472,10 +1635,10 @@ export const useWatchRevBasicDeployerDeploySuckersEvent =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"Mint"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useWatchRevBasicDeployerMintEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
@@ -1487,10 +1650,10 @@ export const useWatchRevBasicDeployerMintEvent =
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"ReplaceSplitOperator"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useWatchRevBasicDeployerReplaceSplitOperatorEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
@@ -1500,12 +1663,42 @@ export const useWatchRevBasicDeployerReplaceSplitOperatorEvent =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"SetAdditionalOperator"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ */
+export const useWatchRevBasicDeployerSetAdditionalOperatorEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revBasicDeployerAbi,
+    address: revBasicDeployerAddress,
+    eventName: 'SetAdditionalOperator',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"SetCashOutDelay"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ */
+export const useWatchRevBasicDeployerSetCashOutDelayEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revBasicDeployerAbi,
+    address: revBasicDeployerAddress,
+    eventName: 'SetCashOutDelay',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revBasicDeployerAbi}__ and `eventName` set to `"StoreMintPotential"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x645438EdC4E6388b99f50c27dce0235d70b8FA44)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34dEfA1601e7b462992166737d1EABdBB395efa1)
  */
 export const useWatchRevBasicDeployerStoreMintPotentialEvent =
   /*#__PURE__*/ createUseWatchContractEvent({

@@ -17,7 +17,7 @@ export async function getHookSpecifications(
   args: {
     dataHookAddress: Address;
     projectId: bigint;
-    rulesetId: bigint;
+    rulesetId: number;
   }
 ) {
   const dataHook = getContract({
@@ -29,7 +29,7 @@ export async function getHookSpecifications(
   const [_, hookSpecifications] = await dataHook.read.beforePayRecordedWith([
     {
       projectId: args.projectId,
-      rulesetId: args.rulesetId,
+      rulesetId: BigInt(args.rulesetId), // TODO update the ABI to be a number, will fix this.
       terminal: zeroAddress,
       beneficiary: zeroAddress,
       amount: {
@@ -40,7 +40,7 @@ export async function getHookSpecifications(
       },
       payer: zeroAddress,
       weight: 0n,
-      reservedRate: 0n,
+      reservedPercent: 0n,
       metadata: zeroAddress,
     },
   ]);
@@ -60,7 +60,7 @@ export async function find721DataHook(
   args: {
     dataHookAddress: Address;
     projectId: bigint;
-    rulesetId: bigint;
+    rulesetId: number;
   }
 ) {
   const chainId = publicClient.chain?.id;
