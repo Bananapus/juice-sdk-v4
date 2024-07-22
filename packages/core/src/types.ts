@@ -1,10 +1,11 @@
-import { Address, ContractFunctionReturnType } from "viem";
-import { jbControllerAbi } from "./generated/juicebox.js";
+import { ContractFunctionReturnType } from "viem";
+import { jbControllerAbi, jbSplitsAbi } from "./generated/juicebox.js";
 import {
   DecayPercent,
   RedemptionRate,
   ReservedPercent,
   RulesetWeight,
+  SplitPortion,
 } from "./utils/data.js";
 
 export const projectTagOptions = [
@@ -87,54 +88,10 @@ export type JBProjectMetadata = {
   softTargetCurrency: string;
 }>;
 
-/**
- * A split of a project's payout funds to a beneficiary, project or allocator.
- *
- * @type
- */
-export type JBSplit = {
-  /**
-   * The address of the beneficiary.
-   */
-  beneficiary: Address;
-  /**
-   * The percentage of funds to send to the beneficiary.
-   */
-  percent: number;
-  /**
-   * TODO: What is preferClaimed?
-   */
-  preferClaimed: boolean;
-  /**
-   * The timestamp at which the split is locked until and cannot be changed.
-   */
-  lockedUntil: number;
-  /**
-   * The ID of the project that is acting as the beneficiary.
-   */
-  projectId: bigint;
-  /**
-   * The address of the allocator contract.
-   *
-   * If an allocator is specified, funds will be sent to the allocator contract
-   * along with the projectId, beneficiary, preferClaimed properties.
-   */
-  allocator: Address;
-};
-
-/**
- * Splits as they are given to transactions such as reconfigureRulesetsOf
- *
- * Used when interpreting data from Gnosis Safe transactions
- */
-export type JBSplitParams = {
-  beneficiary: Address;
-  percent: bigint;
-  preferClaimed: boolean;
-  lockedUntil: number;
-  projectId: bigint;
-  allocator: Address;
-};
+export type JBSplit = Omit<
+  ContractFunctionReturnType<typeof jbSplitsAbi, "view", "splitsOf">[number],
+  "percent"
+> & { percent: SplitPortion };
 
 /**
  * The type of split.

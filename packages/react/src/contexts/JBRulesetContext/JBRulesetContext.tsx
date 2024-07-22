@@ -100,12 +100,12 @@ export const JBRulesetProvider = ({
           data: {
             ...ruleset,
             weight: new RulesetWeight(ruleset.weight),
-            decayPercent: new DecayPercent(BigInt(ruleset.decayPercent)),
+            decayPercent: new DecayPercent(ruleset.decayPercent),
           },
           metadata: {
             ...rulesetMetadata,
-            redemptionRate: new RedemptionRate(BigInt(rulesetMetadata.redemptionRate)),
-            reservedPercent: new ReservedPercent(BigInt(rulesetMetadata.reservedPercent))
+            redemptionRate: new RedemptionRate(rulesetMetadata.redemptionRate),
+            reservedPercent: new ReservedPercent(rulesetMetadata.reservedPercent)
           },
         };
       },

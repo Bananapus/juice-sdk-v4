@@ -22,31 +22,31 @@ export const DEFAULT_ALLOW_OVERSPENDING = true;
  *
  * @link JBConstants.sol
  */
-export const MAX_RESERVED_PERCENT = 10_000n;
+export const MAX_RESERVED_PERCENT = 10_000;
 
 /**
  * The maximum value for a ruleset's Redemption Rate.
  *
  * @link JBConstants.sol
  */
-export const MAX_REDEMPTION_RATE = 10_000n;
+export const MAX_REDEMPTION_RATE = 10_000;
 
 /**
  * The maximum value for a ruleset's Decay Rate.
  *
  * @link JBConstants.sol
  */
-export const MAX_DECAY_PERCENT = 1_000_000_000n;
+export const MAX_DECAY_PERCENT = 1_000_000_000;
 
 /**
  * @link JBConstants.sol
  */
-export const MAX_FEE = 1_000_000_000n;
+export const MAX_FEE = 1_000_000_000;
 
 /**
  * @link JBConstants.sol
  */
-export const MAX_FEE_DISCOUNT = 1_000_000_000n;
+export const MAX_FEE_DISCOUNT = 1_000_000_000;
 
 /**
  * The 100% representation for a ruleset's Splits.
@@ -55,7 +55,7 @@ export const MAX_FEE_DISCOUNT = 1_000_000_000n;
  *
  * @link JBConstants.sol
  */
-export const SPLITS_TOTAL_PERCENT = 1_000_000_000n;
+export const SPLITS_TOTAL_PERCENT = 1_000_000_000;
 
 /**
  * The number of decimals that the internal JB Token has.

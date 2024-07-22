@@ -3,7 +3,7 @@ import { DecayPercent, ReservedPercent } from "./data.js";
 
 describe("jb", () => {
   test("reserved rate", () => {
-    const reservedPercentRaw = 2_345n; // 23.45%
+    const reservedPercentRaw = 2_345; // 23.45%
     const reservedPercent: ReservedPercent = new ReservedPercent(reservedPercentRaw);
     expect(reservedPercent.format()).toEqual("0.2345");
     expect(reservedPercent.toFloat()).toEqual(0.2345);
@@ -15,7 +15,7 @@ describe("jb", () => {
   });
 
   test("decay rate", () => {
-    const decayPercentRaw = 200_000_000n; // 20%
+    const decayPercentRaw = 200_000_000; // 20%
     const decayPercent = new DecayPercent(decayPercentRaw);
     expect(decayPercent.format()).toEqual("0.2");
     expect(decayPercent.toFloat()).toEqual(0.2);

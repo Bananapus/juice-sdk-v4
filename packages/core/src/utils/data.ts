@@ -14,8 +14,8 @@ import {
  * @extends FixedPortion
  */
 export class ReservedPercent extends FixedPortion<4> {
-  constructor(value: bigint) {
-    super(value, 4, MAX_RESERVED_PERCENT);
+  constructor(value: number) {
+    super(BigInt(value), 4, BigInt(MAX_RESERVED_PERCENT));
   }
 }
 
@@ -27,8 +27,8 @@ export class ReservedPercent extends FixedPortion<4> {
  * @extends FixedPortion
  */
 export class RedemptionRate extends FixedPortion<4> {
-  constructor(value: bigint) {
-    super(value, 4, MAX_REDEMPTION_RATE);
+  constructor(value: number) {
+    super(BigInt(value), 4, BigInt(MAX_REDEMPTION_RATE));
   }
 }
 
@@ -40,14 +40,14 @@ export class RedemptionRate extends FixedPortion<4> {
  * @extends FixedPortion
  */
 export class DecayPercent extends FixedPortion<9> {
-  constructor(value: bigint) {
-    super(value, 9, MAX_DECAY_PERCENT);
+  constructor(value: number) {
+    super(BigInt(value), 9, BigInt(MAX_DECAY_PERCENT));
   }
 }
 
 export class SplitPortion extends FixedPortion<9> {
   constructor(value: bigint) {
-    super(value, 9, SPLITS_TOTAL_PERCENT);
+    super(BigInt(value), 9, BigInt(SPLITS_TOTAL_PERCENT));
   }
 }
 

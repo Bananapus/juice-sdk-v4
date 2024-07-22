@@ -30,7 +30,7 @@ export const getTokenAToBQuote = <D extends number>(
   const totalTokens = (weight.value * tokenAAmount.value) / weightRatio;
   const reservedTokens =
     (weight.value * reservedPercent.value * tokenAAmount.value) /
-    MAX_RESERVED_PERCENT /
+    BigInt(MAX_RESERVED_PERCENT) /
     weightRatio;
 
   const payerTokens = totalTokens - reservedTokens;
@@ -109,7 +109,7 @@ export const getTokenRedemptionQuoteEth = (
   }: {
     overflowWei: bigint;
     totalSupply: bigint;
-    redemptionRate: bigint;
+    redemptionRate: number;
     tokensReserved: bigint;
   }
 ) => {
@@ -122,12 +122,12 @@ export const getTokenRedemptionQuoteEth = (
   if (redemptionRate === MAX_REDEMPTION_RATE) return base;
 
   const frac =
-    (tokensAmount * (MAX_REDEMPTION_RATE - redemptionRate)) / realTotalSupply;
+    (tokensAmount * BigInt(MAX_REDEMPTION_RATE - redemptionRate)) / realTotalSupply;
 
   // numerator = r + (x(1 - r)/s)
-  const numerator = redemptionRate + frac;
+  const numerator = BigInt(redemptionRate) + frac;
   // y = base * numerator ==> ox/s * ( r + (x(1 - r)/s) )
-  const y = (base * numerator) / MAX_REDEMPTION_RATE;
+  const y = (base * numerator) / BigInt(MAX_REDEMPTION_RATE);
 
   return y / 10n;
 };

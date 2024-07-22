@@ -14,7 +14,7 @@ describe("token", () => {
       "should return the correct token B quote when amount is $tokenAAmount and decimals is $tokenADecimals",
       ({ tokenAAmount, tokenADecimals, expectedPayerTokens }) => {
         const weight = FixedInt.parse<18>("1", 18); // 1 token per USDC
-        const reservedPercent = new ReservedPercent(0n);
+        const reservedPercent = new ReservedPercent(0);
         const { payerTokens } = getTokenAToBQuote(
           new FixedInt(tokenAAmount, tokenADecimals),
           {
@@ -36,7 +36,7 @@ describe("token", () => {
     `(
       "should return the correct token A quote when amount is $tokenBAmount and decimals is $tokenADecimals",
       ({ tokenADecimals, expectedTokenBPrice, weight }) => {
-        const reservedPercent = new ReservedPercent(0n);
+        const reservedPercent = new ReservedPercent(0);
         const tokenBPrice = getTokenBPrice(tokenADecimals, {
           weight,
           reservedPercent,
