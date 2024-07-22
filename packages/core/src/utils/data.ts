@@ -46,7 +46,7 @@ export class DecayPercent extends FixedPortion<9> {
 }
 
 export class SplitPortion extends FixedPortion<9> {
-  constructor(value: bigint) {
+  constructor(value: number) {
     super(BigInt(value), 9, BigInt(SPLITS_TOTAL_PERCENT));
   }
 }
