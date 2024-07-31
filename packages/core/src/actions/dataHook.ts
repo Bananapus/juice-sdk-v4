@@ -6,49 +6,11 @@ import {
   zeroAddress,
 } from "viem";
 import {
+  jb721TiersHookAbi,
   jb721TiersHookDeployerAddress,
   jbAddressRegistryAbi,
   jbAddressRegistryAddress,
 } from "../generated/juicebox.js";
-import { DATA_HOOK_Abi } from "./JB721TiersHookAbi.js";
-
-export async function getHookSpecifications(
-  publicClient: PublicClient,
-  args: {
-    dataHookAddress: Address;
-    projectId: bigint;
-    rulesetId: number;
-  }
-) {
-  const dataHook = getContract({
-    address: args.dataHookAddress,
-    abi: DATA_HOOK_Abi,
-    client: publicClient,
-  });
-
-  const [_, hookSpecifications] = await dataHook.read.beforePayRecordedWith([
-    {
-      projectId: args.projectId,
-      rulesetId: BigInt(args.rulesetId), // TODO update the ABI to be a number, will fix this.
-      terminal: zeroAddress,
-      beneficiary: zeroAddress,
-      amount: {
-        token: zeroAddress,
-        value: 0n,
-        decimals: 0n,
-        currency: 0n,
-      },
-      payer: zeroAddress,
-      weight: 0n,
-      reservedPercent: 0n,
-      metadata: zeroAddress,
-    },
-  ]);
-
-  console.log("🧃 getHookSpecifications", { args, hookSpecifications });
-
-  return hookSpecifications;
-}
 
 /**
  * Find the 721 data hook for a given project and ruleset.
@@ -87,6 +49,12 @@ export async function find721DataHook(
     client: publicClient,
   });
 
+  console.log("🧃 getHookSpecifications::args", {
+    dataHookAddress: args.dataHookAddress,
+    projectId: args.projectId,
+    rulesetId: args.rulesetId,
+  });
+
   const hookSpecs = await getHookSpecifications(publicClient, {
     dataHookAddress: args.dataHookAddress,
     projectId: args.projectId,
@@ -111,4 +79,42 @@ export async function find721DataHook(
   }
 
   return hookSpecs[index].hook;
+}
+
+export async function getHookSpecifications(
+  publicClient: PublicClient,
+  args: {
+    dataHookAddress: Address;
+    projectId: bigint;
+    rulesetId: number;
+  }
+) {
+  const dataHook = getContract({
+    address: args.dataHookAddress,
+    abi: jb721TiersHookAbi,
+    client: publicClient,
+  });
+
+  const [_, hookSpecifications] = await dataHook.read.beforePayRecordedWith([
+    {
+      projectId: args.projectId,
+      rulesetId: BigInt(args.rulesetId), // TODO update the ABI to be a number, will fix this.
+      terminal: zeroAddress,
+      beneficiary: zeroAddress,
+      amount: {
+        token: zeroAddress,
+        value: 0n,
+        decimals: 0,
+        currency: 0,
+      },
+      payer: zeroAddress,
+      weight: 0n,
+      reservedPercent: 0n,
+      metadata: zeroAddress,
+    },
+  ]);
+
+  console.log("🧃 getHookSpecifications", { args, hookSpecifications });
+
+  return hookSpecifications;
 }
