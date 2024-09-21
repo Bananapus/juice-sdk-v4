@@ -8,7 +8,7 @@ import {
 import { react } from "@wagmi/cli/plugins";
 
 enum RevnetCoreContracts {
-  REVBasicDeployer = "REVBasicDeployer",
+  REVDeployer = "REVDeployer",
 }
 
 /**
@@ -27,7 +27,7 @@ function revnetCorePath(
 ) {
   const chainName = CHAIN_NAME[chain.id];
   return `@rev-net/core/deployments/revnet-core-testnet/${chainName}/${contractName}.json`;
-  // return `https://raw.githubusercontent.com/rev-net/revnet-core/main/deployments/revnet-core-testnet/${chainName}/REVBasicDeployer.json`;
+  // return `https://raw.githubusercontent.com/rev-net/revnet-core/main/deployments/revnet-core-testnet/${chainName}/REVDeployer.json`;
 }
 
 async function importDeployment(importPath: string) {
