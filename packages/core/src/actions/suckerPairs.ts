@@ -41,20 +41,45 @@ export async function getSuckerPairs({
         abi: JBSuckerAbi,
         client,
       });
-
       const [peerChainId, projectId] = await Promise.all([
         peerContract.read.peerChainID(),
         peerContract.read.PROJECT_ID(),
       ]);
 
       return {
-        peerChainId,
+        peerChainId: Number(peerChainId),
         projectId,
       } as SuckerPair;
     })
   );
 
   return suckerPairs.filter((x) => x) as SuckerPair[];
+}
+
+export async function resolveSuckers({
+  config,
+  chainId,
+  projectId,
+}: {
+  config: any; // TODO wagmi config
+  chainId: number;
+  projectId: bigint;
+}) {
+  const initialPairs = await getSuckerPairs({ config, chainId, projectId });
+  const pairs = [...initialPairs];
+  await Promise.all(
+    initialPairs.map(async (pair) => {
+      const peerPairs = await getSuckerPairs({
+        config,
+        chainId: pair.peerChainId,
+        projectId: pair.projectId,
+      });
+      
+      if (!pairs.some((x) => x.peerChainId === pair.peerChainId)) {
+        pairs.push(...peerPairs);
+      }
+    })
+  );
 }
 
 // // example, delete this.

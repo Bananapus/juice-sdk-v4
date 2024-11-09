@@ -11,8 +11,8 @@ import {
 import { useJBContractContext } from "src/contexts/JBContractContext/JBContractContext";
 import { useConfig } from "wagmi";
 import { useQuery } from "wagmi/query";
-import { useSuckerPairs } from "../suckers/useSuckerPairs";
 import { useNativeTokenSurplus } from "./useNativeTokenSurplus";
+import { useSuckers } from "../suckers/useSuckers";
 
 /**
  * Return the current surplus of JB Native token across each sucker on all chains for the current project.
@@ -24,19 +24,28 @@ export function useSuckersNativeTokenSurplus() {
   const { projectId } = useJBContractContext();
 
   const { data: currentChainNativeTokenSurplus } = useNativeTokenSurplus();
-  const suckerPairsQuery = useSuckerPairs();
-  const pairs = suckerPairsQuery.data as SuckerPair[] | undefined;
+  const suckersQuery = useSuckers();
+  const pairs = suckersQuery.data as SuckerPair[] | undefined;
 
   return useQuery({
     queryKey: [
       "suckersNativeTokenSurplus",
-      chainId,
-      projectId,
-      ...(pairs ?? []),
+      projectId.toString(),
+      chainId?.toString(),
+      currentChainNativeTokenSurplus,
+      pairs?.map((pair) => pair.peerChainId).join(","),
     ],
     queryFn: async () => {
+      if (!chainId) return null;
+
+      const currentChainSurplus = {
+        surplus: currentChainNativeTokenSurplus ?? 0n,
+        chainId,
+        projectId,
+      };
+
       if (!pairs || pairs.length === 0) {
-        return null;
+        return [currentChainSurplus];
       }
 
       /**
@@ -60,13 +69,13 @@ export function useSuckersNativeTokenSurplus() {
         })
       );
 
-      if (chainId) {
+      if (
+        !surpluses.some(
+          (surplus) => surplus.chainId === currentChainSurplus.chainId
+        )
+      ) {
         // Add the current chain's surplus to the list.
-        surpluses.push({
-          surplus: currentChainNativeTokenSurplus ?? 0n,
-          chainId,
-          projectId,
-        });
+        surpluses.push(currentChainSurplus);
       }
 
       return surpluses;
