@@ -1,5 +1,9 @@
 import { ContractFunctionReturnType } from "viem";
-import { jbControllerAbi, jbSplitsAbi } from "./generated/juicebox.js";
+import {
+  jbControllerAbi,
+  jbDirectoryAddress,
+  jbSplitsAbi,
+} from "./generated/juicebox.js";
 import {
   DecayPercent,
   RedemptionRate,
@@ -156,3 +160,5 @@ export type JBRulesetMetadata = Omit<
   redemptionRate: RedemptionRate;
   reservedPercent: ReservedPercent;
 };
+
+export type JBChainId = keyof typeof jbDirectoryAddress;

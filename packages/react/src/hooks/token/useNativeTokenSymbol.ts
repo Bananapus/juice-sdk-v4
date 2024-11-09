@@ -1,10 +1,7 @@
-import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
-import {
-  arbitrumSepolia,
-  baseSepolia,
-  optimismSepolia,
-  sepolia,
-} from "viem/chains";
+import { NATIVE_TOKEN_SYMBOLS } from "juice-sdk-core";
+import { useJBChainId } from "src/contexts/JBChainContext/JBChainContext";
+
+const DEFAULT_TOKEN_SYMBOL = "ETH";
 
 /**
  * Return the human-readable token symbol for the chain set in JBChainContext.
@@ -12,13 +9,10 @@ import {
  * Depends on JBChainContext.
  */
 export function useNativeTokenSymbol() {
-  const symbols: { [k: number]: string } = {
-    [sepolia.id]: "SepETH",
-    [optimismSepolia.id]: "OPSepETH",
-    [arbitrumSepolia.id]: "ArbSepETH",
-    [baseSepolia.id]: "BaseSepETH",
-  };
-
   const chainId = useJBChainId();
-  return symbols[chainId ?? 0] ?? "ETH";
+  if (!chainId) {
+    return DEFAULT_TOKEN_SYMBOL;
+  }
+
+  return NATIVE_TOKEN_SYMBOLS[chainId] ?? DEFAULT_TOKEN_SYMBOL;
 }

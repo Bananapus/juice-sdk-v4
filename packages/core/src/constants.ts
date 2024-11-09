@@ -1,4 +1,11 @@
 import { Address, Hash, parseEther } from "viem";
+import {
+  arbitrumSepolia,
+  baseSepolia,
+  optimismSepolia,
+  sepolia,
+} from "viem/chains";
+import { JBChainId } from "./types.js";
 
 /**
  * Representation of one ether.
@@ -90,3 +97,10 @@ export const NATIVE_CURRENCY_ID = 0n;
  * 18 is assumed to be the default for most EVM-based chains.
  */
 export const NATIVE_TOKEN_DECIMALS = 18 as const;
+
+export const NATIVE_TOKEN_SYMBOLS: { [k in JBChainId]: string } = {
+  [sepolia.id]: "SepETH",
+  [optimismSepolia.id]: "OPSepETH",
+  [arbitrumSepolia.id]: "ArbSepETH",
+  [baseSepolia.id]: "BaseSepETH",
+};

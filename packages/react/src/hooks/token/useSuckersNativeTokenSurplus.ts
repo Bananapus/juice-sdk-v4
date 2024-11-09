@@ -8,11 +8,11 @@ import {
   JBChainId,
   useJBChainId,
 } from "src/contexts/JBChainContext/JBChainContext";
+import { useJBContractContext } from "src/contexts/JBContractContext/JBContractContext";
 import { useConfig } from "wagmi";
 import { useQuery } from "wagmi/query";
 import { useSuckerPairs } from "../suckers/useSuckerPairs";
 import { useNativeTokenSurplus } from "./useNativeTokenSurplus";
-import { useJBContractContext } from "src/contexts/JBContractContext/JBContractContext";
 
 /**
  * Return the current surplus of JB Native token across each sucker on all chains for the current project.
@@ -28,9 +28,16 @@ export function useSuckersNativeTokenSurplus() {
   const pairs = suckerPairsQuery.data as SuckerPair[] | undefined;
 
   return useQuery({
-    queryKey: ["suckersNativeTokenSurplus", chainId, projectId, pairs],
+    queryKey: [
+      "suckersNativeTokenSurplus",
+      chainId,
+      projectId,
+      ...(pairs ?? []),
+    ],
     queryFn: async () => {
-      if (!pairs || pairs.length !== 0) return;
+      if (!pairs || pairs.length === 0) {
+        return null;
+      }
 
       /**
        * For each peer, get its terminal, then get the current surplus.
@@ -39,11 +46,12 @@ export function useSuckersNativeTokenSurplus() {
         pairs.map(async (pair) => {
           const { peerChainId, projectId } = pair;
           const terminal = await readJbDirectoryPrimaryTerminalOf(config, {
-            chainId: peerChainId as JBChainId,
+            chainId: Number(peerChainId) as JBChainId,
             args: [projectId, NATIVE_TOKEN],
           });
+
           const surplus = await readJbMultiTerminalCurrentSurplusOf(config, {
-            chainId: peerChainId,
+            chainId: Number(peerChainId) as JBChainId,
             address: terminal,
             args: [projectId, 18n, BigInt(NATIVE_TOKEN)],
           });
