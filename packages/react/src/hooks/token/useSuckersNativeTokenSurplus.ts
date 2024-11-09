@@ -27,7 +27,7 @@ export function useSuckersNativeTokenSurplus() {
   const suckersQuery = useSuckers();
   const pairs = suckersQuery.data as SuckerPair[] | undefined;
 
-  return useQuery({
+  const surplusQuery = useQuery({
     queryKey: [
       "suckersNativeTokenSurplus",
       projectId.toString(),
@@ -81,4 +81,10 @@ export function useSuckersNativeTokenSurplus() {
       return surpluses;
     },
   });
+
+  return {
+    isLoading: surplusQuery.isLoading || suckersQuery.isLoading,
+    isError: surplusQuery.isError || suckersQuery.isError,
+    data: surplusQuery.data as { surplus: bigint; chainId: number; projectId: bigint }[] | undefined,
+  }
 }
