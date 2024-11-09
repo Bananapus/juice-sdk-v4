@@ -16,15 +16,12 @@ export function useSuckerPairs() {
 
   const query = useQuery({
     queryKey: ["suckerPairs", projectId, chainId],
-    queryFn: async () => {
-      const pairs = await getSuckerPairs({
+    queryFn: () => {
+      return getSuckerPairs({
         config,
-
-        chainId: 1,
+        chainId,
         projectId,
       });
-
-      return pairs;
     },
   });
 

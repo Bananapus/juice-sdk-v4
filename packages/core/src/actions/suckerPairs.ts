@@ -2,6 +2,11 @@ import { Address, PublicClient, getContract } from "viem";
 import { readBpSuckerRegistrySuckersOf } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
 
+export type SuckerPair = {
+  peerChainId: number;
+  projectId: bigint;
+};
+
 export async function getSuckerPairs({
   config,
   chainId,
@@ -10,7 +15,7 @@ export async function getSuckerPairs({
   config: any; // TODO wagmi config
   chainId: number;
   projectId: bigint;
-}) {
+}): Promise<SuckerPair[]> {
   const client = config.getClient({ chainId }) as PublicClient;
 
   const suckers = await readBpSuckerRegistrySuckersOf(config, {
@@ -27,7 +32,9 @@ export async function getSuckerPairs({
       });
 
       const peer = (await suckerContract.read.PEER()) as Address | undefined;
-      if (!peer) return;
+      if (!peer) {
+        return;
+      }
 
       const peerContract = getContract({
         address: peer,
@@ -43,11 +50,11 @@ export async function getSuckerPairs({
       return {
         peerChainId,
         projectId,
-      };
+      } as SuckerPair;
     })
   );
 
-  return suckerPairs;
+  return suckerPairs.filter((x) => x) as SuckerPair[];
 }
 
 // // example, delete this.
