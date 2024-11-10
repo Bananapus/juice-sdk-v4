@@ -71,19 +71,23 @@ export async function resolveSuckers({
 
   await Promise.all(
     initialPairs.map(async (pair) => {
-      const peerPairs = await getSuckerPairs({
-        config,
-        chainId: pair.peerChainId,
-        projectId: pair.projectId,
-      });
+      try {
+        const peerPairs = await getSuckerPairs({
+          config,
+          chainId: Number(pair.peerChainId),
+          projectId: pair.projectId,
+        });
 
-      console.log("peer pairs resolved for", pair, pairs);
+        console.log("peer pairs resolved for", pair, peerPairs);
 
-      peerPairs.forEach((pair) => {
-        if (!pairs.some((x) => x.peerChainId === pair.peerChainId)) {
-          pairs.push(pair);
-        }
-      });
+        peerPairs.forEach((pair) => {
+          if (!pairs.some((x) => x.peerChainId === pair.peerChainId)) {
+            pairs.push(pair);
+          }
+        });
+      } catch (e) {
+        console.error("peer error", e);
+      }
     })
   );
 
