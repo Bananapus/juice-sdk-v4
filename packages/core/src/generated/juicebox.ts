@@ -1885,6 +1885,1187 @@ export const jb721TiersHookDeployerConfig = {
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JB721TiersHookProjectDeployer
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const jb721TiersHookProjectDeployerAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'hookDeployer',
+        internalType: 'contract IJB721TiersHookDeployer',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'HOOK_DEPLOYER',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJB721TiersHookDeployer',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      {
+        name: 'deployTiersHookConfig',
+        internalType: 'struct JBDeploy721TiersHookConfig',
+        type: 'tuple',
+        components: [
+          { name: 'name', internalType: 'string', type: 'string' },
+          { name: 'symbol', internalType: 'string', type: 'string' },
+          { name: 'baseUri', internalType: 'string', type: 'string' },
+          {
+            name: 'tokenUriResolver',
+            internalType: 'contract IJB721TokenUriResolver',
+            type: 'address',
+          },
+          { name: 'contractUri', internalType: 'string', type: 'string' },
+          {
+            name: 'tiersConfig',
+            internalType: 'struct JB721InitTiersConfig',
+            type: 'tuple',
+            components: [
+              {
+                name: 'tiers',
+                internalType: 'struct JB721TierConfig[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'price', internalType: 'uint104', type: 'uint104' },
+                  {
+                    name: 'initialSupply',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  {
+                    name: 'votingUnits',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  {
+                    name: 'reserveFrequency',
+                    internalType: 'uint16',
+                    type: 'uint16',
+                  },
+                  {
+                    name: 'reserveBeneficiary',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'encodedIPFSUri',
+                    internalType: 'bytes32',
+                    type: 'bytes32',
+                  },
+                  { name: 'category', internalType: 'uint24', type: 'uint24' },
+                  {
+                    name: 'discountPercent',
+                    internalType: 'uint8',
+                    type: 'uint8',
+                  },
+                  {
+                    name: 'allowOwnerMint',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useReserveBeneficiaryAsDefault',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'transfersPausable',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useVotingUnits',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'cannotBeRemoved',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'cannotIncreaseDiscountPercent',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                ],
+              },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              {
+                name: 'prices',
+                internalType: 'contract IJBPrices',
+                type: 'address',
+              },
+            ],
+          },
+          {
+            name: 'reserveBeneficiary',
+            internalType: 'address',
+            type: 'address',
+          },
+          {
+            name: 'flags',
+            internalType: 'struct JB721TiersHookFlags',
+            type: 'tuple',
+            components: [
+              {
+                name: 'noNewTiersWithReserves',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'noNewTiersWithVotes',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'noNewTiersWithOwnerMinting',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'preventOverspending',
+                internalType: 'bool',
+                type: 'bool',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'launchProjectConfig',
+        internalType: 'struct JBLaunchProjectConfig',
+        type: 'tuple',
+        components: [
+          { name: 'projectUri', internalType: 'string', type: 'string' },
+          {
+            name: 'rulesetConfigurations',
+            internalType: 'struct JBPayDataHookRulesetConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'mustStartAtOrAfter',
+                internalType: 'uint48',
+                type: 'uint48',
+              },
+              { name: 'duration', internalType: 'uint32', type: 'uint32' },
+              { name: 'weight', internalType: 'uint112', type: 'uint112' },
+              { name: 'decayPercent', internalType: 'uint32', type: 'uint32' },
+              {
+                name: 'approvalHook',
+                internalType: 'contract IJBRulesetApprovalHook',
+                type: 'address',
+              },
+              {
+                name: 'metadata',
+                internalType: 'struct JBPayDataHookRulesetMetadata',
+                type: 'tuple',
+                components: [
+                  {
+                    name: 'reservedPercent',
+                    internalType: 'uint16',
+                    type: 'uint16',
+                  },
+                  {
+                    name: 'redemptionRate',
+                    internalType: 'uint16',
+                    type: 'uint16',
+                  },
+                  {
+                    name: 'baseCurrency',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  { name: 'pausePay', internalType: 'bool', type: 'bool' },
+                  {
+                    name: 'pauseCreditTransfers',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowOwnerMinting',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowTerminalMigration',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowSetTerminals',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowSetController',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowAddAccountingContext',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowAddPriceFeed',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowCrosschainSuckerExtension',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'ownerMustSendPayouts',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  { name: 'holdFees', internalType: 'bool', type: 'bool' },
+                  {
+                    name: 'useTotalSurplusForRedemptions',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useDataHookForRedeem',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  { name: 'metadata', internalType: 'uint16', type: 'uint16' },
+                ],
+              },
+              {
+                name: 'splitGroups',
+                internalType: 'struct JBSplitGroup[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'groupId', internalType: 'uint256', type: 'uint256' },
+                  {
+                    name: 'splits',
+                    internalType: 'struct JBSplit[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'preferAddToBalance',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'percent',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                      {
+                        name: 'projectId',
+                        internalType: 'uint56',
+                        type: 'uint56',
+                      },
+                      {
+                        name: 'beneficiary',
+                        internalType: 'address payable',
+                        type: 'address',
+                      },
+                      {
+                        name: 'lockedUntil',
+                        internalType: 'uint48',
+                        type: 'uint48',
+                      },
+                      {
+                        name: 'hook',
+                        internalType: 'contract IJBSplitHook',
+                        type: 'address',
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                name: 'fundAccessLimitGroups',
+                internalType: 'struct JBFundAccessLimitGroup[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'terminal',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'token', internalType: 'address', type: 'address' },
+                  {
+                    name: 'payoutLimits',
+                    internalType: 'struct JBCurrencyAmount[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'amount',
+                        internalType: 'uint224',
+                        type: 'uint224',
+                      },
+                      {
+                        name: 'currency',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                    ],
+                  },
+                  {
+                    name: 'surplusAllowances',
+                    internalType: 'struct JBCurrencyAmount[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'amount',
+                        internalType: 'uint224',
+                        type: 'uint224',
+                      },
+                      {
+                        name: 'currency',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            name: 'terminalConfigurations',
+            internalType: 'struct JBTerminalConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'terminal',
+                internalType: 'contract IJBTerminal',
+                type: 'address',
+              },
+              {
+                name: 'accountingContextsToAccept',
+                internalType: 'struct JBAccountingContext[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'token', internalType: 'address', type: 'address' },
+                  { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+                  { name: 'currency', internalType: 'uint32', type: 'uint32' },
+                ],
+              },
+            ],
+          },
+          { name: 'memo', internalType: 'string', type: 'string' },
+        ],
+      },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
+      },
+    ],
+    name: 'launchProjectFor',
+    outputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'deployTiersHookConfig',
+        internalType: 'struct JBDeploy721TiersHookConfig',
+        type: 'tuple',
+        components: [
+          { name: 'name', internalType: 'string', type: 'string' },
+          { name: 'symbol', internalType: 'string', type: 'string' },
+          { name: 'baseUri', internalType: 'string', type: 'string' },
+          {
+            name: 'tokenUriResolver',
+            internalType: 'contract IJB721TokenUriResolver',
+            type: 'address',
+          },
+          { name: 'contractUri', internalType: 'string', type: 'string' },
+          {
+            name: 'tiersConfig',
+            internalType: 'struct JB721InitTiersConfig',
+            type: 'tuple',
+            components: [
+              {
+                name: 'tiers',
+                internalType: 'struct JB721TierConfig[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'price', internalType: 'uint104', type: 'uint104' },
+                  {
+                    name: 'initialSupply',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  {
+                    name: 'votingUnits',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  {
+                    name: 'reserveFrequency',
+                    internalType: 'uint16',
+                    type: 'uint16',
+                  },
+                  {
+                    name: 'reserveBeneficiary',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'encodedIPFSUri',
+                    internalType: 'bytes32',
+                    type: 'bytes32',
+                  },
+                  { name: 'category', internalType: 'uint24', type: 'uint24' },
+                  {
+                    name: 'discountPercent',
+                    internalType: 'uint8',
+                    type: 'uint8',
+                  },
+                  {
+                    name: 'allowOwnerMint',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useReserveBeneficiaryAsDefault',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'transfersPausable',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useVotingUnits',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'cannotBeRemoved',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'cannotIncreaseDiscountPercent',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                ],
+              },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              {
+                name: 'prices',
+                internalType: 'contract IJBPrices',
+                type: 'address',
+              },
+            ],
+          },
+          {
+            name: 'reserveBeneficiary',
+            internalType: 'address',
+            type: 'address',
+          },
+          {
+            name: 'flags',
+            internalType: 'struct JB721TiersHookFlags',
+            type: 'tuple',
+            components: [
+              {
+                name: 'noNewTiersWithReserves',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'noNewTiersWithVotes',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'noNewTiersWithOwnerMinting',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'preventOverspending',
+                internalType: 'bool',
+                type: 'bool',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'launchRulesetsConfig',
+        internalType: 'struct JBLaunchRulesetsConfig',
+        type: 'tuple',
+        components: [
+          { name: 'projectId', internalType: 'uint56', type: 'uint56' },
+          {
+            name: 'rulesetConfigurations',
+            internalType: 'struct JBPayDataHookRulesetConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'mustStartAtOrAfter',
+                internalType: 'uint48',
+                type: 'uint48',
+              },
+              { name: 'duration', internalType: 'uint32', type: 'uint32' },
+              { name: 'weight', internalType: 'uint112', type: 'uint112' },
+              { name: 'decayPercent', internalType: 'uint32', type: 'uint32' },
+              {
+                name: 'approvalHook',
+                internalType: 'contract IJBRulesetApprovalHook',
+                type: 'address',
+              },
+              {
+                name: 'metadata',
+                internalType: 'struct JBPayDataHookRulesetMetadata',
+                type: 'tuple',
+                components: [
+                  {
+                    name: 'reservedPercent',
+                    internalType: 'uint16',
+                    type: 'uint16',
+                  },
+                  {
+                    name: 'redemptionRate',
+                    internalType: 'uint16',
+                    type: 'uint16',
+                  },
+                  {
+                    name: 'baseCurrency',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  { name: 'pausePay', internalType: 'bool', type: 'bool' },
+                  {
+                    name: 'pauseCreditTransfers',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowOwnerMinting',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowTerminalMigration',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowSetTerminals',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowSetController',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowAddAccountingContext',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowAddPriceFeed',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowCrosschainSuckerExtension',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'ownerMustSendPayouts',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  { name: 'holdFees', internalType: 'bool', type: 'bool' },
+                  {
+                    name: 'useTotalSurplusForRedemptions',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useDataHookForRedeem',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  { name: 'metadata', internalType: 'uint16', type: 'uint16' },
+                ],
+              },
+              {
+                name: 'splitGroups',
+                internalType: 'struct JBSplitGroup[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'groupId', internalType: 'uint256', type: 'uint256' },
+                  {
+                    name: 'splits',
+                    internalType: 'struct JBSplit[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'preferAddToBalance',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'percent',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                      {
+                        name: 'projectId',
+                        internalType: 'uint56',
+                        type: 'uint56',
+                      },
+                      {
+                        name: 'beneficiary',
+                        internalType: 'address payable',
+                        type: 'address',
+                      },
+                      {
+                        name: 'lockedUntil',
+                        internalType: 'uint48',
+                        type: 'uint48',
+                      },
+                      {
+                        name: 'hook',
+                        internalType: 'contract IJBSplitHook',
+                        type: 'address',
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                name: 'fundAccessLimitGroups',
+                internalType: 'struct JBFundAccessLimitGroup[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'terminal',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'token', internalType: 'address', type: 'address' },
+                  {
+                    name: 'payoutLimits',
+                    internalType: 'struct JBCurrencyAmount[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'amount',
+                        internalType: 'uint224',
+                        type: 'uint224',
+                      },
+                      {
+                        name: 'currency',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                    ],
+                  },
+                  {
+                    name: 'surplusAllowances',
+                    internalType: 'struct JBCurrencyAmount[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'amount',
+                        internalType: 'uint224',
+                        type: 'uint224',
+                      },
+                      {
+                        name: 'currency',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            name: 'terminalConfigurations',
+            internalType: 'struct JBTerminalConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'terminal',
+                internalType: 'contract IJBTerminal',
+                type: 'address',
+              },
+              {
+                name: 'accountingContextsToAccept',
+                internalType: 'struct JBAccountingContext[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'token', internalType: 'address', type: 'address' },
+                  { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+                  { name: 'currency', internalType: 'uint32', type: 'uint32' },
+                ],
+              },
+            ],
+          },
+          { name: 'memo', internalType: 'string', type: 'string' },
+        ],
+      },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
+      },
+    ],
+    name: 'launchRulesetsFor',
+    outputs: [{ name: 'rulesetId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'deployTiersHookConfig',
+        internalType: 'struct JBDeploy721TiersHookConfig',
+        type: 'tuple',
+        components: [
+          { name: 'name', internalType: 'string', type: 'string' },
+          { name: 'symbol', internalType: 'string', type: 'string' },
+          { name: 'baseUri', internalType: 'string', type: 'string' },
+          {
+            name: 'tokenUriResolver',
+            internalType: 'contract IJB721TokenUriResolver',
+            type: 'address',
+          },
+          { name: 'contractUri', internalType: 'string', type: 'string' },
+          {
+            name: 'tiersConfig',
+            internalType: 'struct JB721InitTiersConfig',
+            type: 'tuple',
+            components: [
+              {
+                name: 'tiers',
+                internalType: 'struct JB721TierConfig[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'price', internalType: 'uint104', type: 'uint104' },
+                  {
+                    name: 'initialSupply',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  {
+                    name: 'votingUnits',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  {
+                    name: 'reserveFrequency',
+                    internalType: 'uint16',
+                    type: 'uint16',
+                  },
+                  {
+                    name: 'reserveBeneficiary',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'encodedIPFSUri',
+                    internalType: 'bytes32',
+                    type: 'bytes32',
+                  },
+                  { name: 'category', internalType: 'uint24', type: 'uint24' },
+                  {
+                    name: 'discountPercent',
+                    internalType: 'uint8',
+                    type: 'uint8',
+                  },
+                  {
+                    name: 'allowOwnerMint',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useReserveBeneficiaryAsDefault',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'transfersPausable',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useVotingUnits',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'cannotBeRemoved',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'cannotIncreaseDiscountPercent',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                ],
+              },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              {
+                name: 'prices',
+                internalType: 'contract IJBPrices',
+                type: 'address',
+              },
+            ],
+          },
+          {
+            name: 'reserveBeneficiary',
+            internalType: 'address',
+            type: 'address',
+          },
+          {
+            name: 'flags',
+            internalType: 'struct JB721TiersHookFlags',
+            type: 'tuple',
+            components: [
+              {
+                name: 'noNewTiersWithReserves',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'noNewTiersWithVotes',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'noNewTiersWithOwnerMinting',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'preventOverspending',
+                internalType: 'bool',
+                type: 'bool',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'queueRulesetsConfig',
+        internalType: 'struct JBQueueRulesetsConfig',
+        type: 'tuple',
+        components: [
+          { name: 'projectId', internalType: 'uint56', type: 'uint56' },
+          {
+            name: 'rulesetConfigurations',
+            internalType: 'struct JBPayDataHookRulesetConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'mustStartAtOrAfter',
+                internalType: 'uint48',
+                type: 'uint48',
+              },
+              { name: 'duration', internalType: 'uint32', type: 'uint32' },
+              { name: 'weight', internalType: 'uint112', type: 'uint112' },
+              { name: 'decayPercent', internalType: 'uint32', type: 'uint32' },
+              {
+                name: 'approvalHook',
+                internalType: 'contract IJBRulesetApprovalHook',
+                type: 'address',
+              },
+              {
+                name: 'metadata',
+                internalType: 'struct JBPayDataHookRulesetMetadata',
+                type: 'tuple',
+                components: [
+                  {
+                    name: 'reservedPercent',
+                    internalType: 'uint16',
+                    type: 'uint16',
+                  },
+                  {
+                    name: 'redemptionRate',
+                    internalType: 'uint16',
+                    type: 'uint16',
+                  },
+                  {
+                    name: 'baseCurrency',
+                    internalType: 'uint32',
+                    type: 'uint32',
+                  },
+                  { name: 'pausePay', internalType: 'bool', type: 'bool' },
+                  {
+                    name: 'pauseCreditTransfers',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowOwnerMinting',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowTerminalMigration',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowSetTerminals',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowSetController',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowAddAccountingContext',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowAddPriceFeed',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'allowCrosschainSuckerExtension',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'ownerMustSendPayouts',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  { name: 'holdFees', internalType: 'bool', type: 'bool' },
+                  {
+                    name: 'useTotalSurplusForRedemptions',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'useDataHookForRedeem',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  { name: 'metadata', internalType: 'uint16', type: 'uint16' },
+                ],
+              },
+              {
+                name: 'splitGroups',
+                internalType: 'struct JBSplitGroup[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'groupId', internalType: 'uint256', type: 'uint256' },
+                  {
+                    name: 'splits',
+                    internalType: 'struct JBSplit[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'preferAddToBalance',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'percent',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                      {
+                        name: 'projectId',
+                        internalType: 'uint56',
+                        type: 'uint56',
+                      },
+                      {
+                        name: 'beneficiary',
+                        internalType: 'address payable',
+                        type: 'address',
+                      },
+                      {
+                        name: 'lockedUntil',
+                        internalType: 'uint48',
+                        type: 'uint48',
+                      },
+                      {
+                        name: 'hook',
+                        internalType: 'contract IJBSplitHook',
+                        type: 'address',
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                name: 'fundAccessLimitGroups',
+                internalType: 'struct JBFundAccessLimitGroup[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'terminal',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'token', internalType: 'address', type: 'address' },
+                  {
+                    name: 'payoutLimits',
+                    internalType: 'struct JBCurrencyAmount[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'amount',
+                        internalType: 'uint224',
+                        type: 'uint224',
+                      },
+                      {
+                        name: 'currency',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                    ],
+                  },
+                  {
+                    name: 'surplusAllowances',
+                    internalType: 'struct JBCurrencyAmount[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'amount',
+                        internalType: 'uint224',
+                        type: 'uint224',
+                      },
+                      {
+                        name: 'currency',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'memo', internalType: 'string', type: 'string' },
+        ],
+      },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
+      },
+    ],
+    name: 'queueRulesetsOf',
+    outputs: [{ name: 'rulesetId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+] as const
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const jb721TiersHookProjectDeployerAddress = {
+  84532: '0x0Fa5747B59042c9C2A5A9C68C22919fa00468141',
+  421614: '0x0Fa5747B59042c9C2A5A9C68C22919fa00468141',
+  11155111: '0x0Fa5747B59042c9C2A5A9C68C22919fa00468141',
+  11155420: '0x0Fa5747B59042c9C2A5A9C68C22919fa00468141',
+} as const
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const jb721TiersHookProjectDeployerConfig = {
+  address: jb721TiersHookProjectDeployerAddress,
+  abi: jb721TiersHookProjectDeployerAbi,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBAddressRegistry
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -5739,6 +6920,257 @@ export const jbPermissionsAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBPrices
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const jbPricesAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DEFAULT_PROJECT_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'pricingCurrency', internalType: 'uint256', type: 'uint256' },
+      { name: 'unitCurrency', internalType: 'uint256', type: 'uint256' },
+      { name: 'feed', internalType: 'contract IJBPriceFeed', type: 'address' },
+    ],
+    name: 'addPriceFeedFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'pricingCurrency', internalType: 'uint256', type: 'uint256' },
+      { name: 'unitCurrency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'priceFeedFor',
+    outputs: [
+      { name: '', internalType: 'contract IJBPriceFeed', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'pricingCurrency', internalType: 'uint256', type: 'uint256' },
+      { name: 'unitCurrency', internalType: 'uint256', type: 'uint256' },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'pricePerUnitOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'pricingCurrency',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'unitCurrency',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'feed',
+        internalType: 'contract IJBPriceFeed',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'AddPriceFeed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'controller', internalType: 'address', type: 'address' }],
+    name: 'JBControlled_ControllerUnauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'feed', internalType: 'contract IJBPriceFeed', type: 'address' },
+    ],
+    name: 'JBPrices_PriceFeedAlreadyExists',
+  },
+  { type: 'error', inputs: [], name: 'JBPrices_PriceFeedNotFound' },
+  { type: 'error', inputs: [], name: 'JBPrices_ZeroPricingCurrency' },
+  { type: 'error', inputs: [], name: 'JBPrices_ZeroUnitCurrency' },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+] as const
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const jbPricesAddress = {
+  84532: '0x7769087dcaB8C6124a4305511b90582431F10e53',
+  421614: '0x7769087dcaB8C6124a4305511b90582431F10e53',
+  11155111: '0x7769087dcaB8C6124a4305511b90582431F10e53',
+  11155420: '0x7769087dcaB8C6124a4305511b90582431F10e53',
+} as const
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const jbPricesConfig = {
+  address: jbPricesAddress,
+  abi: jbPricesAbi,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBProjects
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -9002,6 +10434,183 @@ export const watchJb721TiersHookDeployerHookDeployedEvent =
   })
 
 /**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const readJb721TiersHookProjectDeployer =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"DIRECTORY"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const readJb721TiersHookProjectDeployerDirectory =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+    functionName: 'DIRECTORY',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"HOOK_DEPLOYER"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const readJb721TiersHookProjectDeployerHookDeployer =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+    functionName: 'HOOK_DEPLOYER',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"PERMISSIONS"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const readJb721TiersHookProjectDeployerPermissions =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+    functionName: 'PERMISSIONS',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const writeJb721TiersHookProjectDeployer =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchProjectFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const writeJb721TiersHookProjectDeployerLaunchProjectFor =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+    functionName: 'launchProjectFor',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchRulesetsFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const writeJb721TiersHookProjectDeployerLaunchRulesetsFor =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+    functionName: 'launchRulesetsFor',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"queueRulesetsOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const writeJb721TiersHookProjectDeployerQueueRulesetsOf =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+    functionName: 'queueRulesetsOf',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const simulateJb721TiersHookProjectDeployer =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchProjectFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const simulateJb721TiersHookProjectDeployerLaunchProjectFor =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+    functionName: 'launchProjectFor',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchRulesetsFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const simulateJb721TiersHookProjectDeployerLaunchRulesetsFor =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+    functionName: 'launchRulesetsFor',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"queueRulesetsOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0Fa5747B59042c9C2A5A9C68C22919fa00468141)
+ */
+export const simulateJb721TiersHookProjectDeployerQueueRulesetsOf =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookProjectDeployerAbi,
+    address: jb721TiersHookProjectDeployerAddress,
+    functionName: 'queueRulesetsOf',
+  })
+
+/**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__
  *
  * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x989566Bf9fF4CffA55a98ADa7dc3E58b2a0a19c6)
@@ -10796,6 +12405,277 @@ export const watchJbPermissionsOperatorPermissionsSetEvent =
   /*#__PURE__*/ createWatchContractEvent({
     abi: jbPermissionsAbi,
     eventName: 'OperatorPermissionsSet',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const readJbPrices = /*#__PURE__*/ createReadContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"DEFAULT_PROJECT_ID"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const readJbPricesDefaultProjectId = /*#__PURE__*/ createReadContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+  functionName: 'DEFAULT_PROJECT_ID',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"DIRECTORY"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const readJbPricesDirectory = /*#__PURE__*/ createReadContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+  functionName: 'DIRECTORY',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"PERMISSIONS"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const readJbPricesPermissions = /*#__PURE__*/ createReadContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+  functionName: 'PERMISSIONS',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"PROJECTS"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const readJbPricesProjects = /*#__PURE__*/ createReadContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+  functionName: 'PROJECTS',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"owner"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const readJbPricesOwner = /*#__PURE__*/ createReadContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+  functionName: 'owner',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"priceFeedFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const readJbPricesPriceFeedFor = /*#__PURE__*/ createReadContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+  functionName: 'priceFeedFor',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"pricePerUnitOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const readJbPricesPricePerUnitOf = /*#__PURE__*/ createReadContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+  functionName: 'pricePerUnitOf',
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const writeJbPrices = /*#__PURE__*/ createWriteContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"addPriceFeedFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const writeJbPricesAddPriceFeedFor = /*#__PURE__*/ createWriteContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+  functionName: 'addPriceFeedFor',
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"renounceOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const writeJbPricesRenounceOwnership = /*#__PURE__*/ createWriteContract(
+  {
+    abi: jbPricesAbi,
+    address: jbPricesAddress,
+    functionName: 'renounceOwnership',
+  },
+)
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const writeJbPricesTransferOwnership = /*#__PURE__*/ createWriteContract(
+  {
+    abi: jbPricesAbi,
+    address: jbPricesAddress,
+    functionName: 'transferOwnership',
+  },
+)
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const simulateJbPrices = /*#__PURE__*/ createSimulateContract({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+})
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"addPriceFeedFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const simulateJbPricesAddPriceFeedFor =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbPricesAbi,
+    address: jbPricesAddress,
+    functionName: 'addPriceFeedFor',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"renounceOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const simulateJbPricesRenounceOwnership =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbPricesAbi,
+    address: jbPricesAddress,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const simulateJbPricesTransferOwnership =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbPricesAbi,
+    address: jbPricesAddress,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPricesAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const watchJbPricesEvent = /*#__PURE__*/ createWatchContractEvent({
+  abi: jbPricesAbi,
+  address: jbPricesAddress,
+})
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPricesAbi}__ and `eventName` set to `"AddPriceFeed"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const watchJbPricesAddPriceFeedEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbPricesAbi,
+    address: jbPricesAddress,
+    eventName: 'AddPriceFeed',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPricesAbi}__ and `eventName` set to `"OwnershipTransferred"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x7769087dcaB8C6124a4305511b90582431F10e53)
+ */
+export const watchJbPricesOwnershipTransferredEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbPricesAbi,
+    address: jbPricesAddress,
+    eventName: 'OwnershipTransferred',
   })
 
 /**

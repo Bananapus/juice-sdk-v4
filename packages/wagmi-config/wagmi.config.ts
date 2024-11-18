@@ -17,11 +17,13 @@ enum JBCoreContracts {
   JBTokens = "JBTokens",
   JBTerminalStore = "JBTerminalStore",
   JBFundAccessLimits = "JBFundAccessLimits",
+  JBPrices = "JBPrices",
 }
 
 enum JB721HookContracts {
   JBAddressRegistry = "JBAddressRegistry",
   JB721TiersHookDeployer = "JB721TiersHookDeployer",
+  JB721TiersHookProjectDeployer = "JB721TiersHookProjectDeployer",
   JB721TiersHook = "JB721TiersHook",
 }
 
@@ -48,14 +50,19 @@ const CHAIN_NAME = {
   [baseSepolia.id]: "base_sepolia",
 } as Record<number, string>;
 
+/**
+ * Contracts whose addresses aren;t projrect-specific (i.e. the same for all projects)
+ */
 const HAS_STATIC_ADDRESS: Contracts[] = [
   JBCoreContracts.JBDirectory,
   JBCoreContracts.JBProjects,
   JBCoreContracts.JBRulesets,
   JBCoreContracts.JBSplits,
   JBCoreContracts.JBTokens,
+  JBCoreContracts.JBPrices,
   JB721HookContracts.JBAddressRegistry,
   JB721HookContracts.JB721TiersHookDeployer,
+  JB721HookContracts.JB721TiersHookProjectDeployer,
   JBSuckerContracts.BPSuckerRegistry,
 ];
 
