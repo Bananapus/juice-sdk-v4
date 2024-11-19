@@ -6,7 +6,7 @@ import {
   sepolia,
 } from "viem/chains";
 
-enum JBCoreContracts {
+export enum JBCoreContracts {
   JBController = "JBController",
   JBDirectory = "JBDirectory",
   JBMultiTerminal = "JBMultiTerminal",
@@ -20,14 +20,15 @@ enum JBCoreContracts {
   JBPrices = "JBPrices",
 }
 
-enum JB721HookContracts {
+export enum JB721HookContracts {
   JBAddressRegistry = "JBAddressRegistry",
   JB721TiersHookDeployer = "JB721TiersHookDeployer",
   JB721TiersHookProjectDeployer = "JB721TiersHookProjectDeployer",
   JB721TiersHook = "JB721TiersHook",
+  JB721TiersHookStore = "JB721TiersHookStore",
 }
 
-enum JBSuckerContracts {
+export enum JBSuckerContracts {
   BPSuckerRegistry = "BPSuckerRegistry",
 }
 

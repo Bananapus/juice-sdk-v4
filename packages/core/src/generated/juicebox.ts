@@ -3066,6 +3066,617 @@ export const jb721TiersHookProjectDeployerConfig = {
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JB721TiersHookStore
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jb721TiersHookStoreAbi = [
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'balanceOf',
+    outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'hook', internalType: 'address', type: 'address' }],
+    name: 'cleanTiers',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'hook', internalType: 'address', type: 'address' }],
+    name: 'defaultReserveBeneficiaryOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'encodedIPFSUriOf',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'encodedTierIPFSUriOf',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'hook', internalType: 'address', type: 'address' }],
+    name: 'flagsOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct JB721TiersHookFlags',
+        type: 'tuple',
+        components: [
+          {
+            name: 'noNewTiersWithReserves',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'noNewTiersWithVotes', internalType: 'bool', type: 'bool' },
+          {
+            name: 'noNewTiersWithOwnerMinting',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'preventOverspending', internalType: 'bool', type: 'bool' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'isTierRemoved',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'hook', internalType: 'address', type: 'address' }],
+    name: 'maxTierIdOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'numberOfBurnedFor',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'numberOfPendingReservesFor',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'numberOfReservesMintedFor',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'tiersToAdd',
+        internalType: 'struct JB721TierConfig[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'price', internalType: 'uint104', type: 'uint104' },
+          { name: 'initialSupply', internalType: 'uint32', type: 'uint32' },
+          { name: 'votingUnits', internalType: 'uint32', type: 'uint32' },
+          { name: 'reserveFrequency', internalType: 'uint16', type: 'uint16' },
+          {
+            name: 'reserveBeneficiary',
+            internalType: 'address',
+            type: 'address',
+          },
+          { name: 'encodedIPFSUri', internalType: 'bytes32', type: 'bytes32' },
+          { name: 'category', internalType: 'uint24', type: 'uint24' },
+          { name: 'discountPercent', internalType: 'uint8', type: 'uint8' },
+          { name: 'allowOwnerMint', internalType: 'bool', type: 'bool' },
+          {
+            name: 'useReserveBeneficiaryAsDefault',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'transfersPausable', internalType: 'bool', type: 'bool' },
+          { name: 'useVotingUnits', internalType: 'bool', type: 'bool' },
+          { name: 'cannotBeRemoved', internalType: 'bool', type: 'bool' },
+          {
+            name: 'cannotIncreaseDiscountPercent',
+            internalType: 'bool',
+            type: 'bool',
+          },
+        ],
+      },
+    ],
+    name: 'recordAddTiers',
+    outputs: [
+      { name: 'tierIds', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'tokenIds', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    name: 'recordBurn',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'flags',
+        internalType: 'struct JB721TiersHookFlags',
+        type: 'tuple',
+        components: [
+          {
+            name: 'noNewTiersWithReserves',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'noNewTiersWithVotes', internalType: 'bool', type: 'bool' },
+          {
+            name: 'noNewTiersWithOwnerMinting',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'preventOverspending', internalType: 'bool', type: 'bool' },
+        ],
+      },
+    ],
+    name: 'recordFlags',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'tierIds', internalType: 'uint16[]', type: 'uint16[]' },
+      { name: 'isOwnerMint', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'recordMint',
+    outputs: [
+      { name: 'tokenIds', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: 'leftoverAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+      { name: 'count', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'recordMintReservesFor',
+    outputs: [
+      { name: 'tokenIds', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tierIds', internalType: 'uint256[]', type: 'uint256[]' }],
+    name: 'recordRemoveTierIds',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+      { name: 'discountPercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'recordSetDiscountPercentOf',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+      { name: 'encodedIPFSUri', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    name: 'recordSetEncodedIPFSUriOf',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJB721TokenUriResolver',
+        type: 'address',
+      },
+    ],
+    name: 'recordSetTokenUriResolver',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+    ],
+    name: 'recordTransferForTier',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'tokenIds', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    name: 'redemptionWeightOf',
+    outputs: [{ name: 'weight', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'reserveBeneficiaryOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'tierBalanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'tierIdOfToken',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'id', internalType: 'uint256', type: 'uint256' },
+      { name: 'includeResolvedUri', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'tierOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct JB721Tier',
+        type: 'tuple',
+        components: [
+          { name: 'id', internalType: 'uint32', type: 'uint32' },
+          { name: 'price', internalType: 'uint104', type: 'uint104' },
+          { name: 'remainingSupply', internalType: 'uint32', type: 'uint32' },
+          { name: 'initialSupply', internalType: 'uint32', type: 'uint32' },
+          { name: 'votingUnits', internalType: 'uint104', type: 'uint104' },
+          { name: 'reserveFrequency', internalType: 'uint16', type: 'uint16' },
+          {
+            name: 'reserveBeneficiary',
+            internalType: 'address',
+            type: 'address',
+          },
+          { name: 'encodedIPFSUri', internalType: 'bytes32', type: 'bytes32' },
+          { name: 'category', internalType: 'uint24', type: 'uint24' },
+          { name: 'discountPercent', internalType: 'uint8', type: 'uint8' },
+          { name: 'allowOwnerMint', internalType: 'bool', type: 'bool' },
+          { name: 'transfersPausable', internalType: 'bool', type: 'bool' },
+          { name: 'cannotBeRemoved', internalType: 'bool', type: 'bool' },
+          {
+            name: 'cannotIncreaseDiscountPercent',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'resolvedUri', internalType: 'string', type: 'string' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'includeResolvedUri', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'tierOfTokenId',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct JB721Tier',
+        type: 'tuple',
+        components: [
+          { name: 'id', internalType: 'uint32', type: 'uint32' },
+          { name: 'price', internalType: 'uint104', type: 'uint104' },
+          { name: 'remainingSupply', internalType: 'uint32', type: 'uint32' },
+          { name: 'initialSupply', internalType: 'uint32', type: 'uint32' },
+          { name: 'votingUnits', internalType: 'uint104', type: 'uint104' },
+          { name: 'reserveFrequency', internalType: 'uint16', type: 'uint16' },
+          {
+            name: 'reserveBeneficiary',
+            internalType: 'address',
+            type: 'address',
+          },
+          { name: 'encodedIPFSUri', internalType: 'bytes32', type: 'bytes32' },
+          { name: 'category', internalType: 'uint24', type: 'uint24' },
+          { name: 'discountPercent', internalType: 'uint8', type: 'uint8' },
+          { name: 'allowOwnerMint', internalType: 'bool', type: 'bool' },
+          { name: 'transfersPausable', internalType: 'bool', type: 'bool' },
+          { name: 'cannotBeRemoved', internalType: 'bool', type: 'bool' },
+          {
+            name: 'cannotIncreaseDiscountPercent',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'resolvedUri', internalType: 'string', type: 'string' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'tierId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'tierVotingUnitsOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'categories', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: 'includeResolvedUri', internalType: 'bool', type: 'bool' },
+      { name: 'startingId', internalType: 'uint256', type: 'uint256' },
+      { name: 'size', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'tiersOf',
+    outputs: [
+      {
+        name: 'tiers',
+        internalType: 'struct JB721Tier[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'id', internalType: 'uint32', type: 'uint32' },
+          { name: 'price', internalType: 'uint104', type: 'uint104' },
+          { name: 'remainingSupply', internalType: 'uint32', type: 'uint32' },
+          { name: 'initialSupply', internalType: 'uint32', type: 'uint32' },
+          { name: 'votingUnits', internalType: 'uint104', type: 'uint104' },
+          { name: 'reserveFrequency', internalType: 'uint16', type: 'uint16' },
+          {
+            name: 'reserveBeneficiary',
+            internalType: 'address',
+            type: 'address',
+          },
+          { name: 'encodedIPFSUri', internalType: 'bytes32', type: 'bytes32' },
+          { name: 'category', internalType: 'uint24', type: 'uint24' },
+          { name: 'discountPercent', internalType: 'uint8', type: 'uint8' },
+          { name: 'allowOwnerMint', internalType: 'bool', type: 'bool' },
+          { name: 'transfersPausable', internalType: 'bool', type: 'bool' },
+          { name: 'cannotBeRemoved', internalType: 'bool', type: 'bool' },
+          {
+            name: 'cannotIncreaseDiscountPercent',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'resolvedUri', internalType: 'string', type: 'string' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'hook', internalType: 'address', type: 'address' }],
+    name: 'tokenUriResolverOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJB721TokenUriResolver',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'hook', internalType: 'address', type: 'address' }],
+    name: 'totalRedemptionWeight',
+    outputs: [{ name: 'weight', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'hook', internalType: 'address', type: 'address' }],
+    name: 'totalSupplyOf',
+    outputs: [{ name: 'supply', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address' },
+      { name: 'account', internalType: 'address', type: 'address' },
+    ],
+    name: 'votingUnitsOf',
+    outputs: [{ name: 'units', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'hook', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'CleanTiers',
+  },
+  { type: 'error', inputs: [], name: 'JB721TiersHookStore_CantMintManually' },
+  { type: 'error', inputs: [], name: 'JB721TiersHookStore_CantRemoveTier' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'percent', internalType: 'uint256', type: 'uint256' },
+      { name: 'limit', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JB721TiersHookStore_DiscountPercentExceedsBounds',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'percent', internalType: 'uint256', type: 'uint256' },
+      { name: 'storedPercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JB721TiersHookStore_DiscountPercentIncreaseNotAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'count', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'numberOfPendingReserves',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'JB721TiersHookStore_InsufficientPendingReserves',
+  },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'JB721TiersHookStore_InsufficientSupplyRemaining',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'tierCategory', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'previousTierCategory',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'JB721TiersHookStore_InvalidCategorySortOrder',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'quantity', internalType: 'uint256', type: 'uint256' },
+      { name: 'limit', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JB721TiersHookStore_InvalidQuantity',
+  },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'JB721TiersHookStore_ManualMintingNotAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'numberOfTiers', internalType: 'uint256', type: 'uint256' },
+      { name: 'limit', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JB721TiersHookStore_MaxTiersExceeded',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'price', internalType: 'uint256', type: 'uint256' },
+      { name: 'leftoverAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JB721TiersHookStore_PriceExceedsAmount',
+  },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'JB721TiersHookStore_ReserveFrequencyNotAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'tierId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JB721TiersHookStore_TierRemoved',
+  },
+  { type: 'error', inputs: [], name: 'JB721TiersHookStore_UnrecognizedTier' },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'JB721TiersHookStore_VotingUnitsNotAllowed',
+  },
+  { type: 'error', inputs: [], name: 'JB721TiersHookStore_ZeroInitialSupply' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBAddressRegistry
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -9604,7 +10215,7 @@ export const readJb721TiersHookRulesets = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"STORE"`
  */
-export const readJb721TiersHookStore = /*#__PURE__*/ createReadContract({
+export const readJb721TiersHookStoreAddress = /*#__PURE__*/ createReadContract({
   abi: jb721TiersHookAbi,
   functionName: 'STORE',
 })
@@ -10608,6 +11219,435 @@ export const simulateJb721TiersHookProjectDeployerQueueRulesetsOf =
     abi: jb721TiersHookProjectDeployerAbi,
     address: jb721TiersHookProjectDeployerAddress,
     functionName: 'queueRulesetsOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__
+ */
+export const readJb721TiersHookStore = /*#__PURE__*/ createReadContract({
+  abi: jb721TiersHookStoreAbi,
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"balanceOf"`
+ */
+export const readJb721TiersHookStoreBalanceOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'balanceOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"defaultReserveBeneficiaryOf"`
+ */
+export const readJb721TiersHookStoreDefaultReserveBeneficiaryOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'defaultReserveBeneficiaryOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"encodedIPFSUriOf"`
+ */
+export const readJb721TiersHookStoreEncodedIpfsUriOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'encodedIPFSUriOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"encodedTierIPFSUriOf"`
+ */
+export const readJb721TiersHookStoreEncodedTierIpfsUriOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'encodedTierIPFSUriOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"flagsOf"`
+ */
+export const readJb721TiersHookStoreFlagsOf = /*#__PURE__*/ createReadContract({
+  abi: jb721TiersHookStoreAbi,
+  functionName: 'flagsOf',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"isTierRemoved"`
+ */
+export const readJb721TiersHookStoreIsTierRemoved =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'isTierRemoved',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"maxTierIdOf"`
+ */
+export const readJb721TiersHookStoreMaxTierIdOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'maxTierIdOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"numberOfBurnedFor"`
+ */
+export const readJb721TiersHookStoreNumberOfBurnedFor =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'numberOfBurnedFor',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"numberOfPendingReservesFor"`
+ */
+export const readJb721TiersHookStoreNumberOfPendingReservesFor =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'numberOfPendingReservesFor',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"numberOfReservesMintedFor"`
+ */
+export const readJb721TiersHookStoreNumberOfReservesMintedFor =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'numberOfReservesMintedFor',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"redemptionWeightOf"`
+ */
+export const readJb721TiersHookStoreRedemptionWeightOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'redemptionWeightOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"reserveBeneficiaryOf"`
+ */
+export const readJb721TiersHookStoreReserveBeneficiaryOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'reserveBeneficiaryOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tierBalanceOf"`
+ */
+export const readJb721TiersHookStoreTierBalanceOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'tierBalanceOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tierIdOfToken"`
+ */
+export const readJb721TiersHookStoreTierIdOfToken =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'tierIdOfToken',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tierOf"`
+ */
+export const readJb721TiersHookStoreTierOf = /*#__PURE__*/ createReadContract({
+  abi: jb721TiersHookStoreAbi,
+  functionName: 'tierOf',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tierOfTokenId"`
+ */
+export const readJb721TiersHookStoreTierOfTokenId =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'tierOfTokenId',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tierVotingUnitsOf"`
+ */
+export const readJb721TiersHookStoreTierVotingUnitsOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'tierVotingUnitsOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tiersOf"`
+ */
+export const readJb721TiersHookStoreTiersOf = /*#__PURE__*/ createReadContract({
+  abi: jb721TiersHookStoreAbi,
+  functionName: 'tiersOf',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tokenUriResolverOf"`
+ */
+export const readJb721TiersHookStoreTokenUriResolverOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'tokenUriResolverOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"totalRedemptionWeight"`
+ */
+export const readJb721TiersHookStoreTotalRedemptionWeight =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'totalRedemptionWeight',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"totalSupplyOf"`
+ */
+export const readJb721TiersHookStoreTotalSupplyOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'totalSupplyOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"votingUnitsOf"`
+ */
+export const readJb721TiersHookStoreVotingUnitsOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'votingUnitsOf',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__
+ */
+export const writeJb721TiersHookStore = /*#__PURE__*/ createWriteContract({
+  abi: jb721TiersHookStoreAbi,
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"cleanTiers"`
+ */
+export const writeJb721TiersHookStoreCleanTiers =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'cleanTiers',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordAddTiers"`
+ */
+export const writeJb721TiersHookStoreRecordAddTiers =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordAddTiers',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordBurn"`
+ */
+export const writeJb721TiersHookStoreRecordBurn =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordBurn',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordFlags"`
+ */
+export const writeJb721TiersHookStoreRecordFlags =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordFlags',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordMint"`
+ */
+export const writeJb721TiersHookStoreRecordMint =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordMint',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordMintReservesFor"`
+ */
+export const writeJb721TiersHookStoreRecordMintReservesFor =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordMintReservesFor',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordRemoveTierIds"`
+ */
+export const writeJb721TiersHookStoreRecordRemoveTierIds =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordRemoveTierIds',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetDiscountPercentOf"`
+ */
+export const writeJb721TiersHookStoreRecordSetDiscountPercentOf =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordSetDiscountPercentOf',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetEncodedIPFSUriOf"`
+ */
+export const writeJb721TiersHookStoreRecordSetEncodedIpfsUriOf =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordSetEncodedIPFSUriOf',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetTokenUriResolver"`
+ */
+export const writeJb721TiersHookStoreRecordSetTokenUriResolver =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordSetTokenUriResolver',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordTransferForTier"`
+ */
+export const writeJb721TiersHookStoreRecordTransferForTier =
+  /*#__PURE__*/ createWriteContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordTransferForTier',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__
+ */
+export const simulateJb721TiersHookStore = /*#__PURE__*/ createSimulateContract(
+  { abi: jb721TiersHookStoreAbi },
+)
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"cleanTiers"`
+ */
+export const simulateJb721TiersHookStoreCleanTiers =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'cleanTiers',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordAddTiers"`
+ */
+export const simulateJb721TiersHookStoreRecordAddTiers =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordAddTiers',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordBurn"`
+ */
+export const simulateJb721TiersHookStoreRecordBurn =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordBurn',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordFlags"`
+ */
+export const simulateJb721TiersHookStoreRecordFlags =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordFlags',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordMint"`
+ */
+export const simulateJb721TiersHookStoreRecordMint =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordMint',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordMintReservesFor"`
+ */
+export const simulateJb721TiersHookStoreRecordMintReservesFor =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordMintReservesFor',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordRemoveTierIds"`
+ */
+export const simulateJb721TiersHookStoreRecordRemoveTierIds =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordRemoveTierIds',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetDiscountPercentOf"`
+ */
+export const simulateJb721TiersHookStoreRecordSetDiscountPercentOf =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordSetDiscountPercentOf',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetEncodedIPFSUriOf"`
+ */
+export const simulateJb721TiersHookStoreRecordSetEncodedIpfsUriOf =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordSetEncodedIPFSUriOf',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetTokenUriResolver"`
+ */
+export const simulateJb721TiersHookStoreRecordSetTokenUriResolver =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordSetTokenUriResolver',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordTransferForTier"`
+ */
+export const simulateJb721TiersHookStoreRecordTransferForTier =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jb721TiersHookStoreAbi,
+    functionName: 'recordTransferForTier',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__
+ */
+export const watchJb721TiersHookStoreEvent =
+  /*#__PURE__*/ createWatchContractEvent({ abi: jb721TiersHookStoreAbi })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `eventName` set to `"CleanTiers"`
+ */
+export const watchJb721TiersHookStoreCleanTiersEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jb721TiersHookStoreAbi,
+    eventName: 'CleanTiers',
   })
 
 /**
