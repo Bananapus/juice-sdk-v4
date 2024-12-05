@@ -55,6 +55,9 @@ export const MAX_FEE = 1_000_000_000;
  */
 export const MAX_FEE_DISCOUNT = 1_000_000_000;
 
+// uint 224, probably a better way lol
+export const MAX_PAYOUT_LIMIT = BigInt('26959946667150639794667015087019630673637144422540572481103610249215') 
+
 /**
  * The 100% representation for a ruleset's Splits.
  *
@@ -82,6 +85,13 @@ export const JB_TOKEN_DECIMALS = 18 as const;
  */
 export const NATIVE_TOKEN: Address =
   "0x000000000000000000000000000000000000EEEe";
+
+/**
+ * The ID that represents the network's 'native' token (ETH, OpETH, BaseETH, etc.).
+ * 
+ * Commonly used in JB contract transations where you want to specify the native token.
+ */
+export const NATIVE_TOKEN_ID = BigInt(NATIVE_TOKEN);
 
 /**
  * The ID that represents the network's 'native' currency (e.g. ETH, OP).
