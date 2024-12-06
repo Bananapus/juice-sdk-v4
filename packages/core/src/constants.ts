@@ -83,23 +83,17 @@ export const JB_TOKEN_DECIMALS = 18 as const;
  *
  * @link JBConstants.sol
  */
-export const NATIVE_TOKEN: Address =
+ export const NATIVE_TOKEN: Address =
   "0x000000000000000000000000000000000000EEEe";
-
-/**
- * The ID that represents the network's 'native' token (ETH, OpETH, BaseETH, etc.).
- * 
- * Commonly used in JB contract transations where you want to specify the native token.
- */
-export const NATIVE_TOKEN_ID = BigInt(NATIVE_TOKEN);
 
 /**
  * The ID that represents the network's 'native' currency (e.g. ETH, OP).
  * Within Juicebox contracts, 0 is used to represent the native currency.
  *
  * @link JBCurrencyIds.sol
+ * @note 61166n
  */
-export const NATIVE_CURRENCY_ID = 0n;
+export const NATIVE_CURRENCY_ID = BigInt(NATIVE_TOKEN);
 
 /**
  * Amount of decimals to use for native token fixed-point representation.
