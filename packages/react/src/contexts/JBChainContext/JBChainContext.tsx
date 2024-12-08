@@ -19,8 +19,8 @@ export const JBChainContext = createContext<JBChainContextData>({
   chainId: sepolia.id,
 });
 
-export function useJBChainId(): JBChainId | undefined {
-  return useContext(JBChainContext)?.chainId;
+export function useJBChainId(): JBChainId {
+  return useContext(JBChainContext).chainId;
 }
 
 /**
