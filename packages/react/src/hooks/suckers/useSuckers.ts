@@ -16,15 +16,25 @@ export function useSuckers() {
   });
 
   const query = useQuery({
-    queryKey: ["suckers", projectId.toString(), chainId?.toString()],
-    queryFn: () => {
-      if (!chainId) return null;
+    queryKey: [
+      "juice-sdk",
+      "suckers",
+      projectId.toString(),
+      chainId?.toString(),
+    ],
+    enabled: !!chainId,
+    queryFn: async () => {
+      if (!chainId) {
+        return null;
+      }
 
-      return resolveSuckers({
+      const suckers = await resolveSuckers({
         config,
         chainId,
         projectId,
       });
+
+      return suckers;
     },
   });
 
