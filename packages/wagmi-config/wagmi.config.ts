@@ -104,6 +104,20 @@ async function importDeployment(importPath: string) {
   };
 }
 
+function parseAbi(contractName: string, abi: any) {
+  /**
+   * @note there are 2 versions of `currentReclaimableSurplusOf` in JBTerminalStore ABI. We only want one of them.
+   * Filter out the one we don't want.
+   */
+  if (contractName === JBCoreContracts.JBTerminalStore) {
+    return abi.filter(
+      (a: any) =>
+        !(a.name === "currentReclaimableSurplusOf" && a.inputs.length === 4)
+    );
+  }
+  return abi;
+}
+
 async function buildContractConfig(
   contractNames: Contracts[],
   getPath: (chain: Chain, contractName: Contracts) => string
@@ -122,7 +136,7 @@ async function buildContractConfig(
         return acc;
       }, {});
 
-      const abi = deployments[0].abi; // assume all deployments have the same ABI
+      const abi = parseAbi(contractName, deployments[0].abi); // assume all deployments have the same ABI
 
       return {
         name: contractName,

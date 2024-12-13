@@ -8985,18 +8985,6 @@ export const jbTerminalStoreAbi = [
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
-      { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
-      { name: 'surplus', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'currentReclaimableSurplusOf',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
       {
         name: 'terminals',
         internalType: 'contract IJBTerminal[]',
