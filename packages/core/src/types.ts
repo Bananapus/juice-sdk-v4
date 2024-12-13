@@ -5,8 +5,8 @@ import {
   jbSplitsAbi,
 } from "./generated/juicebox.js";
 import {
-  DecayPercent,
-  RedemptionRate,
+  WeightCutPercent,
+  CashOutTaxRate,
   ReservedPercent,
   RulesetWeight,
   SplitPortion,
@@ -145,9 +145,9 @@ export type JBRuleset = ContractFunctionReturnType<
 /**
  * Juicebox ruleset.
  */
-export type JBRulesetData = Omit<JBRuleset[0], "weight" | "decayPercent"> & {
+export type JBRulesetData = Omit<JBRuleset[0], "weight" | "weightCutPercent"> & {
   weight: RulesetWeight;
-  decayPercent: DecayPercent;
+  weightCutPercent: WeightCutPercent;
 };
 
 /**
@@ -155,9 +155,9 @@ export type JBRulesetData = Omit<JBRuleset[0], "weight" | "decayPercent"> & {
  */
 export type JBRulesetMetadata = Omit<
   JBRuleset[1],
-  "redemptionRate" | "reservedPercent"
+  "cashOutTaxRate" | "reservedPercent"
 > & {
-  redemptionRate: RedemptionRate;
+  cashOutTaxRate: CashOutTaxRate;
   reservedPercent: ReservedPercent;
 };
 

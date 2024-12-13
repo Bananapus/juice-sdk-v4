@@ -3,7 +3,7 @@ import { parseUnits } from "viem";
 import { ReservedPercent, RulesetWeight } from "./data.js";
 import {
   ONE_ETHER,
-  MAX_REDEMPTION_RATE,
+  MAX_CASH_OUT_TAX_RATE,
   MAX_RESERVED_PERCENT,
 } from "../constants.js";
 
@@ -94,22 +94,22 @@ export const getTokenBtoAQuote = <D extends number>(
  * - o = overflow (primaryTerminalCurrentOverflow)
  * - x = tokenAmount
  * - s = total supply of token (realTotalTokenSupply)
- * - r = redemptionRate
+ * - r = cashOutTaxRate
  *
  * @implements JBSingleTokenPaymentTerminalStore._reclaimableOverflowDuring (https://github.com/jbx-protocol/juice-contracts-v3/blob/main/contracts/JBSingleTokenPaymentTerminalStore.sol#L688)
  * @returns amount in ETH
  */
-export const getTokenRedemptionQuoteEth = (
+export const getTokenCashOutQuoteEth = (
   tokensAmount: bigint,
   {
     overflowWei,
     totalSupply,
-    redemptionRate,
+    cashOutTaxRate,
     tokensReserved,
   }: {
     overflowWei: bigint;
     totalSupply: bigint;
-    redemptionRate: number;
+    cashOutTaxRate: number;
     tokensReserved: bigint;
   }
 ) => {
@@ -119,15 +119,15 @@ export const getTokenRedemptionQuoteEth = (
   // base = ox/s
   const base = (overflowWei * tokensAmount) / realTotalSupply;
 
-  if (redemptionRate === MAX_REDEMPTION_RATE) return base;
+  if (cashOutTaxRate === MAX_CASH_OUT_TAX_RATE) return base;
 
   const frac =
-    (tokensAmount * BigInt(MAX_REDEMPTION_RATE - redemptionRate)) / realTotalSupply;
+    (tokensAmount * BigInt(MAX_CASH_OUT_TAX_RATE - cashOutTaxRate)) / realTotalSupply;
 
   // numerator = r + (x(1 - r)/s)
-  const numerator = BigInt(redemptionRate) + frac;
+  const numerator = BigInt(cashOutTaxRate) + frac;
   // y = base * numerator ==> ox/s * ( r + (x(1 - r)/s) )
-  const y = (base * numerator) / BigInt(MAX_REDEMPTION_RATE);
+  const y = (base * numerator) / BigInt(MAX_CASH_OUT_TAX_RATE);
 
   return y / 10n;
 };

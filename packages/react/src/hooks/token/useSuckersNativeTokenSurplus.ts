@@ -1,5 +1,7 @@
 import {
+  NATIVE_CURRENCY_ID,
   NATIVE_TOKEN,
+  NATIVE_TOKEN_DECIMALS,
   readJbDirectoryPrimaryTerminalOf,
   readJbMultiTerminalCurrentSurplusOf,
   SuckerPair,
@@ -62,7 +64,18 @@ export function useSuckersNativeTokenSurplus() {
           const surplus = await readJbMultiTerminalCurrentSurplusOf(config, {
             chainId: Number(peerChainId) as JBChainId,
             address: terminal,
-            args: [projectId, 18n, BigInt(NATIVE_TOKEN)],
+            args: [
+              projectId,
+              [
+                {
+                  token: NATIVE_TOKEN,
+                  decimals: NATIVE_TOKEN_DECIMALS,
+                  currency: NATIVE_CURRENCY_ID,
+                },
+              ],
+              BigInt(NATIVE_TOKEN_DECIMALS),
+              BigInt(NATIVE_CURRENCY_ID),
+            ],
           });
 
           return { surplus, chainId: peerChainId, projectId };
@@ -85,6 +98,8 @@ export function useSuckersNativeTokenSurplus() {
   return {
     isLoading: surplusQuery.isLoading || suckersQuery.isLoading,
     isError: surplusQuery.isError || suckersQuery.isError,
-    data: surplusQuery.data as { surplus: bigint; chainId: number; projectId: bigint }[] | undefined,
-  }
+    data: surplusQuery.data as
+      | { surplus: bigint; chainId: number; projectId: bigint }[]
+      | undefined,
+  };
 }

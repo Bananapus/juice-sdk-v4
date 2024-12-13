@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { DecayPercent, ReservedPercent } from "./data.js";
+import { WeightCutPercent, ReservedPercent } from "./data.js";
 
 describe("jb", () => {
   test("reserved rate", () => {
@@ -15,14 +15,14 @@ describe("jb", () => {
   });
 
   test("decay rate", () => {
-    const decayPercentRaw = 200_000_000; // 20%
-    const decayPercent = new DecayPercent(decayPercentRaw);
-    expect(decayPercent.format()).toEqual("0.2");
-    expect(decayPercent.toFloat()).toEqual(0.2);
+    const weightCutPercentRaw = 200_000_000; // 20%
+    const weightCutPercent = new WeightCutPercent(weightCutPercentRaw);
+    expect(weightCutPercent.format()).toEqual("0.2");
+    expect(weightCutPercent.toFloat()).toEqual(0.2);
 
-    decayPercent.setPercentage(0.5123);
-    expect(decayPercent.format()).toEqual("0.5123");
-    expect(decayPercent.formatPercentage()).toEqual(51.23);
-    expect(decayPercent.value).toEqual(512_300_000n);
+    weightCutPercent.setPercentage(0.5123);
+    expect(weightCutPercent.format()).toEqual("0.5123");
+    expect(weightCutPercent.formatPercentage()).toEqual(51.23);
+    expect(weightCutPercent.value).toEqual(512_300_000n);
   });
 });

@@ -1,7 +1,7 @@
 import { FixedInt, FixedPortion } from "fpnum";
 import {
-  MAX_DECAY_PERCENT,
-  MAX_REDEMPTION_RATE,
+  MAX_WEIGHT_CUT_PERCENT,
+  MAX_CASH_OUT_TAX_RATE,
   MAX_RESERVED_PERCENT,
   SPLITS_TOTAL_PERCENT,
 } from "../constants.js";
@@ -20,15 +20,15 @@ export class ReservedPercent extends FixedPortion<4> {
 }
 
 /**
- * Redemption rate for a ruleset.
+ * Cash Out Tax Rate for a ruleset.
  *
  * Has a decimal precision of 4 and a maximum value of 10,000.
 
  * @extends FixedPortion
  */
-export class RedemptionRate extends FixedPortion<4> {
+export class CashOutTaxRate extends FixedPortion<4> {
   constructor(value: number) {
-    super(BigInt(value), 4, BigInt(MAX_REDEMPTION_RATE));
+    super(BigInt(value), 4, BigInt(MAX_CASH_OUT_TAX_RATE));
   }
 }
 
@@ -39,9 +39,9 @@ export class RedemptionRate extends FixedPortion<4> {
 
  * @extends FixedPortion
  */
-export class DecayPercent extends FixedPortion<9> {
+export class WeightCutPercent extends FixedPortion<9> {
   constructor(value: number) {
-    super(BigInt(value), 9, BigInt(MAX_DECAY_PERCENT));
+    super(BigInt(value), 9, BigInt(MAX_WEIGHT_CUT_PERCENT));
   }
 }
 

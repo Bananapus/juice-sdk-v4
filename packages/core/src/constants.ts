@@ -32,18 +32,18 @@ export const DEFAULT_ALLOW_OVERSPENDING = true;
 export const MAX_RESERVED_PERCENT = 10_000;
 
 /**
- * The maximum value for a ruleset's Redemption Rate.
+ * The maximum value for a ruleset's Cash Out Tax Rate.
  *
  * @link JBConstants.sol
  */
-export const MAX_REDEMPTION_RATE = 10_000;
+export const MAX_CASH_OUT_TAX_RATE = 10_000;
 
 /**
  * The maximum value for a ruleset's Decay Rate.
  *
  * @link JBConstants.sol
  */
-export const MAX_DECAY_PERCENT = 1_000_000_000;
+export const MAX_WEIGHT_CUT_PERCENT = 1_000_000_000;
 
 /**
  * @link JBConstants.sol
@@ -93,7 +93,7 @@ export const JB_TOKEN_DECIMALS = 18 as const;
  * @link JBCurrencyIds.sol
  * @note 61166n
  */
-export const NATIVE_CURRENCY_ID = BigInt(NATIVE_TOKEN);
+export const NATIVE_CURRENCY_ID = Number(BigInt(NATIVE_TOKEN))
 
 /**
  * Amount of decimals to use for native token fixed-point representation.

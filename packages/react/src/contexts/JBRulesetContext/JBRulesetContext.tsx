@@ -1,6 +1,6 @@
 import {
-  DecayPercent,
-  RedemptionRate,
+  WeightCutPercent,
+  CashOutTaxRate,
   ReservedPercent,
   RulesetWeight,
 } from "juice-sdk-core";
@@ -29,10 +29,10 @@ export type JBRulesetContext = {
         "view",
         "currentRulesetOf"
       >[0],
-      "weight" | "decayPercent"
+      "weight" | "weightCutPercent"
     > & {
       weight: RulesetWeight;
-      decayPercent: DecayPercent;
+      weightCutPercent: WeightCutPercent;
     }
   >;
   /**
@@ -45,9 +45,9 @@ export type JBRulesetContext = {
         "view",
         "currentRulesetOf"
       >[1],
-      "redemptionRate" | "reservedPercent"
+      "cashOutTaxRate" | "reservedPercent"
     > & {
-      redemptionRate: RedemptionRate;
+      cashOutTaxRate: CashOutTaxRate;
       reservedPercent: ReservedPercent;
     }
   >;
@@ -100,12 +100,14 @@ export const JBRulesetProvider = ({
           data: {
             ...ruleset,
             weight: new RulesetWeight(ruleset.weight),
-            decayPercent: new DecayPercent(ruleset.decayPercent),
+            weightCutPercent: new WeightCutPercent(ruleset.weightCutPercent),
           },
           metadata: {
             ...rulesetMetadata,
-            redemptionRate: new RedemptionRate(rulesetMetadata.redemptionRate),
-            reservedPercent: new ReservedPercent(rulesetMetadata.reservedPercent)
+            cashOutTaxRate: new CashOutTaxRate(rulesetMetadata.cashOutTaxRate),
+            reservedPercent: new ReservedPercent(
+              rulesetMetadata.reservedPercent
+            ),
           },
         };
       },

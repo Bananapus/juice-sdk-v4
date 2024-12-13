@@ -1,4 +1,4 @@
-import { MAX_DECAY_PERCENT } from "../constants.js";
+import { MAX_WEIGHT_CUT_PERCENT } from "../constants.js";
 
 /**
  * Derive the next ruleset's Weight value from the current ruleset.
@@ -8,12 +8,12 @@ import { MAX_DECAY_PERCENT } from "../constants.js";
  */
 export function getNextRulesetWeight(currentRuleset: {
   weight: bigint;
-  decayPercent: number;
+  weightCutPercent: number;
 }) {
   const nextRulesetWeight =
     (currentRuleset.weight *
-      BigInt(MAX_DECAY_PERCENT - currentRuleset.decayPercent)) /
-    BigInt(MAX_DECAY_PERCENT);
+      BigInt(MAX_WEIGHT_CUT_PERCENT - currentRuleset.weightCutPercent)) /
+    BigInt(MAX_WEIGHT_CUT_PERCENT);
 
   return nextRulesetWeight;
 }
@@ -23,12 +23,12 @@ export function getNextRulesetWeight(currentRuleset: {
  */
 export function getPrevRulesetWeight(currentRuleset: {
   weight: bigint;
-  decayPercent: number;
+  weightCutPercent: number;
 }) {
   // reverse of getNextRulesetWeight
   const prevRulesetWeight =
-    (currentRuleset.weight * BigInt(MAX_DECAY_PERCENT)) /
-    BigInt(MAX_DECAY_PERCENT - currentRuleset.decayPercent);
+    (currentRuleset.weight * BigInt(MAX_WEIGHT_CUT_PERCENT)) /
+    BigInt(MAX_WEIGHT_CUT_PERCENT - currentRuleset.weightCutPercent);
 
   return prevRulesetWeight;
 }

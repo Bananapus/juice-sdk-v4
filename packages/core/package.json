@@ -1,6 +1,6 @@
 {
   "name": "juice-sdk-core",
-  "version": "11.6.0-alpha",
+  "version": "12.0.0-alpha",
   "type": "module",
   "scripts": {
     "generate": "wagmi generate",
@@ -26,9 +26,10 @@
     "fpnum": "^1.0.0"
   },
   "devDependencies": {
-    "@bananapus/721-hook": "^0.0.24",
-    "@bananapus/core": "^0.0.32",
-    "@bananapus/suckers": "^0.0.23",
+    "@bananapus/721-hook": "^0.0.27",
+    "@bananapus/address-registry": "^0.0.7",
+    "@bananapus/core": "^0.0.38",
+    "@bananapus/suckers": "^0.0.27",
     "@jbm/wagmi-config": "*",
     "@wagmi/cli": "^2.1.10",
     "ts-node": "^10.9.2",

@@ -21,18 +21,25 @@ export enum JBCoreContracts {
 }
 
 export enum JB721HookContracts {
-  JBAddressRegistry = "JBAddressRegistry",
   JB721TiersHookDeployer = "JB721TiersHookDeployer",
   JB721TiersHookProjectDeployer = "JB721TiersHookProjectDeployer",
   JB721TiersHook = "JB721TiersHook",
   JB721TiersHookStore = "JB721TiersHookStore",
 }
 
+export enum JBAddressRegistryContracts {
+  JBAddressRegistry = "JBAddressRegistry",
+}
+
 export enum JBSuckerContracts {
   BPSuckerRegistry = "BPSuckerRegistry",
 }
 
-type Contracts = JB721HookContracts | JBCoreContracts | JBSuckerContracts;
+type Contracts =
+  | JB721HookContracts
+  | JBCoreContracts
+  | JBSuckerContracts
+  | JBAddressRegistryContracts;
 
 const SUPPORTED_CHAINS = [
   sepolia,
@@ -61,7 +68,7 @@ const HAS_STATIC_ADDRESS: Contracts[] = [
   JBCoreContracts.JBSplits,
   JBCoreContracts.JBTokens,
   JBCoreContracts.JBPrices,
-  JB721HookContracts.JBAddressRegistry,
+  JBAddressRegistryContracts.JBAddressRegistry,
   JB721HookContracts.JB721TiersHookDeployer,
   JB721HookContracts.JB721TiersHookProjectDeployer,
   JBSuckerContracts.BPSuckerRegistry,
@@ -77,22 +84,14 @@ function nanaSuckersPath(chain: Chain, contractName: Contracts) {
   return `@bananapus/suckers/deployments/nana-suckers-testnet/${chainName}/${contractName}.json`;
 }
 
-/**
- * JBAddressRegistry didnt get deployed in the nana-721-hook-testnet.
- * This function should be temporary fix unitl JBAddressRegistry is included in the nana-721-hook-testnet.
- */
-function legacyNana721HookPath(chain: Chain, contractName: Contracts) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/721-hook/deployments/nana-721-hook/${chainName}/${contractName}.json`;
-}
-
 function nana721HookPath(chain: Chain, contractName: Contracts) {
-  if (contractName === JB721HookContracts.JBAddressRegistry) {
-    return legacyNana721HookPath(chain, contractName);
-  }
-
   const chainName = CHAIN_NAME[chain.id];
   return `@bananapus/721-hook/deployments/nana-721-hook-testnet/${chainName}/${contractName}.json`;
+}
+
+function nanaAddressRegistryPath(chain: Chain, contractName: Contracts) {
+  const chainName = CHAIN_NAME[chain.id];
+  return `@bananapus/address-registry/deployments/nana-address-registry-testnet/${chainName}/${contractName}.json`;
 }
 
 async function importDeployment(importPath: string) {
@@ -149,6 +148,13 @@ async function buildNana721ContractConfig() {
   );
 }
 
+async function buildNanaAddressRegistryContractConfig() {
+  return buildContractConfig(
+    Object.values(JBAddressRegistryContracts),
+    nanaAddressRegistryPath
+  );
+}
+
 async function buildNanaSuckersContractConfig() {
   return buildContractConfig(Object.values(JBSuckerContracts), nanaSuckersPath);
 }
@@ -156,7 +162,13 @@ async function buildNanaSuckersContractConfig() {
 const coreContracts = await buildNanaCoreContractConfig();
 const contracts721 = await buildNana721ContractConfig();
 const contractsSuckers = await buildNanaSuckersContractConfig();
-const contracts = [...coreContracts, ...contracts721, ...contractsSuckers];
+const contractsAddressRegistry = await buildNanaAddressRegistryContractConfig();
+const contracts = [
+  ...coreContracts,
+  ...contracts721,
+  ...contractsSuckers,
+  ...contractsAddressRegistry,
+];
 
 export default {
   out: "src/generated.ts",
