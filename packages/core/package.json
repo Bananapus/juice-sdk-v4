@@ -1,9 +1,10 @@
 {
   "name": "juice-sdk-core",
-  "version": "12.0.1-alpha",
+  "version": "12.1.0-alpha",
   "type": "module",
   "scripts": {
     "generate": "wagmi generate",
+    "postgenerate": "node ./scripts/addJBProjectDeploymentAddresses.js",
     "prebuild": "rm -Rf dist/",
     "build": "npm run generate && npm run build:esm && npm run build:cjs",
     "build:esm": "tsc --project ./tsconfig.json",

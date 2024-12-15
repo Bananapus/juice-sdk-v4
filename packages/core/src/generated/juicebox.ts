@@ -15480,3 +15480,27 @@ export const watchJbTokensTransferCreditsEvent =
     address: jbTokensAddress,
     eventName: 'TransferCredits',
   })
+
+  /**
+   * Addresses to use in JB project deployments.
+   */
+  export const jbProjectDeploymentAddresses = {
+  "JBMultiTerminal": {
+    "84532": "0x1052d3669fb28E9e6738E399c40468e733eD3a8d",
+    "421614": "0x1052d3669fb28E9e6738E399c40468e733eD3a8d",
+    "11155111": "0x1052d3669fb28E9e6738E399c40468e733eD3a8d",
+    "11155420": "0x1052d3669fb28E9e6738E399c40468e733eD3a8d"
+  },
+  "JBController": {
+    "84532": "0x74fc0e2cB3Eb5A2742f8B9F0D6F1263dD3664b5D",
+    "421614": "0x74fc0e2cB3Eb5A2742f8B9F0D6F1263dD3664b5D",
+    "11155111": "0x74fc0e2cB3Eb5A2742f8B9F0D6F1263dD3664b5D",
+    "11155420": "0x74fc0e2cB3Eb5A2742f8B9F0D6F1263dD3664b5D"
+  },
+  "JB721TiersHookStore": {
+    "84532": "0x1704CFc2f93bf49e54a9939e14A471749B12Eee8",
+    "421614": "0x1704CFc2f93bf49e54a9939e14A471749B12Eee8",
+    "11155111": "0x1704CFc2f93bf49e54a9939e14A471749B12Eee8",
+    "11155420": "0x1704CFc2f93bf49e54a9939e14A471749B12Eee8"
+  }
+};
