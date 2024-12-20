@@ -1,5 +1,5 @@
 import { Address, PublicClient, getContract } from "viem";
-import { readBpSuckerRegistrySuckersOf } from "../generated/juicebox.js";
+import { readJbSuckerRegistrySuckersOf } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
 
 export type SuckerPair = {
@@ -12,14 +12,14 @@ export async function getSuckerPairs({
   chainId,
   projectId,
 }: {
-  config: any; // TODO wagmi config
+  config: any; // TODO wagmi config type
   chainId: number;
   projectId: bigint;
 }): Promise<SuckerPair[]> {
   const client = config.getClient({ chainId }) as PublicClient;
 
-  const suckers = await readBpSuckerRegistrySuckersOf(config, {
-    chainId: chainId as any, // TODO fix
+  const suckers = await readJbSuckerRegistrySuckersOf(config, {
+    chainId: chainId as any, // TODO fix type
     args: [projectId],
   });
 

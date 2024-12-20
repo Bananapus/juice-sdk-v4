@@ -6,297 +6,6 @@ import {
 } from 'wagmi/codegen'
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// BPSuckerRegistry
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const bpSuckerRegistryAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'projects',
-        internalType: 'contract IJBProjects',
-        type: 'address',
-      },
-      {
-        name: 'permissions',
-        internalType: 'contract IJBPermissions',
-        type: 'address',
-      },
-      { name: '_initialOwner', internalType: 'address', type: 'address' },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'PERMISSIONS',
-    outputs: [
-      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'PROJECTS',
-    outputs: [
-      { name: '', internalType: 'contract IJBProjects', type: 'address' },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'deployer', internalType: 'address', type: 'address' }],
-    name: 'allowSuckerDeployer',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'deployers', internalType: 'address[]', type: 'address[]' },
-    ],
-    name: 'allowSuckerDeployers',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
-      {
-        name: 'configurations',
-        internalType: 'struct BPSuckerDeployerConfig[]',
-        type: 'tuple[]',
-        components: [
-          {
-            name: 'deployer',
-            internalType: 'contract IBPSuckerDeployer',
-            type: 'address',
-          },
-          {
-            name: 'mappings',
-            internalType: 'struct BPTokenMapping[]',
-            type: 'tuple[]',
-            components: [
-              { name: 'localToken', internalType: 'address', type: 'address' },
-              { name: 'minGas', internalType: 'uint32', type: 'uint32' },
-              { name: 'remoteToken', internalType: 'address', type: 'address' },
-              {
-                name: 'minBridgeAmount',
-                internalType: 'uint256',
-                type: 'uint256',
-              },
-            ],
-          },
-        ],
-      },
-    ],
-    name: 'deploySuckersFor',
-    outputs: [
-      { name: 'suckers', internalType: 'address[]', type: 'address[]' },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
-    name: 'getSuckerPairs',
-    outputs: [
-      {
-        name: '_pairs',
-        internalType: 'struct BPSuckersPair[]',
-        type: 'tuple[]',
-        components: [
-          { name: 'local', internalType: 'address', type: 'address' },
-          { name: 'remote', internalType: 'address', type: 'address' },
-          { name: 'remoteChainId', internalType: 'uint256', type: 'uint256' },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      { name: 'suckerAddress', internalType: 'address', type: 'address' },
-    ],
-    name: 'isSuckerOf',
-    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'jbOwner',
-    outputs: [
-      { name: 'owner', internalType: 'address', type: 'address' },
-      { name: 'projectId', internalType: 'uint88', type: 'uint88' },
-      { name: 'permissionId', internalType: 'uint8', type: 'uint8' },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'owner',
-    outputs: [{ name: '', internalType: 'address', type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'renounceOwnership',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'permissionId', internalType: 'uint8', type: 'uint8' }],
-    name: 'setPermissionId',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'deployer', internalType: 'address', type: 'address' }],
-    name: 'suckerDeployerIsAllowed',
-    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
-    name: 'suckersOf',
-    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
-    name: 'transferOwnership',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
-    name: 'transferOwnershipToProject',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'previousOwner',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newOwner',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'OwnershipTransferred',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'newIndex',
-        internalType: 'uint8',
-        type: 'uint8',
-        indexed: false,
-      },
-    ],
-    name: 'PermissionIdChanged',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'deployer',
-        internalType: 'address',
-        type: 'address',
-        indexed: false,
-      },
-    ],
-    name: 'SuckerDeployerAllowed',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'projectId',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'suckers',
-        internalType: 'address[]',
-        type: 'address[]',
-        indexed: false,
-      },
-    ],
-    name: 'SuckersDeployedFor',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'key', internalType: 'bytes32', type: 'bytes32' }],
-    name: 'EnumerableMapNonexistentKey',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'deployer', internalType: 'address', type: 'address' }],
-    name: 'INVALID_DEPLOYER',
-  },
-  { type: 'error', inputs: [], name: 'INVALID_NEW_OWNER' },
-  { type: 'error', inputs: [], name: 'UNAUTHORIZED' },
-] as const
-
-/**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const bpSuckerRegistryAddress = {
-  84532: '0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2',
-  421614: '0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2',
-  11155111: '0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2',
-  11155420: '0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2',
-} as const
-
-/**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const bpSuckerRegistryConfig = {
-  address: bpSuckerRegistryAddress,
-  abi: bpSuckerRegistryAbi,
-} as const
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JB721TiersHook
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -3781,6 +3490,628 @@ export const jbAddressRegistryConfig = {
   address: jbAddressRegistryAddress,
   abi: jbAddressRegistryAbi,
 } as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBBuybackHook
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbBuybackHookAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
+      },
+      { name: 'prices', internalType: 'contract IJBPrices', type: 'address' },
+      { name: 'weth', internalType: 'contract IWETH9', type: 'address' },
+      { name: 'factory', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'CONTROLLER',
+    outputs: [
+      { name: '', internalType: 'contract IJBController', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_TWAP_SLIPPAGE_TOLERANCE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_TWAP_WINDOW',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_TWAP_SLIPPAGE_TOLERANCE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_TWAP_WINDOW',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PRICES',
+    outputs: [
+      { name: '', internalType: 'contract IJBPrices', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TWAP_SLIPPAGE_DENOMINATOR',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'UNISWAP_V3_FACTORY',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'WETH',
+    outputs: [{ name: '', internalType: 'contract IWETH9', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAfterPayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'payer', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'newlyIssuedTokenCount',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'payerMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'afterPayRecordedWith',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforeCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'surplus',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'useTotalSurplus', internalType: 'bool', type: 'bool' },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforeCashOutRecordedWith',
+    outputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBCashOutHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBCashOutHook',
+            type: 'address',
+          },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforePayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'payer', internalType: 'address', type: 'address' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          { name: 'reservedPercent', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforePayRecordedWith',
+    outputs: [
+      { name: 'weight', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBPayHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBPayHook',
+            type: 'address',
+          },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasMintPermissionFor',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'poolOf',
+    outputs: [
+      { name: '', internalType: 'contract IUniswapV3Pool', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'projectTokenOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'fee', internalType: 'uint24', type: 'uint24' },
+      { name: 'twapWindow', internalType: 'uint32', type: 'uint32' },
+      {
+        name: 'twapSlippageTolerance',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'setPoolFor',
+    outputs: [
+      {
+        name: 'newPool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'newSlippageTolerance',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'setTwapSlippageToleranceOf',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'newWindow', internalType: 'uint32', type: 'uint32' },
+    ],
+    name: 'setTwapWindowOf',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'twapSlippageToleranceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'twapWindowOf',
+    outputs: [{ name: '', internalType: 'uint32', type: 'uint32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'amount0Delta', internalType: 'int256', type: 'int256' },
+      { name: 'amount1Delta', internalType: 'int256', type: 'int256' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'uniswapV3SwapCallback',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'leftoverAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'tokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Mint',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'pool',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'PoolAdded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'amountToSwapWith',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'amountReceived',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Swap',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'oldTolerance',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newTolerance',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'TwapSlippageToleranceChanged',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'oldWindow',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newWindow',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'TwapWindowChanged',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBBuybackHook_CallerNotPool',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'swapAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'totalPaid', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_InsufficientPayAmount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+      { name: 'min', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_InvalidTwapSlippageTolerance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+      { name: 'min', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_InvalidTwapWindow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+    ],
+    name: 'JBBuybackHook_PoolAlreadySet',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_SpecifiedSlippageExceeded',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBBuybackHook_Unauthorized',
+  },
+  { type: 'error', inputs: [], name: 'JBBuybackHook_ZeroProjectToken' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  { type: 'error', inputs: [], name: 'T' },
+] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBController
@@ -8921,6 +9252,1104 @@ export const jbSplitsConfig = {
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBSuckerRegistry
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const jbSuckerRegistryAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      { name: 'initialOwner', internalType: 'address', type: 'address' },
+      { name: 'trusted_forwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'deployer', internalType: 'address', type: 'address' }],
+    name: 'allowSuckerDeployer',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'deployers', internalType: 'address[]', type: 'address[]' },
+    ],
+    name: 'allowSuckerDeployers',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+      {
+        name: 'configurations',
+        internalType: 'struct JBSuckerDeployerConfig[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'deployer',
+            internalType: 'contract IJBSuckerDeployer',
+            type: 'address',
+          },
+          {
+            name: 'mappings',
+            internalType: 'struct JBTokenMapping[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'localToken', internalType: 'address', type: 'address' },
+              { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+              { name: 'remoteToken', internalType: 'address', type: 'address' },
+              {
+                name: 'minBridgeAmount',
+                internalType: 'uint256',
+                type: 'uint256',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    name: 'deploySuckersFor',
+    outputs: [
+      { name: 'suckers', internalType: 'address[]', type: 'address[]' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getSuckerPairs',
+    outputs: [
+      {
+        name: 'pairs',
+        internalType: 'struct JBSuckersPair[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'local', internalType: 'address', type: 'address' },
+          { name: 'remote', internalType: 'address', type: 'address' },
+          { name: 'remoteChainId', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'addr', internalType: 'address', type: 'address' },
+    ],
+    name: 'isSuckerOf',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'sucker', internalType: 'address', type: 'address' },
+    ],
+    name: 'removeDeprecatedSucker',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'deployer', internalType: 'address', type: 'address' }],
+    name: 'removeSuckerDeployer',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'deployer', internalType: 'address', type: 'address' }],
+    name: 'suckerDeployerIsAllowed',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'suckersOf',
+    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sucker',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'configuration',
+        internalType: 'struct JBSuckerDeployerConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployer',
+            internalType: 'contract IJBSuckerDeployer',
+            type: 'address',
+          },
+          {
+            name: 'mappings',
+            internalType: 'struct JBTokenMapping[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'localToken', internalType: 'address', type: 'address' },
+              { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+              { name: 'remoteToken', internalType: 'address', type: 'address' },
+              {
+                name: 'minBridgeAmount',
+                internalType: 'uint256',
+                type: 'uint256',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SuckerDeployedFor',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'deployer',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SuckerDeployerAllowed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'deployer',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SuckerDeployerRemoved',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sucker',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SuckerDeprecated',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'deployer',
+        internalType: 'contract IJBSuckerDeployer',
+        type: 'address',
+      },
+    ],
+    name: 'JBSuckerRegistry_InvalidDeployer',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBSuckerRegistry_RulesetDoesNotAllowAddingSucker',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'sucker', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBSuckerRegistry_SuckerDoesNotBelongToProject',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'sucker', internalType: 'address', type: 'address' },
+      {
+        name: 'suckerState',
+        internalType: 'enum JBSuckerState',
+        type: 'uint8',
+      },
+    ],
+    name: 'JBSuckerRegistry_SuckerIsNotDeprecated',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+] as const
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const jbSuckerRegistryAddress = {
+  84532: '0xf908124d6b59799CB5bC0EA4FA9209461641724f',
+  421614: '0xf908124d6b59799CB5bC0EA4FA9209461641724f',
+  11155111: '0xf908124d6b59799CB5bC0EA4FA9209461641724f',
+  11155420: '0xf908124d6b59799CB5bC0EA4FA9209461641724f',
+} as const
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const jbSuckerRegistryConfig = {
+  address: jbSuckerRegistryAddress,
+  abi: jbSuckerRegistryAbi,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBSwapTerminal
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbSwapTerminalAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'weth', internalType: 'contract IWETH9', type: 'address' },
+      { name: 'tokenOut', internalType: 'address', type: 'address' },
+      {
+        name: 'factory',
+        internalType: 'contract IUniswapV3Factory',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DEFAULT_PROJECT_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'FACTORY',
+    outputs: [
+      { name: '', internalType: 'contract IUniswapV3Factory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'SLIPPAGE_DENOMINATOR',
+    outputs: [{ name: '', internalType: 'uint160', type: 'uint160' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TOKEN_OUT',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'WETH',
+    outputs: [{ name: '', internalType: 'contract IWETH9', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'accountingContextForTokenOf',
+    outputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'accountingContextsOf',
+    outputs: [
+      {
+        name: 'contexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'accountingContexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    name: 'addAccountingContextsFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+    ],
+    name: 'addDefaultPool',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'addToBalanceOf',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+      { name: 'twapWindow', internalType: 'uint32', type: 'uint32' },
+      { name: 'slippageTolerance', internalType: 'uint160', type: 'uint160' },
+    ],
+    name: 'addTwapParamsFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'currentSurplusOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'tokenIn', internalType: 'address', type: 'address' },
+    ],
+    name: 'getPoolFor',
+    outputs: [
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+      { name: 'zeroForOne', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'contract IJBTerminal', type: 'address' },
+    ],
+    name: 'migrateBalanceOf',
+    outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+      { name: 'minReturnedTokens', internalType: 'uint256', type: 'uint256' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'pay',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+    ],
+    name: 'twapParamsOf',
+    outputs: [
+      { name: '', internalType: 'uint32', type: 'uint32' },
+      { name: '', internalType: 'uint160', type: 'uint160' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'amount0Delta', internalType: 'int256', type: 'int256' },
+      { name: 'amount1Delta', internalType: 'int256', type: 'int256' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'uniswapV3SwapCallback',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'returnedFees',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'AddToBalance',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBPayHook',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAfterPayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'payer', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'newlyIssuedTokenCount',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'payerMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'specificationAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'HookAfterRecordPay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'to',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'MigrateTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rulesetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'rulesetCycleNumber',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'payer',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newlyIssuedTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Pay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetAccountingContext',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBSwapTerminal_CallerNotPool',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBSwapTerminal_NoDefaultPoolDefined',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'value', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBSwapTerminal_NoMsgValueAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'allowance', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBSwapTerminal_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBSwapTerminal_SpecifiedSlippageExceeded',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBSwapTerminal_TokenNotAccepted',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBSwapTerminal_UnexpectedCall',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'pool', internalType: 'address', type: 'address' },
+      { name: 'expectedPool', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBSwapTerminal_WrongPool',
+  },
+  { type: 'error', inputs: [], name: 'JBSwapTerminal_ZeroToken' },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  { type: 'error', inputs: [], name: 'T' },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBTerminalStore
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -9832,445 +11261,6 @@ export const jbTokensConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Action
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const readBpSuckerRegistry = /*#__PURE__*/ createReadContract({
-  abi: bpSuckerRegistryAbi,
-  address: bpSuckerRegistryAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"PERMISSIONS"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const readBpSuckerRegistryPermissions = /*#__PURE__*/ createReadContract(
-  {
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'PERMISSIONS',
-  },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"PROJECTS"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const readBpSuckerRegistryProjects = /*#__PURE__*/ createReadContract({
-  abi: bpSuckerRegistryAbi,
-  address: bpSuckerRegistryAddress,
-  functionName: 'PROJECTS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"getSuckerPairs"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const readBpSuckerRegistryGetSuckerPairs =
-  /*#__PURE__*/ createReadContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'getSuckerPairs',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"isSuckerOf"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const readBpSuckerRegistryIsSuckerOf = /*#__PURE__*/ createReadContract({
-  abi: bpSuckerRegistryAbi,
-  address: bpSuckerRegistryAddress,
-  functionName: 'isSuckerOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"jbOwner"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const readBpSuckerRegistryJbOwner = /*#__PURE__*/ createReadContract({
-  abi: bpSuckerRegistryAbi,
-  address: bpSuckerRegistryAddress,
-  functionName: 'jbOwner',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"owner"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const readBpSuckerRegistryOwner = /*#__PURE__*/ createReadContract({
-  abi: bpSuckerRegistryAbi,
-  address: bpSuckerRegistryAddress,
-  functionName: 'owner',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"suckerDeployerIsAllowed"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const readBpSuckerRegistrySuckerDeployerIsAllowed =
-  /*#__PURE__*/ createReadContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'suckerDeployerIsAllowed',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"suckersOf"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const readBpSuckerRegistrySuckersOf = /*#__PURE__*/ createReadContract({
-  abi: bpSuckerRegistryAbi,
-  address: bpSuckerRegistryAddress,
-  functionName: 'suckersOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const writeBpSuckerRegistry = /*#__PURE__*/ createWriteContract({
-  abi: bpSuckerRegistryAbi,
-  address: bpSuckerRegistryAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployer"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const writeBpSuckerRegistryAllowSuckerDeployer =
-  /*#__PURE__*/ createWriteContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'allowSuckerDeployer',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployers"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const writeBpSuckerRegistryAllowSuckerDeployers =
-  /*#__PURE__*/ createWriteContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'allowSuckerDeployers',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"deploySuckersFor"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const writeBpSuckerRegistryDeploySuckersFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'deploySuckersFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"renounceOwnership"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const writeBpSuckerRegistryRenounceOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"setPermissionId"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const writeBpSuckerRegistrySetPermissionId =
-  /*#__PURE__*/ createWriteContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'setPermissionId',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"transferOwnership"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const writeBpSuckerRegistryTransferOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"transferOwnershipToProject"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const writeBpSuckerRegistryTransferOwnershipToProject =
-  /*#__PURE__*/ createWriteContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'transferOwnershipToProject',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const simulateBpSuckerRegistry = /*#__PURE__*/ createSimulateContract({
-  abi: bpSuckerRegistryAbi,
-  address: bpSuckerRegistryAddress,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployer"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const simulateBpSuckerRegistryAllowSuckerDeployer =
-  /*#__PURE__*/ createSimulateContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'allowSuckerDeployer',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployers"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const simulateBpSuckerRegistryAllowSuckerDeployers =
-  /*#__PURE__*/ createSimulateContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'allowSuckerDeployers',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"deploySuckersFor"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const simulateBpSuckerRegistryDeploySuckersFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'deploySuckersFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"renounceOwnership"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const simulateBpSuckerRegistryRenounceOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"setPermissionId"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const simulateBpSuckerRegistrySetPermissionId =
-  /*#__PURE__*/ createSimulateContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'setPermissionId',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"transferOwnership"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const simulateBpSuckerRegistryTransferOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `functionName` set to `"transferOwnershipToProject"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const simulateBpSuckerRegistryTransferOwnershipToProject =
-  /*#__PURE__*/ createSimulateContract({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    functionName: 'transferOwnershipToProject',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link bpSuckerRegistryAbi}__
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const watchBpSuckerRegistryEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `eventName` set to `"OwnershipTransferred"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const watchBpSuckerRegistryOwnershipTransferredEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    eventName: 'OwnershipTransferred',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `eventName` set to `"PermissionIdChanged"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const watchBpSuckerRegistryPermissionIdChangedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    eventName: 'PermissionIdChanged',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeployerAllowed"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const watchBpSuckerRegistrySuckerDeployerAllowedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    eventName: 'SuckerDeployerAllowed',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link bpSuckerRegistryAbi}__ and `eventName` set to `"SuckersDeployedFor"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xba50A4FA419e1c7AdfB7ca0186a01A556c0126c2)
- */
-export const watchBpSuckerRegistrySuckersDeployedForEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: bpSuckerRegistryAbi,
-    address: bpSuckerRegistryAddress,
-    eventName: 'SuckersDeployedFor',
-  })
 
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__
@@ -11878,6 +12868,336 @@ export const watchJbAddressRegistryAddressRegisteredEvent =
     abi: jbAddressRegistryAbi,
     address: jbAddressRegistryAddress,
     eventName: 'AddressRegistered',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__
+ */
+export const readJbBuybackHook = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"CONTROLLER"`
+ */
+export const readJbBuybackHookController = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'CONTROLLER',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"DIRECTORY"`
+ */
+export const readJbBuybackHookDirectory = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'DIRECTORY',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"MAX_TWAP_SLIPPAGE_TOLERANCE"`
+ */
+export const readJbBuybackHookMaxTwapSlippageTolerance =
+  /*#__PURE__*/ createReadContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'MAX_TWAP_SLIPPAGE_TOLERANCE',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"MAX_TWAP_WINDOW"`
+ */
+export const readJbBuybackHookMaxTwapWindow = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'MAX_TWAP_WINDOW',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"MIN_TWAP_SLIPPAGE_TOLERANCE"`
+ */
+export const readJbBuybackHookMinTwapSlippageTolerance =
+  /*#__PURE__*/ createReadContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'MIN_TWAP_SLIPPAGE_TOLERANCE',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"MIN_TWAP_WINDOW"`
+ */
+export const readJbBuybackHookMinTwapWindow = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'MIN_TWAP_WINDOW',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"PERMISSIONS"`
+ */
+export const readJbBuybackHookPermissions = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'PERMISSIONS',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"PRICES"`
+ */
+export const readJbBuybackHookPrices = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'PRICES',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"PROJECTS"`
+ */
+export const readJbBuybackHookProjects = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'PROJECTS',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"TWAP_SLIPPAGE_DENOMINATOR"`
+ */
+export const readJbBuybackHookTwapSlippageDenominator =
+  /*#__PURE__*/ createReadContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'TWAP_SLIPPAGE_DENOMINATOR',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"UNISWAP_V3_FACTORY"`
+ */
+export const readJbBuybackHookUniswapV3Factory =
+  /*#__PURE__*/ createReadContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'UNISWAP_V3_FACTORY',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"WETH"`
+ */
+export const readJbBuybackHookWeth = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'WETH',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"beforeCashOutRecordedWith"`
+ */
+export const readJbBuybackHookBeforeCashOutRecordedWith =
+  /*#__PURE__*/ createReadContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'beforeCashOutRecordedWith',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"beforePayRecordedWith"`
+ */
+export const readJbBuybackHookBeforePayRecordedWith =
+  /*#__PURE__*/ createReadContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'beforePayRecordedWith',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"hasMintPermissionFor"`
+ */
+export const readJbBuybackHookHasMintPermissionFor =
+  /*#__PURE__*/ createReadContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'hasMintPermissionFor',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"poolOf"`
+ */
+export const readJbBuybackHookPoolOf = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'poolOf',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"projectTokenOf"`
+ */
+export const readJbBuybackHookProjectTokenOf = /*#__PURE__*/ createReadContract(
+  { abi: jbBuybackHookAbi, functionName: 'projectTokenOf' },
+)
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"supportsInterface"`
+ */
+export const readJbBuybackHookSupportsInterface =
+  /*#__PURE__*/ createReadContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'supportsInterface',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"twapSlippageToleranceOf"`
+ */
+export const readJbBuybackHookTwapSlippageToleranceOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'twapSlippageToleranceOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"twapWindowOf"`
+ */
+export const readJbBuybackHookTwapWindowOf = /*#__PURE__*/ createReadContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'twapWindowOf',
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__
+ */
+export const writeJbBuybackHook = /*#__PURE__*/ createWriteContract({
+  abi: jbBuybackHookAbi,
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"afterPayRecordedWith"`
+ */
+export const writeJbBuybackHookAfterPayRecordedWith =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'afterPayRecordedWith',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setPoolFor"`
+ */
+export const writeJbBuybackHookSetPoolFor = /*#__PURE__*/ createWriteContract({
+  abi: jbBuybackHookAbi,
+  functionName: 'setPoolFor',
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setTwapSlippageToleranceOf"`
+ */
+export const writeJbBuybackHookSetTwapSlippageToleranceOf =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'setTwapSlippageToleranceOf',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setTwapWindowOf"`
+ */
+export const writeJbBuybackHookSetTwapWindowOf =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'setTwapWindowOf',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"uniswapV3SwapCallback"`
+ */
+export const writeJbBuybackHookUniswapV3SwapCallback =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'uniswapV3SwapCallback',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__
+ */
+export const simulateJbBuybackHook = /*#__PURE__*/ createSimulateContract({
+  abi: jbBuybackHookAbi,
+})
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"afterPayRecordedWith"`
+ */
+export const simulateJbBuybackHookAfterPayRecordedWith =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'afterPayRecordedWith',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setPoolFor"`
+ */
+export const simulateJbBuybackHookSetPoolFor =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'setPoolFor',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setTwapSlippageToleranceOf"`
+ */
+export const simulateJbBuybackHookSetTwapSlippageToleranceOf =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'setTwapSlippageToleranceOf',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setTwapWindowOf"`
+ */
+export const simulateJbBuybackHookSetTwapWindowOf =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'setTwapWindowOf',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"uniswapV3SwapCallback"`
+ */
+export const simulateJbBuybackHookUniswapV3SwapCallback =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbBuybackHookAbi,
+    functionName: 'uniswapV3SwapCallback',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__
+ */
+export const watchJbBuybackHookEvent = /*#__PURE__*/ createWatchContractEvent({
+  abi: jbBuybackHookAbi,
+})
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `eventName` set to `"Mint"`
+ */
+export const watchJbBuybackHookMintEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbBuybackHookAbi,
+    eventName: 'Mint',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `eventName` set to `"PoolAdded"`
+ */
+export const watchJbBuybackHookPoolAddedEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbBuybackHookAbi,
+    eventName: 'PoolAdded',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `eventName` set to `"Swap"`
+ */
+export const watchJbBuybackHookSwapEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbBuybackHookAbi,
+    eventName: 'Swap',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `eventName` set to `"TwapSlippageToleranceChanged"`
+ */
+export const watchJbBuybackHookTwapSlippageToleranceChangedEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbBuybackHookAbi,
+    eventName: 'TwapSlippageToleranceChanged',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `eventName` set to `"TwapWindowChanged"`
+ */
+export const watchJbBuybackHookTwapWindowChangedEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbBuybackHookAbi,
+    eventName: 'TwapWindowChanged',
   })
 
 /**
@@ -14852,6 +16172,866 @@ export const watchJbSplitsSetSplitEvent =
   })
 
 /**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistry = /*#__PURE__*/ createReadContract({
+  abi: jbSuckerRegistryAbi,
+  address: jbSuckerRegistryAddress,
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"DIRECTORY"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistryDirectory = /*#__PURE__*/ createReadContract({
+  abi: jbSuckerRegistryAbi,
+  address: jbSuckerRegistryAddress,
+  functionName: 'DIRECTORY',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"PERMISSIONS"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistryPermissions = /*#__PURE__*/ createReadContract(
+  {
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'PERMISSIONS',
+  },
+)
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"PROJECTS"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistryProjects = /*#__PURE__*/ createReadContract({
+  abi: jbSuckerRegistryAbi,
+  address: jbSuckerRegistryAddress,
+  functionName: 'PROJECTS',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"getSuckerPairs"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistryGetSuckerPairs =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'getSuckerPairs',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"isSuckerOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistryIsSuckerOf = /*#__PURE__*/ createReadContract({
+  abi: jbSuckerRegistryAbi,
+  address: jbSuckerRegistryAddress,
+  functionName: 'isSuckerOf',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"isTrustedForwarder"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistryIsTrustedForwarder =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'isTrustedForwarder',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"owner"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistryOwner = /*#__PURE__*/ createReadContract({
+  abi: jbSuckerRegistryAbi,
+  address: jbSuckerRegistryAddress,
+  functionName: 'owner',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"suckerDeployerIsAllowed"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistrySuckerDeployerIsAllowed =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'suckerDeployerIsAllowed',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"suckersOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistrySuckersOf = /*#__PURE__*/ createReadContract({
+  abi: jbSuckerRegistryAbi,
+  address: jbSuckerRegistryAddress,
+  functionName: 'suckersOf',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"trustedForwarder"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const readJbSuckerRegistryTrustedForwarder =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'trustedForwarder',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const writeJbSuckerRegistry = /*#__PURE__*/ createWriteContract({
+  abi: jbSuckerRegistryAbi,
+  address: jbSuckerRegistryAddress,
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployer"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const writeJbSuckerRegistryAllowSuckerDeployer =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'allowSuckerDeployer',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployers"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const writeJbSuckerRegistryAllowSuckerDeployers =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'allowSuckerDeployers',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"deploySuckersFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const writeJbSuckerRegistryDeploySuckersFor =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'deploySuckersFor',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeDeprecatedSucker"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const writeJbSuckerRegistryRemoveDeprecatedSucker =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'removeDeprecatedSucker',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeSuckerDeployer"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const writeJbSuckerRegistryRemoveSuckerDeployer =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'removeSuckerDeployer',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"renounceOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const writeJbSuckerRegistryRenounceOwnership =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const writeJbSuckerRegistryTransferOwnership =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const simulateJbSuckerRegistry = /*#__PURE__*/ createSimulateContract({
+  abi: jbSuckerRegistryAbi,
+  address: jbSuckerRegistryAddress,
+})
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployer"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const simulateJbSuckerRegistryAllowSuckerDeployer =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'allowSuckerDeployer',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployers"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const simulateJbSuckerRegistryAllowSuckerDeployers =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'allowSuckerDeployers',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"deploySuckersFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const simulateJbSuckerRegistryDeploySuckersFor =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'deploySuckersFor',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeDeprecatedSucker"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const simulateJbSuckerRegistryRemoveDeprecatedSucker =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'removeDeprecatedSucker',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeSuckerDeployer"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const simulateJbSuckerRegistryRemoveSuckerDeployer =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'removeSuckerDeployer',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"renounceOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const simulateJbSuckerRegistryRenounceOwnership =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const simulateJbSuckerRegistryTransferOwnership =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const watchJbSuckerRegistryEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"OwnershipTransferred"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const watchJbSuckerRegistryOwnershipTransferredEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    eventName: 'OwnershipTransferred',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeployedFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const watchJbSuckerRegistrySuckerDeployedForEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    eventName: 'SuckerDeployedFor',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeployerAllowed"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const watchJbSuckerRegistrySuckerDeployerAllowedEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    eventName: 'SuckerDeployerAllowed',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeployerRemoved"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const watchJbSuckerRegistrySuckerDeployerRemovedEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    eventName: 'SuckerDeployerRemoved',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeprecated"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xf908124d6b59799CB5bC0EA4FA9209461641724f)
+ */
+export const watchJbSuckerRegistrySuckerDeprecatedEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    eventName: 'SuckerDeprecated',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__
+ */
+export const readJbSwapTerminal = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"DEFAULT_PROJECT_ID"`
+ */
+export const readJbSwapTerminalDefaultProjectId =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'DEFAULT_PROJECT_ID',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"DIRECTORY"`
+ */
+export const readJbSwapTerminalDirectory = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'DIRECTORY',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"FACTORY"`
+ */
+export const readJbSwapTerminalFactory = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'FACTORY',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"PERMISSIONS"`
+ */
+export const readJbSwapTerminalPermissions = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'PERMISSIONS',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"PERMIT2"`
+ */
+export const readJbSwapTerminalPermit2 = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'PERMIT2',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"PROJECTS"`
+ */
+export const readJbSwapTerminalProjects = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'PROJECTS',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"SLIPPAGE_DENOMINATOR"`
+ */
+export const readJbSwapTerminalSlippageDenominator =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'SLIPPAGE_DENOMINATOR',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"TOKEN_OUT"`
+ */
+export const readJbSwapTerminalTokenOut = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'TOKEN_OUT',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"WETH"`
+ */
+export const readJbSwapTerminalWeth = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'WETH',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"accountingContextForTokenOf"`
+ */
+export const readJbSwapTerminalAccountingContextForTokenOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'accountingContextForTokenOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"accountingContextsOf"`
+ */
+export const readJbSwapTerminalAccountingContextsOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'accountingContextsOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"currentSurplusOf"`
+ */
+export const readJbSwapTerminalCurrentSurplusOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'currentSurplusOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"getPoolFor"`
+ */
+export const readJbSwapTerminalGetPoolFor = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'getPoolFor',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"owner"`
+ */
+export const readJbSwapTerminalOwner = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'owner',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"supportsInterface"`
+ */
+export const readJbSwapTerminalSupportsInterface =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'supportsInterface',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"twapParamsOf"`
+ */
+export const readJbSwapTerminalTwapParamsOf = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'twapParamsOf',
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__
+ */
+export const writeJbSwapTerminal = /*#__PURE__*/ createWriteContract({
+  abi: jbSwapTerminalAbi,
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addAccountingContextsFor"`
+ */
+export const writeJbSwapTerminalAddAccountingContextsFor =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'addAccountingContextsFor',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addDefaultPool"`
+ */
+export const writeJbSwapTerminalAddDefaultPool =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'addDefaultPool',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addToBalanceOf"`
+ */
+export const writeJbSwapTerminalAddToBalanceOf =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'addToBalanceOf',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addTwapParamsFor"`
+ */
+export const writeJbSwapTerminalAddTwapParamsFor =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'addTwapParamsFor',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"migrateBalanceOf"`
+ */
+export const writeJbSwapTerminalMigrateBalanceOf =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'migrateBalanceOf',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"pay"`
+ */
+export const writeJbSwapTerminalPay = /*#__PURE__*/ createWriteContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'pay',
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"renounceOwnership"`
+ */
+export const writeJbSwapTerminalRenounceOwnership =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"transferOwnership"`
+ */
+export const writeJbSwapTerminalTransferOwnership =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"uniswapV3SwapCallback"`
+ */
+export const writeJbSwapTerminalUniswapV3SwapCallback =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'uniswapV3SwapCallback',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__
+ */
+export const simulateJbSwapTerminal = /*#__PURE__*/ createSimulateContract({
+  abi: jbSwapTerminalAbi,
+})
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addAccountingContextsFor"`
+ */
+export const simulateJbSwapTerminalAddAccountingContextsFor =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'addAccountingContextsFor',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addDefaultPool"`
+ */
+export const simulateJbSwapTerminalAddDefaultPool =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'addDefaultPool',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addToBalanceOf"`
+ */
+export const simulateJbSwapTerminalAddToBalanceOf =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'addToBalanceOf',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addTwapParamsFor"`
+ */
+export const simulateJbSwapTerminalAddTwapParamsFor =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'addTwapParamsFor',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"migrateBalanceOf"`
+ */
+export const simulateJbSwapTerminalMigrateBalanceOf =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'migrateBalanceOf',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"pay"`
+ */
+export const simulateJbSwapTerminalPay = /*#__PURE__*/ createSimulateContract({
+  abi: jbSwapTerminalAbi,
+  functionName: 'pay',
+})
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"renounceOwnership"`
+ */
+export const simulateJbSwapTerminalRenounceOwnership =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"transferOwnership"`
+ */
+export const simulateJbSwapTerminalTransferOwnership =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"uniswapV3SwapCallback"`
+ */
+export const simulateJbSwapTerminalUniswapV3SwapCallback =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminalAbi,
+    functionName: 'uniswapV3SwapCallback',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__
+ */
+export const watchJbSwapTerminalEvent = /*#__PURE__*/ createWatchContractEvent({
+  abi: jbSwapTerminalAbi,
+})
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"AddToBalance"`
+ */
+export const watchJbSwapTerminalAddToBalanceEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminalAbi,
+    eventName: 'AddToBalance',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"HookAfterRecordPay"`
+ */
+export const watchJbSwapTerminalHookAfterRecordPayEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminalAbi,
+    eventName: 'HookAfterRecordPay',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"MigrateTerminal"`
+ */
+export const watchJbSwapTerminalMigrateTerminalEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminalAbi,
+    eventName: 'MigrateTerminal',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"OwnershipTransferred"`
+ */
+export const watchJbSwapTerminalOwnershipTransferredEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminalAbi,
+    eventName: 'OwnershipTransferred',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"Pay"`
+ */
+export const watchJbSwapTerminalPayEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminalAbi,
+    eventName: 'Pay',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"SetAccountingContext"`
+ */
+export const watchJbSwapTerminalSetAccountingContextEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminalAbi,
+    eventName: 'SetAccountingContext',
+  })
+
+/**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__
  */
 export const readJbTerminalStore = /*#__PURE__*/ createReadContract({
@@ -15502,5 +17682,17 @@ export const watchJbTokensTransferCreditsEvent =
     "421614": "0x1704CFc2f93bf49e54a9939e14A471749B12Eee8",
     "11155111": "0x1704CFc2f93bf49e54a9939e14A471749B12Eee8",
     "11155420": "0x1704CFc2f93bf49e54a9939e14A471749B12Eee8"
+  },
+  "JBBuybackHook": {
+    "84532": "0x89Fb9d64EBD4113caA01ef9e7f3a8F39Ff81f3c6",
+    "421614": "0xcD9E95989c99Aa915F6f38B9CF9a171e0327Ca8D",
+    "11155111": "0x737372B9df234401F0A1d9569238491a0b742231",
+    "11155420": "0x89Fb9d64EBD4113caA01ef9e7f3a8F39Ff81f3c6"
+  },
+  "JBSwapTerminal": {
+    "84532": "0x6f3F8c5FE34E8D63713128b58a62986bf007CA56",
+    "421614": "0xB00F24a6485f9806dC50cd58e2ddb9E8aDEFe876",
+    "11155111": "0x7E3D9203cda750839986F8A8C539d79bcdab9d17",
+    "11155420": "0x6f3F8c5FE34E8D63713128b58a62986bf007CA56"
   }
 };

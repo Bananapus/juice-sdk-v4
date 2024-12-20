@@ -1670,6 +1670,1186 @@ export const revDeployerConfig = {
 } as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// REVLoans
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const revLoansAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'revId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'fallback', stateMutability: 'payable' },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'LOAN_LIQUIDATION_DURATION',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REV_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REV_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'SOURCE_MIN_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+      { name: 'borrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'collateralAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'borrowFrom',
+    outputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'collateralAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'borrowableAmountFrom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'determineSourceFeeAmount',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getApproved',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'operator', internalType: 'address', type: 'address' },
+    ],
+    name: 'isApprovedForAll',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBPayoutTerminal',
+        type: 'address',
+      },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'isLoanSourceOf',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'startingLoanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'count', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'liquidateExpiredLoansFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loanOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loanSourcesOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct REVLoanSource[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'numberOfLoansFor',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ownerOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralAmountToTransfer',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+      { name: 'borrowAmount', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralAmountToAdd',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'reallocateCollateralFromLoan',
+    outputs: [
+      { name: 'reallocatedLoanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'newLoanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'reallocatedLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'newLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'borrowAmount', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralAmountToReturn',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      {
+        name: 'allowance',
+        internalType: 'struct JBSingleAllowance',
+        type: 'tuple',
+        components: [
+          { name: 'sigDeadline', internalType: 'uint256', type: 'uint256' },
+          { name: 'amount', internalType: 'uint160', type: 'uint160' },
+          { name: 'expiration', internalType: 'uint48', type: 'uint48' },
+          { name: 'nonce', internalType: 'uint48', type: 'uint48' },
+          { name: 'signature', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'repayLoan',
+    outputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'revnetIdOfLoanWith',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'approved', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'setApprovalForAll',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+      },
+    ],
+    name: 'setTokenUriResolver',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'tokenURI',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'tokenUriResolver',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBPayoutTerminal',
+        type: 'address',
+      },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'totalBorrowedFrom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'totalCollateralOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'approved',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Approval',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'operator',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'approved', internalType: 'bool', type: 'bool', indexed: false },
+    ],
+    name: 'ApprovalForAll',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'borrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'collateralAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address payable',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Borrow',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Liquidate',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reallocatedLoanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reallocatedLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'removedCollateralAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'ReallocateCollateral',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'paidOffLoanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'paidOffLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'borrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sourceFeeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'collateralAmountToReturn',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address payable',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'RepayLoan',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetTokenUriResolver',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address', indexed: true },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Transfer',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'ERC721IncorrectOwner',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC721InsufficientApproval',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'approver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidApprover',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'operator', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOperator',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'receiver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidReceiver',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'sender', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidSender',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ERC721NonexistentToken',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_AmountNotSpecified' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'collateralToReturn', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanCollateral', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_CollateralExceedsLoan',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_CollateralRequired' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+      { name: 'min', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_InvalidPrepaidFeePercent',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'timeSinceLoanCreated',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'loanLiquidationDuration',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'REVLoans_LoanExpired',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_NoMsgValueAllowed' },
+  { type: 'error', inputs: [], name: 'REVLoans_NotEnoughCollateral' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+      { name: 'limit', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_OverflowAlert',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'allowanceAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'requiredAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'caller', internalType: 'address', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVLoans_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const revLoansAddress = {
+  84532: '0x21F07184D898fE8fba811978F2c8116DC405F238',
+  421614: '0x21F07184D898fE8fba811978F2c8116DC405F238',
+  11155111: '0x21F07184D898fE8fba811978F2c8116DC405F238',
+  11155420: '0x21F07184D898fE8fba811978F2c8116DC405F238',
+} as const
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const revLoansConfig = {
+  address: revLoansAddress,
+  abi: revLoansAbi,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // React
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2380,4 +3560,924 @@ export const useWatchRevDeployerStoreAutoIssuanceAmountEvent =
     abi: revDeployerAbi,
     address: revDeployerAddress,
     eventName: 'StoreAutoIssuanceAmount',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoans = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"LOAN_LIQUIDATION_DURATION"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansLoanLiquidationDuration =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'LOAN_LIQUIDATION_DURATION',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"MAX_PREPAID_FEE_PERCENT"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansMaxPrepaidFeePercent =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'MAX_PREPAID_FEE_PERCENT',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"PERMIT2"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansPermit2 = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'PERMIT2',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"PROJECTS"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansProjects = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'PROJECTS',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"REV_ID"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansRevId = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'REV_ID',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"REV_PREPAID_FEE_PERCENT"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansRevPrepaidFeePercent =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'REV_PREPAID_FEE_PERCENT',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"SOURCE_MIN_PREPAID_FEE_PERCENT"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansSourceMinPrepaidFeePercent =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'SOURCE_MIN_PREPAID_FEE_PERCENT',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"balanceOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansBalanceOf = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'balanceOf',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"borrowableAmountFrom"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansBorrowableAmountFrom =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'borrowableAmountFrom',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"determineSourceFeeAmount"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansDetermineSourceFeeAmount =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'determineSourceFeeAmount',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"getApproved"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansGetApproved = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'getApproved',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"isApprovedForAll"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansIsApprovedForAll =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'isApprovedForAll',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"isLoanSourceOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansIsLoanSourceOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'isLoanSourceOf',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"isTrustedForwarder"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansIsTrustedForwarder =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'isTrustedForwarder',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"loanOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansLoanOf = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'loanOf',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"loanSourcesOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansLoanSourcesOf = /*#__PURE__*/ createUseReadContract(
+  { abi: revLoansAbi, address: revLoansAddress, functionName: 'loanSourcesOf' },
+)
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"name"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansName = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'name',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"numberOfLoansFor"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansNumberOfLoansFor =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'numberOfLoansFor',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"owner"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansOwner = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'owner',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"ownerOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansOwnerOf = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'ownerOf',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"revnetIdOfLoanWith"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansRevnetIdOfLoanWith =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'revnetIdOfLoanWith',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"supportsInterface"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansSupportsInterface =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'supportsInterface',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"symbol"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansSymbol = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'symbol',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"tokenURI"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansTokenUri = /*#__PURE__*/ createUseReadContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'tokenURI',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"tokenUriResolver"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansTokenUriResolver =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'tokenUriResolver',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"totalBorrowedFrom"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansTotalBorrowedFrom =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'totalBorrowedFrom',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"totalCollateralOf"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansTotalCollateralOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'totalCollateralOf',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"trustedForwarder"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useReadRevLoansTrustedForwarder =
+  /*#__PURE__*/ createUseReadContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'trustedForwarder',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoans = /*#__PURE__*/ createUseWriteContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"approve"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansApprove = /*#__PURE__*/ createUseWriteContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'approve',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"borrowFrom"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansBorrowFrom = /*#__PURE__*/ createUseWriteContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'borrowFrom',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"liquidateExpiredLoansFrom"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansLiquidateExpiredLoansFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'liquidateExpiredLoansFrom',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"reallocateCollateralFromLoan"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansReallocateCollateralFromLoan =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'reallocateCollateralFromLoan',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"renounceOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansRenounceOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"repayLoan"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansRepayLoan = /*#__PURE__*/ createUseWriteContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+  functionName: 'repayLoan',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"safeTransferFrom"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansSafeTransferFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'safeTransferFrom',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"setApprovalForAll"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansSetApprovalForAll =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'setApprovalForAll',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"setTokenUriResolver"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansSetTokenUriResolver =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'setTokenUriResolver',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"transferFrom"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansTransferFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'transferFrom',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWriteRevLoansTransferOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoans = /*#__PURE__*/ createUseSimulateContract({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+})
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"approve"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansApprove =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'approve',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"borrowFrom"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansBorrowFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'borrowFrom',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"liquidateExpiredLoansFrom"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansLiquidateExpiredLoansFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'liquidateExpiredLoansFrom',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"reallocateCollateralFromLoan"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansReallocateCollateralFromLoan =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'reallocateCollateralFromLoan',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"renounceOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansRenounceOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"repayLoan"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansRepayLoan =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'repayLoan',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"safeTransferFrom"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansSafeTransferFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'safeTransferFrom',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"setApprovalForAll"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansSetApprovalForAll =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'setApprovalForAll',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"setTokenUriResolver"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansSetTokenUriResolver =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'setTokenUriResolver',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"transferFrom"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansTransferFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'transferFrom',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link revLoansAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useSimulateRevLoansTransferOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revLoansAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWatchRevLoansEvent = /*#__PURE__*/ createUseWatchContractEvent({
+  abi: revLoansAbi,
+  address: revLoansAddress,
+})
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revLoansAbi}__ and `eventName` set to `"Approval"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWatchRevLoansApprovalEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    eventName: 'Approval',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revLoansAbi}__ and `eventName` set to `"ApprovalForAll"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWatchRevLoansApprovalForAllEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    eventName: 'ApprovalForAll',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revLoansAbi}__ and `eventName` set to `"Borrow"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWatchRevLoansBorrowEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    eventName: 'Borrow',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revLoansAbi}__ and `eventName` set to `"Liquidate"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWatchRevLoansLiquidateEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    eventName: 'Liquidate',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revLoansAbi}__ and `eventName` set to `"OwnershipTransferred"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWatchRevLoansOwnershipTransferredEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    eventName: 'OwnershipTransferred',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revLoansAbi}__ and `eventName` set to `"ReallocateCollateral"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWatchRevLoansReallocateCollateralEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    eventName: 'ReallocateCollateral',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revLoansAbi}__ and `eventName` set to `"RepayLoan"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWatchRevLoansRepayLoanEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    eventName: 'RepayLoan',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revLoansAbi}__ and `eventName` set to `"SetTokenUriResolver"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWatchRevLoansSetTokenUriResolverEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    eventName: 'SetTokenUriResolver',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link revLoansAbi}__ and `eventName` set to `"Transfer"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x21F07184D898fE8fba811978F2c8116DC405F238)
+ */
+export const useWatchRevLoansTransferEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: revLoansAbi,
+    address: revLoansAddress,
+    eventName: 'Transfer',
   })

@@ -21,8 +21,20 @@ function nana721HookPath(chain, contractName) {
   return `@bananapus/721-hook/deployments/nana-721-hook-testnet/${chainName}/${contractName}.json`;
 }
 
+function nanaBuybackHookPath(chain, contractName) {
+  const chainName = CHAIN_NAME[chain.id];
+  return `@bananapus/buyback-hook/deployments/nana-buyback-hook-testnet/${chainName}/${contractName}.json`;
+}
+
+function nanaSwapTerminalPath(chain, contractName) {
+  const chainName = CHAIN_NAME[chain.id];
+  return `@bananapus/swap-terminal/deployments/nana-swap-terminal-testnet/${chainName}/${contractName}.json`;
+}
+
 const CORE_CONTRACTS = ["JBMultiTerminal", "JBController"];
 const CONTRACTS_721 = ["JB721TiersHookStore"];
+const CONTRACTS_BUYBACK = ["JBBuybackHook"];
+const CONTRACTS_SWAP = ["JBSwapTerminal"];
 
 async function buildDefaultAddresses() {
   const addresses = {};
@@ -41,6 +53,28 @@ async function buildDefaultAddresses() {
 
     for (const chainId of Object.keys(CHAIN_NAME)) {
       const path = nana721HookPath({ id: chainId }, contract);
+      const data = await import(path, { assert: { type: "json" } });
+      contractAddresses[chainId] = data.default.address;
+    }
+    addresses[contract] = contractAddresses;
+  }
+
+  for (const contract of CONTRACTS_BUYBACK) {
+    const contractAddresses = {};
+
+    for (const chainId of Object.keys(CHAIN_NAME)) {
+      const path = nanaBuybackHookPath({ id: chainId }, contract);
+      const data = await import(path, { assert: { type: "json" } });
+      contractAddresses[chainId] = data.default.address;
+    }
+    addresses[contract] = contractAddresses;
+  }
+
+  for (const contract of CONTRACTS_SWAP) {
+    const contractAddresses = {};
+
+    for (const chainId of Object.keys(CHAIN_NAME)) {
+      const path = nanaSwapTerminalPath({ id: chainId }, contract);
       const data = await import(path, { assert: { type: "json" } });
       contractAddresses[chainId] = data.default.address;
     }
