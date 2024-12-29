@@ -86,23 +86,27 @@ export const getTokenBtoAQuote = <D extends number>(
 /**
  * Returns the ETH value (in wei) that a given [tokensAmount] can be redeemed for.
  *
- * @see https://www.desmos.com/calculator/sp9ru6zbpk
- * y = ox/s * ( r + (x(1 - r)/s) )
+ * @note Implements the formula:
+ * ```
+ * y = ox/s * ( (1 - r) + (x * r /s) )
+ * ```
  *
  * Where:
- * - y = redeemable amount
- * - o = overflow (primaryTerminalCurrentOverflow)
- * - x = tokenAmount
- * - s = total supply of token (realTotalTokenSupply)
- * - r = cashOutTaxRate
+ * - `y` = redeemable amount
+ * - `o` = overflow (primaryTerminalCurrentOverflow)
+ * - `x` = tokenAmount
+ * - `s` = total supply of token (realTotalTokenSupply)
+ * - `r` = cashOutTaxRate
  *
- * @implements JBSingleTokenPaymentTerminalStore._reclaimableOverflowDuring (https://github.com/jbx-protocol/juice-contracts-v3/blob/main/contracts/JBSingleTokenPaymentTerminalStore.sol#L688)
+ * @implements JBCashOuts.cashOutFrom
+ * @see https://github.com/Bananapus/nana-core/blob/44ae030f910e4a40a9a70a1eccf67cb0cf0c80f9/src/libraries/JBCashOuts.sol
+ * @see https://www.desmos.com/calculator/sp9ru6zbpk
  * @returns amount in ETH
  */
 export const getTokenCashOutQuoteEth = (
   tokensAmount: bigint,
   {
-    overflowWei,
+    overflowWei, // surplus
     totalSupply,
     cashOutTaxRate,
     tokensReserved,
@@ -113,21 +117,58 @@ export const getTokenCashOutQuoteEth = (
     tokensReserved: bigint;
   }
 ) => {
-  // totalOutstandingTokensOf in contract.
+  // alias names, to match the contract's implementation for easier manual comparison.
+  const surplus = overflowWei;
+  const cashOutCount = tokensAmount;
+
+  // If the cash out tax rate is the max, no surplus can be reclaimed.
+  if (cashOutTaxRate === MAX_CASH_OUT_TAX_RATE) {
+    return 0;
+  }
+
+  // If the total supply is being cashed out, return the entire surplus.
+  if (cashOutCount >= totalSupply) {
+    return surplus;
+  }
+
+  //
+  /**
+   * totalOutstandingTokensOf in contract.
+   * @note this deviates from the contract's `cashOutFrom` implementation.
+   */
   const realTotalSupply = totalSupply + tokensReserved;
 
-  // base = ox/s
-  const base = (overflowWei * tokensAmount) / realTotalSupply;
+  /**
+   * Get a reference to the linear proportion.
+   * ```
+   * base = ox/s
+   * ```
+   */
+  const base = (surplus * cashOutCount) / realTotalSupply;
 
-  if (cashOutTaxRate === MAX_CASH_OUT_TAX_RATE) return base;
+  /**
+   * These conditions are all part of the same curve.
+   * Edge conditions are separated to minimize the operations performed in those cases.
+   */
+  if (cashOutTaxRate === 0) {
+    return base;
+  }
 
-  const frac =
-    (tokensAmount * BigInt(MAX_CASH_OUT_TAX_RATE - cashOutTaxRate)) / realTotalSupply;
+  const frac = (BigInt(cashOutTaxRate) * cashOutCount) / realTotalSupply;
 
-  // numerator = r + (x(1 - r)/s)
-  const numerator = BigInt(cashOutTaxRate) + frac;
-  // y = base * numerator ==> ox/s * ( r + (x(1 - r)/s) )
+  /**
+   * ```
+   * numerator = (1 - r) + (x * r / s)
+   * ```
+   */
+  const numerator = BigInt(MAX_CASH_OUT_TAX_RATE - cashOutTaxRate) + frac;
+
+  /**
+   * ```
+   * y = base * numerator ==> ox/s * ( (1 - r) + (x * r / s) )
+   * ```
+   */
   const y = (base * numerator) / BigInt(MAX_CASH_OUT_TAX_RATE);
 
-  return y / 10n;
+  return y;
 };

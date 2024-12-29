@@ -1,4 +1,4 @@
-import { NATIVE_TOKEN, jbDirectoryAddress } from "juice-sdk-core";
+import { NATIVE_TOKEN, debug } from "juice-sdk-core";
 import { PropsWithChildren, createContext, useContext } from "react";
 import { Address, isAddressEqual, zeroAddress } from "viem";
 import {
@@ -9,9 +9,8 @@ import {
   useReadJbDirectoryControllerOf,
   useReadJbDirectoryPrimaryTerminalOf,
 } from "../../generated/juicebox";
-import { AsyncData, AsyncDataNone } from "../types";
-import { debug } from "../../debug";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
+import { AsyncData, AsyncDataNone } from "../types";
 
 /**
  * Context for project-specific contracts.

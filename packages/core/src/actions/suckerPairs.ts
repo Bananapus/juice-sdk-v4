@@ -67,7 +67,6 @@ export async function resolveSuckers({
 }) {
   const initialPairs = await getSuckerPairs({ config, chainId, projectId });
   const pairs = [...initialPairs];
-  console.log("initialPairs", pairs);
 
   await Promise.all(
     initialPairs.map(async (pair) => {
@@ -77,8 +76,6 @@ export async function resolveSuckers({
           chainId: Number(pair.peerChainId),
           projectId: pair.projectId,
         });
-
-        console.log("peer pairs resolved for", pair, peerPairs);
 
         peerPairs.forEach((pair) => {
           if (!pairs.some((x) => x.peerChainId === pair.peerChainId)) {
@@ -90,8 +87,6 @@ export async function resolveSuckers({
       }
     })
   );
-
-  console.log("pairs final", pairs);
 
   return pairs;
 }

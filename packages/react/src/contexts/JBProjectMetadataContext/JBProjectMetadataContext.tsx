@@ -5,7 +5,7 @@ import { useChainId, usePublicClient } from "wagmi";
 import { useQuery } from "wagmi/query";
 import { useJBContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
-import { debug } from "../../debug";
+import { debug } from "juice-sdk-core";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
 
 export type JBProjectMetadataContext = {

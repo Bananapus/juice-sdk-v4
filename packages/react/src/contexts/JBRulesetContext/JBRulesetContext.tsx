@@ -13,7 +13,7 @@ import { useJBContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
 import { ContractFunctionReturnType } from "viem";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
-import { debug } from "src/debug";
+import { debug } from "juice-sdk-core";
 
 /**
  * Context for the current ruleset of a project.

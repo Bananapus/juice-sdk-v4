@@ -1,5 +1,5 @@
 import { PropsWithChildren, createContext, useContext } from "react";
-import { debug } from "../../debug";
+import { debug } from "juice-sdk-core";
 import { jbDirectoryAddress } from "../../generated/juicebox";
 import { sepolia } from "viem/chains";
 

@@ -1,6 +1,6 @@
 import { resolveSuckers } from "juice-sdk-core";
 import { useJBChainId } from "src/contexts/JBChainContext/JBChainContext";
-import { debug } from "src/debug";
+import { debug } from "juice-sdk-core";
 import { useConfig } from "wagmi";
 import { useQuery } from "wagmi/query";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";

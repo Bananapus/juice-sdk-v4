@@ -11,6 +11,7 @@ import {
   jbAddressRegistryAbi,
   jbAddressRegistryAddress,
 } from "../generated/juicebox.js";
+import { debug } from "src/utils/debug.js";
 
 /**
  * Find the 721 data hook for a given project and ruleset.
@@ -49,7 +50,7 @@ export async function find721DataHook(
     client: publicClient,
   });
 
-  console.log("🧃 getHookSpecifications::args", {
+  debug("🧃 getHookSpecifications::args", {
     dataHookAddress: args.dataHookAddress,
     projectId: args.projectId,
     rulesetId: args.rulesetId,
@@ -64,7 +65,7 @@ export async function find721DataHook(
   const res = await Promise.all(
     hookSpecs.map(async (h) => {
       const deployerOf = await registry.read.deployerOf([h.hook]);
-      console.log("🧃 deployerOf", {
+      debug("🧃 deployerOf", {
         hook: h.hook,
         deployerOf,
         deployerAddress,
@@ -114,7 +115,7 @@ export async function getHookSpecifications(
     },
   ]);
 
-  console.log("🧃 getHookSpecifications", { args, hookSpecifications });
+  debug("🧃 getHookSpecifications", { args, hookSpecifications });
 
   return hookSpecifications;
 }

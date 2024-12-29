@@ -1,7 +1,7 @@
 import { DEFAULT_ALLOW_OVERSPENDING, createHookMetadata } from "juice-sdk-core";
 import { Address, Hash, encodeAbiParameters } from "viem";
 import { use721HookMetadataId } from "./jb721Hook/use721HookMetadataId";
-import { debug } from "src/debug";
+import { debug } from "juice-sdk-core";
 
 interface Jb721HookPayMetadata {
   tierIdsToMint: bigint[];
