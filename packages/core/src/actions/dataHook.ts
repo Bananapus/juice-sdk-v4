@@ -11,7 +11,7 @@ import {
   jbAddressRegistryAbi,
   jbAddressRegistryAddress,
 } from "../generated/juicebox.js";
-import { debug } from "src/utils/debug.js";
+import { debug } from "../utils/debug.js";
 
 /**
  * Find the 721 data hook for a given project and ruleset.
