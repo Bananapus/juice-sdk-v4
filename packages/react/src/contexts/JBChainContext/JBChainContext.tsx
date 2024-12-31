@@ -9,18 +9,20 @@ export type JBChainId = keyof typeof jbDirectoryAddress;
  * Context for project-specific contracts.
  */
 export type JBChainContextData = {
-  chainId: JBChainId;
+  chainId: JBChainId | undefined;
 };
 
 /**
  * Context for project-specific contracts.
  */
 export const JBChainContext = createContext<JBChainContextData>({
-  chainId: sepolia.id,
+  // Force the consumer/client to specify a chainId
+  chainId: undefined,
 });
 
-export function useJBChainId(): JBChainId {
-  return useContext(JBChainContext).chainId;
+export function useJBChainId(): JBChainId | undefined {
+  const jbChainId = useContext(JBChainContext).chainId;
+  return jbChainId;
 }
 
 /**
