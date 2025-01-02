@@ -31,7 +31,7 @@ export async function getSuckerPairs({
         client,
       });
 
-      const peer = (await suckerContract.read.PEER()) as Address | undefined;
+      const peer = (await suckerContract.read.peer()) as Address | undefined;
       if (!peer) {
         return;
       }
