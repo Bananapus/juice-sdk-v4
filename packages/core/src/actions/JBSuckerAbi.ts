@@ -1,7 +1,7 @@
 export const JBSuckerAbi = [
   {
     type: "function",
-    name: "PEER",
+    name: "peer",
     inputs: [],
     outputs: [
       {
@@ -14,7 +14,7 @@ export const JBSuckerAbi = [
   },
   {
     type: "function",
-    name: "PROJECT_ID",
+    name: "projectId",
     inputs: [],
     outputs: [
       {

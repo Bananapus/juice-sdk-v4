@@ -1,3 +1,9 @@
+/**
+ * IMPORTANT
+ * 
+ * Update JBSuckerAbi.ts whenever it changes
+ */
+
 import { Chain } from "viem";
 import {
   arbitrumSepolia,
