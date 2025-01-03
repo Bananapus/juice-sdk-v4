@@ -1,4 +1,4 @@
-import { debug } from "juice-sdk-core";
+import { debug, SuckerPair } from "juice-sdk-core";
 import { useJBChainId } from "src/contexts/JBChainContext/JBChainContext";
 import { useQuery } from "wagmi/query";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
@@ -18,7 +18,7 @@ export function useSuckers() {
     chainId,
   });
 
-  const query = useQuery({
+  return useQuery({
     queryKey: [
       "juice-sdk",
       "suckers",
@@ -35,9 +35,7 @@ export function useSuckers() {
         `https://sepolia.juicebox.money/api/juicebox/v4/project/${projectId}/sucker-pairs?chainId=${chainId}`
       ).then((res) => res.json());
 
-      return suckers;
+      return suckers as SuckerPair[];
     },
   });
-
-  return query;
 }

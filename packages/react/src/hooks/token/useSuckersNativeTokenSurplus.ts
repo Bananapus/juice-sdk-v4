@@ -27,7 +27,8 @@ export function useSuckersNativeTokenSurplus() {
 
   const { data: currentChainNativeTokenSurplus } = useNativeTokenSurplus();
   const suckersQuery = useSuckers();
-  const pairs = suckersQuery.data as SuckerPair[] | undefined;
+  const pairs = (suckersQuery.data as { suckers: SuckerPair[] | null })
+    ?.suckers;
 
   const surplusQuery = useQuery({
     queryKey: [
