@@ -1,5 +1,5 @@
-import { Address, PublicClient, getContract } from "viem";
-import { readJbSuckerRegistrySuckersOf } from "../generated/juicebox.js";
+import { PublicClient, getContract } from "viem";
+import { readJbSuckerRegistryGetSuckerPairs } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
 
 export type SuckerPair = {
@@ -18,36 +18,22 @@ export async function getSuckerPairs({
 }): Promise<SuckerPair[]> {
   const client = config.getClient({ chainId }) as PublicClient;
 
-  const suckers = await readJbSuckerRegistrySuckersOf(config, {
+  const suckers = await readJbSuckerRegistryGetSuckerPairs(config, {
     chainId: chainId as any, // TODO fix type
     args: [projectId],
   });
 
   const suckerPairs = await Promise.all(
-    suckers.map(async (suckerAddress) => {
-      const suckerContract = getContract({
-        address: suckerAddress,
-        abi: JBSuckerAbi,
-        client,
-      });
-
-      const peer = (await suckerContract.read.peer()) as Address | undefined;
-      if (!peer) {
-        return;
-      }
-
+    suckers.map(async ({ remote, remoteChainId }) => {
       const peerContract = getContract({
-        address: peer,
+        address: remote,
         abi: JBSuckerAbi,
         client,
       });
-      const [peerChainId, projectId] = await Promise.all([
-        peerContract.read.peerChainId(),
-        peerContract.read.projectId(),
-      ]);
+      const projectId = await peerContract.read.projectId();
 
       return {
-        peerChainId: Number(peerChainId),
+        peerChainId: Number(remoteChainId),
         projectId,
       } as SuckerPair;
     })
