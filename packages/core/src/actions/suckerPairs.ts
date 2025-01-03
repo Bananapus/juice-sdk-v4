@@ -42,8 +42,8 @@ export async function getSuckerPairs({
         client,
       });
       const [peerChainId, projectId] = await Promise.all([
-        peerContract.read.peerChainID(),
-        peerContract.read.PROJECT_ID(),
+        peerContract.read.peerChainId(),
+        peerContract.read.projectId(),
       ]);
 
       return {

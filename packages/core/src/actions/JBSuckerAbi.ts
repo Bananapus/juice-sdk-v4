@@ -27,7 +27,7 @@ export const JBSuckerAbi = [
   },
   {
     type: "function",
-    name: "peerChainID",
+    name: "peerChainId",
     inputs: [],
     outputs: [
       {
