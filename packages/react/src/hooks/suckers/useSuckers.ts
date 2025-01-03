@@ -25,6 +25,7 @@ export function useSuckers() {
       projectId.toString(),
       chainId?.toString(),
     ],
+    staleTime: Infinity,
     enabled: !!chainId,
     queryFn: async () => {
       if (!chainId) {

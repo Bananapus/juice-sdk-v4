@@ -98,6 +98,7 @@ export const JBContractProvider = ({
     args: [projectId],
     query: {
       enabled: enabled([DynamicContract.Controller]),
+      staleTime: Infinity,
     },
   });
   const controllerAddress = controller.data;
@@ -113,6 +114,7 @@ export const JBContractProvider = ({
         DynamicContract.Controller,
         DynamicContract.FundAccessLimits,
       ]),
+      staleTime: Infinity,
     },
   });
 
@@ -121,6 +123,7 @@ export const JBContractProvider = ({
     address: hasController ? controllerAddress : undefined,
     query: {
       enabled: enabled([DynamicContract.Controller, DynamicContract.Rulesets]),
+      staleTime: Infinity,
     },
   });
 
@@ -129,6 +132,7 @@ export const JBContractProvider = ({
     address: hasController ? controllerAddress : undefined,
     query: {
       enabled: enabled([DynamicContract.Controller, DynamicContract.Tokens]),
+      staleTime: Infinity,
     },
   });
 
@@ -137,6 +141,7 @@ export const JBContractProvider = ({
     address: hasController ? controllerAddress : undefined,
     query: {
       enabled: enabled([DynamicContract.Controller, DynamicContract.Splits]),
+      staleTime: Infinity,
     },
   });
 
