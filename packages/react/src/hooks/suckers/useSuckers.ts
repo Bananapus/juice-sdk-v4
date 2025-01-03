@@ -1,13 +1,16 @@
-import { resolveSuckers } from "juice-sdk-core";
-import { useJBChainId } from "src/contexts/JBChainContext/JBChainContext";
 import { debug } from "juice-sdk-core";
-import { useConfig } from "wagmi";
+import { useJBChainId } from "src/contexts/JBChainContext/JBChainContext";
 import { useQuery } from "wagmi/query";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 
+/**
+ * Return sucker pairs for the project ID in context.
+ *
+ * Hits JBM endpoint, heavily cached
+ * @returns
+ */
 export function useSuckers() {
   const { projectId } = useJBContractContext();
-  const config = useConfig();
   const chainId = useJBChainId();
 
   debug("useSuckers::args", {
@@ -28,11 +31,9 @@ export function useSuckers() {
         return null;
       }
 
-      const suckers = await resolveSuckers({
-        config,
-        chainId,
-        projectId,
-      });
+      const suckers = await fetch(
+        `https://sepolia.juicebox.money/api/juicebox/v4/project/${projectId}/sucker-pairs?chainId=${chainId}`
+      ).then((res) => res.json());
 
       return suckers;
     },
