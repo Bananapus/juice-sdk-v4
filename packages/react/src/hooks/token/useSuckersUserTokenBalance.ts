@@ -1,17 +1,15 @@
 import {
+  JBChainId,
   JBProjectToken,
   readJbTokensTotalBalanceOf,
   SuckerPair,
 } from "juice-sdk-core";
-import {
-  JBChainId,
-  useJBChainId,
-  useJBContractContext,
-  useReadJbTokensTotalBalanceOf,
-  useSuckers,
-} from "juice-sdk-react";
+import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
+import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
+import { useReadJbTokensTotalBalanceOf } from "../../generated/juicebox";
 import { useAccount, useConfig } from "wagmi";
 import { useQuery } from "wagmi/query";
+import { useSuckers } from "../suckers/useSuckers";
 
 /**
  * Return the user's project token balance across each sucker on all chains for the current project.
@@ -44,6 +42,7 @@ export function useSuckersUserTokenBalance() {
       currentChainQuery.data?.value.toString(),
       pairs?.map((pair) => pair.peerChainId).join(","),
     ],
+    staleTime: 10000, // 10s
     queryFn: async () => {
       if (!chainId || !userAddress) return null;
 

@@ -27,6 +27,7 @@ export function useFind721DataHook() {
 
   const jb721DataHookQuery = useQuery({
     queryKey: ["dataHook", projectId, rulesetId, dataHookAddress],
+    staleTime: Infinity,
     queryFn: async () => {
       if (!rulesetId || !dataHookAddress) return null;
       if (!publicClient) {

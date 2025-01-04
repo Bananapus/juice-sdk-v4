@@ -38,6 +38,7 @@ export function useSuckersNativeTokenSurplus() {
       currentChainNativeTokenSurplus,
       pairs?.map((pair) => pair.peerChainId).join(","),
     ],
+    staleTime: 10000, // 10s
     queryFn: async () => {
       if (!chainId) return null;
 
