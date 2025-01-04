@@ -1,4 +1,4 @@
-import { Address, Hash, parseEther } from "viem";
+import { Address, Chain, Hash, parseEther, parseUnits } from "viem";
 import {
   arbitrumSepolia,
   baseSepolia,
@@ -56,7 +56,9 @@ export const MAX_FEE = 1_000_000_000;
 export const MAX_FEE_DISCOUNT = 1_000_000_000;
 
 // uint 224, probably a better way lol
-export const MAX_PAYOUT_LIMIT = BigInt('26959946667150639794667015087019630673637144422540572481103610249215') 
+export const MAX_PAYOUT_LIMIT = BigInt(
+  "26959946667150639794667015087019630673637144422540572481103610249215"
+);
 
 /**
  * The 100% representation for a ruleset's Splits.
@@ -78,12 +80,17 @@ export const SPLITS_TOTAL_PERCENT = 1_000_000_000;
 export const JB_TOKEN_DECIMALS = 18 as const;
 
 /**
+ * One JB project token as a fixed-point representation.
+ */
+export const ONE_JB_TOKEN = parseUnits("1", JB_TOKEN_DECIMALS);
+
+/**
  * An address representation of the network's 'native' token (e.g. ETH, OP).
  * Within Juicebox contracts, each chain's native token address is represented by this address.
  *
  * @link JBConstants.sol
  */
- export const NATIVE_TOKEN: Address =
+export const NATIVE_TOKEN: Address =
   "0x000000000000000000000000000000000000EEEe";
 
 /**
@@ -93,7 +100,7 @@ export const JB_TOKEN_DECIMALS = 18 as const;
  * @link JBCurrencyIds.sol
  * @note 61166n
  */
-export const NATIVE_CURRENCY_ID = Number(BigInt(NATIVE_TOKEN))
+export const NATIVE_CURRENCY_ID = Number(BigInt(NATIVE_TOKEN));
 
 /**
  * Amount of decimals to use for native token fixed-point representation.
@@ -102,9 +109,55 @@ export const NATIVE_CURRENCY_ID = Number(BigInt(NATIVE_TOKEN))
  */
 export const NATIVE_TOKEN_DECIMALS = 18 as const;
 
-export const NATIVE_TOKEN_SYMBOLS: { [k in JBChainId]: string } = {
-  [sepolia.id]: "SepETH",
-  [optimismSepolia.id]: "OPSepETH",
-  [arbitrumSepolia.id]: "ArbSepETH",
-  [baseSepolia.id]: "BaseSepETH",
+/**
+ * The fee percentage taken by Juicebox DAO on cashing out Tokens.
+ */
+export const JBDAO_CASHOUT_FEE_PERCENT = 0.025;
+
+type JBChainMetadata = {
+  chain: Chain;
+  name: string;
+  slug: string;
+  nativeTokenSymbol: string;
 };
+
+export const JB_CHAINS: Record<JBChainId, JBChainMetadata> = {
+  [sepolia.id]: {
+    chain: sepolia,
+    name: "Sepolia",
+    slug: "sepolia",
+    nativeTokenSymbol: "SepETH",
+  },
+  [optimismSepolia.id]: {
+    chain: optimismSepolia,
+    name: "Optimism Sepolia",
+    slug: "opsepolia",
+    nativeTokenSymbol: "OPSepETH",
+  },
+  [baseSepolia.id]: {
+    chain: baseSepolia,
+    name: "Base Sepolia",
+    slug: "basesepolia",
+    nativeTokenSymbol: "ArbSepETH",
+  },
+  [arbitrumSepolia.id]: {
+    chain: arbitrumSepolia,
+    name: "Arbitrum Sepolia",
+    slug: "arbsepolia",
+    nativeTokenSymbol: "BaseSepETH",
+  },
+};
+
+/**
+ * Map of JBChain slugs to chains.
+ * Useful when getting the chain for a particular url path.
+ */
+export const JB_CHAIN_SLUGS = Object.values(JB_CHAINS).reduce(
+  (slugs: Record<string, JBChainMetadata>, chainMetadata) => {
+    slugs[chainMetadata.slug] = chainMetadata;
+    return slugs;
+  },
+  {}
+);
+
+export const DEFAULT_NATIVE_TOKEN_SYMBOL = "ETH";

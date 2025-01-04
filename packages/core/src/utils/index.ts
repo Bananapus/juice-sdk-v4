@@ -4,3 +4,4 @@ export * from "./token.js";
 export * from "./ruleset.js";
 export * from "./hook.js";
 export * from "./debug.js";
+export * from "./fee.js";
