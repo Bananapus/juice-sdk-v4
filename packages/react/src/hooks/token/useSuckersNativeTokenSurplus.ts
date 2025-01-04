@@ -9,8 +9,8 @@ import {
 import {
   JBChainId,
   useJBChainId,
-} from "src/contexts/JBChainContext/JBChainContext";
-import { useJBContractContext } from "src/contexts/JBContractContext/JBContractContext";
+} from "../../contexts/JBChainContext/JBChainContext";
+import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useConfig } from "wagmi";
 import { useQuery } from "wagmi/query";
 import { useNativeTokenSurplus } from "./useNativeTokenSurplus";

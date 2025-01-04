@@ -1,5 +1,5 @@
-import { useJBChainId } from "src/contexts/JBChainContext/JBChainContext";
-import { useReadJb721TiersHookMetadataIdTarget } from "src/generated/juicebox";
+import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
+import { useReadJb721TiersHookMetadataIdTarget } from "../../generated/juicebox";
 import { Address } from "viem";
 import { createMetadataTargetIdPayHash } from "./helpers";
 

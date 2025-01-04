@@ -1,5 +1,5 @@
 import { JB_CHAIN_SLUGS, DEFAULT_NATIVE_TOKEN_SYMBOL } from "juice-sdk-core";
-import { useJBChainId } from "src/contexts/JBChainContext/JBChainContext";
+import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 
 /**
  * Return the human-readable token symbol for the chain set in JBChainContext.

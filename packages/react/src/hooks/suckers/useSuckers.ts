@@ -1,5 +1,5 @@
 import { debug, SuckerPair } from "juice-sdk-core";
-import { useJBChainId } from "src/contexts/JBChainContext/JBChainContext";
+import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useQuery } from "wagmi/query";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 

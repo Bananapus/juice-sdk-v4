@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 
 /**
  * Chainlink feed doesn't tend to up date that quickly.
@@ -15,11 +14,9 @@ export function useEtherPrice() {
   return useQuery({
     queryKey: ["juice-sdk", "etherPrice"],
     queryFn: async () => {
-      return axios
-        .get<{
-          price: number;
-        }>("https://juicebox.money/api/juicebox/prices/ethusd")
-        .then((res) => res.data.price ?? 0);
+      return fetch("https://juicebox.money/api/juicebox/prices/ethusd")
+        .then((res) => res.json())
+        .then((data) => data.price as number);
     },
     staleTime: PRICE_REFRESH_INTERVAL,
   });

@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import {
   applyJbDaoCashOutFee,
   JBChainId,
@@ -14,6 +13,7 @@ import { useConfig } from "wagmi";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useSuckers } from "../suckers/useSuckers";
+import { Address } from "viem";
 
 /**
  * Return the amount of ETH (wei) received from cashing out [tokenAmountWei] project tokens, across all suckers.
@@ -103,10 +103,10 @@ async function getProjectTerminalStore(
     chainId: Number(chainId) as JBChainId,
     args: [projectId, NATIVE_TOKEN],
   });
-  const terminalStoreData = await axios.get(
+  const terminalStoreData = await fetch(
     `https://sepolia.juicebox.money/api/juicebox/v4/terminal/${primaryNativeTerminal}/jb-terminal-store?chainId=${chainId}`
-  );
-  const terminalStore = terminalStoreData.data.terminalStoreAddress;
+  ).then((res) => res.json());
+  const terminalStore = terminalStoreData.data.terminalStoreAddress as Address;
 
   return terminalStore;
 }
