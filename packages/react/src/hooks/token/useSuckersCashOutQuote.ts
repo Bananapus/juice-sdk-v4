@@ -1,4 +1,3 @@
-import { useQuery, UseQueryReturnType } from "wagmi/query";
 import {
   applyJbDaoCashOutFee,
   JBChainId,
@@ -7,13 +6,13 @@ import {
   NATIVE_TOKEN_DECIMALS,
   readJbDirectoryPrimaryTerminalOf,
   readJbTerminalStoreCurrentReclaimableSurplusOf,
-  SuckerPair,
 } from "juice-sdk-core";
+import { Address } from "viem";
 import { useConfig } from "wagmi";
+import { useQuery, UseQueryReturnType } from "wagmi/query";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useSuckers } from "../suckers/useSuckers";
-import { Address } from "viem";
 
 /**
  * Return the amount of ETH (wei) received from cashing out [tokenAmountWei] project tokens, across all suckers.
@@ -27,17 +26,14 @@ export function useSuckersCashOutQuote(tokenAmountWei: bigint) {
   const suckersQuery = useSuckers();
   const pairs = suckersQuery.data;
 
-  const queryKey = [
-    "suckersTokenRedemptionQuote",
-    projectId.toString(),
-    chainId?.toString(),
-    tokenAmountWei.toString(),
-    pairs?.map((pair) => pair.peerChainId).join(","),
-  ];
-
   const suckersQuote: UseQueryReturnType<bigint | null> = useQuery({
-    queryKey,
-    staleTime: 10000,
+    queryKey: [
+      "suckersTokenRedemptionQuote",
+      projectId.toString(),
+      chainId?.toString(),
+      tokenAmountWei.toString(),
+      pairs?.map((pair) => pair.peerChainId).join(","),
+    ],
     enabled: Boolean(!suckersQuery.isLoading && chainId),
     queryFn: async () => {
       if (!chainId) {

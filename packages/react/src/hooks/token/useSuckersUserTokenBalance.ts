@@ -41,7 +41,6 @@ export function useSuckersUserTokenBalance() {
       currentChainQuery.data?.value.toString(),
       pairs?.map((pair) => pair.peerChainId).join(","),
     ],
-    staleTime: 10000, // 10s
     queryFn: async () => {
       if (!chainId || !userAddress) return null;
 

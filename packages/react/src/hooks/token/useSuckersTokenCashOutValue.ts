@@ -1,4 +1,4 @@
-import { ONE_ETHER } from "juice-sdk-core";
+import { ONE_JB_TOKEN } from "juice-sdk-core";
 import { formatEther } from "viem";
 import { useEtherPrice } from "../useEtherPrice";
 import { useSuckersCashOutQuote } from "./useSuckersCashOutQuote";
@@ -17,7 +17,7 @@ export function useSuckersTokenCashOutValue({
     data: quote,
     isLoading: isQuoteLoading,
     errors,
-  } = useSuckersCashOutQuote(ONE_ETHER);
+  } = useSuckersCashOutQuote(ONE_JB_TOKEN);
 
   const loading = isQuoteLoading || isEthLoading;
 

@@ -35,7 +35,6 @@ export function useTokenCashOutQuoteEth(
         ]
       : undefined,
     query: {
-      staleTime: 10000, // 10s
       select(data: bigint) {
         return applyJbDaoCashOutFee(data);
       },
