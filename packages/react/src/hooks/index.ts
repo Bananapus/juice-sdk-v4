@@ -7,5 +7,5 @@ export * from "./token/useNativeTokenSymbol";
 export * from "./token/useSuckersNativeTokenSurplus";
 export * from "./token/useSuckersCashOutQuote";
 export * from "./token/useTokenCashOutQuoteEth";
-export * from "./token/useSuckersTokenCashOutValue";
+export * from "./token/useSuckersTokenCashoutValue";
 export * from "./useEtherPrice";
