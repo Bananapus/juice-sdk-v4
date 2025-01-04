@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, UseQueryReturnType } from "wagmi/query";
 
 /**
  * Chainlink feed doesn't tend to up date that quickly.
@@ -10,7 +10,7 @@ const PRICE_REFRESH_INTERVAL = 60 * 1000 * 5; // 5 minutes
  * Return the current price of ETH in USD.
  * @example 1234.69
  */
-export function useEtherPrice() {
+export function useEtherPrice(): UseQueryReturnType<number> {
   return useQuery({
     queryKey: ["juice-sdk", "etherPrice"],
     queryFn: async () => {

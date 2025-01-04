@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, UseQueryReturnType } from "wagmi/query";
 import {
   applyJbDaoCashOutFee,
   JBChainId,
@@ -25,8 +25,7 @@ export function useSuckersCashOutQuote(tokenAmountWei: bigint) {
   const { projectId } = useJBContractContext();
 
   const suckersQuery = useSuckers();
-  const pairs = (suckersQuery.data as { suckers: SuckerPair[] | null })
-    ?.suckers;
+  const pairs = suckersQuery.data;
 
   const queryKey = [
     "suckersTokenRedemptionQuote",
@@ -36,7 +35,7 @@ export function useSuckersCashOutQuote(tokenAmountWei: bigint) {
     pairs?.map((pair) => pair.peerChainId).join(","),
   ];
 
-  const suckersQuote = useQuery({
+  const suckersQuote: UseQueryReturnType<bigint | null> = useQuery({
     queryKey,
     staleTime: 10000,
     enabled: Boolean(!suckersQuery.isLoading && chainId),
