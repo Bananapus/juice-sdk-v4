@@ -119,6 +119,7 @@ type JBChainMetadata = {
   name: string;
   slug: string;
   nativeTokenSymbol: string;
+  etherscanHostname: string;
 };
 
 export const JB_CHAINS: Record<JBChainId, JBChainMetadata> = {
@@ -127,24 +128,28 @@ export const JB_CHAINS: Record<JBChainId, JBChainMetadata> = {
     name: "Sepolia",
     slug: "sepolia",
     nativeTokenSymbol: "SepETH",
+    etherscanHostname: "sepolia.etherscan.io",
   },
   [optimismSepolia.id]: {
     chain: optimismSepolia,
     name: "Optimism Sepolia",
     slug: "opsepolia",
     nativeTokenSymbol: "OPSepETH",
+    etherscanHostname: "sepolia-optimism.etherscan.io",
   },
   [baseSepolia.id]: {
     chain: baseSepolia,
     name: "Base Sepolia",
     slug: "basesepolia",
     nativeTokenSymbol: "ArbSepETH",
+    etherscanHostname: "sepolia.basescan.org",
   },
   [arbitrumSepolia.id]: {
     chain: arbitrumSepolia,
     name: "Arbitrum Sepolia",
     slug: "arbsepolia",
     nativeTokenSymbol: "BaseSepETH",
+    etherscanHostname: "sepolia.arbiscan.io",
   },
 };
 
