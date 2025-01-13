@@ -1,6 +1,6 @@
-import { NATIVE_TOKEN } from "src/constants.js";
-import { readJbDirectoryPrimaryTerminalOf } from "src/generated/juicebox.js";
-import { JBChainId } from "src/types.js";
+import { NATIVE_TOKEN } from "../constants.js";
+import { readJbDirectoryPrimaryTerminalOf } from "../generated/juicebox.js";
+import { JBChainId } from "../types.js";
 import { Address } from "viem";
 
 export async function getProjectTerminalStore(
