@@ -2,12 +2,10 @@ import {
   applyJbDaoCashOutFee,
   JBChainId,
   NATIVE_CURRENCY_ID,
-  NATIVE_TOKEN,
   NATIVE_TOKEN_DECIMALS,
-  readJbDirectoryPrimaryTerminalOf,
+  getProjectTerminalStore,
   readJbTerminalStoreCurrentReclaimableSurplusOf,
 } from "juice-sdk-core";
-import { Address } from "viem";
 import { useConfig } from "wagmi";
 import { useQuery, UseQueryReturnType } from "wagmi/query";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
@@ -87,21 +85,4 @@ async function getTokenRedemptionQuote(
       BigInt(NATIVE_CURRENCY_ID),
     ],
   });
-}
-
-async function getProjectTerminalStore(
-  config: ReturnType<typeof useConfig>,
-  chainId: JBChainId,
-  projectId: bigint
-) {
-  const primaryNativeTerminal = await readJbDirectoryPrimaryTerminalOf(config, {
-    chainId: Number(chainId) as JBChainId,
-    args: [projectId, NATIVE_TOKEN],
-  });
-  const terminalStoreData = await fetch(
-    `https://sepolia.juicebox.money/api/juicebox/v4/terminal/${primaryNativeTerminal}/jb-terminal-store?chainId=${chainId}`
-  ).then((res) => res.json());
-  const terminalStore = terminalStoreData.terminalStoreAddress as Address;
-
-  return terminalStore;
 }

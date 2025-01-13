@@ -25,7 +25,6 @@ export function useSuckersNativeTokenSurplus() {
   const chainId = useJBChainId();
   const { projectId } = useJBContractContext();
 
-  const { data: currentChainNativeTokenSurplus } = useNativeTokenSurplus();
   const suckersQuery = useSuckers();
   const pairs = suckersQuery.data;
 
@@ -34,20 +33,13 @@ export function useSuckersNativeTokenSurplus() {
       "suckersNativeTokenSurplus",
       projectId.toString(),
       chainId?.toString(),
-      currentChainNativeTokenSurplus,
       pairs?.map((pair) => pair.peerChainId).join(","),
     ],
     queryFn: async () => {
       if (!chainId) return null;
 
-      const currentChainSurplus = {
-        surplus: currentChainNativeTokenSurplus ?? 0n,
-        chainId,
-        projectId,
-      };
-
       if (!pairs || pairs.length === 0) {
-        return [currentChainSurplus];
+        return [];
       }
 
       /**
@@ -81,15 +73,6 @@ export function useSuckersNativeTokenSurplus() {
           return { surplus, chainId: peerChainId, projectId };
         })
       );
-
-      if (
-        !surpluses.some(
-          (surplus) => surplus.chainId === currentChainSurplus.chainId
-        )
-      ) {
-        // Add the current chain's surplus to the list.
-        surpluses.push(currentChainSurplus);
-      }
 
       return surpluses;
     },
