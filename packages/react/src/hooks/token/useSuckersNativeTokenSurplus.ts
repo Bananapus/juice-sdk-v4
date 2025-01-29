@@ -82,7 +82,7 @@ export function useSuckersNativeTokenSurplus() {
     isLoading: surplusQuery.isLoading || suckersQuery.isLoading,
     isError: surplusQuery.isError || suckersQuery.isError,
     data: surplusQuery.data as
-      | { surplus: bigint; chainId: number; projectId: bigint }[]
+      | { surplus: bigint; chainId: JBChainId; projectId: bigint }[]
       | undefined,
   };
 }

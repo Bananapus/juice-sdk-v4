@@ -85,7 +85,7 @@ export function useSuckersUserTokenBalance() {
     isLoading: balanceQuery.isLoading || suckersQuery.isLoading,
     isError: balanceQuery.isError || suckersQuery.isError,
     data: balanceQuery.data as
-      | { balance: JBProjectToken; chainId: number; projectId: bigint }[]
+      | { balance: JBProjectToken; chainId: JBChainId; projectId: bigint }[]
       | undefined,
   };
 }
