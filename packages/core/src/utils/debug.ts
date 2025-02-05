@@ -6,8 +6,6 @@ const DEBUG_ENV_VARS = [
 
 export function debug(...args: any[]) {
   if (DEBUG_ENV_VARS.some((envVar) => process.env[envVar] === "true")) {
-    return;
+    console.log("🧃", ...args);
   }
-
-  console.log("🧃", ...args);
 }
