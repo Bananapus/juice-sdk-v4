@@ -1,6 +1,6 @@
 {
   "name": "juice-sdk-core",
-  "version": "14.0.0-alpha",
+  "version": "14.1.0-alpha",
   "type": "module",
   "scripts": {
     "generate": "wagmi generate",
