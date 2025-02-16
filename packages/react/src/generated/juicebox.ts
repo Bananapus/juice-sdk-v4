@@ -6,6 +6,214 @@ import {
 } from 'wagmi/codegen'
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ERC2771Forwarder
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const erc2771ForwarderAbi = [
+  {
+    type: 'constructor',
+    inputs: [{ name: 'name', internalType: 'string', type: 'string' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'eip712Domain',
+    outputs: [
+      { name: 'fields', internalType: 'bytes1', type: 'bytes1' },
+      { name: 'name', internalType: 'string', type: 'string' },
+      { name: 'version', internalType: 'string', type: 'string' },
+      { name: 'chainId', internalType: 'uint256', type: 'uint256' },
+      { name: 'verifyingContract', internalType: 'address', type: 'address' },
+      { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'extensions', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'request',
+        internalType: 'struct ERC2771Forwarder.ForwardRequestData',
+        type: 'tuple',
+        components: [
+          { name: 'from', internalType: 'address', type: 'address' },
+          { name: 'to', internalType: 'address', type: 'address' },
+          { name: 'value', internalType: 'uint256', type: 'uint256' },
+          { name: 'gas', internalType: 'uint256', type: 'uint256' },
+          { name: 'deadline', internalType: 'uint48', type: 'uint48' },
+          { name: 'data', internalType: 'bytes', type: 'bytes' },
+          { name: 'signature', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'execute',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'requests',
+        internalType: 'struct ERC2771Forwarder.ForwardRequestData[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'from', internalType: 'address', type: 'address' },
+          { name: 'to', internalType: 'address', type: 'address' },
+          { name: 'value', internalType: 'uint256', type: 'uint256' },
+          { name: 'gas', internalType: 'uint256', type: 'uint256' },
+          { name: 'deadline', internalType: 'uint48', type: 'uint48' },
+          { name: 'data', internalType: 'bytes', type: 'bytes' },
+          { name: 'signature', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+      {
+        name: 'refundReceiver',
+        internalType: 'address payable',
+        type: 'address',
+      },
+    ],
+    name: 'executeBatch',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'nonces',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'request',
+        internalType: 'struct ERC2771Forwarder.ForwardRequestData',
+        type: 'tuple',
+        components: [
+          { name: 'from', internalType: 'address', type: 'address' },
+          { name: 'to', internalType: 'address', type: 'address' },
+          { name: 'value', internalType: 'uint256', type: 'uint256' },
+          { name: 'gas', internalType: 'uint256', type: 'uint256' },
+          { name: 'deadline', internalType: 'uint48', type: 'uint48' },
+          { name: 'data', internalType: 'bytes', type: 'bytes' },
+          { name: 'signature', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'verify',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  { type: 'event', anonymous: false, inputs: [], name: 'EIP712DomainChanged' },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'signer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'nonce',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'success', internalType: 'bool', type: 'bool', indexed: false },
+    ],
+    name: 'ExecutedForwardRequest',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'deadline', internalType: 'uint48', type: 'uint48' }],
+    name: 'ERC2771ForwarderExpiredRequest',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'signer', internalType: 'address', type: 'address' },
+      { name: 'from', internalType: 'address', type: 'address' },
+    ],
+    name: 'ERC2771ForwarderInvalidSigner',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'requestedValue', internalType: 'uint256', type: 'uint256' },
+      { name: 'msgValue', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC2771ForwarderMismatchedValue',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'target', internalType: 'address', type: 'address' },
+      { name: 'forwarder', internalType: 'address', type: 'address' },
+    ],
+    name: 'ERC2771UntrustfulTarget',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'currentNonce', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InvalidAccountNonce',
+  },
+  { type: 'error', inputs: [], name: 'InvalidShortString' },
+  {
+    type: 'error',
+    inputs: [{ name: 'str', internalType: 'string', type: 'string' }],
+    name: 'StringTooLong',
+  },
+] as const
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const erc2771ForwarderAddress = {
+  84532: '0x460d4DE0c26057303628101C9f1F6D8def482d8B',
+  421614: '0x460d4DE0c26057303628101C9f1F6D8def482d8B',
+  11155111: '0x460d4DE0c26057303628101C9f1F6D8def482d8B',
+  11155420: '0x460d4DE0c26057303628101C9f1F6D8def482d8B',
+} as const
+
+/**
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const erc2771ForwarderConfig = {
+  address: erc2771ForwarderAddress,
+  abi: erc2771ForwarderAbi,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JB721TiersHook
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -11351,6 +11559,195 @@ export const jbTokensConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // React
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useReadErc2771Forwarder = /*#__PURE__*/ createUseReadContract({
+  abi: erc2771ForwarderAbi,
+  address: erc2771ForwarderAddress,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"eip712Domain"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useReadErc2771ForwarderEip712Domain =
+  /*#__PURE__*/ createUseReadContract({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+    functionName: 'eip712Domain',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"nonces"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useReadErc2771ForwarderNonces =
+  /*#__PURE__*/ createUseReadContract({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+    functionName: 'nonces',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"verify"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useReadErc2771ForwarderVerify =
+  /*#__PURE__*/ createUseReadContract({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+    functionName: 'verify',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useWriteErc2771Forwarder = /*#__PURE__*/ createUseWriteContract({
+  abi: erc2771ForwarderAbi,
+  address: erc2771ForwarderAddress,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"execute"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useWriteErc2771ForwarderExecute =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+    functionName: 'execute',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"executeBatch"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useWriteErc2771ForwarderExecuteBatch =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+    functionName: 'executeBatch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useSimulateErc2771Forwarder =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"execute"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useSimulateErc2771ForwarderExecute =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+    functionName: 'execute',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"executeBatch"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useSimulateErc2771ForwarderExecuteBatch =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+    functionName: 'executeBatch',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link erc2771ForwarderAbi}__
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useWatchErc2771ForwarderEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `eventName` set to `"EIP712DomainChanged"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useWatchErc2771ForwarderEip712DomainChangedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+    eventName: 'EIP712DomainChanged',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `eventName` set to `"ExecutedForwardRequest"`
+ *
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ */
+export const useWatchErc2771ForwarderExecutedForwardRequestEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: erc2771ForwarderAbi,
+    address: erc2771ForwarderAddress,
+    eventName: 'ExecutedForwardRequest',
+  })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link jb721TiersHookAbi}__

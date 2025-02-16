@@ -1,6 +1,6 @@
 /**
  * IMPORTANT
- * 
+ *
  * Update JBSuckerAbi.ts whenever it changes
  */
 
@@ -24,6 +24,7 @@ export enum JBCoreContracts {
   JBTerminalStore = "JBTerminalStore",
   JBFundAccessLimits = "JBFundAccessLimits",
   JBPrices = "JBPrices",
+  ERC2771Forwarder = "ERC2771Forwarder",
 }
 
 export enum JB721HookContracts {
@@ -84,6 +85,7 @@ const HAS_STATIC_ADDRESS: Contracts[] = [
   JBCoreContracts.JBSplits,
   JBCoreContracts.JBTokens,
   JBCoreContracts.JBPrices,
+  JBCoreContracts.ERC2771Forwarder,
   JBAddressRegistryContracts.JBAddressRegistry,
   JB721HookContracts.JB721TiersHookDeployer,
   JB721HookContracts.JB721TiersHookProjectDeployer,
