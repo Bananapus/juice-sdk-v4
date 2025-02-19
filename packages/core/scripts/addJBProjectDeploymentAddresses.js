@@ -11,7 +11,7 @@ const CHAIN_NAME = {
   1: "ethereum",
   10: "optimism",
   42161: "arbitrum",
-  84533: "base",
+  8453: "base",
 };
 
 function nanaCorePath(chain, contractName) {

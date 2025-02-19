@@ -19310,9 +19310,9 @@ export const watchJbTokensTransferCreditsEvent =
   "JBMultiTerminal": {
     "1": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
     "10": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+    "8453": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
     "42161": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
     "84532": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "84533": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
     "421614": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
     "11155111": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
     "11155420": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc"
@@ -19320,9 +19320,9 @@ export const watchJbTokensTransferCreditsEvent =
   "JBController": {
     "1": "0xb291844f213047eb9e1621ae555b1eae6700d553",
     "10": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+    "8453": "0xb291844f213047eb9e1621ae555b1eae6700d553",
     "42161": "0xb291844f213047eb9e1621ae555b1eae6700d553",
     "84532": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "84533": "0xb291844f213047eb9e1621ae555b1eae6700d553",
     "421614": "0xb291844f213047eb9e1621ae555b1eae6700d553",
     "11155111": "0xb291844f213047eb9e1621ae555b1eae6700d553",
     "11155420": "0xb291844f213047eb9e1621ae555b1eae6700d553"
@@ -19330,9 +19330,9 @@ export const watchJbTokensTransferCreditsEvent =
   "JB721TiersHookStore": {
     "1": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
     "10": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+    "8453": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
     "42161": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
     "84532": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "84533": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
     "421614": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
     "11155111": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
     "11155420": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1"
@@ -19340,9 +19340,9 @@ export const watchJbTokensTransferCreditsEvent =
   "JBBuybackHook": {
     "1": "0x7dcf35dad9b30ffcb7f35f51279252b884921927",
     "10": "0x09d97e2b8b2f143335c2344947a79d1a3a4c2946",
+    "8453": "0x47d1b88af8ee0ed0a772a7c98430894141b9ac8b",
     "42161": "0xb9dce56d7f64b8c456157ded0c76241d0c23f578",
     "84532": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d",
-    "84533": "0x47d1b88af8ee0ed0a772a7c98430894141b9ac8b",
     "421614": "0xc32b873d25230bcbeb4f9d9d9bf10eaf4d77dddf",
     "11155111": "0x085b2fd0560ef5b6acd0f98b2f0e079cfa936f58",
     "11155420": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d"
@@ -19350,9 +19350,9 @@ export const watchJbTokensTransferCreditsEvent =
   "JBSwapTerminal": {
     "1": "0xdd98b25631aa9372a8cf09912b803d2ad80db161",
     "10": "0xf7002a2df9bebf629b6093c8a60e28beed4f7b48",
+    "8453": "0x9b82f7f43a956f5e83faaf1d46382cba19ce71ab",
     "42161": "0xcf50c6f3f366817815fe7ba69b4518356ba6033b",
     "84532": "0xb940f0bb31376cad3a0fae7c78995ae899160a52",
-    "84533": "0x9b82f7f43a956f5e83faaf1d46382cba19ce71ab",
     "421614": "0xcf5f58ebb455678005b7dc6e506a7ec9a3438d0e",
     "11155111": "0x94c5431808ab538d398c6354d1972a0cb8c0b18b",
     "11155420": "0xb940f0bb31376cad3a0fae7c78995ae899160a52"
