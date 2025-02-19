@@ -1,5 +1,4 @@
 import fs from "fs";
-import path from "path";
 
 /**
  * Name of chains, according to the nannypus deployment directory names
@@ -9,6 +8,10 @@ const CHAIN_NAME = {
   11155420: "optimism_sepolia",
   421614: "arbitrum_sepolia",
   84532: "base_sepolia",
+  1: "ethereum",
+  100: "optimism",
+  42161: "arbitrum",
+  84533: "base",
 };
 
 function nanaCorePath(chain, contractName) {

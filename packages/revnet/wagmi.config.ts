@@ -1,7 +1,11 @@
 import { Chain } from "viem";
 import {
+  arbitrum,
   arbitrumSepolia,
+  base,
   baseSepolia,
+  mainnet,
+  optimism,
   optimismSepolia,
   sepolia,
 } from "viem/chains";
@@ -18,8 +22,13 @@ enum RevnetCoreContracts {
 const CHAIN_NAME = {
   [sepolia.id]: "sepolia",
   [optimismSepolia.id]: "optimism_sepolia",
-  [baseSepolia.id]: "base_sepolia",
   [arbitrumSepolia.id]: "arbitrum_sepolia",
+  [baseSepolia.id]: "base_sepolia",
+  [mainnet.id]: "ethereum",
+  [optimism.id]: "optimism",
+  [arbitrum.id]: "arbitrum",
+  [base.id]: "base",
+
 } as Record<number, string>;
 
 function revnetCorePath(
@@ -47,27 +56,44 @@ async function importDeployment(importPath: string) {
 async function buildRevnetCoreContractConfig() {
   const chainToContractAddress = await Promise.all(
     Object.values(RevnetCoreContracts).map(async (contractName) => {
-      const deployment = await importDeployment(
+      const deploymentSep = await importDeployment(
         revnetCorePath(sepolia, contractName)
       );
-      const deploymentOp = await importDeployment(
+      const deploymentOpSep = await importDeployment(
         revnetCorePath(optimismSepolia, contractName)
       );
-      const deploymentBase = await importDeployment(
+      const deploymentBaseSep = await importDeployment(
         revnetCorePath(baseSepolia, contractName)
       );
-      const deploymentArb = await importDeployment(
+      const deploymentArbSep = await importDeployment(
         revnetCorePath(arbitrumSepolia, contractName)
+      );
+
+      const deployment = await importDeployment(
+        revnetCorePath(mainnet, contractName)
+      );
+      const deploymentOp = await importDeployment(
+        revnetCorePath(optimism, contractName)
+      );
+      const deploymentBase = await importDeployment(
+        revnetCorePath(base, contractName)
+      );
+      const deploymentArb = await importDeployment(
+        revnetCorePath(arbitrum, contractName)
       );
 
       return {
         name: contractName,
-        abi: deployment.abi,
+        abi: deploymentSep.abi,
         address: {
-          [sepolia.id]: deployment.address,
-          [optimismSepolia.id]: deploymentOp.address,
-          [baseSepolia.id]: deploymentBase.address,
-          [arbitrumSepolia.id]: deploymentArb.address,
+          [sepolia.id]: deploymentSep.address,
+          [optimismSepolia.id]: deploymentOpSep.address,
+          [baseSepolia.id]: deploymentBaseSep.address,
+          [arbitrumSepolia.id]: deploymentArbSep.address,
+          [mainnet.id]: deploymentArb.address,
+          [optimism.id]: deploymentOp.address,
+          [base.id]: deploymentBase.address,
+          [arbitrum.id]: deploymentArb.address,
         },
       };
     })
