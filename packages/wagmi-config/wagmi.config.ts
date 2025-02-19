@@ -6,8 +6,12 @@
 
 import { Chain } from "viem";
 import {
+  arbitrum,
   arbitrumSepolia,
+  base,
   baseSepolia,
+  mainnet,
+  optimism,
   optimismSepolia,
   sepolia,
 } from "viem/chains";
@@ -63,7 +67,11 @@ const SUPPORTED_CHAINS = [
   optimismSepolia,
   baseSepolia,
   arbitrumSepolia,
-];
+  mainnet,
+  optimism,
+  base,
+  arbitrum,
+] as const;
 
 /**
  * Name of chains, according to the nannypus deployment directory names
@@ -73,6 +81,10 @@ const CHAIN_NAME = {
   [optimismSepolia.id]: "optimism_sepolia",
   [arbitrumSepolia.id]: "arbitrum_sepolia",
   [baseSepolia.id]: "base_sepolia",
+  [mainnet.id]: "ethereum",
+  [optimism.id]: "optimism",
+  [arbitrum.id]: "arbitrum",
+  [base.id]: "base",
 } as Record<number, string>;
 
 /**
@@ -94,32 +106,32 @@ const HAS_STATIC_ADDRESS: Contracts[] = [
 
 function nanaCorePath(chain: Chain, contractName: Contracts) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/core/deployments/nana-core-testnet/${chainName}/${contractName}.json`;
+  return `@bananapus/core/deployments/nana-core/${chainName}/${contractName}.json`;
 }
 
 function nanaSuckersPath(chain: Chain, contractName: Contracts) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/suckers/deployments/nana-suckers-testnet/${chainName}/${contractName}.json`;
+  return `@bananapus/suckers/deployments/nana-suckers/${chainName}/${contractName}.json`;
 }
 
 function nana721HookPath(chain: Chain, contractName: Contracts) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/721-hook/deployments/nana-721-hook-testnet/${chainName}/${contractName}.json`;
+  return `@bananapus/721-hook/deployments/nana-721-hook/${chainName}/${contractName}.json`;
 }
 
 function nanaAddressRegistryPath(chain: Chain, contractName: Contracts) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/address-registry/deployments/nana-address-registry-testnet/${chainName}/${contractName}.json`;
+  return `@bananapus/address-registry/deployments/nana-address-registry/${chainName}/${contractName}.json`;
 }
 
 function nanaSwapTerminalPath(chain: Chain, contractName: Contracts) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/swap-terminal/deployments/nana-swap-terminal-testnet/${chainName}/${contractName}.json`;
+  return `@bananapus/swap-terminal/deployments/nana-swap-terminal/${chainName}/${contractName}.json`;
 }
 
 function nanaBuybackHookPath(chain: Chain, contractName: Contracts) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/buyback-hook/deployments/nana-buyback-hook-testnet/${chainName}/${contractName}.json`;
+  return `@bananapus/buyback-hook/deployments/nana-buyback-hook/${chainName}/${contractName}.json`;
 }
 
 async function importDeployment(importPath: string) {

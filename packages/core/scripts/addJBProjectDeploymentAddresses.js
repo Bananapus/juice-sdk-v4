@@ -13,22 +13,22 @@ const CHAIN_NAME = {
 
 function nanaCorePath(chain, contractName) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/core/deployments/nana-core-testnet/${chainName}/${contractName}.json`;
+  return `@bananapus/core/deployments/nana-core/${chainName}/${contractName}.json`;
 }
 
 function nana721HookPath(chain, contractName) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/721-hook/deployments/nana-721-hook-testnet/${chainName}/${contractName}.json`;
+  return `@bananapus/721-hook/deployments/nana-721-hook/${chainName}/${contractName}.json`;
 }
 
 function nanaBuybackHookPath(chain, contractName) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/buyback-hook/deployments/nana-buyback-hook-testnet/${chainName}/${contractName}.json`;
+  return `@bananapus/buyback-hook/deployments/nana-buyback-hook/${chainName}/${contractName}.json`;
 }
 
 function nanaSwapTerminalPath(chain, contractName) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/swap-terminal/deployments/nana-swap-terminal-testnet/${chainName}/${contractName}.json`;
+  return `@bananapus/swap-terminal/deployments/nana-swap-terminal/${chainName}/${contractName}.json`;
 }
 
 const CORE_CONTRACTS = ["JBMultiTerminal", "JBController"];

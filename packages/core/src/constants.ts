@@ -1,7 +1,11 @@
 import { Address, Chain, Hash, parseEther, parseUnits } from "viem";
 import {
+  arbitrum,
   arbitrumSepolia,
+  base,
   baseSepolia,
+  mainnet,
+  optimism,
   optimismSepolia,
   sepolia,
 } from "viem/chains";
@@ -150,6 +154,34 @@ export const JB_CHAINS: Record<JBChainId, JBChainMetadata> = {
     slug: "arbsepolia",
     nativeTokenSymbol: "BaseSepETH",
     etherscanHostname: "sepolia.arbiscan.io",
+  },
+  [mainnet.id]: {
+    chain: mainnet,
+    name: "Ethereum",
+    slug: "ethereum",
+    nativeTokenSymbol: "ETH",
+    etherscanHostname: "etherscan.io",
+  },
+  [optimism.id]: {
+    chain: optimism,
+    name: "Optimism",
+    slug: "optimism",
+    nativeTokenSymbol: "ETH",
+    etherscanHostname: "optimism.etherscan.io",
+  },
+  [base.id]: {
+    chain: base,
+    name: "Base",
+    slug: "base",
+    nativeTokenSymbol: "ETH",
+    etherscanHostname: "basescan.org",
+  },
+  [arbitrum.id]: {
+    chain: arbitrum,
+    name: "Arbitrum",
+    slug: "arbitrum",
+    nativeTokenSymbol: "ETH",
+    etherscanHostname: "arbiscan.io",
   },
 };
 

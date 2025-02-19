@@ -27,8 +27,8 @@ function revnetCorePath(
   contractName: keyof typeof RevnetCoreContracts
 ) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@rev-net/core/deployments/revnet-core-testnet/${chainName}/${contractName}.json`;
-  // return `https://raw.githubusercontent.com/rev-net/revnet-core/main/deployments/revnet-core-testnet/${chainName}/REVDeployer.json`;
+  return `@rev-net/core/deployments/revnet-core/${chainName}/${contractName}.json`;
+  // return `https://raw.githubusercontent.com/rev-net/revnet-core/main/deployments/revnet-core/${chainName}/REVDeployer.json`;
 }
 
 async function importDeployment(importPath: string) {

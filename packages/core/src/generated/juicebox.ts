@@ -10,10 +10,14 @@ import {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const erc2771ForwarderAbi = [
   {
@@ -190,23 +194,35 @@ export const erc2771ForwarderAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const erc2771ForwarderAddress = {
-  84532: '0x460d4DE0c26057303628101C9f1F6D8def482d8B',
-  421614: '0x460d4DE0c26057303628101C9f1F6D8def482d8B',
-  11155111: '0x460d4DE0c26057303628101C9f1F6D8def482d8B',
-  11155420: '0x460d4DE0c26057303628101C9f1F6D8def482d8B',
+  1: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
+  10: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
+  8453: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
+  42161: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
+  84532: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
+  421614: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
+  11155111: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
+  11155420: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const erc2771ForwarderConfig = {
   address: erc2771ForwarderAddress,
@@ -1526,10 +1542,14 @@ export const jb721TiersHookAbi = [
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const jb721TiersHookDeployerAbi = [
   {
@@ -1778,23 +1798,35 @@ export const jb721TiersHookDeployerAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const jb721TiersHookDeployerAddress = {
-  84532: '0x9549A7B078a31F3eD8B418797c330cf9015dBe18',
-  421614: '0x9549A7B078a31F3eD8B418797c330cf9015dBe18',
-  11155111: '0x9549A7B078a31F3eD8B418797c330cf9015dBe18',
-  11155420: '0x9549A7B078a31F3eD8B418797c330cf9015dBe18',
+  1: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
+  10: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
+  8453: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
+  42161: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
+  84532: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
+  421614: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
+  11155111: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
+  11155420: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const jb721TiersHookDeployerConfig = {
   address: jb721TiersHookDeployerAddress,
@@ -1806,10 +1838,14 @@ export const jb721TiersHookDeployerConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const jb721TiersHookProjectDeployerAbi = [
   {
@@ -2995,23 +3031,35 @@ export const jb721TiersHookProjectDeployerAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const jb721TiersHookProjectDeployerAddress = {
-  84532: '0x36ce554D42f58775Cc7294BA842c880dfCf5aCD2',
-  421614: '0x36ce554D42f58775Cc7294BA842c880dfCf5aCD2',
-  11155111: '0x36ce554D42f58775Cc7294BA842c880dfCf5aCD2',
-  11155420: '0x36ce554D42f58775Cc7294BA842c880dfCf5aCD2',
+  1: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
+  10: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
+  8453: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
+  42161: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
+  84532: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
+  421614: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
+  11155111: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
+  11155420: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const jb721TiersHookProjectDeployerConfig = {
   address: jb721TiersHookProjectDeployerAddress,
@@ -3634,10 +3682,14 @@ export const jb721TiersHookStoreAbi = [
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const jbAddressRegistryAbi = [
   {
@@ -3691,23 +3743,35 @@ export const jbAddressRegistryAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const jbAddressRegistryAddress = {
-  84532: '0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C',
-  421614: '0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C',
-  11155111: '0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C',
-  11155420: '0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C',
+  1: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
+  10: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
+  8453: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
+  42161: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
+  84532: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
+  421614: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
+  11155111: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
+  11155420: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const jbAddressRegistryConfig = {
   address: jbAddressRegistryAddress,
@@ -6070,10 +6134,14 @@ export const jbControllerAbi = [
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const jbDirectoryAbi = [
   {
@@ -6427,23 +6495,35 @@ export const jbDirectoryAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const jbDirectoryAddress = {
-  84532: '0x9B3F76DB6D7B3E6b286A3c176bA084ea3e8AFD16',
-  421614: '0x9B3F76DB6D7B3E6b286A3c176bA084ea3e8AFD16',
-  11155111: '0x9B3F76DB6D7B3E6b286A3c176bA084ea3e8AFD16',
-  11155420: '0x9B3F76DB6D7B3E6b286A3c176bA084ea3e8AFD16',
+  1: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
+  10: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
+  8453: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
+  42161: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
+  84532: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
+  421614: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
+  11155111: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
+  11155420: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const jbDirectoryConfig = {
   address: jbDirectoryAddress,
@@ -8137,10 +8217,14 @@ export const jbPermissionsAbi = [
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const jbPricesAbi = [
   {
@@ -8360,23 +8444,35 @@ export const jbPricesAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const jbPricesAddress = {
-  84532: '0x5E2c77b57Fa4206bE44cD9e7933aAebFE2B3FA8d',
-  421614: '0x5E2c77b57Fa4206bE44cD9e7933aAebFE2B3FA8d',
-  11155111: '0x5E2c77b57Fa4206bE44cD9e7933aAebFE2B3FA8d',
-  11155420: '0x5E2c77b57Fa4206bE44cD9e7933aAebFE2B3FA8d',
+  1: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
+  10: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
+  8453: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
+  42161: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
+  84532: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
+  421614: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
+  11155111: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
+  11155420: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const jbPricesConfig = {
   address: jbPricesAddress,
@@ -8388,10 +8484,14 @@ export const jbPricesConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const jbProjectsAbi = [
   {
@@ -8759,23 +8859,35 @@ export const jbProjectsAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const jbProjectsAddress = {
-  84532: '0x38eCaaEc685c21F77712f569b071309A2143FF58',
-  421614: '0x38eCaaEc685c21F77712f569b071309A2143FF58',
-  11155111: '0x38eCaaEc685c21F77712f569b071309A2143FF58',
-  11155420: '0x38eCaaEc685c21F77712f569b071309A2143FF58',
+  1: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
+  10: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
+  8453: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
+  42161: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
+  84532: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
+  421614: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
+  11155111: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
+  11155420: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const jbProjectsConfig = {
   address: jbProjectsAddress,
@@ -8787,10 +8899,14 @@ export const jbProjectsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const jbRulesetsAbi = [
   {
@@ -9254,23 +9370,35 @@ export const jbRulesetsAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const jbRulesetsAddress = {
-  84532: '0x117aA863C690A871523715E0eA42A49121F10Cfd',
-  421614: '0x117aA863C690A871523715E0eA42A49121F10Cfd',
-  11155111: '0x117aA863C690A871523715E0eA42A49121F10Cfd',
-  11155420: '0x117aA863C690A871523715E0eA42A49121F10Cfd',
+  1: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
+  10: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
+  8453: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
+  42161: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
+  84532: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
+  421614: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
+  11155111: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
+  11155420: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const jbRulesetsConfig = {
   address: jbRulesetsAddress,
@@ -9282,10 +9410,14 @@ export const jbRulesetsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const jbSplitsAbi = [
   {
@@ -9459,23 +9591,35 @@ export const jbSplitsAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const jbSplitsAddress = {
-  84532: '0x3792121047C75d0808A230EB4E67157d93Fafcba',
-  421614: '0x3792121047C75d0808A230EB4E67157d93Fafcba',
-  11155111: '0x3792121047C75d0808A230EB4E67157d93Fafcba',
-  11155420: '0x3792121047C75d0808A230EB4E67157d93Fafcba',
+  1: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
+  10: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
+  8453: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
+  42161: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
+  84532: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
+  421614: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
+  11155111: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
+  11155420: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const jbSplitsConfig = {
   address: jbSplitsAddress,
@@ -9487,10 +9631,14 @@ export const jbSplitsConfig = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const jbSuckerRegistryAbi = [
   {
@@ -9595,24 +9743,6 @@ export const jbSuckerRegistryAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
-    name: 'getSuckerPairsOf',
-    outputs: [
-      {
-        name: 'pairs',
-        internalType: 'struct JBSuckersPair[]',
-        type: 'tuple[]',
-        components: [
-          { name: 'local', internalType: 'address', type: 'address' },
-          { name: 'remote', internalType: 'address', type: 'address' },
-          { name: 'remoteChainId', internalType: 'uint256', type: 'uint256' },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'addr', internalType: 'address', type: 'address' },
@@ -9664,6 +9794,24 @@ export const jbSuckerRegistryAbi = [
     inputs: [{ name: 'deployer', internalType: 'address', type: 'address' }],
     name: 'suckerDeployerIsAllowed',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'suckerPairsOf',
+    outputs: [
+      {
+        name: 'pairs',
+        internalType: 'struct JBSuckersPair[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'local', internalType: 'address', type: 'address' },
+          { name: 'remote', internalType: 'address', type: 'address' },
+          { name: 'remoteChainId', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
     stateMutability: 'view',
   },
   {
@@ -9881,23 +10029,35 @@ export const jbSuckerRegistryAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const jbSuckerRegistryAddress = {
-  84532: '0x54c6a82C83449293f3FCAd1735dCEC1E31257A9E',
-  421614: '0x54c6a82C83449293f3FCAd1735dCEC1E31257A9E',
-  11155111: '0x54c6a82C83449293f3FCAd1735dCEC1E31257A9E',
-  11155420: '0x54c6a82C83449293f3FCAd1735dCEC1E31257A9E',
+  1: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
+  10: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
+  8453: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
+  42161: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
+  84532: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
+  421614: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
+  11155111: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
+  11155420: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const jbSuckerRegistryConfig = {
   address: jbSuckerRegistryAddress,
@@ -11085,10 +11245,14 @@ export const jbTerminalStoreAbi = [
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const jbTokensAbi = [
   {
@@ -11533,23 +11697,35 @@ export const jbTokensAbi = [
 ] as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const jbTokensAddress = {
-  84532: '0xb4a4D8Ad7636E36d6ff3c7c664f9F797A532BBB2',
-  421614: '0xb4a4D8Ad7636E36d6ff3c7c664f9F797A532BBB2',
-  11155111: '0xb4a4D8Ad7636E36d6ff3c7c664f9F797A532BBB2',
-  11155420: '0xb4a4D8Ad7636E36d6ff3c7c664f9F797A532BBB2',
+  1: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
+  10: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
+  8453: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
+  42161: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
+  84532: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
+  421614: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
+  11155111: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
+  11155420: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
 } as const
 
 /**
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const jbTokensConfig = {
   address: jbTokensAddress,
@@ -11563,10 +11739,14 @@ export const jbTokensConfig = {
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const readErc2771Forwarder = /*#__PURE__*/ createReadContract({
   abi: erc2771ForwarderAbi,
@@ -11576,10 +11756,14 @@ export const readErc2771Forwarder = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"eip712Domain"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const readErc2771ForwarderEip712Domain =
   /*#__PURE__*/ createReadContract({
@@ -11591,10 +11775,14 @@ export const readErc2771ForwarderEip712Domain =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"nonces"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const readErc2771ForwarderNonces = /*#__PURE__*/ createReadContract({
   abi: erc2771ForwarderAbi,
@@ -11605,10 +11793,14 @@ export const readErc2771ForwarderNonces = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"verify"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const readErc2771ForwarderVerify = /*#__PURE__*/ createReadContract({
   abi: erc2771ForwarderAbi,
@@ -11619,10 +11811,14 @@ export const readErc2771ForwarderVerify = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const writeErc2771Forwarder = /*#__PURE__*/ createWriteContract({
   abi: erc2771ForwarderAbi,
@@ -11632,10 +11828,14 @@ export const writeErc2771Forwarder = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"execute"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const writeErc2771ForwarderExecute = /*#__PURE__*/ createWriteContract({
   abi: erc2771ForwarderAbi,
@@ -11646,10 +11846,14 @@ export const writeErc2771ForwarderExecute = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"executeBatch"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const writeErc2771ForwarderExecuteBatch =
   /*#__PURE__*/ createWriteContract({
@@ -11661,10 +11865,14 @@ export const writeErc2771ForwarderExecuteBatch =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const simulateErc2771Forwarder = /*#__PURE__*/ createSimulateContract({
   abi: erc2771ForwarderAbi,
@@ -11674,10 +11882,14 @@ export const simulateErc2771Forwarder = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"execute"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const simulateErc2771ForwarderExecute =
   /*#__PURE__*/ createSimulateContract({
@@ -11689,10 +11901,14 @@ export const simulateErc2771ForwarderExecute =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"executeBatch"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const simulateErc2771ForwarderExecuteBatch =
   /*#__PURE__*/ createSimulateContract({
@@ -11704,10 +11920,14 @@ export const simulateErc2771ForwarderExecuteBatch =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link erc2771ForwarderAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const watchErc2771ForwarderEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -11718,10 +11938,14 @@ export const watchErc2771ForwarderEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `eventName` set to `"EIP712DomainChanged"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const watchErc2771ForwarderEip712DomainChangedEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -11733,10 +11957,14 @@ export const watchErc2771ForwarderEip712DomainChangedEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `eventName` set to `"ExecutedForwardRequest"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x460d4de0c26057303628101c9f1f6d8def482d8b)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
  */
 export const watchErc2771ForwarderExecutedForwardRequestEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -12462,10 +12690,14 @@ export const watchJb721TiersHookUsePayCreditsEvent =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const readJb721TiersHookDeployer = /*#__PURE__*/ createReadContract({
   abi: jb721TiersHookDeployerAbi,
@@ -12475,10 +12707,14 @@ export const readJb721TiersHookDeployer = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"ADDRESS_REGISTRY"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const readJb721TiersHookDeployerAddressRegistry =
   /*#__PURE__*/ createReadContract({
@@ -12490,10 +12726,14 @@ export const readJb721TiersHookDeployerAddressRegistry =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"HOOK"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const readJb721TiersHookDeployerHook = /*#__PURE__*/ createReadContract({
   abi: jb721TiersHookDeployerAbi,
@@ -12504,10 +12744,14 @@ export const readJb721TiersHookDeployerHook = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"STORE"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const readJb721TiersHookDeployerStore = /*#__PURE__*/ createReadContract(
   {
@@ -12520,10 +12764,14 @@ export const readJb721TiersHookDeployerStore = /*#__PURE__*/ createReadContract(
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"isTrustedForwarder"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const readJb721TiersHookDeployerIsTrustedForwarder =
   /*#__PURE__*/ createReadContract({
@@ -12535,10 +12783,14 @@ export const readJb721TiersHookDeployerIsTrustedForwarder =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"trustedForwarder"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const readJb721TiersHookDeployerTrustedForwarder =
   /*#__PURE__*/ createReadContract({
@@ -12550,10 +12802,14 @@ export const readJb721TiersHookDeployerTrustedForwarder =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const writeJb721TiersHookDeployer = /*#__PURE__*/ createWriteContract({
   abi: jb721TiersHookDeployerAbi,
@@ -12563,10 +12819,14 @@ export const writeJb721TiersHookDeployer = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"deployHookFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const writeJb721TiersHookDeployerDeployHookFor =
   /*#__PURE__*/ createWriteContract({
@@ -12578,10 +12838,14 @@ export const writeJb721TiersHookDeployerDeployHookFor =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const simulateJb721TiersHookDeployer =
   /*#__PURE__*/ createSimulateContract({
@@ -12592,10 +12856,14 @@ export const simulateJb721TiersHookDeployer =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"deployHookFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const simulateJb721TiersHookDeployerDeployHookFor =
   /*#__PURE__*/ createSimulateContract({
@@ -12607,10 +12875,14 @@ export const simulateJb721TiersHookDeployerDeployHookFor =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const watchJb721TiersHookDeployerEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -12621,10 +12893,14 @@ export const watchJb721TiersHookDeployerEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `eventName` set to `"HookDeployed"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9549a7b078a31f3ed8b418797c330cf9015dbe18)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
  */
 export const watchJb721TiersHookDeployerHookDeployedEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -12636,10 +12912,14 @@ export const watchJb721TiersHookDeployerHookDeployedEvent =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const readJb721TiersHookProjectDeployer =
   /*#__PURE__*/ createReadContract({
@@ -12650,10 +12930,14 @@ export const readJb721TiersHookProjectDeployer =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"DIRECTORY"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const readJb721TiersHookProjectDeployerDirectory =
   /*#__PURE__*/ createReadContract({
@@ -12665,10 +12949,14 @@ export const readJb721TiersHookProjectDeployerDirectory =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"HOOK_DEPLOYER"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const readJb721TiersHookProjectDeployerHookDeployer =
   /*#__PURE__*/ createReadContract({
@@ -12680,10 +12968,14 @@ export const readJb721TiersHookProjectDeployerHookDeployer =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"PERMISSIONS"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const readJb721TiersHookProjectDeployerPermissions =
   /*#__PURE__*/ createReadContract({
@@ -12695,10 +12987,14 @@ export const readJb721TiersHookProjectDeployerPermissions =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"isTrustedForwarder"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const readJb721TiersHookProjectDeployerIsTrustedForwarder =
   /*#__PURE__*/ createReadContract({
@@ -12710,10 +13006,14 @@ export const readJb721TiersHookProjectDeployerIsTrustedForwarder =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"trustedForwarder"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const readJb721TiersHookProjectDeployerTrustedForwarder =
   /*#__PURE__*/ createReadContract({
@@ -12725,10 +13025,14 @@ export const readJb721TiersHookProjectDeployerTrustedForwarder =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const writeJb721TiersHookProjectDeployer =
   /*#__PURE__*/ createWriteContract({
@@ -12739,10 +13043,14 @@ export const writeJb721TiersHookProjectDeployer =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchProjectFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const writeJb721TiersHookProjectDeployerLaunchProjectFor =
   /*#__PURE__*/ createWriteContract({
@@ -12754,10 +13062,14 @@ export const writeJb721TiersHookProjectDeployerLaunchProjectFor =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchRulesetsFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const writeJb721TiersHookProjectDeployerLaunchRulesetsFor =
   /*#__PURE__*/ createWriteContract({
@@ -12769,10 +13081,14 @@ export const writeJb721TiersHookProjectDeployerLaunchRulesetsFor =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"queueRulesetsOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const writeJb721TiersHookProjectDeployerQueueRulesetsOf =
   /*#__PURE__*/ createWriteContract({
@@ -12784,10 +13100,14 @@ export const writeJb721TiersHookProjectDeployerQueueRulesetsOf =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const simulateJb721TiersHookProjectDeployer =
   /*#__PURE__*/ createSimulateContract({
@@ -12798,10 +13118,14 @@ export const simulateJb721TiersHookProjectDeployer =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchProjectFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const simulateJb721TiersHookProjectDeployerLaunchProjectFor =
   /*#__PURE__*/ createSimulateContract({
@@ -12813,10 +13137,14 @@ export const simulateJb721TiersHookProjectDeployerLaunchProjectFor =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchRulesetsFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const simulateJb721TiersHookProjectDeployerLaunchRulesetsFor =
   /*#__PURE__*/ createSimulateContract({
@@ -12828,10 +13156,14 @@ export const simulateJb721TiersHookProjectDeployerLaunchRulesetsFor =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"queueRulesetsOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x36ce554d42f58775cc7294ba842c880dfcf5acd2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
  */
 export const simulateJb721TiersHookProjectDeployerQueueRulesetsOf =
   /*#__PURE__*/ createSimulateContract({
@@ -13272,10 +13604,14 @@ export const watchJb721TiersHookStoreCleanTiersEvent =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const readJbAddressRegistry = /*#__PURE__*/ createReadContract({
   abi: jbAddressRegistryAbi,
@@ -13285,10 +13621,14 @@ export const readJbAddressRegistry = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__ and `functionName` set to `"deployerOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const readJbAddressRegistryDeployerOf = /*#__PURE__*/ createReadContract(
   {
@@ -13301,10 +13641,14 @@ export const readJbAddressRegistryDeployerOf = /*#__PURE__*/ createReadContract(
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const writeJbAddressRegistry = /*#__PURE__*/ createWriteContract({
   abi: jbAddressRegistryAbi,
@@ -13314,10 +13658,14 @@ export const writeJbAddressRegistry = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__ and `functionName` set to `"registerAddress"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const writeJbAddressRegistryRegisterAddress =
   /*#__PURE__*/ createWriteContract({
@@ -13329,10 +13677,14 @@ export const writeJbAddressRegistryRegisterAddress =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const simulateJbAddressRegistry = /*#__PURE__*/ createSimulateContract({
   abi: jbAddressRegistryAbi,
@@ -13342,10 +13694,14 @@ export const simulateJbAddressRegistry = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__ and `functionName` set to `"registerAddress"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const simulateJbAddressRegistryRegisterAddress =
   /*#__PURE__*/ createSimulateContract({
@@ -13357,10 +13713,14 @@ export const simulateJbAddressRegistryRegisterAddress =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbAddressRegistryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const watchJbAddressRegistryEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -13371,10 +13731,14 @@ export const watchJbAddressRegistryEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbAddressRegistryAbi}__ and `eventName` set to `"AddressRegistered"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x529FDff2bC7fbdaeA7b86901FDa9e6905b61E54C)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
  */
 export const watchJbAddressRegistryAddressRegisteredEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -14302,10 +14666,14 @@ export const watchJbControllerSetUriEvent =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const readJbDirectory = /*#__PURE__*/ createReadContract({
   abi: jbDirectoryAbi,
@@ -14315,10 +14683,14 @@ export const readJbDirectory = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"PERMISSIONS"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const readJbDirectoryPermissions = /*#__PURE__*/ createReadContract({
   abi: jbDirectoryAbi,
@@ -14329,10 +14701,14 @@ export const readJbDirectoryPermissions = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"PROJECTS"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const readJbDirectoryProjects = /*#__PURE__*/ createReadContract({
   abi: jbDirectoryAbi,
@@ -14343,10 +14719,14 @@ export const readJbDirectoryProjects = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"controllerOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const readJbDirectoryControllerOf = /*#__PURE__*/ createReadContract({
   abi: jbDirectoryAbi,
@@ -14357,10 +14737,14 @@ export const readJbDirectoryControllerOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"isAllowedToSetFirstController"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const readJbDirectoryIsAllowedToSetFirstController =
   /*#__PURE__*/ createReadContract({
@@ -14372,10 +14756,14 @@ export const readJbDirectoryIsAllowedToSetFirstController =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"isTerminalOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const readJbDirectoryIsTerminalOf = /*#__PURE__*/ createReadContract({
   abi: jbDirectoryAbi,
@@ -14386,10 +14774,14 @@ export const readJbDirectoryIsTerminalOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"owner"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const readJbDirectoryOwner = /*#__PURE__*/ createReadContract({
   abi: jbDirectoryAbi,
@@ -14400,10 +14792,14 @@ export const readJbDirectoryOwner = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"primaryTerminalOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const readJbDirectoryPrimaryTerminalOf =
   /*#__PURE__*/ createReadContract({
@@ -14415,10 +14811,14 @@ export const readJbDirectoryPrimaryTerminalOf =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"terminalsOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const readJbDirectoryTerminalsOf = /*#__PURE__*/ createReadContract({
   abi: jbDirectoryAbi,
@@ -14429,10 +14829,14 @@ export const readJbDirectoryTerminalsOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const writeJbDirectory = /*#__PURE__*/ createWriteContract({
   abi: jbDirectoryAbi,
@@ -14442,10 +14846,14 @@ export const writeJbDirectory = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"renounceOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const writeJbDirectoryRenounceOwnership =
   /*#__PURE__*/ createWriteContract({
@@ -14457,10 +14865,14 @@ export const writeJbDirectoryRenounceOwnership =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setControllerOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const writeJbDirectorySetControllerOf =
   /*#__PURE__*/ createWriteContract({
@@ -14472,10 +14884,14 @@ export const writeJbDirectorySetControllerOf =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setIsAllowedToSetFirstController"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const writeJbDirectorySetIsAllowedToSetFirstController =
   /*#__PURE__*/ createWriteContract({
@@ -14487,10 +14903,14 @@ export const writeJbDirectorySetIsAllowedToSetFirstController =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setPrimaryTerminalOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const writeJbDirectorySetPrimaryTerminalOf =
   /*#__PURE__*/ createWriteContract({
@@ -14502,10 +14922,14 @@ export const writeJbDirectorySetPrimaryTerminalOf =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setTerminalsOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const writeJbDirectorySetTerminalsOf = /*#__PURE__*/ createWriteContract(
   {
@@ -14518,10 +14942,14 @@ export const writeJbDirectorySetTerminalsOf = /*#__PURE__*/ createWriteContract(
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"transferOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const writeJbDirectoryTransferOwnership =
   /*#__PURE__*/ createWriteContract({
@@ -14533,10 +14961,14 @@ export const writeJbDirectoryTransferOwnership =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const simulateJbDirectory = /*#__PURE__*/ createSimulateContract({
   abi: jbDirectoryAbi,
@@ -14546,10 +14978,14 @@ export const simulateJbDirectory = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"renounceOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const simulateJbDirectoryRenounceOwnership =
   /*#__PURE__*/ createSimulateContract({
@@ -14561,10 +14997,14 @@ export const simulateJbDirectoryRenounceOwnership =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setControllerOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const simulateJbDirectorySetControllerOf =
   /*#__PURE__*/ createSimulateContract({
@@ -14576,10 +15016,14 @@ export const simulateJbDirectorySetControllerOf =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setIsAllowedToSetFirstController"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const simulateJbDirectorySetIsAllowedToSetFirstController =
   /*#__PURE__*/ createSimulateContract({
@@ -14591,10 +15035,14 @@ export const simulateJbDirectorySetIsAllowedToSetFirstController =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setPrimaryTerminalOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const simulateJbDirectorySetPrimaryTerminalOf =
   /*#__PURE__*/ createSimulateContract({
@@ -14606,10 +15054,14 @@ export const simulateJbDirectorySetPrimaryTerminalOf =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setTerminalsOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const simulateJbDirectorySetTerminalsOf =
   /*#__PURE__*/ createSimulateContract({
@@ -14621,10 +15073,14 @@ export const simulateJbDirectorySetTerminalsOf =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"transferOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const simulateJbDirectoryTransferOwnership =
   /*#__PURE__*/ createSimulateContract({
@@ -14636,10 +15092,14 @@ export const simulateJbDirectoryTransferOwnership =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const watchJbDirectoryEvent = /*#__PURE__*/ createWatchContractEvent({
   abi: jbDirectoryAbi,
@@ -14649,10 +15109,14 @@ export const watchJbDirectoryEvent = /*#__PURE__*/ createWatchContractEvent({
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"AddTerminal"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const watchJbDirectoryAddTerminalEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -14664,10 +15128,14 @@ export const watchJbDirectoryAddTerminalEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"OwnershipTransferred"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const watchJbDirectoryOwnershipTransferredEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -14679,10 +15147,14 @@ export const watchJbDirectoryOwnershipTransferredEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetController"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const watchJbDirectorySetControllerEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -14694,10 +15166,14 @@ export const watchJbDirectorySetControllerEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetIsAllowedToSetFirstController"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const watchJbDirectorySetIsAllowedToSetFirstControllerEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -14709,10 +15185,14 @@ export const watchJbDirectorySetIsAllowedToSetFirstControllerEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetPrimaryTerminal"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const watchJbDirectorySetPrimaryTerminalEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -14724,10 +15204,14 @@ export const watchJbDirectorySetPrimaryTerminalEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetTerminals"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9b3f76db6d7b3e6b286a3c176ba084ea3e8afd16)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
  */
 export const watchJbDirectorySetTerminalsEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -15434,10 +15918,14 @@ export const watchJbPermissionsOperatorPermissionsSetEvent =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const readJbPrices = /*#__PURE__*/ createReadContract({
   abi: jbPricesAbi,
@@ -15447,10 +15935,14 @@ export const readJbPrices = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"DEFAULT_PROJECT_ID"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const readJbPricesDefaultProjectId = /*#__PURE__*/ createReadContract({
   abi: jbPricesAbi,
@@ -15461,10 +15953,14 @@ export const readJbPricesDefaultProjectId = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"DIRECTORY"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const readJbPricesDirectory = /*#__PURE__*/ createReadContract({
   abi: jbPricesAbi,
@@ -15475,10 +15971,14 @@ export const readJbPricesDirectory = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"PERMISSIONS"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const readJbPricesPermissions = /*#__PURE__*/ createReadContract({
   abi: jbPricesAbi,
@@ -15489,10 +15989,14 @@ export const readJbPricesPermissions = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"PROJECTS"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const readJbPricesProjects = /*#__PURE__*/ createReadContract({
   abi: jbPricesAbi,
@@ -15503,10 +16007,14 @@ export const readJbPricesProjects = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"owner"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const readJbPricesOwner = /*#__PURE__*/ createReadContract({
   abi: jbPricesAbi,
@@ -15517,10 +16025,14 @@ export const readJbPricesOwner = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"priceFeedFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const readJbPricesPriceFeedFor = /*#__PURE__*/ createReadContract({
   abi: jbPricesAbi,
@@ -15531,10 +16043,14 @@ export const readJbPricesPriceFeedFor = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"pricePerUnitOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const readJbPricesPricePerUnitOf = /*#__PURE__*/ createReadContract({
   abi: jbPricesAbi,
@@ -15545,10 +16061,14 @@ export const readJbPricesPricePerUnitOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const writeJbPrices = /*#__PURE__*/ createWriteContract({
   abi: jbPricesAbi,
@@ -15558,10 +16078,14 @@ export const writeJbPrices = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"addPriceFeedFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const writeJbPricesAddPriceFeedFor = /*#__PURE__*/ createWriteContract({
   abi: jbPricesAbi,
@@ -15572,10 +16096,14 @@ export const writeJbPricesAddPriceFeedFor = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"renounceOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const writeJbPricesRenounceOwnership = /*#__PURE__*/ createWriteContract(
   {
@@ -15588,10 +16116,14 @@ export const writeJbPricesRenounceOwnership = /*#__PURE__*/ createWriteContract(
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"transferOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const writeJbPricesTransferOwnership = /*#__PURE__*/ createWriteContract(
   {
@@ -15604,10 +16136,14 @@ export const writeJbPricesTransferOwnership = /*#__PURE__*/ createWriteContract(
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const simulateJbPrices = /*#__PURE__*/ createSimulateContract({
   abi: jbPricesAbi,
@@ -15617,10 +16153,14 @@ export const simulateJbPrices = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"addPriceFeedFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const simulateJbPricesAddPriceFeedFor =
   /*#__PURE__*/ createSimulateContract({
@@ -15632,10 +16172,14 @@ export const simulateJbPricesAddPriceFeedFor =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"renounceOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const simulateJbPricesRenounceOwnership =
   /*#__PURE__*/ createSimulateContract({
@@ -15647,10 +16191,14 @@ export const simulateJbPricesRenounceOwnership =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"transferOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const simulateJbPricesTransferOwnership =
   /*#__PURE__*/ createSimulateContract({
@@ -15662,10 +16210,14 @@ export const simulateJbPricesTransferOwnership =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPricesAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const watchJbPricesEvent = /*#__PURE__*/ createWatchContractEvent({
   abi: jbPricesAbi,
@@ -15675,10 +16227,14 @@ export const watchJbPricesEvent = /*#__PURE__*/ createWatchContractEvent({
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPricesAbi}__ and `eventName` set to `"AddPriceFeed"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const watchJbPricesAddPriceFeedEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -15690,10 +16246,14 @@ export const watchJbPricesAddPriceFeedEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPricesAbi}__ and `eventName` set to `"OwnershipTransferred"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x5e2c77b57fa4206be44cd9e7933aaebfe2b3fa8d)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
  */
 export const watchJbPricesOwnershipTransferredEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -15705,10 +16265,14 @@ export const watchJbPricesOwnershipTransferredEvent =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjects = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15718,10 +16282,14 @@ export const readJbProjects = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"balanceOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsBalanceOf = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15732,10 +16300,14 @@ export const readJbProjectsBalanceOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"count"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsCount = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15746,10 +16318,14 @@ export const readJbProjectsCount = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"getApproved"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsGetApproved = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15760,10 +16336,14 @@ export const readJbProjectsGetApproved = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"isApprovedForAll"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsIsApprovedForAll = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15774,10 +16354,14 @@ export const readJbProjectsIsApprovedForAll = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"name"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsName = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15788,10 +16372,14 @@ export const readJbProjectsName = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"owner"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsOwner = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15802,10 +16390,14 @@ export const readJbProjectsOwner = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"ownerOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsOwnerOf = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15816,10 +16408,14 @@ export const readJbProjectsOwnerOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"supportsInterface"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsSupportsInterface = /*#__PURE__*/ createReadContract(
   {
@@ -15832,10 +16428,14 @@ export const readJbProjectsSupportsInterface = /*#__PURE__*/ createReadContract(
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"symbol"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsSymbol = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15846,10 +16446,14 @@ export const readJbProjectsSymbol = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"tokenURI"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsTokenUri = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15860,10 +16464,14 @@ export const readJbProjectsTokenUri = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"tokenUriResolver"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const readJbProjectsTokenUriResolver = /*#__PURE__*/ createReadContract({
   abi: jbProjectsAbi,
@@ -15874,10 +16482,14 @@ export const readJbProjectsTokenUriResolver = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const writeJbProjects = /*#__PURE__*/ createWriteContract({
   abi: jbProjectsAbi,
@@ -15887,10 +16499,14 @@ export const writeJbProjects = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"approve"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const writeJbProjectsApprove = /*#__PURE__*/ createWriteContract({
   abi: jbProjectsAbi,
@@ -15901,10 +16517,14 @@ export const writeJbProjectsApprove = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"createFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const writeJbProjectsCreateFor = /*#__PURE__*/ createWriteContract({
   abi: jbProjectsAbi,
@@ -15915,10 +16535,14 @@ export const writeJbProjectsCreateFor = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"renounceOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const writeJbProjectsRenounceOwnership =
   /*#__PURE__*/ createWriteContract({
@@ -15930,10 +16554,14 @@ export const writeJbProjectsRenounceOwnership =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"safeTransferFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const writeJbProjectsSafeTransferFrom =
   /*#__PURE__*/ createWriteContract({
@@ -15945,10 +16573,14 @@ export const writeJbProjectsSafeTransferFrom =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setApprovalForAll"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const writeJbProjectsSetApprovalForAll =
   /*#__PURE__*/ createWriteContract({
@@ -15960,10 +16592,14 @@ export const writeJbProjectsSetApprovalForAll =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setTokenUriResolver"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const writeJbProjectsSetTokenUriResolver =
   /*#__PURE__*/ createWriteContract({
@@ -15975,10 +16611,14 @@ export const writeJbProjectsSetTokenUriResolver =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const writeJbProjectsTransferFrom = /*#__PURE__*/ createWriteContract({
   abi: jbProjectsAbi,
@@ -15989,10 +16629,14 @@ export const writeJbProjectsTransferFrom = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const writeJbProjectsTransferOwnership =
   /*#__PURE__*/ createWriteContract({
@@ -16004,10 +16648,14 @@ export const writeJbProjectsTransferOwnership =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const simulateJbProjects = /*#__PURE__*/ createSimulateContract({
   abi: jbProjectsAbi,
@@ -16017,10 +16665,14 @@ export const simulateJbProjects = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"approve"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const simulateJbProjectsApprove = /*#__PURE__*/ createSimulateContract({
   abi: jbProjectsAbi,
@@ -16031,10 +16683,14 @@ export const simulateJbProjectsApprove = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"createFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const simulateJbProjectsCreateFor = /*#__PURE__*/ createSimulateContract(
   { abi: jbProjectsAbi, address: jbProjectsAddress, functionName: 'createFor' },
@@ -16043,10 +16699,14 @@ export const simulateJbProjectsCreateFor = /*#__PURE__*/ createSimulateContract(
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"renounceOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const simulateJbProjectsRenounceOwnership =
   /*#__PURE__*/ createSimulateContract({
@@ -16058,10 +16718,14 @@ export const simulateJbProjectsRenounceOwnership =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"safeTransferFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const simulateJbProjectsSafeTransferFrom =
   /*#__PURE__*/ createSimulateContract({
@@ -16073,10 +16737,14 @@ export const simulateJbProjectsSafeTransferFrom =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setApprovalForAll"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const simulateJbProjectsSetApprovalForAll =
   /*#__PURE__*/ createSimulateContract({
@@ -16088,10 +16756,14 @@ export const simulateJbProjectsSetApprovalForAll =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setTokenUriResolver"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const simulateJbProjectsSetTokenUriResolver =
   /*#__PURE__*/ createSimulateContract({
@@ -16103,10 +16775,14 @@ export const simulateJbProjectsSetTokenUriResolver =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const simulateJbProjectsTransferFrom =
   /*#__PURE__*/ createSimulateContract({
@@ -16118,10 +16794,14 @@ export const simulateJbProjectsTransferFrom =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const simulateJbProjectsTransferOwnership =
   /*#__PURE__*/ createSimulateContract({
@@ -16133,10 +16813,14 @@ export const simulateJbProjectsTransferOwnership =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const watchJbProjectsEvent = /*#__PURE__*/ createWatchContractEvent({
   abi: jbProjectsAbi,
@@ -16146,10 +16830,14 @@ export const watchJbProjectsEvent = /*#__PURE__*/ createWatchContractEvent({
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"Approval"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const watchJbProjectsApprovalEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -16161,10 +16849,14 @@ export const watchJbProjectsApprovalEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"ApprovalForAll"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const watchJbProjectsApprovalForAllEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -16176,10 +16868,14 @@ export const watchJbProjectsApprovalForAllEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"Create"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const watchJbProjectsCreateEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -16191,10 +16887,14 @@ export const watchJbProjectsCreateEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"OwnershipTransferred"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const watchJbProjectsOwnershipTransferredEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -16206,10 +16906,14 @@ export const watchJbProjectsOwnershipTransferredEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"SetTokenUriResolver"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const watchJbProjectsSetTokenUriResolverEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -16221,10 +16925,14 @@ export const watchJbProjectsSetTokenUriResolverEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"Transfer"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x38ecaaec685c21f77712f569b071309a2143ff58)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
  */
 export const watchJbProjectsTransferEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -16236,10 +16944,14 @@ export const watchJbProjectsTransferEvent =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesets = /*#__PURE__*/ createReadContract({
   abi: jbRulesetsAbi,
@@ -16249,10 +16961,14 @@ export const readJbRulesets = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"DIRECTORY"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsDirectory = /*#__PURE__*/ createReadContract({
   abi: jbRulesetsAbi,
@@ -16263,10 +16979,14 @@ export const readJbRulesetsDirectory = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"allOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsAllOf = /*#__PURE__*/ createReadContract({
   abi: jbRulesetsAbi,
@@ -16277,10 +16997,14 @@ export const readJbRulesetsAllOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"currentApprovalStatusForLatestRulesetOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsCurrentApprovalStatusForLatestRulesetOf =
   /*#__PURE__*/ createReadContract({
@@ -16292,10 +17016,14 @@ export const readJbRulesetsCurrentApprovalStatusForLatestRulesetOf =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"currentOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsCurrentOf = /*#__PURE__*/ createReadContract({
   abi: jbRulesetsAbi,
@@ -16306,10 +17034,14 @@ export const readJbRulesetsCurrentOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"deriveCycleNumberFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsDeriveCycleNumberFrom =
   /*#__PURE__*/ createReadContract({
@@ -16321,10 +17053,14 @@ export const readJbRulesetsDeriveCycleNumberFrom =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"deriveStartFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsDeriveStartFrom = /*#__PURE__*/ createReadContract({
   abi: jbRulesetsAbi,
@@ -16335,10 +17071,14 @@ export const readJbRulesetsDeriveStartFrom = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"deriveWeightFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsDeriveWeightFrom = /*#__PURE__*/ createReadContract({
   abi: jbRulesetsAbi,
@@ -16349,10 +17089,14 @@ export const readJbRulesetsDeriveWeightFrom = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"getRulesetOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsGetRulesetOf = /*#__PURE__*/ createReadContract({
   abi: jbRulesetsAbi,
@@ -16363,10 +17107,14 @@ export const readJbRulesetsGetRulesetOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"latestQueuedOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsLatestQueuedOf = /*#__PURE__*/ createReadContract({
   abi: jbRulesetsAbi,
@@ -16377,10 +17125,14 @@ export const readJbRulesetsLatestQueuedOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"latestRulesetIdOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsLatestRulesetIdOf = /*#__PURE__*/ createReadContract(
   {
@@ -16393,10 +17145,14 @@ export const readJbRulesetsLatestRulesetIdOf = /*#__PURE__*/ createReadContract(
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"upcomingOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const readJbRulesetsUpcomingOf = /*#__PURE__*/ createReadContract({
   abi: jbRulesetsAbi,
@@ -16407,10 +17163,14 @@ export const readJbRulesetsUpcomingOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbRulesetsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const writeJbRulesets = /*#__PURE__*/ createWriteContract({
   abi: jbRulesetsAbi,
@@ -16420,10 +17180,14 @@ export const writeJbRulesets = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"queueFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const writeJbRulesetsQueueFor = /*#__PURE__*/ createWriteContract({
   abi: jbRulesetsAbi,
@@ -16434,10 +17198,14 @@ export const writeJbRulesetsQueueFor = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"updateRulesetWeightCache"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const writeJbRulesetsUpdateRulesetWeightCache =
   /*#__PURE__*/ createWriteContract({
@@ -16449,10 +17217,14 @@ export const writeJbRulesetsUpdateRulesetWeightCache =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbRulesetsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const simulateJbRulesets = /*#__PURE__*/ createSimulateContract({
   abi: jbRulesetsAbi,
@@ -16462,10 +17234,14 @@ export const simulateJbRulesets = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"queueFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const simulateJbRulesetsQueueFor = /*#__PURE__*/ createSimulateContract({
   abi: jbRulesetsAbi,
@@ -16476,10 +17252,14 @@ export const simulateJbRulesetsQueueFor = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"updateRulesetWeightCache"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const simulateJbRulesetsUpdateRulesetWeightCache =
   /*#__PURE__*/ createSimulateContract({
@@ -16491,10 +17271,14 @@ export const simulateJbRulesetsUpdateRulesetWeightCache =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const watchJbRulesetsEvent = /*#__PURE__*/ createWatchContractEvent({
   abi: jbRulesetsAbi,
@@ -16504,10 +17288,14 @@ export const watchJbRulesetsEvent = /*#__PURE__*/ createWatchContractEvent({
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__ and `eventName` set to `"RulesetInitialized"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const watchJbRulesetsRulesetInitializedEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -16519,10 +17307,14 @@ export const watchJbRulesetsRulesetInitializedEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__ and `eventName` set to `"RulesetQueued"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const watchJbRulesetsRulesetQueuedEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -16534,10 +17326,14 @@ export const watchJbRulesetsRulesetQueuedEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__ and `eventName` set to `"WeightCacheUpdated"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x117aa863c690a871523715e0ea42a49121f10cfd)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
  */
 export const watchJbRulesetsWeightCacheUpdatedEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -16549,10 +17345,14 @@ export const watchJbRulesetsWeightCacheUpdatedEvent =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSplitsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const readJbSplits = /*#__PURE__*/ createReadContract({
   abi: jbSplitsAbi,
@@ -16562,10 +17362,14 @@ export const readJbSplits = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"DIRECTORY"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const readJbSplitsDirectory = /*#__PURE__*/ createReadContract({
   abi: jbSplitsAbi,
@@ -16576,10 +17380,14 @@ export const readJbSplitsDirectory = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"FALLBACK_RULESET_ID"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const readJbSplitsFallbackRulesetId = /*#__PURE__*/ createReadContract({
   abi: jbSplitsAbi,
@@ -16590,10 +17398,14 @@ export const readJbSplitsFallbackRulesetId = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"splitsOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const readJbSplitsSplitsOf = /*#__PURE__*/ createReadContract({
   abi: jbSplitsAbi,
@@ -16604,10 +17416,14 @@ export const readJbSplitsSplitsOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSplitsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const writeJbSplits = /*#__PURE__*/ createWriteContract({
   abi: jbSplitsAbi,
@@ -16617,10 +17433,14 @@ export const writeJbSplits = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"setSplitGroupsOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const writeJbSplitsSetSplitGroupsOf = /*#__PURE__*/ createWriteContract({
   abi: jbSplitsAbi,
@@ -16631,10 +17451,14 @@ export const writeJbSplitsSetSplitGroupsOf = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSplitsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const simulateJbSplits = /*#__PURE__*/ createSimulateContract({
   abi: jbSplitsAbi,
@@ -16644,10 +17468,14 @@ export const simulateJbSplits = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"setSplitGroupsOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const simulateJbSplitsSetSplitGroupsOf =
   /*#__PURE__*/ createSimulateContract({
@@ -16659,10 +17487,14 @@ export const simulateJbSplitsSetSplitGroupsOf =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSplitsAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const watchJbSplitsEvent = /*#__PURE__*/ createWatchContractEvent({
   abi: jbSplitsAbi,
@@ -16672,10 +17504,14 @@ export const watchJbSplitsEvent = /*#__PURE__*/ createWatchContractEvent({
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSplitsAbi}__ and `eventName` set to `"SetSplit"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x3792121047c75d0808a230eb4e67157d93fafcba)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
  */
 export const watchJbSplitsSetSplitEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -16687,10 +17523,14 @@ export const watchJbSplitsSetSplitEvent =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const readJbSuckerRegistry = /*#__PURE__*/ createReadContract({
   abi: jbSuckerRegistryAbi,
@@ -16700,10 +17540,14 @@ export const readJbSuckerRegistry = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"DIRECTORY"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const readJbSuckerRegistryDirectory = /*#__PURE__*/ createReadContract({
   abi: jbSuckerRegistryAbi,
@@ -16714,10 +17558,14 @@ export const readJbSuckerRegistryDirectory = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"PERMISSIONS"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const readJbSuckerRegistryPermissions = /*#__PURE__*/ createReadContract(
   {
@@ -16730,10 +17578,14 @@ export const readJbSuckerRegistryPermissions = /*#__PURE__*/ createReadContract(
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"PROJECTS"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const readJbSuckerRegistryProjects = /*#__PURE__*/ createReadContract({
   abi: jbSuckerRegistryAbi,
@@ -16742,27 +17594,16 @@ export const readJbSuckerRegistryProjects = /*#__PURE__*/ createReadContract({
 })
 
 /**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"getSuckerPairsOf"`
- *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- */
-export const readJbSuckerRegistryGetSuckerPairsOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'getSuckerPairsOf',
-  })
-
-/**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"isSuckerOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const readJbSuckerRegistryIsSuckerOf = /*#__PURE__*/ createReadContract({
   abi: jbSuckerRegistryAbi,
@@ -16773,10 +17614,14 @@ export const readJbSuckerRegistryIsSuckerOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"isTrustedForwarder"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const readJbSuckerRegistryIsTrustedForwarder =
   /*#__PURE__*/ createReadContract({
@@ -16788,10 +17633,14 @@ export const readJbSuckerRegistryIsTrustedForwarder =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"owner"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const readJbSuckerRegistryOwner = /*#__PURE__*/ createReadContract({
   abi: jbSuckerRegistryAbi,
@@ -16802,10 +17651,14 @@ export const readJbSuckerRegistryOwner = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"suckerDeployerIsAllowed"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const readJbSuckerRegistrySuckerDeployerIsAllowed =
   /*#__PURE__*/ createReadContract({
@@ -16815,12 +17668,35 @@ export const readJbSuckerRegistrySuckerDeployerIsAllowed =
   })
 
 /**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"suckerPairsOf"`
+ *
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ */
+export const readJbSuckerRegistrySuckerPairsOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSuckerRegistryAbi,
+    address: jbSuckerRegistryAddress,
+    functionName: 'suckerPairsOf',
+  })
+
+/**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"suckersOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const readJbSuckerRegistrySuckersOf = /*#__PURE__*/ createReadContract({
   abi: jbSuckerRegistryAbi,
@@ -16831,10 +17707,14 @@ export const readJbSuckerRegistrySuckersOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"trustedForwarder"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const readJbSuckerRegistryTrustedForwarder =
   /*#__PURE__*/ createReadContract({
@@ -16846,10 +17726,14 @@ export const readJbSuckerRegistryTrustedForwarder =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const writeJbSuckerRegistry = /*#__PURE__*/ createWriteContract({
   abi: jbSuckerRegistryAbi,
@@ -16859,10 +17743,14 @@ export const writeJbSuckerRegistry = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployer"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const writeJbSuckerRegistryAllowSuckerDeployer =
   /*#__PURE__*/ createWriteContract({
@@ -16874,10 +17762,14 @@ export const writeJbSuckerRegistryAllowSuckerDeployer =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployers"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const writeJbSuckerRegistryAllowSuckerDeployers =
   /*#__PURE__*/ createWriteContract({
@@ -16889,10 +17781,14 @@ export const writeJbSuckerRegistryAllowSuckerDeployers =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"deploySuckersFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const writeJbSuckerRegistryDeploySuckersFor =
   /*#__PURE__*/ createWriteContract({
@@ -16904,10 +17800,14 @@ export const writeJbSuckerRegistryDeploySuckersFor =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeDeprecatedSucker"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const writeJbSuckerRegistryRemoveDeprecatedSucker =
   /*#__PURE__*/ createWriteContract({
@@ -16919,10 +17819,14 @@ export const writeJbSuckerRegistryRemoveDeprecatedSucker =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeSuckerDeployer"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const writeJbSuckerRegistryRemoveSuckerDeployer =
   /*#__PURE__*/ createWriteContract({
@@ -16934,10 +17838,14 @@ export const writeJbSuckerRegistryRemoveSuckerDeployer =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"renounceOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const writeJbSuckerRegistryRenounceOwnership =
   /*#__PURE__*/ createWriteContract({
@@ -16949,10 +17857,14 @@ export const writeJbSuckerRegistryRenounceOwnership =
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"transferOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const writeJbSuckerRegistryTransferOwnership =
   /*#__PURE__*/ createWriteContract({
@@ -16964,10 +17876,14 @@ export const writeJbSuckerRegistryTransferOwnership =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const simulateJbSuckerRegistry = /*#__PURE__*/ createSimulateContract({
   abi: jbSuckerRegistryAbi,
@@ -16977,10 +17893,14 @@ export const simulateJbSuckerRegistry = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployer"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const simulateJbSuckerRegistryAllowSuckerDeployer =
   /*#__PURE__*/ createSimulateContract({
@@ -16992,10 +17912,14 @@ export const simulateJbSuckerRegistryAllowSuckerDeployer =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployers"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const simulateJbSuckerRegistryAllowSuckerDeployers =
   /*#__PURE__*/ createSimulateContract({
@@ -17007,10 +17931,14 @@ export const simulateJbSuckerRegistryAllowSuckerDeployers =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"deploySuckersFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const simulateJbSuckerRegistryDeploySuckersFor =
   /*#__PURE__*/ createSimulateContract({
@@ -17022,10 +17950,14 @@ export const simulateJbSuckerRegistryDeploySuckersFor =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeDeprecatedSucker"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const simulateJbSuckerRegistryRemoveDeprecatedSucker =
   /*#__PURE__*/ createSimulateContract({
@@ -17037,10 +17969,14 @@ export const simulateJbSuckerRegistryRemoveDeprecatedSucker =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeSuckerDeployer"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const simulateJbSuckerRegistryRemoveSuckerDeployer =
   /*#__PURE__*/ createSimulateContract({
@@ -17052,10 +17988,14 @@ export const simulateJbSuckerRegistryRemoveSuckerDeployer =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"renounceOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const simulateJbSuckerRegistryRenounceOwnership =
   /*#__PURE__*/ createSimulateContract({
@@ -17067,10 +18007,14 @@ export const simulateJbSuckerRegistryRenounceOwnership =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"transferOwnership"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const simulateJbSuckerRegistryTransferOwnership =
   /*#__PURE__*/ createSimulateContract({
@@ -17082,10 +18026,14 @@ export const simulateJbSuckerRegistryTransferOwnership =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const watchJbSuckerRegistryEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -17096,10 +18044,14 @@ export const watchJbSuckerRegistryEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"OwnershipTransferred"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const watchJbSuckerRegistryOwnershipTransferredEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -17111,10 +18063,14 @@ export const watchJbSuckerRegistryOwnershipTransferredEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeployedFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const watchJbSuckerRegistrySuckerDeployedForEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -17126,10 +18082,14 @@ export const watchJbSuckerRegistrySuckerDeployedForEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeployerAllowed"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const watchJbSuckerRegistrySuckerDeployerAllowedEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -17141,10 +18101,14 @@ export const watchJbSuckerRegistrySuckerDeployerAllowedEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeployerRemoved"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const watchJbSuckerRegistrySuckerDeployerRemovedEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -17156,10 +18120,14 @@ export const watchJbSuckerRegistrySuckerDeployerRemovedEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeprecated"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x54c6a82c83449293f3fcad1735dcec1e31257a9e)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
  */
 export const watchJbSuckerRegistrySuckerDeprecatedEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -17794,10 +18762,14 @@ export const simulateJbTerminalStoreRecordUsedAllowanceOf =
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const readJbTokens = /*#__PURE__*/ createReadContract({
   abi: jbTokensAbi,
@@ -17807,10 +18779,14 @@ export const readJbTokens = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"DIRECTORY"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const readJbTokensDirectory = /*#__PURE__*/ createReadContract({
   abi: jbTokensAbi,
@@ -17821,10 +18797,14 @@ export const readJbTokensDirectory = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"TOKEN"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const readJbTokensToken = /*#__PURE__*/ createReadContract({
   abi: jbTokensAbi,
@@ -17835,10 +18815,14 @@ export const readJbTokensToken = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"creditBalanceOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const readJbTokensCreditBalanceOf = /*#__PURE__*/ createReadContract({
   abi: jbTokensAbi,
@@ -17849,10 +18833,14 @@ export const readJbTokensCreditBalanceOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"projectIdOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const readJbTokensProjectIdOf = /*#__PURE__*/ createReadContract({
   abi: jbTokensAbi,
@@ -17863,10 +18851,14 @@ export const readJbTokensProjectIdOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"tokenOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const readJbTokensTokenOf = /*#__PURE__*/ createReadContract({
   abi: jbTokensAbi,
@@ -17877,10 +18869,14 @@ export const readJbTokensTokenOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"totalBalanceOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const readJbTokensTotalBalanceOf = /*#__PURE__*/ createReadContract({
   abi: jbTokensAbi,
@@ -17891,10 +18887,14 @@ export const readJbTokensTotalBalanceOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"totalCreditSupplyOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const readJbTokensTotalCreditSupplyOf = /*#__PURE__*/ createReadContract(
   {
@@ -17907,10 +18907,14 @@ export const readJbTokensTotalCreditSupplyOf = /*#__PURE__*/ createReadContract(
 /**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"totalSupplyOf"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const readJbTokensTotalSupplyOf = /*#__PURE__*/ createReadContract({
   abi: jbTokensAbi,
@@ -17921,10 +18925,14 @@ export const readJbTokensTotalSupplyOf = /*#__PURE__*/ createReadContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const writeJbTokens = /*#__PURE__*/ createWriteContract({
   abi: jbTokensAbi,
@@ -17934,10 +18942,14 @@ export const writeJbTokens = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"burnFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const writeJbTokensBurnFrom = /*#__PURE__*/ createWriteContract({
   abi: jbTokensAbi,
@@ -17948,10 +18960,14 @@ export const writeJbTokensBurnFrom = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"claimTokensFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const writeJbTokensClaimTokensFor = /*#__PURE__*/ createWriteContract({
   abi: jbTokensAbi,
@@ -17962,10 +18978,14 @@ export const writeJbTokensClaimTokensFor = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"deployERC20For"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const writeJbTokensDeployErc20For = /*#__PURE__*/ createWriteContract({
   abi: jbTokensAbi,
@@ -17976,10 +18996,14 @@ export const writeJbTokensDeployErc20For = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"mintFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const writeJbTokensMintFor = /*#__PURE__*/ createWriteContract({
   abi: jbTokensAbi,
@@ -17990,10 +19014,14 @@ export const writeJbTokensMintFor = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"setTokenFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const writeJbTokensSetTokenFor = /*#__PURE__*/ createWriteContract({
   abi: jbTokensAbi,
@@ -18004,10 +19032,14 @@ export const writeJbTokensSetTokenFor = /*#__PURE__*/ createWriteContract({
 /**
  * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"transferCreditsFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const writeJbTokensTransferCreditsFrom =
   /*#__PURE__*/ createWriteContract({
@@ -18019,10 +19051,14 @@ export const writeJbTokensTransferCreditsFrom =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const simulateJbTokens = /*#__PURE__*/ createSimulateContract({
   abi: jbTokensAbi,
@@ -18032,10 +19068,14 @@ export const simulateJbTokens = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"burnFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const simulateJbTokensBurnFrom = /*#__PURE__*/ createSimulateContract({
   abi: jbTokensAbi,
@@ -18046,10 +19086,14 @@ export const simulateJbTokensBurnFrom = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"claimTokensFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const simulateJbTokensClaimTokensFor =
   /*#__PURE__*/ createSimulateContract({
@@ -18061,10 +19105,14 @@ export const simulateJbTokensClaimTokensFor =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"deployERC20For"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const simulateJbTokensDeployErc20For =
   /*#__PURE__*/ createSimulateContract({
@@ -18076,10 +19124,14 @@ export const simulateJbTokensDeployErc20For =
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"mintFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const simulateJbTokensMintFor = /*#__PURE__*/ createSimulateContract({
   abi: jbTokensAbi,
@@ -18090,10 +19142,14 @@ export const simulateJbTokensMintFor = /*#__PURE__*/ createSimulateContract({
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"setTokenFor"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const simulateJbTokensSetTokenFor = /*#__PURE__*/ createSimulateContract(
   { abi: jbTokensAbi, address: jbTokensAddress, functionName: 'setTokenFor' },
@@ -18102,10 +19158,14 @@ export const simulateJbTokensSetTokenFor = /*#__PURE__*/ createSimulateContract(
 /**
  * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"transferCreditsFrom"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const simulateJbTokensTransferCreditsFrom =
   /*#__PURE__*/ createSimulateContract({
@@ -18117,10 +19177,14 @@ export const simulateJbTokensTransferCreditsFrom =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const watchJbTokensEvent = /*#__PURE__*/ createWatchContractEvent({
   abi: jbTokensAbi,
@@ -18130,10 +19194,14 @@ export const watchJbTokensEvent = /*#__PURE__*/ createWatchContractEvent({
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"Burn"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const watchJbTokensBurnEvent = /*#__PURE__*/ createWatchContractEvent({
   abi: jbTokensAbi,
@@ -18144,10 +19212,14 @@ export const watchJbTokensBurnEvent = /*#__PURE__*/ createWatchContractEvent({
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"ClaimTokens"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const watchJbTokensClaimTokensEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -18159,10 +19231,14 @@ export const watchJbTokensClaimTokensEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"DeployERC20"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const watchJbTokensDeployErc20Event =
   /*#__PURE__*/ createWatchContractEvent({
@@ -18174,10 +19250,14 @@ export const watchJbTokensDeployErc20Event =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"Mint"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const watchJbTokensMintEvent = /*#__PURE__*/ createWatchContractEvent({
   abi: jbTokensAbi,
@@ -18188,10 +19268,14 @@ export const watchJbTokensMintEvent = /*#__PURE__*/ createWatchContractEvent({
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"SetToken"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const watchJbTokensSetTokenEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -18203,10 +19287,14 @@ export const watchJbTokensSetTokenEvent =
 /**
  * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"TransferCredits"`
  *
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb4a4d8ad7636e36d6ff3c7c664f9f797a532bbb2)
+ * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
+ * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
  */
 export const watchJbTokensTransferCreditsEvent =
   /*#__PURE__*/ createWatchContractEvent({
@@ -18220,16 +19308,16 @@ export const watchJbTokensTransferCreditsEvent =
    */
   export const jbProjectDeploymentAddresses = {
   "JBMultiTerminal": {
-    "84532": "0x50fe7b6720901b74026ad714d9b393eda7e39974",
-    "421614": "0x50fe7b6720901b74026ad714d9b393eda7e39974",
-    "11155111": "0x50fe7b6720901b74026ad714d9b393eda7e39974",
-    "11155420": "0x50fe7b6720901b74026ad714d9b393eda7e39974"
+    "84532": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+    "421614": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+    "11155111": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+    "11155420": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc"
   },
   "JBController": {
-    "84532": "0xd1f037efebf187a59520bcce9d1dabe5ccfab2c3",
-    "421614": "0xd1f037efebf187a59520bcce9d1dabe5ccfab2c3",
-    "11155111": "0xd1f037efebf187a59520bcce9d1dabe5ccfab2c3",
-    "11155420": "0xd1f037efebf187a59520bcce9d1dabe5ccfab2c3"
+    "84532": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+    "421614": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+    "11155111": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+    "11155420": "0xb291844f213047eb9e1621ae555b1eae6700d553"
   },
   "JB721TiersHookStore": {
     "84532": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
@@ -18238,15 +19326,15 @@ export const watchJbTokensTransferCreditsEvent =
     "11155420": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1"
   },
   "JBBuybackHook": {
-    "84532": "0x5efb0f2d288b47a4e74ad26b8d6c8f1dffa406af",
-    "421614": "0x41a44e107eba275f8a1d06b8c69584213f58a16c",
-    "11155111": "0x06b57674d0cab6744385afad69f79489cc75557d",
-    "11155420": "0x5efb0f2d288b47a4e74ad26b8d6c8f1dffa406af"
+    "84532": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d",
+    "421614": "0xc32b873d25230bcbeb4f9d9d9bf10eaf4d77dddf",
+    "11155111": "0x085b2fd0560ef5b6acd0f98b2f0e079cfa936f58",
+    "11155420": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d"
   },
   "JBSwapTerminal": {
-    "84532": "0x11b23acbbdd734e1e6edf567463ea2cdbea07c7d",
-    "421614": "0xd5e24f5ce6d10177241aecb6eff426db455d6de5",
-    "11155111": "0xddfbea6f25e06a55bf48c9d68d20ba06097b9db5",
-    "11155420": "0x11b23acbbdd734e1e6edf567463ea2cdbea07c7d"
+    "84532": "0xb940f0bb31376cad3a0fae7c78995ae899160a52",
+    "421614": "0xcf5f58ebb455678005b7dc6e506a7ec9a3438d0e",
+    "11155111": "0x94c5431808ab538d398c6354d1972a0cb8c0b18b",
+    "11155420": "0xb940f0bb31376cad3a0fae7c78995ae899160a52"
   }
 };
