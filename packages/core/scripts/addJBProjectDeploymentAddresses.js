@@ -9,7 +9,7 @@ const CHAIN_NAME = {
   421614: "arbitrum_sepolia",
   84532: "base_sepolia",
   1: "ethereum",
-  100: "optimism",
+  10: "optimism",
   42161: "arbitrum",
   84533: "base",
 };

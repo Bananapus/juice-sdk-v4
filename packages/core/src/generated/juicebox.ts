@@ -19309,7 +19309,7 @@ export const watchJbTokensTransferCreditsEvent =
   export const jbProjectDeploymentAddresses = {
   "JBMultiTerminal": {
     "1": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "100": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+    "10": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
     "42161": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
     "84532": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
     "84533": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
@@ -19319,7 +19319,7 @@ export const watchJbTokensTransferCreditsEvent =
   },
   "JBController": {
     "1": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "100": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+    "10": "0xb291844f213047eb9e1621ae555b1eae6700d553",
     "42161": "0xb291844f213047eb9e1621ae555b1eae6700d553",
     "84532": "0xb291844f213047eb9e1621ae555b1eae6700d553",
     "84533": "0xb291844f213047eb9e1621ae555b1eae6700d553",
@@ -19329,7 +19329,7 @@ export const watchJbTokensTransferCreditsEvent =
   },
   "JB721TiersHookStore": {
     "1": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "100": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+    "10": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
     "42161": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
     "84532": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
     "84533": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
@@ -19339,7 +19339,7 @@ export const watchJbTokensTransferCreditsEvent =
   },
   "JBBuybackHook": {
     "1": "0x7dcf35dad9b30ffcb7f35f51279252b884921927",
-    "100": "0x09d97e2b8b2f143335c2344947a79d1a3a4c2946",
+    "10": "0x09d97e2b8b2f143335c2344947a79d1a3a4c2946",
     "42161": "0xb9dce56d7f64b8c456157ded0c76241d0c23f578",
     "84532": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d",
     "84533": "0x47d1b88af8ee0ed0a772a7c98430894141b9ac8b",
@@ -19349,7 +19349,7 @@ export const watchJbTokensTransferCreditsEvent =
   },
   "JBSwapTerminal": {
     "1": "0xdd98b25631aa9372a8cf09912b803d2ad80db161",
-    "100": "0xf7002a2df9bebf629b6093c8a60e28beed4f7b48",
+    "10": "0xf7002a2df9bebf629b6093c8a60e28beed4f7b48",
     "42161": "0xcf50c6f3f366817815fe7ba69b4518356ba6033b",
     "84532": "0xb940f0bb31376cad3a0fae7c78995ae899160a52",
     "84533": "0x9b82f7f43a956f5e83faaf1d46382cba19ce71ab",
