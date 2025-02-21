@@ -6,8 +6,11 @@ import { RelayrGetBundleResponse } from "../types";
 const POLL_INTERVAL = 2000;
 
 const fetchTxBundle = async (
-  uuid: string
+  uuid: string | undefined
 ): Promise<RelayrGetBundleResponse> => {
+  if (!uuid) {
+    throw new Error("No UUID provided");
+  }
   const response = await fetch(`${API}/v1/bundle/${uuid}`);
   if (!response.ok) {
     const errorMessage = await response.text();
@@ -16,17 +19,12 @@ const fetchTxBundle = async (
   return response.json();
 };
 
-export function useGetTxBundle() {
-  const [uuid, setUuid] = useState<string | null>(null);
+export function useGetRelayrTxBundle() {
+  const [uuid, setUuid] = useState<string>();
 
-  const {
-    data: relayrResponse,
-    error,
-    isFetching: isPolling,
-    refetch,
-  } = useQuery({
+  const getRelayrTxBundle = useQuery({
     queryKey: ["txBundle", uuid],
-    queryFn: () => fetchTxBundle(uuid!),
+    queryFn: () => fetchTxBundle(uuid),
     enabled: !!uuid,
     refetchInterval: (query) =>
       query.state.data?.transactions?.every((tx) => tx?.status.data?.hash)
@@ -36,19 +34,19 @@ export function useGetTxBundle() {
 
   const startPolling = (bundleUuid: string) => {
     setUuid(bundleUuid);
-    refetch();
+    getRelayrTxBundle.refetch();
   };
 
   const isComplete = (
-    relayrResponse as RelayrGetBundleResponse
+    getRelayrTxBundle.data as RelayrGetBundleResponse
   )?.transactions?.every((tx) => tx?.status.data?.hash);
 
   return {
     startPolling,
-    response: relayrResponse as RelayrGetBundleResponse,
-    isPolling,
     isComplete,
-    error,
     uuid,
+    response: getRelayrTxBundle.data as RelayrGetBundleResponse,
+    isPolling: getRelayrTxBundle.isFetching,
+    error: getRelayrTxBundle.error,
   };
 }

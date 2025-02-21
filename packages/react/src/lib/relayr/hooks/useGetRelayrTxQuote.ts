@@ -8,14 +8,14 @@ import {
 /**
  * Hook to get transaction quote from relayr.
  */
-export function useGetTxQuote() {
+export function useGetRelayrTxQuote() {
   const requestRelayrQuote = useRequestRelayrQuote();
   const { sign } = useSignErc2771ForwardRequest();
 
   /**
    * Prompt user to sign transactions for each chain, then fetch transaction data from relayr.
    */
-  async function getTransactionQuote(
+  async function getRelayrTxQuote(
     data: { chainId: JBChainId; data: ERC2771ForwardRequestData }[]
   ) {
     if (!data) return;
@@ -41,7 +41,7 @@ export function useGetTxQuote() {
   }
 
   return {
-    getTransactionQuote,
+    getRelayrTxQuote,
     ...requestRelayrQuote,
   };
 }

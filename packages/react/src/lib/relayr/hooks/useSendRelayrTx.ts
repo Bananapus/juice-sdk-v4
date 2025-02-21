@@ -5,12 +5,12 @@ import { ChainPayment } from "../types";
 /**
  * Submit a relayr-given transaction onchain.
  */
-export function useSendTx() {
+export function useSendRelayrTx() {
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const _sendTransaction = useSendTransaction();
 
-  const sendTransaction = useCallback(
+  const sendRelayrTx = useCallback(
     async (chainPayment: ChainPayment) => {
       try {
         if (chainId !== chainPayment.chain) {
@@ -37,7 +37,7 @@ export function useSendTx() {
   );
 
   return {
-    sendTransaction,
+    sendRelayrTx,
     isPending: _sendTransaction.isPending,
     error: _sendTransaction.error,
     isSuccess: _sendTransaction.isSuccess,

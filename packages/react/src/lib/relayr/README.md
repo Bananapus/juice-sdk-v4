@@ -9,11 +9,11 @@ DOCS: https://relayr-docs-staging.up.railway.app
 
 ### How to use
 
-1. Call `getTxQuote` from `useGetTxQuote`
+1. Call `getRelayrTxQuote` from `useGetRelayrTxQuote`
 2. Prompt user to select which chain they want to pay on.
-3. Call `sendTx` from `useSendTx`:
+3. Call `sendRelayr` from `useSendRelayrTx`:
 
-   - use `payment_info[selected_chain_id]` from the `getTxQuote` response as argument
+   - use `payment_info[selected_chain_id]` from the `getRelayrTxQuote` response as argument
 
-4. Poll for the transaction bundle's status with `useGetTxBundle`
-   - call `startPolling` with `bundle_uuid` from `getTxQuote` response
+4. Poll for the transaction bundle's status with `useGetRelayrTxBundle`
+   - call `startPolling` with `bundle_uuid` from `getRelayrTxQuote` response
