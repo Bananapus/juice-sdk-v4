@@ -4,9 +4,12 @@ import { JBChainId } from "../types.js";
 export function jbUrn(urn: string): {
   chainId: JBChainId;
   projectId: bigint;
-} {
+} | null {
   const [chainSlug, projectId] = urn.split(":");
   const chain = JB_CHAIN_SLUGS[chainSlug];
+  if (!chain) {
+    return null;
+  }
 
   return {
     chainId: chain.chain.id as JBChainId,
