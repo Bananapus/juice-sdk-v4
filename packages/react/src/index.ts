@@ -9,3 +9,4 @@ export * from "./contexts/JBDataHookContext/JBDataHookContext";
 export * from "./hooks";
 export * from "./generated/juicebox";
 export * from "./components/NativeTokenValue";
+export * from "./lib/relayr";
