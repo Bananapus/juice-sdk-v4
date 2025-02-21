@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation } from "wagmi/query";
 import { API } from "../constants";
 import { RelayrPostBundleResponse } from "../types";
 import { JBChainId, erc2771ForwarderAddress } from "juice-sdk-core";
