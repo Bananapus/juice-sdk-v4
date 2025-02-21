@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
-import { erc2771ForwarderAddress, JBChainId } from "juice-sdk-react";
 import { API } from "../constants";
 import { RelayrPostBundleResponse } from "../types";
+import { JBChainId, erc2771ForwarderAddress } from "juice-sdk-core";
 
 export function useRequestRelayrQuote() {
   return useMutation({

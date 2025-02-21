@@ -1,4 +1,4 @@
-import { JBChainId } from "juice-sdk-react";
+import { JBChainId } from "juice-sdk-core";
 
 export type ChainPayment = {
   amount: `0x${string}`;
