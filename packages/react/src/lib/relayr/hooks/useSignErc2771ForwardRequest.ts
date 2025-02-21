@@ -1,11 +1,11 @@
 import {
   JBChainId,
-  readErc2771ForwarderNonces,
-  erc2771ForwarderAddress,
   erc2771ForwarderAbi,
+  erc2771ForwarderAddress,
+  readErc2771ForwarderNonces,
 } from "juice-sdk-core";
 import { Address, Hash, encodeFunctionData } from "viem";
-import { useSwitchChain, useAccount, useConfig, useSignTypedData } from "wagmi";
+import { useAccount, useConfig, useSignTypedData, useSwitchChain } from "wagmi";
 
 export type ERC2771ForwardRequestData = {
   from: Address;
@@ -16,7 +16,7 @@ export type ERC2771ForwardRequestData = {
 };
 
 export function useSignErc2771ForwardRequest() {
-  const { switchChain } = useSwitchChain();
+  const { switchChainAsync } = useSwitchChain();
   const { address } = useAccount();
   const config = useConfig();
   const { signTypedData } = useSignTypedData();
@@ -25,7 +25,7 @@ export function useSignErc2771ForwardRequest() {
     messageData: ERC2771ForwardRequestData,
     chainId: JBChainId
   ) {
-    switchChain({ chainId });
+    await switchChainAsync({ chainId });
 
     return new Promise<Hash>(async (resolve, reject) => {
       if (!address) return;
