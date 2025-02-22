@@ -44,6 +44,9 @@ export enum JBAddressRegistryContracts {
 
 export enum JBSuckerContracts {
   JBSuckerRegistry = "JBSuckerRegistry",
+  JBCCIPSuckerDeployer = "JBCCIPSuckerDeployer",
+  JBCCIPSuckerDeployer_1 = "JBCCIPSuckerDeployer_1",
+  JBCCIPSuckerDeployer_2 = "JBCCIPSuckerDeployer_2",
 }
 
 export enum JBSwapTerminalContracts {
@@ -102,6 +105,9 @@ const HAS_STATIC_ADDRESS: Contracts[] = [
   JB721HookContracts.JB721TiersHookDeployer,
   JB721HookContracts.JB721TiersHookProjectDeployer,
   JBSuckerContracts.JBSuckerRegistry,
+  JBSuckerContracts.JBCCIPSuckerDeployer,
+  JBSuckerContracts.JBCCIPSuckerDeployer_1,
+  JBSuckerContracts.JBCCIPSuckerDeployer_2,
 ];
 
 function nanaCorePath(chain: Chain, contractName: Contracts) {
