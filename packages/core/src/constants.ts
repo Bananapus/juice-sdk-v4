@@ -231,7 +231,7 @@ export const CCIP_SUCKER_DEPLOYER_ADDRESSES: CCIPMap = {
     [baseSepolia.id]: jbccipSuckerDeployer_2Address[arbitrumSepolia.id],
   },
   [arbitrum.id]: {
-    [sepolia.id]: jbccipSuckerDeployerAddress[arbitrum.id],
+    [mainnet.id]: jbccipSuckerDeployerAddress[arbitrum.id],
     [optimism.id]: jbccipSuckerDeployer_1Address[arbitrum.id],
     [base.id]: jbccipSuckerDeployer_2Address[arbitrum.id],
   },
@@ -242,7 +242,7 @@ export const CCIP_SUCKER_DEPLOYER_ADDRESSES: CCIPMap = {
     [baseSepolia.id]: jbccipSuckerDeployer_2Address[optimismSepolia.id],
   },
   [optimism.id]: {
-    [sepolia.id]: jbccipSuckerDeployerAddress[optimism.id],
+    [mainnet.id]: jbccipSuckerDeployerAddress[optimism.id],
     [arbitrum.id]: jbccipSuckerDeployer_1Address[optimism.id],
     [base.id]: jbccipSuckerDeployer_2Address[optimism.id],
   },
@@ -253,7 +253,7 @@ export const CCIP_SUCKER_DEPLOYER_ADDRESSES: CCIPMap = {
     [arbitrumSepolia.id]: jbccipSuckerDeployer_2Address[baseSepolia.id],
   },
   [base.id]: {
-    [sepolia.id]: jbccipSuckerDeployerAddress[base.id],
+    [mainnet.id]: jbccipSuckerDeployerAddress[base.id],
     [optimism.id]: jbccipSuckerDeployer_1Address[base.id],
     [arbitrum.id]: jbccipSuckerDeployer_2Address[base.id],
   },
