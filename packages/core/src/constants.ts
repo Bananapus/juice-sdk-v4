@@ -10,6 +10,11 @@ import {
   sepolia,
 } from "viem/chains";
 import { JBChainId } from "./types.js";
+import {
+  jbccipSuckerDeployerAddress,
+  jbccipSuckerDeployer_1Address,
+  jbccipSuckerDeployer_2Address,
+} from "./generated/juicebox.js";
 
 /**
  * Representation of one ether.
@@ -198,3 +203,58 @@ export const JB_CHAIN_SLUGS = Object.values(JB_CHAINS).reduce(
 );
 
 export const DEFAULT_NATIVE_TOKEN_SYMBOL = "ETH";
+
+type CCIPMap = {
+  [k in JBChainId]?: {
+    [k in JBChainId]?: Address;
+  };
+};
+
+/**
+ * @see https://discord.com/channels/1139291093310132376/1139291094069301385/1337164727008366683
+ */
+export const CCIP_SUCKER_DEPLOYER_ADDRESSES: CCIPMap = {
+  [sepolia.id]: {
+    [optimismSepolia.id]: jbccipSuckerDeployerAddress[sepolia.id],
+    [baseSepolia.id]: jbccipSuckerDeployer_1Address[sepolia.id],
+    [arbitrumSepolia.id]: jbccipSuckerDeployer_2Address[sepolia.id],
+  },
+  [mainnet.id]: {
+    [optimism.id]: jbccipSuckerDeployerAddress[mainnet.id],
+    [base.id]: jbccipSuckerDeployer_1Address[mainnet.id],
+    [arbitrum.id]: jbccipSuckerDeployer_2Address[mainnet.id],
+  },
+
+  [arbitrumSepolia.id]: {
+    [sepolia.id]: jbccipSuckerDeployerAddress[arbitrumSepolia.id],
+    [optimismSepolia.id]: jbccipSuckerDeployer_1Address[arbitrumSepolia.id],
+    [baseSepolia.id]: jbccipSuckerDeployer_2Address[arbitrumSepolia.id],
+  },
+  [arbitrum.id]: {
+    [sepolia.id]: jbccipSuckerDeployerAddress[arbitrum.id],
+    [optimism.id]: jbccipSuckerDeployer_1Address[arbitrum.id],
+    [base.id]: jbccipSuckerDeployer_2Address[arbitrum.id],
+  },
+
+  [optimismSepolia.id]: {
+    [sepolia.id]: jbccipSuckerDeployerAddress[optimismSepolia.id],
+    [arbitrumSepolia.id]: jbccipSuckerDeployer_1Address[optimismSepolia.id],
+    [baseSepolia.id]: jbccipSuckerDeployer_2Address[optimismSepolia.id],
+  },
+  [optimism.id]: {
+    [sepolia.id]: jbccipSuckerDeployerAddress[optimism.id],
+    [arbitrum.id]: jbccipSuckerDeployer_1Address[optimism.id],
+    [base.id]: jbccipSuckerDeployer_2Address[optimism.id],
+  },
+
+  [baseSepolia.id]: {
+    [sepolia.id]: jbccipSuckerDeployerAddress[baseSepolia.id],
+    [optimismSepolia.id]: jbccipSuckerDeployer_1Address[baseSepolia.id],
+    [arbitrumSepolia.id]: jbccipSuckerDeployer_2Address[baseSepolia.id],
+  },
+  [base.id]: {
+    [sepolia.id]: jbccipSuckerDeployerAddress[base.id],
+    [optimism.id]: jbccipSuckerDeployer_1Address[base.id],
+    [arbitrum.id]: jbccipSuckerDeployer_2Address[base.id],
+  },
+};

@@ -7,3 +7,5 @@ export * from "./debug.js";
 export * from "./fee.js";
 export * from "./contracts.js";
 export * from "./urn.js";
+export * from "./tx.js";
+export * from "./deploy.js";
