@@ -1,5 +1,5 @@
 import { Address, PublicClient, getContract } from "viem";
-import { readJbSuckerRegistrySuckersOf } from "../generated/juicebox.js";
+import { readJbSuckerRegistrySuckerPairsOf } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
 import { JBChainId } from "src/types.js";
 
@@ -17,17 +17,19 @@ export async function getSuckerPairs({
   chainId: JBChainId;
   projectId: bigint;
 }): Promise<SuckerPair[]> {
-  const client = config.getClient({ chainId }) as PublicClient;
-
-  const suckers = await readJbSuckerRegistrySuckersOf(config, {
+  const suckers = await readJbSuckerRegistrySuckerPairsOf(config, {
     chainId, // TODO fix type
     args: [projectId],
   });
 
   const suckerPairs = await Promise.all(
-    suckers.map(async (suckerAddress) => {
+    suckers.map(async (sucker) => {
+      const client = config.getClient({
+        chainId: Number(sucker.remoteChainId),
+      }) as PublicClient;
+
       const suckerContract = getContract({
-        address: suckerAddress,
+        address: sucker.remote,
         abi: JBSuckerAbi,
         client,
       });
