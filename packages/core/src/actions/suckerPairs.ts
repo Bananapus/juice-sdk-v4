@@ -44,13 +44,10 @@ export async function getSuckerPairs({
         abi: JBSuckerAbi,
         client,
       });
-      const [peerChainId, projectId] = await Promise.all([
-        peerContract.read.peerChainId(),
-        peerContract.read.projectId(),
-      ]);
+      const projectId = await peerContract.read.projectId();
 
       return {
-        peerChainId: Number(peerChainId),
+        peerChainId: Number(sucker.remoteChainId),
         projectId,
       } as SuckerPair;
     })

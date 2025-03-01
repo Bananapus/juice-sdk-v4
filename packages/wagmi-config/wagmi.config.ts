@@ -57,13 +57,18 @@ export enum JBBuybackHookContracts {
   JBBuybackHook = "JBBuybackHook",
 }
 
+export enum JBOmnichainDeployerContracts {
+  JBOmnichainDeployer = "JBOmnichainDeployer",
+}
+
 type Contracts =
   | JB721HookContracts
   | JBCoreContracts
   | JBSuckerContracts
   | JBAddressRegistryContracts
   | JBSwapTerminalContracts
-  | JBBuybackHookContracts;
+  | JBBuybackHookContracts
+  | JBOmnichainDeployerContracts;
 
 const SUPPORTED_CHAINS = [
   sepolia,
@@ -101,13 +106,18 @@ const HAS_STATIC_ADDRESS: Contracts[] = [
   JBCoreContracts.JBTokens,
   JBCoreContracts.JBPrices,
   JBCoreContracts.ERC2771Forwarder,
+
   JBAddressRegistryContracts.JBAddressRegistry,
+
   JB721HookContracts.JB721TiersHookDeployer,
   JB721HookContracts.JB721TiersHookProjectDeployer,
+
   JBSuckerContracts.JBSuckerRegistry,
   JBSuckerContracts.JBCCIPSuckerDeployer,
   JBSuckerContracts.JBCCIPSuckerDeployer_1,
   JBSuckerContracts.JBCCIPSuckerDeployer_2,
+
+  JBOmnichainDeployerContracts.JBOmnichainDeployer,
 ];
 
 function nanaCorePath(chain: Chain, contractName: Contracts) {
@@ -138,6 +148,11 @@ function nanaSwapTerminalPath(chain: Chain, contractName: Contracts) {
 function nanaBuybackHookPath(chain: Chain, contractName: Contracts) {
   const chainName = CHAIN_NAME[chain.id];
   return `@bananapus/buyback-hook/deployments/nana-buyback-hook/${chainName}/${contractName}.json`;
+}
+
+function nanaOmnichainDeployerPath(chain: Chain, contractName: Contracts) {
+  const chainName = CHAIN_NAME[chain.id];
+  return `@bananapus/omnichain-deployers/deployments/nana-omnichain-deployers/${chainName}/${contractName}.json`;
 }
 
 async function importDeployment(importPath: string) {
@@ -233,12 +248,21 @@ async function buildNanaBuybackHookContractConfig() {
   );
 }
 
+async function buildNanaOmnichainDeployerContractConfig() {
+  return buildContractConfig(
+    Object.values(JBOmnichainDeployerContracts),
+    nanaOmnichainDeployerPath
+  );
+}
+
 const coreContracts = await buildNanaCoreContractConfig();
 const contracts721 = await buildNana721ContractConfig();
 const contractsSuckers = await buildNanaSuckersContractConfig();
 const contractsAddressRegistry = await buildNanaAddressRegistryContractConfig();
 const contractsSwapTerminal = await buildNanaSwapTerminalContractConfig();
 const contractsBuybackHook = await buildNanaBuybackHookContractConfig();
+const contractsOmnichainDeployer =
+  await buildNanaOmnichainDeployerContractConfig();
 const contracts = [
   ...coreContracts,
   ...contracts721,
@@ -246,6 +270,7 @@ const contracts = [
   ...contractsAddressRegistry,
   ...contractsSwapTerminal,
   ...contractsBuybackHook,
+  ...contractsOmnichainDeployer,
 ];
 
 export default {
