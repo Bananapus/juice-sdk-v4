@@ -1,6 +1,6 @@
 {
   "name": "juice-sdk-react",
-  "version": "1.7.2-beta",
+  "version": "1.7.3-beta",
   "description": "Wagmi hooks for Juicebox V4",
   "type": "module",
   "scripts": {
@@ -32,6 +32,9 @@
   "files": [
     "dist/**/*"
   ],
+  "engines": {
+    "node": "20.x"
+  },
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js"
