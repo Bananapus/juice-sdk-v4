@@ -1,2 +1,2 @@
-export const API = "https://relayr-api-staging.up.railway.app";
-export const DASHBOARD = "https://relayr-dashboard-staging.up.railway.app";
+export const API = "https://api.relayr.ba5ed.com/";
+export const DASHBOARD = "https://relayr.ba5ed.com/";
