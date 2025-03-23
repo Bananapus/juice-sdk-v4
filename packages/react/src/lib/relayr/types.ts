@@ -1,4 +1,5 @@
 import { JBChainId } from "juice-sdk-core";
+import { Hash } from "viem";
 
 export type ChainPayment = {
   amount: `0x${string}`;
@@ -18,10 +19,15 @@ type TransactionRequest = {
   virtual_nonce: null | number;
 };
 
-export type TransactionStatus = {
-  state: "Pending" | "Completed" | "Failed" | "Included";
-  data?: { block_hash: `0x${string}` };
-};
+export type TransactionStatus =
+  | {
+      state: "Pending" | "Completed" | "Failed" | "Included";
+      data?: { block_hash: `0x${string}`; transaction: { hash: Hash } };
+    }
+  | {
+      state: "Success";
+      data?: { hash: Hash };
+    };
 
 type Transaction = {
   tx_uuid: string;

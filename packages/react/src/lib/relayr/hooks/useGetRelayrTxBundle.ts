@@ -27,7 +27,9 @@ export function useGetRelayrTxBundle() {
     queryFn: () => fetchTxBundle(uuid),
     enabled: !!uuid,
     refetchInterval: (query) =>
-      query.state.data?.transactions?.every((tx) => tx?.status.data?.block_hash)
+      query.state.data?.transactions?.every(
+        (tx) => tx?.status.state === "Success"
+      )
         ? false
         : POLL_INTERVAL,
   });
@@ -40,7 +42,7 @@ export function useGetRelayrTxBundle() {
   const isComplete = useMemo(
     () =>
       (getRelayrTxBundle.data as RelayrGetBundleResponse)?.transactions?.every(
-        (tx) => tx?.status.data?.block_hash
+        (tx) => tx?.status.state === "Success"
       ),
     [getRelayrTxBundle.data]
   );
