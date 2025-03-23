@@ -1,6 +1,6 @@
 {
   "name": "revnet-sdk",
-  "version": "1.0.1-beta",
+  "version": "1.0.2-beta",
   "type": "module",
   "scripts": {
     "generate": "wagmi generate",
@@ -27,8 +27,5 @@
     "typescript": "^5.4.5",
     "viem": "^2.12.0",
     "wagmi": "^2.10.2"
-  },
-  "engines": {
-    "node": "20.x"
   }
 }
