@@ -20,7 +20,7 @@ type TransactionRequest = {
 
 export type TransactionStatus = {
   state: "Pending" | "Completed" | "Failed" | "Included";
-  data?: { hash: `0x${string}` };
+  data?: { block_hash: `0x${string}` };
 };
 
 type Transaction = {

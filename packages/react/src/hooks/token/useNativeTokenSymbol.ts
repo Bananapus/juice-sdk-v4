@@ -1,4 +1,8 @@
-import { JB_CHAIN_SLUGS, DEFAULT_NATIVE_TOKEN_SYMBOL } from "juice-sdk-core";
+import {
+  DEFAULT_NATIVE_TOKEN_SYMBOL,
+  JB_CHAINS,
+  JBChainId,
+} from "juice-sdk-core";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 
 /**
@@ -6,13 +10,11 @@ import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
  *
  * Depends on JBChainContext.
  */
-export function useNativeTokenSymbol() {
-  const chainId = useJBChainId();
-  if (!chainId) {
+export function useNativeTokenSymbol(chainId?: JBChainId) {
+  const _chainId = chainId ?? useJBChainId();
+  if (!_chainId) {
     return DEFAULT_NATIVE_TOKEN_SYMBOL;
   }
 
-  return (
-    JB_CHAIN_SLUGS[chainId]?.nativeTokenSymbol ?? DEFAULT_NATIVE_TOKEN_SYMBOL
-  );
+  return JB_CHAINS[_chainId]?.nativeTokenSymbol ?? DEFAULT_NATIVE_TOKEN_SYMBOL;
 }

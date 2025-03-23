@@ -1,5 +1,5 @@
 import { useQuery } from "wagmi/query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { API } from "../constants";
 import { RelayrGetBundleResponse } from "../types";
 
@@ -27,7 +27,7 @@ export function useGetRelayrTxBundle() {
     queryFn: () => fetchTxBundle(uuid),
     enabled: !!uuid,
     refetchInterval: (query) =>
-      query.state.data?.transactions?.every((tx) => tx?.status.data?.hash)
+      query.state.data?.transactions?.every((tx) => tx?.status.data?.block_hash)
         ? false
         : POLL_INTERVAL,
   });
@@ -37,9 +37,13 @@ export function useGetRelayrTxBundle() {
     getRelayrTxBundle.refetch();
   };
 
-  const isComplete = (
-    getRelayrTxBundle.data as RelayrGetBundleResponse
-  )?.transactions?.every((tx) => tx?.status.data?.hash);
+  const isComplete = useMemo(
+    () =>
+      (getRelayrTxBundle.data as RelayrGetBundleResponse)?.transactions?.every(
+        (tx) => tx?.status.data?.block_hash
+      ),
+    [getRelayrTxBundle.data]
+  );
 
   return {
     startPolling,
