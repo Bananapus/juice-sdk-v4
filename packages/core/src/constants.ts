@@ -104,12 +104,16 @@ export const NATIVE_TOKEN: Address =
 
 /**
  * The ID that represents the network's 'native' currency (e.g. ETH, OP).
- * Within Juicebox contracts, 0 is used to represent the native currency.
  *
- * @link JBCurrencyIds.sol
- * @note 61166n
+ * @link https://github.com/Bananapus/nana-core/blob/main/src/libraries/JBCurrencyIds.sol
  */
-export const NATIVE_CURRENCY_ID = Number(BigInt(NATIVE_TOKEN));
+export const ETH_CURRENCY_ID = 1
+/**
+ * The ID that represents USD currencies. Use this when specifying USD-deonominated payouts.
+ *
+ * @link https://github.com/Bananapus/nana-core/blob/main/src/libraries/JBCurrencyIds.sol
+ */
+export const USD_CURRENCY_ID = 2
 
 /**
  * Amount of decimals to use for native token fixed-point representation.

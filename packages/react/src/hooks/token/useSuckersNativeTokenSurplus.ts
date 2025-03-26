@@ -1,19 +1,17 @@
 import {
-  NATIVE_CURRENCY_ID,
+  ETH_CURRENCY_ID,
   NATIVE_TOKEN,
   NATIVE_TOKEN_DECIMALS,
   readJbDirectoryPrimaryTerminalOf,
   readJbMultiTerminalCurrentSurplusOf,
-  SuckerPair,
 } from "juice-sdk-core";
+import { useConfig } from "wagmi";
+import { useQuery } from "wagmi/query";
 import {
   JBChainId,
   useJBChainId,
 } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
-import { useConfig } from "wagmi";
-import { useQuery } from "wagmi/query";
-import { useNativeTokenSurplus } from "./useNativeTokenSurplus";
 import { useSuckers } from "../suckers/useSuckers";
 
 /**
@@ -62,11 +60,11 @@ export function useSuckersNativeTokenSurplus() {
                 {
                   token: NATIVE_TOKEN,
                   decimals: NATIVE_TOKEN_DECIMALS,
-                  currency: NATIVE_CURRENCY_ID,
+                  currency: ETH_CURRENCY_ID,
                 },
               ],
               BigInt(NATIVE_TOKEN_DECIMALS),
-              BigInt(NATIVE_CURRENCY_ID),
+              BigInt(ETH_CURRENCY_ID),
             ],
           });
 

@@ -1,10 +1,10 @@
 import {
   applyJbDaoCashOutFee,
   JBChainId,
-  NATIVE_CURRENCY_ID,
   NATIVE_TOKEN_DECIMALS,
   getProjectTerminalStore,
   readJbTerminalStoreCurrentReclaimableSurplusOf,
+  ETH_CURRENCY_ID,
 } from "juice-sdk-core";
 import { useConfig } from "wagmi";
 import { useQuery, UseQueryReturnType } from "wagmi/query";
@@ -82,7 +82,7 @@ async function getTokenRedemptionQuote(
       [],
       [],
       BigInt(NATIVE_TOKEN_DECIMALS),
-      BigInt(NATIVE_CURRENCY_ID),
+      BigInt(ETH_CURRENCY_ID),
     ],
   });
 }

@@ -1,6 +1,6 @@
 import {
+  ETH_CURRENCY_ID,
   JBChainId,
-  NATIVE_CURRENCY_ID,
   NATIVE_TOKEN_DECIMALS,
   applyJbDaoCashOutFee,
 } from "juice-sdk-core";
@@ -31,7 +31,7 @@ export function useTokenCashOutQuoteEth(
           [],
           [],
           BigInt(NATIVE_TOKEN_DECIMALS),
-          BigInt(NATIVE_CURRENCY_ID),
+          BigInt(ETH_CURRENCY_ID),
         ]
       : undefined,
     query: {

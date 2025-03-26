@@ -1,12 +1,12 @@
 import {
+  ETH_CURRENCY_ID,
   JBChainId,
-  NATIVE_CURRENCY_ID,
   NATIVE_TOKEN,
   NATIVE_TOKEN_DECIMALS,
 } from "juice-sdk-core";
-import { useReadJbMultiTerminalCurrentSurplusOf } from "../../generated/juicebox";
-import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
+import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
+import { useReadJbMultiTerminalCurrentSurplusOf } from "../../generated/juicebox";
 
 /**
  * Return the current surplus of JB Native token, from the project's primary native terminal.
@@ -30,11 +30,11 @@ export function useNativeTokenSurplus({
         {
           token: NATIVE_TOKEN,
           decimals: NATIVE_TOKEN_DECIMALS,
-          currency: NATIVE_CURRENCY_ID,
+          currency: ETH_CURRENCY_ID,
         },
       ],
       BigInt(NATIVE_TOKEN_DECIMALS),
-      BigInt(NATIVE_CURRENCY_ID),
+      BigInt(ETH_CURRENCY_ID),
     ],
   });
 }
