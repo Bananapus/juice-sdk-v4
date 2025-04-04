@@ -1,5 +1,11 @@
 import { NATIVE_TOKEN, debug } from "juice-sdk-core";
-import { PropsWithChildren, createContext, useContext } from "react";
+import {
+  PropsWithChildren,
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+} from "react";
 import { Address, isAddressEqual, zeroAddress } from "viem";
 import {
   useReadJbControllerFundAccessLimits,
@@ -79,13 +85,16 @@ export const JBContractProvider = ({
   children,
 }: JBContractProviderProps) => {
   const chainId = useJBChainId();
-  const enabled = (selector: DynamicContract[]) => {
-    if (typeof include === "undefined") {
-      return true;
-    }
+  const enabled = useCallback(
+    (selector: DynamicContract[]) => {
+      if (typeof include === "undefined") {
+        return true;
+      }
 
-    return include.some((c) => selector.includes(c));
-  };
+      return include.some((c) => selector.includes(c));
+    },
+    [include]
+  );
 
   const primaryNativeTerminal = useReadJbDirectoryPrimaryTerminalOf({
     chainId,
@@ -101,7 +110,7 @@ export const JBContractProvider = ({
       staleTime: Infinity,
     },
   });
-  const controllerAddress = controller.data;
+  const controllerAddress = useMemo(() => controller.data, [controller.data]);
 
   const hasController =
     controllerAddress && !isAddressEqual(controllerAddress, zeroAddress);

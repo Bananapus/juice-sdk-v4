@@ -9,9 +9,12 @@ import { useJBContractContext } from "../../contexts/JBContractContext/JBContrac
  * Hits JBM endpoint, heavily cached
  * @returns
  */
-export function useSuckers(): UseQueryReturnType<SuckerPair[] | null> {
+export function useSuckers(
+  { enabled }: { enabled: boolean } = { enabled: true }
+): UseQueryReturnType<SuckerPair[] | null> {
   const { projectId } = useJBContractContext();
   const chainId = useJBChainId();
+  const _enabled = typeof enabled === "boolean" ? enabled : true;
 
   debug("useSuckers::args", {
     projectId,
@@ -26,7 +29,7 @@ export function useSuckers(): UseQueryReturnType<SuckerPair[] | null> {
       chainId?.toString(),
     ],
     staleTime: Infinity,
-    enabled: !!chainId,
+    enabled: !!chainId && _enabled,
     queryFn: async () => {
       if (!chainId) {
         return null;
