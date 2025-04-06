@@ -43,7 +43,7 @@ export function useJBRuleset({
 
   return {
     ruleset: query.data?.data,
-    metadata: query.data?.metadata,
+    rulesetMetadata: query.data?.metadata,
     ...query,
   };
 }
