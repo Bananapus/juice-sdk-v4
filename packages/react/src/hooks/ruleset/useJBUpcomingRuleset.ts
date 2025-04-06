@@ -14,18 +14,18 @@ export function useJBUpcomingRuleset({
   projectId,
   chainId,
 }: {
-  projectId: bigint;
-  chainId: JBChainId;
+  projectId: bigint | undefined;
+  chainId: JBChainId | undefined;
 }): {
   ruleset: JBRulesetData | undefined;
   rulesetMetadata: JBRulesetMetadata | undefined;
   isLoading: boolean;
 } {
-  const { contracts, projectId: defaultProjectId } = useJBContractContext();
+  const { contracts } = useJBContractContext();
 
   const { data, isLoading } = useReadJbControllerUpcomingRulesetOf({
     address: contracts.controller?.data ?? undefined,
-    args: [BigInt(projectId ?? defaultProjectId)],
+    args: projectId ? [projectId] : undefined,
     chainId,
   });
 

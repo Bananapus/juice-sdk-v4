@@ -12,15 +12,16 @@ export function useJBRuleset({
   projectId,
   chainId,
 }: {
-  projectId: bigint;
-  chainId: JBChainId;
+  projectId: bigint | undefined;
+  chainId: JBChainId | undefined;
 }) {
   const { contracts } = useJBContractContext();
   const query = useReadJbControllerCurrentRulesetOf({
     chainId,
     address: contracts?.controller?.data ?? undefined,
-    args: [projectId],
+    args: projectId ? [projectId] : undefined,
     query: {
+      enabled: !!projectId && !!contracts?.controller?.data,
       select([ruleset, rulesetMetadata]) {
         return {
           data: {
