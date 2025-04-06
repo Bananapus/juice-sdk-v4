@@ -17,6 +17,7 @@ import {
 } from "../../generated/juicebox";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
 import { AsyncData, AsyncDataNone } from "../types";
+import { useSuckers } from "../../hooks";
 
 /**
  * Context for project-specific contracts.
@@ -73,6 +74,27 @@ export type JBContractProviderProps = PropsWithChildren<{
   projectId: bigint;
   include?: DynamicContract[];
 }>;
+
+/**
+ * Return the current project id. If chainId provided, return the project id for that chain.
+ * Otherwise, return the project id for the current chain.
+ */
+export function useJBProjectId(chainId?: number) {
+  const currentChainId = useJBChainId();
+  const { projectId: currentProjectId } = useJBContractContext();
+
+  const { data: suckers } = useSuckers({
+    // only fetch suckers if chainId is provided
+    enabled: !!chainId,
+  });
+
+  if (!chainId || currentChainId === chainId || !suckers) {
+    return currentProjectId;
+  }
+
+  return suckers.find((suckerPair) => suckerPair.peerChainId === chainId)
+    ?.projectId;
+}
 
 /**
  * Load project-specific contract addresses for a given JB project.

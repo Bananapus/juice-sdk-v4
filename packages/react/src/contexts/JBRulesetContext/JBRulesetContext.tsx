@@ -65,12 +65,10 @@ export function useJBRulesetContext() {
   return useContext(JBRulesetContext);
 }
 
-export function useJBRuleset() {
-  const { ruleset } = useJBRulesetContext();
-
-  return ruleset;
-}
-
+/**
+ * 
+ * @deprecated use useJBRuleset instead
+ */
 export function useJBRulesetMetadata() {
   const { rulesetMetadata } = useJBRulesetContext();
 
