@@ -1,4 +1,4 @@
-import { NATIVE_TOKEN, debug } from "juice-sdk-core";
+import { JBChainId, NATIVE_TOKEN, debug } from "juice-sdk-core";
 import {
   PropsWithChildren,
   createContext,
@@ -76,10 +76,13 @@ export type JBContractProviderProps = PropsWithChildren<{
 }>;
 
 /**
- * Return the current project id. If chainId provided, return the project id for that chain.
- * Otherwise, return the project id for the current chain.
+ * Return the current project ID and chain ID. If `chainId` provided, return the project ID for that chain.
+ * Otherwise, return the project ID for the current chain.
  */
-export function useJBProjectId(chainId?: number) {
+export function useJBProjectId(chainId?: JBChainId): {
+  projectId: bigint | undefined;
+  chainId: JBChainId | undefined;
+} {
   const currentChainId = useJBChainId();
   const { projectId: currentProjectId } = useJBContractContext();
 
@@ -89,11 +92,14 @@ export function useJBProjectId(chainId?: number) {
   });
 
   if (!chainId || currentChainId === chainId || !suckers) {
-    return currentProjectId;
+    return { projectId: currentProjectId, chainId: currentChainId };
   }
 
-  return suckers.find((suckerPair) => suckerPair.peerChainId === chainId)
-    ?.projectId;
+  const projectId = suckers.find(
+    (suckerPair) => suckerPair.peerChainId === chainId
+  )?.projectId;
+
+  return { projectId, chainId };
 }
 
 /**
