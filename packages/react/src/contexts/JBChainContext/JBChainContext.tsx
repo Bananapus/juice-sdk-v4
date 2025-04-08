@@ -1,7 +1,6 @@
-import { PropsWithChildren, createContext, useContext } from "react";
 import { debug } from "juice-sdk-core";
+import { PropsWithChildren, createContext, useContext } from "react";
 import { jbDirectoryAddress } from "../../generated/juicebox";
-import { sepolia } from "viem/chains";
 
 export type JBChainId = keyof typeof jbDirectoryAddress;
 
@@ -21,8 +20,8 @@ export const JBChainContext = createContext<JBChainContextData>({
 });
 
 export function useJBChainId(): JBChainId | undefined {
-  const jbChainId = useContext(JBChainContext).chainId;
-  return jbChainId;
+  const { chainId } = useContext(JBChainContext);
+  return chainId;
 }
 
 /**

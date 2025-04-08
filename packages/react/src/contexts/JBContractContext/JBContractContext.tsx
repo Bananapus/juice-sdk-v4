@@ -15,9 +15,9 @@ import {
   useReadJbDirectoryControllerOf,
   useReadJbDirectoryPrimaryTerminalOf,
 } from "../../generated/juicebox";
+import { useSuckers } from "../../hooks";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
 import { AsyncData, AsyncDataNone } from "../types";
-import { useSuckers } from "../../hooks";
 
 /**
  * Context for project-specific contracts.
@@ -140,12 +140,17 @@ export const JBContractProvider = ({
   });
   const controllerAddress = useMemo(() => controller.data, [controller.data]);
 
-  const hasController =
-    controllerAddress && !isAddressEqual(controllerAddress, zeroAddress);
+  const hasController = useMemo(() => {
+    return controllerAddress && !isAddressEqual(controllerAddress, zeroAddress);
+  }, [controllerAddress]);
+
+  const normalizedControllerAddress = useMemo(() => {
+    return hasController ? controllerAddress : zeroAddress;
+  }, [controllerAddress, hasController]);
 
   const fundAccessLimits = useReadJbControllerFundAccessLimits({
     chainId,
-    address: hasController ? controllerAddress : undefined,
+    address: normalizedControllerAddress,
     query: {
       enabled: enabled([
         DynamicContract.Controller,
@@ -157,7 +162,7 @@ export const JBContractProvider = ({
 
   const rulesets = useReadJbControllerRulesets({
     chainId,
-    address: hasController ? controllerAddress : undefined,
+    address: normalizedControllerAddress,
     query: {
       enabled: enabled([DynamicContract.Controller, DynamicContract.Rulesets]),
       staleTime: Infinity,
@@ -166,7 +171,7 @@ export const JBContractProvider = ({
 
   const tokens = useReadJbControllerTokens({
     chainId,
-    address: hasController ? controllerAddress : undefined,
+    address: normalizedControllerAddress,
     query: {
       enabled: enabled([DynamicContract.Controller, DynamicContract.Tokens]),
       staleTime: Infinity,
@@ -175,7 +180,7 @@ export const JBContractProvider = ({
 
   const splits = useReadJbControllerSplits({
     chainId,
-    address: hasController ? controllerAddress : undefined,
+    address: normalizedControllerAddress,
     query: {
       enabled: enabled([DynamicContract.Controller, DynamicContract.Splits]),
       staleTime: Infinity,
