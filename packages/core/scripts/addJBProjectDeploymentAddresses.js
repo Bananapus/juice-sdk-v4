@@ -46,7 +46,7 @@ async function buildDefaultAddresses() {
 
     for (const chainId of Object.keys(CHAIN_NAME)) {
       const path = nanaCorePath({ id: chainId }, contract);
-      const data = await import(path, { assert: { type: "json" } });
+      const data = await import(path, { with: { type: "json" } });
       contractAddresses[chainId] = data.default.address;
     }
     addresses[contract] = contractAddresses;
@@ -56,7 +56,7 @@ async function buildDefaultAddresses() {
 
     for (const chainId of Object.keys(CHAIN_NAME)) {
       const path = nana721HookPath({ id: chainId }, contract);
-      const data = await import(path, { assert: { type: "json" } });
+      const data = await import(path, { with: { type: "json" } });
       contractAddresses[chainId] = data.default.address;
     }
     addresses[contract] = contractAddresses;
@@ -67,7 +67,7 @@ async function buildDefaultAddresses() {
 
     for (const chainId of Object.keys(CHAIN_NAME)) {
       const path = nanaBuybackHookPath({ id: chainId }, contract);
-      const data = await import(path, { assert: { type: "json" } });
+      const data = await import(path, { with: { type: "json" } });
       contractAddresses[chainId] = data.default.address;
     }
     addresses[contract] = contractAddresses;
@@ -78,7 +78,7 @@ async function buildDefaultAddresses() {
 
     for (const chainId of Object.keys(CHAIN_NAME)) {
       const path = nanaSwapTerminalPath({ id: chainId }, contract);
-      const data = await import(path, { assert: { type: "json" } });
+      const data = await import(path, { with: { type: "json" } });
       contractAddresses[chainId] = data.default.address;
     }
     addresses[contract] = contractAddresses;
