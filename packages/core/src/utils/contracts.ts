@@ -13,7 +13,7 @@ export async function getProjectTerminalStore(
     args: [projectId, NATIVE_TOKEN],
   });
   const terminalStoreData = await fetch(
-    `https://sepolia.juicebox.money/api/juicebox/v4/terminal/${primaryNativeTerminal}/jb-terminal-store?chainId=${chainId}`
+    `https://juicebox.money/api/juicebox/v4/terminal/${primaryNativeTerminal}/jb-terminal-store?chainId=${chainId}`
   ).then((res) => res.json());
   const terminalStore = terminalStoreData.terminalStoreAddress as Address;
 

@@ -61,7 +61,7 @@ export function useSuckers(
       }
 
       const suckersData = await fetch(
-        `https://sepolia.juicebox.money/api/juicebox/v4/project/${projectId}/sucker-pairs?chainId=${chainId}`
+        `https://juicebox.money/api/juicebox/v4/project/${projectId}/sucker-pairs?chainId=${chainId}`
       ).then((res) => res.json());
 
       // sort by `chainOrder`
