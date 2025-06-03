@@ -6,8 +6,9 @@ A JavaScript SDK for building applications on the [Juicebox protocol](https://do
 
 Juice SDK is split across the following npm packages:
 
-- [`juice-sdk-core`](./packages/core/README.md): Core utilities and helpers for building client and server-side applications.
-- [`juice-sdk-react`](./packages/react/README.md): [Wagmi](https://wagmi.sh/) hooks for Juicebox. Useful data contexts and helpers for building React applications.
+- [`juice-sdk-core`](./packages/core): Wagmi CLI-generated Core utilities and helpers for building client and server-side applications.
+- [`juice-sdk-react`](./packages/react): [Wagmi](https://wagmi.sh/) hooks for Juicebox. Useful data contexts and helpers for building React applications.
+- [`revnet`](./packages/revnet/): [Wagmi](https://wagmi.sh/) hooks for Revnet contracts.
 
 Choose the package that best serves your needs.
 
