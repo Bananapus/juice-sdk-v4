@@ -108,7 +108,6 @@ const CHAIN_NAME = {
  */
 const HAS_STATIC_ADDRESS: Contracts[] = [
   JBCoreContracts.JBDirectory,
-  JBCoreContracts.JBController4_1,
   JBCoreContracts.JBProjects,
   JBCoreContracts.JBRulesets,
   JBCoreContracts.JBSplits,
