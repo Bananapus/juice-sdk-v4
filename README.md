@@ -27,6 +27,9 @@ Juice SDK is a Turborepo monorepo. It consists of the following packages:
 
 ### Setup
 
+Requirements:
+- node v20 (`nvm use` or `nvm use 20`)
+
 1. Install deps for all packages.
 
 ```
