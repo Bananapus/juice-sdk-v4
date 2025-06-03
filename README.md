@@ -17,72 +17,42 @@ The Juicebox contracts use [fixed-point representations](https://medium.com/ceme
 
 ## Development
 
-Juice SDK is based on Yarn workspaces. Each package in the `packages/` directory is published seperately.
+Juice SDK is a Turborepo monorepo. It consists of the following packages:
 
-> Note: `juice-sdk-react` depends on `juice-sdk-core`.
+- `wagmi-config`: defines the Wagmi config to be used for code generation (in `core`, `react` etc. packages)
+- `core`: depends on `wagmi-config` to generate Typesafe ABI definitions, constant variables for contract addresses, and Viem functions.
+- `react`: depends on `wagmi-config` to generate React hooks.
+- `revnet`: generates React hooks for Revnet contracts.
 
-1. Populate the `.env` file based on the `.env.example`.
-1. Install dependencies for both packages.
+### Setup
 
-   ```
-   # in the root directory
-   yarn install
-   ```
+1. Install deps for all packages.
 
-1. Change directory into the package you're working on.
-1. Consult the package's README for specific setup steps.
+```
+npm install
+```
 
-### Build process
+1. Ask @aeolianeth for npm credentials.
 
-Both packages use [Wagmi CLI](https://wagmi.sh/cli/getting-started) to generate foundational code. Further utilities and helpers are included in each package.
+### Add codegen for a new contract
 
-The build process for each package is roughly as follows:
+[`wagmi-config`](./packages/wagmi-config/wagmi.config.ts) builds a wagmi config to be used for code generation. It essentially defines an array of contract addresses, passes in their ABIs (the JSON files defined in each contract's npm package), and gives that to Wagmi config: https://wagmi.sh/cli/config/options.
 
-1. Compile a list of contract addresses to use for codegen (see [Add or update contract addresses](#add-or-update-contract-addresses)).
-1. Generate viem/wagmi code using Wagmi CLI and the list of contract addresses from Step 1. Each package has a `wagmi.config.ts` file that defines Wagmi CLI behavior.
-1. Compile and build the package for publishing.
+To add a new contract:
 
-To build each package, run `yarn build` from the root directory.
+1. modify `wagmi.config.ts`. Use existing code as examples.
+1. Regenerate and publish all the packages that rely on `wagmi-config` (currently `core` and `react`).
 
-#### Wagmi CLI patch
+```
+# in repo root dir
+npm run build
+```
 
-Out-of-the-box Wagmi CLI is inadequate for our needs. We apply a patch to the package (using [patch-package](https://www.npmjs.com/package/patch-package)) that changes the following:
+1. Publish packages (if you want to, which you probably do)
 
-| Patch                                                                    | Why                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Accept optional `address` arg in contract read/write functions and hooks | Not all Juicebox projects use the same contract addresses. Juicebox contracts store references to other Juicebox contracts, and it's common to need to call a function on a specific contract address instead of the 'default' address given in the Forge deployment manifest. For example, two projects might use different payment terminal contracts. This patch lets developers pass a 'custom' address to read/write functions. |
-| Add Optimism Sepolia as a possible codegen target                        | Juicebox contracts are deployed on Optimism Sepolia (chain ID `11155420`). This patch means Wagmi CLI will generate Optimism Sepolia-compatible code.                                                                                                                                                                                                                                                                                |
+### Publish packages
 
-### Add or update contract addresses
+Only `react`, `core` and `revnet` are published. `wagmi-config` is "private"/internal-only.
 
-The `scripts/generateAddresses.ts` script produces an `addresses.json` which contains the contract addresses Wagmi CLI will use for codegen.
-
-To add new contract addresses, modify the `generateAddresses` script to fetch and parse the desired Forge deployment manifest, and include the result in the script output.
-
-To update existing contract addresses, just run the script; it will pull the latest contract addresses from GitHub.
-
-To add support for a new chain, add its chain ID to `juice.config.ts` and run `yarn build`.
-
-### Local links
-
-In local development, linking juice-sdk to another local project or app requires some extra setup.
-Both juice-sdk and the local project need to depend on **the same `wagmi` on the filesystem**.
-
-The following describes how to link a local juice-sdk to another local project:
-
-1. Run `yarn link` in both `packages/juice-sdk-react` and `packages/juice-sdk-core`
-1. In `packages/juice-sdk-react`, run `yarn link "juice-sdk-core"`.
-1. In 2 separate processes, run `yarn dev` in both `packages/juice-sdk-react` and `packages/juice-sdk-core`.
-
-**In your local project**:
-1. Clear any build files `rm -Rf .next`
-1. Manually remove the project's `wagmi` dependency
-   ```sh
-   rm -Rf node_modules/wagmi
-   ```
-1. Symlink juice-sdk's `wagmi` dependency to the project's node_modules
-
-   ```sh
-   ln -s /absolute/path/to/juice-sdk/node_modules/wagmi node_modules
-   ```
-1. Run or build the project.
+1. Bump package version in `package.json`
+1. `cd` into the package and run `npm publish`

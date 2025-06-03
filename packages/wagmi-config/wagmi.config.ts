@@ -16,6 +16,12 @@ import {
   sepolia,
 } from "viem/chains";
 
+type ContractConfig = {
+  name: string;
+  abi: unknown[];
+  address?: Record<number, `0x${string}`>;
+};
+
 export enum JBCoreContracts {
   JBController = "JBController",
   JBDirectory = "JBDirectory",
@@ -182,7 +188,7 @@ function parseAbi(contractName: string, abi: any) {
 async function buildContractConfig(
   contractNames: Contracts[],
   getPath: (chain: Chain, contractName: Contracts) => string
-) {
+): Promise<ContractConfig[]> {
   const chainToContractAddress = await Promise.all(
     Object.values(contractNames).map(async (contractName) => {
       // import deployment for each chain
@@ -263,6 +269,7 @@ const contractsSwapTerminal = await buildNanaSwapTerminalContractConfig();
 const contractsBuybackHook = await buildNanaBuybackHookContractConfig();
 const contractsOmnichainDeployer =
   await buildNanaOmnichainDeployerContractConfig();
+
 const contracts = [
   ...coreContracts,
   ...contracts721,
