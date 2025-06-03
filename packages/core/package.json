@@ -1,6 +1,6 @@
 {
   "name": "juice-sdk-core",
-  "version": "1.8.1-beta",
+  "version": "1.8.2-beta",
   "type": "module",
   "scripts": {
     "generate": "wagmi generate",
@@ -30,10 +30,10 @@
     "@bananapus/721-hook": "^1.0.0",
     "@bananapus/address-registry": "^1.0.0",
     "@bananapus/buyback-hook": "^1.0.0",
-    "@bananapus/core": "^1.0.2",
+    "@bananapus/core": "^1.0.5",
     "@bananapus/suckers": "^1.0.2",
     "@bananapus/swap-terminal": "^1.0.0",
-    "@bananapus/omnichain-deployers": "github:bananapus/nana-omnichain-deployers#6b1e73607ce5d9c9b9252f6a95e541ddd0ecbd83",
+    "@bananapus/omnichain-deployers": "github:bananapus/nana-omnichain-deployers#42d39e1442cba9e916ad812112755629711fb759",
     "@jbm/wagmi-config": "*",
     "@wagmi/cli": "^2.1.10",
     "ts-node": "^10.9.2",

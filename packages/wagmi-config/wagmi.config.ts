@@ -24,6 +24,7 @@ type ContractConfig = {
 
 export enum JBCoreContracts {
   JBController = "JBController",
+  JBController4_1 = "JBController4_1",
   JBDirectory = "JBDirectory",
   JBMultiTerminal = "JBMultiTerminal",
   JBRulesets = "JBRulesets",
@@ -65,6 +66,7 @@ export enum JBBuybackHookContracts {
 
 export enum JBOmnichainDeployerContracts {
   JBOmnichainDeployer = "JBOmnichainDeployer",
+  JBOmnichainDeployer4_1 = "JBOmnichainDeployer4_1",
 }
 
 type Contracts =
@@ -106,6 +108,7 @@ const CHAIN_NAME = {
  */
 const HAS_STATIC_ADDRESS: Contracts[] = [
   JBCoreContracts.JBDirectory,
+  JBCoreContracts.JBController4_1,
   JBCoreContracts.JBProjects,
   JBCoreContracts.JBRulesets,
   JBCoreContracts.JBSplits,
@@ -124,6 +127,7 @@ const HAS_STATIC_ADDRESS: Contracts[] = [
   JBSuckerContracts.JBCCIPSuckerDeployer_2,
 
   JBOmnichainDeployerContracts.JBOmnichainDeployer,
+  JBOmnichainDeployerContracts.JBOmnichainDeployer4_1,
 ];
 
 function nanaCorePath(chain: Chain, contractName: Contracts) {
