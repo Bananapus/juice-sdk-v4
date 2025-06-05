@@ -34,7 +34,7 @@ function nanaSwapTerminalPath(chain, contractName) {
   return `@bananapus/swap-terminal/deployments/nana-swap-terminal/${chainName}/${contractName}.json`;
 }
 
-const CORE_CONTRACTS = ["JBMultiTerminal", "JBController"];
+const CORE_CONTRACTS = ["JBMultiTerminal", "JBController", "JBController4_1"];
 const CONTRACTS_721 = ["JB721TiersHookStore"];
 const CONTRACTS_BUYBACK = ["JBBuybackHook"];
 const CONTRACTS_SWAP = ["JBSwapTerminal"];

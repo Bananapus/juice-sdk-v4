@@ -44,7 +44,7 @@ npm install
 
 To add a new contract:
 
-1. modify `wagmi.config.ts`. Use existing code as examples.
+1. modify `wagmi.config.ts`. Use existing code as examples. If an address won't change across projects, add that contract to `HAS_STATIC_ADDRESS`
 1. Regenerate and publish all the packages that rely on `wagmi-config` (currently `core` and `react`).
 
 ```
@@ -53,6 +53,17 @@ npm run build
 ```
 
 1. Publish packages (if you want to, which you probably do)
+
+#### Add a default contract address for JB Project deployments
+
+Sometimes, even though an address isn't static, we'll need a 'default' address to use for JB project deployment transactions (for example, we need to set a JBMultiTerminal address when a project launches).
+
+There's a script - `addJBProjectDeploymentAddresses.js` - that will append a `jbProjectDeploymentAddresses` variable for specified contracts to the codegen files.
+
+Import and use `jbProjectDeploymentAddresses` to source addresses for project deployments.
+
+To add a default contract address for deployment:
+1. Modify `addJBProjectDeploymentAddresses.js` 
 
 ### Publish packages
 
