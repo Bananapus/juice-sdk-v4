@@ -1,19 +1,21 @@
+import { AsyncData, AsyncDataNone } from "../types";
 import {
-  WeightCutPercent,
   CashOutTaxRate,
   ReservedPercent,
   RulesetWeight,
+  WeightCutPercent,
 } from "juice-sdk-core";
 import { createContext, useContext } from "react";
 import {
   jbControllerAbi,
   useReadJbControllerCurrentRulesetOf,
 } from "../../generated/juicebox";
-import { useJBContractContext } from "../JBContractContext/JBContractContext";
-import { AsyncData, AsyncDataNone } from "../types";
+
 import { ContractFunctionReturnType } from "viem";
-import { useJBChainId } from "../JBChainContext/JBChainContext";
 import { debug } from "juice-sdk-core";
+import { useJBChainId } from "../JBChainContext/JBChainContext";
+import { useJBContractContext } from "../JBContractContext/JBContractContext";
+import { useResolveDataHook } from "../../hooks/ruleset/useResolveDataHook";
 
 /**
  * Context for the current ruleset of a project.
@@ -112,13 +114,24 @@ export const JBRulesetProvider = ({
     },
   });
 
+  const { resolvedDataHook } = useResolveDataHook({
+    dataHookAddress: ruleset?.metadata?.dataHook,
+    projectId,
+    chainId,
+  });
+
+  const rulesetMetadataWithResolvedDataHook = ruleset?.metadata && {
+    ...ruleset.metadata,
+    dataHook: resolvedDataHook,
+  };
+
   debug("JBRulesetContext", {
     ruleset: {
       data: ruleset?.data,
       isLoading,
     },
     rulesetMetadata: {
-      data: ruleset?.metadata,
+      data: rulesetMetadataWithResolvedDataHook,
       isLoading,
     },
   });
@@ -131,7 +144,7 @@ export const JBRulesetProvider = ({
           isLoading,
         },
         rulesetMetadata: {
-          data: ruleset?.metadata,
+          data: rulesetMetadataWithResolvedDataHook,
           isLoading,
         },
       }}

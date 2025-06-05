@@ -1,12 +1,16 @@
 import {
+  CashOutTaxRate,
+  JBChainId,
+  ReservedPercent,
   RulesetWeight,
   WeightCutPercent,
-  CashOutTaxRate,
-  ReservedPercent,
-  JBChainId,
-} from "juice-sdk-core";
+} from "../../../core/src/index";
+
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
-import { useReadJbControllerCurrentRulesetOf } from "../../generated/juicebox";
+import {
+  useReadJbControllerCurrentRulesetOf,
+} from "../../generated/juicebox";
+import { useResolveDataHook } from "./useResolveDataHook";
 
 export function useJBRuleset({
   projectId,
@@ -41,9 +45,19 @@ export function useJBRuleset({
     },
   });
 
+  const { resolvedDataHook } = useResolveDataHook({
+    dataHookAddress: query.data?.metadata?.dataHook,
+    projectId,
+    chainId,
+  });
+
   return {
     ruleset: query.data?.data,
-    rulesetMetadata: query.data?.metadata,
+    rulesetMetadata:
+      query.data?.metadata && {
+        ...query.data.metadata,
+        dataHook: resolvedDataHook,
+      },
     ...query,
   };
 }
