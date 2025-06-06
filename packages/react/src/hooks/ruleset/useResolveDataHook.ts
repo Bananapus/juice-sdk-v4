@@ -1,7 +1,7 @@
 import { JBChainId, jbOmnichainDeployer4_1Address } from "juice-sdk-core";
 import { isAddressEqual, zeroAddress } from "viem";
 
-import { useReadJbOmnichainDeployer4_1DataHookOf } from "juice-sdk-react";
+import { useReadJbOmnichainDeployer4_1DataHookOf } from "src/generated/juicebox";
 
 /**
  * Hook to resolve the actual dataHook address if it is the JBOmnichainDeployer4_1 address.
