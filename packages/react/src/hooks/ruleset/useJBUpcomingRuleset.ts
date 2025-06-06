@@ -7,8 +7,10 @@ import {
   RulesetWeight,
   WeightCutPercent,
 } from "juice-sdk-core";
+
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useReadJbControllerUpcomingRulesetOf } from "../../generated/juicebox";
+import { useResolveDataHook } from "./useResolveDataHook";
 
 export function useJBUpcomingRuleset({
   projectId,
@@ -31,6 +33,14 @@ export function useJBUpcomingRuleset({
 
   const _latestUpcomingRuleset = data?.[0];
   const _latestUpcomingRulesetMetadata = data?.[1];
+
+  // Resolve the actual data hook address
+  const { resolvedDataHook } = useResolveDataHook({
+    dataHookAddress: _latestUpcomingRulesetMetadata?.dataHook,
+    projectId,
+    chainId,
+  });
+
   const upcomingWeight = new RulesetWeight(
     _latestUpcomingRuleset?.weight ?? 0n
   );
@@ -57,6 +67,7 @@ export function useJBUpcomingRuleset({
         ..._latestUpcomingRulesetMetadata,
         reservedPercent: upcomingReservedPercent,
         cashOutTaxRate: upcomingCashOutTaxRate,
+        dataHook: resolvedDataHook,
       }
     : undefined;
 
