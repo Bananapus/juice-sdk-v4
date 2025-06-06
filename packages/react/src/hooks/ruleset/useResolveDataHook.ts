@@ -34,7 +34,7 @@ export function useResolveDataHook({
   // Query the actual data hook from the omnichain deployer
   const actualDataHookQuery = useReadJbOmnichainDeployer4_1DataHookOf({
     chainId,
-    args: projectId && chainId ? [projectId, chainId] : undefined,
+    args: projectId && chainId ? [projectId, BigInt(chainId)] : undefined,
     query: {
       enabled: !!dataHookIsOmnichainDeployer && !!projectId && !!chainId,
     },

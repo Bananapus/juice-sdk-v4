@@ -4,7 +4,7 @@ import {
   ReservedPercent,
   RulesetWeight,
   WeightCutPercent,
-} from "../../../core/src/index";
+} from "juice-sdk-core";
 
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import {

@@ -1,6 +1,6 @@
 {
   "name": "juice-sdk-react",
-  "version": "1.9.7-beta",
+  "version": "1.9.8-beta",
   "description": "Wagmi hooks for Juicebox V4",
   "type": "module",
   "scripts": {
