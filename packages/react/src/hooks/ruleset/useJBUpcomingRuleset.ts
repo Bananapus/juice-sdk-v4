@@ -39,6 +39,7 @@ export function useJBUpcomingRuleset({
     dataHookAddress: _latestUpcomingRulesetMetadata?.dataHook,
     projectId,
     chainId,
+    rulesetId: BigInt(_latestUpcomingRuleset?.id ?? 0),
   });
 
   const upcomingWeight = new RulesetWeight(

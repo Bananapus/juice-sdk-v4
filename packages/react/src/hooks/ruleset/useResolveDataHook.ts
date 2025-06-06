@@ -1,10 +1,7 @@
+import { JBChainId, jbOmnichainDeployer4_1Address } from "juice-sdk-core";
 import { isAddressEqual, zeroAddress } from "viem";
-import {
-  jbOmnichainDeployer4_1Address,
-  useReadJbOmnichainDeployer4_1DataHookOf,
-} from "../../generated/juicebox";
 
-import { JBChainId } from "juice-sdk-core";
+import { useReadJbOmnichainDeployer4_1DataHookOf } from "juice-sdk-react";
 
 /**
  * Hook to resolve the actual dataHook address if it is the JBOmnichainDeployer4_1 address.
@@ -18,10 +15,12 @@ export function useResolveDataHook({
   dataHookAddress,
   projectId,
   chainId,
+  rulesetId,
 }: {
   dataHookAddress: `0x${string}` | undefined;
   projectId: bigint | undefined;
   chainId: JBChainId | undefined;
+  rulesetId: bigint | undefined;
 }) {
   const omnichainDeployerAddress = jbOmnichainDeployer4_1Address[1]; // same on all chains
 
@@ -30,13 +29,12 @@ export function useResolveDataHook({
     dataHookAddress &&
     isAddressEqual(dataHookAddress, omnichainDeployerAddress)
   );
-
   // Query the actual data hook from the omnichain deployer
   const actualDataHookQuery = useReadJbOmnichainDeployer4_1DataHookOf({
     chainId,
-    args: projectId && chainId ? [projectId, BigInt(chainId)] : undefined,
+    args: projectId && rulesetId ? [projectId, rulesetId] : undefined,
     query: {
-      enabled: !!dataHookIsOmnichainDeployer && !!projectId && !!chainId,
+      enabled: !!dataHookIsOmnichainDeployer && !!projectId,
     },
   });
 
@@ -46,7 +44,6 @@ export function useResolveDataHook({
     isLoading: actualDataHookQuery.isLoading,
     error: actualDataHookQuery.error,
   }
-
   // Return the resolved data hook address
   const resolvedDataHook = dataHookIsOmnichainDeployer && actualDataHookQuery.data?.[2] 
     ? actualDataHookQuery.data[2] 

@@ -49,6 +49,7 @@ export function useJBRuleset({
     dataHookAddress: query.data?.metadata?.dataHook,
     projectId,
     chainId,
+    rulesetId: BigInt(query.data?.data?.id ?? 0),
   });
 
   return {

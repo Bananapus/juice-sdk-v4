@@ -118,6 +118,8 @@ export const JBRulesetProvider = ({
     dataHookAddress: ruleset?.metadata?.dataHook,
     projectId,
     chainId,
+    rulesetId: BigInt(ruleset?.data.id ?? 0),
+
   });
 
   const rulesetMetadataWithResolvedDataHook = ruleset?.metadata && {
