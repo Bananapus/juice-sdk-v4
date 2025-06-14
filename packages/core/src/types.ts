@@ -1,16 +1,17 @@
-import { ContractFunctionReturnType } from "viem";
+import {
+  CashOutTaxRate,
+  ReservedPercent,
+  RulesetWeight,
+  SplitPortion,
+  WeightCutPercent,
+} from "./utils/data.js";
 import {
   jbControllerAbi,
   jbDirectoryAddress,
   jbSplitsAbi,
 } from "./generated/juicebox.js";
-import {
-  WeightCutPercent,
-  CashOutTaxRate,
-  ReservedPercent,
-  RulesetWeight,
-  SplitPortion,
-} from "./utils/data.js";
+
+import { ContractFunctionReturnType } from "viem";
 
 export const projectTagOptions = [
   "art",
@@ -90,6 +91,8 @@ export type JBProjectMetadata = {
   introImageUri: string;
   softTargetAmount: string;
   softTargetCurrency: string;
+
+  projectRequiredOFACCheck?: boolean
 }>;
 
 export type JBSplit = Omit<
