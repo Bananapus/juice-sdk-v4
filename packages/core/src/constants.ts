@@ -154,14 +154,14 @@ export const JB_CHAINS: Record<JBChainId, JBChainMetadata> = {
     chain: baseSepolia,
     name: "Base Sepolia",
     slug: "basesep",
-    nativeTokenSymbol: "ArbSepETH",
+    nativeTokenSymbol: "BaseSepETH",
     etherscanHostname: "sepolia.basescan.org",
   },
   [arbitrumSepolia.id]: {
     chain: arbitrumSepolia,
     name: "Arbitrum Sepolia",
     slug: "arbsep",
-    nativeTokenSymbol: "BaseSepETH",
+    nativeTokenSymbol: "ArbSepETH",
     etherscanHostname: "sepolia.arbiscan.io",
   },
   [mainnet.id]: {
