@@ -1,9 +1,10 @@
 import { CCIP_SUCKER_DEPLOYER_ADDRESSES, NATIVE_TOKEN } from "../constants.js";
-import { parseEther } from "viem";
 import { JBChainId } from "../types.js";
 import { createSalt } from "./tx.js";
 
-const DEFAULT_MIN_BRIDGE_AMOUNT = parseEther("0.01");
+// NOTE: A default of `0` is safe as long as we are deploying CCIP suckers, this is not a safe default for non-ccip suckers.
+// Currently the SDK is only able to deploy CCIP suckers so this is a safe default, but in case that changes this should be refactored.
+const DEFAULT_MIN_BRIDGE_AMOUNT = BigInt(0);
 
 export function parseSuckerDeployerConfig(
   targetChainId: JBChainId,
