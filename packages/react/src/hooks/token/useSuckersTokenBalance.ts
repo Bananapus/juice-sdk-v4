@@ -17,7 +17,7 @@ import { useSuckers } from "../suckers/useSuckers";
 /**
  * Return the current surplus of JB Native token across each sucker on all chains for the current project.
  */
-export function useSuckersTokenBalance(token: Token) {
+export function useSuckersTokenBalance(tokens: Record<number, Token>) {
   const config = useConfig();
 
   const chainId = useJBChainId();
@@ -46,6 +46,7 @@ export function useSuckersTokenBalance(token: Token) {
       const balances = await Promise.all(
         pairs.map(async (pair) => {
           const { peerChainId, projectId } = pair;
+          const token = tokens[peerChainId];
           const [terminal, store] = await Promise.all([
             readJbDirectoryPrimaryTerminalOf(config, {
               chainId: Number(peerChainId) as JBChainId,

@@ -37,8 +37,8 @@ export function useTokenSurplus({
           currency: currency,
         },
       ],
-      BigInt(inTermsOfDecimals),
-      BigInt(inTermsOfCurrency),
+      BigInt(inTermsOfDecimals ?? 0),
+      BigInt(inTermsOfCurrency ?? 0),
     ],
   });
 }

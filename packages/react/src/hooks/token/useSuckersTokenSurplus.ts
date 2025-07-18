@@ -14,9 +14,13 @@ import { useJBContractContext } from "../../contexts/JBContractContext/JBContrac
 import { useSuckers } from "../suckers/useSuckers";
 
 /**
- * Return the current surplus of JB Native token across each sucker on all chains for the current project.
+ * Return the current surplus of JB token (can be different per chain) across each sucker on all chains for the current project.
  */
-export function useSuckersTokenSurplus(token: Token, currency: Currency, decimals: number, inTermsOfCurrency: Currency, inTermsOfDecimals: number) {
+export function useSuckersTokenSurplus(
+  tokenMap: Record<JBChainId, { token: Token; currency: Currency; decimals: number }>,
+  inTermsOfCurrency: Currency,
+  inTermsOfDecimals: number
+) {
   const config = useConfig();
 
   const chainId = useJBChainId();
@@ -45,6 +49,12 @@ export function useSuckersTokenSurplus(token: Token, currency: Currency, decimal
       const surpluses = await Promise.all(
         pairs.map(async (pair) => {
           const { peerChainId, projectId } = pair;
+          const tokenConfig = tokenMap[peerChainId as JBChainId];
+          if (!tokenConfig) {
+            // If no config for this chain, skip
+            return { surplus: null, chainId: peerChainId, projectId };
+          }
+          const { token, currency, decimals } = tokenConfig;
           const terminal = await readJbDirectoryPrimaryTerminalOf(config, {
             chainId: Number(peerChainId) as JBChainId,
             args: [projectId, token],
