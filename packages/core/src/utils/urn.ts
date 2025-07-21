@@ -7,7 +7,7 @@ export function jbUrn(urn: string): {
 } | null {
   const [chainSlug, projectId] = urn.split(":");
   const chain = JB_CHAIN_SLUGS[chainSlug];
-  if (!chain) {
+  if (!chain || !projectId) {
     return null;
   }
 
