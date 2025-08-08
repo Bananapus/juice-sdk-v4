@@ -9,6 +9,7 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   release:
@@ -33,15 +34,11 @@ jobs:
       - name: Run tests
         run: npm run test
 
-      - name: Publish to npm
+      - name: Create Release Pull Request or Publish to npm
         id: changesets
         uses: changesets/action@v1
         with:
-          version: npm run version-packages
           publish: npm run release
-          commit: "chore: release"
-          title: "chore: release"
-          createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
