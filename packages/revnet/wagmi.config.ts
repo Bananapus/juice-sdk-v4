@@ -18,6 +18,14 @@ enum RevnetCoreContracts {
 }
 
 /**
+ * If true, use fetch to get the deployment files from the github repo.
+ * If false, use import to get the deployment files from the local package.
+ * 
+ * Sometimes contract crew wont publish contracts to npm and i cbf with back and forth, so i just fetch directly from gh
+ */
+const USE_FETCH = true;
+
+/**
  * Name of chains, according to the nannypus deployment directory names
  */
 const CHAIN_NAME = {
@@ -29,7 +37,6 @@ const CHAIN_NAME = {
   [optimism.id]: "optimism",
   [arbitrum.id]: "arbitrum",
   [base.id]: "base",
-
 } as Record<number, string>;
 
 function revnetCorePath(
@@ -37,21 +44,27 @@ function revnetCorePath(
   contractName: keyof typeof RevnetCoreContracts
 ) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@rev-net/core/deployments/revnet-core/${chainName}/${contractName}.json`;
-  // return `https://raw.githubusercontent.com/rev-net/revnet-core/main/deployments/revnet-core/${chainName}/REVDeployer.json`;
+
+  if (USE_FETCH) {
+    return `https://raw.githubusercontent.com/rev-net/revnet-core/refs/heads/main/deployments/revnet-core/${chainName}/${contractName}.json`;
+  } else {
+    return `@rev-net/core/deployments/revnet-core/${chainName}/${contractName}.json`;
+  }
 }
 
 async function importDeployment(importPath: string) {
-  const { default: deployment } = await import(importPath, {
-    assert: { type: "json" },
-  });
-  return deployment;
-
-  // const deployment = await fetch(importPath).then((res) => res.json());
-  // return deployment as unknown as {
-  //   address: string;
-  //   abi: unknown[];
-  // };
+  if (USE_FETCH) {
+    const deployment = await fetch(importPath).then((res) => res.json());
+    return deployment as unknown as {
+      address: string;
+      abi: unknown[];
+    };
+  } else {
+    const { default: deployment } = await import(importPath, {
+      assert: { type: "json" },
+    });
+    return deployment;
+  }
 }
 
 async function buildRevnetCoreContractConfig() {
