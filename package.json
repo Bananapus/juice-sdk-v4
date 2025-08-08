@@ -7,9 +7,12 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "pub": "npm publish --workspaces"
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.27.1",
     "prettier": "^3.2.5",
     "turbo": "^2.0.4",
     "typescript": "^5.4.5"

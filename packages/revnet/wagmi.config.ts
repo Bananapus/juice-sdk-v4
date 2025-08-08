@@ -13,7 +13,8 @@ import { react } from "@wagmi/cli/plugins";
 
 enum RevnetCoreContracts {
   REVDeployer = "REVDeployer",
-  REVLoans = "REVLoans",
+  REVLoans = "REVLoans", // v1
+  REVLoans1_1 = "REVLoans1_1",
 }
 
 /**

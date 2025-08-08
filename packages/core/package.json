@@ -22,6 +22,9 @@
     "dist/**/*"
   ],
   "types": "./dist/esm/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "bs58": "^5.0.0",
     "fpnum": "^1.0.0"

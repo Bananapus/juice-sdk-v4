@@ -28,6 +28,7 @@ Juice SDK is a Turborepo monorepo. It consists of the following packages:
 ### Setup
 
 Requirements:
+
 - node v20 (`nvm use` or `nvm use 20`)
 
 1. Install deps for all packages.
@@ -63,11 +64,44 @@ There's a script - `addJBProjectDeploymentAddresses.js` - that will append a `jb
 Import and use `jbProjectDeploymentAddresses` to source addresses for project deployments.
 
 To add a default contract address for deployment:
-1. Modify `addJBProjectDeploymentAddresses.js` 
+
+1. Modify `addJBProjectDeploymentAddresses.js`
 
 ### Publish packages
 
 Only `react`, `core` and `revnet` are published. `wagmi-config` is "private"/internal-only.
 
+**Automated Publishing (Recommended):**
+Packages are automatically published when you push to the `main` branch using [Changesets](https://github.com/changesets/changesets).
+
+1. Create a changeset to describe your changes:
+   ```bash
+   npm run changeset
+   ```
+2. Commit the changeset file along with your code changes
+3. Push to main - packages will be automatically built, tested, and published
+
+**Manual Publishing (Legacy):**
+
 1. Bump package version in `package.json`
-1. `cd` into the package and run `npm publish`
+2. `cd` into the package and run `npm publish`
+
+#### Creating Changesets
+
+When you make changes that should trigger a new release:
+
+```bash
+# Create a new changeset
+npm run changeset
+
+# Follow the interactive prompts to:
+# - Select which packages changed
+# - Choose the type of change (patch/minor/major)
+# - Write a summary of the changes
+```
+
+**Change Types:**
+
+- `patch`: Bug fixes, small updates (1.0.0 → 1.0.1)
+- `minor`: New features, non-breaking changes (1.0.0 → 1.1.0)
+- `major`: Breaking changes (1.0.0 → 2.0.0)

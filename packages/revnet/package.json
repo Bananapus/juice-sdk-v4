@@ -17,6 +17,9 @@
     "dist/**/*"
   ],
   "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "viem": "^2.14.1",
     "wagmi": "^2.10.2",
