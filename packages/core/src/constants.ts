@@ -66,7 +66,7 @@ export const MAX_FEE_DISCOUNT = 1_000_000_000;
 
 // uint 224, probably a better way lol
 export const MAX_PAYOUT_LIMIT = BigInt(
-  "26959946667150639794667015087019630673637144422540572481103610249215"
+  "26959946667150639794667015087019630673637144422540572481103610249215",
 );
 
 /**
@@ -107,13 +107,13 @@ export const NATIVE_TOKEN: Address =
  *
  * @link https://github.com/Bananapus/nana-core/blob/main/src/libraries/JBCurrencyIds.sol
  */
-export const ETH_CURRENCY_ID = 1
+export const ETH_CURRENCY_ID = 1;
 /**
  * The ID that represents USD currencies. Use this when specifying USD-deonominated payouts.
  *
  * @link https://github.com/Bananapus/nana-core/blob/main/src/libraries/JBCurrencyIds.sol
  */
-export const USD_CURRENCY_ID = 2
+export const USD_CURRENCY_ID = 2;
 
 /**
  * Amount of decimals to use for native token fixed-point representation.
@@ -203,7 +203,7 @@ export const JB_CHAIN_SLUGS = Object.values(JB_CHAINS).reduce(
     slugs[chainMetadata.slug] = chainMetadata;
     return slugs;
   },
-  {}
+  {},
 );
 
 export const DEFAULT_NATIVE_TOKEN_SYMBOL = "ETH";
@@ -261,4 +261,18 @@ export const CCIP_SUCKER_DEPLOYER_ADDRESSES: CCIPMap = {
     [optimism.id]: jbccipSuckerDeployer_1Address[base.id],
     [arbitrum.id]: jbccipSuckerDeployer_2Address[base.id],
   },
+};
+
+/**
+ * USDC contract addresses on supported chains.
+ */
+export const USDC_ADDRESSES: Record<JBChainId, Address> = {
+  [sepolia.id]: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+  [mainnet.id]: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  [optimismSepolia.id]: "0x5fd84259d66Cd46123540766Be93DFE6D43130D7",
+  [optimism.id]: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+  [baseSepolia.id]: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  [base.id]: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  [arbitrumSepolia.id]: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+  [arbitrum.id]: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
 };
