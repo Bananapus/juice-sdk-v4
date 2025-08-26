@@ -113,7 +113,7 @@ export const ETH_CURRENCY_ID = 1;
  *
  * @link https://github.com/Bananapus/nana-core/blob/main/src/libraries/JBCurrencyIds.sol
  */
-export const USD_CURRENCY_ID = 2;
+export const USD_CURRENCY_ID = 3;
 
 /**
  * Amount of decimals to use for native token fixed-point representation.
