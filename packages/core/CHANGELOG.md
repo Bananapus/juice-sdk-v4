@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.9.0
+
+### Minor Changes
+
+- 7b756c8: Added support for USDC suckers
+
 ## 1.8.9
 
 ### Patch Changes
