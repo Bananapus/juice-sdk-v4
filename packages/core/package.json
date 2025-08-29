@@ -35,7 +35,7 @@
     "@bananapus/buyback-hook": "^1.0.0",
     "@bananapus/core": "^1.0.5",
     "@bananapus/suckers": "^1.0.2",
-    "@bananapus/swap-terminal": "^1.0.0",
+    "@bananapus/swap-terminal": "^1.0.1",
     "@bananapus/omnichain-deployers": "github:bananapus/nana-omnichain-deployers#42d39e1442cba9e916ad812112755629711fb759",
     "@jbm/wagmi-config": "*",
     "@wagmi/cli": "^2.1.10",

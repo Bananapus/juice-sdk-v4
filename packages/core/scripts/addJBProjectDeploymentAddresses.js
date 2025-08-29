@@ -37,7 +37,7 @@ function nanaSwapTerminalPath(chain, contractName) {
 const CORE_CONTRACTS = ["JBMultiTerminal", "JBController", "JBController4_1"];
 const CONTRACTS_721 = ["JB721TiersHookStore"];
 const CONTRACTS_BUYBACK = ["JBBuybackHook"];
-const CONTRACTS_SWAP = ["JBSwapTerminal"];
+const CONTRACTS_SWAP = ["JBSwapTerminal", "JBSwapTerminal1_1"];
 
 async function buildDefaultAddresses() {
   const addresses = {};

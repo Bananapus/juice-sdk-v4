@@ -58,6 +58,7 @@ export enum JBSuckerContracts {
 
 export enum JBSwapTerminalContracts {
   JBSwapTerminal = "JBSwapTerminal",
+  JBSwapTerminal1_1 = "JBSwapTerminal1_1",
 }
 
 export enum JBBuybackHookContracts {
