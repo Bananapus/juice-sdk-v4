@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.10.0
+
+### Minor Changes
+
+- 1a17ec9: Added `JBSwapTerminal1_1`
+
 ## 1.9.0
 
 ### Minor Changes

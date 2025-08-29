@@ -1,5 +1,12 @@
 # juice-sdk-react
 
+## 3.0.0
+
+### Patch Changes
+
+- Updated dependencies [1a17ec9]
+  - juice-sdk-core@1.10.0
+
 ## 2.0.0
 
 ### Patch Changes
