@@ -5,6 +5,7 @@
  */
 
 import { Chain } from "viem";
+import { JBVersion, withVersionPath } from "./deployPaths.js";
 import {
   arbitrum,
   arbitrumSepolia,
@@ -21,8 +22,6 @@ type ContractConfig = {
   abi: unknown[];
   address?: Record<number, `0x${string}`>;
 };
-
-export type JBVersion = 4 | 5;
 
 export enum JBCoreContracts {
   JBController = "JBController",
@@ -132,16 +131,14 @@ const HAS_STATIC_ADDRESS: Contracts[] = [
   JBOmnichainDeployerContracts.JBOmnichainDeployer4_1,
 ];
 
-function withVersionPath(
+function buildPath(
   base: string,
   version: JBVersion,
   chain: Chain,
   contractName: string | Contracts
 ) {
   const chainName = CHAIN_NAME[chain.id];
-  const baseName = String(contractName).replace(/V5$/, "");
-  const suffix = version === 5 ? "-v5" : "";
-  return `${base}${suffix}/${chainName}/${baseName}.json`;
+  return withVersionPath(base, version, chainName, String(contractName));
 }
 
 async function importDeployment(importPath: string) {
@@ -233,7 +230,7 @@ const FAMILY_CONFIGS: { contracts: Contracts[]; base: string }[] = [
 async function buildFamilies(version: JBVersion) {
   const chunks = await Promise.all(
     FAMILY_CONFIGS.map(({ contracts, base }) =>
-      buildContractConfig(contracts, (c, n, v) => withVersionPath(base, v, c, n), version)
+      buildContractConfig(contracts, (c, n, v) => buildPath(base, v, c, n), version)
     )
   );
   return chunks.flat();

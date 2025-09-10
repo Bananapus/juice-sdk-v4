@@ -3,14 +3,21 @@
   "private": "true",
   "version": "0.0.0",
   "files": [
-    "wagmi.config.ts"
+    "dist/**/*"
   ],
   "scripts": {
     "build": "tsc"
   },
   "type": "module",
   "exports": {
-    ".": "./dist/wagmi.config.js"
+    ".": {
+      "types": "./dist/wagmi.config.d.ts",
+      "default": "./dist/wagmi.config.js"
+    },
+    "./deployPaths": {
+      "types": "./dist/deployPaths.d.ts",
+      "default": "./dist/deployPaths.js"
+    }
   },
   "devDependencies": {
     "@wagmi/cli": "^2.1.10",

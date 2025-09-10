@@ -1,4 +1,5 @@
 import { JBChainId } from "./types.js";
+import { pathForFamily, JBVersion } from "@jbm/wagmi-config/deployPaths";
 
 // Minimal runtime resolver that reads deployment JSONs directly when versioned constants are not present
 const CHAIN_NAME: Record<number, string> = {
@@ -20,29 +21,13 @@ function deploymentPath(
     | "suckers"
     | "swap-terminal"
     | "buyback-hook"
-    | "omnichain",
-  version: 4 | 5,
+    | "omnichain-deployers",
+  version: JBVersion,
   chainId: number,
   contractName: string
 ) {
   const chain = CHAIN_NAME[chainId];
-  const suffix = version === 5 ? "-v5" : "";
-  switch (family) {
-    case "core":
-      return `@bananapus/core/deployments/nana-core${suffix}/${chain}/${contractName}.json`;
-    case "721":
-      return `@bananapus/721-hook/deployments/nana-721-hook${suffix}/${chain}/${contractName}.json`;
-    case "address-registry":
-      return `@bananapus/address-registry/deployments/nana-address-registry${suffix}/${chain}/${contractName}.json`;
-    case "suckers":
-      return `@bananapus/suckers/deployments/nana-suckers${suffix}/${chain}/${contractName}.json`;
-    case "swap-terminal":
-      return `@bananapus/swap-terminal/deployments/nana-swap-terminal${suffix}/${chain}/${contractName}.json`;
-    case "buyback-hook":
-      return `@bananapus/buyback-hook/deployments/nana-buyback-hook${suffix}/${chain}/${contractName}.json`;
-    case "omnichain":
-      return `@bananapus/omnichain-deployers/deployments/nana-omnichain-deployers${suffix}/${chain}/${contractName}.json`;
-  }
+  return pathForFamily(version, family as any, chain, contractName);
 }
 
 export async function getDeploymentAddress(args: {
@@ -53,10 +38,10 @@ export async function getDeploymentAddress(args: {
     | "suckers"
     | "swap-terminal"
     | "buyback-hook"
-    | "omnichain";
+    | "omnichain-deployers";
   contractName: string;
   chainId: JBChainId;
-  version?: 4 | 5;
+  version?: JBVersion;
 }): Promise<`0x${string}`> {
   const { family, contractName, chainId, version = 4 } = args;
   const p = deploymentPath(family, version, Number(chainId), contractName);

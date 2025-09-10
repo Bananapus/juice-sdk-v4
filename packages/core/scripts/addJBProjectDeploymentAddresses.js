@@ -1,4 +1,5 @@
 import fs from "fs";
+import { pathForFamily } from "@jbm/wagmi-config/deployPaths";
 
 /**
  * Name of chains, according to the nannypus deployment directory names
@@ -17,38 +18,22 @@ const CHAIN_NAME = {
 const FAMILIES = {
   core: ["JBMultiTerminal", "JBController", "JBController4_1"],
   721: ["JB721TiersHookStore"],
-  buyback: ["JBBuybackHook"],
-  swap: ["JBSwapTerminal", "JBSwapTerminal1_1"],
+  "buyback-hook": ["JBBuybackHook"],
+  "swap-terminal": ["JBSwapTerminal", "JBSwapTerminal1_1"],
 };
-
-function nanaPathFor(version, family) {
-  const suffix = version === 5 ? "-v5" : "";
-  switch (family) {
-    case "core":
-      return (chain, name) =>
-        `@bananapus/core/deployments/nana-core${suffix}/${CHAIN_NAME[chain.id]}/${name}.json`;
-    case "721":
-      return (chain, name) =>
-        `@bananapus/721-hook/deployments/nana-721-hook${suffix}/${CHAIN_NAME[chain.id]}/${name}.json`;
-    case "buyback":
-      return (chain, name) =>
-        `@bananapus/buyback-hook/deployments/nana-buyback-hook${suffix}/${CHAIN_NAME[chain.id]}/${name}.json`;
-    case "swap":
-      return (chain, name) =>
-        `@bananapus/swap-terminal/deployments/nana-swap-terminal${suffix}/${CHAIN_NAME[chain.id]}/${name}.json`;
-    default:
-      throw new Error(`unknown family ${family}`);
-  }
-}
 
 async function buildAddressesFor(version) {
   const addresses = {};
   for (const [family, contracts] of Object.entries(FAMILIES)) {
-    const getPath = nanaPathFor(version, family);
     for (const contract of contracts) {
       const contractAddresses = {};
       for (const chainId of Object.keys(CHAIN_NAME)) {
-        const path = getPath({ id: chainId }, contract);
+        const path = pathForFamily(
+          version,
+          /** @type {import("@jbm/wagmi-config/deployPaths").Family} */ (family),
+          CHAIN_NAME[chainId],
+          contract
+        );
         const data = await import(path, { assert: { type: "json" } });
         contractAddresses[chainId] = data.default.address;
       }
