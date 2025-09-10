@@ -14,91 +14,68 @@ const CHAIN_NAME = {
   8453: "base",
 };
 
-function nanaCorePath(chain, contractName) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/core/deployments/nana-core/${chainName}/${contractName}.json`;
+const FAMILIES = {
+  core: ["JBMultiTerminal", "JBController", "JBController4_1"],
+  721: ["JB721TiersHookStore"],
+  buyback: ["JBBuybackHook"],
+  swap: ["JBSwapTerminal", "JBSwapTerminal1_1"],
+};
+
+function nanaPathFor(version, family) {
+  const suffix = version === 5 ? "-v5" : "";
+  switch (family) {
+    case "core":
+      return (chain, name) =>
+        `@bananapus/core/deployments/nana-core${suffix}/${CHAIN_NAME[chain.id]}/${name}.json`;
+    case "721":
+      return (chain, name) =>
+        `@bananapus/721-hook/deployments/nana-721-hook${suffix}/${CHAIN_NAME[chain.id]}/${name}.json`;
+    case "buyback":
+      return (chain, name) =>
+        `@bananapus/buyback-hook/deployments/nana-buyback-hook${suffix}/${CHAIN_NAME[chain.id]}/${name}.json`;
+    case "swap":
+      return (chain, name) =>
+        `@bananapus/swap-terminal/deployments/nana-swap-terminal${suffix}/${CHAIN_NAME[chain.id]}/${name}.json`;
+    default:
+      throw new Error(`unknown family ${family}`);
+  }
 }
 
-function nana721HookPath(chain, contractName) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/721-hook/deployments/nana-721-hook/${chainName}/${contractName}.json`;
-}
-
-function nanaBuybackHookPath(chain, contractName) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/buyback-hook/deployments/nana-buyback-hook/${chainName}/${contractName}.json`;
-}
-
-function nanaSwapTerminalPath(chain, contractName) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/swap-terminal/deployments/nana-swap-terminal/${chainName}/${contractName}.json`;
-}
-
-const CORE_CONTRACTS = ["JBMultiTerminal", "JBController", "JBController4_1"];
-const CONTRACTS_721 = ["JB721TiersHookStore"];
-const CONTRACTS_BUYBACK = ["JBBuybackHook"];
-const CONTRACTS_SWAP = ["JBSwapTerminal", "JBSwapTerminal1_1"];
-
-async function buildDefaultAddresses() {
+async function buildAddressesFor(version) {
   const addresses = {};
-  for (const contract of CORE_CONTRACTS) {
-    const contractAddresses = {};
-
-    for (const chainId of Object.keys(CHAIN_NAME)) {
-      const path = nanaCorePath({ id: chainId }, contract);
-      const data = await import(path, { assert: { type: "json" } });
-      contractAddresses[chainId] = data.default.address;
+  for (const [family, contracts] of Object.entries(FAMILIES)) {
+    const getPath = nanaPathFor(version, family);
+    for (const contract of contracts) {
+      const contractAddresses = {};
+      for (const chainId of Object.keys(CHAIN_NAME)) {
+        const path = getPath({ id: chainId }, contract);
+        const data = await import(path, { assert: { type: "json" } });
+        contractAddresses[chainId] = data.default.address;
+      }
+      addresses[contract] = contractAddresses;
     }
-    addresses[contract] = contractAddresses;
   }
-  for (const contract of CONTRACTS_721) {
-    const contractAddresses = {};
-
-    for (const chainId of Object.keys(CHAIN_NAME)) {
-      const path = nana721HookPath({ id: chainId }, contract);
-      const data = await import(path, { assert: { type: "json" } });
-      contractAddresses[chainId] = data.default.address;
-    }
-    addresses[contract] = contractAddresses;
-  }
-
-  for (const contract of CONTRACTS_BUYBACK) {
-    const contractAddresses = {};
-
-    for (const chainId of Object.keys(CHAIN_NAME)) {
-      const path = nanaBuybackHookPath({ id: chainId }, contract);
-      const data = await import(path, { assert: { type: "json" } });
-      contractAddresses[chainId] = data.default.address;
-    }
-    addresses[contract] = contractAddresses;
-  }
-
-  for (const contract of CONTRACTS_SWAP) {
-    const contractAddresses = {};
-
-    for (const chainId of Object.keys(CHAIN_NAME)) {
-      const path = nanaSwapTerminalPath({ id: chainId }, contract);
-      const data = await import(path, { assert: { type: "json" } });
-      contractAddresses[chainId] = data.default.address;
-    }
-    addresses[contract] = contractAddresses;
-  }
-
   return addresses;
 }
 
 async function buildDefaultAddressContent() {
+  const v4 = await buildAddressesFor(4);
+  const v5 = await buildAddressesFor(5);
+
   const content = `
   /**
    * Addresses to use in JB project deployments.
    */
-  export const jbProjectDeploymentAddresses = ${JSON.stringify(await buildDefaultAddresses(), null, 2)};`;
+  export const jbProjectDeploymentAddresses = ${JSON.stringify(v4, null, 2)};
+  export const jbProjectDeploymentAddressesV5 = ${JSON.stringify(v5, null, 2)};`;
   return content;
 }
 
 async function addDefaultAddresses() {
+  const filePath = "src/generated/juicebox.ts";
+  // Do not mutate generated addresses; only append project deployment maps
   const content = await buildDefaultAddressContent();
-  fs.appendFileSync("src/generated/juicebox.ts", content);
+  fs.appendFileSync(filePath, content);
 }
 
 addDefaultAddresses();

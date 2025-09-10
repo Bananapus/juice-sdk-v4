@@ -22,6 +22,8 @@ type ContractConfig = {
   address?: Record<number, `0x${string}`>;
 };
 
+export type JBVersion = 4 | 5;
+
 export enum JBCoreContracts {
   JBController = "JBController",
   JBController4_1 = "JBController4_1",
@@ -130,39 +132,16 @@ const HAS_STATIC_ADDRESS: Contracts[] = [
   JBOmnichainDeployerContracts.JBOmnichainDeployer4_1,
 ];
 
-function nanaCorePath(chain: Chain, contractName: Contracts) {
+function withVersionPath(
+  base: string,
+  version: JBVersion,
+  chain: Chain,
+  contractName: string | Contracts
+) {
   const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/core/deployments/nana-core/${chainName}/${contractName}.json`;
-}
-
-function nanaSuckersPath(chain: Chain, contractName: Contracts) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/suckers/deployments/nana-suckers/${chainName}/${contractName}.json`;
-}
-
-function nana721HookPath(chain: Chain, contractName: Contracts) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/721-hook/deployments/nana-721-hook/${chainName}/${contractName}.json`;
-}
-
-function nanaAddressRegistryPath(chain: Chain, contractName: Contracts) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/address-registry/deployments/nana-address-registry/${chainName}/${contractName}.json`;
-}
-
-function nanaSwapTerminalPath(chain: Chain, contractName: Contracts) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/swap-terminal/deployments/nana-swap-terminal/${chainName}/${contractName}.json`;
-}
-
-function nanaBuybackHookPath(chain: Chain, contractName: Contracts) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/buyback-hook/deployments/nana-buyback-hook/${chainName}/${contractName}.json`;
-}
-
-function nanaOmnichainDeployerPath(chain: Chain, contractName: Contracts) {
-  const chainName = CHAIN_NAME[chain.id];
-  return `@bananapus/omnichain-deployers/deployments/nana-omnichain-deployers/${chainName}/${contractName}.json`;
+  const baseName = String(contractName).replace(/V5$/, "");
+  const suffix = version === 5 ? "-v5" : "";
+  return `${base}${suffix}/${chainName}/${baseName}.json`;
 }
 
 async function importDeployment(importPath: string) {
@@ -182,8 +161,7 @@ function parseAbi(contractName: string, abi: any) {
    */
   if (contractName === JBCoreContracts.JBTerminalStore) {
     return abi.filter(
-      (a: any) =>
-        !(a.name === "currentReclaimableSurplusOf" && a.inputs.length === 4)
+      (a: any) => !(a.name === "currentReclaimableSurplusOf" && a.inputs.length === 4)
     );
   }
   return abi;
@@ -191,14 +169,15 @@ function parseAbi(contractName: string, abi: any) {
 
 async function buildContractConfig(
   contractNames: Contracts[],
-  getPath: (chain: Chain, contractName: Contracts) => string
+  getPath: (chain: Chain, contractName: Contracts, version: JBVersion) => string,
+  version: JBVersion = 4
 ): Promise<ContractConfig[]> {
   const chainToContractAddress = await Promise.all(
     Object.values(contractNames).map(async (contractName) => {
       // import deployment for each chain
       const deployments = await Promise.all(
         SUPPORTED_CHAINS.map(async (chain) =>
-          importDeployment(getPath(chain, contractName))
+          importDeployment(getPath(chain, contractName, version))
         )
       );
 
@@ -212,9 +191,7 @@ async function buildContractConfig(
       return {
         name: contractName,
         abi,
-        address: HAS_STATIC_ADDRESS.includes(contractName)
-          ? address
-          : undefined,
+        address: HAS_STATIC_ADDRESS.includes(contractName) ? address : undefined,
       };
     })
   );
@@ -222,67 +199,47 @@ async function buildContractConfig(
   return chainToContractAddress;
 }
 
-async function buildNanaCoreContractConfig() {
-  return buildContractConfig(Object.values(JBCoreContracts), nanaCorePath);
-}
-
-async function buildNana721ContractConfig() {
-  return buildContractConfig(
-    Object.values(JB721HookContracts),
-    nana721HookPath
-  );
-}
-
-async function buildNanaAddressRegistryContractConfig() {
-  return buildContractConfig(
-    Object.values(JBAddressRegistryContracts),
-    nanaAddressRegistryPath
-  );
-}
-
-async function buildNanaSuckersContractConfig() {
-  return buildContractConfig(Object.values(JBSuckerContracts), nanaSuckersPath);
-}
-
-async function buildNanaSwapTerminalContractConfig() {
-  return buildContractConfig(
-    Object.values(JBSwapTerminalContracts),
-    nanaSwapTerminalPath
-  );
-}
-
-async function buildNanaBuybackHookContractConfig() {
-  return buildContractConfig(
-    Object.values(JBBuybackHookContracts),
-    nanaBuybackHookPath
-  );
-}
-
-async function buildNanaOmnichainDeployerContractConfig() {
-  return buildContractConfig(
-    Object.values(JBOmnichainDeployerContracts),
-    nanaOmnichainDeployerPath
-  );
-}
-
-const coreContracts = await buildNanaCoreContractConfig();
-const contracts721 = await buildNana721ContractConfig();
-const contractsSuckers = await buildNanaSuckersContractConfig();
-const contractsAddressRegistry = await buildNanaAddressRegistryContractConfig();
-const contractsSwapTerminal = await buildNanaSwapTerminalContractConfig();
-const contractsBuybackHook = await buildNanaBuybackHookContractConfig();
-const contractsOmnichainDeployer =
-  await buildNanaOmnichainDeployerContractConfig();
-
-const contracts = [
-  ...coreContracts,
-  ...contracts721,
-  ...contractsSuckers,
-  ...contractsAddressRegistry,
-  ...contractsSwapTerminal,
-  ...contractsBuybackHook,
-  ...contractsOmnichainDeployer,
+const FAMILY_CONFIGS: { contracts: Contracts[]; base: string }[] = [
+  {
+    contracts: Object.values(JBCoreContracts) as unknown as Contracts[],
+    base: "@bananapus/core/deployments/nana-core",
+  },
+  {
+    contracts: Object.values(JB721HookContracts) as unknown as Contracts[],
+    base: "@bananapus/721-hook/deployments/nana-721-hook",
+  },
+  {
+    contracts: Object.values(JBAddressRegistryContracts) as unknown as Contracts[],
+    base: "@bananapus/address-registry/deployments/nana-address-registry",
+  },
+  {
+    contracts: Object.values(JBSuckerContracts) as unknown as Contracts[],
+    base: "@bananapus/suckers/deployments/nana-suckers",
+  },
+  {
+    contracts: Object.values(JBSwapTerminalContracts) as unknown as Contracts[],
+    base: "@bananapus/swap-terminal/deployments/nana-swap-terminal",
+  },
+  {
+    contracts: Object.values(JBBuybackHookContracts) as unknown as Contracts[],
+    base: "@bananapus/buyback-hook/deployments/nana-buyback-hook",
+  },
+  {
+    contracts: Object.values(JBOmnichainDeployerContracts) as unknown as Contracts[],
+    base: "@bananapus/omnichain-deployers/deployments/nana-omnichain-deployers",
+  },
 ];
+
+async function buildFamilies(version: JBVersion) {
+  const chunks = await Promise.all(
+    FAMILY_CONFIGS.map(({ contracts, base }) =>
+      buildContractConfig(contracts, (c, n, v) => withVersionPath(base, v, c, n), version)
+    )
+  );
+  return chunks.flat();
+}
+
+const contracts = await buildFamilies(4);
 
 export default {
   out: "src/generated.ts",

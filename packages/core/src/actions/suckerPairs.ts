@@ -1,7 +1,9 @@
 import { Address, PublicClient, getContract } from "viem";
-import { readJbSuckerRegistrySuckerPairsOf } from "../generated/juicebox.js";
+import { jbSuckerRegistryAbi } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
 import { JBChainId } from "src/types.js";
+import { getDeploymentAddress } from "../address.js";
+import { JBVersion } from "../version.js";
 
 export type SuckerPair = {
   peerChainId: JBChainId;
@@ -12,15 +14,26 @@ export async function getSuckerPairs({
   config,
   chainId,
   projectId,
+  version = 4,
 }: {
   config: any; // TODO wagmi config type
   chainId: JBChainId;
   projectId: bigint;
+  version?: JBVersion;
 }): Promise<SuckerPair[]> {
-  const suckers = await readJbSuckerRegistrySuckerPairsOf(config, {
-    chainId, // TODO fix type
-    args: [projectId],
+  const jbSuckerRegistry = await getDeploymentAddress({
+    family: "suckers",
+    contractName: "JBSuckerRegistry",
+    chainId,
+    version,
   });
+  const client = config.getClient({ chainId: Number(chainId) }) as PublicClient;
+  const suckerRegistry = getContract({
+    address: jbSuckerRegistry,
+    abi: jbSuckerRegistryAbi,
+    client,
+  });
+  const suckers = await suckerRegistry.read.suckerPairsOf([projectId]);
 
   const suckerPairs = await Promise.all(
     suckers.map(async (sucker) => {
@@ -60,12 +73,14 @@ export async function resolveSuckers({
   config,
   chainId,
   projectId,
+  version = 4,
 }: {
   config: any; // TODO wagmi config
   chainId: JBChainId;
   projectId: bigint;
+  version?: JBVersion;
 }) {
-  const initialPairs = await getSuckerPairs({ config, chainId, projectId });
+  const initialPairs = await getSuckerPairs({ config, chainId, projectId, version });
   const pairs = [...initialPairs];
 
   await Promise.all(
@@ -75,6 +90,7 @@ export async function resolveSuckers({
           config,
           chainId: pair.peerChainId,
           projectId: pair.projectId,
+          version,
         });
 
         peerPairs.forEach((pair) => {
