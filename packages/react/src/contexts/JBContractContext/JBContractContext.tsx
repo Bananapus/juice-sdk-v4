@@ -1,11 +1,5 @@
-import { JBChainId, NATIVE_TOKEN, debug } from "juice-sdk-core";
-import {
-  PropsWithChildren,
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-} from "react";
+import { JBChainId, NATIVE_TOKEN, debug, USDC_ADDRESSES } from "juice-sdk-core";
+import { PropsWithChildren, createContext, useCallback, useContext, useMemo } from "react";
 import { Address, isAddressEqual, zeroAddress } from "viem";
 import {
   useReadJbControllerFundAccessLimits,
@@ -95,9 +89,7 @@ export function useJBProjectId(chainId?: JBChainId): {
     return { projectId: currentProjectId, chainId: currentChainId };
   }
 
-  const projectId = suckers.find(
-    (suckerPair) => suckerPair.peerChainId === chainId
-  )?.projectId;
+  const projectId = suckers.find((suckerPair) => suckerPair.peerChainId === chainId)?.projectId;
 
   return { projectId, chainId };
 }
@@ -107,11 +99,7 @@ export function useJBProjectId(chainId?: JBChainId): {
  *
  * If `include` arg not specified, all contracts are loaded
  */
-export const JBContractProvider = ({
-  projectId,
-  include,
-  children,
-}: JBContractProviderProps) => {
+export const JBContractProvider = ({ projectId, include, children }: JBContractProviderProps) => {
   const chainId = useJBChainId();
   const enabled = useCallback(
     (selector: DynamicContract[]) => {
@@ -124,12 +112,27 @@ export const JBContractProvider = ({
     [include]
   );
 
-  const primaryNativeTerminal = useReadJbDirectoryPrimaryTerminalOf({
+  const primaryNativeTerminalEth = useReadJbDirectoryPrimaryTerminalOf({
     chainId,
     args: enabled([DynamicContract.PrimaryNativePaymentTerminal])
       ? [projectId, NATIVE_TOKEN]
       : undefined,
   });
+
+  const primaryNativeTerminalUsdc = useReadJbDirectoryPrimaryTerminalOf({
+    chainId,
+    args: enabled([DynamicContract.PrimaryNativePaymentTerminal])
+      ? [projectId, chainId ? USDC_ADDRESSES[chainId] : zeroAddress]
+      : undefined,
+    query: { enabled: !!chainId },
+  });
+
+  const primaryNativeTerminal = useMemo(() => {
+    return primaryNativeTerminalEth.data !== zeroAddress
+      ? primaryNativeTerminalEth
+      : primaryNativeTerminalUsdc;
+  }, [primaryNativeTerminalEth, primaryNativeTerminalUsdc]);
+
   const controller = useReadJbDirectoryControllerOf({
     chainId,
     args: [projectId],
@@ -152,10 +155,7 @@ export const JBContractProvider = ({
     chainId,
     address: normalizedControllerAddress,
     query: {
-      enabled: enabled([
-        DynamicContract.Controller,
-        DynamicContract.FundAccessLimits,
-      ]),
+      enabled: enabled([DynamicContract.Controller, DynamicContract.FundAccessLimits]),
       staleTime: Infinity,
     },
   });
