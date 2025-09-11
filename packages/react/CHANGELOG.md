@@ -1,5 +1,17 @@
 # juice-sdk-react
 
+## 3.0.0
+
+### Minor Changes
+
+- e73a095: Fix error with invalid primary terminal address for projects with USDC context
+
+### Patch Changes
+
+- Updated dependencies [1a17ec9]
+- Updated dependencies [e73a095]
+  - juice-sdk-core@1.10.0
+
 ## 2.0.0
 
 ### Patch Changes
