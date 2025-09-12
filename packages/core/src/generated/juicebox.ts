@@ -17542,6 +17542,743 @@ export const jbSwapTerminalAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBSwapTerminal1_1
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbSwapTerminal1_1Abi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'weth', internalType: 'contract IWETH9', type: 'address' },
+      { name: 'tokenOut', internalType: 'address', type: 'address' },
+      {
+        name: 'factory',
+        internalType: 'contract IUniswapV3Factory',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DEFAULT_PROJECT_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'FACTORY',
+    outputs: [
+      { name: '', internalType: 'contract IUniswapV3Factory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_TWAP_SLIPPAGE_TOLERANCE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_TWAP_WINDOW',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_DEFAULT_POOL_CARDINALITY',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_TWAP_SLIPPAGE_TOLERANCE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_TWAP_WINDOW',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'SLIPPAGE_DENOMINATOR',
+    outputs: [{ name: '', internalType: 'uint160', type: 'uint160' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TOKEN_OUT',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'WETH',
+    outputs: [{ name: '', internalType: 'contract IWETH9', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'accountingContextForTokenOf',
+    outputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'accountingContextsOf',
+    outputs: [
+      {
+        name: 'contexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'accountingContexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    name: 'addAccountingContextsFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+    ],
+    name: 'addDefaultPool',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'addToBalanceOf',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+      { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
+      { name: 'slippageTolerance', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'addTwapParamsFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'accountingContexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'currentSurplusOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'tokenIn', internalType: 'address', type: 'address' },
+    ],
+    name: 'getPoolFor',
+    outputs: [
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+      { name: 'zeroForOne', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'contract IJBTerminal', type: 'address' },
+    ],
+    name: 'migrateBalanceOf',
+    outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+      { name: 'minReturnedTokens', internalType: 'uint256', type: 'uint256' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'pay',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+    ],
+    name: 'twapParamsOf',
+    outputs: [
+      { name: '', internalType: 'uint32', type: 'uint32' },
+      { name: '', internalType: 'uint160', type: 'uint160' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'amount0Delta', internalType: 'int256', type: 'int256' },
+      { name: 'amount1Delta', internalType: 'int256', type: 'int256' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'uniswapV3SwapCallback',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'returnedFees',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'AddToBalance',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBPayHook',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAfterPayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'payer', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'newlyIssuedTokenCount',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'payerMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'specificationAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'HookAfterRecordPay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'to',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'MigrateTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rulesetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'rulesetCycleNumber',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'payer',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newlyIssuedTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Pay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetAccountingContext',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBSwapTerminal_CallerNotPool',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'slippageTolerance', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'minSlippageTolerance',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'maxSlippageTolerance',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'JBSwapTerminal_InvalidTwapSlippageTolerance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'window', internalType: 'uint256', type: 'uint256' },
+      { name: 'minWindow', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxWindow', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBSwapTerminal_InvalidTwapWindow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBSwapTerminal_NoDefaultPoolDefined',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'value', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBSwapTerminal_NoMsgValueAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'allowance', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBSwapTerminal_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBSwapTerminal_SpecifiedSlippageExceeded',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBSwapTerminal_TokenNotAccepted',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBSwapTerminal_UnexpectedCall',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'pool', internalType: 'address', type: 'address' },
+      { name: 'expectedPool', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBSwapTerminal_WrongPool',
+  },
+  { type: 'error', inputs: [], name: 'JBSwapTerminal_ZeroToken' },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  { type: 'error', inputs: [], name: 'T' },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBTerminalStore
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -28249,6 +28986,428 @@ export const watchJbSwapTerminalSetAccountingContextEvent =
   })
 
 /**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__
+ */
+export const readJbSwapTerminal1_1 = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminal1_1Abi,
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"DEFAULT_PROJECT_ID"`
+ */
+export const readJbSwapTerminal1_1DefaultProjectId =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'DEFAULT_PROJECT_ID',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"DIRECTORY"`
+ */
+export const readJbSwapTerminal1_1Directory = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminal1_1Abi,
+  functionName: 'DIRECTORY',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"FACTORY"`
+ */
+export const readJbSwapTerminal1_1Factory = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminal1_1Abi,
+  functionName: 'FACTORY',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"MAX_TWAP_SLIPPAGE_TOLERANCE"`
+ */
+export const readJbSwapTerminal1_1MaxTwapSlippageTolerance =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'MAX_TWAP_SLIPPAGE_TOLERANCE',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"MAX_TWAP_WINDOW"`
+ */
+export const readJbSwapTerminal1_1MaxTwapWindow =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'MAX_TWAP_WINDOW',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"MIN_DEFAULT_POOL_CARDINALITY"`
+ */
+export const readJbSwapTerminal1_1MinDefaultPoolCardinality =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'MIN_DEFAULT_POOL_CARDINALITY',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"MIN_TWAP_SLIPPAGE_TOLERANCE"`
+ */
+export const readJbSwapTerminal1_1MinTwapSlippageTolerance =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'MIN_TWAP_SLIPPAGE_TOLERANCE',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"MIN_TWAP_WINDOW"`
+ */
+export const readJbSwapTerminal1_1MinTwapWindow =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'MIN_TWAP_WINDOW',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"PERMISSIONS"`
+ */
+export const readJbSwapTerminal1_1Permissions =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'PERMISSIONS',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"PERMIT2"`
+ */
+export const readJbSwapTerminal1_1Permit2 = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminal1_1Abi,
+  functionName: 'PERMIT2',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"PROJECTS"`
+ */
+export const readJbSwapTerminal1_1Projects = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminal1_1Abi,
+  functionName: 'PROJECTS',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"SLIPPAGE_DENOMINATOR"`
+ */
+export const readJbSwapTerminal1_1SlippageDenominator =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'SLIPPAGE_DENOMINATOR',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"TOKEN_OUT"`
+ */
+export const readJbSwapTerminal1_1TokenOut = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminal1_1Abi,
+  functionName: 'TOKEN_OUT',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"WETH"`
+ */
+export const readJbSwapTerminal1_1Weth = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminal1_1Abi,
+  functionName: 'WETH',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"accountingContextForTokenOf"`
+ */
+export const readJbSwapTerminal1_1AccountingContextForTokenOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'accountingContextForTokenOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"accountingContextsOf"`
+ */
+export const readJbSwapTerminal1_1AccountingContextsOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'accountingContextsOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"currentSurplusOf"`
+ */
+export const readJbSwapTerminal1_1CurrentSurplusOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'currentSurplusOf',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"getPoolFor"`
+ */
+export const readJbSwapTerminal1_1GetPoolFor = /*#__PURE__*/ createReadContract(
+  { abi: jbSwapTerminal1_1Abi, functionName: 'getPoolFor' },
+)
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"owner"`
+ */
+export const readJbSwapTerminal1_1Owner = /*#__PURE__*/ createReadContract({
+  abi: jbSwapTerminal1_1Abi,
+  functionName: 'owner',
+})
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"supportsInterface"`
+ */
+export const readJbSwapTerminal1_1SupportsInterface =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'supportsInterface',
+  })
+
+/**
+ * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"twapParamsOf"`
+ */
+export const readJbSwapTerminal1_1TwapParamsOf =
+  /*#__PURE__*/ createReadContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'twapParamsOf',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__
+ */
+export const writeJbSwapTerminal1_1 = /*#__PURE__*/ createWriteContract({
+  abi: jbSwapTerminal1_1Abi,
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"addAccountingContextsFor"`
+ */
+export const writeJbSwapTerminal1_1AddAccountingContextsFor =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'addAccountingContextsFor',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"addDefaultPool"`
+ */
+export const writeJbSwapTerminal1_1AddDefaultPool =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'addDefaultPool',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"addToBalanceOf"`
+ */
+export const writeJbSwapTerminal1_1AddToBalanceOf =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'addToBalanceOf',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"addTwapParamsFor"`
+ */
+export const writeJbSwapTerminal1_1AddTwapParamsFor =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'addTwapParamsFor',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"migrateBalanceOf"`
+ */
+export const writeJbSwapTerminal1_1MigrateBalanceOf =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'migrateBalanceOf',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"pay"`
+ */
+export const writeJbSwapTerminal1_1Pay = /*#__PURE__*/ createWriteContract({
+  abi: jbSwapTerminal1_1Abi,
+  functionName: 'pay',
+})
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"renounceOwnership"`
+ */
+export const writeJbSwapTerminal1_1RenounceOwnership =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"transferOwnership"`
+ */
+export const writeJbSwapTerminal1_1TransferOwnership =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"uniswapV3SwapCallback"`
+ */
+export const writeJbSwapTerminal1_1UniswapV3SwapCallback =
+  /*#__PURE__*/ createWriteContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'uniswapV3SwapCallback',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__
+ */
+export const simulateJbSwapTerminal1_1 = /*#__PURE__*/ createSimulateContract({
+  abi: jbSwapTerminal1_1Abi,
+})
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"addAccountingContextsFor"`
+ */
+export const simulateJbSwapTerminal1_1AddAccountingContextsFor =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'addAccountingContextsFor',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"addDefaultPool"`
+ */
+export const simulateJbSwapTerminal1_1AddDefaultPool =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'addDefaultPool',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"addToBalanceOf"`
+ */
+export const simulateJbSwapTerminal1_1AddToBalanceOf =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'addToBalanceOf',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"addTwapParamsFor"`
+ */
+export const simulateJbSwapTerminal1_1AddTwapParamsFor =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'addTwapParamsFor',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"migrateBalanceOf"`
+ */
+export const simulateJbSwapTerminal1_1MigrateBalanceOf =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'migrateBalanceOf',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"pay"`
+ */
+export const simulateJbSwapTerminal1_1Pay =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'pay',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"renounceOwnership"`
+ */
+export const simulateJbSwapTerminal1_1RenounceOwnership =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"transferOwnership"`
+ */
+export const simulateJbSwapTerminal1_1TransferOwnership =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `functionName` set to `"uniswapV3SwapCallback"`
+ */
+export const simulateJbSwapTerminal1_1UniswapV3SwapCallback =
+  /*#__PURE__*/ createSimulateContract({
+    abi: jbSwapTerminal1_1Abi,
+    functionName: 'uniswapV3SwapCallback',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__
+ */
+export const watchJbSwapTerminal1_1Event =
+  /*#__PURE__*/ createWatchContractEvent({ abi: jbSwapTerminal1_1Abi })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `eventName` set to `"AddToBalance"`
+ */
+export const watchJbSwapTerminal1_1AddToBalanceEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminal1_1Abi,
+    eventName: 'AddToBalance',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `eventName` set to `"HookAfterRecordPay"`
+ */
+export const watchJbSwapTerminal1_1HookAfterRecordPayEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminal1_1Abi,
+    eventName: 'HookAfterRecordPay',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `eventName` set to `"MigrateTerminal"`
+ */
+export const watchJbSwapTerminal1_1MigrateTerminalEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminal1_1Abi,
+    eventName: 'MigrateTerminal',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `eventName` set to `"OwnershipTransferred"`
+ */
+export const watchJbSwapTerminal1_1OwnershipTransferredEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminal1_1Abi,
+    eventName: 'OwnershipTransferred',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `eventName` set to `"Pay"`
+ */
+export const watchJbSwapTerminal1_1PayEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminal1_1Abi,
+    eventName: 'Pay',
+  })
+
+/**
+ * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminal1_1Abi}__ and `eventName` set to `"SetAccountingContext"`
+ */
+export const watchJbSwapTerminal1_1SetAccountingContextEvent =
+  /*#__PURE__*/ createWatchContractEvent({
+    abi: jbSwapTerminal1_1Abi,
+    eventName: 'SetAccountingContext',
+  })
+
+/**
  * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__
  */
 export const readJbTerminalStore = /*#__PURE__*/ createReadContract({
@@ -29002,6 +30161,16 @@ export const watchJbTokensTransferCreditsEvent =
    * Addresses to use in JB project deployments.
    */
   export const jbProjectDeploymentAddresses = {
+  "JB721TiersHookStore": {
+    "1": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+    "10": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+    "8453": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+    "42161": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+    "84532": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+    "421614": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+    "11155111": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+    "11155420": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1"
+  },
   "JBMultiTerminal": {
     "1": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
     "10": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
@@ -29032,16 +30201,6 @@ export const watchJbTokensTransferCreditsEvent =
     "11155111": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
     "11155420": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8"
   },
-  "JB721TiersHookStore": {
-    "1": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "10": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "8453": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "42161": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "84532": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "421614": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "11155111": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "11155420": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1"
-  },
   "JBBuybackHook": {
     "1": "0x7dcf35dad9b30ffcb7f35f51279252b884921927",
     "10": "0x09d97e2b8b2f143335c2344947a79d1a3a4c2946",
@@ -29061,5 +30220,67 @@ export const watchJbTokensTransferCreditsEvent =
     "421614": "0xcf5f58ebb455678005b7dc6e506a7ec9a3438d0e",
     "11155111": "0x94c5431808ab538d398c6354d1972a0cb8c0b18b",
     "11155420": "0xb940f0bb31376cad3a0fae7c78995ae899160a52"
+  },
+  "JBSwapTerminal1_1": {
+    "1": "0x64834ff3c2c18a715c635dd022227a9a8d9e8b73",
+    "10": "0x817b87ab3cad4f84f8dc9c98b8f219404dca9927",
+    "8453": "0xe4036d0cd05951689e1bb8667f5364874dc2fbfb",
+    "42161": "0x21e6d82921fce3798a96134eddc2e7cd67c12769",
+    "84532": "0xae33d0b3a5e1f2d52f50cd589458c84e2f1ea916",
+    "421614": "0x97e7430c4e1ee242a604d8529195ae06b121cbc6",
+    "11155111": "0x4b75f7c7e9bd65807cbc56419641155c2660b65c",
+    "11155420": "0x6c5debbdb7365c9ed1ef4529823c3113d47e1842"
+  }
+};
+  export const jbProjectDeploymentAddressesV5 = {
+  "JB721TiersHookStore": {
+    "1": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+    "10": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+    "8453": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+    "42161": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+    "84532": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+    "421614": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+    "11155111": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+    "11155420": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee"
+  },
+  "JBMultiTerminal": {
+    "1": "0x2db6d704058e552defe415753465df8df0361846",
+    "10": "0x2db6d704058e552defe415753465df8df0361846",
+    "8453": "0x2db6d704058e552defe415753465df8df0361846",
+    "42161": "0x2db6d704058e552defe415753465df8df0361846",
+    "84532": "0x2db6d704058e552defe415753465df8df0361846",
+    "421614": "0x2db6d704058e552defe415753465df8df0361846",
+    "11155111": "0x2db6d704058e552defe415753465df8df0361846",
+    "11155420": "0x2db6d704058e552defe415753465df8df0361846"
+  },
+  "JBController": {
+    "1": "0x27da30646502e2f642be5281322ae8c394f7668a",
+    "10": "0x27da30646502e2f642be5281322ae8c394f7668a",
+    "8453": "0x27da30646502e2f642be5281322ae8c394f7668a",
+    "42161": "0x27da30646502e2f642be5281322ae8c394f7668a",
+    "84532": "0x27da30646502e2f642be5281322ae8c394f7668a",
+    "421614": "0x27da30646502e2f642be5281322ae8c394f7668a",
+    "11155111": "0x27da30646502e2f642be5281322ae8c394f7668a",
+    "11155420": "0x27da30646502e2f642be5281322ae8c394f7668a"
+  },
+  "JBBuybackHook": {
+    "1": "0xd342490ec41d5982c23951253a74a1c940fe0f9b",
+    "10": "0x318f8aa6a95cb83419985c0d797c762f5a7824f3",
+    "8453": "0xb6133a222315f8e9d25e7c77bac5ddeb3451d088",
+    "42161": "0x4ac3e20edd1d398def0dfb44d3adb9fc244f0320",
+    "84532": "0x79e5ca5ebe4f110965248afad88b8e539e1aa8fd",
+    "421614": "0xb35ab801c008a64d8f3eea0a8a6209b0d176f2df",
+    "11155111": "0xf082e3218a690ea6386506bed338f6878d21815f",
+    "11155420": "0x79e5ca5ebe4f110965248afad88b8e539e1aa8fd"
+  },
+  "JBSwapTerminal": {
+    "1": "0x259385b97dfbd5576bd717dc7b25967ec8b145dd",
+    "10": "0x73d04584bde126242c36c2c7b219cbdec7aad774",
+    "8453": "0x4fd73d8b285e82471f08a4ef9861d6248b832edd",
+    "42161": "0x483c9b12c5bd2da73133aae30642ce0008c752ad",
+    "84532": "0xc7369f75bd678e1a9a46b82e2512e84489d4d32d",
+    "421614": "0x5f820a86d63eb1b98c562728719dc1e30967c41c",
+    "11155111": "0xca3f2cc5a35c0412e8147746602b76ba4ac29fc5",
+    "11155420": "0xc7369f75bd678e1a9a46b82e2512e84489d4d32d"
   }
 };

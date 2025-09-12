@@ -16,15 +16,28 @@ const CHAIN_NAME = {
 };
 
 const FAMILIES = {
-  core: ["JBMultiTerminal", "JBController", "JBController4_1"],
+  core: ["JBMultiTerminal", "JBController"],
   721: ["JB721TiersHookStore"],
   "buyback-hook": ["JBBuybackHook"],
-  "swap-terminal": ["JBSwapTerminal", "JBSwapTerminal1_1"],
+  "swap-terminal": ["JBSwapTerminal"],
 };
+
+function getFamiliesFor(version) {
+  if (version === 5) return FAMILIES;
+  if (version === 4) {
+    return {
+      ...FAMILIES,
+      core: [...FAMILIES.core, "JBController4_1"],
+      "swap-terminal": [...FAMILIES["swap-terminal"], "JBSwapTerminal1_1"],
+    };
+  }
+  throw new Error(`Invalid version: ${version}`);
+}
 
 async function buildAddressesFor(version) {
   const addresses = {};
-  for (const [family, contracts] of Object.entries(FAMILIES)) {
+
+  for (const [family, contracts] of Object.entries(getFamiliesFor(version))) {
     for (const contract of contracts) {
       const contractAddresses = {};
       for (const chainId of Object.keys(CHAIN_NAME)) {

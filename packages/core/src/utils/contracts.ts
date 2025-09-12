@@ -3,7 +3,7 @@ import { getDeploymentAddress } from "../address.js";
 import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
 import { jbDirectoryAbi } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
-import { JBVersion } from "../version.js";
+import { JBVersion } from "@jbm/wagmi-config/deployPaths";
 import { useConfig } from "wagmi";
 
 export async function getProjectTerminalStore(

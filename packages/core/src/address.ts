@@ -45,8 +45,9 @@ export async function getDeploymentAddress(args: {
 }): Promise<`0x${string}`> {
   const { family, contractName, chainId, version = 4 } = args;
   const p = deploymentPath(family, version, Number(chainId), contractName);
-  const { default: deployment } = (await import(p, {
-    assert: { type: "json" },
-  })) as unknown as { default: { address: `0x${string}` } };
+  const { default: deployment } = (await import(p)) as unknown as {
+    default: { address: `0x${string}` };
+  };
+
   return deployment.address;
 }

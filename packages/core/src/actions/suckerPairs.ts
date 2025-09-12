@@ -3,7 +3,7 @@ import { jbSuckerRegistryAbi } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
 import { JBChainId } from "src/types.js";
 import { getDeploymentAddress } from "../address.js";
-import { JBVersion } from "../version.js";
+import { JBVersion } from "@jbm/wagmi-config/deployPaths";
 
 export type SuckerPair = {
   peerChainId: JBChainId;

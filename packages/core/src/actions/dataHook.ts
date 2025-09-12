@@ -1,7 +1,7 @@
 import { Address, PublicClient, getContract, isAddressEqual, zeroAddress } from "viem";
 import { jb721TiersHookAbi, jbAddressRegistryAbi } from "../generated/juicebox.js";
 import { getDeploymentAddress } from "../address.js";
-import { JBVersion } from "../version.js";
+import { JBVersion } from "@jbm/wagmi-config/deployPaths";
 import { debug } from "../utils/debug.js";
 import { JBChainId } from "src/types.js";
 
