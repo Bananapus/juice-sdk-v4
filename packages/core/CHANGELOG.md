@@ -1,5 +1,12 @@
 # juice-sdk-core
 
+## 1.10.0
+
+### Minor Changes
+
+- 1a17ec9: Added `JBSwapTerminal1_1`
+- e73a095: Fix error with invalid primary terminal address for projects with USDC context
+
 ## 1.9.0
 
 ### Minor Changes
