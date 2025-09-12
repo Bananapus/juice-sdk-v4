@@ -18,5 +18,5 @@
     "resolveJsonModule": true,
     "composite": true
   },
-  "include": ["wagmi.config.ts", "deployPaths.ts"]
+  "include": ["wagmi.config.ts", "contracts.ts"]
 }

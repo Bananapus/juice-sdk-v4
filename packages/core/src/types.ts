@@ -1,3 +1,6 @@
+import { SUPPORTED_CHAINS } from "@jbm/wagmi-config/contracts";
+import { ContractFunctionReturnType } from "viem";
+import { jbControllerAbi, jbSplitsAbi } from "./generated/juicebox.js";
 import {
   CashOutTaxRate,
   ReservedPercent,
@@ -5,13 +8,16 @@ import {
   SplitPortion,
   WeightCutPercent,
 } from "./utils/data.js";
-import {
-  jbControllerAbi,
-  jbDirectoryAddress,
-  jbSplitsAbi,
-} from "./generated/juicebox.js";
-
-import { ContractFunctionReturnType } from "viem";
+export {
+  JBVersion,
+  JBCoreContracts,
+  JB721HookContracts,
+  JBAddressRegistryContracts,
+  JBSuckerContracts,
+  JBSwapTerminalContracts,
+  JBBuybackHookContracts,
+  JBOmnichainDeployerContracts,
+} from "@jbm/wagmi-config/contracts";
 
 export const projectTagOptions = [
   "art",
@@ -29,8 +35,7 @@ export const projectTagOptions = [
   "software",
 ] as const;
 
-export type ProjectTagName =
-  typeof projectTagOptions extends Readonly<Array<infer T>> ? T : never;
+export type ProjectTagName = typeof projectTagOptions extends Readonly<Array<infer T>> ? T : never;
 
 /**
  * The metadata associated with a juicebox project.
@@ -92,7 +97,7 @@ export type JBProjectMetadata = {
   softTargetAmount: string;
   softTargetCurrency: string;
 
-  projectRequiredOFACCheck?: boolean
+  projectRequiredOFACCheck?: boolean;
 }>;
 
 export type JBSplit = Omit<
@@ -136,8 +141,7 @@ export type ETHPayoutGroupedSplits = GroupedSplits<SplitGroup.ETHPayout>;
 /**
  * Splits for a project's reserved token list.
  */
-export type ReservedTokensGroupedSplits =
-  GroupedSplits<SplitGroup.ReservedTokens>;
+export type ReservedTokensGroupedSplits = GroupedSplits<SplitGroup.ReservedTokens>;
 
 export type JBRuleset = ContractFunctionReturnType<
   typeof jbControllerAbi,
@@ -156,12 +160,9 @@ export type JBRulesetData = Omit<JBRuleset[0], "weight" | "weightCutPercent"> & 
 /**
  * Juicebox ruleset metadata.
  */
-export type JBRulesetMetadata = Omit<
-  JBRuleset[1],
-  "cashOutTaxRate" | "reservedPercent"
-> & {
+export type JBRulesetMetadata = Omit<JBRuleset[1], "cashOutTaxRate" | "reservedPercent"> & {
   cashOutTaxRate: CashOutTaxRate;
   reservedPercent: ReservedPercent;
 };
 
-export type JBChainId = keyof typeof jbDirectoryAddress;
+export type JBChainId = keyof typeof SUPPORTED_CHAINS;

@@ -1,7 +1,7 @@
 {
   "name": "@jbm/wagmi-config",
   "private": "true",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "files": [
     "dist/**/*"
   ],
@@ -14,9 +14,9 @@
       "types": "./dist/wagmi.config.d.ts",
       "default": "./dist/wagmi.config.js"
     },
-    "./deployPaths": {
-      "types": "./dist/deployPaths.d.ts",
-      "default": "./dist/deployPaths.js"
+    "./contracts": {
+      "types": "./dist/contracts.d.ts",
+      "default": "./dist/contracts.js"
     }
   },
   "devDependencies": {

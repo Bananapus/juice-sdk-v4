@@ -1,16 +1,20 @@
 import { Address, PublicClient, getContract, zeroAddress } from "viem";
-import { getDeploymentAddress } from "../address.js";
 import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
-import { jbDirectoryAbi } from "../generated/juicebox.js";
+import { jbContractAddress, jbDirectoryAbi } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
-import { JBVersion } from "@jbm/wagmi-config/deployPaths";
+import { JBCoreContracts, JBVersion } from "@jbm/wagmi-config/contracts";
 import { useConfig } from "wagmi";
+import { Contract } from "@jbm/wagmi-config/contracts";
+
+export function getJBContractAddress(contract: Contract, version: JBVersion, chainId: JBChainId) {
+  return jbContractAddress[version][contract][chainId];
+}
 
 export async function getProjectTerminalStore(
   config: ReturnType<typeof useConfig>,
   chainId: JBChainId,
   projectId: bigint,
-  version: JBVersion = 4
+  version: JBVersion
 ) {
   const terminal = await getPrimaryNativeTerminal(config, chainId, projectId, version);
 
@@ -29,14 +33,8 @@ export async function getPrimaryNativeTerminal(
 ) {
   const client = config.getClient({ chainId: Number(chainId) }) as PublicClient;
 
-  const directoryAddress = await getDeploymentAddress({
-    family: "core",
-    contractName: "JBDirectory",
-    chainId,
-    version,
-  });
-
-  const directory = getContract({ address: directoryAddress, abi: jbDirectoryAbi, client });
+  const address = getJBContractAddress(JBCoreContracts.JBDirectory, version, chainId);
+  const directory = getContract({ address, abi: jbDirectoryAbi, client });
 
   const primaryNativeTerminal = await directory.read.primaryTerminalOf([projectId, NATIVE_TOKEN]);
   if (primaryNativeTerminal !== zeroAddress) return primaryNativeTerminal;

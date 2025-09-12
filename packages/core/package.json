@@ -4,13 +4,14 @@
   "type": "module",
   "scripts": {
     "generate": "wagmi generate",
-    "postgenerate": "node ./scripts/addJBProjectDeploymentAddresses.js",
+    "postgenerate": "tsx ./scripts/addJBProjectDeploymentAddresses.ts",
     "prebuild": "rm -Rf dist/",
     "build": "npm run generate && npm run build:esm && npm run build:cjs",
     "build:esm": "tsc --project ./tsconfig.json",
     "build:cjs": "tsc --project ./tsconfig.cjs.json",
     "dev": "tsc --project ./tsconfig.json --watch --preserveWatchOutput",
-    "test": "vitest run"
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
   },
   "exports": {
     ".": {
@@ -46,7 +47,7 @@
     "@bananapus/swap-terminal-v5": "^0.0.3",
     "@jbm/wagmi-config": "*",
     "@wagmi/cli": "^2.1.10",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.20.5",
     "typescript": "^5.4.5",
     "viem": "^2.12.0",
     "vitest": "^1.6.0",

@@ -1,9 +1,8 @@
+import { JB721HookContracts, JBAddressRegistryContracts, JBChainId, JBVersion } from "src/types.js";
+import { getJBContractAddress } from "src/utils/contracts.js";
 import { Address, PublicClient, getContract, isAddressEqual, zeroAddress } from "viem";
 import { jb721TiersHookAbi, jbAddressRegistryAbi } from "../generated/juicebox.js";
-import { getDeploymentAddress } from "../address.js";
-import { JBVersion } from "@jbm/wagmi-config/deployPaths";
 import { debug } from "../utils/debug.js";
-import { JBChainId } from "src/types.js";
 
 /**
  * Find the 721 data hook for a given project and ruleset.
@@ -16,7 +15,7 @@ export async function find721DataHook(
     dataHookAddress: Address;
     projectId: bigint;
     rulesetId: number;
-    version?: JBVersion;
+    version: JBVersion;
   }
 ) {
   const chainId = publicClient.chain?.id;
@@ -24,19 +23,18 @@ export async function find721DataHook(
     throw new Error("[juice-sdk-core] No chain ID on public client.");
   }
 
-  const deployerAddress = await getDeploymentAddress({
-    family: "721",
-    contractName: "JB721TiersHookDeployer",
-    chainId: chainId as JBChainId,
-    version: args.version ?? 4,
-  });
+  const deployerAddress = getJBContractAddress(
+    JB721HookContracts.JB721TiersHookDeployer,
+    args.version,
+    chainId as JBChainId
+  );
 
-  const registerAddress = await getDeploymentAddress({
-    family: "address-registry",
-    contractName: "JBAddressRegistry",
-    chainId: chainId as JBChainId,
-    version: args.version ?? 4,
-  });
+  const registerAddress = getJBContractAddress(
+    JBAddressRegistryContracts.JBAddressRegistry,
+    args.version,
+    chainId as JBChainId
+  );
+
   if (!registerAddress) {
     throw new Error(`[juice-sdk-core] No JBAddressRegistry address for chain ${chainId}.`);
   }
