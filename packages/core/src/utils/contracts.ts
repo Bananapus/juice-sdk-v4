@@ -1,13 +1,26 @@
 import { Address, PublicClient, getContract, zeroAddress } from "viem";
+import { useConfig } from "wagmi";
 import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
+import { JBCoreContracts, JBVersion } from "../contracts.js";
 import { jbContractAddress, jbDirectoryAbi } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
-import { JBCoreContracts, JBVersion } from "@jbm/wagmi-config/contracts";
-import { useConfig } from "wagmi";
-import { Contract } from "@jbm/wagmi-config/contracts";
 
-export function getJBContractAddress(contract: Contract, version: JBVersion, chainId: JBChainId) {
-  return jbContractAddress[version][contract][chainId];
+// Type that maps version to its available contracts
+type ContractsForVersion<V extends JBVersion> = V extends 4
+  ? keyof (typeof jbContractAddress)["4"]
+  : V extends 5
+    ? keyof (typeof jbContractAddress)["5"]
+    : never;
+
+export function getJBContractAddress<V extends JBVersion>(
+  contract: ContractsForVersion<V>,
+  version: V,
+  chainId: JBChainId
+): `0x${string}` {
+  const versionKey = version.toString() as keyof typeof jbContractAddress;
+  const chainKey = chainId.toString();
+
+  return (jbContractAddress[versionKey] as any)?.[contract]?.[chainKey];
 }
 
 export async function getProjectTerminalStore(

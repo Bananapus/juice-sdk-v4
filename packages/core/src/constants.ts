@@ -1,4 +1,3 @@
-import { JBSuckerContracts } from "@jbm/wagmi-config/contracts";
 import { Address, Chain, Hash, parseEther, parseUnits } from "viem";
 import {
   arbitrum,
@@ -11,7 +10,7 @@ import {
   sepolia,
 } from "viem/chains";
 import { jbContractAddress } from "./generated/juicebox.js";
-import { JBChainId } from "./types.js";
+import { JBChainId, JBSuckerContracts, JBVersion } from "./types.js";
 
 /**
  * Representation of one ether.
@@ -109,7 +108,7 @@ export const ETH_CURRENCY_ID = 1;
  *
  * @link https://github.com/Bananapus/nana-core/blob/main/src/libraries/JBCurrencyIds.sol
  */
-export const USD_CURRENCY_ID = 3;
+export const USD_CURRENCY_ID = (version: JBVersion) => (version === 4 ? 3 : 2);
 
 /**
  * Amount of decimals to use for native token fixed-point representation.

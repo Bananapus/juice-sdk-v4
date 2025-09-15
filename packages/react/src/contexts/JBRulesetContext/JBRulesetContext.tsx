@@ -1,18 +1,18 @@
 import {
   CashOutTaxRate,
   debug,
+  jbControllerAbi,
   ReservedPercent,
   RulesetWeight,
   WeightCutPercent,
 } from "juice-sdk-core";
 import { createContext, useContext } from "react";
 import { ContractFunctionReturnType } from "viem";
-import { jbControllerAbi } from "../../generated/juicebox";
+import { useReadContract } from "wagmi";
 import { useResolveDataHook } from "../../hooks/ruleset/useResolveDataHook";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
 import { useJBContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
-import { useReadContract } from "wagmi";
 
 /**
  * Context for the current ruleset of a project.

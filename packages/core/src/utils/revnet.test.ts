@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { calcPrepaidFee } from "./calcPrepaidFee.js";
+import { calcPrepaidFee } from "./revnet.js";
 
 describe("calcPrepaidFee", () => {
   test("calcPrepaidFee", () => {

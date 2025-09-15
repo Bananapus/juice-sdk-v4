@@ -1,4 +1,3 @@
-import { SUPPORTED_CHAINS } from "@jbm/wagmi-config/contracts";
 import { ContractFunctionReturnType } from "viem";
 import { jbControllerAbi, jbSplitsAbi } from "./generated/juicebox.js";
 import {
@@ -9,15 +8,16 @@ import {
   WeightCutPercent,
 } from "./utils/data.js";
 export {
-  JBVersion,
-  JBCoreContracts,
   JB721HookContracts,
   JBAddressRegistryContracts,
+  JBBuybackHookContracts,
+  JBChainId,
+  JBCoreContracts,
+  JBOmnichainDeployerContracts,
   JBSuckerContracts,
   JBSwapTerminalContracts,
-  JBBuybackHookContracts,
-  JBOmnichainDeployerContracts,
-} from "@jbm/wagmi-config/contracts";
+  JBVersion,
+} from "./contracts.js";
 
 export const projectTagOptions = [
   "art",
@@ -164,5 +164,3 @@ export type JBRulesetMetadata = Omit<JBRuleset[1], "cashOutTaxRate" | "reservedP
   cashOutTaxRate: CashOutTaxRate;
   reservedPercent: ReservedPercent;
 };
-
-export type JBChainId = keyof typeof SUPPORTED_CHAINS;

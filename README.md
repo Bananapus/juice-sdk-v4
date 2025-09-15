@@ -23,11 +23,7 @@ npm install revnet-sdk
 ### React Application
 
 ```tsx
-import {
-  JBProjectProvider,
-  useJBRuleset,
-  useTokenCashOutQuoteEth,
-} from "juice-sdk-react";
+import { JBProjectProvider, useJBRuleset, useTokenCashOutQuoteEth } from "juice-sdk-react";
 import { formatTokenAmount } from "juice-sdk-core";
 
 function ProjectDashboard() {
@@ -174,9 +170,8 @@ npm run format
 
 ### Adding New Contracts
 
-1. Modify [`wagmi.config.ts`](./packages/wagmi-config/wagmi.config.ts)
-2. Add contract to `HAS_STATIC_ADDRESS` if address is constant
-3. Regenerate code: `npm run build`
+1. Modify [`contracts.ts`](./packages/core/contracts.ts)
+2. Regenerate code: `npm run build`
 
 #### Add a default contract address for JB Project deployments
 

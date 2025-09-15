@@ -8,6 +8,8 @@ import {
   JBVersion,
   jbContractAddress,
   JBCoreContracts,
+  getJBContractAddress,
+  Contract,
 } from "juice-sdk-core";
 import { PropsWithChildren, createContext, useCallback, useContext, useMemo } from "react";
 import { Address, isAddressEqual, zeroAddress } from "viem";
@@ -30,6 +32,7 @@ export type JBContractContextData = {
     tokens: AsyncData<Address>;
     splits: AsyncData<Address>;
   };
+  contractAddress: (contract: Contract, chainId?: JBChainId) => Address;
 };
 
 /**
@@ -54,6 +57,8 @@ export const JBContractContext = createContext<JBContractContextData>({
     tokens: AsyncDataNone,
     splits: AsyncDataNone,
   },
+
+  contractAddress: () => zeroAddress,
 });
 
 export function useJBContractContext() {
@@ -215,6 +220,13 @@ export const JBContractProvider = ({
     },
   });
 
+  const contractAddress = useCallback(
+    (contract: Contract, _chainId?: JBChainId) => {
+      return getJBContractAddress(contract, version, _chainId || chainId!);
+    },
+    [version, chainId]
+  );
+
   debug("JBContractContext", {
     projectId,
     contracts: {
@@ -240,6 +252,7 @@ export const JBContractProvider = ({
           tokens,
           splits,
         },
+        contractAddress,
       }}
     >
       {children}

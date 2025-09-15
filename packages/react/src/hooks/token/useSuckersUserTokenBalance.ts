@@ -1,16 +1,10 @@
-import {
-  JBChainId,
-  jbContractAddress,
-  JBCoreContracts,
-  JBProjectToken,
-  jbTokensAbi,
-} from "juice-sdk-core";
-import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
-import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
+import { JBChainId, JBCoreContracts, JBProjectToken, jbTokensAbi } from "juice-sdk-core";
+import { getContract } from "viem";
 import { useAccount, useConfig, useReadContract } from "wagmi";
 import { useQuery } from "wagmi/query";
+import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
+import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useSuckers } from "../suckers/useSuckers";
-import { getContract } from "viem";
 
 /**
  * Return the user's project token balance across each sucker on all chains for the current project.
@@ -19,13 +13,13 @@ export function useSuckersUserTokenBalance() {
   const config = useConfig();
 
   const chainId = useJBChainId();
-  const { projectId, version } = useJBContractContext();
+  const { projectId, contractAddress } = useJBContractContext();
   const { address: userAddress } = useAccount();
 
   const currentChainQuery = useReadContract({
     abi: jbTokensAbi,
     functionName: "totalBalanceOf",
-    address: chainId ? jbContractAddress[version][JBCoreContracts.JBTokens][chainId] : undefined,
+    address: contractAddress(JBCoreContracts.JBTokens),
     chainId,
     args: userAddress ? [userAddress, projectId] : undefined,
     query: {
@@ -61,7 +55,7 @@ export function useSuckersUserTokenBalance() {
         pairs.map(async (pair) => {
           const { peerChainId, projectId } = pair;
           const contract = getContract({
-            address: jbContractAddress[version][JBCoreContracts.JBTokens][peerChainId],
+            address: contractAddress(JBCoreContracts.JBTokens, peerChainId),
             abi: jbTokensAbi,
             client: config.getClient({ chainId: peerChainId }),
           });

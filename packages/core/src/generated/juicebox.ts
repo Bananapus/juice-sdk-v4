@@ -599,6 +599,26 @@ export const jb721TiersHookAbi = [
     type: 'function',
     inputs: [
       { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
       { name: '', internalType: 'address', type: 'address' },
     ],
     name: 'hasMintPermissionFor',
@@ -3601,24 +3621,22 @@ export const jbBuybackHookAbi = [
         type: 'address',
       },
       {
-        name: 'controller',
-        internalType: 'contract IJBController',
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
         type: 'address',
       },
       { name: 'prices', internalType: 'contract IJBPrices', type: 'address' },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'tokens', internalType: 'contract IJBTokens', type: 'address' },
       { name: 'weth', internalType: 'contract IWETH9', type: 'address' },
       { name: 'factory', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'CONTROLLER',
-    outputs: [
-      { name: '', internalType: 'contract IJBController', type: 'address' },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -3632,21 +3650,7 @@ export const jbBuybackHookAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'MAX_TWAP_SLIPPAGE_TOLERANCE',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
     name: 'MAX_TWAP_WINDOW',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'MIN_TWAP_SLIPPAGE_TOLERANCE',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
@@ -3687,7 +3691,23 @@ export const jbBuybackHookAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'TOKENS',
+    outputs: [
+      { name: '', internalType: 'contract IJBTokens', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'TWAP_SLIPPAGE_DENOMINATOR',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'UNCERTAIN_TWAP_SLIPPAGE_TOLERANCE',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
@@ -3861,11 +3881,38 @@ export const jbBuybackHookAbi = [
     type: 'function',
     inputs: [
       { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
       { name: '', internalType: 'address', type: 'address' },
     ],
     name: 'hasMintPermissionFor',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -3891,12 +3938,7 @@ export const jbBuybackHookAbi = [
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'fee', internalType: 'uint24', type: 'uint24' },
-      { name: 'twapWindow', internalType: 'uint32', type: 'uint32' },
-      {
-        name: 'twapSlippageTolerance',
-        internalType: 'uint256',
-        type: 'uint256',
-      },
+      { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
       { name: 'terminalToken', internalType: 'address', type: 'address' },
     ],
     name: 'setPoolFor',
@@ -3913,21 +3955,7 @@ export const jbBuybackHookAbi = [
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      {
-        name: 'newSlippageTolerance',
-        internalType: 'uint256',
-        type: 'uint256',
-      },
-    ],
-    name: 'setTwapSlippageToleranceOf',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      { name: 'newWindow', internalType: 'uint32', type: 'uint32' },
+      { name: 'newWindow', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'setTwapWindowOf',
     outputs: [],
@@ -3942,16 +3970,16 @@ export const jbBuybackHookAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
-    name: 'twapSlippageToleranceOf',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'twapWindowOf',
-    outputs: [{ name: '', internalType: 'uint32', type: 'uint32' }],
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -4075,37 +4103,6 @@ export const jbBuybackHookAbi = [
         indexed: true,
       },
       {
-        name: 'oldTolerance',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'newTolerance',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'caller',
-        internalType: 'address',
-        type: 'address',
-        indexed: false,
-      },
-    ],
-    name: 'TwapSlippageToleranceChanged',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'projectId',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: true,
-      },
-      {
         name: 'oldWindow',
         internalType: 'uint256',
         type: 'uint256',
@@ -4138,15 +4135,6 @@ export const jbBuybackHookAbi = [
       { name: 'totalPaid', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'JBBuybackHook_InsufficientPayAmount',
-  },
-  {
-    type: 'error',
-    inputs: [
-      { name: 'value', internalType: 'uint256', type: 'uint256' },
-      { name: 'min', internalType: 'uint256', type: 'uint256' },
-      { name: 'max', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'JBBuybackHook_InvalidTwapSlippageTolerance',
   },
   {
     type: 'error',
@@ -4216,6 +4204,461 @@ export const jbBuybackHookAbi = [
     name: 'SafeERC20FailedOperation',
   },
   { type: 'error', inputs: [], name: 'T' },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBBuybackHookRegistry
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbBuybackHookRegistryAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'allowHook',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforeCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'surplus',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'useTotalSurplus', internalType: 'bool', type: 'bool' },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforeCashOutRecordedWith',
+    outputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBCashOutHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBCashOutHook',
+            type: 'address',
+          },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforePayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'payer', internalType: 'address', type: 'address' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          { name: 'reservedPercent', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforePayRecordedWith',
+    outputs: [
+      { name: 'weight', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBPayHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBPayHook',
+            type: 'address',
+          },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'defaultHook',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'disallowHook',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'hasLockedHook',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+      { name: 'addr', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasMintPermissionFor',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'hookOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'isHookAllowed',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'lockHookFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'setDefaultHook',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'setHookFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBBuybackHookRegistry_AllowHook',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBBuybackHookRegistry_DisallowHook',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'JBBuybackHookRegistry_LockHook',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBBuybackHookRegistry_SetDefaultHook',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBBuybackHookRegistry_SetHook',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBBuybackHookRegistry_HookLocked',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'JBBuybackHookRegistry_HookNotAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBBuybackHookRegistry_HookNotSet',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4920,6 +5363,11 @@ export const jbControllerAbi = [
       },
       { name: 'splits', internalType: 'contract IJBSplits', type: 'address' },
       { name: 'tokens', internalType: 'contract IJBTokens', type: 'address' },
+      {
+        name: 'omnichainRulesetOperator',
+        internalType: 'address',
+        type: 'address',
+      },
       { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
@@ -4944,6 +5392,13 @@ export const jbControllerAbi = [
         type: 'address',
       },
     ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'OMNICHAIN_RULESET_OPERATOR',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
@@ -6188,6 +6643,43 @@ export const jbControllerAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'deployer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'salt',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'saltHash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'DeployERC20',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'rulesetId',
         internalType: 'uint256',
         type: 'uint256',
@@ -6572,6 +7064,17 @@ export const jbControllerAbi = [
       },
     ],
     name: 'JBController_OnlyDirectory',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'pendingReservedTokenBalance',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'JBController_PendingReservedTokens',
   },
   { type: 'error', inputs: [], name: 'JBController_RulesetSetTokenNotAllowed' },
   { type: 'error', inputs: [], name: 'JBController_RulesetsAlreadyLaunched' },
@@ -10290,11 +10793,6 @@ export const jbOmnichainDeployerAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'controller',
-        internalType: 'contract IJBController',
-        type: 'address',
-      },
-      {
         name: 'suckerRegistry',
         internalType: 'contract IJBSuckerRegistry',
         type: 'address',
@@ -10304,18 +10802,19 @@ export const jbOmnichainDeployerAbi = [
         internalType: 'contract IJB721TiersHookDeployer',
         type: 'address',
       },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
       { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'CONTROLLER',
-    outputs: [
-      { name: '', internalType: 'contract IJBController', type: 'address' },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -10390,9 +10889,9 @@ export const jbOmnichainDeployerAbi = [
     ],
     name: 'beforeCashOutRecordedWith',
     outputs: [
-      { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
-      { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
-      { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
       {
         name: 'hookSpecifications',
         internalType: 'struct JBCashOutHookSpecification[]',
@@ -10442,7 +10941,7 @@ export const jbOmnichainDeployerAbi = [
     ],
     name: 'beforePayRecordedWith',
     outputs: [
-      { name: 'weight', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
       {
         name: 'hookSpecifications',
         internalType: 'struct JBPayHookSpecification[]',
@@ -10469,7 +10968,7 @@ export const jbOmnichainDeployerAbi = [
     name: 'dataHookOf',
     outputs: [
       { name: 'useDataHookForPay', internalType: 'bool', type: 'bool' },
-      { name: 'useDataHookForCashOut', internalType: 'bool', type: 'bool' },
+      { name: 'useDataHookForCashout', internalType: 'bool', type: 'bool' },
       {
         name: 'dataHook',
         internalType: 'contract IJBRulesetDataHook',
@@ -10484,7 +10983,7 @@ export const jbOmnichainDeployerAbi = [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       {
         name: 'suckerDeploymentConfiguration',
-        internalType: 'struct REVSuckerDeploymentConfig',
+        internalType: 'struct JBSuckerDeploymentConfig',
         type: 'tuple',
         components: [
           {
@@ -10536,6 +11035,26 @@ export const jbOmnichainDeployerAbi = [
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'ruleset',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
       { name: 'addr', internalType: 'address', type: 'address' },
     ],
     name: 'hasMintPermissionFor',
@@ -10909,7 +11428,7 @@ export const jbOmnichainDeployerAbi = [
       { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
       {
         name: 'suckerDeploymentConfiguration',
-        internalType: 'struct REVSuckerDeploymentConfig',
+        internalType: 'struct JBSuckerDeploymentConfig',
         type: 'tuple',
         components: [
           {
@@ -10949,6 +11468,11 @@ export const jbOmnichainDeployerAbi = [
           },
           { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
         ],
+      },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
       },
     ],
     name: 'launch721ProjectFor',
@@ -11518,7 +12042,7 @@ export const jbOmnichainDeployerAbi = [
       { name: 'memo', internalType: 'string', type: 'string' },
       {
         name: 'suckerDeploymentConfiguration',
-        internalType: 'struct REVSuckerDeploymentConfig',
+        internalType: 'struct JBSuckerDeploymentConfig',
         type: 'tuple',
         components: [
           {
@@ -11558,6 +12082,11 @@ export const jbOmnichainDeployerAbi = [
           },
           { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
         ],
+      },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
       },
     ],
     name: 'launchProjectFor',
@@ -11744,6 +12273,11 @@ export const jbOmnichainDeployerAbi = [
         ],
       },
       { name: 'memo', internalType: 'string', type: 'string' },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
+      },
     ],
     name: 'launchRulesetsFor',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
@@ -12269,6 +12803,11 @@ export const jbOmnichainDeployerAbi = [
         ],
       },
       { name: 'memo', internalType: 'string', type: 'string' },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
+      },
     ],
     name: 'queueRulesetsOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
@@ -12288,6 +12827,7 @@ export const jbOmnichainDeployerAbi = [
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
+  { type: 'error', inputs: [], name: 'JBOmnichainDeployer_InvalidHook' },
   {
     type: 'error',
     inputs: [
@@ -14362,6 +14902,13 @@ export const jbOmnichainDeployer4_1Abi = [
 
 export const jbPermissionsAbi = [
   {
+    type: 'constructor',
+    inputs: [
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
     type: 'function',
     inputs: [],
     name: 'WILDCARD_PROJECT_ID',
@@ -14398,6 +14945,13 @@ export const jbPermissionsAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [
       { name: 'operator', internalType: 'address', type: 'address' },
       { name: 'account', internalType: 'address', type: 'address' },
@@ -14425,6 +14979,13 @@ export const jbPermissionsAbi = [
     name: 'setPermissionsFor',
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -14509,6 +15070,7 @@ export const jbPricesAbi = [
         type: 'address',
       },
       { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
   },
@@ -14560,6 +15122,13 @@ export const jbPricesAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [],
     name: 'owner',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
@@ -14603,6 +15172,13 @@ export const jbPricesAbi = [
     name: 'transferOwnership',
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -14716,6 +15292,7 @@ export const jbProjectsAbi = [
     inputs: [
       { name: 'owner', internalType: 'address', type: 'address' },
       { name: 'feeProjectOwner', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
   },
@@ -14764,6 +15341,13 @@ export const jbProjectsAbi = [
       { name: 'operator', internalType: 'address', type: 'address' },
     ],
     name: 'isApprovedForAll',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'view',
   },
@@ -14892,6 +15476,13 @@ export const jbProjectsAbi = [
     name: 'transferOwnership',
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -16139,6 +16730,7 @@ export const jbSwapTerminalAbi = [
         internalType: 'contract IUniswapV3Factory',
         type: 'address',
       },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
   },
@@ -16171,13 +16763,6 @@ export const jbSwapTerminalAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'MAX_TWAP_SLIPPAGE_TOLERANCE',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
     name: 'MAX_TWAP_WINDOW',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
@@ -16187,13 +16772,6 @@ export const jbSwapTerminalAbi = [
     inputs: [],
     name: 'MIN_DEFAULT_POOL_CARDINALITY',
     outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'MIN_TWAP_SLIPPAGE_TOLERANCE',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -16240,6 +16818,13 @@ export const jbSwapTerminalAbi = [
     inputs: [],
     name: 'TOKEN_OUT',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'UNCERTAIN_SLIPPAGE_TOLERANCE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -16346,7 +16931,6 @@ export const jbSwapTerminalAbi = [
         type: 'address',
       },
       { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
-      { name: 'slippageTolerance', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'addTwapParamsFor',
     outputs: [],
@@ -16388,6 +16972,13 @@ export const jbSwapTerminalAbi = [
       },
       { name: 'zeroForOne', internalType: 'bool', type: 'bool' },
     ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'view',
   },
   {
@@ -16446,6 +17037,13 @@ export const jbSwapTerminalAbi = [
   },
   {
     type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       {
@@ -16454,11 +17052,8 @@ export const jbSwapTerminalAbi = [
         type: 'address',
       },
     ],
-    name: 'twapParamsOf',
-    outputs: [
-      { name: '', internalType: 'uint32', type: 'uint32' },
-      { name: '', internalType: 'uint160', type: 'uint160' },
-    ],
+    name: 'twapWindowOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -16752,23 +17347,6 @@ export const jbSwapTerminalAbi = [
   {
     type: 'error',
     inputs: [
-      { name: 'slippageTolerance', internalType: 'uint256', type: 'uint256' },
-      {
-        name: 'minSlippageTolerance',
-        internalType: 'uint256',
-        type: 'uint256',
-      },
-      {
-        name: 'maxSlippageTolerance',
-        internalType: 'uint256',
-        type: 'uint256',
-      },
-    ],
-    name: 'JBSwapTerminal_InvalidTwapSlippageTolerance',
-  },
-  {
-    type: 'error',
-    inputs: [
       { name: 'window', internalType: 'uint256', type: 'uint256' },
       { name: 'minWindow', internalType: 'uint256', type: 'uint256' },
       { name: 'maxWindow', internalType: 'uint256', type: 'uint256' },
@@ -16835,6 +17413,15 @@ export const jbSwapTerminalAbi = [
     type: 'error',
     inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
     name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
   },
   {
     type: 'error',
@@ -17579,6 +18166,708 @@ export const jbSwapTerminal1_1Abi = [
     name: 'SafeERC20FailedOperation',
   },
   { type: 'error', inputs: [], name: 'T' },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBSwapTerminalRegistry
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbSwapTerminalRegistryAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'accountingContextForTokenOf',
+    outputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'accountingContextsOf',
+    outputs: [
+      {
+        name: 'contexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'accountingContexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    name: 'addAccountingContextsFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'addToBalanceOf',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'allowTerminal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'accountingContexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'currentSurplusOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'defaultTerminal',
+    outputs: [
+      { name: '', internalType: 'contract IJBTerminal', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'disallowTerminal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'hasLockedTerminal',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'isTerminalAllowed',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'lockTerminalFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'contract IJBTerminal', type: 'address' },
+    ],
+    name: 'migrateBalanceOf',
+    outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+      { name: 'minReturnedTokens', internalType: 'uint256', type: 'uint256' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'pay',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'setDefaultTerminal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'setTerminalFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'terminalOf',
+    outputs: [
+      { name: '', internalType: 'contract IJBTerminal', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'returnedFees',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'AddToBalance',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBPayHook',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAfterPayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'payer', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'newlyIssuedTokenCount',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'payerMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'specificationAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'HookAfterRecordPay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_AllowTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_DisallowTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_LockTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_SetDefaultTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_SetTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'to',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'MigrateTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rulesetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'rulesetCycleNumber',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'payer',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newlyIssuedTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Pay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetAccountingContext',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'value', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBSwapTerminalRegistry_NoMsgValueAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'allowanceAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBSwapTerminalRegistry_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBSwapTerminalRegistry_TerminalLocked',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_TerminalNotAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBSwapTerminalRegistry_TerminalNotSet',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -18466,523 +19755,4858 @@ export const jbTokensAbi = [
   },
 ] as const
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// REVDeployer
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const revDeployerAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
+      },
+      {
+        name: 'suckerRegistry',
+        internalType: 'contract IJBSuckerRegistry',
+        type: 'address',
+      },
+      { name: 'feeRevnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookDeployer',
+        internalType: 'contract IJB721TiersHookDeployer',
+        type: 'address',
+      },
+      {
+        name: 'publisher',
+        internalType: 'contract CTPublisher',
+        type: 'address',
+      },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'CASH_OUT_DELAY',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'CONTROLLER',
+    outputs: [
+      { name: '', internalType: 'contract IJBController', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'FEE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'FEE_REVNET_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'HOOK_DEPLOYER',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJB721TiersHookDeployer',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PUBLISHER',
+    outputs: [
+      { name: '', internalType: 'contract CTPublisher', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'SUCKER_REGISTRY',
+    outputs: [
+      { name: '', internalType: 'contract IJBSuckerRegistry', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAfterCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'reclaimedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'beneficiary',
+            internalType: 'address payable',
+            type: 'address',
+          },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'cashOutMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'afterCashOutRecordedWith',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'stageId', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+    ],
+    name: 'amountToAutoIssue',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'stageId', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+    ],
+    name: 'autoIssueFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforeCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'surplus',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'useTotalSurplus', internalType: 'bool', type: 'bool' },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforeCashOutRecordedWith',
+    outputs: [
+      { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+      { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBCashOutHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBCashOutHook',
+            type: 'address',
+          },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforePayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'payer', internalType: 'address', type: 'address' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          { name: 'reservedPercent', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforePayRecordedWith',
+    outputs: [
+      { name: 'weight', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBPayHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBPayHook',
+            type: 'address',
+          },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'buybackHookOf',
+    outputs: [
+      {
+        name: 'buybackHook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'cashOutDelayOf',
+    outputs: [
+      { name: 'cashOutDelay', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'configuration',
+        internalType: 'struct REVConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'description',
+            internalType: 'struct REVDescription',
+            type: 'tuple',
+            components: [
+              { name: 'name', internalType: 'string', type: 'string' },
+              { name: 'ticker', internalType: 'string', type: 'string' },
+              { name: 'uri', internalType: 'string', type: 'string' },
+              { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+            ],
+          },
+          { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
+          { name: 'splitOperator', internalType: 'address', type: 'address' },
+          {
+            name: 'stageConfigurations',
+            internalType: 'struct REVStageConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'startsAtOrAfter',
+                internalType: 'uint48',
+                type: 'uint48',
+              },
+              {
+                name: 'autoIssuances',
+                internalType: 'struct REVAutoIssuance[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'chainId', internalType: 'uint32', type: 'uint32' },
+                  { name: 'count', internalType: 'uint104', type: 'uint104' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                ],
+              },
+              { name: 'splitPercent', internalType: 'uint16', type: 'uint16' },
+              {
+                name: 'splits',
+                internalType: 'struct JBSplit[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'percent', internalType: 'uint32', type: 'uint32' },
+                  { name: 'projectId', internalType: 'uint64', type: 'uint64' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address payable',
+                    type: 'address',
+                  },
+                  {
+                    name: 'preferAddToBalance',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'lockedUntil',
+                    internalType: 'uint48',
+                    type: 'uint48',
+                  },
+                  {
+                    name: 'hook',
+                    internalType: 'contract IJBSplitHook',
+                    type: 'address',
+                  },
+                ],
+              },
+              {
+                name: 'initialIssuance',
+                internalType: 'uint112',
+                type: 'uint112',
+              },
+              {
+                name: 'issuanceCutFrequency',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'issuanceCutPercent',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'cashOutTaxRate',
+                internalType: 'uint16',
+                type: 'uint16',
+              },
+              { name: 'extraMetadata', internalType: 'uint16', type: 'uint16' },
+            ],
+          },
+          {
+            name: 'loanSources',
+            internalType: 'struct REVLoanSource[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+          { name: 'loans', internalType: 'address', type: 'address' },
+        ],
+      },
+      {
+        name: 'terminalConfigurations',
+        internalType: 'struct JBTerminalConfig[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'terminal',
+            internalType: 'contract IJBTerminal',
+            type: 'address',
+          },
+          {
+            name: 'accountingContextsToAccept',
+            internalType: 'struct JBAccountingContext[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'buybackHookConfiguration',
+        internalType: 'struct REVBuybackHookConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'dataHook',
+            internalType: 'contract IJBRulesetDataHook',
+            type: 'address',
+          },
+          {
+            name: 'hookToConfigure',
+            internalType: 'contract IJBBuybackHook',
+            type: 'address',
+          },
+          {
+            name: 'poolConfigurations',
+            internalType: 'struct REVBuybackPoolConfig[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'fee', internalType: 'uint24', type: 'uint24' },
+              { name: 'twapWindow', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+      },
+    ],
+    name: 'deployFor',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+      },
+    ],
+    name: 'deploySuckersFor',
+    outputs: [
+      { name: 'suckers', internalType: 'address[]', type: 'address[]' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'configuration',
+        internalType: 'struct REVConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'description',
+            internalType: 'struct REVDescription',
+            type: 'tuple',
+            components: [
+              { name: 'name', internalType: 'string', type: 'string' },
+              { name: 'ticker', internalType: 'string', type: 'string' },
+              { name: 'uri', internalType: 'string', type: 'string' },
+              { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+            ],
+          },
+          { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
+          { name: 'splitOperator', internalType: 'address', type: 'address' },
+          {
+            name: 'stageConfigurations',
+            internalType: 'struct REVStageConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'startsAtOrAfter',
+                internalType: 'uint48',
+                type: 'uint48',
+              },
+              {
+                name: 'autoIssuances',
+                internalType: 'struct REVAutoIssuance[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'chainId', internalType: 'uint32', type: 'uint32' },
+                  { name: 'count', internalType: 'uint104', type: 'uint104' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                ],
+              },
+              { name: 'splitPercent', internalType: 'uint16', type: 'uint16' },
+              {
+                name: 'splits',
+                internalType: 'struct JBSplit[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'percent', internalType: 'uint32', type: 'uint32' },
+                  { name: 'projectId', internalType: 'uint64', type: 'uint64' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address payable',
+                    type: 'address',
+                  },
+                  {
+                    name: 'preferAddToBalance',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'lockedUntil',
+                    internalType: 'uint48',
+                    type: 'uint48',
+                  },
+                  {
+                    name: 'hook',
+                    internalType: 'contract IJBSplitHook',
+                    type: 'address',
+                  },
+                ],
+              },
+              {
+                name: 'initialIssuance',
+                internalType: 'uint112',
+                type: 'uint112',
+              },
+              {
+                name: 'issuanceCutFrequency',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'issuanceCutPercent',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'cashOutTaxRate',
+                internalType: 'uint16',
+                type: 'uint16',
+              },
+              { name: 'extraMetadata', internalType: 'uint16', type: 'uint16' },
+            ],
+          },
+          {
+            name: 'loanSources',
+            internalType: 'struct REVLoanSource[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+          { name: 'loans', internalType: 'address', type: 'address' },
+        ],
+      },
+      {
+        name: 'terminalConfigurations',
+        internalType: 'struct JBTerminalConfig[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'terminal',
+            internalType: 'contract IJBTerminal',
+            type: 'address',
+          },
+          {
+            name: 'accountingContextsToAccept',
+            internalType: 'struct JBAccountingContext[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'buybackHookConfiguration',
+        internalType: 'struct REVBuybackHookConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'dataHook',
+            internalType: 'contract IJBRulesetDataHook',
+            type: 'address',
+          },
+          {
+            name: 'hookToConfigure',
+            internalType: 'contract IJBBuybackHook',
+            type: 'address',
+          },
+          {
+            name: 'poolConfigurations',
+            internalType: 'struct REVBuybackPoolConfig[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'fee', internalType: 'uint24', type: 'uint24' },
+              { name: 'twapWindow', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+      },
+      {
+        name: 'tiered721HookConfiguration',
+        internalType: 'struct REVDeploy721TiersHookConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'baseline721HookConfiguration',
+            internalType: 'struct JBDeploy721TiersHookConfig',
+            type: 'tuple',
+            components: [
+              { name: 'name', internalType: 'string', type: 'string' },
+              { name: 'symbol', internalType: 'string', type: 'string' },
+              { name: 'baseUri', internalType: 'string', type: 'string' },
+              {
+                name: 'tokenUriResolver',
+                internalType: 'contract IJB721TokenUriResolver',
+                type: 'address',
+              },
+              { name: 'contractUri', internalType: 'string', type: 'string' },
+              {
+                name: 'tiersConfig',
+                internalType: 'struct JB721InitTiersConfig',
+                type: 'tuple',
+                components: [
+                  {
+                    name: 'tiers',
+                    internalType: 'struct JB721TierConfig[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'price',
+                        internalType: 'uint104',
+                        type: 'uint104',
+                      },
+                      {
+                        name: 'initialSupply',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                      {
+                        name: 'votingUnits',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                      {
+                        name: 'reserveFrequency',
+                        internalType: 'uint16',
+                        type: 'uint16',
+                      },
+                      {
+                        name: 'reserveBeneficiary',
+                        internalType: 'address',
+                        type: 'address',
+                      },
+                      {
+                        name: 'encodedIPFSUri',
+                        internalType: 'bytes32',
+                        type: 'bytes32',
+                      },
+                      {
+                        name: 'category',
+                        internalType: 'uint24',
+                        type: 'uint24',
+                      },
+                      {
+                        name: 'discountPercent',
+                        internalType: 'uint8',
+                        type: 'uint8',
+                      },
+                      {
+                        name: 'allowOwnerMint',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'useReserveBeneficiaryAsDefault',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'transfersPausable',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'useVotingUnits',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'cannotBeRemoved',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'cannotIncreaseDiscountPercent',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                    ],
+                  },
+                  { name: 'currency', internalType: 'uint32', type: 'uint32' },
+                  { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+                  {
+                    name: 'prices',
+                    internalType: 'contract IJBPrices',
+                    type: 'address',
+                  },
+                ],
+              },
+              {
+                name: 'reserveBeneficiary',
+                internalType: 'address',
+                type: 'address',
+              },
+              {
+                name: 'flags',
+                internalType: 'struct JB721TiersHookFlags',
+                type: 'tuple',
+                components: [
+                  {
+                    name: 'noNewTiersWithReserves',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'noNewTiersWithVotes',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'noNewTiersWithOwnerMinting',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'preventOverspending',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+          {
+            name: 'splitOperatorCanAdjustTiers',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          {
+            name: 'splitOperatorCanUpdateMetadata',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'splitOperatorCanMint', internalType: 'bool', type: 'bool' },
+          {
+            name: 'splitOperatorCanIncreaseDiscountPercent',
+            internalType: 'bool',
+            type: 'bool',
+          },
+        ],
+      },
+      {
+        name: 'allowedPosts',
+        internalType: 'struct REVCroptopAllowedPost[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'category', internalType: 'uint24', type: 'uint24' },
+          { name: 'minimumPrice', internalType: 'uint104', type: 'uint104' },
+          {
+            name: 'minimumTotalSupply',
+            internalType: 'uint32',
+            type: 'uint32',
+          },
+          {
+            name: 'maximumTotalSupply',
+            internalType: 'uint32',
+            type: 'uint32',
+          },
+          {
+            name: 'allowedAddresses',
+            internalType: 'address[]',
+            type: 'address[]',
+          },
+        ],
+      },
+    ],
+    name: 'deployWith721sFor',
+    outputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hook',
+        internalType: 'contract IJB721TiersHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'ruleset',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+      { name: 'addr', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasMintPermissionFor',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'hashedEncodedConfigurationOf',
+    outputs: [
+      {
+        name: 'hashedEncodedConfiguration',
+        internalType: 'bytes32',
+        type: 'bytes32',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'addr', internalType: 'address', type: 'address' },
+    ],
+    name: 'isSplitOperatorOf',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loansOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '', internalType: 'address', type: 'address' },
+      { name: '', internalType: 'address', type: 'address' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'onERC721Received',
+    outputs: [{ name: '', internalType: 'bytes4', type: 'bytes4' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'newSplitOperator', internalType: 'address', type: 'address' },
+    ],
+    name: 'setSplitOperatorOf',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'tiered721HookOf',
+    outputs: [
+      {
+        name: 'tiered721Hook',
+        internalType: 'contract IJB721TiersHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'stageId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'count',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'AutoIssue',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'configuration',
+        internalType: 'struct REVConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'description',
+            internalType: 'struct REVDescription',
+            type: 'tuple',
+            components: [
+              { name: 'name', internalType: 'string', type: 'string' },
+              { name: 'ticker', internalType: 'string', type: 'string' },
+              { name: 'uri', internalType: 'string', type: 'string' },
+              { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+            ],
+          },
+          { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
+          { name: 'splitOperator', internalType: 'address', type: 'address' },
+          {
+            name: 'stageConfigurations',
+            internalType: 'struct REVStageConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'startsAtOrAfter',
+                internalType: 'uint48',
+                type: 'uint48',
+              },
+              {
+                name: 'autoIssuances',
+                internalType: 'struct REVAutoIssuance[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'chainId', internalType: 'uint32', type: 'uint32' },
+                  { name: 'count', internalType: 'uint104', type: 'uint104' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                ],
+              },
+              { name: 'splitPercent', internalType: 'uint16', type: 'uint16' },
+              {
+                name: 'splits',
+                internalType: 'struct JBSplit[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'percent', internalType: 'uint32', type: 'uint32' },
+                  { name: 'projectId', internalType: 'uint64', type: 'uint64' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address payable',
+                    type: 'address',
+                  },
+                  {
+                    name: 'preferAddToBalance',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'lockedUntil',
+                    internalType: 'uint48',
+                    type: 'uint48',
+                  },
+                  {
+                    name: 'hook',
+                    internalType: 'contract IJBSplitHook',
+                    type: 'address',
+                  },
+                ],
+              },
+              {
+                name: 'initialIssuance',
+                internalType: 'uint112',
+                type: 'uint112',
+              },
+              {
+                name: 'issuanceCutFrequency',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'issuanceCutPercent',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'cashOutTaxRate',
+                internalType: 'uint16',
+                type: 'uint16',
+              },
+              { name: 'extraMetadata', internalType: 'uint16', type: 'uint16' },
+            ],
+          },
+          {
+            name: 'loanSources',
+            internalType: 'struct REVLoanSource[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+          { name: 'loans', internalType: 'address', type: 'address' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'terminalConfigurations',
+        internalType: 'struct JBTerminalConfig[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'terminal',
+            internalType: 'contract IJBTerminal',
+            type: 'address',
+          },
+          {
+            name: 'accountingContextsToAccept',
+            internalType: 'struct JBAccountingContext[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'buybackHookConfiguration',
+        internalType: 'struct REVBuybackHookConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'dataHook',
+            internalType: 'contract IJBRulesetDataHook',
+            type: 'address',
+          },
+          {
+            name: 'hookToConfigure',
+            internalType: 'contract IJBBuybackHook',
+            type: 'address',
+          },
+          {
+            name: 'poolConfigurations',
+            internalType: 'struct REVBuybackPoolConfig[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'fee', internalType: 'uint24', type: 'uint24' },
+              { name: 'twapWindow', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'rulesetConfigurations',
+        internalType: 'struct JBRulesetConfig[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'mustStartAtOrAfter',
+            internalType: 'uint48',
+            type: 'uint48',
+          },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          {
+            name: 'metadata',
+            internalType: 'struct JBRulesetMetadata',
+            type: 'tuple',
+            components: [
+              {
+                name: 'reservedPercent',
+                internalType: 'uint16',
+                type: 'uint16',
+              },
+              {
+                name: 'cashOutTaxRate',
+                internalType: 'uint16',
+                type: 'uint16',
+              },
+              { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
+              { name: 'pausePay', internalType: 'bool', type: 'bool' },
+              {
+                name: 'pauseCreditTransfers',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'allowOwnerMinting', internalType: 'bool', type: 'bool' },
+              {
+                name: 'allowSetCustomToken',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'allowTerminalMigration',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'allowSetTerminals', internalType: 'bool', type: 'bool' },
+              {
+                name: 'allowSetController',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'allowAddAccountingContext',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'allowAddPriceFeed', internalType: 'bool', type: 'bool' },
+              {
+                name: 'ownerMustSendPayouts',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'holdFees', internalType: 'bool', type: 'bool' },
+              {
+                name: 'useTotalSurplusForCashOuts',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'useDataHookForPay', internalType: 'bool', type: 'bool' },
+              {
+                name: 'useDataHookForCashOut',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'dataHook', internalType: 'address', type: 'address' },
+              { name: 'metadata', internalType: 'uint16', type: 'uint16' },
+            ],
+          },
+          {
+            name: 'splitGroups',
+            internalType: 'struct JBSplitGroup[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'groupId', internalType: 'uint256', type: 'uint256' },
+              {
+                name: 'splits',
+                internalType: 'struct JBSplit[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'percent', internalType: 'uint32', type: 'uint32' },
+                  { name: 'projectId', internalType: 'uint64', type: 'uint64' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address payable',
+                    type: 'address',
+                  },
+                  {
+                    name: 'preferAddToBalance',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'lockedUntil',
+                    internalType: 'uint48',
+                    type: 'uint48',
+                  },
+                  {
+                    name: 'hook',
+                    internalType: 'contract IJBSplitHook',
+                    type: 'address',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            name: 'fundAccessLimitGroups',
+            internalType: 'struct JBFundAccessLimitGroup[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'terminal', internalType: 'address', type: 'address' },
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'payoutLimits',
+                internalType: 'struct JBCurrencyAmount[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'amount', internalType: 'uint224', type: 'uint224' },
+                  { name: 'currency', internalType: 'uint32', type: 'uint32' },
+                ],
+              },
+              {
+                name: 'surplusAllowances',
+                internalType: 'struct JBCurrencyAmount[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'amount', internalType: 'uint224', type: 'uint224' },
+                  { name: 'currency', internalType: 'uint32', type: 'uint32' },
+                ],
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'encodedConfigurationHash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'DeployRevnet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'encodedConfigurationHash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'DeploySuckers',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'newSplitOperator',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'ReplaceSplitOperator',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'additionalOperator',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'permissionIds',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetAdditionalOperator',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'cashOutDelay',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetCashOutDelay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'stageId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'count',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'StoreAutoIssuanceAmount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'REVDeployer_AutoIssuanceBeneficiaryZeroAddress',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'cashOutDelay', internalType: 'uint256', type: 'uint256' },
+      { name: 'blockTimestamp', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVDeployer_CashOutDelayNotFinished',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxCashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVDeployer_CashOutsCantBeTurnedOffCompletely',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'terminal', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVDeployer_LoanSourceDoesntMatchTerminalConfigurations',
+  },
+  { type: 'error', inputs: [], name: 'REVDeployer_MustHaveSplits' },
+  { type: 'error', inputs: [], name: 'REVDeployer_NothingToAutoIssue' },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'REVDeployer_RulesetDoesNotAllowDeployingSuckers',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'stageId', internalType: 'uint256', type: 'uint256' }],
+    name: 'REVDeployer_StageNotStarted',
+  },
+  { type: 'error', inputs: [], name: 'REVDeployer_StageTimesMustIncrease' },
+  { type: 'error', inputs: [], name: 'REVDeployer_StagesRequired' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'caller', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVDeployer_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'spender', internalType: 'address', type: 'address' },
+      { name: 'currentAllowance', internalType: 'uint256', type: 'uint256' },
+      { name: 'requestedDecrease', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'SafeERC20FailedDecreaseAllowance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// REVLoans
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const revLoansAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'revnets',
+        internalType: 'contract IREVDeployer',
+        type: 'address',
+      },
+      { name: 'revId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'fallback', stateMutability: 'payable' },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'CONTROLLER',
+    outputs: [
+      { name: '', internalType: 'contract IJBController', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'LOAN_LIQUIDATION_DURATION',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PRICES',
+    outputs: [
+      { name: '', internalType: 'contract IJBPrices', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REVNETS',
+    outputs: [
+      { name: '', internalType: 'contract IREVDeployer', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REV_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REV_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'collateralCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'borrowFrom',
+    outputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'collateralCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'borrowableAmountFrom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'determineSourceFeeAmount',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getApproved',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'operator', internalType: 'address', type: 'address' },
+    ],
+    name: 'isApprovedForAll',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBPayoutTerminal',
+        type: 'address',
+      },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'isLoanSourceOf',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'startingLoanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'count', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'liquidateExpiredLoansFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loanOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loanSourcesOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct REVLoanSource[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'numberOfLoansFor',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ownerOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralCountToTransfer',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralCountToAdd',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'reallocateCollateralFromLoan',
+    outputs: [
+      { name: 'reallocatedLoanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'newLoanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'reallocatedLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'newLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'maxRepayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'collateralCountToReturn',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      {
+        name: 'allowance',
+        internalType: 'struct JBSingleAllowance',
+        type: 'tuple',
+        components: [
+          { name: 'sigDeadline', internalType: 'uint256', type: 'uint256' },
+          { name: 'amount', internalType: 'uint160', type: 'uint160' },
+          { name: 'expiration', internalType: 'uint48', type: 'uint48' },
+          { name: 'nonce', internalType: 'uint48', type: 'uint48' },
+          { name: 'signature', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'repayLoan',
+    outputs: [
+      { name: 'paidOffLoanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'paidOffloan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'revnetIdOfLoanWith',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'approved', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'setApprovalForAll',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+      },
+    ],
+    name: 'setTokenUriResolver',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'tokenURI',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'tokenUriResolver',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBPayoutTerminal',
+        type: 'address',
+      },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'totalBorrowedFrom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'totalCollateralOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'approved',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Approval',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'operator',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'approved', internalType: 'bool', type: 'bool', indexed: false },
+    ],
+    name: 'ApprovalForAll',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'borrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'collateralCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sourceFeeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address payable',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Borrow',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Liquidate',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reallocatedLoanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reallocatedLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'removedcollateralCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'ReallocateCollateral',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'paidOffLoanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'paidOffLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'repayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sourceFeeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'collateralCountToReturn',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address payable',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'RepayLoan',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetTokenUriResolver',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address', indexed: true },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Transfer',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'ERC721IncorrectOwner',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC721InsufficientApproval',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'approver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidApprover',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'operator', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOperator',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'receiver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidReceiver',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'sender', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidSender',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ERC721NonexistentToken',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'collateralToReturn', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanCollateral', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_CollateralExceedsLoan',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+      { name: 'min', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_InvalidPrepaidFeePercent',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'timeSinceLoanCreated',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'loanLiquidationDuration',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'REVLoans_LoanExpired',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'newBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_NewBorrowAmountGreaterThanLoanAmount',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_NoMsgValueAllowed' },
+  { type: 'error', inputs: [], name: 'REVLoans_NotEnoughCollateral' },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'maxRepayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'repayBorrowAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_OverMaxRepayBorrowAmount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+      { name: 'limit', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_OverflowAlert',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'allowanceAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'requiredAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'newBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_ReallocatingMoreCollateralThanBorrowedAmountAllows',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'revnetOwner', internalType: 'address', type: 'address' },
+      { name: 'revnets', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVLoans_RevnetsMismatch',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'caller', internalType: 'address', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVLoans_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'borrowAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_UnderMinBorrowAmount',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_ZeroCollateralLoanIsInvalid' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// REVLoans1_1
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const revLoans1_1Abi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'revnets',
+        internalType: 'contract IREVDeployer',
+        type: 'address',
+      },
+      { name: 'revId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'fallback', stateMutability: 'payable' },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'CONTROLLER',
+    outputs: [
+      { name: '', internalType: 'contract IJBController', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'LOAN_LIQUIDATION_DURATION',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PRICES',
+    outputs: [
+      { name: '', internalType: 'contract IJBPrices', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REVNETS',
+    outputs: [
+      { name: '', internalType: 'contract IREVDeployer', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REV_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REV_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'collateralCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'borrowFrom',
+    outputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'collateralCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'borrowableAmountFrom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'determineSourceFeeAmount',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getApproved',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'operator', internalType: 'address', type: 'address' },
+    ],
+    name: 'isApprovedForAll',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBPayoutTerminal',
+        type: 'address',
+      },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'isLoanSourceOf',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'startingLoanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'count', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'liquidateExpiredLoansFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loanOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loanSourcesOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct REVLoanSource[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'numberOfLoansFor',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ownerOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralCountToTransfer',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralCountToAdd',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'reallocateCollateralFromLoan',
+    outputs: [
+      { name: 'reallocatedLoanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'newLoanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'reallocatedLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'newLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'maxRepayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'collateralCountToReturn',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      {
+        name: 'allowance',
+        internalType: 'struct JBSingleAllowance',
+        type: 'tuple',
+        components: [
+          { name: 'sigDeadline', internalType: 'uint256', type: 'uint256' },
+          { name: 'amount', internalType: 'uint160', type: 'uint160' },
+          { name: 'expiration', internalType: 'uint48', type: 'uint48' },
+          { name: 'nonce', internalType: 'uint48', type: 'uint48' },
+          { name: 'signature', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'repayLoan',
+    outputs: [
+      { name: 'paidOffLoanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'paidOffloan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'revnetIdOfLoanWith',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'approved', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'setApprovalForAll',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+      },
+    ],
+    name: 'setTokenUriResolver',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'tokenURI',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'tokenUriResolver',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBPayoutTerminal',
+        type: 'address',
+      },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'totalBorrowedFrom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'totalCollateralOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'approved',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Approval',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'operator',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'approved', internalType: 'bool', type: 'bool', indexed: false },
+    ],
+    name: 'ApprovalForAll',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'borrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'collateralCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sourceFeeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address payable',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Borrow',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Liquidate',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reallocatedLoanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reallocatedLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'removedcollateralCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'ReallocateCollateral',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'paidOffLoanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'paidOffLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'repayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sourceFeeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'collateralCountToReturn',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address payable',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'RepayLoan',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetTokenUriResolver',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address', indexed: true },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Transfer',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'ERC721IncorrectOwner',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC721InsufficientApproval',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'approver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidApprover',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'operator', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOperator',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'receiver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidReceiver',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'sender', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidSender',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ERC721NonexistentToken',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'collateralToReturn', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanCollateral', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_CollateralExceedsLoan',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+      { name: 'min', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_InvalidPrepaidFeePercent',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'timeSinceLoanCreated',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'loanLiquidationDuration',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'REVLoans_LoanExpired',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'newBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_NewBorrowAmountGreaterThanLoanAmount',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_NoMsgValueAllowed' },
+  { type: 'error', inputs: [], name: 'REVLoans_NotEnoughCollateral' },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'maxRepayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'repayBorrowAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_OverMaxRepayBorrowAmount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+      { name: 'limit', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_OverflowAlert',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'allowanceAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'requiredAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'newBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_ReallocatingMoreCollateralThanBorrowedAmountAllows',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'revnetOwner', internalType: 'address', type: 'address' },
+      { name: 'revnets', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVLoans_RevnetsMismatch',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'caller', internalType: 'address', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVLoans_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'borrowAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_UnderMinBorrowAmount',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_ZeroCollateralLoanIsInvalid' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
+
   /**
    * Addresses to use in JB project deployments.
    */
-  export const jbContractAddress = {} as Record<4|5, Record<string, Record<string, `0x${string}`>>>;
-
-  jbContractAddress["4"] = {
-  "JBController": {
-    "1": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "10": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "8453": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "42161": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "84532": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "421614": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "11155111": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "11155420": "0xb291844f213047eb9e1621ae555b1eae6700d553"
+  export const jbContractAddress = {
+  "4": {
+    "JBController": {
+      "1": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "10": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "8453": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "42161": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "84532": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "421614": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "11155111": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "11155420": "0xb291844f213047eb9e1621ae555b1eae6700d553"
+    },
+    "JBController4_1": {
+      "1": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "10": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "8453": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "42161": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "84532": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "421614": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "11155111": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "11155420": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8"
+    },
+    "JBDirectory": {
+      "1": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "10": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "8453": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "42161": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "84532": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "421614": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "11155111": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "11155420": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41"
+    },
+    "JBMultiTerminal": {
+      "1": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "10": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "8453": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "42161": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "84532": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "421614": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "11155111": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "11155420": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc"
+    },
+    "JBRulesets": {
+      "1": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "10": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "8453": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "42161": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "84532": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "421614": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "11155111": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "11155420": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826"
+    },
+    "JBPermissions": {
+      "1": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "10": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "8453": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "42161": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "84532": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "421614": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "11155111": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "11155420": "0xf5ca295dc286a176e35ebb7833031fd95550eb14"
+    },
+    "JBProjects": {
+      "1": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "10": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "8453": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "42161": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "84532": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "421614": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "11155111": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "11155420": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad"
+    },
+    "JBSplits": {
+      "1": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "10": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "8453": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "42161": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "84532": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "421614": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "11155111": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "11155420": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c"
+    },
+    "JBTokens": {
+      "1": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "10": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "8453": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "42161": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "84532": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "421614": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "11155111": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "11155420": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36"
+    },
+    "JBTerminalStore": {
+      "1": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "10": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "8453": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "42161": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "84532": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "421614": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "11155111": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "11155420": "0x6f6740dda12033ca9fbaa56693194e38cfd36827"
+    },
+    "JBFundAccessLimits": {
+      "1": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "10": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "8453": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "42161": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "84532": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "421614": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "11155111": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "11155420": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8"
+    },
+    "JBPrices": {
+      "1": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "10": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "8453": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "42161": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "84532": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "421614": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "11155111": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "11155420": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7"
+    },
+    "ERC2771Forwarder": {
+      "1": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "10": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "8453": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "42161": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "84532": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "421614": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "11155111": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "11155420": "0x8a5ba591ed2bed5691a378c65611ed492500f887"
+    },
+    "JB721TiersHookDeployer": {
+      "1": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "10": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "8453": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "42161": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "84532": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "421614": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "11155111": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "11155420": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206"
+    },
+    "JB721TiersHookProjectDeployer": {
+      "1": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "10": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "8453": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "42161": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "84532": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "421614": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "11155111": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "11155420": "0xedb83eb473b008a2246488df1f85174d26d86af2"
+    },
+    "JB721TiersHook": {
+      "1": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "10": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "8453": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "42161": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "84532": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "421614": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "11155111": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "11155420": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a"
+    },
+    "JB721TiersHookStore": {
+      "1": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "10": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "8453": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "42161": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "84532": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "421614": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "11155111": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "11155420": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1"
+    },
+    "JBAddressRegistry": {
+      "1": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "10": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "8453": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "42161": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "84532": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "421614": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "11155111": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "11155420": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb"
+    },
+    "JBSuckerRegistry": {
+      "1": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "10": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "8453": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "42161": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "84532": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "421614": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "11155111": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "11155420": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5"
+    },
+    "JBCCIPSuckerDeployer": {
+      "1": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7",
+      "10": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7",
+      "8453": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
+      "42161": "0x9d4858cc9d3552507eeabce722787afef64c615e",
+      "84532": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
+      "421614": "0x9d4858cc9d3552507eeabce722787afef64c615e",
+      "11155111": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7",
+      "11155420": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7"
+    },
+    "JBCCIPSuckerDeployer_1": {
+      "1": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
+      "10": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413",
+      "8453": "0xb825f2f6995966eb6dd772a8707d4a547028ac26",
+      "42161": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413",
+      "84532": "0xb825f2f6995966eb6dd772a8707d4a547028ac26",
+      "421614": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413",
+      "11155111": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
+      "11155420": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413"
+    },
+    "JBCCIPSuckerDeployer_2": {
+      "1": "0x9d4858cc9d3552507eeabce722787afef64c615e",
+      "10": "0xb825f2f6995966eb6dd772a8707d4a547028ac26",
+      "8453": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
+      "42161": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
+      "84532": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
+      "421614": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
+      "11155111": "0x9d4858cc9d3552507eeabce722787afef64c615e",
+      "11155420": "0xb825f2f6995966eb6dd772a8707d4a547028ac26"
+    },
+    "JBSwapTerminal": {
+      "1": "0xdd98b25631aa9372a8cf09912b803d2ad80db161",
+      "10": "0xf7002a2df9bebf629b6093c8a60e28beed4f7b48",
+      "8453": "0x9b82f7f43a956f5e83faaf1d46382cba19ce71ab",
+      "42161": "0xcf50c6f3f366817815fe7ba69b4518356ba6033b",
+      "84532": "0xb940f0bb31376cad3a0fae7c78995ae899160a52",
+      "421614": "0xcf5f58ebb455678005b7dc6e506a7ec9a3438d0e",
+      "11155111": "0x94c5431808ab538d398c6354d1972a0cb8c0b18b",
+      "11155420": "0xb940f0bb31376cad3a0fae7c78995ae899160a52"
+    },
+    "JBSwapTerminal1_1": {
+      "1": "0x64834ff3c2c18a715c635dd022227a9a8d9e8b73",
+      "10": "0x817b87ab3cad4f84f8dc9c98b8f219404dca9927",
+      "8453": "0xe4036d0cd05951689e1bb8667f5364874dc2fbfb",
+      "42161": "0x21e6d82921fce3798a96134eddc2e7cd67c12769",
+      "84532": "0xae33d0b3a5e1f2d52f50cd589458c84e2f1ea916",
+      "421614": "0x97e7430c4e1ee242a604d8529195ae06b121cbc6",
+      "11155111": "0x4b75f7c7e9bd65807cbc56419641155c2660b65c",
+      "11155420": "0x6c5debbdb7365c9ed1ef4529823c3113d47e1842"
+    },
+    "JBBuybackHook": {
+      "1": "0x7dcf35dad9b30ffcb7f35f51279252b884921927",
+      "10": "0x09d97e2b8b2f143335c2344947a79d1a3a4c2946",
+      "8453": "0x47d1b88af8ee0ed0a772a7c98430894141b9ac8b",
+      "42161": "0xb9dce56d7f64b8c456157ded0c76241d0c23f578",
+      "84532": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d",
+      "421614": "0xc32b873d25230bcbeb4f9d9d9bf10eaf4d77dddf",
+      "11155111": "0x085b2fd0560ef5b6acd0f98b2f0e079cfa936f58",
+      "11155420": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d"
+    },
+    "JBOmnichainDeployer": {
+      "1": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "10": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "8453": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "42161": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "84532": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "421614": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "11155111": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "11155420": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190"
+    },
+    "JBOmnichainDeployer4_1": {
+      "1": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "10": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "8453": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "42161": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "84532": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "421614": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "11155111": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "11155420": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd"
+    },
+    "REVDeployer": {
+      "1": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "10": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "8453": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "42161": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "84532": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "421614": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "11155111": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "11155420": "0x027f1684c6d31066c3f2468117f2508e8134fdfc"
+    },
+    "REVLoans": {
+      "1": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "10": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "8453": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "42161": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "84532": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "421614": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "11155111": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "11155420": "0x03de624feb08c0edeff779ca5702aef4b85d7f06"
+    },
+    "REVLoans1_1": {
+      "1": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "10": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "8453": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "42161": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "84532": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "421614": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "11155111": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "11155420": "0xde1e70faf22024559e7d94ab814abd7e42ca849b"
+    }
   },
-  "JBController4_1": {
-    "1": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "10": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "8453": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "42161": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "84532": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "421614": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "11155111": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "11155420": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8"
-  },
-  "JBDirectory": {
-    "1": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
-    "10": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
-    "8453": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
-    "42161": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
-    "84532": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
-    "421614": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
-    "11155111": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
-    "11155420": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41"
-  },
-  "JBMultiTerminal": {
-    "1": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "10": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "8453": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "42161": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "84532": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "421614": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "11155111": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "11155420": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc"
-  },
-  "JBRulesets": {
-    "1": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
-    "10": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
-    "8453": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
-    "42161": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
-    "84532": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
-    "421614": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
-    "11155111": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
-    "11155420": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826"
-  },
-  "JBPermissions": {
-    "1": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
-    "10": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
-    "8453": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
-    "42161": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
-    "84532": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
-    "421614": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
-    "11155111": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
-    "11155420": "0xf5ca295dc286a176e35ebb7833031fd95550eb14"
-  },
-  "JBProjects": {
-    "1": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
-    "10": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
-    "8453": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
-    "42161": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
-    "84532": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
-    "421614": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
-    "11155111": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
-    "11155420": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad"
-  },
-  "JBSplits": {
-    "1": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
-    "10": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
-    "8453": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
-    "42161": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
-    "84532": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
-    "421614": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
-    "11155111": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
-    "11155420": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c"
-  },
-  "JBTokens": {
-    "1": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
-    "10": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
-    "8453": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
-    "42161": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
-    "84532": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
-    "421614": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
-    "11155111": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
-    "11155420": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36"
-  },
-  "JBTerminalStore": {
-    "1": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
-    "10": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
-    "8453": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
-    "42161": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
-    "84532": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
-    "421614": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
-    "11155111": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
-    "11155420": "0x6f6740dda12033ca9fbaa56693194e38cfd36827"
-  },
-  "JBFundAccessLimits": {
-    "1": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
-    "10": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
-    "8453": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
-    "42161": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
-    "84532": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
-    "421614": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
-    "11155111": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
-    "11155420": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8"
-  },
-  "JBPrices": {
-    "1": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
-    "10": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
-    "8453": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
-    "42161": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
-    "84532": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
-    "421614": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
-    "11155111": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
-    "11155420": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7"
-  },
-  "ERC2771Forwarder": {
-    "1": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
-    "10": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
-    "8453": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
-    "42161": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
-    "84532": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
-    "421614": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
-    "11155111": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
-    "11155420": "0x8a5ba591ed2bed5691a378c65611ed492500f887"
-  },
-  "JB721TiersHookDeployer": {
-    "1": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
-    "10": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
-    "8453": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
-    "42161": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
-    "84532": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
-    "421614": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
-    "11155111": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
-    "11155420": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206"
-  },
-  "JB721TiersHookProjectDeployer": {
-    "1": "0xedb83eb473b008a2246488df1f85174d26d86af2",
-    "10": "0xedb83eb473b008a2246488df1f85174d26d86af2",
-    "8453": "0xedb83eb473b008a2246488df1f85174d26d86af2",
-    "42161": "0xedb83eb473b008a2246488df1f85174d26d86af2",
-    "84532": "0xedb83eb473b008a2246488df1f85174d26d86af2",
-    "421614": "0xedb83eb473b008a2246488df1f85174d26d86af2",
-    "11155111": "0xedb83eb473b008a2246488df1f85174d26d86af2",
-    "11155420": "0xedb83eb473b008a2246488df1f85174d26d86af2"
-  },
-  "JB721TiersHook": {
-    "1": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
-    "10": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
-    "8453": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
-    "42161": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
-    "84532": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
-    "421614": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
-    "11155111": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
-    "11155420": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a"
-  },
-  "JB721TiersHookStore": {
-    "1": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "10": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "8453": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "42161": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "84532": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "421614": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "11155111": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "11155420": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1"
-  },
-  "JBAddressRegistry": {
-    "1": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "10": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "8453": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "42161": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "84532": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "421614": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "11155111": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "11155420": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb"
-  },
-  "JBSuckerRegistry": {
-    "1": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
-    "10": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
-    "8453": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
-    "42161": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
-    "84532": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
-    "421614": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
-    "11155111": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
-    "11155420": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5"
-  },
-  "JBCCIPSuckerDeployer": {
-    "1": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7",
-    "10": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7",
-    "8453": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
-    "42161": "0x9d4858cc9d3552507eeabce722787afef64c615e",
-    "84532": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
-    "421614": "0x9d4858cc9d3552507eeabce722787afef64c615e",
-    "11155111": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7",
-    "11155420": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7"
-  },
-  "JBCCIPSuckerDeployer_1": {
-    "1": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
-    "10": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413",
-    "8453": "0xb825f2f6995966eb6dd772a8707d4a547028ac26",
-    "42161": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413",
-    "84532": "0xb825f2f6995966eb6dd772a8707d4a547028ac26",
-    "421614": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413",
-    "11155111": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
-    "11155420": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413"
-  },
-  "JBCCIPSuckerDeployer_2": {
-    "1": "0x9d4858cc9d3552507eeabce722787afef64c615e",
-    "10": "0xb825f2f6995966eb6dd772a8707d4a547028ac26",
-    "8453": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
-    "42161": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
-    "84532": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
-    "421614": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
-    "11155111": "0x9d4858cc9d3552507eeabce722787afef64c615e",
-    "11155420": "0xb825f2f6995966eb6dd772a8707d4a547028ac26"
-  },
-  "JBSwapTerminal": {
-    "1": "0xdd98b25631aa9372a8cf09912b803d2ad80db161",
-    "10": "0xf7002a2df9bebf629b6093c8a60e28beed4f7b48",
-    "8453": "0x9b82f7f43a956f5e83faaf1d46382cba19ce71ab",
-    "42161": "0xcf50c6f3f366817815fe7ba69b4518356ba6033b",
-    "84532": "0xb940f0bb31376cad3a0fae7c78995ae899160a52",
-    "421614": "0xcf5f58ebb455678005b7dc6e506a7ec9a3438d0e",
-    "11155111": "0x94c5431808ab538d398c6354d1972a0cb8c0b18b",
-    "11155420": "0xb940f0bb31376cad3a0fae7c78995ae899160a52"
-  },
-  "JBSwapTerminal1_1": {
-    "1": "0x64834ff3c2c18a715c635dd022227a9a8d9e8b73",
-    "10": "0x817b87ab3cad4f84f8dc9c98b8f219404dca9927",
-    "8453": "0xe4036d0cd05951689e1bb8667f5364874dc2fbfb",
-    "42161": "0x21e6d82921fce3798a96134eddc2e7cd67c12769",
-    "84532": "0xae33d0b3a5e1f2d52f50cd589458c84e2f1ea916",
-    "421614": "0x97e7430c4e1ee242a604d8529195ae06b121cbc6",
-    "11155111": "0x4b75f7c7e9bd65807cbc56419641155c2660b65c",
-    "11155420": "0x6c5debbdb7365c9ed1ef4529823c3113d47e1842"
-  },
-  "JBBuybackHook": {
-    "1": "0x7dcf35dad9b30ffcb7f35f51279252b884921927",
-    "10": "0x09d97e2b8b2f143335c2344947a79d1a3a4c2946",
-    "8453": "0x47d1b88af8ee0ed0a772a7c98430894141b9ac8b",
-    "42161": "0xb9dce56d7f64b8c456157ded0c76241d0c23f578",
-    "84532": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d",
-    "421614": "0xc32b873d25230bcbeb4f9d9d9bf10eaf4d77dddf",
-    "11155111": "0x085b2fd0560ef5b6acd0f98b2f0e079cfa936f58",
-    "11155420": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d"
-  },
-  "JBOmnichainDeployer": {
-    "1": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
-    "10": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
-    "8453": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
-    "42161": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
-    "84532": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
-    "421614": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
-    "11155111": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
-    "11155420": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190"
-  },
-  "JBOmnichainDeployer4_1": {
-    "1": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
-    "10": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
-    "8453": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
-    "42161": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
-    "84532": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
-    "421614": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
-    "11155111": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
-    "11155420": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd"
-  }
-} as const;
-  
-  jbContractAddress["5"] = {
-  "JBController": {
-    "1": "0x27da30646502e2f642be5281322ae8c394f7668a",
-    "10": "0x27da30646502e2f642be5281322ae8c394f7668a",
-    "8453": "0x27da30646502e2f642be5281322ae8c394f7668a",
-    "42161": "0x27da30646502e2f642be5281322ae8c394f7668a",
-    "84532": "0x27da30646502e2f642be5281322ae8c394f7668a",
-    "421614": "0x27da30646502e2f642be5281322ae8c394f7668a",
-    "11155111": "0x27da30646502e2f642be5281322ae8c394f7668a",
-    "11155420": "0x27da30646502e2f642be5281322ae8c394f7668a"
-  },
-  "JBDirectory": {
-    "1": "0x0061e516886a0540f63157f112c0588ee0651dcf",
-    "10": "0x0061e516886a0540f63157f112c0588ee0651dcf",
-    "8453": "0x0061e516886a0540f63157f112c0588ee0651dcf",
-    "42161": "0x0061e516886a0540f63157f112c0588ee0651dcf",
-    "84532": "0x0061e516886a0540f63157f112c0588ee0651dcf",
-    "421614": "0x0061e516886a0540f63157f112c0588ee0651dcf",
-    "11155111": "0x0061e516886a0540f63157f112c0588ee0651dcf",
-    "11155420": "0x0061e516886a0540f63157f112c0588ee0651dcf"
-  },
-  "JBMultiTerminal": {
-    "1": "0x2db6d704058e552defe415753465df8df0361846",
-    "10": "0x2db6d704058e552defe415753465df8df0361846",
-    "8453": "0x2db6d704058e552defe415753465df8df0361846",
-    "42161": "0x2db6d704058e552defe415753465df8df0361846",
-    "84532": "0x2db6d704058e552defe415753465df8df0361846",
-    "421614": "0x2db6d704058e552defe415753465df8df0361846",
-    "11155111": "0x2db6d704058e552defe415753465df8df0361846",
-    "11155420": "0x2db6d704058e552defe415753465df8df0361846"
-  },
-  "JBRulesets": {
-    "1": "0x6292281d69c3593fcf6ea074e5797341476ab428",
-    "10": "0x6292281d69c3593fcf6ea074e5797341476ab428",
-    "8453": "0x6292281d69c3593fcf6ea074e5797341476ab428",
-    "42161": "0x6292281d69c3593fcf6ea074e5797341476ab428",
-    "84532": "0x6292281d69c3593fcf6ea074e5797341476ab428",
-    "421614": "0x6292281d69c3593fcf6ea074e5797341476ab428",
-    "11155111": "0x6292281d69c3593fcf6ea074e5797341476ab428",
-    "11155420": "0x6292281d69c3593fcf6ea074e5797341476ab428"
-  },
-  "JBPermissions": {
-    "1": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
-    "10": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
-    "8453": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
-    "42161": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
-    "84532": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
-    "421614": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
-    "11155111": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
-    "11155420": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d"
-  },
-  "JBProjects": {
-    "1": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
-    "10": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
-    "8453": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
-    "42161": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
-    "84532": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
-    "421614": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
-    "11155111": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
-    "11155420": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4"
-  },
-  "JBSplits": {
-    "1": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
-    "10": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
-    "8453": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
-    "42161": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
-    "84532": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
-    "421614": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
-    "11155111": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
-    "11155420": "0x7160a322fea44945a6ef9adfd65c322258df3c5e"
-  },
-  "JBTokens": {
-    "1": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
-    "10": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
-    "8453": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
-    "42161": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
-    "84532": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
-    "421614": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
-    "11155111": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
-    "11155420": "0x4d0edd347fb1fa21589c1e109b3474924be87636"
-  },
-  "JBTerminalStore": {
-    "1": "0xfe33b439ec53748c87dcedacb83f05add5014744",
-    "10": "0xfe33b439ec53748c87dcedacb83f05add5014744",
-    "8453": "0xfe33b439ec53748c87dcedacb83f05add5014744",
-    "42161": "0xfe33b439ec53748c87dcedacb83f05add5014744",
-    "84532": "0xfe33b439ec53748c87dcedacb83f05add5014744",
-    "421614": "0xfe33b439ec53748c87dcedacb83f05add5014744",
-    "11155111": "0xfe33b439ec53748c87dcedacb83f05add5014744",
-    "11155420": "0xfe33b439ec53748c87dcedacb83f05add5014744"
-  },
-  "JBFundAccessLimits": {
-    "1": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
-    "10": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
-    "8453": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
-    "42161": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
-    "84532": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
-    "421614": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
-    "11155111": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
-    "11155420": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7"
-  },
-  "JBPrices": {
-    "1": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
-    "10": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
-    "8453": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
-    "42161": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
-    "84532": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
-    "421614": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
-    "11155111": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
-    "11155420": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4"
-  },
-  "ERC2771Forwarder": {
-    "1": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
-    "10": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
-    "8453": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
-    "42161": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
-    "84532": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
-    "421614": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
-    "11155111": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
-    "11155420": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566"
-  },
-  "JB721TiersHookDeployer": {
-    "1": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
-    "10": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
-    "8453": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
-    "42161": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
-    "84532": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
-    "421614": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
-    "11155111": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
-    "11155420": "0xef60878d00378ac5f93d209f4616450ee8d41ca7"
-  },
-  "JB721TiersHookProjectDeployer": {
-    "1": "0x048626e715a194fc38dd9be12f516b54b10e725a",
-    "10": "0x048626e715a194fc38dd9be12f516b54b10e725a",
-    "8453": "0x048626e715a194fc38dd9be12f516b54b10e725a",
-    "42161": "0x048626e715a194fc38dd9be12f516b54b10e725a",
-    "84532": "0x048626e715a194fc38dd9be12f516b54b10e725a",
-    "421614": "0x048626e715a194fc38dd9be12f516b54b10e725a",
-    "11155111": "0x048626e715a194fc38dd9be12f516b54b10e725a",
-    "11155420": "0x048626e715a194fc38dd9be12f516b54b10e725a"
-  },
-  "JB721TiersHook": {
-    "1": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
-    "10": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
-    "8453": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
-    "42161": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
-    "84532": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
-    "421614": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
-    "11155111": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
-    "11155420": "0xe9485c121082d3beb57d6eac267b04a0f59d1760"
-  },
-  "JB721TiersHookStore": {
-    "1": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
-    "10": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
-    "8453": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
-    "42161": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
-    "84532": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
-    "421614": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
-    "11155111": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
-    "11155420": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee"
-  },
-  "JBAddressRegistry": {
-    "1": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "10": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "8453": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "42161": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "84532": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "421614": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "11155111": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
-    "11155420": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb"
-  },
-  "JBSuckerRegistry": {
-    "1": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
-    "10": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
-    "8453": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
-    "42161": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
-    "84532": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
-    "421614": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
-    "11155111": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
-    "11155420": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3"
-  },
-  "JBCCIPSuckerDeployer": {
-    "1": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816",
-    "10": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816",
-    "8453": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
-    "42161": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
-    "84532": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
-    "421614": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
-    "11155111": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816",
-    "11155420": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816"
-  },
-  "JBCCIPSuckerDeployer_1": {
-    "1": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
-    "10": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1",
-    "8453": "0x58683931b146697d094c660aec1f4a8f564a3d7d",
-    "42161": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1",
-    "84532": "0x58683931b146697d094c660aec1f4a8f564a3d7d",
-    "421614": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1",
-    "11155111": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
-    "11155420": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1"
-  },
-  "JBCCIPSuckerDeployer_2": {
-    "1": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
-    "10": "0x58683931b146697d094c660aec1f4a8f564a3d7d",
-    "8453": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
-    "42161": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
-    "84532": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
-    "421614": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
-    "11155111": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
-    "11155420": "0x58683931b146697d094c660aec1f4a8f564a3d7d"
-  },
-  "JBSwapTerminal": {
-    "1": "0x259385b97dfbd5576bd717dc7b25967ec8b145dd",
-    "10": "0x73d04584bde126242c36c2c7b219cbdec7aad774",
-    "8453": "0x4fd73d8b285e82471f08a4ef9861d6248b832edd",
-    "42161": "0x483c9b12c5bd2da73133aae30642ce0008c752ad",
-    "84532": "0xc7369f75bd678e1a9a46b82e2512e84489d4d32d",
-    "421614": "0x5f820a86d63eb1b98c562728719dc1e30967c41c",
-    "11155111": "0xca3f2cc5a35c0412e8147746602b76ba4ac29fc5",
-    "11155420": "0xc7369f75bd678e1a9a46b82e2512e84489d4d32d"
-  },
-  "JBBuybackHook": {
-    "1": "0xd342490ec41d5982c23951253a74a1c940fe0f9b",
-    "10": "0x318f8aa6a95cb83419985c0d797c762f5a7824f3",
-    "8453": "0xb6133a222315f8e9d25e7c77bac5ddeb3451d088",
-    "42161": "0x4ac3e20edd1d398def0dfb44d3adb9fc244f0320",
-    "84532": "0x79e5ca5ebe4f110965248afad88b8e539e1aa8fd",
-    "421614": "0xb35ab801c008a64d8f3eea0a8a6209b0d176f2df",
-    "11155111": "0xf082e3218a690ea6386506bed338f6878d21815f",
-    "11155420": "0x79e5ca5ebe4f110965248afad88b8e539e1aa8fd"
-  },
-  "JBOmnichainDeployer": {
-    "1": "0x8f5ded85c40b50d223269c1f922a056e72101590",
-    "10": "0x8f5ded85c40b50d223269c1f922a056e72101590",
-    "8453": "0x8f5ded85c40b50d223269c1f922a056e72101590",
-    "42161": "0x8f5ded85c40b50d223269c1f922a056e72101590",
-    "84532": "0x8f5ded85c40b50d223269c1f922a056e72101590",
-    "421614": "0x8f5ded85c40b50d223269c1f922a056e72101590",
-    "11155111": "0x8f5ded85c40b50d223269c1f922a056e72101590",
-    "11155420": "0x8f5ded85c40b50d223269c1f922a056e72101590"
+  "5": {
+    "JBController": {
+      "1": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "10": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "8453": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "42161": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "84532": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "421614": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "11155111": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "11155420": "0x27da30646502e2f642be5281322ae8c394f7668a"
+    },
+    "JBDirectory": {
+      "1": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "10": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "8453": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "42161": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "84532": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "421614": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "11155111": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "11155420": "0x0061e516886a0540f63157f112c0588ee0651dcf"
+    },
+    "JBMultiTerminal": {
+      "1": "0x2db6d704058e552defe415753465df8df0361846",
+      "10": "0x2db6d704058e552defe415753465df8df0361846",
+      "8453": "0x2db6d704058e552defe415753465df8df0361846",
+      "42161": "0x2db6d704058e552defe415753465df8df0361846",
+      "84532": "0x2db6d704058e552defe415753465df8df0361846",
+      "421614": "0x2db6d704058e552defe415753465df8df0361846",
+      "11155111": "0x2db6d704058e552defe415753465df8df0361846",
+      "11155420": "0x2db6d704058e552defe415753465df8df0361846"
+    },
+    "JBRulesets": {
+      "1": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "10": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "8453": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "42161": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "84532": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "421614": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "11155111": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "11155420": "0x6292281d69c3593fcf6ea074e5797341476ab428"
+    },
+    "JBPermissions": {
+      "1": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "10": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "8453": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "42161": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "84532": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "421614": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "11155111": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "11155420": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d"
+    },
+    "JBProjects": {
+      "1": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "10": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "8453": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "42161": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "84532": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "421614": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "11155111": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "11155420": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4"
+    },
+    "JBSplits": {
+      "1": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "10": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "8453": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "42161": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "84532": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "421614": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "11155111": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "11155420": "0x7160a322fea44945a6ef9adfd65c322258df3c5e"
+    },
+    "JBTokens": {
+      "1": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "10": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "8453": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "42161": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "84532": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "421614": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "11155111": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "11155420": "0x4d0edd347fb1fa21589c1e109b3474924be87636"
+    },
+    "JBTerminalStore": {
+      "1": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "10": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "8453": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "42161": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "84532": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "421614": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "11155111": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "11155420": "0xfe33b439ec53748c87dcedacb83f05add5014744"
+    },
+    "JBFundAccessLimits": {
+      "1": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "10": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "8453": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "42161": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "84532": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "421614": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "11155111": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "11155420": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7"
+    },
+    "JBPrices": {
+      "1": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "10": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "8453": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "42161": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "84532": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "421614": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "11155111": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "11155420": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4"
+    },
+    "ERC2771Forwarder": {
+      "1": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "10": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "8453": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "42161": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "84532": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "421614": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "11155111": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "11155420": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566"
+    },
+    "JB721TiersHookDeployer": {
+      "1": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "10": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "8453": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "42161": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "84532": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "421614": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "11155111": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "11155420": "0xef60878d00378ac5f93d209f4616450ee8d41ca7"
+    },
+    "JB721TiersHookProjectDeployer": {
+      "1": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "10": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "8453": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "42161": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "84532": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "421614": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "11155111": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "11155420": "0x048626e715a194fc38dd9be12f516b54b10e725a"
+    },
+    "JB721TiersHook": {
+      "1": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "10": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "8453": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "42161": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "84532": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "421614": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "11155111": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "11155420": "0xe9485c121082d3beb57d6eac267b04a0f59d1760"
+    },
+    "JB721TiersHookStore": {
+      "1": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "10": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "8453": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "42161": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "84532": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "421614": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "11155111": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "11155420": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee"
+    },
+    "JBAddressRegistry": {
+      "1": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "10": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "8453": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "42161": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "84532": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "421614": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "11155111": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "11155420": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb"
+    },
+    "JBSuckerRegistry": {
+      "1": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "10": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "8453": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "42161": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "84532": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "421614": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "11155111": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "11155420": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3"
+    },
+    "JBCCIPSuckerDeployer": {
+      "1": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816",
+      "10": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816",
+      "8453": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
+      "42161": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
+      "84532": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
+      "421614": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
+      "11155111": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816",
+      "11155420": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816"
+    },
+    "JBCCIPSuckerDeployer_1": {
+      "1": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
+      "10": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1",
+      "8453": "0x58683931b146697d094c660aec1f4a8f564a3d7d",
+      "42161": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1",
+      "84532": "0x58683931b146697d094c660aec1f4a8f564a3d7d",
+      "421614": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1",
+      "11155111": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
+      "11155420": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1"
+    },
+    "JBCCIPSuckerDeployer_2": {
+      "1": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
+      "10": "0x58683931b146697d094c660aec1f4a8f564a3d7d",
+      "8453": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
+      "42161": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
+      "84532": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
+      "421614": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
+      "11155111": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
+      "11155420": "0x58683931b146697d094c660aec1f4a8f564a3d7d"
+    },
+    "JBSwapTerminal": {
+      "1": "0x259385b97dfbd5576bd717dc7b25967ec8b145dd",
+      "10": "0x73d04584bde126242c36c2c7b219cbdec7aad774",
+      "8453": "0x4fd73d8b285e82471f08a4ef9861d6248b832edd",
+      "42161": "0x483c9b12c5bd2da73133aae30642ce0008c752ad",
+      "84532": "0xc7369f75bd678e1a9a46b82e2512e84489d4d32d",
+      "421614": "0x5f820a86d63eb1b98c562728719dc1e30967c41c",
+      "11155111": "0xca3f2cc5a35c0412e8147746602b76ba4ac29fc5",
+      "11155420": "0xc7369f75bd678e1a9a46b82e2512e84489d4d32d"
+    },
+    "JBSwapTerminalRegistry": {
+      "1": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "10": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "8453": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "42161": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "84532": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "421614": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "11155111": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "11155420": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6"
+    },
+    "JBBuybackHook": {
+      "1": "0xd342490ec41d5982c23951253a74a1c940fe0f9b",
+      "10": "0x318f8aa6a95cb83419985c0d797c762f5a7824f3",
+      "8453": "0xb6133a222315f8e9d25e7c77bac5ddeb3451d088",
+      "42161": "0x4ac3e20edd1d398def0dfb44d3adb9fc244f0320",
+      "84532": "0x79e5ca5ebe4f110965248afad88b8e539e1aa8fd",
+      "421614": "0xb35ab801c008a64d8f3eea0a8a6209b0d176f2df",
+      "11155111": "0xf082e3218a690ea6386506bed338f6878d21815f",
+      "11155420": "0x79e5ca5ebe4f110965248afad88b8e539e1aa8fd"
+    },
+    "JBBuybackHookRegistry": {
+      "1": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "10": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "8453": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "42161": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "84532": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "421614": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "11155111": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "11155420": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a"
+    },
+    "JBOmnichainDeployer": {
+      "1": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "10": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "8453": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "42161": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "84532": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "421614": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "11155111": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "11155420": "0x8f5ded85c40b50d223269c1f922a056e72101590"
+    },
+    "REVDeployer": {
+      "1": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "10": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "8453": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "42161": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "84532": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "421614": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "11155111": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "11155420": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d"
+    },
+    "REVLoans": {
+      "1": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "10": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "8453": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "42161": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "84532": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "421614": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "11155111": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "11155420": "0x1880d832aa283d05b8eab68877717e25fbd550bb"
+    }
   }
 } as const;

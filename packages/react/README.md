@@ -12,8 +12,6 @@ npm install juice-sdk-react juice-sdk-core
 
 ## Usage
 
-Read and write hooks are exposed for every Juicebox contract. Find them in `src/generated/juicebox.ts`.
-
 Fetching all of the commonly used data for Juicebox projects can be cumbersome. We expose the `JBProjectProvider` to fetch a bunch of data about a juicebox project, including (but not limited to):
 
 - important contracts (like payment terminals, stores etc.)
@@ -31,7 +29,9 @@ function MyPage() {
 
   return (
     <JBProjectProvider
+      chainId={1}
       projectId={projectId}
+      version={5}
       ctxProps={{
         metadata: {
           ipfsGatewayHostname: "jbm.infura-ipfs.io", // your custom gateway. Defaults to `ipfs.io`
