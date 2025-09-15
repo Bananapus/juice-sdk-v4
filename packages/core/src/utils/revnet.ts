@@ -1,5 +1,5 @@
-import { RevnetCoreContracts, JBVersion, JBChainId } from "src/contracts.js";
-import { jbContractAddress } from "src/generated/juicebox.js";
+import { JBChainId, JBVersion } from "../contracts.js";
+import { jbContractAddress } from "../generated/juicebox.js";
 
 // The maximum fee percent
 const MAX_PREPAID_FEE_PERCENT_BIGINT = 500n;
