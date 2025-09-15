@@ -20,7 +20,7 @@ enum RevnetCoreContracts {
 /**
  * If true, use fetch to get the deployment files from the github repo.
  * If false, use import to get the deployment files from the local package.
- * 
+ *
  * Sometimes contract crew wont publish contracts to npm and i cbf with back and forth, so i just fetch directly from gh
  */
 const USE_FETCH = true;
@@ -39,10 +39,7 @@ const CHAIN_NAME = {
   [base.id]: "base",
 } as Record<number, string>;
 
-function revnetCorePath(
-  chain: Chain,
-  contractName: keyof typeof RevnetCoreContracts
-) {
+function revnetCorePath(chain: Chain, contractName: keyof typeof RevnetCoreContracts) {
   const chainName = CHAIN_NAME[chain.id];
 
   if (USE_FETCH) {
@@ -61,7 +58,7 @@ async function importDeployment(importPath: string) {
     };
   } else {
     const { default: deployment } = await import(importPath, {
-      assert: { type: "json" },
+      with: { type: "json" },
     });
     return deployment;
   }
@@ -70,31 +67,17 @@ async function importDeployment(importPath: string) {
 async function buildRevnetCoreContractConfig() {
   const chainToContractAddress = await Promise.all(
     Object.values(RevnetCoreContracts).map(async (contractName) => {
-      const deploymentSep = await importDeployment(
-        revnetCorePath(sepolia, contractName)
-      );
-      const deploymentOpSep = await importDeployment(
-        revnetCorePath(optimismSepolia, contractName)
-      );
-      const deploymentBaseSep = await importDeployment(
-        revnetCorePath(baseSepolia, contractName)
-      );
+      const deploymentSep = await importDeployment(revnetCorePath(sepolia, contractName));
+      const deploymentOpSep = await importDeployment(revnetCorePath(optimismSepolia, contractName));
+      const deploymentBaseSep = await importDeployment(revnetCorePath(baseSepolia, contractName));
       const deploymentArbSep = await importDeployment(
         revnetCorePath(arbitrumSepolia, contractName)
       );
 
-      const deployment = await importDeployment(
-        revnetCorePath(mainnet, contractName)
-      );
-      const deploymentOp = await importDeployment(
-        revnetCorePath(optimism, contractName)
-      );
-      const deploymentBase = await importDeployment(
-        revnetCorePath(base, contractName)
-      );
-      const deploymentArb = await importDeployment(
-        revnetCorePath(arbitrum, contractName)
-      );
+      const deployment = await importDeployment(revnetCorePath(mainnet, contractName));
+      const deploymentOp = await importDeployment(revnetCorePath(optimism, contractName));
+      const deploymentBase = await importDeployment(revnetCorePath(base, contractName));
+      const deploymentArb = await importDeployment(revnetCorePath(arbitrum, contractName));
 
       return {
         name: contractName,

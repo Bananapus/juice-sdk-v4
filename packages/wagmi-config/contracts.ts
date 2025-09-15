@@ -130,7 +130,7 @@ function getVersionedPath(path: Path, version: JBVersion) {
 }
 
 async function importDeploymentFile(path: string) {
-  const { default: deployment } = await import(path, { assert: { type: "json" } });
+  const { default: deployment } = await import(path, { with: { type: "json" } });
   return deployment as { address: string; abi: unknown[] };
 }
 
