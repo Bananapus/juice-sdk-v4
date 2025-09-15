@@ -1,16 +1,15 @@
 import {
   ETH_CURRENCY_ID,
+  getPrimaryNativeTerminal,
+  JBChainId,
+  jbMultiTerminalAbi,
   NATIVE_TOKEN,
   NATIVE_TOKEN_DECIMALS,
-  readJbDirectoryPrimaryTerminalOf,
-  readJbMultiTerminalCurrentSurplusOf,
 } from "juice-sdk-core";
+import { getContract } from "viem";
 import { useConfig } from "wagmi";
 import { useQuery } from "wagmi/query";
-import {
-  JBChainId,
-  useJBChainId,
-} from "../../contexts/JBChainContext/JBChainContext";
+import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useSuckers } from "../suckers/useSuckers";
 
@@ -21,10 +20,9 @@ export function useSuckersNativeTokenSurplus() {
   const config = useConfig();
 
   const chainId = useJBChainId();
-  const { projectId } = useJBContractContext();
+  const { projectId, version } = useJBContractContext();
 
-  const suckersQuery = useSuckers();
-  const pairs = suckersQuery.data;
+  const { data: pairs = [], isLoading, isError } = useSuckers();
 
   const surplusQuery = useQuery({
     queryKey: [
@@ -46,27 +44,26 @@ export function useSuckersNativeTokenSurplus() {
       const surpluses = await Promise.all(
         pairs.map(async (pair) => {
           const { peerChainId, projectId } = pair;
-          const terminal = await readJbDirectoryPrimaryTerminalOf(config, {
-            chainId: Number(peerChainId) as JBChainId,
-            args: [projectId, NATIVE_TOKEN],
+          const terminal = await getPrimaryNativeTerminal(config, peerChainId, projectId, version);
+
+          const contract = getContract({
+            address: terminal,
+            abi: jbMultiTerminalAbi,
+            client: config.getClient({ chainId: peerChainId }),
           });
 
-          const surplus = await readJbMultiTerminalCurrentSurplusOf(config, {
-            chainId: Number(peerChainId) as JBChainId,
-            address: terminal,
-            args: [
-              projectId,
-              [
-                {
-                  token: NATIVE_TOKEN,
-                  decimals: NATIVE_TOKEN_DECIMALS,
-                  currency: ETH_CURRENCY_ID,
-                },
-              ],
-              BigInt(NATIVE_TOKEN_DECIMALS),
-              BigInt(ETH_CURRENCY_ID),
+          const surplus = await contract.read.currentSurplusOf([
+            projectId,
+            [
+              {
+                token: NATIVE_TOKEN,
+                decimals: NATIVE_TOKEN_DECIMALS,
+                currency: ETH_CURRENCY_ID,
+              },
             ],
-          });
+            BigInt(NATIVE_TOKEN_DECIMALS),
+            BigInt(ETH_CURRENCY_ID),
+          ]);
 
           return { surplus, chainId: peerChainId, projectId };
         })
@@ -77,8 +74,8 @@ export function useSuckersNativeTokenSurplus() {
   });
 
   return {
-    isLoading: surplusQuery.isLoading || suckersQuery.isLoading,
-    isError: surplusQuery.isError || suckersQuery.isError,
+    isLoading: surplusQuery.isLoading || isLoading,
+    isError: surplusQuery.isError || isError,
     data: surplusQuery.data as
       | { surplus: bigint; chainId: JBChainId; projectId: bigint }[]
       | undefined,

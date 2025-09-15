@@ -1,15 +1,15 @@
 import {
   CashOutTaxRate,
   JBChainId,
+  jbControllerAbi,
   JBRulesetData,
   JBRulesetMetadata,
   ReservedPercent,
   RulesetWeight,
   WeightCutPercent,
 } from "juice-sdk-core";
-
+import { useReadContract } from "wagmi";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
-import { useReadJbControllerUpcomingRulesetOf } from "../../generated/juicebox";
 import { useResolveDataHook } from "./useResolveDataHook";
 
 export function useJBUpcomingRuleset({
@@ -25,7 +25,9 @@ export function useJBUpcomingRuleset({
 } {
   const { contracts } = useJBContractContext();
 
-  const { data, isLoading } = useReadJbControllerUpcomingRulesetOf({
+  const { data, isLoading } = useReadContract({
+    abi: jbControllerAbi,
+    functionName: "upcomingRulesetOf",
     address: contracts.controller?.data ?? undefined,
     args: projectId ? [projectId] : undefined,
     chainId,
@@ -42,9 +44,7 @@ export function useJBUpcomingRuleset({
     rulesetId: BigInt(_latestUpcomingRuleset?.id ?? 0),
   });
 
-  const upcomingWeight = new RulesetWeight(
-    _latestUpcomingRuleset?.weight ?? 0n
-  );
+  const upcomingWeight = new RulesetWeight(_latestUpcomingRuleset?.weight ?? 0n);
   const upcomingWeightCutPercent = new WeightCutPercent(
     _latestUpcomingRuleset?.weightCutPercent ?? 0
   );

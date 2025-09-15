@@ -1,8 +1,8 @@
 import { JBChainId } from "juice-sdk-core";
 import { useRequestRelayrQuote } from "./useRequestRelayrQuote";
 import {
-  useSignErc2771ForwardRequest,
   ERC2771ForwardRequestData,
+  useSignErc2771ForwardRequest,
 } from "./useSignErc2771ForwardRequest";
 
 /**
@@ -15,9 +15,7 @@ export function useGetRelayrTxQuote() {
   /**
    * Prompt user to sign transactions for each chain, then fetch transaction data from relayr.
    */
-  async function getRelayrTxQuote(
-    data: { chainId: JBChainId; data: ERC2771ForwardRequestData }[]
-  ) {
+  async function getRelayrTxQuote(data: { chainId: JBChainId; data: ERC2771ForwardRequestData }[]) {
     if (!data) return;
 
     /**

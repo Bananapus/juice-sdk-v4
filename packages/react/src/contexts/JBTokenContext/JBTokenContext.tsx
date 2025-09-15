@@ -1,14 +1,10 @@
-import { JBProjectToken } from "juice-sdk-core";
-import { PropsWithChildren, createContext, useContext } from "react";
+import { jbControllerAbi, JBProjectToken, jbTokensAbi } from "juice-sdk-core";
+import { createContext, PropsWithChildren, useContext } from "react";
 import { isAddressEqual, zeroAddress } from "viem";
-import { useToken, UseTokenReturnType } from "wagmi";
-import {
-  useReadJbControllerTotalTokenSupplyWithReservedTokensOf,
-  useReadJbTokensTokenOf,
-} from "../../generated/juicebox";
+import { useReadContract, useToken, UseTokenReturnType } from "wagmi";
+import { useJBChainId } from "../JBChainContext/JBChainContext";
 import { useJBContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
-import { useJBChainId } from "../JBChainContext/JBChainContext";
 
 /**
  * Context for the token of a project.
@@ -55,10 +51,7 @@ export type JBTokenProviderProps = PropsWithChildren<{
  *
  * @note depends on JBContractContext
  */
-export const JBTokenProvider = ({
-  children,
-  withTotalOutstanding,
-}: JBTokenProviderProps) => {
+export const JBTokenProvider = ({ children, withTotalOutstanding }: JBTokenProviderProps) => {
   const chainId = useJBChainId();
 
   const {
@@ -66,28 +59,29 @@ export const JBTokenProvider = ({
     contracts: { controller },
   } = useJBContractContext();
 
-  const { data: tokenAddress } = useReadJbTokensTokenOf({
+  const { data: tokenAddress } = useReadContract({
+    abi: jbTokensAbi,
+    functionName: "tokenOf",
     chainId,
     args: [projectId],
   });
-  const fetchTokenEnabled = Boolean(
-    tokenAddress && !isAddressEqual(tokenAddress, zeroAddress)
-  );
+  const fetchTokenEnabled = Boolean(tokenAddress && !isAddressEqual(tokenAddress, zeroAddress));
   const token = useToken({
     chainId,
     address: fetchTokenEnabled ? tokenAddress : undefined,
     query: { enabled: fetchTokenEnabled },
   });
 
-  const totalOutstandingRes =
-    useReadJbControllerTotalTokenSupplyWithReservedTokensOf({
-      chainId,
-      address: controller?.data ?? undefined,
-      args: withTotalOutstanding ? [projectId] : undefined,
-      query: {
-        enabled: withTotalOutstanding && controller?.data !== undefined,
-      },
-    });
+  const totalOutstandingRes = useReadContract({
+    abi: jbControllerAbi,
+    functionName: "totalTokenSupplyWithReservedTokensOf",
+    chainId,
+    address: controller?.data ?? undefined,
+    args: withTotalOutstanding ? [projectId] : undefined,
+    query: {
+      enabled: withTotalOutstanding && controller?.data !== undefined,
+    },
+  });
 
   const totalOutstandingData = totalOutstandingRes?.data
     ? new JBProjectToken(totalOutstandingRes?.data)

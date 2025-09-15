@@ -1,22 +1,19 @@
-import { JBProjectMetadata, getProjectMetadata } from "juice-sdk-core";
+import { JBProjectMetadata, debug, getProjectMetadata } from "juice-sdk-core";
 import { createContext, useContext } from "react";
 import { Address } from "viem";
-import { useChainId, usePublicClient } from "wagmi";
+import { usePublicClient } from "wagmi";
 import { useQuery } from "wagmi/query";
+import { useJBChainId } from "../JBChainContext/JBChainContext";
 import { useJBContractContext } from "../JBContractContext/JBContractContext";
 import { AsyncData, AsyncDataNone } from "../types";
-import { debug } from "juice-sdk-core";
-import { useJBChainId } from "../JBChainContext/JBChainContext";
 
 export type JBProjectMetadataContext = {
   metadata: AsyncData<JBProjectMetadata>;
 };
 
-export const JBProjectMetadataContext = createContext<JBProjectMetadataContext>(
-  {
-    metadata: AsyncDataNone,
-  }
-);
+export const JBProjectMetadataContext = createContext<JBProjectMetadataContext>({
+  metadata: AsyncDataNone,
+});
 
 export function useJBProjectMetadataContext() {
   return useContext(JBProjectMetadataContext);
@@ -32,9 +29,7 @@ export function useProjectMetadata({
   ipfsGatewayHostname?: string;
 }) {
   const chainId = useJBChainId();
-  const publicClient = usePublicClient({
-    chainId,
-  });
+  const publicClient = usePublicClient({ chainId });
 
   return useQuery({
     queryKey: [
@@ -98,9 +93,7 @@ export const JBProjectMetadataProvider = ({
 
   return (
     <JBProjectMetadataContext.Provider
-      value={{
-        metadata: metadata as AsyncData<JBProjectMetadata>,
-      }}
+      value={{ metadata: metadata as AsyncData<JBProjectMetadata> }}
     >
       {children}
     </JBProjectMetadataContext.Provider>

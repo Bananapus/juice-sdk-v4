@@ -9,13 +9,7 @@ import { useNativeTokenSymbol } from "../hooks/token/useNativeTokenSymbol";
  * @param wei The native token value in wei (fixed-point number with 18 decimals).
  * @param decimals The number of decimal places (or 'fraction digits') to display.
  */
-export function NativeTokenValue({
-  wei,
-  decimals = 4,
-}: {
-  wei: bigint;
-  decimals?: number;
-}) {
+export function NativeTokenValue({ wei, decimals = 4 }: { wei: bigint; decimals?: number }) {
   const symbol = useNativeTokenSymbol();
 
   return (

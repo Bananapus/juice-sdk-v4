@@ -3,11 +3,12 @@ import {
   JBChainId,
   NATIVE_TOKEN_DECIMALS,
   applyJbDaoCashOutFee,
+  jbTerminalStoreAbi,
 } from "juice-sdk-core";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useJBTerminalContext } from "../../contexts/JBTerminalContext/JBTerminalContext";
-import { useReadJbTerminalStoreCurrentReclaimableSurplusOf } from "../../generated/juicebox";
+import { useReadContract } from "wagmi";
 
 /**
  * Return the amount of ETH (wei) received from redeerming [tokenAmountWei] project tokens.
@@ -21,18 +22,13 @@ export function useTokenCashOutQuoteEth(
   const jbChainId = useJBChainId();
   const _chainId = chainId ?? jbChainId;
 
-  return useReadJbTerminalStoreCurrentReclaimableSurplusOf({
+  return useReadContract({
+    abi: jbTerminalStoreAbi,
+    functionName: "currentReclaimableSurplusOf",
     chainId: _chainId,
     address: store.data ?? undefined,
     args: tokenAmountWei
-      ? [
-          projectId,
-          tokenAmountWei,
-          [],
-          [],
-          BigInt(NATIVE_TOKEN_DECIMALS),
-          BigInt(ETH_CURRENCY_ID),
-        ]
+      ? [projectId, tokenAmountWei, [], [], BigInt(NATIVE_TOKEN_DECIMALS), BigInt(ETH_CURRENCY_ID)]
       : undefined,
     query: {
       select(data: bigint) {

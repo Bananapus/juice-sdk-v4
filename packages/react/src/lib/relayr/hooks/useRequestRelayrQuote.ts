@@ -1,9 +1,13 @@
+"use client";
+import { JBChainId, jbContractAddress } from "juice-sdk-core";
+import { useJBContractContext } from "src/contexts/JBContractContext/JBContractContext";
 import { useMutation } from "wagmi/query";
 import { API } from "../constants";
 import { RelayrPostBundleResponse } from "../types";
-import { JBChainId, erc2771ForwarderAddress } from "juice-sdk-core";
 
 export function useRequestRelayrQuote() {
+  const { version } = useJBContractContext();
+
   return useMutation({
     mutationFn: async (
       args: {
@@ -16,7 +20,7 @@ export function useRequestRelayrQuote() {
         return {
           chain: ct.chain,
           data: ct.data,
-          target: erc2771ForwarderAddress[ct.chain],
+          target: jbContractAddress[version]["ERC2771Forwarder"][ct.chain],
           value: ct.value,
         };
       });

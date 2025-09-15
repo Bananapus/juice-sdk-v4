@@ -1,13 +1,11 @@
-import { useQuery } from "wagmi/query";
 import { useMemo, useState } from "react";
+import { useQuery } from "wagmi/query";
 import { API } from "../constants";
 import { RelayrGetBundleResponse } from "../types";
 
 const POLL_INTERVAL = 2000;
 
-const fetchTxBundle = async (
-  uuid: string | undefined
-): Promise<RelayrGetBundleResponse> => {
+const fetchTxBundle = async (uuid: string | undefined): Promise<RelayrGetBundleResponse> => {
   if (!uuid) {
     throw new Error("No UUID provided");
   }
@@ -27,9 +25,7 @@ export function useGetRelayrTxBundle() {
     queryFn: () => fetchTxBundle(uuid),
     enabled: !!uuid,
     refetchInterval: (query) =>
-      query.state.data?.transactions?.every(
-        (tx) => tx?.status.state === "Success"
-      )
+      query.state.data?.transactions?.every((tx) => tx?.status.state === "Success")
         ? false
         : POLL_INTERVAL,
   });

@@ -1,3 +1,4 @@
+"use client";
 import { DEFAULT_ALLOW_OVERSPENDING, createHookMetadata } from "juice-sdk-core";
 import { Address, Hash, encodeAbiParameters } from "viem";
 import { use721HookMetadataId } from "./jb721Hook/use721HookMetadataId";
@@ -14,11 +15,7 @@ function encodeJB721HookPayMetadata(metadata: Jb721HookPayMetadata) {
     metadata.tierIdsToMint.map(Number),
   ] as [boolean, readonly number[]];
 
-  const encoded = encodeAbiParameters(
-    [{ type: "bool" }, { type: "uint16[]" }],
-    args
-  );
-
+  const encoded = encodeAbiParameters([{ type: "bool" }, { type: "uint16[]" }], args);
   return encoded;
 }
 

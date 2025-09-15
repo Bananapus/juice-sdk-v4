@@ -11,7 +11,7 @@ import { debug } from "juice-sdk-core";
  */
 export function useFind721DataHook() {
   const { data } = useJBDataHookContext();
-  const { projectId } = useJBContractContext();
+  const { projectId, version } = useJBContractContext();
   const { ruleset } = useJBRulesetContext();
   const publicClient = usePublicClient();
 
@@ -38,6 +38,7 @@ export function useFind721DataHook() {
         dataHookAddress,
         projectId,
         rulesetId,
+        version,
       });
 
       return jb721DataHook;
