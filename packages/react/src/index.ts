@@ -1,4 +1,4 @@
-export { JBVersion, JBChainId } from "juice-sdk-core";
+export type { JBVersion, JBChainId } from "juice-sdk-core";
 export * from "./components/NativeTokenValue";
 export * from "./contexts/JBChainContext/JBChainContext";
 export * from "./contexts/JBContractContext/JBContractContext";

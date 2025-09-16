@@ -76,5 +76,3 @@ export const SUPPORTED_CHAINS = {
   42161: "arbitrum",
   8453: "base",
 } as const;
-
-export type JBChainId = keyof typeof SUPPORTED_CHAINS;

@@ -1,5 +1,5 @@
-import { JB721HookContracts, JBAddressRegistryContracts, JBChainId, JBVersion } from "src/types.js";
-import { getJBContractAddress } from "src/utils/contracts.js";
+import { JB721HookContracts, JBAddressRegistryContracts, JBChainId, JBVersion } from "../types.js";
+import { getJBContractAddress } from "../utils/contracts.js";
 import { Address, PublicClient, getContract, isAddressEqual, zeroAddress } from "viem";
 import { jb721TiersHookAbi, jbAddressRegistryAbi } from "../generated/juicebox.js";
 import { debug } from "../utils/debug.js";

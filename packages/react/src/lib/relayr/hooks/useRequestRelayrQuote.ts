@@ -1,6 +1,6 @@
 "use client";
 import { JBChainId, jbContractAddress } from "juice-sdk-core";
-import { useJBContractContext } from "src/contexts/JBContractContext/JBContractContext";
+import { useJBContractContext } from "../../../contexts/JBContractContext/JBContractContext";
 import { useMutation } from "wagmi/query";
 import { API } from "../constants";
 import { RelayrPostBundleResponse } from "../types";

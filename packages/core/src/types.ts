@@ -7,17 +7,19 @@ import {
   SplitPortion,
   WeightCutPercent,
 } from "./utils/data.js";
+import { SUPPORTED_CHAINS } from "./contracts.js";
 export {
   JB721HookContracts,
   JBAddressRegistryContracts,
   JBBuybackHookContracts,
-  JBChainId,
   JBCoreContracts,
   JBOmnichainDeployerContracts,
   JBSuckerContracts,
   JBSwapTerminalContracts,
   JBVersion,
 } from "./contracts.js";
+
+export type JBChainId = keyof typeof SUPPORTED_CHAINS;
 
 export const projectTagOptions = [
   "art",

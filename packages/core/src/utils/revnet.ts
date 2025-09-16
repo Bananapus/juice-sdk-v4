@@ -1,4 +1,5 @@
-import { JBChainId, JBVersion } from "../contracts.js";
+import { JBChainId } from "src/types.js";
+import { JBVersion } from "../contracts.js";
 import { jbContractAddress } from "../generated/juicebox.js";
 
 // The maximum fee percent

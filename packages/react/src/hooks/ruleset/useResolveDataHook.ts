@@ -4,7 +4,7 @@ import {
   jbOmnichainDeployer4_1Abi,
   jbOmnichainDeployerAbi,
 } from "juice-sdk-core";
-import { useJBContractContext } from "src/contexts/JBContractContext/JBContractContext";
+import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { isAddressEqual, zeroAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { useReadContract } from "wagmi";

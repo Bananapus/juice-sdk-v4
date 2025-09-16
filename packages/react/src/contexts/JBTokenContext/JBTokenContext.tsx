@@ -1,4 +1,10 @@
-import { jbControllerAbi, JBProjectToken, jbTokensAbi } from "juice-sdk-core";
+import {
+  getJBContractAddress,
+  jbControllerAbi,
+  JBCoreContracts,
+  JBProjectToken,
+  jbTokensAbi,
+} from "juice-sdk-core";
 import { createContext, PropsWithChildren, useContext } from "react";
 import { isAddressEqual, zeroAddress } from "viem";
 import { useReadContract, useToken, UseTokenReturnType } from "wagmi";
@@ -56,15 +62,19 @@ export const JBTokenProvider = ({ children, withTotalOutstanding }: JBTokenProvi
 
   const {
     projectId,
+    version,
     contracts: { controller },
   } = useJBContractContext();
 
   const { data: tokenAddress } = useReadContract({
+    address: getJBContractAddress(JBCoreContracts.JBTokens, version, chainId!),
     abi: jbTokensAbi,
     functionName: "tokenOf",
     chainId,
     args: [projectId],
+    query: { enabled: !!projectId && !!chainId && !!version },
   });
+
   const fetchTokenEnabled = Boolean(tokenAddress && !isAddressEqual(tokenAddress, zeroAddress));
   const token = useToken({
     chainId,

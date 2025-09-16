@@ -1,8 +1,8 @@
 import { Address, PublicClient, getContract } from "viem";
 import { jbSuckerRegistryAbi } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
-import { JBChainId, JBSuckerContracts, JBVersion } from "src/types.js";
-import { getJBContractAddress } from "src/utils/contracts.js";
+import { JBChainId, JBSuckerContracts, JBVersion } from "../types.js";
+import { getJBContractAddress } from "../utils/contracts.js";
 import { useConfig } from "wagmi";
 
 export type SuckerPair = {
