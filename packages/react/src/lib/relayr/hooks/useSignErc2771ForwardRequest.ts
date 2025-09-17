@@ -1,11 +1,7 @@
-import {
-  JBChainId,
-  erc2771ForwarderAbi,
-  erc2771ForwarderAddress,
-  readErc2771ForwarderNonces,
-} from "juice-sdk-core";
-import { Address, Hash, encodeFunctionData } from "viem";
-import { useAccount, useConfig, useSignTypedData, useSwitchChain } from "wagmi";
+import { JBChainId, erc2771ForwarderAbi, jbContractAddress } from "juice-sdk-core";
+import { useJBContractContext } from "../../../contexts/JBContractContext/JBContractContext";
+import { Address, Hash, encodeFunctionData, getContract } from "viem";
+import { useAccount, useConfig, useSignTypedData, useSwitchChain, version } from "wagmi";
 
 export type ERC2771ForwardRequestData = {
   from: Address;
@@ -20,32 +16,33 @@ export function useSignErc2771ForwardRequest() {
   const { address } = useAccount();
   const config = useConfig();
   const { signTypedData } = useSignTypedData();
+  const { version } = useJBContractContext();
 
-  async function sign(
-    messageData: ERC2771ForwardRequestData,
-    chainId: JBChainId
-  ) {
+  async function sign(messageData: ERC2771ForwardRequestData, chainId: JBChainId) {
     await switchChainAsync({ chainId });
 
     return new Promise<Hash>(async (resolve, reject) => {
       if (!address) return;
 
-      // 48hrs
-      const deadline = Number(
-        ((Date.now() + 3600 * 48 * 1000) / 1000).toFixed(0)
-      );
+      const verifyingContract = jbContractAddress[version]["ERC2771Forwarder"][chainId];
 
-      const nonce = await readErc2771ForwarderNonces(config, {
-        chainId,
-        args: [address],
+      // 48hrs
+      const deadline = Number(((Date.now() + 3600 * 48 * 1000) / 1000).toFixed(0));
+
+      const contract = getContract({
+        address: verifyingContract,
+        abi: erc2771ForwarderAbi,
+        client: config.getClient({ chainId }),
       });
+
+      const nonce = await contract.read.nonces([address]);
 
       signTypedData(
         {
           domain: {
             name: "Juicebox",
             chainId,
-            verifyingContract: erc2771ForwarderAddress[chainId],
+            verifyingContract,
             version: "1",
           },
           primaryType: "ForwardRequest",

@@ -38,4 +38,4 @@ export const JBSuckerAbi = [
     ],
     stateMutability: "view",
   },
-];
+] as const;

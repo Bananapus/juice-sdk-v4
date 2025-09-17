@@ -1,5 +1,5 @@
 import { PropsWithChildren } from "react";
-import { JBChainId, JBChainProvider } from "../JBChainContext/JBChainContext";
+import { JBChainProvider } from "../JBChainContext/JBChainContext";
 import {
   JBContractProvider,
   JBContractProviderProps,
@@ -10,15 +10,14 @@ import {
   JBProjectMetadataProviderProps,
 } from "../JBProjectMetadataContext/JBProjectMetadataContext";
 import { JBRulesetProvider } from "../JBRulesetContext/JBRulesetContext";
-import {
-  JBTokenProvider,
-  JBTokenProviderProps,
-} from "../JBTokenContext/JBTokenContext";
+import { JBTokenProvider, JBTokenProviderProps } from "../JBTokenContext/JBTokenContext";
 import { JBPrimaryNativeTerminalProvider } from "../JBTerminalContext/JBPrimaryNativeTerminalProvider";
+import { JBChainId, JBVersion } from "juice-sdk-core";
 
 type JBProjectProviderProps = PropsWithChildren<{
   projectId: bigint;
   chainId: JBChainId;
+  version: JBVersion;
   ctxProps?: {
     token?: JBTokenProviderProps;
     contract?: JBContractProviderProps;
@@ -39,17 +38,16 @@ export const JBProjectProvider = ({
   chainId,
   children,
   ctxProps,
+  version,
 }: JBProjectProviderProps) => {
   return (
     <JBChainProvider chainId={chainId}>
-      <JBContractProvider projectId={projectId} {...ctxProps?.contract}>
+      <JBContractProvider projectId={projectId} version={version} {...ctxProps?.contract}>
         <JBRulesetProvider>
           <JBProjectMetadataProvider {...ctxProps?.metadata}>
             <JBCurrentDataHookProvider>
               <JBPrimaryNativeTerminalProvider>
-                <JBTokenProvider {...ctxProps?.token}>
-                  {children}
-                </JBTokenProvider>
+                <JBTokenProvider {...ctxProps?.token}>{children}</JBTokenProvider>
               </JBPrimaryNativeTerminalProvider>
             </JBCurrentDataHookProvider>
           </JBProjectMetadataProvider>

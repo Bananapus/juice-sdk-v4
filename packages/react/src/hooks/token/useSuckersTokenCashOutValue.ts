@@ -6,26 +6,15 @@ import { useSuckersCashOutQuote } from "./useSuckersCashOutQuote";
 /**
  * Return the current cashout value of one project token.
  */
-export function useSuckersTokenCashOutValue({
-  targetCurrency,
-}: {
-  targetCurrency: "eth" | "usd";
-}) {
+export function useSuckersTokenCashOutValue({ targetCurrency }: { targetCurrency: "eth" | "usd" }) {
   const { data: ethPrice, isLoading: isEthLoading } = useEtherPrice();
 
-  const {
-    data: quote,
-    isLoading: isQuoteLoading,
-    errors,
-  } = useSuckersCashOutQuote(ONE_JB_TOKEN);
+  const { data: quote, isLoading: isQuoteLoading, errors } = useSuckersCashOutQuote(ONE_JB_TOKEN);
 
   const loading = isQuoteLoading || isEthLoading;
 
   if (loading) {
-    return {
-      loading: true,
-      data: undefined,
-    };
+    return { loading: true, data: undefined };
   }
 
   const quoteEth = parseFloat(formatEther(quote ?? 0n));
@@ -33,7 +22,7 @@ export function useSuckersTokenCashOutValue({
   const data = targetCurrency === "eth" ? quoteEth : quoteEth * (ethPrice ?? 0);
 
   return {
-    loading: false,
+    loading,
     data,
     errors,
   };

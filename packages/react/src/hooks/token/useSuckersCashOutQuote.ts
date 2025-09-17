@@ -1,11 +1,13 @@
 import {
   applyJbDaoCashOutFee,
-  JBChainId,
-  NATIVE_TOKEN_DECIMALS,
-  getProjectTerminalStore,
-  readJbTerminalStoreCurrentReclaimableSurplusOf,
   ETH_CURRENCY_ID,
+  getProjectTerminalStore,
+  JBChainId,
+  jbTerminalStoreAbi,
+  JBVersion,
+  NATIVE_TOKEN_DECIMALS,
 } from "juice-sdk-core";
+import { getContract } from "viem";
 import { useConfig } from "wagmi";
 import { useQuery, UseQueryReturnType } from "wagmi/query";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
@@ -19,10 +21,9 @@ import { useSuckers } from "../suckers/useSuckers";
 export function useSuckersCashOutQuote(tokenAmountWei: bigint) {
   const config = useConfig();
   const chainId = useJBChainId();
-  const { projectId } = useJBContractContext();
+  const { projectId, version } = useJBContractContext();
 
-  const suckersQuery = useSuckers();
-  const pairs = suckersQuery.data;
+  const { data: pairs = [], isLoading, error } = useSuckers();
 
   const suckersQuote: UseQueryReturnType<bigint | null> = useQuery({
     queryKey: [
@@ -30,21 +31,20 @@ export function useSuckersCashOutQuote(tokenAmountWei: bigint) {
       projectId.toString(),
       chainId?.toString(),
       tokenAmountWei.toString(),
-      pairs?.map((pair) => pair.peerChainId).join(","),
+      pairs.map((pair) => pair.peerChainId).join(","),
     ],
-    enabled: Boolean(!suckersQuery.isLoading && chainId),
+    enabled: Boolean(!isLoading && chainId),
     queryFn: async () => {
-      if (!chainId) {
-        return null;
-      }
+      if (!chainId) return null;
 
       const quotes = await Promise.all(
-        pairs?.map(async ({ peerChainId, projectId }) => {
+        pairs.map(async ({ peerChainId, projectId }) => {
           return getTokenRedemptionQuote(
             config,
             peerChainId as JBChainId,
             projectId,
-            tokenAmountWei
+            tokenAmountWei,
+            version
           );
         }) ?? []
       );
@@ -57,8 +57,8 @@ export function useSuckersCashOutQuote(tokenAmountWei: bigint) {
 
   return {
     data: netTotal,
-    isLoading: suckersQuote.isLoading || suckersQuery.isLoading,
-    errors: [suckersQuery.error, suckersQuote.error].filter(Boolean),
+    isLoading: suckersQuote.isLoading || isLoading,
+    errors: [error, suckersQuote.error].filter(Boolean),
   };
 }
 
@@ -66,23 +66,23 @@ async function getTokenRedemptionQuote(
   config: ReturnType<typeof useConfig>,
   chainId: JBChainId,
   projectId: bigint,
-  tokenAmountWei: bigint
+  tokenAmountWei: bigint,
+  version: JBVersion
 ) {
-  const terminalStore = await getProjectTerminalStore(
-    config,
-    chainId,
-    projectId
-  );
-  return await readJbTerminalStoreCurrentReclaimableSurplusOf(config, {
-    chainId,
+  const terminalStore = await getProjectTerminalStore(config, chainId, projectId, version);
+
+  const contract = getContract({
     address: terminalStore,
-    args: [
-      projectId,
-      tokenAmountWei,
-      [],
-      [],
-      BigInt(NATIVE_TOKEN_DECIMALS),
-      BigInt(ETH_CURRENCY_ID),
-    ],
+    abi: jbTerminalStoreAbi,
+    client: config.getClient({ chainId }),
   });
+
+  return await contract.read.currentReclaimableSurplusOf([
+    projectId,
+    tokenAmountWei,
+    [],
+    [],
+    BigInt(NATIVE_TOKEN_DECIMALS),
+    BigInt(ETH_CURRENCY_ID),
+  ]);
 }

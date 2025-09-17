@@ -1,8 +1,5 @@
-import { debug } from "juice-sdk-core";
-import { PropsWithChildren, createContext, useContext } from "react";
-import { jbDirectoryAddress } from "../../generated/juicebox";
-
-export type JBChainId = keyof typeof jbDirectoryAddress;
+import { debug, JBChainId } from "juice-sdk-core";
+import { createContext, PropsWithChildren, useContext } from "react";
 
 /**
  * Context for project-specific contracts.
@@ -15,7 +12,6 @@ export type JBChainContextData = {
  * Context for project-specific contracts.
  */
 export const JBChainContext = createContext<JBChainContextData>({
-  // Force the consumer/client to specify a chainId
   chainId: undefined,
 });
 
@@ -32,20 +28,8 @@ export function useJBChainId(): JBChainId | undefined {
 export const JBChainProvider = ({
   chainId,
   children,
-}: PropsWithChildren<{
-  chainId: JBChainId;
-}>) => {
-  debug("JBChainContext", {
-    chainId,
-  });
+}: PropsWithChildren<{ chainId: JBChainId }>) => {
+  debug("JBChainContext", { chainId });
 
-  return (
-    <JBChainContext.Provider
-      value={{
-        chainId,
-      }}
-    >
-      {children}
-    </JBChainContext.Provider>
-  );
+  return <JBChainContext.Provider value={{ chainId }}>{children}</JBChainContext.Provider>;
 };

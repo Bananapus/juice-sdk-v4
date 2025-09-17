@@ -1,24 +1,7 @@
-import {
-  createReadContract,
-  createWriteContract,
-  createSimulateContract,
-  createWatchContractEvent,
-} from 'wagmi/codegen'
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ERC2771Forwarder
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
 export const erc2771ForwarderAbi = [
   {
     type: 'constructor',
@@ -192,42 +175,6 @@ export const erc2771ForwarderAbi = [
     name: 'StringTooLong',
   },
 ] as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const erc2771ForwarderAddress = {
-  1: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
-  10: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
-  8453: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
-  42161: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
-  84532: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
-  421614: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
-  11155111: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
-  11155420: '0x8A5ba591Ed2bed5691a378C65611eD492500f887',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const erc2771ForwarderConfig = {
-  address: erc2771ForwarderAddress,
-  abi: erc2771ForwarderAbi,
-} as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JB721TiersHook
@@ -652,6 +599,26 @@ export const jb721TiersHookAbi = [
     type: 'function',
     inputs: [
       { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
       { name: '', internalType: 'address', type: 'address' },
     ],
     name: 'hasMintPermissionFor',
@@ -1541,16 +1508,6 @@ export const jb721TiersHookAbi = [
 // JB721TiersHookDeployer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
 export const jb721TiersHookDeployerAbi = [
   {
     type: 'constructor',
@@ -1797,56 +1754,10 @@ export const jb721TiersHookDeployerAbi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const jb721TiersHookDeployerAddress = {
-  1: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
-  10: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
-  8453: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
-  42161: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
-  84532: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
-  421614: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
-  11155111: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
-  11155420: '0xdEFB489D101bf74bBf8F60Eec6ff2F078C9D5206',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const jb721TiersHookDeployerConfig = {
-  address: jb721TiersHookDeployerAddress,
-  abi: jb721TiersHookDeployerAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JB721TiersHookProjectDeployer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
 export const jb721TiersHookProjectDeployerAbi = [
   {
     type: 'constructor',
@@ -3030,42 +2941,6 @@ export const jb721TiersHookProjectDeployerAbi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const jb721TiersHookProjectDeployerAddress = {
-  1: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
-  10: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
-  8453: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
-  42161: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
-  84532: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
-  421614: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
-  11155111: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
-  11155420: '0xEdB83Eb473B008a2246488df1f85174d26D86aF2',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const jb721TiersHookProjectDeployerConfig = {
-  address: jb721TiersHookProjectDeployerAddress,
-  abi: jb721TiersHookProjectDeployerAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JB721TiersHookStore
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3681,16 +3556,6 @@ export const jb721TiersHookStoreAbi = [
 // JBAddressRegistry
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
 export const jbAddressRegistryAbi = [
   {
     type: 'function',
@@ -3742,42 +3607,6 @@ export const jbAddressRegistryAbi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
-export const jbAddressRegistryAddress = {
-  1: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
-  10: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
-  8453: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
-  42161: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
-  84532: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
-  421614: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
-  11155111: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
-  11155420: '0x2d9B78cb37Ca724cFB9B32cd8e9A5DC1C88Bc7Bb',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
-export const jbAddressRegistryConfig = {
-  address: jbAddressRegistryAddress,
-  abi: jbAddressRegistryAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBBuybackHook
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3792,24 +3621,22 @@ export const jbBuybackHookAbi = [
         type: 'address',
       },
       {
-        name: 'controller',
-        internalType: 'contract IJBController',
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
         type: 'address',
       },
       { name: 'prices', internalType: 'contract IJBPrices', type: 'address' },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'tokens', internalType: 'contract IJBTokens', type: 'address' },
       { name: 'weth', internalType: 'contract IWETH9', type: 'address' },
       { name: 'factory', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'CONTROLLER',
-    outputs: [
-      { name: '', internalType: 'contract IJBController', type: 'address' },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -3823,21 +3650,7 @@ export const jbBuybackHookAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'MAX_TWAP_SLIPPAGE_TOLERANCE',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
     name: 'MAX_TWAP_WINDOW',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'MIN_TWAP_SLIPPAGE_TOLERANCE',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
@@ -3878,7 +3691,23 @@ export const jbBuybackHookAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'TOKENS',
+    outputs: [
+      { name: '', internalType: 'contract IJBTokens', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'TWAP_SLIPPAGE_DENOMINATOR',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'UNCERTAIN_TWAP_SLIPPAGE_TOLERANCE',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
@@ -4052,11 +3881,38 @@ export const jbBuybackHookAbi = [
     type: 'function',
     inputs: [
       { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
       { name: '', internalType: 'address', type: 'address' },
     ],
     name: 'hasMintPermissionFor',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -4082,12 +3938,7 @@ export const jbBuybackHookAbi = [
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'fee', internalType: 'uint24', type: 'uint24' },
-      { name: 'twapWindow', internalType: 'uint32', type: 'uint32' },
-      {
-        name: 'twapSlippageTolerance',
-        internalType: 'uint256',
-        type: 'uint256',
-      },
+      { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
       { name: 'terminalToken', internalType: 'address', type: 'address' },
     ],
     name: 'setPoolFor',
@@ -4104,21 +3955,7 @@ export const jbBuybackHookAbi = [
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      {
-        name: 'newSlippageTolerance',
-        internalType: 'uint256',
-        type: 'uint256',
-      },
-    ],
-    name: 'setTwapSlippageToleranceOf',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      { name: 'newWindow', internalType: 'uint32', type: 'uint32' },
+      { name: 'newWindow', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'setTwapWindowOf',
     outputs: [],
@@ -4133,16 +3970,16 @@ export const jbBuybackHookAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
-    name: 'twapSlippageToleranceOf',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'twapWindowOf',
-    outputs: [{ name: '', internalType: 'uint32', type: 'uint32' }],
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -4266,37 +4103,6 @@ export const jbBuybackHookAbi = [
         indexed: true,
       },
       {
-        name: 'oldTolerance',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'newTolerance',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'caller',
-        internalType: 'address',
-        type: 'address',
-        indexed: false,
-      },
-    ],
-    name: 'TwapSlippageToleranceChanged',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'projectId',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: true,
-      },
-      {
         name: 'oldWindow',
         internalType: 'uint256',
         type: 'uint256',
@@ -4329,15 +4135,6 @@ export const jbBuybackHookAbi = [
       { name: 'totalPaid', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'JBBuybackHook_InsufficientPayAmount',
-  },
-  {
-    type: 'error',
-    inputs: [
-      { name: 'value', internalType: 'uint256', type: 'uint256' },
-      { name: 'min', internalType: 'uint256', type: 'uint256' },
-      { name: 'max', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'JBBuybackHook_InvalidTwapSlippageTolerance',
   },
   {
     type: 'error',
@@ -4410,19 +4207,464 @@ export const jbBuybackHookAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBBuybackHookRegistry
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbBuybackHookRegistryAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'allowHook',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforeCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'surplus',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'useTotalSurplus', internalType: 'bool', type: 'bool' },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforeCashOutRecordedWith',
+    outputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBCashOutHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBCashOutHook',
+            type: 'address',
+          },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforePayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'payer', internalType: 'address', type: 'address' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          { name: 'reservedPercent', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforePayRecordedWith',
+    outputs: [
+      { name: 'weight', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBPayHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBPayHook',
+            type: 'address',
+          },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'defaultHook',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'disallowHook',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'hasLockedHook',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+      { name: 'addr', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasMintPermissionFor',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'hookOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'isHookAllowed',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'lockHookFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'setDefaultHook',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'setHookFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBBuybackHookRegistry_AllowHook',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBBuybackHookRegistry_DisallowHook',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'JBBuybackHookRegistry_LockHook',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBBuybackHookRegistry_SetDefaultHook',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBBuybackHookRegistry_SetHook',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBBuybackHookRegistry_HookLocked',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    name: 'JBBuybackHookRegistry_HookNotAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBBuybackHookRegistry_HookNotSet',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBCCIPSuckerDeployer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
 export const jbccipSuckerDeployerAbi = [
   {
     type: 'constructor',
@@ -4641,56 +4883,10 @@ export const jbccipSuckerDeployerAbi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const jbccipSuckerDeployerAddress = {
-  1: '0x34B40205B249e5733CF93d86B7C9783b015dD3e7',
-  10: '0x34B40205B249e5733CF93d86B7C9783b015dD3e7',
-  8453: '0xdE901EbaFC70d545F9D43034308C136Ce8c94A5C',
-  42161: '0x9d4858cc9d3552507EEAbce722787AfEf64C615e',
-  84532: '0xdE901EbaFC70d545F9D43034308C136Ce8c94A5C',
-  421614: '0x9d4858cc9d3552507EEAbce722787AfEf64C615e',
-  11155111: '0x34B40205B249e5733CF93d86B7C9783b015dD3e7',
-  11155420: '0x34B40205B249e5733CF93d86B7C9783b015dD3e7',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const jbccipSuckerDeployerConfig = {
-  address: jbccipSuckerDeployerAddress,
-  abi: jbccipSuckerDeployerAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBCCIPSuckerDeployer_1
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
 export const jbccipSuckerDeployer_1Abi = [
   {
     type: 'constructor',
@@ -4909,56 +5105,10 @@ export const jbccipSuckerDeployer_1Abi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const jbccipSuckerDeployer_1Address = {
-  1: '0xdE901EbaFC70d545F9D43034308C136Ce8c94A5C',
-  10: '0x39132eA75B9eaE5CBfF7BA1997C804302a7fF413',
-  8453: '0xb825F2f6995966eB6dD772a8707D4A547028Ac26',
-  42161: '0x39132eA75B9eaE5CBfF7BA1997C804302a7fF413',
-  84532: '0xb825F2f6995966eB6dD772a8707D4A547028Ac26',
-  421614: '0x39132eA75B9eaE5CBfF7BA1997C804302a7fF413',
-  11155111: '0xdE901EbaFC70d545F9D43034308C136Ce8c94A5C',
-  11155420: '0x39132eA75B9eaE5CBfF7BA1997C804302a7fF413',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const jbccipSuckerDeployer_1Config = {
-  address: jbccipSuckerDeployer_1Address,
-  abi: jbccipSuckerDeployer_1Abi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBCCIPSuckerDeployer_2
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
 export const jbccipSuckerDeployer_2Abi = [
   {
     type: 'constructor',
@@ -5177,42 +5327,6 @@ export const jbccipSuckerDeployer_2Abi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const jbccipSuckerDeployer_2Address = {
-  1: '0x9d4858cc9d3552507EEAbce722787AfEf64C615e',
-  10: '0xb825F2f6995966eB6dD772a8707D4A547028Ac26',
-  8453: '0x3D7Fb0aa325aD5D2349274f9eF33D4424135d963',
-  42161: '0x3D7Fb0aa325aD5D2349274f9eF33D4424135d963',
-  84532: '0x3D7Fb0aa325aD5D2349274f9eF33D4424135d963',
-  421614: '0x3D7Fb0aa325aD5D2349274f9eF33D4424135d963',
-  11155111: '0x9d4858cc9d3552507EEAbce722787AfEf64C615e',
-  11155420: '0xb825F2f6995966eB6dD772a8707D4A547028Ac26',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const jbccipSuckerDeployer_2Config = {
-  address: jbccipSuckerDeployer_2Address,
-  abi: jbccipSuckerDeployer_2Abi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBController
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5249,6 +5363,11 @@ export const jbControllerAbi = [
       },
       { name: 'splits', internalType: 'contract IJBSplits', type: 'address' },
       { name: 'tokens', internalType: 'contract IJBTokens', type: 'address' },
+      {
+        name: 'omnichainRulesetOperator',
+        internalType: 'address',
+        type: 'address',
+      },
       { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
@@ -5273,6 +5392,13 @@ export const jbControllerAbi = [
         type: 'address',
       },
     ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'OMNICHAIN_RULESET_OPERATOR',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
@@ -6517,6 +6643,43 @@ export const jbControllerAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'deployer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'salt',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'saltHash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'DeployERC20',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'rulesetId',
         internalType: 'uint256',
         type: 'uint256',
@@ -6901,6 +7064,17 @@ export const jbControllerAbi = [
       },
     ],
     name: 'JBController_OnlyDirectory',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'pendingReservedTokenBalance',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'JBController_PendingReservedTokens',
   },
   { type: 'error', inputs: [], name: 'JBController_RulesetSetTokenNotAllowed' },
   { type: 'error', inputs: [], name: 'JBController_RulesetsAlreadyLaunched' },
@@ -8706,16 +8880,6 @@ export const jbController4_1Abi = [
 // JBDirectory
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
 export const jbDirectoryAbi = [
   {
     type: 'constructor',
@@ -9066,42 +9230,6 @@ export const jbDirectoryAbi = [
     name: 'OwnableUnauthorizedAccount',
   },
 ] as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const jbDirectoryAddress = {
-  1: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
-  10: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
-  8453: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
-  42161: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
-  84532: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
-  421614: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
-  11155111: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
-  11155420: '0x0bC9F153DEe4d3D474ce0903775b9b2AAae9AA41',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const jbDirectoryConfig = {
-  address: jbDirectoryAddress,
-  abi: jbDirectoryAbi,
-} as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBFundAccessLimits
@@ -10660,25 +10788,10 @@ export const jbMultiTerminalAbi = [
 // JBOmnichainDeployer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
 export const jbOmnichainDeployerAbi = [
   {
     type: 'constructor',
     inputs: [
-      {
-        name: 'controller',
-        internalType: 'contract IJBController',
-        type: 'address',
-      },
       {
         name: 'suckerRegistry',
         internalType: 'contract IJBSuckerRegistry',
@@ -10689,18 +10802,19 @@ export const jbOmnichainDeployerAbi = [
         internalType: 'contract IJB721TiersHookDeployer',
         type: 'address',
       },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
       { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'CONTROLLER',
-    outputs: [
-      { name: '', internalType: 'contract IJBController', type: 'address' },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -10775,9 +10889,9 @@ export const jbOmnichainDeployerAbi = [
     ],
     name: 'beforeCashOutRecordedWith',
     outputs: [
-      { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
-      { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
-      { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
       {
         name: 'hookSpecifications',
         internalType: 'struct JBCashOutHookSpecification[]',
@@ -10827,7 +10941,7 @@ export const jbOmnichainDeployerAbi = [
     ],
     name: 'beforePayRecordedWith',
     outputs: [
-      { name: 'weight', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
       {
         name: 'hookSpecifications',
         internalType: 'struct JBPayHookSpecification[]',
@@ -10854,7 +10968,7 @@ export const jbOmnichainDeployerAbi = [
     name: 'dataHookOf',
     outputs: [
       { name: 'useDataHookForPay', internalType: 'bool', type: 'bool' },
-      { name: 'useDataHookForCashOut', internalType: 'bool', type: 'bool' },
+      { name: 'useDataHookForCashout', internalType: 'bool', type: 'bool' },
       {
         name: 'dataHook',
         internalType: 'contract IJBRulesetDataHook',
@@ -10869,7 +10983,7 @@ export const jbOmnichainDeployerAbi = [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       {
         name: 'suckerDeploymentConfiguration',
-        internalType: 'struct REVSuckerDeploymentConfig',
+        internalType: 'struct JBSuckerDeploymentConfig',
         type: 'tuple',
         components: [
           {
@@ -10921,6 +11035,26 @@ export const jbOmnichainDeployerAbi = [
     type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'ruleset',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
       { name: 'addr', internalType: 'address', type: 'address' },
     ],
     name: 'hasMintPermissionFor',
@@ -11294,7 +11428,7 @@ export const jbOmnichainDeployerAbi = [
       { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
       {
         name: 'suckerDeploymentConfiguration',
-        internalType: 'struct REVSuckerDeploymentConfig',
+        internalType: 'struct JBSuckerDeploymentConfig',
         type: 'tuple',
         components: [
           {
@@ -11334,6 +11468,11 @@ export const jbOmnichainDeployerAbi = [
           },
           { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
         ],
+      },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
       },
     ],
     name: 'launch721ProjectFor',
@@ -11903,7 +12042,7 @@ export const jbOmnichainDeployerAbi = [
       { name: 'memo', internalType: 'string', type: 'string' },
       {
         name: 'suckerDeploymentConfiguration',
-        internalType: 'struct REVSuckerDeploymentConfig',
+        internalType: 'struct JBSuckerDeploymentConfig',
         type: 'tuple',
         components: [
           {
@@ -11943,6 +12082,11 @@ export const jbOmnichainDeployerAbi = [
           },
           { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
         ],
+      },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
       },
     ],
     name: 'launchProjectFor',
@@ -12129,6 +12273,11 @@ export const jbOmnichainDeployerAbi = [
         ],
       },
       { name: 'memo', internalType: 'string', type: 'string' },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
+      },
     ],
     name: 'launchRulesetsFor',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
@@ -12654,6 +12803,11 @@ export const jbOmnichainDeployerAbi = [
         ],
       },
       { name: 'memo', internalType: 'string', type: 'string' },
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
+      },
     ],
     name: 'queueRulesetsOf',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
@@ -12673,6 +12827,7 @@ export const jbOmnichainDeployerAbi = [
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
+  { type: 'error', inputs: [], name: 'JBOmnichainDeployer_InvalidHook' },
   {
     type: 'error',
     inputs: [
@@ -12685,56 +12840,10 @@ export const jbOmnichainDeployerAbi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const jbOmnichainDeployerAddress = {
-  1: '0x29f83557ca30d4283c1EB8b6118d1B4808EAA190',
-  10: '0x29f83557ca30d4283c1EB8b6118d1B4808EAA190',
-  8453: '0x29f83557ca30d4283c1EB8b6118d1B4808EAA190',
-  42161: '0x29f83557ca30d4283c1EB8b6118d1B4808EAA190',
-  84532: '0x29f83557ca30d4283c1EB8b6118d1B4808EAA190',
-  421614: '0x29f83557ca30d4283c1EB8b6118d1B4808EAA190',
-  11155111: '0x29f83557ca30d4283c1EB8b6118d1B4808EAA190',
-  11155420: '0x29f83557ca30d4283c1EB8b6118d1B4808EAA190',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const jbOmnichainDeployerConfig = {
-  address: jbOmnichainDeployerAddress,
-  abi: jbOmnichainDeployerAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBOmnichainDeployer4_1
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
 export const jbOmnichainDeployer4_1Abi = [
   {
     type: 'constructor',
@@ -14787,47 +14896,18 @@ export const jbOmnichainDeployer4_1Abi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const jbOmnichainDeployer4_1Address = {
-  1: '0xa7E0cbCFB2C6dF7db07cC4cA05df681f1307CeDD',
-  10: '0xa7E0cbCFB2C6dF7db07cC4cA05df681f1307CeDD',
-  8453: '0xa7E0cbCFB2C6dF7db07cC4cA05df681f1307CeDD',
-  42161: '0xa7E0cbCFB2C6dF7db07cC4cA05df681f1307CeDD',
-  84532: '0xa7E0cbCFB2C6dF7db07cC4cA05df681f1307CeDD',
-  421614: '0xa7E0cbCFB2C6dF7db07cC4cA05df681f1307CeDD',
-  11155111: '0xa7E0cbCFB2C6dF7db07cC4cA05df681f1307CeDD',
-  11155420: '0xa7E0cbCFB2C6dF7db07cC4cA05df681f1307CeDD',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const jbOmnichainDeployer4_1Config = {
-  address: jbOmnichainDeployer4_1Address,
-  abi: jbOmnichainDeployer4_1Abi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBPermissions
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export const jbPermissionsAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
   {
     type: 'function',
     inputs: [],
@@ -14865,6 +14945,13 @@ export const jbPermissionsAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [
       { name: 'operator', internalType: 'address', type: 'address' },
       { name: 'account', internalType: 'address', type: 'address' },
@@ -14892,6 +14979,13 @@ export const jbPermissionsAbi = [
     name: 'setPermissionsFor',
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -14956,16 +15050,6 @@ export const jbPermissionsAbi = [
 // JBPrices
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
 export const jbPricesAbi = [
   {
     type: 'constructor',
@@ -14986,6 +15070,7 @@ export const jbPricesAbi = [
         type: 'address',
       },
       { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
   },
@@ -15037,6 +15122,13 @@ export const jbPricesAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [],
     name: 'owner',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
@@ -15080,6 +15172,13 @@ export const jbPricesAbi = [
     name: 'transferOwnership',
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -15183,62 +15282,17 @@ export const jbPricesAbi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const jbPricesAddress = {
-  1: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
-  10: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
-  8453: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
-  42161: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
-  84532: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
-  421614: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
-  11155111: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
-  11155420: '0xE712D14b04F1a1Fe464Be930e3ea72B9B0a141D7',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const jbPricesConfig = {
-  address: jbPricesAddress,
-  abi: jbPricesAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBProjects
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
 export const jbProjectsAbi = [
   {
     type: 'constructor',
     inputs: [
       { name: 'owner', internalType: 'address', type: 'address' },
       { name: 'feeProjectOwner', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
   },
@@ -15287,6 +15341,13 @@ export const jbProjectsAbi = [
       { name: 'operator', internalType: 'address', type: 'address' },
     ],
     name: 'isApprovedForAll',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'view',
   },
@@ -15415,6 +15476,13 @@ export const jbProjectsAbi = [
     name: 'transferOwnership',
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -15598,56 +15666,10 @@ export const jbProjectsAbi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const jbProjectsAddress = {
-  1: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
-  10: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
-  8453: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
-  42161: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
-  84532: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
-  421614: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
-  11155111: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
-  11155420: '0x0b538A02610d7d3Cc91Ce2870F423e0a34D646AD',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const jbProjectsConfig = {
-  address: jbProjectsAddress,
-  abi: jbProjectsAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBRulesets
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
 export const jbRulesetsAbi = [
   {
     type: 'constructor',
@@ -16109,56 +16131,10 @@ export const jbRulesetsAbi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const jbRulesetsAddress = {
-  1: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
-  10: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
-  8453: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
-  42161: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
-  84532: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
-  421614: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
-  11155111: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
-  11155420: '0xDA86EeDb67C6C9FB3E58FE83Efa28674D7C89826',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const jbRulesetsConfig = {
-  address: jbRulesetsAddress,
-  abi: jbRulesetsAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBSplits
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
 export const jbSplitsAbi = [
   {
     type: 'constructor',
@@ -16330,56 +16306,10 @@ export const jbSplitsAbi = [
   { type: 'error', inputs: [], name: 'JBSplits_ZeroSplitPercent' },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const jbSplitsAddress = {
-  1: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
-  10: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
-  8453: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
-  42161: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
-  84532: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
-  421614: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
-  11155111: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
-  11155420: '0x9e834f2ae0970f8746E25Fba6D42FD90BB96630C',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const jbSplitsConfig = {
-  address: jbSplitsAddress,
-  abi: jbSplitsAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBSuckerRegistry
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
 export const jbSuckerRegistryAbi = [
   {
     type: 'constructor',
@@ -16768,47 +16698,744 @@ export const jbSuckerRegistryAbi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const jbSuckerRegistryAddress = {
-  1: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
-  10: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
-  8453: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
-  42161: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
-  84532: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
-  421614: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
-  11155111: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
-  11155420: '0x696C7E9b37D28edBefa3fce06e26041B7197c1a5',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const jbSuckerRegistryConfig = {
-  address: jbSuckerRegistryAddress,
-  abi: jbSuckerRegistryAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBSwapTerminal
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export const jbSwapTerminalAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'weth', internalType: 'contract IWETH9', type: 'address' },
+      { name: 'tokenOut', internalType: 'address', type: 'address' },
+      {
+        name: 'factory',
+        internalType: 'contract IUniswapV3Factory',
+        type: 'address',
+      },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DEFAULT_PROJECT_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'FACTORY',
+    outputs: [
+      { name: '', internalType: 'contract IUniswapV3Factory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_TWAP_WINDOW',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_DEFAULT_POOL_CARDINALITY',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_TWAP_WINDOW',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'SLIPPAGE_DENOMINATOR',
+    outputs: [{ name: '', internalType: 'uint160', type: 'uint160' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TOKEN_OUT',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'UNCERTAIN_SLIPPAGE_TOLERANCE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'WETH',
+    outputs: [{ name: '', internalType: 'contract IWETH9', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'accountingContextForTokenOf',
+    outputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'accountingContextsOf',
+    outputs: [
+      {
+        name: 'contexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'accountingContexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    name: 'addAccountingContextsFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+    ],
+    name: 'addDefaultPool',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'addToBalanceOf',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+      { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'addTwapParamsFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'accountingContexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'currentSurplusOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'tokenIn', internalType: 'address', type: 'address' },
+    ],
+    name: 'getPoolFor',
+    outputs: [
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+      { name: 'zeroForOne', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'contract IJBTerminal', type: 'address' },
+    ],
+    name: 'migrateBalanceOf',
+    outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+      { name: 'minReturnedTokens', internalType: 'uint256', type: 'uint256' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'pay',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+    ],
+    name: 'twapWindowOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'amount0Delta', internalType: 'int256', type: 'int256' },
+      { name: 'amount1Delta', internalType: 'int256', type: 'int256' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'uniswapV3SwapCallback',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'returnedFees',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'AddToBalance',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBPayHook',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAfterPayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'payer', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'newlyIssuedTokenCount',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'payerMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'specificationAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'HookAfterRecordPay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'to',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'MigrateTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rulesetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'rulesetCycleNumber',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'payer',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newlyIssuedTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Pay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetAccountingContext',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBSwapTerminal_CallerNotPool',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'window', internalType: 'uint256', type: 'uint256' },
+      { name: 'minWindow', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxWindow', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBSwapTerminal_InvalidTwapWindow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBSwapTerminal_NoDefaultPoolDefined',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'value', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBSwapTerminal_NoMsgValueAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'allowance', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBSwapTerminal_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBSwapTerminal_SpecifiedSlippageExceeded',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBSwapTerminal_TokenNotAccepted',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBSwapTerminal_UnexpectedCall',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'pool', internalType: 'address', type: 'address' },
+      { name: 'expectedPool', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBSwapTerminal_WrongPool',
+  },
+  { type: 'error', inputs: [], name: 'JBSwapTerminal_ZeroToken' },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  { type: 'error', inputs: [], name: 'T' },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBSwapTerminal1_1
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbSwapTerminal1_1Abi = [
   {
     type: 'constructor',
     inputs: [
@@ -17542,6 +18169,708 @@ export const jbSwapTerminalAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBSwapTerminalRegistry
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbSwapTerminalRegistryAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'accountingContextForTokenOf',
+    outputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'accountingContextsOf',
+    outputs: [
+      {
+        name: 'contexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'accountingContexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    name: 'addAccountingContextsFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'addToBalanceOf',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'allowTerminal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'accountingContexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'currentSurplusOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'defaultTerminal',
+    outputs: [
+      { name: '', internalType: 'contract IJBTerminal', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'disallowTerminal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'hasLockedTerminal',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'isTerminalAllowed',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'lockTerminalFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'contract IJBTerminal', type: 'address' },
+    ],
+    name: 'migrateBalanceOf',
+    outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+      { name: 'minReturnedTokens', internalType: 'uint256', type: 'uint256' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'pay',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'setDefaultTerminal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'setTerminalFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'terminalOf',
+    outputs: [
+      { name: '', internalType: 'contract IJBTerminal', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'returnedFees',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'AddToBalance',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBPayHook',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAfterPayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'payer', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'newlyIssuedTokenCount',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'payerMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'specificationAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'HookAfterRecordPay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_AllowTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_DisallowTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_LockTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_SetDefaultTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_SetTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'to',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'MigrateTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rulesetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'rulesetCycleNumber',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'payer',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newlyIssuedTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Pay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetAccountingContext',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'value', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBSwapTerminalRegistry_NoMsgValueAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'allowanceAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBSwapTerminalRegistry_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBSwapTerminalRegistry_TerminalLocked',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    name: 'JBSwapTerminalRegistry_TerminalNotAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBSwapTerminalRegistry_TerminalNotSet',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBTerminalStore
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -17984,16 +19313,6 @@ export const jbTerminalStoreAbi = [
 // JBTokens
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
 export const jbTokensAbi = [
   {
     type: 'constructor',
@@ -18436,10630 +19755,4858 @@ export const jbTokensAbi = [
   },
 ] as const
 
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const jbTokensAddress = {
-  1: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
-  10: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
-  8453: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
-  42161: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
-  84532: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
-  421614: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
-  11155111: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
-  11155420: '0xA59e9F424901fB9DBD8913a9A32A081F9425bf36',
-} as const
-
-/**
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const jbTokensConfig = {
-  address: jbTokensAddress,
-  abi: jbTokensAbi,
-} as const
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Action
+// REVDeployer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const readErc2771Forwarder = /*#__PURE__*/ createReadContract({
-  abi: erc2771ForwarderAbi,
-  address: erc2771ForwarderAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"eip712Domain"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const readErc2771ForwarderEip712Domain =
-  /*#__PURE__*/ createReadContract({
-    abi: erc2771ForwarderAbi,
-    address: erc2771ForwarderAddress,
-    functionName: 'eip712Domain',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"nonces"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const readErc2771ForwarderNonces = /*#__PURE__*/ createReadContract({
-  abi: erc2771ForwarderAbi,
-  address: erc2771ForwarderAddress,
-  functionName: 'nonces',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"verify"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const readErc2771ForwarderVerify = /*#__PURE__*/ createReadContract({
-  abi: erc2771ForwarderAbi,
-  address: erc2771ForwarderAddress,
-  functionName: 'verify',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const writeErc2771Forwarder = /*#__PURE__*/ createWriteContract({
-  abi: erc2771ForwarderAbi,
-  address: erc2771ForwarderAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"execute"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const writeErc2771ForwarderExecute = /*#__PURE__*/ createWriteContract({
-  abi: erc2771ForwarderAbi,
-  address: erc2771ForwarderAddress,
-  functionName: 'execute',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"executeBatch"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const writeErc2771ForwarderExecuteBatch =
-  /*#__PURE__*/ createWriteContract({
-    abi: erc2771ForwarderAbi,
-    address: erc2771ForwarderAddress,
-    functionName: 'executeBatch',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const simulateErc2771Forwarder = /*#__PURE__*/ createSimulateContract({
-  abi: erc2771ForwarderAbi,
-  address: erc2771ForwarderAddress,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"execute"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const simulateErc2771ForwarderExecute =
-  /*#__PURE__*/ createSimulateContract({
-    abi: erc2771ForwarderAbi,
-    address: erc2771ForwarderAddress,
-    functionName: 'execute',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `functionName` set to `"executeBatch"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const simulateErc2771ForwarderExecuteBatch =
-  /*#__PURE__*/ createSimulateContract({
-    abi: erc2771ForwarderAbi,
-    address: erc2771ForwarderAddress,
-    functionName: 'executeBatch',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link erc2771ForwarderAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const watchErc2771ForwarderEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: erc2771ForwarderAbi,
-    address: erc2771ForwarderAddress,
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `eventName` set to `"EIP712DomainChanged"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const watchErc2771ForwarderEip712DomainChangedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: erc2771ForwarderAbi,
-    address: erc2771ForwarderAddress,
-    eventName: 'EIP712DomainChanged',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link erc2771ForwarderAbi}__ and `eventName` set to `"ExecutedForwardRequest"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x8a5ba591ed2bed5691a378c65611ed492500f887)
- */
-export const watchErc2771ForwarderExecutedForwardRequestEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: erc2771ForwarderAbi,
-    address: erc2771ForwarderAddress,
-    eventName: 'ExecutedForwardRequest',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__
- */
-export const readJb721TiersHook = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"DIRECTORY"`
- */
-export const readJb721TiersHookDirectory = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"METADATA_ID_TARGET"`
- */
-export const readJb721TiersHookMetadataIdTarget =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'METADATA_ID_TARGET',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"PERMISSIONS"`
- */
-export const readJb721TiersHookPermissions = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'PERMISSIONS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"PROJECTS"`
- */
-export const readJb721TiersHookProjects = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'PROJECTS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"PROJECT_ID"`
- */
-export const readJb721TiersHookProjectId = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'PROJECT_ID',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"RULESETS"`
- */
-export const readJb721TiersHookRulesets = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'RULESETS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"STORE"`
- */
-export const readJb721TiersHookStoreAddress = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'STORE',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"balanceOf"`
- */
-export const readJb721TiersHookBalanceOf = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'balanceOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"baseURI"`
- */
-export const readJb721TiersHookBaseUri = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'baseURI',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"beforeCashOutRecordedWith"`
- */
-export const readJb721TiersHookBeforeCashOutRecordedWith =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'beforeCashOutRecordedWith',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"beforePayRecordedWith"`
- */
-export const readJb721TiersHookBeforePayRecordedWith =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'beforePayRecordedWith',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"cashOutWeightOf"`
- */
-export const readJb721TiersHookCashOutWeightOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'cashOutWeightOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"contractURI"`
- */
-export const readJb721TiersHookContractUri = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'contractURI',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"firstOwnerOf"`
- */
-export const readJb721TiersHookFirstOwnerOf = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'firstOwnerOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"getApproved"`
- */
-export const readJb721TiersHookGetApproved = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'getApproved',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"hasMintPermissionFor"`
- */
-export const readJb721TiersHookHasMintPermissionFor =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'hasMintPermissionFor',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"isApprovedForAll"`
- */
-export const readJb721TiersHookIsApprovedForAll =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'isApprovedForAll',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"isTrustedForwarder"`
- */
-export const readJb721TiersHookIsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"jbOwner"`
- */
-export const readJb721TiersHookJbOwner = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'jbOwner',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"name"`
- */
-export const readJb721TiersHookName = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'name',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"owner"`
- */
-export const readJb721TiersHookOwner = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'owner',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"ownerOf"`
- */
-export const readJb721TiersHookOwnerOf = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'ownerOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"payCreditsOf"`
- */
-export const readJb721TiersHookPayCreditsOf = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'payCreditsOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"pricingContext"`
- */
-export const readJb721TiersHookPricingContext =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'pricingContext',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"supportsInterface"`
- */
-export const readJb721TiersHookSupportsInterface =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'supportsInterface',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"symbol"`
- */
-export const readJb721TiersHookSymbol = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'symbol',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"tokenURI"`
- */
-export const readJb721TiersHookTokenUri = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'tokenURI',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"totalCashOutWeight"`
- */
-export const readJb721TiersHookTotalCashOutWeight =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'totalCashOutWeight',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"trustedForwarder"`
- */
-export const readJb721TiersHookTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__
- */
-export const writeJb721TiersHook = /*#__PURE__*/ createWriteContract({
-  abi: jb721TiersHookAbi,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"adjustTiers"`
- */
-export const writeJb721TiersHookAdjustTiers = /*#__PURE__*/ createWriteContract(
-  { abi: jb721TiersHookAbi, functionName: 'adjustTiers' },
-)
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"afterCashOutRecordedWith"`
- */
-export const writeJb721TiersHookAfterCashOutRecordedWith =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'afterCashOutRecordedWith',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"afterPayRecordedWith"`
- */
-export const writeJb721TiersHookAfterPayRecordedWith =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'afterPayRecordedWith',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"approve"`
- */
-export const writeJb721TiersHookApprove = /*#__PURE__*/ createWriteContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'approve',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"initialize"`
- */
-export const writeJb721TiersHookInitialize = /*#__PURE__*/ createWriteContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'initialize',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"mintFor"`
- */
-export const writeJb721TiersHookMintFor = /*#__PURE__*/ createWriteContract({
-  abi: jb721TiersHookAbi,
-  functionName: 'mintFor',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"mintPendingReservesFor"`
- */
-export const writeJb721TiersHookMintPendingReservesFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'mintPendingReservesFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const writeJb721TiersHookRenounceOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"safeTransferFrom"`
- */
-export const writeJb721TiersHookSafeTransferFrom =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'safeTransferFrom',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"setApprovalForAll"`
- */
-export const writeJb721TiersHookSetApprovalForAll =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'setApprovalForAll',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"setDiscountPercentOf"`
- */
-export const writeJb721TiersHookSetDiscountPercentOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'setDiscountPercentOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"setDiscountPercentsOf"`
- */
-export const writeJb721TiersHookSetDiscountPercentsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'setDiscountPercentsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"setMetadata"`
- */
-export const writeJb721TiersHookSetMetadata = /*#__PURE__*/ createWriteContract(
-  { abi: jb721TiersHookAbi, functionName: 'setMetadata' },
-)
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"setPermissionId"`
- */
-export const writeJb721TiersHookSetPermissionId =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'setPermissionId',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"transferFrom"`
- */
-export const writeJb721TiersHookTransferFrom =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'transferFrom',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const writeJb721TiersHookTransferOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"transferOwnershipToProject"`
- */
-export const writeJb721TiersHookTransferOwnershipToProject =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'transferOwnershipToProject',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__
- */
-export const simulateJb721TiersHook = /*#__PURE__*/ createSimulateContract({
-  abi: jb721TiersHookAbi,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"adjustTiers"`
- */
-export const simulateJb721TiersHookAdjustTiers =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'adjustTiers',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"afterCashOutRecordedWith"`
- */
-export const simulateJb721TiersHookAfterCashOutRecordedWith =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'afterCashOutRecordedWith',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"afterPayRecordedWith"`
- */
-export const simulateJb721TiersHookAfterPayRecordedWith =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'afterPayRecordedWith',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"approve"`
- */
-export const simulateJb721TiersHookApprove =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'approve',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"initialize"`
- */
-export const simulateJb721TiersHookInitialize =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'initialize',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"mintFor"`
- */
-export const simulateJb721TiersHookMintFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'mintFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"mintPendingReservesFor"`
- */
-export const simulateJb721TiersHookMintPendingReservesFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'mintPendingReservesFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const simulateJb721TiersHookRenounceOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"safeTransferFrom"`
- */
-export const simulateJb721TiersHookSafeTransferFrom =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'safeTransferFrom',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"setApprovalForAll"`
- */
-export const simulateJb721TiersHookSetApprovalForAll =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'setApprovalForAll',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"setDiscountPercentOf"`
- */
-export const simulateJb721TiersHookSetDiscountPercentOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'setDiscountPercentOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"setDiscountPercentsOf"`
- */
-export const simulateJb721TiersHookSetDiscountPercentsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'setDiscountPercentsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"setMetadata"`
- */
-export const simulateJb721TiersHookSetMetadata =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'setMetadata',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"setPermissionId"`
- */
-export const simulateJb721TiersHookSetPermissionId =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'setPermissionId',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"transferFrom"`
- */
-export const simulateJb721TiersHookTransferFrom =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'transferFrom',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const simulateJb721TiersHookTransferOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `functionName` set to `"transferOwnershipToProject"`
- */
-export const simulateJb721TiersHookTransferOwnershipToProject =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookAbi,
-    functionName: 'transferOwnershipToProject',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__
- */
-export const watchJb721TiersHookEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jb721TiersHookAbi,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"AddPayCredits"`
- */
-export const watchJb721TiersHookAddPayCreditsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'AddPayCredits',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"AddTier"`
- */
-export const watchJb721TiersHookAddTierEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'AddTier',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"Approval"`
- */
-export const watchJb721TiersHookApprovalEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'Approval',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"ApprovalForAll"`
- */
-export const watchJb721TiersHookApprovalForAllEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'ApprovalForAll',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"Mint"`
- */
-export const watchJb721TiersHookMintEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'Mint',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"MintReservedNft"`
- */
-export const watchJb721TiersHookMintReservedNftEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'MintReservedNft',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"OwnershipTransferred"`
- */
-export const watchJb721TiersHookOwnershipTransferredEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'OwnershipTransferred',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"PermissionIdChanged"`
- */
-export const watchJb721TiersHookPermissionIdChangedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'PermissionIdChanged',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"RemoveTier"`
- */
-export const watchJb721TiersHookRemoveTierEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'RemoveTier',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"SetBaseUri"`
- */
-export const watchJb721TiersHookSetBaseUriEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'SetBaseUri',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"SetContractUri"`
- */
-export const watchJb721TiersHookSetContractUriEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'SetContractUri',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"SetDiscountPercent"`
- */
-export const watchJb721TiersHookSetDiscountPercentEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'SetDiscountPercent',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"SetEncodedIPFSUri"`
- */
-export const watchJb721TiersHookSetEncodedIpfsUriEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'SetEncodedIPFSUri',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"SetTokenUriResolver"`
- */
-export const watchJb721TiersHookSetTokenUriResolverEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'SetTokenUriResolver',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"Transfer"`
- */
-export const watchJb721TiersHookTransferEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'Transfer',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookAbi}__ and `eventName` set to `"UsePayCredits"`
- */
-export const watchJb721TiersHookUsePayCreditsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookAbi,
-    eventName: 'UsePayCredits',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const readJb721TiersHookDeployer = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookDeployerAbi,
-  address: jb721TiersHookDeployerAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"ADDRESS_REGISTRY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const readJb721TiersHookDeployerAddressRegistry =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookDeployerAbi,
-    address: jb721TiersHookDeployerAddress,
-    functionName: 'ADDRESS_REGISTRY',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"HOOK"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const readJb721TiersHookDeployerHook = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookDeployerAbi,
-  address: jb721TiersHookDeployerAddress,
-  functionName: 'HOOK',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"STORE"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const readJb721TiersHookDeployerStore = /*#__PURE__*/ createReadContract(
+export const revDeployerAbi = [
   {
-    abi: jb721TiersHookDeployerAbi,
-    address: jb721TiersHookDeployerAddress,
-    functionName: 'STORE',
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'controller',
+        internalType: 'contract IJBController',
+        type: 'address',
+      },
+      {
+        name: 'suckerRegistry',
+        internalType: 'contract IJBSuckerRegistry',
+        type: 'address',
+      },
+      { name: 'feeRevnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookDeployer',
+        internalType: 'contract IJB721TiersHookDeployer',
+        type: 'address',
+      },
+      {
+        name: 'publisher',
+        internalType: 'contract CTPublisher',
+        type: 'address',
+      },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
   },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"isTrustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const readJb721TiersHookDeployerIsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookDeployerAbi,
-    address: jb721TiersHookDeployerAddress,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"trustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const readJb721TiersHookDeployerTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookDeployerAbi,
-    address: jb721TiersHookDeployerAddress,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const writeJb721TiersHookDeployer = /*#__PURE__*/ createWriteContract({
-  abi: jb721TiersHookDeployerAbi,
-  address: jb721TiersHookDeployerAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"deployHookFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const writeJb721TiersHookDeployerDeployHookFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookDeployerAbi,
-    address: jb721TiersHookDeployerAddress,
-    functionName: 'deployHookFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const simulateJb721TiersHookDeployer =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookDeployerAbi,
-    address: jb721TiersHookDeployerAddress,
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `functionName` set to `"deployHookFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const simulateJb721TiersHookDeployerDeployHookFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookDeployerAbi,
-    address: jb721TiersHookDeployerAddress,
-    functionName: 'deployHookFor',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const watchJb721TiersHookDeployerEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookDeployerAbi,
-    address: jb721TiersHookDeployerAddress,
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookDeployerAbi}__ and `eventName` set to `"HookDeployed"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206)
- */
-export const watchJb721TiersHookDeployerHookDeployedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookDeployerAbi,
-    address: jb721TiersHookDeployerAddress,
-    eventName: 'HookDeployed',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const readJb721TiersHookProjectDeployer =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"DIRECTORY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const readJb721TiersHookProjectDeployerDirectory =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'DIRECTORY',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"HOOK_DEPLOYER"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const readJb721TiersHookProjectDeployerHookDeployer =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'HOOK_DEPLOYER',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"PERMISSIONS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const readJb721TiersHookProjectDeployerPermissions =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'PERMISSIONS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"isTrustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const readJb721TiersHookProjectDeployerIsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"trustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const readJb721TiersHookProjectDeployerTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const writeJb721TiersHookProjectDeployer =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchProjectFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const writeJb721TiersHookProjectDeployerLaunchProjectFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'launchProjectFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchRulesetsFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const writeJb721TiersHookProjectDeployerLaunchRulesetsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'launchRulesetsFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"queueRulesetsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const writeJb721TiersHookProjectDeployerQueueRulesetsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'queueRulesetsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const simulateJb721TiersHookProjectDeployer =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchProjectFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const simulateJb721TiersHookProjectDeployerLaunchProjectFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'launchProjectFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"launchRulesetsFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const simulateJb721TiersHookProjectDeployerLaunchRulesetsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'launchRulesetsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookProjectDeployerAbi}__ and `functionName` set to `"queueRulesetsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xedb83eb473b008a2246488df1f85174d26d86af2)
- */
-export const simulateJb721TiersHookProjectDeployerQueueRulesetsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookProjectDeployerAbi,
-    address: jb721TiersHookProjectDeployerAddress,
-    functionName: 'queueRulesetsOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__
- */
-export const readJb721TiersHookStore = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookStoreAbi,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"balanceOf"`
- */
-export const readJb721TiersHookStoreBalanceOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'balanceOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"cashOutWeightOf"`
- */
-export const readJb721TiersHookStoreCashOutWeightOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'cashOutWeightOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"defaultReserveBeneficiaryOf"`
- */
-export const readJb721TiersHookStoreDefaultReserveBeneficiaryOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'defaultReserveBeneficiaryOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"encodedIPFSUriOf"`
- */
-export const readJb721TiersHookStoreEncodedIpfsUriOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'encodedIPFSUriOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"encodedTierIPFSUriOf"`
- */
-export const readJb721TiersHookStoreEncodedTierIpfsUriOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'encodedTierIPFSUriOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"flagsOf"`
- */
-export const readJb721TiersHookStoreFlagsOf = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookStoreAbi,
-  functionName: 'flagsOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"isTierRemoved"`
- */
-export const readJb721TiersHookStoreIsTierRemoved =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'isTierRemoved',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"maxTierIdOf"`
- */
-export const readJb721TiersHookStoreMaxTierIdOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'maxTierIdOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"numberOfBurnedFor"`
- */
-export const readJb721TiersHookStoreNumberOfBurnedFor =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'numberOfBurnedFor',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"numberOfPendingReservesFor"`
- */
-export const readJb721TiersHookStoreNumberOfPendingReservesFor =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'numberOfPendingReservesFor',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"numberOfReservesMintedFor"`
- */
-export const readJb721TiersHookStoreNumberOfReservesMintedFor =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'numberOfReservesMintedFor',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"reserveBeneficiaryOf"`
- */
-export const readJb721TiersHookStoreReserveBeneficiaryOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'reserveBeneficiaryOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tierBalanceOf"`
- */
-export const readJb721TiersHookStoreTierBalanceOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'tierBalanceOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tierIdOfToken"`
- */
-export const readJb721TiersHookStoreTierIdOfToken =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'tierIdOfToken',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tierOf"`
- */
-export const readJb721TiersHookStoreTierOf = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookStoreAbi,
-  functionName: 'tierOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tierOfTokenId"`
- */
-export const readJb721TiersHookStoreTierOfTokenId =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'tierOfTokenId',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tierVotingUnitsOf"`
- */
-export const readJb721TiersHookStoreTierVotingUnitsOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'tierVotingUnitsOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tiersOf"`
- */
-export const readJb721TiersHookStoreTiersOf = /*#__PURE__*/ createReadContract({
-  abi: jb721TiersHookStoreAbi,
-  functionName: 'tiersOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"tokenUriResolverOf"`
- */
-export const readJb721TiersHookStoreTokenUriResolverOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'tokenUriResolverOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"totalCashOutWeight"`
- */
-export const readJb721TiersHookStoreTotalCashOutWeight =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'totalCashOutWeight',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"totalSupplyOf"`
- */
-export const readJb721TiersHookStoreTotalSupplyOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'totalSupplyOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"votingUnitsOf"`
- */
-export const readJb721TiersHookStoreVotingUnitsOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'votingUnitsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__
- */
-export const writeJb721TiersHookStore = /*#__PURE__*/ createWriteContract({
-  abi: jb721TiersHookStoreAbi,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"cleanTiers"`
- */
-export const writeJb721TiersHookStoreCleanTiers =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'cleanTiers',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordAddTiers"`
- */
-export const writeJb721TiersHookStoreRecordAddTiers =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordAddTiers',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordBurn"`
- */
-export const writeJb721TiersHookStoreRecordBurn =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordBurn',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordFlags"`
- */
-export const writeJb721TiersHookStoreRecordFlags =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordFlags',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordMint"`
- */
-export const writeJb721TiersHookStoreRecordMint =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordMint',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordMintReservesFor"`
- */
-export const writeJb721TiersHookStoreRecordMintReservesFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordMintReservesFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordRemoveTierIds"`
- */
-export const writeJb721TiersHookStoreRecordRemoveTierIds =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordRemoveTierIds',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetDiscountPercentOf"`
- */
-export const writeJb721TiersHookStoreRecordSetDiscountPercentOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordSetDiscountPercentOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetEncodedIPFSUriOf"`
- */
-export const writeJb721TiersHookStoreRecordSetEncodedIpfsUriOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordSetEncodedIPFSUriOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetTokenUriResolver"`
- */
-export const writeJb721TiersHookStoreRecordSetTokenUriResolver =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordSetTokenUriResolver',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordTransferForTier"`
- */
-export const writeJb721TiersHookStoreRecordTransferForTier =
-  /*#__PURE__*/ createWriteContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordTransferForTier',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__
- */
-export const simulateJb721TiersHookStore = /*#__PURE__*/ createSimulateContract(
-  { abi: jb721TiersHookStoreAbi },
-)
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"cleanTiers"`
- */
-export const simulateJb721TiersHookStoreCleanTiers =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'cleanTiers',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordAddTiers"`
- */
-export const simulateJb721TiersHookStoreRecordAddTiers =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordAddTiers',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordBurn"`
- */
-export const simulateJb721TiersHookStoreRecordBurn =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordBurn',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordFlags"`
- */
-export const simulateJb721TiersHookStoreRecordFlags =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordFlags',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordMint"`
- */
-export const simulateJb721TiersHookStoreRecordMint =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordMint',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordMintReservesFor"`
- */
-export const simulateJb721TiersHookStoreRecordMintReservesFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordMintReservesFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordRemoveTierIds"`
- */
-export const simulateJb721TiersHookStoreRecordRemoveTierIds =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordRemoveTierIds',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetDiscountPercentOf"`
- */
-export const simulateJb721TiersHookStoreRecordSetDiscountPercentOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordSetDiscountPercentOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetEncodedIPFSUriOf"`
- */
-export const simulateJb721TiersHookStoreRecordSetEncodedIpfsUriOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordSetEncodedIPFSUriOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordSetTokenUriResolver"`
- */
-export const simulateJb721TiersHookStoreRecordSetTokenUriResolver =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordSetTokenUriResolver',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `functionName` set to `"recordTransferForTier"`
- */
-export const simulateJb721TiersHookStoreRecordTransferForTier =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jb721TiersHookStoreAbi,
-    functionName: 'recordTransferForTier',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__
- */
-export const watchJb721TiersHookStoreEvent =
-  /*#__PURE__*/ createWatchContractEvent({ abi: jb721TiersHookStoreAbi })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jb721TiersHookStoreAbi}__ and `eventName` set to `"CleanTiers"`
- */
-export const watchJb721TiersHookStoreCleanTiersEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jb721TiersHookStoreAbi,
-    eventName: 'CleanTiers',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
-export const readJbAddressRegistry = /*#__PURE__*/ createReadContract({
-  abi: jbAddressRegistryAbi,
-  address: jbAddressRegistryAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__ and `functionName` set to `"deployerOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
-export const readJbAddressRegistryDeployerOf = /*#__PURE__*/ createReadContract(
   {
-    abi: jbAddressRegistryAbi,
-    address: jbAddressRegistryAddress,
-    functionName: 'deployerOf',
+    type: 'function',
+    inputs: [],
+    name: 'CASH_OUT_DELAY',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
-)
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
-export const writeJbAddressRegistry = /*#__PURE__*/ createWriteContract({
-  abi: jbAddressRegistryAbi,
-  address: jbAddressRegistryAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__ and `functionName` set to `"registerAddress"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
-export const writeJbAddressRegistryRegisterAddress =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbAddressRegistryAbi,
-    address: jbAddressRegistryAddress,
-    functionName: 'registerAddress',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
-export const simulateJbAddressRegistry = /*#__PURE__*/ createSimulateContract({
-  abi: jbAddressRegistryAbi,
-  address: jbAddressRegistryAddress,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbAddressRegistryAbi}__ and `functionName` set to `"registerAddress"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
-export const simulateJbAddressRegistryRegisterAddress =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbAddressRegistryAbi,
-    address: jbAddressRegistryAddress,
-    functionName: 'registerAddress',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbAddressRegistryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
-export const watchJbAddressRegistryEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbAddressRegistryAbi,
-    address: jbAddressRegistryAddress,
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbAddressRegistryAbi}__ and `eventName` set to `"AddressRegistered"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb)
- */
-export const watchJbAddressRegistryAddressRegisteredEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbAddressRegistryAbi,
-    address: jbAddressRegistryAddress,
-    eventName: 'AddressRegistered',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__
- */
-export const readJbBuybackHook = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"CONTROLLER"`
- */
-export const readJbBuybackHookController = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'CONTROLLER',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"DIRECTORY"`
- */
-export const readJbBuybackHookDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"MAX_TWAP_SLIPPAGE_TOLERANCE"`
- */
-export const readJbBuybackHookMaxTwapSlippageTolerance =
-  /*#__PURE__*/ createReadContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'MAX_TWAP_SLIPPAGE_TOLERANCE',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"MAX_TWAP_WINDOW"`
- */
-export const readJbBuybackHookMaxTwapWindow = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'MAX_TWAP_WINDOW',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"MIN_TWAP_SLIPPAGE_TOLERANCE"`
- */
-export const readJbBuybackHookMinTwapSlippageTolerance =
-  /*#__PURE__*/ createReadContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'MIN_TWAP_SLIPPAGE_TOLERANCE',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"MIN_TWAP_WINDOW"`
- */
-export const readJbBuybackHookMinTwapWindow = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'MIN_TWAP_WINDOW',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"PERMISSIONS"`
- */
-export const readJbBuybackHookPermissions = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'PERMISSIONS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"PRICES"`
- */
-export const readJbBuybackHookPrices = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'PRICES',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"PROJECTS"`
- */
-export const readJbBuybackHookProjects = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'PROJECTS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"TWAP_SLIPPAGE_DENOMINATOR"`
- */
-export const readJbBuybackHookTwapSlippageDenominator =
-  /*#__PURE__*/ createReadContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'TWAP_SLIPPAGE_DENOMINATOR',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"UNISWAP_V3_FACTORY"`
- */
-export const readJbBuybackHookUniswapV3Factory =
-  /*#__PURE__*/ createReadContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'UNISWAP_V3_FACTORY',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"WETH"`
- */
-export const readJbBuybackHookWeth = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'WETH',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"beforeCashOutRecordedWith"`
- */
-export const readJbBuybackHookBeforeCashOutRecordedWith =
-  /*#__PURE__*/ createReadContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'beforeCashOutRecordedWith',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"beforePayRecordedWith"`
- */
-export const readJbBuybackHookBeforePayRecordedWith =
-  /*#__PURE__*/ createReadContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'beforePayRecordedWith',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"hasMintPermissionFor"`
- */
-export const readJbBuybackHookHasMintPermissionFor =
-  /*#__PURE__*/ createReadContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'hasMintPermissionFor',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"poolOf"`
- */
-export const readJbBuybackHookPoolOf = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'poolOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"projectTokenOf"`
- */
-export const readJbBuybackHookProjectTokenOf = /*#__PURE__*/ createReadContract(
-  { abi: jbBuybackHookAbi, functionName: 'projectTokenOf' },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"supportsInterface"`
- */
-export const readJbBuybackHookSupportsInterface =
-  /*#__PURE__*/ createReadContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'supportsInterface',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"twapSlippageToleranceOf"`
- */
-export const readJbBuybackHookTwapSlippageToleranceOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'twapSlippageToleranceOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"twapWindowOf"`
- */
-export const readJbBuybackHookTwapWindowOf = /*#__PURE__*/ createReadContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'twapWindowOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__
- */
-export const writeJbBuybackHook = /*#__PURE__*/ createWriteContract({
-  abi: jbBuybackHookAbi,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"afterPayRecordedWith"`
- */
-export const writeJbBuybackHookAfterPayRecordedWith =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'afterPayRecordedWith',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setPoolFor"`
- */
-export const writeJbBuybackHookSetPoolFor = /*#__PURE__*/ createWriteContract({
-  abi: jbBuybackHookAbi,
-  functionName: 'setPoolFor',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setTwapSlippageToleranceOf"`
- */
-export const writeJbBuybackHookSetTwapSlippageToleranceOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'setTwapSlippageToleranceOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setTwapWindowOf"`
- */
-export const writeJbBuybackHookSetTwapWindowOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'setTwapWindowOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"uniswapV3SwapCallback"`
- */
-export const writeJbBuybackHookUniswapV3SwapCallback =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'uniswapV3SwapCallback',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__
- */
-export const simulateJbBuybackHook = /*#__PURE__*/ createSimulateContract({
-  abi: jbBuybackHookAbi,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"afterPayRecordedWith"`
- */
-export const simulateJbBuybackHookAfterPayRecordedWith =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'afterPayRecordedWith',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setPoolFor"`
- */
-export const simulateJbBuybackHookSetPoolFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'setPoolFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setTwapSlippageToleranceOf"`
- */
-export const simulateJbBuybackHookSetTwapSlippageToleranceOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'setTwapSlippageToleranceOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"setTwapWindowOf"`
- */
-export const simulateJbBuybackHookSetTwapWindowOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'setTwapWindowOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `functionName` set to `"uniswapV3SwapCallback"`
- */
-export const simulateJbBuybackHookUniswapV3SwapCallback =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbBuybackHookAbi,
-    functionName: 'uniswapV3SwapCallback',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__
- */
-export const watchJbBuybackHookEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbBuybackHookAbi,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `eventName` set to `"Mint"`
- */
-export const watchJbBuybackHookMintEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbBuybackHookAbi,
-    eventName: 'Mint',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `eventName` set to `"PoolAdded"`
- */
-export const watchJbBuybackHookPoolAddedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbBuybackHookAbi,
-    eventName: 'PoolAdded',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `eventName` set to `"Swap"`
- */
-export const watchJbBuybackHookSwapEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbBuybackHookAbi,
-    eventName: 'Swap',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `eventName` set to `"TwapSlippageToleranceChanged"`
- */
-export const watchJbBuybackHookTwapSlippageToleranceChangedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbBuybackHookAbi,
-    eventName: 'TwapSlippageToleranceChanged',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbBuybackHookAbi}__ and `eventName` set to `"TwapWindowChanged"`
- */
-export const watchJbBuybackHookTwapWindowChangedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbBuybackHookAbi,
-    eventName: 'TwapWindowChanged',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployer = /*#__PURE__*/ createReadContract({
-  abi: jbccipSuckerDeployerAbi,
-  address: jbccipSuckerDeployerAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"DIRECTORY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerDirectory =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'DIRECTORY',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"LAYER_SPECIFIC_CONFIGURATOR"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerLayerSpecificConfigurator =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'LAYER_SPECIFIC_CONFIGURATOR',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"PERMISSIONS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerPermissions =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'PERMISSIONS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"TOKENS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerTokens = /*#__PURE__*/ createReadContract({
-  abi: jbccipSuckerDeployerAbi,
-  address: jbccipSuckerDeployerAddress,
-  functionName: 'TOKENS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"ccipRemoteChainId"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerCcipRemoteChainId =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'ccipRemoteChainId',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"ccipRemoteChainSelector"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerCcipRemoteChainSelector =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'ccipRemoteChainSelector',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"ccipRouter"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerCcipRouter =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'ccipRouter',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"isSucker"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerIsSucker =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'isSucker',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"isTrustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerIsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"singleton"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerSingleton =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'singleton',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"trustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const readJbccipSuckerDeployerTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const writeJbccipSuckerDeployer = /*#__PURE__*/ createWriteContract({
-  abi: jbccipSuckerDeployerAbi,
-  address: jbccipSuckerDeployerAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"configureSingleton"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const writeJbccipSuckerDeployerConfigureSingleton =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'configureSingleton',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"createForSender"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const writeJbccipSuckerDeployerCreateForSender =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'createForSender',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"setChainSpecificConstants"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const writeJbccipSuckerDeployerSetChainSpecificConstants =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'setChainSpecificConstants',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const simulateJbccipSuckerDeployer =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"configureSingleton"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const simulateJbccipSuckerDeployerConfigureSingleton =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'configureSingleton',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"createForSender"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const simulateJbccipSuckerDeployerCreateForSender =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'createForSender',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `functionName` set to `"setChainSpecificConstants"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const simulateJbccipSuckerDeployerSetChainSpecificConstants =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    functionName: 'setChainSpecificConstants',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const watchJbccipSuckerDeployerEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbccipSuckerDeployerAbi}__ and `eventName` set to `"CCIPConstantsSet"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x34b40205b249e5733cf93d86b7c9783b015dd3e7)
- */
-export const watchJbccipSuckerDeployerCcipConstantsSetEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbccipSuckerDeployerAbi,
-    address: jbccipSuckerDeployerAddress,
-    eventName: 'CCIPConstantsSet',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1 = /*#__PURE__*/ createReadContract({
-  abi: jbccipSuckerDeployer_1Abi,
-  address: jbccipSuckerDeployer_1Address,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"DIRECTORY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1Directory =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'DIRECTORY',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"LAYER_SPECIFIC_CONFIGURATOR"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1LayerSpecificConfigurator =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'LAYER_SPECIFIC_CONFIGURATOR',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"PERMISSIONS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1Permissions =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'PERMISSIONS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"TOKENS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1Tokens =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'TOKENS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"ccipRemoteChainId"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1CcipRemoteChainId =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'ccipRemoteChainId',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"ccipRemoteChainSelector"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1CcipRemoteChainSelector =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'ccipRemoteChainSelector',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"ccipRouter"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1CcipRouter =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'ccipRouter',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"isSucker"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1IsSucker =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'isSucker',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"isTrustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1IsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"singleton"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1Singleton =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'singleton',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"trustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const readJbccipSuckerDeployer_1TrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const writeJbccipSuckerDeployer_1 = /*#__PURE__*/ createWriteContract({
-  abi: jbccipSuckerDeployer_1Abi,
-  address: jbccipSuckerDeployer_1Address,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"configureSingleton"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const writeJbccipSuckerDeployer_1ConfigureSingleton =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'configureSingleton',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"createForSender"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const writeJbccipSuckerDeployer_1CreateForSender =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'createForSender',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"setChainSpecificConstants"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const writeJbccipSuckerDeployer_1SetChainSpecificConstants =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'setChainSpecificConstants',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const simulateJbccipSuckerDeployer_1 =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"configureSingleton"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const simulateJbccipSuckerDeployer_1ConfigureSingleton =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'configureSingleton',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"createForSender"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const simulateJbccipSuckerDeployer_1CreateForSender =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'createForSender',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `functionName` set to `"setChainSpecificConstants"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const simulateJbccipSuckerDeployer_1SetChainSpecificConstants =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    functionName: 'setChainSpecificConstants',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const watchJbccipSuckerDeployer_1Event =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbccipSuckerDeployer_1Abi}__ and `eventName` set to `"CCIPConstantsSet"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xde901ebafc70d545f9d43034308c136ce8c94a5c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x39132ea75b9eae5cbff7ba1997c804302a7ff413)
- */
-export const watchJbccipSuckerDeployer_1CcipConstantsSetEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbccipSuckerDeployer_1Abi,
-    address: jbccipSuckerDeployer_1Address,
-    eventName: 'CCIPConstantsSet',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2 = /*#__PURE__*/ createReadContract({
-  abi: jbccipSuckerDeployer_2Abi,
-  address: jbccipSuckerDeployer_2Address,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"DIRECTORY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2Directory =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'DIRECTORY',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"LAYER_SPECIFIC_CONFIGURATOR"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2LayerSpecificConfigurator =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'LAYER_SPECIFIC_CONFIGURATOR',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"PERMISSIONS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2Permissions =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'PERMISSIONS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"TOKENS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2Tokens =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'TOKENS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"ccipRemoteChainId"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2CcipRemoteChainId =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'ccipRemoteChainId',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"ccipRemoteChainSelector"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2CcipRemoteChainSelector =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'ccipRemoteChainSelector',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"ccipRouter"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2CcipRouter =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'ccipRouter',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"isSucker"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2IsSucker =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'isSucker',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"isTrustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2IsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"singleton"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2Singleton =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'singleton',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"trustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const readJbccipSuckerDeployer_2TrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const writeJbccipSuckerDeployer_2 = /*#__PURE__*/ createWriteContract({
-  abi: jbccipSuckerDeployer_2Abi,
-  address: jbccipSuckerDeployer_2Address,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"configureSingleton"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const writeJbccipSuckerDeployer_2ConfigureSingleton =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'configureSingleton',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"createForSender"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const writeJbccipSuckerDeployer_2CreateForSender =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'createForSender',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"setChainSpecificConstants"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const writeJbccipSuckerDeployer_2SetChainSpecificConstants =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'setChainSpecificConstants',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const simulateJbccipSuckerDeployer_2 =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"configureSingleton"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const simulateJbccipSuckerDeployer_2ConfigureSingleton =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'configureSingleton',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"createForSender"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const simulateJbccipSuckerDeployer_2CreateForSender =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'createForSender',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `functionName` set to `"setChainSpecificConstants"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const simulateJbccipSuckerDeployer_2SetChainSpecificConstants =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    functionName: 'setChainSpecificConstants',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const watchJbccipSuckerDeployer_2Event =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbccipSuckerDeployer_2Abi}__ and `eventName` set to `"CCIPConstantsSet"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x3d7fb0aa325ad5d2349274f9ef33d4424135d963)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9d4858cc9d3552507eeabce722787afef64c615e)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xb825f2f6995966eb6dd772a8707d4a547028ac26)
- */
-export const watchJbccipSuckerDeployer_2CcipConstantsSetEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbccipSuckerDeployer_2Abi,
-    address: jbccipSuckerDeployer_2Address,
-    eventName: 'CCIPConstantsSet',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__
- */
-export const readJbController = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"DIRECTORY"`
- */
-export const readJbControllerDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"FUND_ACCESS_LIMITS"`
- */
-export const readJbControllerFundAccessLimits =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'FUND_ACCESS_LIMITS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"PERMISSIONS"`
- */
-export const readJbControllerPermissions = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-  functionName: 'PERMISSIONS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"PRICES"`
- */
-export const readJbControllerPrices = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-  functionName: 'PRICES',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"PROJECTS"`
- */
-export const readJbControllerProjects = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-  functionName: 'PROJECTS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"RULESETS"`
- */
-export const readJbControllerRulesets = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-  functionName: 'RULESETS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"SPLITS"`
- */
-export const readJbControllerSplits = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-  functionName: 'SPLITS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"TOKENS"`
- */
-export const readJbControllerTokens = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-  functionName: 'TOKENS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"allRulesetsOf"`
- */
-export const readJbControllerAllRulesetsOf = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-  functionName: 'allRulesetsOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"currentRulesetOf"`
- */
-export const readJbControllerCurrentRulesetOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'currentRulesetOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"getRulesetOf"`
- */
-export const readJbControllerGetRulesetOf = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-  functionName: 'getRulesetOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"isTrustedForwarder"`
- */
-export const readJbControllerIsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"latestQueuedRulesetOf"`
- */
-export const readJbControllerLatestQueuedRulesetOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'latestQueuedRulesetOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"pendingReservedTokenBalanceOf"`
- */
-export const readJbControllerPendingReservedTokenBalanceOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'pendingReservedTokenBalanceOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setControllerAllowed"`
- */
-export const readJbControllerSetControllerAllowed =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'setControllerAllowed',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setTerminalsAllowed"`
- */
-export const readJbControllerSetTerminalsAllowed =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'setTerminalsAllowed',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"supportsInterface"`
- */
-export const readJbControllerSupportsInterface =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'supportsInterface',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"totalTokenSupplyWithReservedTokensOf"`
- */
-export const readJbControllerTotalTokenSupplyWithReservedTokensOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'totalTokenSupplyWithReservedTokensOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"trustedForwarder"`
- */
-export const readJbControllerTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"upcomingRulesetOf"`
- */
-export const readJbControllerUpcomingRulesetOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbControllerAbi,
-    functionName: 'upcomingRulesetOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"uriOf"`
- */
-export const readJbControllerUriOf = /*#__PURE__*/ createReadContract({
-  abi: jbControllerAbi,
-  functionName: 'uriOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__
- */
-export const writeJbController = /*#__PURE__*/ createWriteContract({
-  abi: jbControllerAbi,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"addPriceFeed"`
- */
-export const writeJbControllerAddPriceFeed = /*#__PURE__*/ createWriteContract({
-  abi: jbControllerAbi,
-  functionName: 'addPriceFeed',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"beforeReceiveMigrationFrom"`
- */
-export const writeJbControllerBeforeReceiveMigrationFrom =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbControllerAbi,
-    functionName: 'beforeReceiveMigrationFrom',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"burnTokensOf"`
- */
-export const writeJbControllerBurnTokensOf = /*#__PURE__*/ createWriteContract({
-  abi: jbControllerAbi,
-  functionName: 'burnTokensOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"claimTokensFor"`
- */
-export const writeJbControllerClaimTokensFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbControllerAbi,
-    functionName: 'claimTokensFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"deployERC20For"`
- */
-export const writeJbControllerDeployErc20For =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbControllerAbi,
-    functionName: 'deployERC20For',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"executePayReservedTokenToTerminal"`
- */
-export const writeJbControllerExecutePayReservedTokenToTerminal =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbControllerAbi,
-    functionName: 'executePayReservedTokenToTerminal',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"launchProjectFor"`
- */
-export const writeJbControllerLaunchProjectFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbControllerAbi,
-    functionName: 'launchProjectFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"launchRulesetsFor"`
- */
-export const writeJbControllerLaunchRulesetsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbControllerAbi,
-    functionName: 'launchRulesetsFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"migrate"`
- */
-export const writeJbControllerMigrate = /*#__PURE__*/ createWriteContract({
-  abi: jbControllerAbi,
-  functionName: 'migrate',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"mintTokensOf"`
- */
-export const writeJbControllerMintTokensOf = /*#__PURE__*/ createWriteContract({
-  abi: jbControllerAbi,
-  functionName: 'mintTokensOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"queueRulesetsOf"`
- */
-export const writeJbControllerQueueRulesetsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbControllerAbi,
-    functionName: 'queueRulesetsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"sendReservedTokensToSplitsOf"`
- */
-export const writeJbControllerSendReservedTokensToSplitsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbControllerAbi,
-    functionName: 'sendReservedTokensToSplitsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setSplitGroupsOf"`
- */
-export const writeJbControllerSetSplitGroupsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbControllerAbi,
-    functionName: 'setSplitGroupsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setTokenFor"`
- */
-export const writeJbControllerSetTokenFor = /*#__PURE__*/ createWriteContract({
-  abi: jbControllerAbi,
-  functionName: 'setTokenFor',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setUriOf"`
- */
-export const writeJbControllerSetUriOf = /*#__PURE__*/ createWriteContract({
-  abi: jbControllerAbi,
-  functionName: 'setUriOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"transferCreditsFrom"`
- */
-export const writeJbControllerTransferCreditsFrom =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbControllerAbi,
-    functionName: 'transferCreditsFrom',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__
- */
-export const simulateJbController = /*#__PURE__*/ createSimulateContract({
-  abi: jbControllerAbi,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"addPriceFeed"`
- */
-export const simulateJbControllerAddPriceFeed =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'addPriceFeed',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"beforeReceiveMigrationFrom"`
- */
-export const simulateJbControllerBeforeReceiveMigrationFrom =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'beforeReceiveMigrationFrom',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"burnTokensOf"`
- */
-export const simulateJbControllerBurnTokensOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'burnTokensOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"claimTokensFor"`
- */
-export const simulateJbControllerClaimTokensFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'claimTokensFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"deployERC20For"`
- */
-export const simulateJbControllerDeployErc20For =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'deployERC20For',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"executePayReservedTokenToTerminal"`
- */
-export const simulateJbControllerExecutePayReservedTokenToTerminal =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'executePayReservedTokenToTerminal',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"launchProjectFor"`
- */
-export const simulateJbControllerLaunchProjectFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'launchProjectFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"launchRulesetsFor"`
- */
-export const simulateJbControllerLaunchRulesetsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'launchRulesetsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"migrate"`
- */
-export const simulateJbControllerMigrate = /*#__PURE__*/ createSimulateContract(
-  { abi: jbControllerAbi, functionName: 'migrate' },
-)
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"mintTokensOf"`
- */
-export const simulateJbControllerMintTokensOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'mintTokensOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"queueRulesetsOf"`
- */
-export const simulateJbControllerQueueRulesetsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'queueRulesetsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"sendReservedTokensToSplitsOf"`
- */
-export const simulateJbControllerSendReservedTokensToSplitsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'sendReservedTokensToSplitsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setSplitGroupsOf"`
- */
-export const simulateJbControllerSetSplitGroupsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'setSplitGroupsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setTokenFor"`
- */
-export const simulateJbControllerSetTokenFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'setTokenFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"setUriOf"`
- */
-export const simulateJbControllerSetUriOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'setUriOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbControllerAbi}__ and `functionName` set to `"transferCreditsFrom"`
- */
-export const simulateJbControllerTransferCreditsFrom =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbControllerAbi,
-    functionName: 'transferCreditsFrom',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__
- */
-export const watchJbControllerEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbControllerAbi,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"BurnTokens"`
- */
-export const watchJbControllerBurnTokensEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'BurnTokens',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"LaunchProject"`
- */
-export const watchJbControllerLaunchProjectEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'LaunchProject',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"LaunchRulesets"`
- */
-export const watchJbControllerLaunchRulesetsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'LaunchRulesets',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"Migrate"`
- */
-export const watchJbControllerMigrateEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'Migrate',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"MintTokens"`
- */
-export const watchJbControllerMintTokensEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'MintTokens',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"PrepMigration"`
- */
-export const watchJbControllerPrepMigrationEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'PrepMigration',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"QueueRulesets"`
- */
-export const watchJbControllerQueueRulesetsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'QueueRulesets',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"ReservedDistributionReverted"`
- */
-export const watchJbControllerReservedDistributionRevertedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'ReservedDistributionReverted',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"SendReservedTokensToSplit"`
- */
-export const watchJbControllerSendReservedTokensToSplitEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'SendReservedTokensToSplit',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"SendReservedTokensToSplits"`
- */
-export const watchJbControllerSendReservedTokensToSplitsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'SendReservedTokensToSplits',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbControllerAbi}__ and `eventName` set to `"SetUri"`
- */
-export const watchJbControllerSetUriEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbControllerAbi,
-    eventName: 'SetUri',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__
- */
-export const readJbController4_1 = /*#__PURE__*/ createReadContract({
-  abi: jbController4_1Abi,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"DIRECTORY"`
- */
-export const readJbController4_1Directory = /*#__PURE__*/ createReadContract({
-  abi: jbController4_1Abi,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"FUND_ACCESS_LIMITS"`
- */
-export const readJbController4_1FundAccessLimits =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'FUND_ACCESS_LIMITS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"OMNICHAIN_RULESET_OPERATOR"`
- */
-export const readJbController4_1OmnichainRulesetOperator =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'OMNICHAIN_RULESET_OPERATOR',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"PERMISSIONS"`
- */
-export const readJbController4_1Permissions = /*#__PURE__*/ createReadContract({
-  abi: jbController4_1Abi,
-  functionName: 'PERMISSIONS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"PRICES"`
- */
-export const readJbController4_1Prices = /*#__PURE__*/ createReadContract({
-  abi: jbController4_1Abi,
-  functionName: 'PRICES',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"PROJECTS"`
- */
-export const readJbController4_1Projects = /*#__PURE__*/ createReadContract({
-  abi: jbController4_1Abi,
-  functionName: 'PROJECTS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"RULESETS"`
- */
-export const readJbController4_1Rulesets = /*#__PURE__*/ createReadContract({
-  abi: jbController4_1Abi,
-  functionName: 'RULESETS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"SPLITS"`
- */
-export const readJbController4_1Splits = /*#__PURE__*/ createReadContract({
-  abi: jbController4_1Abi,
-  functionName: 'SPLITS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"TOKENS"`
- */
-export const readJbController4_1Tokens = /*#__PURE__*/ createReadContract({
-  abi: jbController4_1Abi,
-  functionName: 'TOKENS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"allRulesetsOf"`
- */
-export const readJbController4_1AllRulesetsOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'allRulesetsOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"currentRulesetOf"`
- */
-export const readJbController4_1CurrentRulesetOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'currentRulesetOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"getRulesetOf"`
- */
-export const readJbController4_1GetRulesetOf = /*#__PURE__*/ createReadContract(
-  { abi: jbController4_1Abi, functionName: 'getRulesetOf' },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"isTrustedForwarder"`
- */
-export const readJbController4_1IsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"latestQueuedRulesetOf"`
- */
-export const readJbController4_1LatestQueuedRulesetOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'latestQueuedRulesetOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"pendingReservedTokenBalanceOf"`
- */
-export const readJbController4_1PendingReservedTokenBalanceOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'pendingReservedTokenBalanceOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"setControllerAllowed"`
- */
-export const readJbController4_1SetControllerAllowed =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'setControllerAllowed',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"setTerminalsAllowed"`
- */
-export const readJbController4_1SetTerminalsAllowed =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'setTerminalsAllowed',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"supportsInterface"`
- */
-export const readJbController4_1SupportsInterface =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'supportsInterface',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"totalTokenSupplyWithReservedTokensOf"`
- */
-export const readJbController4_1TotalTokenSupplyWithReservedTokensOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'totalTokenSupplyWithReservedTokensOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"trustedForwarder"`
- */
-export const readJbController4_1TrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"upcomingRulesetOf"`
- */
-export const readJbController4_1UpcomingRulesetOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbController4_1Abi,
-    functionName: 'upcomingRulesetOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"uriOf"`
- */
-export const readJbController4_1UriOf = /*#__PURE__*/ createReadContract({
-  abi: jbController4_1Abi,
-  functionName: 'uriOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__
- */
-export const writeJbController4_1 = /*#__PURE__*/ createWriteContract({
-  abi: jbController4_1Abi,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"addPriceFeed"`
- */
-export const writeJbController4_1AddPriceFeed =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'addPriceFeed',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"beforeReceiveMigrationFrom"`
- */
-export const writeJbController4_1BeforeReceiveMigrationFrom =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'beforeReceiveMigrationFrom',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"burnTokensOf"`
- */
-export const writeJbController4_1BurnTokensOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'burnTokensOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"claimTokensFor"`
- */
-export const writeJbController4_1ClaimTokensFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'claimTokensFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"deployERC20For"`
- */
-export const writeJbController4_1DeployErc20For =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'deployERC20For',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"executePayReservedTokenToTerminal"`
- */
-export const writeJbController4_1ExecutePayReservedTokenToTerminal =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'executePayReservedTokenToTerminal',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"launchProjectFor"`
- */
-export const writeJbController4_1LaunchProjectFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'launchProjectFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"launchRulesetsFor"`
- */
-export const writeJbController4_1LaunchRulesetsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'launchRulesetsFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"migrate"`
- */
-export const writeJbController4_1Migrate = /*#__PURE__*/ createWriteContract({
-  abi: jbController4_1Abi,
-  functionName: 'migrate',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"mintTokensOf"`
- */
-export const writeJbController4_1MintTokensOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'mintTokensOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"queueRulesetsOf"`
- */
-export const writeJbController4_1QueueRulesetsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'queueRulesetsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"sendReservedTokensToSplitsOf"`
- */
-export const writeJbController4_1SendReservedTokensToSplitsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'sendReservedTokensToSplitsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"setSplitGroupsOf"`
- */
-export const writeJbController4_1SetSplitGroupsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'setSplitGroupsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"setTokenFor"`
- */
-export const writeJbController4_1SetTokenFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'setTokenFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"setUriOf"`
- */
-export const writeJbController4_1SetUriOf = /*#__PURE__*/ createWriteContract({
-  abi: jbController4_1Abi,
-  functionName: 'setUriOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"transferCreditsFrom"`
- */
-export const writeJbController4_1TransferCreditsFrom =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbController4_1Abi,
-    functionName: 'transferCreditsFrom',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__
- */
-export const simulateJbController4_1 = /*#__PURE__*/ createSimulateContract({
-  abi: jbController4_1Abi,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"addPriceFeed"`
- */
-export const simulateJbController4_1AddPriceFeed =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'addPriceFeed',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"beforeReceiveMigrationFrom"`
- */
-export const simulateJbController4_1BeforeReceiveMigrationFrom =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'beforeReceiveMigrationFrom',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"burnTokensOf"`
- */
-export const simulateJbController4_1BurnTokensOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'burnTokensOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"claimTokensFor"`
- */
-export const simulateJbController4_1ClaimTokensFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'claimTokensFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"deployERC20For"`
- */
-export const simulateJbController4_1DeployErc20For =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'deployERC20For',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"executePayReservedTokenToTerminal"`
- */
-export const simulateJbController4_1ExecutePayReservedTokenToTerminal =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'executePayReservedTokenToTerminal',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"launchProjectFor"`
- */
-export const simulateJbController4_1LaunchProjectFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'launchProjectFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"launchRulesetsFor"`
- */
-export const simulateJbController4_1LaunchRulesetsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'launchRulesetsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"migrate"`
- */
-export const simulateJbController4_1Migrate =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'migrate',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"mintTokensOf"`
- */
-export const simulateJbController4_1MintTokensOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'mintTokensOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"queueRulesetsOf"`
- */
-export const simulateJbController4_1QueueRulesetsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'queueRulesetsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"sendReservedTokensToSplitsOf"`
- */
-export const simulateJbController4_1SendReservedTokensToSplitsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'sendReservedTokensToSplitsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"setSplitGroupsOf"`
- */
-export const simulateJbController4_1SetSplitGroupsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'setSplitGroupsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"setTokenFor"`
- */
-export const simulateJbController4_1SetTokenFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'setTokenFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"setUriOf"`
- */
-export const simulateJbController4_1SetUriOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'setUriOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbController4_1Abi}__ and `functionName` set to `"transferCreditsFrom"`
- */
-export const simulateJbController4_1TransferCreditsFrom =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbController4_1Abi,
-    functionName: 'transferCreditsFrom',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__
- */
-export const watchJbController4_1Event = /*#__PURE__*/ createWatchContractEvent(
-  { abi: jbController4_1Abi },
-)
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"BurnTokens"`
- */
-export const watchJbController4_1BurnTokensEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'BurnTokens',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"DeployERC20"`
- */
-export const watchJbController4_1DeployErc20Event =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'DeployERC20',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"LaunchProject"`
- */
-export const watchJbController4_1LaunchProjectEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'LaunchProject',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"LaunchRulesets"`
- */
-export const watchJbController4_1LaunchRulesetsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'LaunchRulesets',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"Migrate"`
- */
-export const watchJbController4_1MigrateEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'Migrate',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"MintTokens"`
- */
-export const watchJbController4_1MintTokensEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'MintTokens',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"PrepMigration"`
- */
-export const watchJbController4_1PrepMigrationEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'PrepMigration',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"QueueRulesets"`
- */
-export const watchJbController4_1QueueRulesetsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'QueueRulesets',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"ReservedDistributionReverted"`
- */
-export const watchJbController4_1ReservedDistributionRevertedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'ReservedDistributionReverted',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"SendReservedTokensToSplit"`
- */
-export const watchJbController4_1SendReservedTokensToSplitEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'SendReservedTokensToSplit',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"SendReservedTokensToSplits"`
- */
-export const watchJbController4_1SendReservedTokensToSplitsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'SendReservedTokensToSplits',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbController4_1Abi}__ and `eventName` set to `"SetUri"`
- */
-export const watchJbController4_1SetUriEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbController4_1Abi,
-    eventName: 'SetUri',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const readJbDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbDirectoryAbi,
-  address: jbDirectoryAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"PERMISSIONS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const readJbDirectoryPermissions = /*#__PURE__*/ createReadContract({
-  abi: jbDirectoryAbi,
-  address: jbDirectoryAddress,
-  functionName: 'PERMISSIONS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"PROJECTS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const readJbDirectoryProjects = /*#__PURE__*/ createReadContract({
-  abi: jbDirectoryAbi,
-  address: jbDirectoryAddress,
-  functionName: 'PROJECTS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"controllerOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const readJbDirectoryControllerOf = /*#__PURE__*/ createReadContract({
-  abi: jbDirectoryAbi,
-  address: jbDirectoryAddress,
-  functionName: 'controllerOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"isAllowedToSetFirstController"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const readJbDirectoryIsAllowedToSetFirstController =
-  /*#__PURE__*/ createReadContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'isAllowedToSetFirstController',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"isTerminalOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const readJbDirectoryIsTerminalOf = /*#__PURE__*/ createReadContract({
-  abi: jbDirectoryAbi,
-  address: jbDirectoryAddress,
-  functionName: 'isTerminalOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"owner"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const readJbDirectoryOwner = /*#__PURE__*/ createReadContract({
-  abi: jbDirectoryAbi,
-  address: jbDirectoryAddress,
-  functionName: 'owner',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"primaryTerminalOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const readJbDirectoryPrimaryTerminalOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'primaryTerminalOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"terminalsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const readJbDirectoryTerminalsOf = /*#__PURE__*/ createReadContract({
-  abi: jbDirectoryAbi,
-  address: jbDirectoryAddress,
-  functionName: 'terminalsOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const writeJbDirectory = /*#__PURE__*/ createWriteContract({
-  abi: jbDirectoryAbi,
-  address: jbDirectoryAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"renounceOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const writeJbDirectoryRenounceOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setControllerOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const writeJbDirectorySetControllerOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'setControllerOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setIsAllowedToSetFirstController"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const writeJbDirectorySetIsAllowedToSetFirstController =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'setIsAllowedToSetFirstController',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setPrimaryTerminalOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const writeJbDirectorySetPrimaryTerminalOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'setPrimaryTerminalOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setTerminalsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const writeJbDirectorySetTerminalsOf = /*#__PURE__*/ createWriteContract(
   {
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'setTerminalsOf',
+    type: 'function',
+    inputs: [],
+    name: 'CONTROLLER',
+    outputs: [
+      { name: '', internalType: 'contract IJBController', type: 'address' },
+    ],
+    stateMutability: 'view',
   },
-)
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"transferOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const writeJbDirectoryTransferOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const simulateJbDirectory = /*#__PURE__*/ createSimulateContract({
-  abi: jbDirectoryAbi,
-  address: jbDirectoryAddress,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"renounceOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const simulateJbDirectoryRenounceOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setControllerOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const simulateJbDirectorySetControllerOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'setControllerOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setIsAllowedToSetFirstController"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const simulateJbDirectorySetIsAllowedToSetFirstController =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'setIsAllowedToSetFirstController',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setPrimaryTerminalOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const simulateJbDirectorySetPrimaryTerminalOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'setPrimaryTerminalOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"setTerminalsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const simulateJbDirectorySetTerminalsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'setTerminalsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbDirectoryAbi}__ and `functionName` set to `"transferOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const simulateJbDirectoryTransferOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const watchJbDirectoryEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbDirectoryAbi,
-  address: jbDirectoryAddress,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"AddTerminal"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const watchJbDirectoryAddTerminalEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    eventName: 'AddTerminal',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"OwnershipTransferred"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const watchJbDirectoryOwnershipTransferredEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    eventName: 'OwnershipTransferred',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetController"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const watchJbDirectorySetControllerEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    eventName: 'SetController',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetIsAllowedToSetFirstController"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const watchJbDirectorySetIsAllowedToSetFirstControllerEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    eventName: 'SetIsAllowedToSetFirstController',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetPrimaryTerminal"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const watchJbDirectorySetPrimaryTerminalEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    eventName: 'SetPrimaryTerminal',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbDirectoryAbi}__ and `eventName` set to `"SetTerminals"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41)
- */
-export const watchJbDirectorySetTerminalsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbDirectoryAbi,
-    address: jbDirectoryAddress,
-    eventName: 'SetTerminals',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__
- */
-export const readJbFundAccessLimits = /*#__PURE__*/ createReadContract({
-  abi: jbFundAccessLimitsAbi,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__ and `functionName` set to `"DIRECTORY"`
- */
-export const readJbFundAccessLimitsDirectory = /*#__PURE__*/ createReadContract(
-  { abi: jbFundAccessLimitsAbi, functionName: 'DIRECTORY' },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__ and `functionName` set to `"payoutLimitOf"`
- */
-export const readJbFundAccessLimitsPayoutLimitOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbFundAccessLimitsAbi,
-    functionName: 'payoutLimitOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__ and `functionName` set to `"payoutLimitsOf"`
- */
-export const readJbFundAccessLimitsPayoutLimitsOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbFundAccessLimitsAbi,
-    functionName: 'payoutLimitsOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__ and `functionName` set to `"surplusAllowanceOf"`
- */
-export const readJbFundAccessLimitsSurplusAllowanceOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbFundAccessLimitsAbi,
-    functionName: 'surplusAllowanceOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__ and `functionName` set to `"surplusAllowancesOf"`
- */
-export const readJbFundAccessLimitsSurplusAllowancesOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbFundAccessLimitsAbi,
-    functionName: 'surplusAllowancesOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__
- */
-export const writeJbFundAccessLimits = /*#__PURE__*/ createWriteContract({
-  abi: jbFundAccessLimitsAbi,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__ and `functionName` set to `"setFundAccessLimitsFor"`
- */
-export const writeJbFundAccessLimitsSetFundAccessLimitsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbFundAccessLimitsAbi,
-    functionName: 'setFundAccessLimitsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__
- */
-export const simulateJbFundAccessLimits = /*#__PURE__*/ createSimulateContract({
-  abi: jbFundAccessLimitsAbi,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__ and `functionName` set to `"setFundAccessLimitsFor"`
- */
-export const simulateJbFundAccessLimitsSetFundAccessLimitsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbFundAccessLimitsAbi,
-    functionName: 'setFundAccessLimitsFor',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__
- */
-export const watchJbFundAccessLimitsEvent =
-  /*#__PURE__*/ createWatchContractEvent({ abi: jbFundAccessLimitsAbi })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbFundAccessLimitsAbi}__ and `eventName` set to `"SetFundAccessLimits"`
- */
-export const watchJbFundAccessLimitsSetFundAccessLimitsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbFundAccessLimitsAbi,
-    eventName: 'SetFundAccessLimits',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__
- */
-export const readJbMultiTerminal = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"DIRECTORY"`
- */
-export const readJbMultiTerminalDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"FEE"`
- */
-export const readJbMultiTerminalFee = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'FEE',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"FEELESS_ADDRESSES"`
- */
-export const readJbMultiTerminalFeelessAddresses =
-  /*#__PURE__*/ createReadContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'FEELESS_ADDRESSES',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"PERMISSIONS"`
- */
-export const readJbMultiTerminalPermissions = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'PERMISSIONS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"PERMIT2"`
- */
-export const readJbMultiTerminalPermit2 = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'PERMIT2',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"PROJECTS"`
- */
-export const readJbMultiTerminalProjects = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'PROJECTS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"RULESETS"`
- */
-export const readJbMultiTerminalRulesets = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'RULESETS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"SPLITS"`
- */
-export const readJbMultiTerminalSplits = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'SPLITS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"STORE"`
- */
-export const readJbMultiTerminalStore = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'STORE',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"TOKENS"`
- */
-export const readJbMultiTerminalTokens = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'TOKENS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"accountingContextForTokenOf"`
- */
-export const readJbMultiTerminalAccountingContextForTokenOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'accountingContextForTokenOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"accountingContextsOf"`
- */
-export const readJbMultiTerminalAccountingContextsOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'accountingContextsOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"currentSurplusOf"`
- */
-export const readJbMultiTerminalCurrentSurplusOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'currentSurplusOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"heldFeesOf"`
- */
-export const readJbMultiTerminalHeldFeesOf = /*#__PURE__*/ createReadContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'heldFeesOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"isTrustedForwarder"`
- */
-export const readJbMultiTerminalIsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"supportsInterface"`
- */
-export const readJbMultiTerminalSupportsInterface =
-  /*#__PURE__*/ createReadContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'supportsInterface',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"trustedForwarder"`
- */
-export const readJbMultiTerminalTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__
- */
-export const writeJbMultiTerminal = /*#__PURE__*/ createWriteContract({
-  abi: jbMultiTerminalAbi,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"addAccountingContextsFor"`
- */
-export const writeJbMultiTerminalAddAccountingContextsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'addAccountingContextsFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"addToBalanceOf"`
- */
-export const writeJbMultiTerminalAddToBalanceOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'addToBalanceOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"cashOutTokensOf"`
- */
-export const writeJbMultiTerminalCashOutTokensOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'cashOutTokensOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"executePayout"`
- */
-export const writeJbMultiTerminalExecutePayout =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'executePayout',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"executeProcessFee"`
- */
-export const writeJbMultiTerminalExecuteProcessFee =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'executeProcessFee',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"executeTransferTo"`
- */
-export const writeJbMultiTerminalExecuteTransferTo =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'executeTransferTo',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"migrateBalanceOf"`
- */
-export const writeJbMultiTerminalMigrateBalanceOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'migrateBalanceOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"pay"`
- */
-export const writeJbMultiTerminalPay = /*#__PURE__*/ createWriteContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'pay',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"processHeldFeesOf"`
- */
-export const writeJbMultiTerminalProcessHeldFeesOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'processHeldFeesOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"sendPayoutsOf"`
- */
-export const writeJbMultiTerminalSendPayoutsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'sendPayoutsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"useAllowanceOf"`
- */
-export const writeJbMultiTerminalUseAllowanceOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'useAllowanceOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__
- */
-export const simulateJbMultiTerminal = /*#__PURE__*/ createSimulateContract({
-  abi: jbMultiTerminalAbi,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"addAccountingContextsFor"`
- */
-export const simulateJbMultiTerminalAddAccountingContextsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'addAccountingContextsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"addToBalanceOf"`
- */
-export const simulateJbMultiTerminalAddToBalanceOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'addToBalanceOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"cashOutTokensOf"`
- */
-export const simulateJbMultiTerminalCashOutTokensOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'cashOutTokensOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"executePayout"`
- */
-export const simulateJbMultiTerminalExecutePayout =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'executePayout',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"executeProcessFee"`
- */
-export const simulateJbMultiTerminalExecuteProcessFee =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'executeProcessFee',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"executeTransferTo"`
- */
-export const simulateJbMultiTerminalExecuteTransferTo =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'executeTransferTo',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"migrateBalanceOf"`
- */
-export const simulateJbMultiTerminalMigrateBalanceOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'migrateBalanceOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"pay"`
- */
-export const simulateJbMultiTerminalPay = /*#__PURE__*/ createSimulateContract({
-  abi: jbMultiTerminalAbi,
-  functionName: 'pay',
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"processHeldFeesOf"`
- */
-export const simulateJbMultiTerminalProcessHeldFeesOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'processHeldFeesOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"sendPayoutsOf"`
- */
-export const simulateJbMultiTerminalSendPayoutsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'sendPayoutsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `functionName` set to `"useAllowanceOf"`
- */
-export const simulateJbMultiTerminalUseAllowanceOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbMultiTerminalAbi,
-    functionName: 'useAllowanceOf',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__
- */
-export const watchJbMultiTerminalEvent = /*#__PURE__*/ createWatchContractEvent(
-  { abi: jbMultiTerminalAbi },
-)
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"AddToBalance"`
- */
-export const watchJbMultiTerminalAddToBalanceEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'AddToBalance',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"CashOutTokens"`
- */
-export const watchJbMultiTerminalCashOutTokensEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'CashOutTokens',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"FeeReverted"`
- */
-export const watchJbMultiTerminalFeeRevertedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'FeeReverted',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"HoldFee"`
- */
-export const watchJbMultiTerminalHoldFeeEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'HoldFee',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"HookAfterRecordCashOut"`
- */
-export const watchJbMultiTerminalHookAfterRecordCashOutEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'HookAfterRecordCashOut',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"HookAfterRecordPay"`
- */
-export const watchJbMultiTerminalHookAfterRecordPayEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'HookAfterRecordPay',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"MigrateTerminal"`
- */
-export const watchJbMultiTerminalMigrateTerminalEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'MigrateTerminal',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"Pay"`
- */
-export const watchJbMultiTerminalPayEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'Pay',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"PayoutReverted"`
- */
-export const watchJbMultiTerminalPayoutRevertedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'PayoutReverted',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"PayoutTransferReverted"`
- */
-export const watchJbMultiTerminalPayoutTransferRevertedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'PayoutTransferReverted',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"ProcessFee"`
- */
-export const watchJbMultiTerminalProcessFeeEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'ProcessFee',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"ReturnHeldFees"`
- */
-export const watchJbMultiTerminalReturnHeldFeesEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'ReturnHeldFees',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"SendPayoutToSplit"`
- */
-export const watchJbMultiTerminalSendPayoutToSplitEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'SendPayoutToSplit',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"SendPayouts"`
- */
-export const watchJbMultiTerminalSendPayoutsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'SendPayouts',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"SetAccountingContext"`
- */
-export const watchJbMultiTerminalSetAccountingContextEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'SetAccountingContext',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbMultiTerminalAbi}__ and `eventName` set to `"UseAllowance"`
- */
-export const watchJbMultiTerminalUseAllowanceEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbMultiTerminalAbi,
-    eventName: 'UseAllowance',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployer = /*#__PURE__*/ createReadContract({
-  abi: jbOmnichainDeployerAbi,
-  address: jbOmnichainDeployerAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"CONTROLLER"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerController =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'CONTROLLER',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"HOOK_DEPLOYER"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerHookDeployer =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'HOOK_DEPLOYER',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"PERMISSIONS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerPermissions =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'PERMISSIONS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"PROJECTS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerProjects = /*#__PURE__*/ createReadContract(
   {
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'PROJECTS',
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
   },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"SUCKER_REGISTRY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerSuckerRegistry =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'SUCKER_REGISTRY',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"beforeCashOutRecordedWith"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerBeforeCashOutRecordedWith =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'beforeCashOutRecordedWith',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"beforePayRecordedWith"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerBeforePayRecordedWith =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'beforePayRecordedWith',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"dataHookOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerDataHookOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'dataHookOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"hasMintPermissionFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerHasMintPermissionFor =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'hasMintPermissionFor',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"isTrustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerIsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"onERC721Received"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerOnErc721Received =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'onERC721Received',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"supportsInterface"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerSupportsInterface =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'supportsInterface',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"trustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const readJbOmnichainDeployerTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const writeJbOmnichainDeployer = /*#__PURE__*/ createWriteContract({
-  abi: jbOmnichainDeployerAbi,
-  address: jbOmnichainDeployerAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"deploySuckersFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const writeJbOmnichainDeployerDeploySuckersFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'deploySuckersFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"launch721ProjectFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const writeJbOmnichainDeployerLaunch721ProjectFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'launch721ProjectFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"launch721RulesetsFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const writeJbOmnichainDeployerLaunch721RulesetsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'launch721RulesetsFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"launchProjectFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const writeJbOmnichainDeployerLaunchProjectFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'launchProjectFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"launchRulesetsFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const writeJbOmnichainDeployerLaunchRulesetsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'launchRulesetsFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"queue721RulesetsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const writeJbOmnichainDeployerQueue721RulesetsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'queue721RulesetsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"queueRulesetsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const writeJbOmnichainDeployerQueueRulesetsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'queueRulesetsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const simulateJbOmnichainDeployer = /*#__PURE__*/ createSimulateContract(
-  { abi: jbOmnichainDeployerAbi, address: jbOmnichainDeployerAddress },
-)
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"deploySuckersFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const simulateJbOmnichainDeployerDeploySuckersFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'deploySuckersFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"launch721ProjectFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const simulateJbOmnichainDeployerLaunch721ProjectFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'launch721ProjectFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"launch721RulesetsFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const simulateJbOmnichainDeployerLaunch721RulesetsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'launch721RulesetsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"launchProjectFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const simulateJbOmnichainDeployerLaunchProjectFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'launchProjectFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"launchRulesetsFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const simulateJbOmnichainDeployerLaunchRulesetsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'launchRulesetsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"queue721RulesetsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const simulateJbOmnichainDeployerQueue721RulesetsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'queue721RulesetsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployerAbi}__ and `functionName` set to `"queueRulesetsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x29f83557ca30d4283c1eb8b6118d1b4808eaa190)
- */
-export const simulateJbOmnichainDeployerQueueRulesetsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployerAbi,
-    address: jbOmnichainDeployerAddress,
-    functionName: 'queueRulesetsOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1 = /*#__PURE__*/ createReadContract({
-  abi: jbOmnichainDeployer4_1Abi,
-  address: jbOmnichainDeployer4_1Address,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"HOOK_DEPLOYER"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1HookDeployer =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'HOOK_DEPLOYER',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"PERMISSIONS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1Permissions =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'PERMISSIONS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"PROJECTS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1Projects =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'PROJECTS',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"SUCKER_REGISTRY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1SuckerRegistry =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'SUCKER_REGISTRY',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"beforeCashOutRecordedWith"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1BeforeCashOutRecordedWith =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'beforeCashOutRecordedWith',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"beforePayRecordedWith"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1BeforePayRecordedWith =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'beforePayRecordedWith',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"dataHookOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1DataHookOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'dataHookOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"hasMintPermissionFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1HasMintPermissionFor =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'hasMintPermissionFor',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"isTrustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1IsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"onERC721Received"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1OnErc721Received =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'onERC721Received',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"supportsInterface"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1SupportsInterface =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'supportsInterface',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"trustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const readJbOmnichainDeployer4_1TrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const writeJbOmnichainDeployer4_1 = /*#__PURE__*/ createWriteContract({
-  abi: jbOmnichainDeployer4_1Abi,
-  address: jbOmnichainDeployer4_1Address,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"deploySuckersFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const writeJbOmnichainDeployer4_1DeploySuckersFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'deploySuckersFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"launch721ProjectFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const writeJbOmnichainDeployer4_1Launch721ProjectFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'launch721ProjectFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"launch721RulesetsFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const writeJbOmnichainDeployer4_1Launch721RulesetsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'launch721RulesetsFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"launchProjectFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const writeJbOmnichainDeployer4_1LaunchProjectFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'launchProjectFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"launchRulesetsFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const writeJbOmnichainDeployer4_1LaunchRulesetsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'launchRulesetsFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"queue721RulesetsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const writeJbOmnichainDeployer4_1Queue721RulesetsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'queue721RulesetsOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"queueRulesetsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const writeJbOmnichainDeployer4_1QueueRulesetsOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'queueRulesetsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const simulateJbOmnichainDeployer4_1 =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"deploySuckersFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const simulateJbOmnichainDeployer4_1DeploySuckersFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'deploySuckersFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"launch721ProjectFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const simulateJbOmnichainDeployer4_1Launch721ProjectFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'launch721ProjectFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"launch721RulesetsFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const simulateJbOmnichainDeployer4_1Launch721RulesetsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'launch721RulesetsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"launchProjectFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const simulateJbOmnichainDeployer4_1LaunchProjectFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'launchProjectFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"launchRulesetsFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const simulateJbOmnichainDeployer4_1LaunchRulesetsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'launchRulesetsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"queue721RulesetsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const simulateJbOmnichainDeployer4_1Queue721RulesetsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'queue721RulesetsOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbOmnichainDeployer4_1Abi}__ and `functionName` set to `"queueRulesetsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd)
- */
-export const simulateJbOmnichainDeployer4_1QueueRulesetsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbOmnichainDeployer4_1Abi,
-    address: jbOmnichainDeployer4_1Address,
-    functionName: 'queueRulesetsOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPermissionsAbi}__
- */
-export const readJbPermissions = /*#__PURE__*/ createReadContract({
-  abi: jbPermissionsAbi,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"WILDCARD_PROJECT_ID"`
- */
-export const readJbPermissionsWildcardProjectId =
-  /*#__PURE__*/ createReadContract({
-    abi: jbPermissionsAbi,
-    functionName: 'WILDCARD_PROJECT_ID',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"hasPermission"`
- */
-export const readJbPermissionsHasPermission = /*#__PURE__*/ createReadContract({
-  abi: jbPermissionsAbi,
-  functionName: 'hasPermission',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"hasPermissions"`
- */
-export const readJbPermissionsHasPermissions = /*#__PURE__*/ createReadContract(
-  { abi: jbPermissionsAbi, functionName: 'hasPermissions' },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"permissionsOf"`
- */
-export const readJbPermissionsPermissionsOf = /*#__PURE__*/ createReadContract({
-  abi: jbPermissionsAbi,
-  functionName: 'permissionsOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPermissionsAbi}__
- */
-export const writeJbPermissions = /*#__PURE__*/ createWriteContract({
-  abi: jbPermissionsAbi,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"setPermissionsFor"`
- */
-export const writeJbPermissionsSetPermissionsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbPermissionsAbi,
-    functionName: 'setPermissionsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPermissionsAbi}__
- */
-export const simulateJbPermissions = /*#__PURE__*/ createSimulateContract({
-  abi: jbPermissionsAbi,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPermissionsAbi}__ and `functionName` set to `"setPermissionsFor"`
- */
-export const simulateJbPermissionsSetPermissionsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbPermissionsAbi,
-    functionName: 'setPermissionsFor',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPermissionsAbi}__
- */
-export const watchJbPermissionsEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbPermissionsAbi,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPermissionsAbi}__ and `eventName` set to `"OperatorPermissionsSet"`
- */
-export const watchJbPermissionsOperatorPermissionsSetEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbPermissionsAbi,
-    eventName: 'OperatorPermissionsSet',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const readJbPrices = /*#__PURE__*/ createReadContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"DEFAULT_PROJECT_ID"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const readJbPricesDefaultProjectId = /*#__PURE__*/ createReadContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-  functionName: 'DEFAULT_PROJECT_ID',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"DIRECTORY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const readJbPricesDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"PERMISSIONS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const readJbPricesPermissions = /*#__PURE__*/ createReadContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-  functionName: 'PERMISSIONS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"PROJECTS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const readJbPricesProjects = /*#__PURE__*/ createReadContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-  functionName: 'PROJECTS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"owner"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const readJbPricesOwner = /*#__PURE__*/ createReadContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-  functionName: 'owner',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"priceFeedFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const readJbPricesPriceFeedFor = /*#__PURE__*/ createReadContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-  functionName: 'priceFeedFor',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"pricePerUnitOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const readJbPricesPricePerUnitOf = /*#__PURE__*/ createReadContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-  functionName: 'pricePerUnitOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const writeJbPrices = /*#__PURE__*/ createWriteContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"addPriceFeedFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const writeJbPricesAddPriceFeedFor = /*#__PURE__*/ createWriteContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-  functionName: 'addPriceFeedFor',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"renounceOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const writeJbPricesRenounceOwnership = /*#__PURE__*/ createWriteContract(
   {
-    abi: jbPricesAbi,
-    address: jbPricesAddress,
-    functionName: 'renounceOwnership',
+    type: 'function',
+    inputs: [],
+    name: 'FEE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
-)
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"transferOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const writeJbPricesTransferOwnership = /*#__PURE__*/ createWriteContract(
   {
-    abi: jbPricesAbi,
-    address: jbPricesAddress,
-    functionName: 'transferOwnership',
+    type: 'function',
+    inputs: [],
+    name: 'FEE_REVNET_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
-)
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const simulateJbPrices = /*#__PURE__*/ createSimulateContract({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"addPriceFeedFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const simulateJbPricesAddPriceFeedFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbPricesAbi,
-    address: jbPricesAddress,
-    functionName: 'addPriceFeedFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"renounceOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const simulateJbPricesRenounceOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbPricesAbi,
-    address: jbPricesAddress,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbPricesAbi}__ and `functionName` set to `"transferOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const simulateJbPricesTransferOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbPricesAbi,
-    address: jbPricesAddress,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPricesAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const watchJbPricesEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbPricesAbi,
-  address: jbPricesAddress,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPricesAbi}__ and `eventName` set to `"AddPriceFeed"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const watchJbPricesAddPriceFeedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbPricesAbi,
-    address: jbPricesAddress,
-    eventName: 'AddPriceFeed',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbPricesAbi}__ and `eventName` set to `"OwnershipTransferred"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7)
- */
-export const watchJbPricesOwnershipTransferredEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbPricesAbi,
-    address: jbPricesAddress,
-    eventName: 'OwnershipTransferred',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjects = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"balanceOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsBalanceOf = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'balanceOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"count"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsCount = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'count',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"getApproved"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsGetApproved = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'getApproved',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"isApprovedForAll"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsIsApprovedForAll = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'isApprovedForAll',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"name"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsName = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'name',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"owner"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsOwner = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'owner',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"ownerOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsOwnerOf = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'ownerOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"supportsInterface"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsSupportsInterface = /*#__PURE__*/ createReadContract(
   {
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'supportsInterface',
+    type: 'function',
+    inputs: [],
+    name: 'HOOK_DEPLOYER',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJB721TiersHookDeployer',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
   },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"symbol"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsSymbol = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'symbol',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"tokenURI"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsTokenUri = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'tokenURI',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"tokenUriResolver"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const readJbProjectsTokenUriResolver = /*#__PURE__*/ createReadContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'tokenUriResolver',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const writeJbProjects = /*#__PURE__*/ createWriteContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"approve"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const writeJbProjectsApprove = /*#__PURE__*/ createWriteContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'approve',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"createFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const writeJbProjectsCreateFor = /*#__PURE__*/ createWriteContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'createFor',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"renounceOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const writeJbProjectsRenounceOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"safeTransferFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const writeJbProjectsSafeTransferFrom =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'safeTransferFrom',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setApprovalForAll"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const writeJbProjectsSetApprovalForAll =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'setApprovalForAll',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setTokenUriResolver"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const writeJbProjectsSetTokenUriResolver =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'setTokenUriResolver',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const writeJbProjectsTransferFrom = /*#__PURE__*/ createWriteContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'transferFrom',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const writeJbProjectsTransferOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const simulateJbProjects = /*#__PURE__*/ createSimulateContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"approve"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const simulateJbProjectsApprove = /*#__PURE__*/ createSimulateContract({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-  functionName: 'approve',
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"createFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const simulateJbProjectsCreateFor = /*#__PURE__*/ createSimulateContract(
-  { abi: jbProjectsAbi, address: jbProjectsAddress, functionName: 'createFor' },
-)
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"renounceOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const simulateJbProjectsRenounceOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"safeTransferFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const simulateJbProjectsSafeTransferFrom =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'safeTransferFrom',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setApprovalForAll"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const simulateJbProjectsSetApprovalForAll =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'setApprovalForAll',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"setTokenUriResolver"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const simulateJbProjectsSetTokenUriResolver =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'setTokenUriResolver',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const simulateJbProjectsTransferFrom =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'transferFrom',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbProjectsAbi}__ and `functionName` set to `"transferOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const simulateJbProjectsTransferOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const watchJbProjectsEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbProjectsAbi,
-  address: jbProjectsAddress,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"Approval"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const watchJbProjectsApprovalEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    eventName: 'Approval',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"ApprovalForAll"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const watchJbProjectsApprovalForAllEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    eventName: 'ApprovalForAll',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"Create"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const watchJbProjectsCreateEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    eventName: 'Create',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"OwnershipTransferred"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const watchJbProjectsOwnershipTransferredEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    eventName: 'OwnershipTransferred',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"SetTokenUriResolver"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const watchJbProjectsSetTokenUriResolverEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    eventName: 'SetTokenUriResolver',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbProjectsAbi}__ and `eventName` set to `"Transfer"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x0b538a02610d7d3cc91ce2870f423e0a34d646ad)
- */
-export const watchJbProjectsTransferEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbProjectsAbi,
-    address: jbProjectsAddress,
-    eventName: 'Transfer',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesets = /*#__PURE__*/ createReadContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"DIRECTORY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"allOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsAllOf = /*#__PURE__*/ createReadContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-  functionName: 'allOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"currentApprovalStatusForLatestRulesetOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsCurrentApprovalStatusForLatestRulesetOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbRulesetsAbi,
-    address: jbRulesetsAddress,
-    functionName: 'currentApprovalStatusForLatestRulesetOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"currentOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsCurrentOf = /*#__PURE__*/ createReadContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-  functionName: 'currentOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"deriveCycleNumberFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsDeriveCycleNumberFrom =
-  /*#__PURE__*/ createReadContract({
-    abi: jbRulesetsAbi,
-    address: jbRulesetsAddress,
-    functionName: 'deriveCycleNumberFrom',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"deriveStartFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsDeriveStartFrom = /*#__PURE__*/ createReadContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-  functionName: 'deriveStartFrom',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"deriveWeightFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsDeriveWeightFrom = /*#__PURE__*/ createReadContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-  functionName: 'deriveWeightFrom',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"getRulesetOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsGetRulesetOf = /*#__PURE__*/ createReadContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-  functionName: 'getRulesetOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"latestQueuedOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsLatestQueuedOf = /*#__PURE__*/ createReadContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-  functionName: 'latestQueuedOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"latestRulesetIdOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsLatestRulesetIdOf = /*#__PURE__*/ createReadContract(
   {
-    abi: jbRulesetsAbi,
-    address: jbRulesetsAddress,
-    functionName: 'latestRulesetIdOf',
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
   },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"upcomingOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const readJbRulesetsUpcomingOf = /*#__PURE__*/ createReadContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-  functionName: 'upcomingOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbRulesetsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const writeJbRulesets = /*#__PURE__*/ createWriteContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"queueFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const writeJbRulesetsQueueFor = /*#__PURE__*/ createWriteContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-  functionName: 'queueFor',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"updateRulesetWeightCache"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const writeJbRulesetsUpdateRulesetWeightCache =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbRulesetsAbi,
-    address: jbRulesetsAddress,
-    functionName: 'updateRulesetWeightCache',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbRulesetsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const simulateJbRulesets = /*#__PURE__*/ createSimulateContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"queueFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const simulateJbRulesetsQueueFor = /*#__PURE__*/ createSimulateContract({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-  functionName: 'queueFor',
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbRulesetsAbi}__ and `functionName` set to `"updateRulesetWeightCache"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const simulateJbRulesetsUpdateRulesetWeightCache =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbRulesetsAbi,
-    address: jbRulesetsAddress,
-    functionName: 'updateRulesetWeightCache',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const watchJbRulesetsEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbRulesetsAbi,
-  address: jbRulesetsAddress,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__ and `eventName` set to `"RulesetInitialized"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const watchJbRulesetsRulesetInitializedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbRulesetsAbi,
-    address: jbRulesetsAddress,
-    eventName: 'RulesetInitialized',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__ and `eventName` set to `"RulesetQueued"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const watchJbRulesetsRulesetQueuedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbRulesetsAbi,
-    address: jbRulesetsAddress,
-    eventName: 'RulesetQueued',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbRulesetsAbi}__ and `eventName` set to `"WeightCacheUpdated"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xda86eedb67c6c9fb3e58fe83efa28674d7c89826)
- */
-export const watchJbRulesetsWeightCacheUpdatedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbRulesetsAbi,
-    address: jbRulesetsAddress,
-    eventName: 'WeightCacheUpdated',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSplitsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const readJbSplits = /*#__PURE__*/ createReadContract({
-  abi: jbSplitsAbi,
-  address: jbSplitsAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"DIRECTORY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const readJbSplitsDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbSplitsAbi,
-  address: jbSplitsAddress,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"FALLBACK_RULESET_ID"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const readJbSplitsFallbackRulesetId = /*#__PURE__*/ createReadContract({
-  abi: jbSplitsAbi,
-  address: jbSplitsAddress,
-  functionName: 'FALLBACK_RULESET_ID',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"splitsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const readJbSplitsSplitsOf = /*#__PURE__*/ createReadContract({
-  abi: jbSplitsAbi,
-  address: jbSplitsAddress,
-  functionName: 'splitsOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSplitsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const writeJbSplits = /*#__PURE__*/ createWriteContract({
-  abi: jbSplitsAbi,
-  address: jbSplitsAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"setSplitGroupsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const writeJbSplitsSetSplitGroupsOf = /*#__PURE__*/ createWriteContract({
-  abi: jbSplitsAbi,
-  address: jbSplitsAddress,
-  functionName: 'setSplitGroupsOf',
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSplitsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const simulateJbSplits = /*#__PURE__*/ createSimulateContract({
-  abi: jbSplitsAbi,
-  address: jbSplitsAddress,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSplitsAbi}__ and `functionName` set to `"setSplitGroupsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const simulateJbSplitsSetSplitGroupsOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSplitsAbi,
-    address: jbSplitsAddress,
-    functionName: 'setSplitGroupsOf',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSplitsAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const watchJbSplitsEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbSplitsAbi,
-  address: jbSplitsAddress,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSplitsAbi}__ and `eventName` set to `"SetSplit"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x9e834f2ae0970f8746e25fba6d42fd90bb96630c)
- */
-export const watchJbSplitsSetSplitEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSplitsAbi,
-    address: jbSplitsAddress,
-    eventName: 'SetSplit',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistry = /*#__PURE__*/ createReadContract({
-  abi: jbSuckerRegistryAbi,
-  address: jbSuckerRegistryAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"DIRECTORY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistryDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbSuckerRegistryAbi,
-  address: jbSuckerRegistryAddress,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"PERMISSIONS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistryPermissions = /*#__PURE__*/ createReadContract(
   {
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'PERMISSIONS',
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
   },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"PROJECTS"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistryProjects = /*#__PURE__*/ createReadContract({
-  abi: jbSuckerRegistryAbi,
-  address: jbSuckerRegistryAddress,
-  functionName: 'PROJECTS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"isSuckerOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistryIsSuckerOf = /*#__PURE__*/ createReadContract({
-  abi: jbSuckerRegistryAbi,
-  address: jbSuckerRegistryAddress,
-  functionName: 'isSuckerOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"isTrustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistryIsTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'isTrustedForwarder',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"owner"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistryOwner = /*#__PURE__*/ createReadContract({
-  abi: jbSuckerRegistryAbi,
-  address: jbSuckerRegistryAddress,
-  functionName: 'owner',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"suckerDeployerIsAllowed"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistrySuckerDeployerIsAllowed =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'suckerDeployerIsAllowed',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"suckerPairsOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistrySuckerPairsOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'suckerPairsOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"suckersOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistrySuckersOf = /*#__PURE__*/ createReadContract({
-  abi: jbSuckerRegistryAbi,
-  address: jbSuckerRegistryAddress,
-  functionName: 'suckersOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"trustedForwarder"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const readJbSuckerRegistryTrustedForwarder =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'trustedForwarder',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const writeJbSuckerRegistry = /*#__PURE__*/ createWriteContract({
-  abi: jbSuckerRegistryAbi,
-  address: jbSuckerRegistryAddress,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployer"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const writeJbSuckerRegistryAllowSuckerDeployer =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'allowSuckerDeployer',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployers"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const writeJbSuckerRegistryAllowSuckerDeployers =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'allowSuckerDeployers',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"deploySuckersFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const writeJbSuckerRegistryDeploySuckersFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'deploySuckersFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeDeprecatedSucker"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const writeJbSuckerRegistryRemoveDeprecatedSucker =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'removeDeprecatedSucker',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeSuckerDeployer"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const writeJbSuckerRegistryRemoveSuckerDeployer =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'removeSuckerDeployer',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"renounceOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const writeJbSuckerRegistryRenounceOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"transferOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const writeJbSuckerRegistryTransferOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const simulateJbSuckerRegistry = /*#__PURE__*/ createSimulateContract({
-  abi: jbSuckerRegistryAbi,
-  address: jbSuckerRegistryAddress,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployer"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const simulateJbSuckerRegistryAllowSuckerDeployer =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'allowSuckerDeployer',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"allowSuckerDeployers"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const simulateJbSuckerRegistryAllowSuckerDeployers =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'allowSuckerDeployers',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"deploySuckersFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const simulateJbSuckerRegistryDeploySuckersFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'deploySuckersFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeDeprecatedSucker"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const simulateJbSuckerRegistryRemoveDeprecatedSucker =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'removeDeprecatedSucker',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"removeSuckerDeployer"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const simulateJbSuckerRegistryRemoveSuckerDeployer =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'removeSuckerDeployer',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"renounceOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const simulateJbSuckerRegistryRenounceOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `functionName` set to `"transferOwnership"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const simulateJbSuckerRegistryTransferOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const watchJbSuckerRegistryEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"OwnershipTransferred"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const watchJbSuckerRegistryOwnershipTransferredEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    eventName: 'OwnershipTransferred',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeployedFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const watchJbSuckerRegistrySuckerDeployedForEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    eventName: 'SuckerDeployedFor',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeployerAllowed"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const watchJbSuckerRegistrySuckerDeployerAllowedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    eventName: 'SuckerDeployerAllowed',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeployerRemoved"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const watchJbSuckerRegistrySuckerDeployerRemovedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    eventName: 'SuckerDeployerRemoved',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSuckerRegistryAbi}__ and `eventName` set to `"SuckerDeprecated"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0x696c7e9b37d28edbefa3fce06e26041b7197c1a5)
- */
-export const watchJbSuckerRegistrySuckerDeprecatedEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSuckerRegistryAbi,
-    address: jbSuckerRegistryAddress,
-    eventName: 'SuckerDeprecated',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__
- */
-export const readJbSwapTerminal = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"DEFAULT_PROJECT_ID"`
- */
-export const readJbSwapTerminalDefaultProjectId =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'DEFAULT_PROJECT_ID',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"DIRECTORY"`
- */
-export const readJbSwapTerminalDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"FACTORY"`
- */
-export const readJbSwapTerminalFactory = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'FACTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"MAX_TWAP_SLIPPAGE_TOLERANCE"`
- */
-export const readJbSwapTerminalMaxTwapSlippageTolerance =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'MAX_TWAP_SLIPPAGE_TOLERANCE',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"MAX_TWAP_WINDOW"`
- */
-export const readJbSwapTerminalMaxTwapWindow = /*#__PURE__*/ createReadContract(
-  { abi: jbSwapTerminalAbi, functionName: 'MAX_TWAP_WINDOW' },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"MIN_DEFAULT_POOL_CARDINALITY"`
- */
-export const readJbSwapTerminalMinDefaultPoolCardinality =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'MIN_DEFAULT_POOL_CARDINALITY',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"MIN_TWAP_SLIPPAGE_TOLERANCE"`
- */
-export const readJbSwapTerminalMinTwapSlippageTolerance =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'MIN_TWAP_SLIPPAGE_TOLERANCE',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"MIN_TWAP_WINDOW"`
- */
-export const readJbSwapTerminalMinTwapWindow = /*#__PURE__*/ createReadContract(
-  { abi: jbSwapTerminalAbi, functionName: 'MIN_TWAP_WINDOW' },
-)
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"PERMISSIONS"`
- */
-export const readJbSwapTerminalPermissions = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'PERMISSIONS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"PERMIT2"`
- */
-export const readJbSwapTerminalPermit2 = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'PERMIT2',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"PROJECTS"`
- */
-export const readJbSwapTerminalProjects = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'PROJECTS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"SLIPPAGE_DENOMINATOR"`
- */
-export const readJbSwapTerminalSlippageDenominator =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'SLIPPAGE_DENOMINATOR',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"TOKEN_OUT"`
- */
-export const readJbSwapTerminalTokenOut = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'TOKEN_OUT',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"WETH"`
- */
-export const readJbSwapTerminalWeth = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'WETH',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"accountingContextForTokenOf"`
- */
-export const readJbSwapTerminalAccountingContextForTokenOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'accountingContextForTokenOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"accountingContextsOf"`
- */
-export const readJbSwapTerminalAccountingContextsOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'accountingContextsOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"currentSurplusOf"`
- */
-export const readJbSwapTerminalCurrentSurplusOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'currentSurplusOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"getPoolFor"`
- */
-export const readJbSwapTerminalGetPoolFor = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'getPoolFor',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"owner"`
- */
-export const readJbSwapTerminalOwner = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'owner',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"supportsInterface"`
- */
-export const readJbSwapTerminalSupportsInterface =
-  /*#__PURE__*/ createReadContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'supportsInterface',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"twapParamsOf"`
- */
-export const readJbSwapTerminalTwapParamsOf = /*#__PURE__*/ createReadContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'twapParamsOf',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__
- */
-export const writeJbSwapTerminal = /*#__PURE__*/ createWriteContract({
-  abi: jbSwapTerminalAbi,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addAccountingContextsFor"`
- */
-export const writeJbSwapTerminalAddAccountingContextsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'addAccountingContextsFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addDefaultPool"`
- */
-export const writeJbSwapTerminalAddDefaultPool =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'addDefaultPool',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addToBalanceOf"`
- */
-export const writeJbSwapTerminalAddToBalanceOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'addToBalanceOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addTwapParamsFor"`
- */
-export const writeJbSwapTerminalAddTwapParamsFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'addTwapParamsFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"migrateBalanceOf"`
- */
-export const writeJbSwapTerminalMigrateBalanceOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'migrateBalanceOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"pay"`
- */
-export const writeJbSwapTerminalPay = /*#__PURE__*/ createWriteContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'pay',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const writeJbSwapTerminalRenounceOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const writeJbSwapTerminalTransferOwnership =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"uniswapV3SwapCallback"`
- */
-export const writeJbSwapTerminalUniswapV3SwapCallback =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'uniswapV3SwapCallback',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__
- */
-export const simulateJbSwapTerminal = /*#__PURE__*/ createSimulateContract({
-  abi: jbSwapTerminalAbi,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addAccountingContextsFor"`
- */
-export const simulateJbSwapTerminalAddAccountingContextsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'addAccountingContextsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addDefaultPool"`
- */
-export const simulateJbSwapTerminalAddDefaultPool =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'addDefaultPool',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addToBalanceOf"`
- */
-export const simulateJbSwapTerminalAddToBalanceOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'addToBalanceOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"addTwapParamsFor"`
- */
-export const simulateJbSwapTerminalAddTwapParamsFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'addTwapParamsFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"migrateBalanceOf"`
- */
-export const simulateJbSwapTerminalMigrateBalanceOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'migrateBalanceOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"pay"`
- */
-export const simulateJbSwapTerminalPay = /*#__PURE__*/ createSimulateContract({
-  abi: jbSwapTerminalAbi,
-  functionName: 'pay',
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const simulateJbSwapTerminalRenounceOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const simulateJbSwapTerminalTransferOwnership =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `functionName` set to `"uniswapV3SwapCallback"`
- */
-export const simulateJbSwapTerminalUniswapV3SwapCallback =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbSwapTerminalAbi,
-    functionName: 'uniswapV3SwapCallback',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__
- */
-export const watchJbSwapTerminalEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbSwapTerminalAbi,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"AddToBalance"`
- */
-export const watchJbSwapTerminalAddToBalanceEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSwapTerminalAbi,
-    eventName: 'AddToBalance',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"HookAfterRecordPay"`
- */
-export const watchJbSwapTerminalHookAfterRecordPayEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSwapTerminalAbi,
-    eventName: 'HookAfterRecordPay',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"MigrateTerminal"`
- */
-export const watchJbSwapTerminalMigrateTerminalEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSwapTerminalAbi,
-    eventName: 'MigrateTerminal',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"OwnershipTransferred"`
- */
-export const watchJbSwapTerminalOwnershipTransferredEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSwapTerminalAbi,
-    eventName: 'OwnershipTransferred',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"Pay"`
- */
-export const watchJbSwapTerminalPayEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSwapTerminalAbi,
-    eventName: 'Pay',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbSwapTerminalAbi}__ and `eventName` set to `"SetAccountingContext"`
- */
-export const watchJbSwapTerminalSetAccountingContextEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbSwapTerminalAbi,
-    eventName: 'SetAccountingContext',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__
- */
-export const readJbTerminalStore = /*#__PURE__*/ createReadContract({
-  abi: jbTerminalStoreAbi,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"DIRECTORY"`
- */
-export const readJbTerminalStoreDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbTerminalStoreAbi,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"PRICES"`
- */
-export const readJbTerminalStorePrices = /*#__PURE__*/ createReadContract({
-  abi: jbTerminalStoreAbi,
-  functionName: 'PRICES',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"RULESETS"`
- */
-export const readJbTerminalStoreRulesets = /*#__PURE__*/ createReadContract({
-  abi: jbTerminalStoreAbi,
-  functionName: 'RULESETS',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"balanceOf"`
- */
-export const readJbTerminalStoreBalanceOf = /*#__PURE__*/ createReadContract({
-  abi: jbTerminalStoreAbi,
-  functionName: 'balanceOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"currentReclaimableSurplusOf"`
- */
-export const readJbTerminalStoreCurrentReclaimableSurplusOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'currentReclaimableSurplusOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"currentSurplusOf"`
- */
-export const readJbTerminalStoreCurrentSurplusOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'currentSurplusOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"currentTotalSurplusOf"`
- */
-export const readJbTerminalStoreCurrentTotalSurplusOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'currentTotalSurplusOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"usedPayoutLimitOf"`
- */
-export const readJbTerminalStoreUsedPayoutLimitOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'usedPayoutLimitOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"usedSurplusAllowanceOf"`
- */
-export const readJbTerminalStoreUsedSurplusAllowanceOf =
-  /*#__PURE__*/ createReadContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'usedSurplusAllowanceOf',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__
- */
-export const writeJbTerminalStore = /*#__PURE__*/ createWriteContract({
-  abi: jbTerminalStoreAbi,
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordAddedBalanceFor"`
- */
-export const writeJbTerminalStoreRecordAddedBalanceFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordAddedBalanceFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordCashOutFor"`
- */
-export const writeJbTerminalStoreRecordCashOutFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordCashOutFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordPaymentFrom"`
- */
-export const writeJbTerminalStoreRecordPaymentFrom =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordPaymentFrom',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordPayoutFor"`
- */
-export const writeJbTerminalStoreRecordPayoutFor =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordPayoutFor',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordTerminalMigration"`
- */
-export const writeJbTerminalStoreRecordTerminalMigration =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordTerminalMigration',
-  })
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordUsedAllowanceOf"`
- */
-export const writeJbTerminalStoreRecordUsedAllowanceOf =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordUsedAllowanceOf',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__
- */
-export const simulateJbTerminalStore = /*#__PURE__*/ createSimulateContract({
-  abi: jbTerminalStoreAbi,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordAddedBalanceFor"`
- */
-export const simulateJbTerminalStoreRecordAddedBalanceFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordAddedBalanceFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordCashOutFor"`
- */
-export const simulateJbTerminalStoreRecordCashOutFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordCashOutFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordPaymentFrom"`
- */
-export const simulateJbTerminalStoreRecordPaymentFrom =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordPaymentFrom',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordPayoutFor"`
- */
-export const simulateJbTerminalStoreRecordPayoutFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordPayoutFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordTerminalMigration"`
- */
-export const simulateJbTerminalStoreRecordTerminalMigration =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordTerminalMigration',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTerminalStoreAbi}__ and `functionName` set to `"recordUsedAllowanceOf"`
- */
-export const simulateJbTerminalStoreRecordUsedAllowanceOf =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbTerminalStoreAbi,
-    functionName: 'recordUsedAllowanceOf',
-  })
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const readJbTokens = /*#__PURE__*/ createReadContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"DIRECTORY"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const readJbTokensDirectory = /*#__PURE__*/ createReadContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'DIRECTORY',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"TOKEN"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const readJbTokensToken = /*#__PURE__*/ createReadContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'TOKEN',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"creditBalanceOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const readJbTokensCreditBalanceOf = /*#__PURE__*/ createReadContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'creditBalanceOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"projectIdOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const readJbTokensProjectIdOf = /*#__PURE__*/ createReadContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'projectIdOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"tokenOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const readJbTokensTokenOf = /*#__PURE__*/ createReadContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'tokenOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"totalBalanceOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const readJbTokensTotalBalanceOf = /*#__PURE__*/ createReadContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'totalBalanceOf',
-})
-
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"totalCreditSupplyOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const readJbTokensTotalCreditSupplyOf = /*#__PURE__*/ createReadContract(
   {
-    abi: jbTokensAbi,
-    address: jbTokensAddress,
-    functionName: 'totalCreditSupplyOf',
+    type: 'function',
+    inputs: [],
+    name: 'PUBLISHER',
+    outputs: [
+      { name: '', internalType: 'contract CTPublisher', type: 'address' },
+    ],
+    stateMutability: 'view',
   },
-)
+  {
+    type: 'function',
+    inputs: [],
+    name: 'SUCKER_REGISTRY',
+    outputs: [
+      { name: '', internalType: 'contract IJBSuckerRegistry', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAfterCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'reclaimedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'beneficiary',
+            internalType: 'address payable',
+            type: 'address',
+          },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'cashOutMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'afterCashOutRecordedWith',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'stageId', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+    ],
+    name: 'amountToAutoIssue',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'stageId', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+    ],
+    name: 'autoIssueFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforeCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'surplus',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'useTotalSurplus', internalType: 'bool', type: 'bool' },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforeCashOutRecordedWith',
+    outputs: [
+      { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+      { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBCashOutHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBCashOutHook',
+            type: 'address',
+          },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforePayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'payer', internalType: 'address', type: 'address' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          { name: 'reservedPercent', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforePayRecordedWith',
+    outputs: [
+      { name: 'weight', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBPayHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBPayHook',
+            type: 'address',
+          },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'buybackHookOf',
+    outputs: [
+      {
+        name: 'buybackHook',
+        internalType: 'contract IJBRulesetDataHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'cashOutDelayOf',
+    outputs: [
+      { name: 'cashOutDelay', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'configuration',
+        internalType: 'struct REVConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'description',
+            internalType: 'struct REVDescription',
+            type: 'tuple',
+            components: [
+              { name: 'name', internalType: 'string', type: 'string' },
+              { name: 'ticker', internalType: 'string', type: 'string' },
+              { name: 'uri', internalType: 'string', type: 'string' },
+              { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+            ],
+          },
+          { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
+          { name: 'splitOperator', internalType: 'address', type: 'address' },
+          {
+            name: 'stageConfigurations',
+            internalType: 'struct REVStageConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'startsAtOrAfter',
+                internalType: 'uint48',
+                type: 'uint48',
+              },
+              {
+                name: 'autoIssuances',
+                internalType: 'struct REVAutoIssuance[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'chainId', internalType: 'uint32', type: 'uint32' },
+                  { name: 'count', internalType: 'uint104', type: 'uint104' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                ],
+              },
+              { name: 'splitPercent', internalType: 'uint16', type: 'uint16' },
+              {
+                name: 'splits',
+                internalType: 'struct JBSplit[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'percent', internalType: 'uint32', type: 'uint32' },
+                  { name: 'projectId', internalType: 'uint64', type: 'uint64' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address payable',
+                    type: 'address',
+                  },
+                  {
+                    name: 'preferAddToBalance',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'lockedUntil',
+                    internalType: 'uint48',
+                    type: 'uint48',
+                  },
+                  {
+                    name: 'hook',
+                    internalType: 'contract IJBSplitHook',
+                    type: 'address',
+                  },
+                ],
+              },
+              {
+                name: 'initialIssuance',
+                internalType: 'uint112',
+                type: 'uint112',
+              },
+              {
+                name: 'issuanceCutFrequency',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'issuanceCutPercent',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'cashOutTaxRate',
+                internalType: 'uint16',
+                type: 'uint16',
+              },
+              { name: 'extraMetadata', internalType: 'uint16', type: 'uint16' },
+            ],
+          },
+          {
+            name: 'loanSources',
+            internalType: 'struct REVLoanSource[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+          { name: 'loans', internalType: 'address', type: 'address' },
+        ],
+      },
+      {
+        name: 'terminalConfigurations',
+        internalType: 'struct JBTerminalConfig[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'terminal',
+            internalType: 'contract IJBTerminal',
+            type: 'address',
+          },
+          {
+            name: 'accountingContextsToAccept',
+            internalType: 'struct JBAccountingContext[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'buybackHookConfiguration',
+        internalType: 'struct REVBuybackHookConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'dataHook',
+            internalType: 'contract IJBRulesetDataHook',
+            type: 'address',
+          },
+          {
+            name: 'hookToConfigure',
+            internalType: 'contract IJBBuybackHook',
+            type: 'address',
+          },
+          {
+            name: 'poolConfigurations',
+            internalType: 'struct REVBuybackPoolConfig[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'fee', internalType: 'uint24', type: 'uint24' },
+              { name: 'twapWindow', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+      },
+    ],
+    name: 'deployFor',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+      },
+    ],
+    name: 'deploySuckersFor',
+    outputs: [
+      { name: 'suckers', internalType: 'address[]', type: 'address[]' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'configuration',
+        internalType: 'struct REVConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'description',
+            internalType: 'struct REVDescription',
+            type: 'tuple',
+            components: [
+              { name: 'name', internalType: 'string', type: 'string' },
+              { name: 'ticker', internalType: 'string', type: 'string' },
+              { name: 'uri', internalType: 'string', type: 'string' },
+              { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+            ],
+          },
+          { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
+          { name: 'splitOperator', internalType: 'address', type: 'address' },
+          {
+            name: 'stageConfigurations',
+            internalType: 'struct REVStageConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'startsAtOrAfter',
+                internalType: 'uint48',
+                type: 'uint48',
+              },
+              {
+                name: 'autoIssuances',
+                internalType: 'struct REVAutoIssuance[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'chainId', internalType: 'uint32', type: 'uint32' },
+                  { name: 'count', internalType: 'uint104', type: 'uint104' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                ],
+              },
+              { name: 'splitPercent', internalType: 'uint16', type: 'uint16' },
+              {
+                name: 'splits',
+                internalType: 'struct JBSplit[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'percent', internalType: 'uint32', type: 'uint32' },
+                  { name: 'projectId', internalType: 'uint64', type: 'uint64' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address payable',
+                    type: 'address',
+                  },
+                  {
+                    name: 'preferAddToBalance',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'lockedUntil',
+                    internalType: 'uint48',
+                    type: 'uint48',
+                  },
+                  {
+                    name: 'hook',
+                    internalType: 'contract IJBSplitHook',
+                    type: 'address',
+                  },
+                ],
+              },
+              {
+                name: 'initialIssuance',
+                internalType: 'uint112',
+                type: 'uint112',
+              },
+              {
+                name: 'issuanceCutFrequency',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'issuanceCutPercent',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'cashOutTaxRate',
+                internalType: 'uint16',
+                type: 'uint16',
+              },
+              { name: 'extraMetadata', internalType: 'uint16', type: 'uint16' },
+            ],
+          },
+          {
+            name: 'loanSources',
+            internalType: 'struct REVLoanSource[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+          { name: 'loans', internalType: 'address', type: 'address' },
+        ],
+      },
+      {
+        name: 'terminalConfigurations',
+        internalType: 'struct JBTerminalConfig[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'terminal',
+            internalType: 'contract IJBTerminal',
+            type: 'address',
+          },
+          {
+            name: 'accountingContextsToAccept',
+            internalType: 'struct JBAccountingContext[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'buybackHookConfiguration',
+        internalType: 'struct REVBuybackHookConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'dataHook',
+            internalType: 'contract IJBRulesetDataHook',
+            type: 'address',
+          },
+          {
+            name: 'hookToConfigure',
+            internalType: 'contract IJBBuybackHook',
+            type: 'address',
+          },
+          {
+            name: 'poolConfigurations',
+            internalType: 'struct REVBuybackPoolConfig[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'fee', internalType: 'uint24', type: 'uint24' },
+              { name: 'twapWindow', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+      },
+      {
+        name: 'tiered721HookConfiguration',
+        internalType: 'struct REVDeploy721TiersHookConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'baseline721HookConfiguration',
+            internalType: 'struct JBDeploy721TiersHookConfig',
+            type: 'tuple',
+            components: [
+              { name: 'name', internalType: 'string', type: 'string' },
+              { name: 'symbol', internalType: 'string', type: 'string' },
+              { name: 'baseUri', internalType: 'string', type: 'string' },
+              {
+                name: 'tokenUriResolver',
+                internalType: 'contract IJB721TokenUriResolver',
+                type: 'address',
+              },
+              { name: 'contractUri', internalType: 'string', type: 'string' },
+              {
+                name: 'tiersConfig',
+                internalType: 'struct JB721InitTiersConfig',
+                type: 'tuple',
+                components: [
+                  {
+                    name: 'tiers',
+                    internalType: 'struct JB721TierConfig[]',
+                    type: 'tuple[]',
+                    components: [
+                      {
+                        name: 'price',
+                        internalType: 'uint104',
+                        type: 'uint104',
+                      },
+                      {
+                        name: 'initialSupply',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                      {
+                        name: 'votingUnits',
+                        internalType: 'uint32',
+                        type: 'uint32',
+                      },
+                      {
+                        name: 'reserveFrequency',
+                        internalType: 'uint16',
+                        type: 'uint16',
+                      },
+                      {
+                        name: 'reserveBeneficiary',
+                        internalType: 'address',
+                        type: 'address',
+                      },
+                      {
+                        name: 'encodedIPFSUri',
+                        internalType: 'bytes32',
+                        type: 'bytes32',
+                      },
+                      {
+                        name: 'category',
+                        internalType: 'uint24',
+                        type: 'uint24',
+                      },
+                      {
+                        name: 'discountPercent',
+                        internalType: 'uint8',
+                        type: 'uint8',
+                      },
+                      {
+                        name: 'allowOwnerMint',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'useReserveBeneficiaryAsDefault',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'transfersPausable',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'useVotingUnits',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'cannotBeRemoved',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                      {
+                        name: 'cannotIncreaseDiscountPercent',
+                        internalType: 'bool',
+                        type: 'bool',
+                      },
+                    ],
+                  },
+                  { name: 'currency', internalType: 'uint32', type: 'uint32' },
+                  { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+                  {
+                    name: 'prices',
+                    internalType: 'contract IJBPrices',
+                    type: 'address',
+                  },
+                ],
+              },
+              {
+                name: 'reserveBeneficiary',
+                internalType: 'address',
+                type: 'address',
+              },
+              {
+                name: 'flags',
+                internalType: 'struct JB721TiersHookFlags',
+                type: 'tuple',
+                components: [
+                  {
+                    name: 'noNewTiersWithReserves',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'noNewTiersWithVotes',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'noNewTiersWithOwnerMinting',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'preventOverspending',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+          {
+            name: 'splitOperatorCanAdjustTiers',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          {
+            name: 'splitOperatorCanUpdateMetadata',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'splitOperatorCanMint', internalType: 'bool', type: 'bool' },
+          {
+            name: 'splitOperatorCanIncreaseDiscountPercent',
+            internalType: 'bool',
+            type: 'bool',
+          },
+        ],
+      },
+      {
+        name: 'allowedPosts',
+        internalType: 'struct REVCroptopAllowedPost[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'category', internalType: 'uint24', type: 'uint24' },
+          { name: 'minimumPrice', internalType: 'uint104', type: 'uint104' },
+          {
+            name: 'minimumTotalSupply',
+            internalType: 'uint32',
+            type: 'uint32',
+          },
+          {
+            name: 'maximumTotalSupply',
+            internalType: 'uint32',
+            type: 'uint32',
+          },
+          {
+            name: 'allowedAddresses',
+            internalType: 'address[]',
+            type: 'address[]',
+          },
+        ],
+      },
+    ],
+    name: 'deployWith721sFor',
+    outputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hook',
+        internalType: 'contract IJB721TiersHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'ruleset',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+      { name: 'addr', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasMintPermissionFor',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'hashedEncodedConfigurationOf',
+    outputs: [
+      {
+        name: 'hashedEncodedConfiguration',
+        internalType: 'bytes32',
+        type: 'bytes32',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'addr', internalType: 'address', type: 'address' },
+    ],
+    name: 'isSplitOperatorOf',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loansOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '', internalType: 'address', type: 'address' },
+      { name: '', internalType: 'address', type: 'address' },
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      { name: '', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'onERC721Received',
+    outputs: [{ name: '', internalType: 'bytes4', type: 'bytes4' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'newSplitOperator', internalType: 'address', type: 'address' },
+    ],
+    name: 'setSplitOperatorOf',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'tiered721HookOf',
+    outputs: [
+      {
+        name: 'tiered721Hook',
+        internalType: 'contract IJB721TiersHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'stageId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'count',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'AutoIssue',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'configuration',
+        internalType: 'struct REVConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'description',
+            internalType: 'struct REVDescription',
+            type: 'tuple',
+            components: [
+              { name: 'name', internalType: 'string', type: 'string' },
+              { name: 'ticker', internalType: 'string', type: 'string' },
+              { name: 'uri', internalType: 'string', type: 'string' },
+              { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+            ],
+          },
+          { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
+          { name: 'splitOperator', internalType: 'address', type: 'address' },
+          {
+            name: 'stageConfigurations',
+            internalType: 'struct REVStageConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'startsAtOrAfter',
+                internalType: 'uint48',
+                type: 'uint48',
+              },
+              {
+                name: 'autoIssuances',
+                internalType: 'struct REVAutoIssuance[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'chainId', internalType: 'uint32', type: 'uint32' },
+                  { name: 'count', internalType: 'uint104', type: 'uint104' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                ],
+              },
+              { name: 'splitPercent', internalType: 'uint16', type: 'uint16' },
+              {
+                name: 'splits',
+                internalType: 'struct JBSplit[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'percent', internalType: 'uint32', type: 'uint32' },
+                  { name: 'projectId', internalType: 'uint64', type: 'uint64' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address payable',
+                    type: 'address',
+                  },
+                  {
+                    name: 'preferAddToBalance',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'lockedUntil',
+                    internalType: 'uint48',
+                    type: 'uint48',
+                  },
+                  {
+                    name: 'hook',
+                    internalType: 'contract IJBSplitHook',
+                    type: 'address',
+                  },
+                ],
+              },
+              {
+                name: 'initialIssuance',
+                internalType: 'uint112',
+                type: 'uint112',
+              },
+              {
+                name: 'issuanceCutFrequency',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'issuanceCutPercent',
+                internalType: 'uint32',
+                type: 'uint32',
+              },
+              {
+                name: 'cashOutTaxRate',
+                internalType: 'uint16',
+                type: 'uint16',
+              },
+              { name: 'extraMetadata', internalType: 'uint16', type: 'uint16' },
+            ],
+          },
+          {
+            name: 'loanSources',
+            internalType: 'struct REVLoanSource[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+          { name: 'loans', internalType: 'address', type: 'address' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'terminalConfigurations',
+        internalType: 'struct JBTerminalConfig[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'terminal',
+            internalType: 'contract IJBTerminal',
+            type: 'address',
+          },
+          {
+            name: 'accountingContextsToAccept',
+            internalType: 'struct JBAccountingContext[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'buybackHookConfiguration',
+        internalType: 'struct REVBuybackHookConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'dataHook',
+            internalType: 'contract IJBRulesetDataHook',
+            type: 'address',
+          },
+          {
+            name: 'hookToConfigure',
+            internalType: 'contract IJBBuybackHook',
+            type: 'address',
+          },
+          {
+            name: 'poolConfigurations',
+            internalType: 'struct REVBuybackPoolConfig[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'fee', internalType: 'uint24', type: 'uint24' },
+              { name: 'twapWindow', internalType: 'uint32', type: 'uint32' },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'rulesetConfigurations',
+        internalType: 'struct JBRulesetConfig[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'mustStartAtOrAfter',
+            internalType: 'uint48',
+            type: 'uint48',
+          },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          {
+            name: 'metadata',
+            internalType: 'struct JBRulesetMetadata',
+            type: 'tuple',
+            components: [
+              {
+                name: 'reservedPercent',
+                internalType: 'uint16',
+                type: 'uint16',
+              },
+              {
+                name: 'cashOutTaxRate',
+                internalType: 'uint16',
+                type: 'uint16',
+              },
+              { name: 'baseCurrency', internalType: 'uint32', type: 'uint32' },
+              { name: 'pausePay', internalType: 'bool', type: 'bool' },
+              {
+                name: 'pauseCreditTransfers',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'allowOwnerMinting', internalType: 'bool', type: 'bool' },
+              {
+                name: 'allowSetCustomToken',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'allowTerminalMigration',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'allowSetTerminals', internalType: 'bool', type: 'bool' },
+              {
+                name: 'allowSetController',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              {
+                name: 'allowAddAccountingContext',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'allowAddPriceFeed', internalType: 'bool', type: 'bool' },
+              {
+                name: 'ownerMustSendPayouts',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'holdFees', internalType: 'bool', type: 'bool' },
+              {
+                name: 'useTotalSurplusForCashOuts',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'useDataHookForPay', internalType: 'bool', type: 'bool' },
+              {
+                name: 'useDataHookForCashOut',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'dataHook', internalType: 'address', type: 'address' },
+              { name: 'metadata', internalType: 'uint16', type: 'uint16' },
+            ],
+          },
+          {
+            name: 'splitGroups',
+            internalType: 'struct JBSplitGroup[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'groupId', internalType: 'uint256', type: 'uint256' },
+              {
+                name: 'splits',
+                internalType: 'struct JBSplit[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'percent', internalType: 'uint32', type: 'uint32' },
+                  { name: 'projectId', internalType: 'uint64', type: 'uint64' },
+                  {
+                    name: 'beneficiary',
+                    internalType: 'address payable',
+                    type: 'address',
+                  },
+                  {
+                    name: 'preferAddToBalance',
+                    internalType: 'bool',
+                    type: 'bool',
+                  },
+                  {
+                    name: 'lockedUntil',
+                    internalType: 'uint48',
+                    type: 'uint48',
+                  },
+                  {
+                    name: 'hook',
+                    internalType: 'contract IJBSplitHook',
+                    type: 'address',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            name: 'fundAccessLimitGroups',
+            internalType: 'struct JBFundAccessLimitGroup[]',
+            type: 'tuple[]',
+            components: [
+              { name: 'terminal', internalType: 'address', type: 'address' },
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'payoutLimits',
+                internalType: 'struct JBCurrencyAmount[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'amount', internalType: 'uint224', type: 'uint224' },
+                  { name: 'currency', internalType: 'uint32', type: 'uint32' },
+                ],
+              },
+              {
+                name: 'surplusAllowances',
+                internalType: 'struct JBCurrencyAmount[]',
+                type: 'tuple[]',
+                components: [
+                  { name: 'amount', internalType: 'uint224', type: 'uint224' },
+                  { name: 'currency', internalType: 'uint32', type: 'uint32' },
+                ],
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'encodedConfigurationHash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'DeployRevnet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'encodedConfigurationHash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'suckerDeploymentConfiguration',
+        internalType: 'struct REVSuckerDeploymentConfig',
+        type: 'tuple',
+        components: [
+          {
+            name: 'deployerConfigurations',
+            internalType: 'struct JBSuckerDeployerConfig[]',
+            type: 'tuple[]',
+            components: [
+              {
+                name: 'deployer',
+                internalType: 'contract IJBSuckerDeployer',
+                type: 'address',
+              },
+              {
+                name: 'mappings',
+                internalType: 'struct JBTokenMapping[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'localToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  { name: 'minGas', internalType: 'uint32', type: 'uint32' },
+                  {
+                    name: 'remoteToken',
+                    internalType: 'address',
+                    type: 'address',
+                  },
+                  {
+                    name: 'minBridgeAmount',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'DeploySuckers',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'newSplitOperator',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'ReplaceSplitOperator',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'additionalOperator',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'permissionIds',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetAdditionalOperator',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'cashOutDelay',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetCashOutDelay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'stageId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'count',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'StoreAutoIssuanceAmount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'REVDeployer_AutoIssuanceBeneficiaryZeroAddress',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'cashOutDelay', internalType: 'uint256', type: 'uint256' },
+      { name: 'blockTimestamp', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVDeployer_CashOutDelayNotFinished',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxCashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVDeployer_CashOutsCantBeTurnedOffCompletely',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'terminal', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVDeployer_LoanSourceDoesntMatchTerminalConfigurations',
+  },
+  { type: 'error', inputs: [], name: 'REVDeployer_MustHaveSplits' },
+  { type: 'error', inputs: [], name: 'REVDeployer_NothingToAutoIssue' },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'REVDeployer_RulesetDoesNotAllowDeployingSuckers',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'stageId', internalType: 'uint256', type: 'uint256' }],
+    name: 'REVDeployer_StageNotStarted',
+  },
+  { type: 'error', inputs: [], name: 'REVDeployer_StageTimesMustIncrease' },
+  { type: 'error', inputs: [], name: 'REVDeployer_StagesRequired' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'caller', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVDeployer_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'spender', internalType: 'address', type: 'address' },
+      { name: 'currentAllowance', internalType: 'uint256', type: 'uint256' },
+      { name: 'requestedDecrease', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'SafeERC20FailedDecreaseAllowance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
 
-/**
- * Wraps __{@link readContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"totalSupplyOf"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const readJbTokensTotalSupplyOf = /*#__PURE__*/ createReadContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'totalSupplyOf',
-})
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// REVLoans
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const writeJbTokens = /*#__PURE__*/ createWriteContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-})
+export const revLoansAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'revnets',
+        internalType: 'contract IREVDeployer',
+        type: 'address',
+      },
+      { name: 'revId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'fallback', stateMutability: 'payable' },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'CONTROLLER',
+    outputs: [
+      { name: '', internalType: 'contract IJBController', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'LOAN_LIQUIDATION_DURATION',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PRICES',
+    outputs: [
+      { name: '', internalType: 'contract IJBPrices', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REVNETS',
+    outputs: [
+      { name: '', internalType: 'contract IREVDeployer', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REV_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REV_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'collateralCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'borrowFrom',
+    outputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'collateralCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'borrowableAmountFrom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'determineSourceFeeAmount',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getApproved',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'operator', internalType: 'address', type: 'address' },
+    ],
+    name: 'isApprovedForAll',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBPayoutTerminal',
+        type: 'address',
+      },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'isLoanSourceOf',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'startingLoanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'count', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'liquidateExpiredLoansFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loanOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loanSourcesOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct REVLoanSource[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'numberOfLoansFor',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ownerOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralCountToTransfer',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralCountToAdd',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'reallocateCollateralFromLoan',
+    outputs: [
+      { name: 'reallocatedLoanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'newLoanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'reallocatedLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'newLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'maxRepayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'collateralCountToReturn',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      {
+        name: 'allowance',
+        internalType: 'struct JBSingleAllowance',
+        type: 'tuple',
+        components: [
+          { name: 'sigDeadline', internalType: 'uint256', type: 'uint256' },
+          { name: 'amount', internalType: 'uint160', type: 'uint160' },
+          { name: 'expiration', internalType: 'uint48', type: 'uint48' },
+          { name: 'nonce', internalType: 'uint48', type: 'uint48' },
+          { name: 'signature', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'repayLoan',
+    outputs: [
+      { name: 'paidOffLoanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'paidOffloan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'revnetIdOfLoanWith',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'approved', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'setApprovalForAll',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+      },
+    ],
+    name: 'setTokenUriResolver',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'tokenURI',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'tokenUriResolver',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBPayoutTerminal',
+        type: 'address',
+      },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'totalBorrowedFrom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'totalCollateralOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'approved',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Approval',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'operator',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'approved', internalType: 'bool', type: 'bool', indexed: false },
+    ],
+    name: 'ApprovalForAll',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'borrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'collateralCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sourceFeeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address payable',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Borrow',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Liquidate',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reallocatedLoanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reallocatedLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'removedcollateralCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'ReallocateCollateral',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'paidOffLoanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'paidOffLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'repayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sourceFeeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'collateralCountToReturn',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address payable',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'RepayLoan',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetTokenUriResolver',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address', indexed: true },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Transfer',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'ERC721IncorrectOwner',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC721InsufficientApproval',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'approver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidApprover',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'operator', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOperator',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'receiver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidReceiver',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'sender', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidSender',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ERC721NonexistentToken',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'collateralToReturn', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanCollateral', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_CollateralExceedsLoan',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+      { name: 'min', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_InvalidPrepaidFeePercent',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'timeSinceLoanCreated',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'loanLiquidationDuration',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'REVLoans_LoanExpired',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'newBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_NewBorrowAmountGreaterThanLoanAmount',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_NoMsgValueAllowed' },
+  { type: 'error', inputs: [], name: 'REVLoans_NotEnoughCollateral' },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'maxRepayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'repayBorrowAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_OverMaxRepayBorrowAmount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+      { name: 'limit', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_OverflowAlert',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'allowanceAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'requiredAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'newBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_ReallocatingMoreCollateralThanBorrowedAmountAllows',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'revnetOwner', internalType: 'address', type: 'address' },
+      { name: 'revnets', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVLoans_RevnetsMismatch',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'caller', internalType: 'address', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVLoans_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'borrowAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_UnderMinBorrowAmount',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_ZeroCollateralLoanIsInvalid' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
 
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"burnFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const writeJbTokensBurnFrom = /*#__PURE__*/ createWriteContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'burnFrom',
-})
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// REVLoans1_1
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"claimTokensFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const writeJbTokensClaimTokensFor = /*#__PURE__*/ createWriteContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'claimTokensFor',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"deployERC20For"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const writeJbTokensDeployErc20For = /*#__PURE__*/ createWriteContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'deployERC20For',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"mintFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const writeJbTokensMintFor = /*#__PURE__*/ createWriteContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'mintFor',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"setTokenFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const writeJbTokensSetTokenFor = /*#__PURE__*/ createWriteContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'setTokenFor',
-})
-
-/**
- * Wraps __{@link writeContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"transferCreditsFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const writeJbTokensTransferCreditsFrom =
-  /*#__PURE__*/ createWriteContract({
-    abi: jbTokensAbi,
-    address: jbTokensAddress,
-    functionName: 'transferCreditsFrom',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const simulateJbTokens = /*#__PURE__*/ createSimulateContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"burnFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const simulateJbTokensBurnFrom = /*#__PURE__*/ createSimulateContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'burnFrom',
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"claimTokensFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const simulateJbTokensClaimTokensFor =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbTokensAbi,
-    address: jbTokensAddress,
-    functionName: 'claimTokensFor',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"deployERC20For"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const simulateJbTokensDeployErc20For =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbTokensAbi,
-    address: jbTokensAddress,
-    functionName: 'deployERC20For',
-  })
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"mintFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const simulateJbTokensMintFor = /*#__PURE__*/ createSimulateContract({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  functionName: 'mintFor',
-})
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"setTokenFor"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const simulateJbTokensSetTokenFor = /*#__PURE__*/ createSimulateContract(
-  { abi: jbTokensAbi, address: jbTokensAddress, functionName: 'setTokenFor' },
-)
-
-/**
- * Wraps __{@link simulateContract}__ with `abi` set to __{@link jbTokensAbi}__ and `functionName` set to `"transferCreditsFrom"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const simulateJbTokensTransferCreditsFrom =
-  /*#__PURE__*/ createSimulateContract({
-    abi: jbTokensAbi,
-    address: jbTokensAddress,
-    functionName: 'transferCreditsFrom',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const watchJbTokensEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"Burn"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const watchJbTokensBurnEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  eventName: 'Burn',
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"ClaimTokens"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const watchJbTokensClaimTokensEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbTokensAbi,
-    address: jbTokensAddress,
-    eventName: 'ClaimTokens',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"DeployERC20"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const watchJbTokensDeployErc20Event =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbTokensAbi,
-    address: jbTokensAddress,
-    eventName: 'DeployERC20',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"Mint"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const watchJbTokensMintEvent = /*#__PURE__*/ createWatchContractEvent({
-  abi: jbTokensAbi,
-  address: jbTokensAddress,
-  eventName: 'Mint',
-})
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"SetToken"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const watchJbTokensSetTokenEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbTokensAbi,
-    address: jbTokensAddress,
-    eventName: 'SetToken',
-  })
-
-/**
- * Wraps __{@link watchContractEvent}__ with `abi` set to __{@link jbTokensAbi}__ and `eventName` set to `"TransferCredits"`
- *
- * - [__View Contract on Ethereum Etherscan__](https://etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Mainnet Optimism Explorer__](https://optimistic.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Basescan__](https://basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum One Arbiscan__](https://arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Arbitrum Sepolia Arbiscan__](https://sepolia.arbiscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Sepolia Etherscan__](https://sepolia.etherscan.io/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- * - [__View Contract on Op Sepolia Blockscout__](https://optimism-sepolia.blockscout.com/address/0xa59e9f424901fb9dbd8913a9a32a081f9425bf36)
- */
-export const watchJbTokensTransferCreditsEvent =
-  /*#__PURE__*/ createWatchContractEvent({
-    abi: jbTokensAbi,
-    address: jbTokensAddress,
-    eventName: 'TransferCredits',
-  })
+export const revLoans1_1Abi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'revnets',
+        internalType: 'contract IREVDeployer',
+        type: 'address',
+      },
+      { name: 'revId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'fallback', stateMutability: 'payable' },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'CONTROLLER',
+    outputs: [
+      { name: '', internalType: 'contract IJBController', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'LOAN_LIQUIDATION_DURATION',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PRICES',
+    outputs: [
+      { name: '', internalType: 'contract IJBPrices', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REVNETS',
+    outputs: [
+      { name: '', internalType: 'contract IREVDeployer', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REV_ID',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'REV_PREPAID_FEE_PERCENT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'collateralCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'borrowFrom',
+    outputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'collateralCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'borrowableAmountFrom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'determineSourceFeeAmount',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getApproved',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'operator', internalType: 'address', type: 'address' },
+    ],
+    name: 'isApprovedForAll',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBPayoutTerminal',
+        type: 'address',
+      },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'isLoanSourceOf',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      { name: 'startingLoanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'count', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'liquidateExpiredLoansFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loanOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'loanSourcesOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct REVLoanSource[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'numberOfLoansFor',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ownerOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralCountToTransfer',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+      },
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'collateralCountToAdd',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'reallocateCollateralFromLoan',
+    outputs: [
+      { name: 'reallocatedLoanId', internalType: 'uint256', type: 'uint256' },
+      { name: 'newLoanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'reallocatedLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'newLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'loanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'maxRepayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'collateralCountToReturn',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'beneficiary', internalType: 'address payable', type: 'address' },
+      {
+        name: 'allowance',
+        internalType: 'struct JBSingleAllowance',
+        type: 'tuple',
+        components: [
+          { name: 'sigDeadline', internalType: 'uint256', type: 'uint256' },
+          { name: 'amount', internalType: 'uint160', type: 'uint160' },
+          { name: 'expiration', internalType: 'uint48', type: 'uint48' },
+          { name: 'nonce', internalType: 'uint48', type: 'uint48' },
+          { name: 'signature', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'repayLoan',
+    outputs: [
+      { name: 'paidOffLoanId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'paidOffloan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'revnetIdOfLoanWith',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'approved', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'setApprovalForAll',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+      },
+    ],
+    name: 'setTokenUriResolver',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'loanId', internalType: 'uint256', type: 'uint256' }],
+    name: 'tokenURI',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'tokenUriResolver',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'revnetId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'terminal',
+        internalType: 'contract IJBPayoutTerminal',
+        type: 'address',
+      },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'totalBorrowedFrom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'revnetId', internalType: 'uint256', type: 'uint256' }],
+    name: 'totalCollateralOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'approved',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Approval',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'operator',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'approved', internalType: 'bool', type: 'bool', indexed: false },
+    ],
+    name: 'ApprovalForAll',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'source',
+        internalType: 'struct REVLoanSource',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          {
+            name: 'terminal',
+            internalType: 'contract IJBPayoutTerminal',
+            type: 'address',
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'borrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'collateralCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sourceFeeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address payable',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Borrow',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Liquidate',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reallocatedLoanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reallocatedLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'removedcollateralCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'ReallocateCollateral',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'loanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'revnetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'paidOffLoanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'loan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'paidOffLoan',
+        internalType: 'struct REVLoan',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint112', type: 'uint112' },
+          { name: 'collateral', internalType: 'uint112', type: 'uint112' },
+          { name: 'createdAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'prepaidFeePercent', internalType: 'uint16', type: 'uint16' },
+          { name: 'prepaidDuration', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'source',
+            internalType: 'struct REVLoanSource',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              {
+                name: 'terminal',
+                internalType: 'contract IJBPayoutTerminal',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'repayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'sourceFeeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'collateralCountToReturn',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address payable',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'RepayLoan',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'resolver',
+        internalType: 'contract IJBTokenUriResolver',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetTokenUriResolver',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address', indexed: true },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Transfer',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'ERC721IncorrectOwner',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC721InsufficientApproval',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'approver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidApprover',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'operator', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOperator',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'receiver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidReceiver',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'sender', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidSender',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ERC721NonexistentToken',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'collateralToReturn', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanCollateral', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_CollateralExceedsLoan',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'prepaidFeePercent', internalType: 'uint256', type: 'uint256' },
+      { name: 'min', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_InvalidPrepaidFeePercent',
+  },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'timeSinceLoanCreated',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'loanLiquidationDuration',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'REVLoans_LoanExpired',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'newBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_NewBorrowAmountGreaterThanLoanAmount',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_NoMsgValueAllowed' },
+  { type: 'error', inputs: [], name: 'REVLoans_NotEnoughCollateral' },
+  {
+    type: 'error',
+    inputs: [
+      {
+        name: 'maxRepayBorrowAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'repayBorrowAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_OverMaxRepayBorrowAmount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+      { name: 'limit', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_OverflowAlert',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'allowanceAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'requiredAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'newBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'loanAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_ReallocatingMoreCollateralThanBorrowedAmountAllows',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'revnetOwner', internalType: 'address', type: 'address' },
+      { name: 'revnets', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVLoans_RevnetsMismatch',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'caller', internalType: 'address', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'REVLoans_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'minBorrowAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'borrowAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'REVLoans_UnderMinBorrowAmount',
+  },
+  { type: 'error', inputs: [], name: 'REVLoans_ZeroCollateralLoanIsInvalid' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
 
   /**
    * Addresses to use in JB project deployments.
    */
-  export const jbProjectDeploymentAddresses = {
-  "JBMultiTerminal": {
-    "1": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "10": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "8453": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "42161": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "84532": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "421614": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "11155111": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
-    "11155420": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc"
+  export const jbContractAddress = {
+  "4": {
+    "JBController": {
+      "1": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "10": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "8453": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "42161": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "84532": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "421614": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "11155111": "0xb291844f213047eb9e1621ae555b1eae6700d553",
+      "11155420": "0xb291844f213047eb9e1621ae555b1eae6700d553"
+    },
+    "JBController4_1": {
+      "1": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "10": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "8453": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "42161": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "84532": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "421614": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "11155111": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
+      "11155420": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8"
+    },
+    "JBDirectory": {
+      "1": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "10": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "8453": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "42161": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "84532": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "421614": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "11155111": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
+      "11155420": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41"
+    },
+    "JBMultiTerminal": {
+      "1": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "10": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "8453": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "42161": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "84532": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "421614": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "11155111": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc",
+      "11155420": "0xdb9644369c79c3633cde70d2df50d827d7dc7dbc"
+    },
+    "JBRulesets": {
+      "1": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "10": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "8453": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "42161": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "84532": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "421614": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "11155111": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826",
+      "11155420": "0xda86eedb67c6c9fb3e58fe83efa28674d7c89826"
+    },
+    "JBPermissions": {
+      "1": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "10": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "8453": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "42161": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "84532": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "421614": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "11155111": "0xf5ca295dc286a176e35ebb7833031fd95550eb14",
+      "11155420": "0xf5ca295dc286a176e35ebb7833031fd95550eb14"
+    },
+    "JBProjects": {
+      "1": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "10": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "8453": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "42161": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "84532": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "421614": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "11155111": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad",
+      "11155420": "0x0b538a02610d7d3cc91ce2870f423e0a34d646ad"
+    },
+    "JBSplits": {
+      "1": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "10": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "8453": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "42161": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "84532": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "421614": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "11155111": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c",
+      "11155420": "0x9e834f2ae0970f8746e25fba6d42fd90bb96630c"
+    },
+    "JBTokens": {
+      "1": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "10": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "8453": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "42161": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "84532": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "421614": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "11155111": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36",
+      "11155420": "0xa59e9f424901fb9dbd8913a9a32a081f9425bf36"
+    },
+    "JBTerminalStore": {
+      "1": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "10": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "8453": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "42161": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "84532": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "421614": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "11155111": "0x6f6740dda12033ca9fbaa56693194e38cfd36827",
+      "11155420": "0x6f6740dda12033ca9fbaa56693194e38cfd36827"
+    },
+    "JBFundAccessLimits": {
+      "1": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "10": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "8453": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "42161": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "84532": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "421614": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "11155111": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8",
+      "11155420": "0xf1e1df5bba779e977a27ccc273847ab1346fceb8"
+    },
+    "JBPrices": {
+      "1": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "10": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "8453": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "42161": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "84532": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "421614": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "11155111": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7",
+      "11155420": "0xe712d14b04f1a1fe464be930e3ea72b9b0a141d7"
+    },
+    "ERC2771Forwarder": {
+      "1": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "10": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "8453": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "42161": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "84532": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "421614": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "11155111": "0x8a5ba591ed2bed5691a378c65611ed492500f887",
+      "11155420": "0x8a5ba591ed2bed5691a378c65611ed492500f887"
+    },
+    "JB721TiersHookDeployer": {
+      "1": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "10": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "8453": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "42161": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "84532": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "421614": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "11155111": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206",
+      "11155420": "0xdefb489d101bf74bbf8f60eec6ff2f078c9d5206"
+    },
+    "JB721TiersHookProjectDeployer": {
+      "1": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "10": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "8453": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "42161": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "84532": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "421614": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "11155111": "0xedb83eb473b008a2246488df1f85174d26d86af2",
+      "11155420": "0xedb83eb473b008a2246488df1f85174d26d86af2"
+    },
+    "JB721TiersHook": {
+      "1": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "10": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "8453": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "42161": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "84532": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "421614": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "11155111": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a",
+      "11155420": "0x82f3aa5e0278c7fa7c95c314e2e875965e1d8d6a"
+    },
+    "JB721TiersHookStore": {
+      "1": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "10": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "8453": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "42161": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "84532": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "421614": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "11155111": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
+      "11155420": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1"
+    },
+    "JBAddressRegistry": {
+      "1": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "10": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "8453": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "42161": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "84532": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "421614": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "11155111": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "11155420": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb"
+    },
+    "JBSuckerRegistry": {
+      "1": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "10": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "8453": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "42161": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "84532": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "421614": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "11155111": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5",
+      "11155420": "0x696c7e9b37d28edbefa3fce06e26041b7197c1a5"
+    },
+    "JBCCIPSuckerDeployer": {
+      "1": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7",
+      "10": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7",
+      "8453": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
+      "42161": "0x9d4858cc9d3552507eeabce722787afef64c615e",
+      "84532": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
+      "421614": "0x9d4858cc9d3552507eeabce722787afef64c615e",
+      "11155111": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7",
+      "11155420": "0x34b40205b249e5733cf93d86b7c9783b015dd3e7"
+    },
+    "JBCCIPSuckerDeployer_1": {
+      "1": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
+      "10": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413",
+      "8453": "0xb825f2f6995966eb6dd772a8707d4a547028ac26",
+      "42161": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413",
+      "84532": "0xb825f2f6995966eb6dd772a8707d4a547028ac26",
+      "421614": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413",
+      "11155111": "0xde901ebafc70d545f9d43034308c136ce8c94a5c",
+      "11155420": "0x39132ea75b9eae5cbff7ba1997c804302a7ff413"
+    },
+    "JBCCIPSuckerDeployer_2": {
+      "1": "0x9d4858cc9d3552507eeabce722787afef64c615e",
+      "10": "0xb825f2f6995966eb6dd772a8707d4a547028ac26",
+      "8453": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
+      "42161": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
+      "84532": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
+      "421614": "0x3d7fb0aa325ad5d2349274f9ef33d4424135d963",
+      "11155111": "0x9d4858cc9d3552507eeabce722787afef64c615e",
+      "11155420": "0xb825f2f6995966eb6dd772a8707d4a547028ac26"
+    },
+    "JBSwapTerminal": {
+      "1": "0xdd98b25631aa9372a8cf09912b803d2ad80db161",
+      "10": "0xf7002a2df9bebf629b6093c8a60e28beed4f7b48",
+      "8453": "0x9b82f7f43a956f5e83faaf1d46382cba19ce71ab",
+      "42161": "0xcf50c6f3f366817815fe7ba69b4518356ba6033b",
+      "84532": "0xb940f0bb31376cad3a0fae7c78995ae899160a52",
+      "421614": "0xcf5f58ebb455678005b7dc6e506a7ec9a3438d0e",
+      "11155111": "0x94c5431808ab538d398c6354d1972a0cb8c0b18b",
+      "11155420": "0xb940f0bb31376cad3a0fae7c78995ae899160a52"
+    },
+    "JBSwapTerminal1_1": {
+      "1": "0x64834ff3c2c18a715c635dd022227a9a8d9e8b73",
+      "10": "0x817b87ab3cad4f84f8dc9c98b8f219404dca9927",
+      "8453": "0xe4036d0cd05951689e1bb8667f5364874dc2fbfb",
+      "42161": "0x21e6d82921fce3798a96134eddc2e7cd67c12769",
+      "84532": "0xae33d0b3a5e1f2d52f50cd589458c84e2f1ea916",
+      "421614": "0x97e7430c4e1ee242a604d8529195ae06b121cbc6",
+      "11155111": "0x4b75f7c7e9bd65807cbc56419641155c2660b65c",
+      "11155420": "0x6c5debbdb7365c9ed1ef4529823c3113d47e1842"
+    },
+    "JBBuybackHook": {
+      "1": "0x7dcf35dad9b30ffcb7f35f51279252b884921927",
+      "10": "0x09d97e2b8b2f143335c2344947a79d1a3a4c2946",
+      "8453": "0x47d1b88af8ee0ed0a772a7c98430894141b9ac8b",
+      "42161": "0xb9dce56d7f64b8c456157ded0c76241d0c23f578",
+      "84532": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d",
+      "421614": "0xc32b873d25230bcbeb4f9d9d9bf10eaf4d77dddf",
+      "11155111": "0x085b2fd0560ef5b6acd0f98b2f0e079cfa936f58",
+      "11155420": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d"
+    },
+    "JBOmnichainDeployer": {
+      "1": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "10": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "8453": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "42161": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "84532": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "421614": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "11155111": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190",
+      "11155420": "0x29f83557ca30d4283c1eb8b6118d1b4808eaa190"
+    },
+    "JBOmnichainDeployer4_1": {
+      "1": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "10": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "8453": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "42161": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "84532": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "421614": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "11155111": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd",
+      "11155420": "0xa7e0cbcfb2c6df7db07cc4ca05df681f1307cedd"
+    },
+    "REVDeployer": {
+      "1": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "10": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "8453": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "42161": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "84532": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "421614": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "11155111": "0x027f1684c6d31066c3f2468117f2508e8134fdfc",
+      "11155420": "0x027f1684c6d31066c3f2468117f2508e8134fdfc"
+    },
+    "REVLoans": {
+      "1": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "10": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "8453": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "42161": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "84532": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "421614": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "11155111": "0x03de624feb08c0edeff779ca5702aef4b85d7f06",
+      "11155420": "0x03de624feb08c0edeff779ca5702aef4b85d7f06"
+    },
+    "REVLoans1_1": {
+      "1": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "10": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "8453": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "42161": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "84532": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "421614": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "11155111": "0xde1e70faf22024559e7d94ab814abd7e42ca849b",
+      "11155420": "0xde1e70faf22024559e7d94ab814abd7e42ca849b"
+    }
   },
-  "JBController": {
-    "1": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "10": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "8453": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "42161": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "84532": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "421614": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "11155111": "0xb291844f213047eb9e1621ae555b1eae6700d553",
-    "11155420": "0xb291844f213047eb9e1621ae555b1eae6700d553"
-  },
-  "JBController4_1": {
-    "1": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "10": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "8453": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "42161": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "84532": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "421614": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "11155111": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
-    "11155420": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8"
-  },
-  "JB721TiersHookStore": {
-    "1": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "10": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "8453": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "42161": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "84532": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "421614": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "11155111": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1",
-    "11155420": "0xdc162a8a6decc7f27fd4cff58d69b9cc0c7c2ea1"
-  },
-  "JBBuybackHook": {
-    "1": "0x7dcf35dad9b30ffcb7f35f51279252b884921927",
-    "10": "0x09d97e2b8b2f143335c2344947a79d1a3a4c2946",
-    "8453": "0x47d1b88af8ee0ed0a772a7c98430894141b9ac8b",
-    "42161": "0xb9dce56d7f64b8c456157ded0c76241d0c23f578",
-    "84532": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d",
-    "421614": "0xc32b873d25230bcbeb4f9d9d9bf10eaf4d77dddf",
-    "11155111": "0x085b2fd0560ef5b6acd0f98b2f0e079cfa936f58",
-    "11155420": "0x5401183c25750cbec8c3a9dd7e425829b0b1411d"
-  },
-  "JBSwapTerminal": {
-    "1": "0xdd98b25631aa9372a8cf09912b803d2ad80db161",
-    "10": "0xf7002a2df9bebf629b6093c8a60e28beed4f7b48",
-    "8453": "0x9b82f7f43a956f5e83faaf1d46382cba19ce71ab",
-    "42161": "0xcf50c6f3f366817815fe7ba69b4518356ba6033b",
-    "84532": "0xb940f0bb31376cad3a0fae7c78995ae899160a52",
-    "421614": "0xcf5f58ebb455678005b7dc6e506a7ec9a3438d0e",
-    "11155111": "0x94c5431808ab538d398c6354d1972a0cb8c0b18b",
-    "11155420": "0xb940f0bb31376cad3a0fae7c78995ae899160a52"
+  "5": {
+    "JBController": {
+      "1": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "10": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "8453": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "42161": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "84532": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "421614": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "11155111": "0x27da30646502e2f642be5281322ae8c394f7668a",
+      "11155420": "0x27da30646502e2f642be5281322ae8c394f7668a"
+    },
+    "JBDirectory": {
+      "1": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "10": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "8453": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "42161": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "84532": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "421614": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "11155111": "0x0061e516886a0540f63157f112c0588ee0651dcf",
+      "11155420": "0x0061e516886a0540f63157f112c0588ee0651dcf"
+    },
+    "JBMultiTerminal": {
+      "1": "0x2db6d704058e552defe415753465df8df0361846",
+      "10": "0x2db6d704058e552defe415753465df8df0361846",
+      "8453": "0x2db6d704058e552defe415753465df8df0361846",
+      "42161": "0x2db6d704058e552defe415753465df8df0361846",
+      "84532": "0x2db6d704058e552defe415753465df8df0361846",
+      "421614": "0x2db6d704058e552defe415753465df8df0361846",
+      "11155111": "0x2db6d704058e552defe415753465df8df0361846",
+      "11155420": "0x2db6d704058e552defe415753465df8df0361846"
+    },
+    "JBRulesets": {
+      "1": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "10": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "8453": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "42161": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "84532": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "421614": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "11155111": "0x6292281d69c3593fcf6ea074e5797341476ab428",
+      "11155420": "0x6292281d69c3593fcf6ea074e5797341476ab428"
+    },
+    "JBPermissions": {
+      "1": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "10": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "8453": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "42161": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "84532": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "421614": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "11155111": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d",
+      "11155420": "0x04fd6913d6c32d8c216e153a43c04b1857a7793d"
+    },
+    "JBProjects": {
+      "1": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "10": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "8453": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "42161": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "84532": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "421614": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "11155111": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4",
+      "11155420": "0x885f707efa18d2cb12f05a3a8eba6b4b26c8c1d4"
+    },
+    "JBSplits": {
+      "1": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "10": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "8453": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "42161": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "84532": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "421614": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "11155111": "0x7160a322fea44945a6ef9adfd65c322258df3c5e",
+      "11155420": "0x7160a322fea44945a6ef9adfd65c322258df3c5e"
+    },
+    "JBTokens": {
+      "1": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "10": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "8453": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "42161": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "84532": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "421614": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "11155111": "0x4d0edd347fb1fa21589c1e109b3474924be87636",
+      "11155420": "0x4d0edd347fb1fa21589c1e109b3474924be87636"
+    },
+    "JBTerminalStore": {
+      "1": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "10": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "8453": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "42161": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "84532": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "421614": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "11155111": "0xfe33b439ec53748c87dcedacb83f05add5014744",
+      "11155420": "0xfe33b439ec53748c87dcedacb83f05add5014744"
+    },
+    "JBFundAccessLimits": {
+      "1": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "10": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "8453": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "42161": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "84532": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "421614": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "11155111": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7",
+      "11155420": "0x3a46b21720c8b70184b0434a2293b2fdcc497ce7"
+    },
+    "JBPrices": {
+      "1": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "10": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "8453": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "42161": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "84532": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "421614": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "11155111": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4",
+      "11155420": "0x9b90e507cf6b7eb681a506b111f6f50245e614c4"
+    },
+    "ERC2771Forwarder": {
+      "1": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "10": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "8453": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "42161": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "84532": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "421614": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "11155111": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566",
+      "11155420": "0xc29d6995ab3b0df4650ad643adeac55e7acbb566"
+    },
+    "JB721TiersHookDeployer": {
+      "1": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "10": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "8453": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "42161": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "84532": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "421614": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "11155111": "0xef60878d00378ac5f93d209f4616450ee8d41ca7",
+      "11155420": "0xef60878d00378ac5f93d209f4616450ee8d41ca7"
+    },
+    "JB721TiersHookProjectDeployer": {
+      "1": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "10": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "8453": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "42161": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "84532": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "421614": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "11155111": "0x048626e715a194fc38dd9be12f516b54b10e725a",
+      "11155420": "0x048626e715a194fc38dd9be12f516b54b10e725a"
+    },
+    "JB721TiersHook": {
+      "1": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "10": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "8453": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "42161": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "84532": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "421614": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "11155111": "0xe9485c121082d3beb57d6eac267b04a0f59d1760",
+      "11155420": "0xe9485c121082d3beb57d6eac267b04a0f59d1760"
+    },
+    "JB721TiersHookStore": {
+      "1": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "10": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "8453": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "42161": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "84532": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "421614": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "11155111": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee",
+      "11155420": "0x2bc696b0af74042b30b2687ab5817cc824eba8ee"
+    },
+    "JBAddressRegistry": {
+      "1": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "10": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "8453": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "42161": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "84532": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "421614": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "11155111": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb",
+      "11155420": "0x2d9b78cb37ca724cfb9b32cd8e9a5dc1c88bc7bb"
+    },
+    "JBSuckerRegistry": {
+      "1": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "10": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "8453": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "42161": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "84532": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "421614": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "11155111": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3",
+      "11155420": "0x07c8c5bf08f0361883728a8a5f8824ba5724ece3"
+    },
+    "JBCCIPSuckerDeployer": {
+      "1": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816",
+      "10": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816",
+      "8453": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
+      "42161": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
+      "84532": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
+      "421614": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
+      "11155111": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816",
+      "11155420": "0x172ad9b3df724ee0422ea85b7799a3f7ca761816"
+    },
+    "JBCCIPSuckerDeployer_1": {
+      "1": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
+      "10": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1",
+      "8453": "0x58683931b146697d094c660aec1f4a8f564a3d7d",
+      "42161": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1",
+      "84532": "0x58683931b146697d094c660aec1f4a8f564a3d7d",
+      "421614": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1",
+      "11155111": "0x195b4dce646eba3c3e9ae56708558b1a96f88814",
+      "11155420": "0xaa0dbdf6354dd238d289c359c74f998ddec8bcd1"
+    },
+    "JBCCIPSuckerDeployer_2": {
+      "1": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
+      "10": "0x58683931b146697d094c660aec1f4a8f564a3d7d",
+      "8453": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
+      "42161": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
+      "84532": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
+      "421614": "0xc295a8926f1ed0a6e3b6cbdb1d28b9d6b388c8a7",
+      "11155111": "0xf816d238aef247f86cc73593961cb8fb55ca4bcf",
+      "11155420": "0x58683931b146697d094c660aec1f4a8f564a3d7d"
+    },
+    "JBSwapTerminal": {
+      "1": "0x259385b97dfbd5576bd717dc7b25967ec8b145dd",
+      "10": "0x73d04584bde126242c36c2c7b219cbdec7aad774",
+      "8453": "0x4fd73d8b285e82471f08a4ef9861d6248b832edd",
+      "42161": "0x483c9b12c5bd2da73133aae30642ce0008c752ad",
+      "84532": "0xc7369f75bd678e1a9a46b82e2512e84489d4d32d",
+      "421614": "0x5f820a86d63eb1b98c562728719dc1e30967c41c",
+      "11155111": "0xca3f2cc5a35c0412e8147746602b76ba4ac29fc5",
+      "11155420": "0xc7369f75bd678e1a9a46b82e2512e84489d4d32d"
+    },
+    "JBSwapTerminalRegistry": {
+      "1": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "10": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "8453": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "42161": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "84532": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "421614": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "11155111": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6",
+      "11155420": "0x60b4f5595ee509c4c22921c7b7999f1616e6a4f6"
+    },
+    "JBBuybackHook": {
+      "1": "0xd342490ec41d5982c23951253a74a1c940fe0f9b",
+      "10": "0x318f8aa6a95cb83419985c0d797c762f5a7824f3",
+      "8453": "0xb6133a222315f8e9d25e7c77bac5ddeb3451d088",
+      "42161": "0x4ac3e20edd1d398def0dfb44d3adb9fc244f0320",
+      "84532": "0x79e5ca5ebe4f110965248afad88b8e539e1aa8fd",
+      "421614": "0xb35ab801c008a64d8f3eea0a8a6209b0d176f2df",
+      "11155111": "0xf082e3218a690ea6386506bed338f6878d21815f",
+      "11155420": "0x79e5ca5ebe4f110965248afad88b8e539e1aa8fd"
+    },
+    "JBBuybackHookRegistry": {
+      "1": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "10": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "8453": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "42161": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "84532": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "421614": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "11155111": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a",
+      "11155420": "0x9e1e0fb70bc4661f2cc2d5eddd87a9d582a12b1a"
+    },
+    "JBOmnichainDeployer": {
+      "1": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "10": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "8453": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "42161": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "84532": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "421614": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "11155111": "0x8f5ded85c40b50d223269c1f922a056e72101590",
+      "11155420": "0x8f5ded85c40b50d223269c1f922a056e72101590"
+    },
+    "REVDeployer": {
+      "1": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "10": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "8453": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "42161": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "84532": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "421614": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "11155111": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d",
+      "11155420": "0x2ca27bde7e7d33e353b44c27acfcf6c78dde251d"
+    },
+    "REVLoans": {
+      "1": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "10": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "8453": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "42161": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "84532": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "421614": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "11155111": "0x1880d832aa283d05b8eab68877717e25fbd550bb",
+      "11155420": "0x1880d832aa283d05b8eab68877717e25fbd550bb"
+    }
   }
-};
+} as const;

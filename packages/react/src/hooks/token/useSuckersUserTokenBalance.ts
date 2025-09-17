@@ -1,14 +1,9 @@
-import {
-  JBChainId,
-  JBProjectToken,
-  readJbTokensTotalBalanceOf,
-  SuckerPair,
-} from "juice-sdk-core";
+import { JBChainId, JBCoreContracts, JBProjectToken, jbTokensAbi } from "juice-sdk-core";
+import { getContract } from "viem";
+import { useAccount, useConfig, useReadContract } from "wagmi";
+import { useQuery } from "wagmi/query";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
-import { useReadJbTokensTotalBalanceOf } from "../../generated/juicebox";
-import { useAccount, useConfig } from "wagmi";
-import { useQuery } from "wagmi/query";
 import { useSuckers } from "../suckers/useSuckers";
 
 /**
@@ -18,10 +13,13 @@ export function useSuckersUserTokenBalance() {
   const config = useConfig();
 
   const chainId = useJBChainId();
-  const { projectId } = useJBContractContext();
+  const { projectId, contractAddress } = useJBContractContext();
   const { address: userAddress } = useAccount();
 
-  const currentChainQuery = useReadJbTokensTotalBalanceOf({
+  const currentChainQuery = useReadContract({
+    abi: jbTokensAbi,
+    functionName: "totalBalanceOf",
+    address: contractAddress(JBCoreContracts.JBTokens),
     chainId,
     args: userAddress ? [userAddress, projectId] : undefined,
     query: {
@@ -30,8 +28,7 @@ export function useSuckersUserTokenBalance() {
       },
     },
   });
-  const suckersQuery = useSuckers();
-  const pairs = suckersQuery.data;
+  const { data: pairs = [], isLoading, isError } = useSuckers();
 
   const balanceQuery = useQuery({
     queryKey: [
@@ -57,10 +54,13 @@ export function useSuckersUserTokenBalance() {
       const balances = await Promise.all(
         pairs.map(async (pair) => {
           const { peerChainId, projectId } = pair;
-          const balance = await readJbTokensTotalBalanceOf(config, {
-            chainId: Number(peerChainId) as JBChainId,
-            args: [userAddress, projectId],
+          const contract = getContract({
+            address: contractAddress(JBCoreContracts.JBTokens, peerChainId),
+            abi: jbTokensAbi,
+            client: config.getClient({ chainId: peerChainId }),
           });
+
+          const balance = await contract.read.totalBalanceOf([userAddress, projectId]);
 
           return {
             balance: new JBProjectToken(balance),
@@ -70,9 +70,7 @@ export function useSuckersUserTokenBalance() {
         })
       );
 
-      if (
-        !balances.some((balance) => balance.chainId === currentChain.chainId)
-      ) {
+      if (!balances.some((balance) => balance.chainId === currentChain.chainId)) {
         // Add the current chain's balance to the list.
         balances.push(currentChain);
       }
@@ -82,8 +80,8 @@ export function useSuckersUserTokenBalance() {
   });
 
   return {
-    isLoading: balanceQuery.isLoading || suckersQuery.isLoading,
-    isError: balanceQuery.isError || suckersQuery.isError,
+    isLoading: balanceQuery.isLoading || isLoading,
+    isError: balanceQuery.isError || isError,
     data: balanceQuery.data as
       | { balance: JBProjectToken; chainId: JBChainId; projectId: bigint }[]
       | undefined,

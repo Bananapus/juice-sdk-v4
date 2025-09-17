@@ -1,15 +1,13 @@
 import {
   CashOutTaxRate,
   JBChainId,
+  jbControllerAbi,
   ReservedPercent,
   RulesetWeight,
   WeightCutPercent,
 } from "juice-sdk-core";
-
+import { useReadContract } from "wagmi";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
-import {
-  useReadJbControllerCurrentRulesetOf,
-} from "../../generated/juicebox";
 import { useResolveDataHook } from "./useResolveDataHook";
 
 export function useJBRuleset({
@@ -20,8 +18,11 @@ export function useJBRuleset({
   chainId: JBChainId | undefined;
 }) {
   const { contracts } = useJBContractContext();
-  const query = useReadJbControllerCurrentRulesetOf({
+
+  const query = useReadContract({
     chainId,
+    abi: jbControllerAbi,
+    functionName: "currentRulesetOf",
     address: contracts?.controller?.data ?? undefined,
     args: projectId ? [projectId] : undefined,
     query: {
@@ -36,9 +37,7 @@ export function useJBRuleset({
           metadata: {
             ...rulesetMetadata,
             cashOutTaxRate: new CashOutTaxRate(rulesetMetadata.cashOutTaxRate),
-            reservedPercent: new ReservedPercent(
-              rulesetMetadata.reservedPercent
-            ),
+            reservedPercent: new ReservedPercent(rulesetMetadata.reservedPercent),
           },
         };
       },
@@ -54,11 +53,10 @@ export function useJBRuleset({
 
   return {
     ruleset: query.data?.data,
-    rulesetMetadata:
-      query.data?.metadata && {
-        ...query.data.metadata,
-        dataHook: resolvedDataHook,
-      },
+    rulesetMetadata: query.data?.metadata && {
+      ...query.data.metadata,
+      dataHook: resolvedDataHook,
+    },
     ...query,
   };
 }

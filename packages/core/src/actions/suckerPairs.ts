@@ -1,7 +1,9 @@
 import { Address, PublicClient, getContract } from "viem";
-import { readJbSuckerRegistrySuckerPairsOf } from "../generated/juicebox.js";
+import { jbSuckerRegistryAbi } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
-import { JBChainId } from "src/types.js";
+import { JBChainId, JBSuckerContracts, JBVersion } from "../types.js";
+import { getJBContractAddress } from "../utils/contracts.js";
+import { useConfig } from "wagmi";
 
 export type SuckerPair = {
   peerChainId: JBChainId;
@@ -12,15 +14,26 @@ export async function getSuckerPairs({
   config,
   chainId,
   projectId,
+  version,
 }: {
-  config: any; // TODO wagmi config type
+  config: ReturnType<typeof useConfig>;
   chainId: JBChainId;
   projectId: bigint;
+  version: JBVersion;
 }): Promise<SuckerPair[]> {
-  const suckers = await readJbSuckerRegistrySuckerPairsOf(config, {
-    chainId, // TODO fix type
-    args: [projectId],
+  const jbSuckerRegistry = getJBContractAddress(
+    JBSuckerContracts.JBSuckerRegistry,
+    version,
+    chainId
+  );
+
+  const client = config.getClient({ chainId: Number(chainId) }) as PublicClient;
+  const suckerRegistry = getContract({
+    address: jbSuckerRegistry,
+    abi: jbSuckerRegistryAbi,
+    client,
   });
+  const suckers = await suckerRegistry.read.suckerPairsOf([projectId]);
 
   const suckerPairs = await Promise.all(
     suckers.map(async (sucker) => {
@@ -60,12 +73,14 @@ export async function resolveSuckers({
   config,
   chainId,
   projectId,
+  version,
 }: {
-  config: any; // TODO wagmi config
+  config: ReturnType<typeof useConfig>;
   chainId: JBChainId;
   projectId: bigint;
+  version: JBVersion;
 }) {
-  const initialPairs = await getSuckerPairs({ config, chainId, projectId });
+  const initialPairs = await getSuckerPairs({ config, chainId, projectId, version });
   const pairs = [...initialPairs];
 
   await Promise.all(
@@ -75,6 +90,7 @@ export async function resolveSuckers({
           config,
           chainId: pair.peerChainId,
           projectId: pair.projectId,
+          version,
         });
 
         peerPairs.forEach((pair) => {
@@ -90,22 +106,3 @@ export async function resolveSuckers({
 
   return pairs;
 }
-
-// // example, delete this.
-
-// const config = createConfig({
-//   chains: [sepolia],
-//   transports: {
-//     [sepolia.id]: http(
-//       `https://sepolia.infura.io/v3/c2838024e339438fbe8a31d6754efe8a`
-//     ),
-//   },
-// });
-
-// const x = await getSuckerPairs({
-//   config,
-//   chainId: sepolia.id,
-//   projectId: 2n,
-// });
-
-// console.log(x);

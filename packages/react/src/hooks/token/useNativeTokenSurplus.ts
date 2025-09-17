@@ -1,19 +1,18 @@
 import {
   ETH_CURRENCY_ID,
   JBChainId,
+  jbMultiTerminalAbi,
   NATIVE_TOKEN,
   NATIVE_TOKEN_DECIMALS,
 } from "juice-sdk-core";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
-import { useReadJbMultiTerminalCurrentSurplusOf } from "../../generated/juicebox";
+import { useReadContract } from "wagmi";
 
 /**
  * Return the current surplus of JB Native token, from the project's primary native terminal.
  */
-export function useNativeTokenSurplus({
-  chainId,
-}: { chainId?: JBChainId } = {}) {
+export function useNativeTokenSurplus({ chainId }: { chainId?: JBChainId } = {}) {
   const {
     projectId,
     contracts: { primaryNativeTerminal },
@@ -21,8 +20,10 @@ export function useNativeTokenSurplus({
 
   const _chainId = chainId ?? useJBChainId();
 
-  return useReadJbMultiTerminalCurrentSurplusOf({
+  return useReadContract({
     chainId: _chainId,
+    abi: jbMultiTerminalAbi,
+    functionName: "currentSurplusOf",
     address: primaryNativeTerminal.data ?? undefined,
     args: [
       projectId,

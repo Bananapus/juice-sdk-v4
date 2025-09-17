@@ -1,21 +1,18 @@
-import { AsyncData, AsyncDataNone } from "../types";
 import {
   CashOutTaxRate,
+  debug,
+  jbControllerAbi,
   ReservedPercent,
   RulesetWeight,
   WeightCutPercent,
 } from "juice-sdk-core";
 import { createContext, useContext } from "react";
-import {
-  jbControllerAbi,
-  useReadJbControllerCurrentRulesetOf,
-} from "../../generated/juicebox";
-
 import { ContractFunctionReturnType } from "viem";
-import { debug } from "juice-sdk-core";
+import { useReadContract } from "wagmi";
+import { useResolveDataHook } from "../../hooks/ruleset/useResolveDataHook";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
 import { useJBContractContext } from "../JBContractContext/JBContractContext";
-import { useResolveDataHook } from "../../hooks/ruleset/useResolveDataHook";
+import { AsyncData, AsyncDataNone } from "../types";
 
 /**
  * Context for the current ruleset of a project.
@@ -26,11 +23,7 @@ export type JBRulesetContext = {
    */
   ruleset: AsyncData<
     Omit<
-      ContractFunctionReturnType<
-        typeof jbControllerAbi,
-        "view",
-        "currentRulesetOf"
-      >[0],
+      ContractFunctionReturnType<typeof jbControllerAbi, "view", "currentRulesetOf">[0],
       "weight" | "weightCutPercent"
     > & {
       weight: RulesetWeight;
@@ -42,11 +35,7 @@ export type JBRulesetContext = {
    */
   rulesetMetadata: AsyncData<
     Omit<
-      ContractFunctionReturnType<
-        typeof jbControllerAbi,
-        "view",
-        "currentRulesetOf"
-      >[1],
+      ContractFunctionReturnType<typeof jbControllerAbi, "view", "currentRulesetOf">[1],
       "cashOutTaxRate" | "reservedPercent"
     > & {
       cashOutTaxRate: CashOutTaxRate;
@@ -68,7 +57,7 @@ export function useJBRulesetContext() {
 }
 
 /**
- * 
+ *
  * @deprecated use useJBRuleset instead
  */
 export function useJBRulesetMetadata() {
@@ -82,17 +71,15 @@ export function useJBRulesetMetadata() {
  *
  * @note depends on JBContractContext
  */
-export const JBRulesetProvider = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
+export const JBRulesetProvider = ({ children }: { children: React.ReactNode }) => {
   const { contracts, projectId } = useJBContractContext();
   const chainId = useJBChainId();
 
-  const { data: ruleset, isLoading } = useReadJbControllerCurrentRulesetOf({
+  const { data: ruleset, isLoading } = useReadContract({
     chainId,
-    address: contracts?.controller?.data ?? undefined,
+    abi: jbControllerAbi,
+    functionName: "currentRulesetOf",
+    address: contracts.controller.data ?? undefined,
     args: [projectId],
     query: {
       select([ruleset, rulesetMetadata]) {
@@ -105,9 +92,7 @@ export const JBRulesetProvider = ({
           metadata: {
             ...rulesetMetadata,
             cashOutTaxRate: new CashOutTaxRate(rulesetMetadata.cashOutTaxRate),
-            reservedPercent: new ReservedPercent(
-              rulesetMetadata.reservedPercent
-            ),
+            reservedPercent: new ReservedPercent(rulesetMetadata.reservedPercent),
           },
         };
       },
@@ -119,7 +104,6 @@ export const JBRulesetProvider = ({
     projectId,
     chainId,
     rulesetId: BigInt(ruleset?.data.id ?? 0),
-
   });
 
   const rulesetMetadataWithResolvedDataHook = ruleset?.metadata && {

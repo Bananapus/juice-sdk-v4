@@ -1,16 +1,7 @@
-import {
-  Address,
-  PublicClient,
-  getContract,
-  isAddressEqual,
-  zeroAddress,
-} from "viem";
-import {
-  jb721TiersHookAbi,
-  jb721TiersHookDeployerAddress,
-  jbAddressRegistryAbi,
-  jbAddressRegistryAddress,
-} from "../generated/juicebox.js";
+import { JB721HookContracts, JBAddressRegistryContracts, JBChainId, JBVersion } from "../types.js";
+import { getJBContractAddress } from "../utils/contracts.js";
+import { Address, PublicClient, getContract, isAddressEqual, zeroAddress } from "viem";
+import { jb721TiersHookAbi, jbAddressRegistryAbi } from "../generated/juicebox.js";
 import { debug } from "../utils/debug.js";
 
 /**
@@ -24,6 +15,7 @@ export async function find721DataHook(
     dataHookAddress: Address;
     projectId: bigint;
     rulesetId: number;
+    version: JBVersion;
   }
 ) {
   const chainId = publicClient.chain?.id;
@@ -31,17 +23,20 @@ export async function find721DataHook(
     throw new Error("[juice-sdk-core] No chain ID on public client.");
   }
 
-  const deployerAddress =
-    jb721TiersHookDeployerAddress[
-      chainId as keyof typeof jb721TiersHookDeployerAddress
-    ];
+  const deployerAddress = getJBContractAddress(
+    JB721HookContracts.JB721TiersHookDeployer,
+    args.version,
+    chainId as JBChainId
+  );
 
-  const registerAddress =
-    jbAddressRegistryAddress[chainId as keyof typeof jbAddressRegistryAddress];
+  const registerAddress = getJBContractAddress(
+    JBAddressRegistryContracts.JBAddressRegistry,
+    args.version,
+    chainId as JBChainId
+  );
+
   if (!registerAddress) {
-    throw new Error(
-      `[juice-sdk-core] No JBAddressRegistry address for chain ${chainId}.`
-    );
+    throw new Error(`[juice-sdk-core] No JBAddressRegistry address for chain ${chainId}.`);
   }
 
   const registry = getContract({

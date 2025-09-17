@@ -1,17 +1,9 @@
 import { jbMultiTerminalAbi } from "juice-sdk-core";
 import { PropsWithChildren, createContext, useContext } from "react";
-import {
-  Address,
-  ContractFunctionReturnType,
-  isAddressEqual,
-  zeroAddress,
-} from "viem";
-import {
-  useReadJbMultiTerminalAccountingContextsOf,
-  useReadJbMultiTerminalStore,
-} from "../../generated/juicebox";
-import { AsyncData, AsyncDataNone } from "../types";
+import { Address, ContractFunctionReturnType, isAddressEqual, zeroAddress } from "viem";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
+import { AsyncData, AsyncDataNone } from "../types";
+import { useReadContract } from "wagmi";
 
 /**
  * [token] The address of the token that accounting is being done with.
@@ -47,24 +39,22 @@ type JBTerminalProviderProps = PropsWithChildren<{
 /**
  * Provide details about a given terminal.
  */
-export const JBTerminalProvider = ({
-  address,
-  children,
-}: JBTerminalProviderProps) => {
+export const JBTerminalProvider = ({ address, children }: JBTerminalProviderProps) => {
   const chainId = useJBChainId();
 
-  const { data: store, isLoading: isStoreLoading } =
-    useReadJbMultiTerminalStore({
-      chainId,
-      address:
-        address && isAddressEqual(address, zeroAddress) ? undefined : address,
-    });
-  const { data: accountingContexts, isLoading: accountingContextsLoading } =
-    useReadJbMultiTerminalAccountingContextsOf({
-      chainId,
-      address:
-        address && isAddressEqual(address, zeroAddress) ? undefined : address,
-    });
+  const { data: store, isLoading: isStoreLoading } = useReadContract({
+    abi: jbMultiTerminalAbi,
+    functionName: "STORE",
+    chainId,
+    address: address && isAddressEqual(address, zeroAddress) ? undefined : address,
+  });
+
+  const { data: accountingContexts, isLoading: accountingContextsLoading } = useReadContract({
+    abi: jbMultiTerminalAbi,
+    functionName: "accountingContextsOf",
+    chainId,
+    address: address && isAddressEqual(address, zeroAddress) ? undefined : address,
+  });
 
   return (
     <JBTerminalContext.Provider

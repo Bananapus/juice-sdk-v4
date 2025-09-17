@@ -5,29 +5,29 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "generate": "wagmi generate",
     "generate-types": "echo '🔧 Generating types...' && tsc --emitDeclarationOnly",
     "prebuild": "rm -Rf dist",
-    "build": "npm run generate && tsup && npm run generate-types",
-    "dev": "tsup --watch"
+    "build": "tsup && npm run generate-types",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit"
   },
   "author": "tomquirk",
   "license": "ISC",
   "peerDependencies": {
     "juice-sdk-core": "*",
+    "react": "^18.3.1",
     "viem": "^2.14.1",
-    "wagmi": "^2.10.2",
-    "react": "^18.3.1"
+    "wagmi": "^2.10.2"
   },
   "devDependencies": {
-    "@jbm/wagmi-config": "*",
-    "@wagmi/cli": "^2.1.10",
+    "@types/react": "^19.1.13",
+    "change-case": "^5.4.4",
     "juice-sdk-core": "*",
     "react": "^18.3.1",
     "tsup": "^8.1.0",
     "viem": "^2.14.1",
-    "wagmi": "^2.10.2",
-    "change-case": "^5.4.4"
+    "vitest": "^3.2.4",
+    "wagmi": "^2.10.2"
   },
   "files": [
     "dist/**/*"
