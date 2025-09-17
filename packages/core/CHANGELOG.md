@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 2.0.0
+
+### Major Changes
+
+- Add support for v5 contracts, remove auto-generated hooks & actions
+
 ## 1.10.0
 
 ### Minor Changes
