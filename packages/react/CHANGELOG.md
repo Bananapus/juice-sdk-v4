@@ -1,5 +1,16 @@
 # juice-sdk-react
 
+## 4.0.0
+
+### Major Changes
+
+- Add support for v5 contracts, remove auto-generated hooks & actions
+
+### Patch Changes
+
+- Updated dependencies
+  - juice-sdk-core@2.0.0
+
 ## 3.0.0
 
 ### Minor Changes
