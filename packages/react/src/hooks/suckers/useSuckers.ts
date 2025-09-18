@@ -1,17 +1,21 @@
-import { debug, SuckerPair } from "juice-sdk-core";
-import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
-import { useQuery, UseQueryReturnType } from "wagmi/query";
-import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
+"use client";
+
+import { debug, JBChainId } from "juice-sdk-core";
+import { ProjectDocument } from "src/generated/graphql";
+import { useBendystrawQuery } from "src/lib/bendystraw/useBendystrawQuery";
 import {
-  mainnet,
-  base,
-  optimism,
   arbitrum,
-  sepolia,
-  baseSepolia,
-  optimismSepolia,
   arbitrumSepolia,
+  base,
+  baseSepolia,
+  mainnet,
+  optimism,
+  optimismSepolia,
+  sepolia,
 } from "viem/chains";
+import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
+import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
+import { useMemo } from "react";
 
 /**
  * Preferred chain ordering
@@ -31,37 +35,34 @@ const chainOrder = [
 /**
  * Return sucker pairs for the project ID in context.
  *
- * Hits JBM endpoint, heavily cached
- * @returns
  */
-export function useSuckers(args?: { enabled: boolean }): UseQueryReturnType<SuckerPair[]> {
+export function useSuckers(args?: { enabled: boolean }) {
   const { enabled = true } = args ?? {};
-  const { projectId } = useJBContractContext();
+  const { projectId, version } = useJBContractContext();
   const chainId = useJBChainId();
 
   debug("useSuckers::args", { projectId, chainId });
 
-  return useQuery({
-    queryKey: ["juice-sdk", "suckers", projectId.toString(), chainId?.toString()],
+  const { data, ...rest } = useBendystrawQuery(ProjectDocument, {
+    projectId: Number(projectId),
+    chainId: Number(chainId),
+    version,
     staleTime: Infinity,
     enabled: !!chainId && enabled,
-    queryFn: async () => {
-      if (!chainId) return [];
-
-      const suckersData = await fetch(
-        `https://juicebox.money/api/juicebox/v4/project/${projectId}/sucker-pairs?chainId=${chainId}`
-      ).then((res) => res.json());
-
-      // sort by `chainOrder`
-      return (suckersData.suckers as SuckerPair[]).sort((a: SuckerPair, b: SuckerPair) => {
-        const aChainId = chainOrder.indexOf(a.peerChainId);
-        const bChainId = chainOrder.indexOf(b.peerChainId);
-        if (aChainId === -1 || bChainId === -1) {
-          return 0;
-        }
-
-        return aChainId - bChainId;
-      });
-    },
   });
+
+  const pairs = useMemo(
+    () =>
+      data?.project?.suckerGroup?.projects?.items
+        .map((item) => ({ peerChainId: item.chainId as JBChainId, projectId }))
+        ?.sort((a, b) => {
+          const aChainId = chainOrder.indexOf(a.peerChainId);
+          const bChainId = chainOrder.indexOf(b.peerChainId);
+          if (aChainId === -1 || bChainId === -1) return 0;
+          return aChainId - bChainId;
+        }),
+    [data]
+  );
+
+  return { data: pairs, ...rest };
 }

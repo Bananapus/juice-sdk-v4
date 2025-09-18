@@ -39,13 +39,10 @@ export function useSuckersNativeTokenBalance() {
       const balances = await Promise.all(
         pairs.map(async (pair) => {
           const { peerChainId, projectId } = pair;
-          const [terminal, store] = await Promise.all([
-            getPrimaryNativeTerminal(config, peerChainId, projectId, version),
-            getProjectTerminalStore(config, peerChainId, projectId, version),
-          ]);
+          const terminal = await getPrimaryNativeTerminal(config, peerChainId, projectId, version);
 
           const contract = getContract({
-            address: store,
+            address: getProjectTerminalStore(peerChainId, version),
             abi: jbTerminalStoreAbi,
             client: config.getClient({ chainId: peerChainId }),
           });
