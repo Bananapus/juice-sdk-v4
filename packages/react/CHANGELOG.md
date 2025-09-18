@@ -1,5 +1,16 @@
 # juice-sdk-react
 
+## 5.0.0
+
+### Minor Changes
+
+- Add Bendystraw client instead of using juicebox API
+
+### Patch Changes
+
+- Updated dependencies
+  - juice-sdk-core@2.1.0
+
 ## 4.0.0
 
 ### Major Changes
