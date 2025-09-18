@@ -1,5 +1,11 @@
 # juice-sdk-react
 
+## 5.0.1
+
+### Patch Changes
+
+- Fix Bendystraw URL when API key isn't present
+
 ## 5.0.0
 
 ### Minor Changes
