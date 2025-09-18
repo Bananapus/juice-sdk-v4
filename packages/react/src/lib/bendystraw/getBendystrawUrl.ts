@@ -13,5 +13,5 @@ export function getBendystrawUrl(chainId: number, config: BendystrawConfig): str
   if (url) return `${url}/${apiKey}`;
 
   const isMainnet = [mainnet, base, arbitrum, optimism].some((c) => c.id === chainId);
-  return `${isMainnet ? bendystrawUrl : testnetBendystrawUrl}/${apiKey}`;
+  return `${isMainnet ? bendystrawUrl : testnetBendystrawUrl}${apiKey !== "" ? `/${apiKey}` : ""}`;
 }
