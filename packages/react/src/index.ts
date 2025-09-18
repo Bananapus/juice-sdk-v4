@@ -1,12 +1,14 @@
-export type { JBVersion, JBChainId } from "juice-sdk-core";
+export type { JBChainId, JBVersion } from "juice-sdk-core";
 export * from "./components/NativeTokenValue";
 export * from "./contexts/JBChainContext/JBChainContext";
 export * from "./contexts/JBContractContext/JBContractContext";
 export * from "./contexts/JBDataHookContext/JBDataHookContext";
 export * from "./contexts/JBProjectMetadataContext/JBProjectMetadataContext";
-export * from "./contexts/JBProjectProvider/JBProjectProvider";
+export { JBProjectProvider, useJBProject } from "./contexts/JBProjectProvider/JBProjectProvider";
 export * from "./contexts/JBRulesetContext/JBRulesetContext";
 export * from "./contexts/JBTerminalContext/JBTerminalContext";
 export * from "./contexts/JBTokenContext/JBTokenContext";
 export * from "./hooks";
+export { getBendystrawUrl } from "./lib/bendystraw/getBendystrawUrl";
+export { useBendystrawQuery } from "./lib/bendystraw/useBendystrawQuery";
 export * from "./lib/relayr";

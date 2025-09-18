@@ -1,0 +1,15 @@
+overwrite: true
+schema: https://bendystraw.xyz/schema
+documents: "src/**/*.graphql"
+generates:
+  src/generated/:
+    preset: "client"
+  ./graphql.schema.json:
+    plugins:
+      - "introspection"
+config:
+  namingConvention:
+    enumValues: keep
+  avoidOptionals:
+    field: true
+  skipTypename: true

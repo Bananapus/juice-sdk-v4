@@ -69,10 +69,8 @@ async function getTokenRedemptionQuote(
   tokenAmountWei: bigint,
   version: JBVersion
 ) {
-  const terminalStore = await getProjectTerminalStore(config, chainId, projectId, version);
-
   const contract = getContract({
-    address: terminalStore,
+    address: getProjectTerminalStore(chainId, version),
     abi: jbTerminalStoreAbi,
     client: config.getClient({ chainId }),
   });

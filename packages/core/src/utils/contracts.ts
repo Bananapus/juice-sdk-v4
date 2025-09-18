@@ -23,19 +23,8 @@ export function getJBContractAddress<V extends JBVersion>(
   return (jbContractAddress[versionKey] as any)?.[contract]?.[chainKey];
 }
 
-export async function getProjectTerminalStore(
-  config: ReturnType<typeof useConfig>,
-  chainId: JBChainId,
-  projectId: bigint,
-  version: JBVersion
-) {
-  const terminal = await getPrimaryNativeTerminal(config, chainId, projectId, version);
-
-  const data = await fetch(
-    `https://juicebox.money/api/juicebox/v4/terminal/${terminal}/jb-terminal-store?chainId=${chainId}`
-  ).then((res) => res.json());
-
-  return data.terminalStoreAddress as Address;
+export function getProjectTerminalStore(chainId: JBChainId, version: JBVersion) {
+  return getJBContractAddress(JBCoreContracts.JBTerminalStore, version, chainId);
 }
 
 export async function getPrimaryNativeTerminal(

@@ -1,0 +1,45 @@
+query Project($projectId: Float!, $chainId: Float!, $version: Float!) {
+  project(projectId: $projectId, chainId: $chainId, version: $version) {
+    projectId
+    metadataUri
+    handle
+    createdAt
+    logoUri
+    name
+    version
+    suckerGroupId
+    suckerGroup {
+      projects {
+        items {
+          chainId
+          balance
+          tokenSupply
+        }
+      }
+    }
+  }
+}
+
+query Projects($where: projectFilter) {
+  projects(where: $where) {
+    items {
+      projectId
+      metadataUri
+      handle
+      createdAt
+      suckerGroupId
+      participants {
+        totalCount
+      }
+      version
+    }
+  }
+}
+
+query ProjectAccountingContext($chainId: Float!, $projectId: Float!, $version: Float!) {
+  project(chainId: $chainId, projectId: $projectId, version: $version) {
+    token
+    decimals
+    currency
+  }
+}
