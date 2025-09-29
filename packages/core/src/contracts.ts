@@ -3,6 +3,10 @@ export type JBVersion = 4 | 5;
 export enum JBCoreContracts {
   JBController = "JBController",
   JBController4_1 = "JBController4_1",
+  JBDeadline1Day = "JBDeadline1Day",
+  JBDeadline3Days = "JBDeadline3Days",
+  JBDeadline7Days = "JBDeadline7Days",
+  JBDeadline3Hours = "JBDeadline3Hours",
   JBDirectory = "JBDirectory",
   JBMultiTerminal = "JBMultiTerminal",
   JBRulesets = "JBRulesets",

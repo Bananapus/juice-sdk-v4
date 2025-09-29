@@ -8877,6 +8877,218 @@ export const jbController4_1Abi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBDeadline1Day
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbDeadline1DayAbi = [
+  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DURATION',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'ruleset',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    name: 'approvalStatusOf',
+    outputs: [
+      { name: '', internalType: 'enum JBApprovalStatus', type: 'uint8' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBDeadline3Days
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbDeadline3DaysAbi = [
+  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DURATION',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'ruleset',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    name: 'approvalStatusOf',
+    outputs: [
+      { name: '', internalType: 'enum JBApprovalStatus', type: 'uint8' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBDeadline3Hours
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbDeadline3HoursAbi = [
+  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DURATION',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'ruleset',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    name: 'approvalStatusOf',
+    outputs: [
+      { name: '', internalType: 'enum JBApprovalStatus', type: 'uint8' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBDeadline7Days
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbDeadline7DaysAbi = [
+  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DURATION',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'ruleset',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    name: 'approvalStatusOf',
+    outputs: [
+      { name: '', internalType: 'enum JBApprovalStatus', type: 'uint8' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBDirectory
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -24046,6 +24258,46 @@ export const revLoans1_1Abi = [
       "11155111": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8",
       "11155420": "0xd1c436eb62e1d23e66842701b09e3d65aa8522e8"
     },
+    "JBDeadline1Day": {
+      "1": "0xd7ce0fe638e02a31fc7c8c231684d85ad9b2ca3d",
+      "10": "0xd7ce0fe638e02a31fc7c8c231684d85ad9b2ca3d",
+      "8453": "0xd7ce0fe638e02a31fc7c8c231684d85ad9b2ca3d",
+      "42161": "0xd7ce0fe638e02a31fc7c8c231684d85ad9b2ca3d",
+      "84532": "0xd7ce0fe638e02a31fc7c8c231684d85ad9b2ca3d",
+      "421614": "0xd7ce0fe638e02a31fc7c8c231684d85ad9b2ca3d",
+      "11155111": "0xd7ce0fe638e02a31fc7c8c231684d85ad9b2ca3d",
+      "11155420": "0xd7ce0fe638e02a31fc7c8c231684d85ad9b2ca3d"
+    },
+    "JBDeadline3Days": {
+      "1": "0xba8a653a5cc985d2f1458e80a9700490c11ab981",
+      "10": "0xba8a653a5cc985d2f1458e80a9700490c11ab981",
+      "8453": "0xba8a653a5cc985d2f1458e80a9700490c11ab981",
+      "42161": "0xba8a653a5cc985d2f1458e80a9700490c11ab981",
+      "84532": "0xba8a653a5cc985d2f1458e80a9700490c11ab981",
+      "421614": "0xba8a653a5cc985d2f1458e80a9700490c11ab981",
+      "11155111": "0xba8a653a5cc985d2f1458e80a9700490c11ab981",
+      "11155420": "0xba8a653a5cc985d2f1458e80a9700490c11ab981"
+    },
+    "JBDeadline7Days": {
+      "1": "0x05505582a553669f540ba2dd0b55fc75b8176c40",
+      "10": "0x05505582a553669f540ba2dd0b55fc75b8176c40",
+      "8453": "0x05505582a553669f540ba2dd0b55fc75b8176c40",
+      "42161": "0x05505582a553669f540ba2dd0b55fc75b8176c40",
+      "84532": "0x05505582a553669f540ba2dd0b55fc75b8176c40",
+      "421614": "0x05505582a553669f540ba2dd0b55fc75b8176c40",
+      "11155111": "0x05505582a553669f540ba2dd0b55fc75b8176c40",
+      "11155420": "0x05505582a553669f540ba2dd0b55fc75b8176c40"
+    },
+    "JBDeadline3Hours": {
+      "1": "0xd0adabed7c69758884d2287ddb6fc68bbaf831b1",
+      "10": "0xd0adabed7c69758884d2287ddb6fc68bbaf831b1",
+      "8453": "0xd0adabed7c69758884d2287ddb6fc68bbaf831b1",
+      "42161": "0xd0adabed7c69758884d2287ddb6fc68bbaf831b1",
+      "84532": "0xd0adabed7c69758884d2287ddb6fc68bbaf831b1",
+      "421614": "0xd0adabed7c69758884d2287ddb6fc68bbaf831b1",
+      "11155111": "0xd0adabed7c69758884d2287ddb6fc68bbaf831b1",
+      "11155420": "0xd0adabed7c69758884d2287ddb6fc68bbaf831b1"
+    },
     "JBDirectory": {
       "1": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
       "10": "0x0bc9f153dee4d3d474ce0903775b9b2aaae9aa41",
@@ -24337,6 +24589,46 @@ export const revLoans1_1Abi = [
       "421614": "0x27da30646502e2f642be5281322ae8c394f7668a",
       "11155111": "0x27da30646502e2f642be5281322ae8c394f7668a",
       "11155420": "0x27da30646502e2f642be5281322ae8c394f7668a"
+    },
+    "JBDeadline1Day": {
+      "1": "0xcffdd1303f24145bd2c84e7bf15af1eb6ab924d7",
+      "10": "0xcffdd1303f24145bd2c84e7bf15af1eb6ab924d7",
+      "8453": "0xcffdd1303f24145bd2c84e7bf15af1eb6ab924d7",
+      "42161": "0xcffdd1303f24145bd2c84e7bf15af1eb6ab924d7",
+      "84532": "0xcffdd1303f24145bd2c84e7bf15af1eb6ab924d7",
+      "421614": "0xcffdd1303f24145bd2c84e7bf15af1eb6ab924d7",
+      "11155111": "0xcffdd1303f24145bd2c84e7bf15af1eb6ab924d7",
+      "11155420": "0xcffdd1303f24145bd2c84e7bf15af1eb6ab924d7"
+    },
+    "JBDeadline3Days": {
+      "1": "0x09b23b09af88bb6d7e9c957ff9f861f1c917111b",
+      "10": "0x09b23b09af88bb6d7e9c957ff9f861f1c917111b",
+      "8453": "0x09b23b09af88bb6d7e9c957ff9f861f1c917111b",
+      "42161": "0x09b23b09af88bb6d7e9c957ff9f861f1c917111b",
+      "84532": "0x09b23b09af88bb6d7e9c957ff9f861f1c917111b",
+      "421614": "0x09b23b09af88bb6d7e9c957ff9f861f1c917111b",
+      "11155111": "0x09b23b09af88bb6d7e9c957ff9f861f1c917111b",
+      "11155420": "0x09b23b09af88bb6d7e9c957ff9f861f1c917111b"
+    },
+    "JBDeadline7Days": {
+      "1": "0xdf911b94712cf117fb63b69838b16e1710636031",
+      "10": "0xdf911b94712cf117fb63b69838b16e1710636031",
+      "8453": "0xdf911b94712cf117fb63b69838b16e1710636031",
+      "42161": "0xdf911b94712cf117fb63b69838b16e1710636031",
+      "84532": "0xdf911b94712cf117fb63b69838b16e1710636031",
+      "421614": "0xdf911b94712cf117fb63b69838b16e1710636031",
+      "11155111": "0xdf911b94712cf117fb63b69838b16e1710636031",
+      "11155420": "0xdf911b94712cf117fb63b69838b16e1710636031"
+    },
+    "JBDeadline3Hours": {
+      "1": "0x4eeb65e13ade86155d169ba1fabd06828171799a",
+      "10": "0x4eeb65e13ade86155d169ba1fabd06828171799a",
+      "8453": "0x4eeb65e13ade86155d169ba1fabd06828171799a",
+      "42161": "0x4eeb65e13ade86155d169ba1fabd06828171799a",
+      "84532": "0x4eeb65e13ade86155d169ba1fabd06828171799a",
+      "421614": "0x4eeb65e13ade86155d169ba1fabd06828171799a",
+      "11155111": "0x4eeb65e13ade86155d169ba1fabd06828171799a",
+      "11155420": "0x4eeb65e13ade86155d169ba1fabd06828171799a"
     },
     "JBDirectory": {
       "1": "0x0061e516886a0540f63157f112c0588ee0651dcf",
