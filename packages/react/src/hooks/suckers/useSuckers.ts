@@ -54,7 +54,7 @@ export function useSuckers(args?: { enabled: boolean }) {
   const pairs = useMemo(
     () =>
       data?.project?.suckerGroup?.projects?.items
-        .map((item) => ({ peerChainId: item.chainId as JBChainId, projectId }))
+        .map((item) => ({ peerChainId: item.chainId as JBChainId, projectId: item.projectId }))
         ?.sort((a, b) => {
           const aChainId = chainOrder.indexOf(a.peerChainId);
           const bChainId = chainOrder.indexOf(b.peerChainId);

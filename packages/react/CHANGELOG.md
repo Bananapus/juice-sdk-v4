@@ -1,5 +1,11 @@
 # juice-sdk-react
 
+## 5.0.2
+
+### Patch Changes
+
+- Fix bug with wrong projectId in `useSuckers` hook
+
 ## 5.0.1
 
 ### Patch Changes
