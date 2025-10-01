@@ -14,6 +14,7 @@ query Project($projectId: Float!, $chainId: Float!, $version: Float!) {
           chainId
           balance
           tokenSupply
+          projectId
         }
       }
     }
