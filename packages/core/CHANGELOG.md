@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 2.1.2
+
+### Patch Changes
+
+- Add address & ABI for JBSwapTerminalUSDCRegistry contract
+
 ## 2.1.1
 
 ### Patch Changes
