@@ -123,6 +123,7 @@ export function getAllContractNames(version: JBVersion) {
     if (version === 4) {
       if (contract === JBSwapTerminalContracts.JBSwapTerminalRegistry) return false; // Added in v5
       if (contract === JBBuybackHookContracts.JBBuybackHookRegistry) return false; // Added in v5
+      if (contract === JBSwapTerminalContracts.JBSwapTerminalUSDCRegistry) return false; // Added in v5
     }
 
     if (version > 4) {

@@ -42,6 +42,7 @@ export enum JBSwapTerminalContracts {
   JBSwapTerminal = "JBSwapTerminal",
   JBSwapTerminal1_1 = "JBSwapTerminal1_1",
   JBSwapTerminalRegistry = "JBSwapTerminalRegistry",
+  JBSwapTerminalUSDCRegistry = "JBSwapTerminalUSDCRegistry",
 }
 
 export enum JBBuybackHookContracts {
