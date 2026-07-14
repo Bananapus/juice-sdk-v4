@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/juice-sdk-core.svg)](https://www.npmjs.com/package/juice-sdk-core)
 [![npm version](https://img.shields.io/npm/v/juice-sdk-react.svg)](https://www.npmjs.com/package/juice-sdk-react)
 
-A JavaScript SDK for building applications on the [Juicebox V4 protocol](https://docs.juicebox.money/).
+A JavaScript SDK for building applications on the [Juicebox protocol](https://docs.juicebox.money/) (V4, V5, and V6).
 
 ## Installation
 
@@ -101,7 +101,7 @@ const taxRate = new CashOutTaxRate(2.5); // 2.5% cash out tax
 
 ## Multi-Chain Support
 
-Juice SDK v4 supports the following networks:
+The Juice SDK supports the following networks:
 
 - **Ethereum** (Mainnet & Sepolia)
 - **Optimism** (Mainnet & Sepolia)

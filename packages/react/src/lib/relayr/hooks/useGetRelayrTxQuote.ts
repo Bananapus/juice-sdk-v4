@@ -1,4 +1,4 @@
-import { JBChainId } from "juice-sdk-core";
+import { JBChainId, JBVersion } from "juice-sdk-core";
 import { useRequestRelayrQuote } from "./useRequestRelayrQuote";
 import {
   ERC2771ForwardRequestData,
@@ -14,8 +14,13 @@ export function useGetRelayrTxQuote() {
 
   /**
    * Prompt user to sign transactions for each chain, then fetch transaction data from relayr.
+   *
+   * Each transaction may carry a `version` to target that JB version's forwarder (defaults to
+   * the context version).
    */
-  async function getRelayrTxQuote(data: { chainId: JBChainId; data: ERC2771ForwardRequestData }[]) {
+  async function getRelayrTxQuote(
+    data: { chainId: JBChainId; data: ERC2771ForwardRequestData; version?: JBVersion }[]
+  ) {
     if (!data) return;
 
     /**
@@ -23,11 +28,13 @@ export function useGetRelayrTxQuote() {
      */
     const txDataRequest = [];
     for (const d of data) {
-      const signedData = await sign(d.data, d.chainId);
+      const signedData = await sign(d.data, d.chainId, d.version);
       txDataRequest.push({
         chain: d.chainId,
         data: signedData,
-        value: "0",
+        // The forwarder needs the forward request's value passed along with the execute call.
+        value: d.data.value.toString(),
+        version: d.version,
       });
     }
 

@@ -14,6 +14,7 @@ export {
   JBBuybackHookContracts,
   JBCoreContracts,
   JBOmnichainDeployerContracts,
+  JBRouterTerminalContracts,
   JBSuckerContracts,
   JBSwapTerminalContracts,
   JBVersion,
@@ -37,7 +38,8 @@ export const projectTagOptions = [
   "software",
 ] as const;
 
-export type ProjectTagName = typeof projectTagOptions extends Readonly<Array<infer T>> ? T : never;
+export type ProjectTagName =
+  typeof projectTagOptions extends Readonly<Array<infer T>> ? T : never;
 
 /**
  * The metadata associated with a juicebox project.
@@ -143,7 +145,8 @@ export type ETHPayoutGroupedSplits = GroupedSplits<SplitGroup.ETHPayout>;
 /**
  * Splits for a project's reserved token list.
  */
-export type ReservedTokensGroupedSplits = GroupedSplits<SplitGroup.ReservedTokens>;
+export type ReservedTokensGroupedSplits =
+  GroupedSplits<SplitGroup.ReservedTokens>;
 
 export type JBRuleset = ContractFunctionReturnType<
   typeof jbControllerAbi,
@@ -154,7 +157,10 @@ export type JBRuleset = ContractFunctionReturnType<
 /**
  * Juicebox ruleset.
  */
-export type JBRulesetData = Omit<JBRuleset[0], "weight" | "weightCutPercent"> & {
+export type JBRulesetData = Omit<
+  JBRuleset[0],
+  "weight" | "weightCutPercent"
+> & {
   weight: RulesetWeight;
   weightCutPercent: WeightCutPercent;
 };
@@ -162,7 +168,10 @@ export type JBRulesetData = Omit<JBRuleset[0], "weight" | "weightCutPercent"> & 
 /**
  * Juicebox ruleset metadata.
  */
-export type JBRulesetMetadata = Omit<JBRuleset[1], "cashOutTaxRate" | "reservedPercent"> & {
+export type JBRulesetMetadata = Omit<
+  JBRuleset[1],
+  "cashOutTaxRate" | "reservedPercent"
+> & {
   cashOutTaxRate: CashOutTaxRate;
   reservedPercent: ReservedPercent;
 };

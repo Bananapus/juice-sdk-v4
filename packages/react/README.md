@@ -31,7 +31,7 @@ function MyPage() {
     <JBProjectProvider
       chainId={1}
       projectId={projectId}
-      version={5}
+      version={6}
       ctxProps={{
         metadata: {
           ipfsGatewayHostname: "jbm.infura-ipfs.io", // your custom gateway. Defaults to `ipfs.io`

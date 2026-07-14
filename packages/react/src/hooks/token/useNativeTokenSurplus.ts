@@ -2,6 +2,7 @@ import {
   ETH_CURRENCY_ID,
   JBChainId,
   jbMultiTerminalAbi,
+  jbMultiTerminalV5Abi,
   NATIVE_TOKEN,
   NATIVE_TOKEN_DECIMALS,
 } from "juice-sdk-core";
@@ -12,17 +13,35 @@ import { useReadContract } from "wagmi";
 /**
  * Return the current surplus of JB Native token, from the project's primary native terminal.
  */
-export function useNativeTokenSurplus({ chainId }: { chainId?: JBChainId } = {}) {
+export function useNativeTokenSurplus({
+  chainId,
+}: { chainId?: JBChainId } = {}) {
   const {
     projectId,
+    version,
     contracts: { primaryNativeTerminal },
   } = useJBContractContext();
 
   const _chainId = chainId ?? useJBChainId();
 
-  return useReadContract({
+  // v6 takes token addresses; v4/v5 take accounting context structs.
+  const v6Query = useReadContract({
     chainId: _chainId,
     abi: jbMultiTerminalAbi,
+    functionName: "currentSurplusOf",
+    address: primaryNativeTerminal.data ?? undefined,
+    args: [
+      projectId,
+      [NATIVE_TOKEN],
+      BigInt(NATIVE_TOKEN_DECIMALS),
+      BigInt(ETH_CURRENCY_ID),
+    ],
+    query: { enabled: version === 6 },
+  });
+
+  const legacyQuery = useReadContract({
+    chainId: _chainId,
+    abi: jbMultiTerminalV5Abi,
     functionName: "currentSurplusOf",
     address: primaryNativeTerminal.data ?? undefined,
     args: [
@@ -37,5 +56,8 @@ export function useNativeTokenSurplus({ chainId }: { chainId?: JBChainId } = {})
       BigInt(NATIVE_TOKEN_DECIMALS),
       BigInt(ETH_CURRENCY_ID),
     ],
+    query: { enabled: version !== 6 },
   });
+
+  return version === 6 ? v6Query : legacyQuery;
 }

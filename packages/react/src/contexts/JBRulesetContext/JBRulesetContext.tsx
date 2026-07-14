@@ -72,7 +72,7 @@ export function useJBRulesetMetadata() {
  * @note depends on JBContractContext
  */
 export const JBRulesetProvider = ({ children }: { children: React.ReactNode }) => {
-  const { contracts, projectId } = useJBContractContext();
+  const { contracts, projectId, version } = useJBContractContext();
   const chainId = useJBChainId();
 
   const { data: ruleset, isLoading } = useReadContract({
@@ -93,6 +93,12 @@ export const JBRulesetProvider = ({ children }: { children: React.ReactNode }) =
             ...rulesetMetadata,
             cashOutTaxRate: new CashOutTaxRate(rulesetMetadata.cashOutTaxRate),
             reservedPercent: new ReservedPercent(rulesetMetadata.reservedPercent),
+            // v4/v5 store the INVERSE flag (`useTotalSurplusForCashOuts`) in this slot;
+            // normalize to the v6 field's semantics.
+            scopeCashOutsToLocalBalances:
+              version === 6
+                ? rulesetMetadata.scopeCashOutsToLocalBalances
+                : !rulesetMetadata.scopeCashOutsToLocalBalances,
           },
         };
       },

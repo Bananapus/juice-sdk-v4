@@ -1,12 +1,12 @@
 "use client";
-import { JBChainId, jbContractAddress } from "juice-sdk-core";
+import { JBChainId, JBVersion, jbContractAddress } from "juice-sdk-core";
 import { useJBContractContext } from "../../../contexts/JBContractContext/JBContractContext";
 import { useMutation } from "wagmi/query";
 import { API } from "../constants";
 import { RelayrPostBundleResponse } from "../types";
 
 export function useRequestRelayrQuote() {
-  const { version } = useJBContractContext();
+  const { version: contextVersion } = useJBContractContext();
 
   return useMutation({
     mutationFn: async (
@@ -14,13 +14,14 @@ export function useRequestRelayrQuote() {
         data: `0x${string}`;
         chain: JBChainId;
         value: string;
+        version?: JBVersion;
       }[]
     ) => {
       const transactions = args.map((ct) => {
         return {
           chain: ct.chain,
           data: ct.data,
-          target: jbContractAddress[version]["ERC2771Forwarder"][ct.chain],
+          target: jbContractAddress[ct.version ?? contextVersion]["ERC2771Forwarder"][ct.chain],
           value: ct.value,
         };
       });

@@ -3,6 +3,7 @@ import {
   getPrimaryNativeTerminal,
   JBChainId,
   jbMultiTerminalAbi,
+  jbMultiTerminalV5Abi,
   NATIVE_TOKEN,
   NATIVE_TOKEN_DECIMALS,
 } from "juice-sdk-core";
@@ -29,6 +30,7 @@ export function useSuckersNativeTokenSurplus() {
       "suckersNativeTokenSurplus",
       projectId.toString(),
       chainId?.toString(),
+      version,
       pairs?.map((pair) => pair.peerChainId).join(","),
     ],
     queryFn: async () => {
@@ -44,29 +46,45 @@ export function useSuckersNativeTokenSurplus() {
       const surpluses = await Promise.all(
         pairs.map(async (pair) => {
           const { peerChainId, projectId } = pair;
-          const terminal = await getPrimaryNativeTerminal(config, peerChainId, projectId, version);
-
-          const contract = getContract({
-            address: terminal,
-            abi: jbMultiTerminalAbi,
-            client: config.getClient({ chainId: peerChainId }),
-          });
-
-          const surplus = await contract.read.currentSurplusOf([
+          const terminal = await getPrimaryNativeTerminal(
+            config,
+            peerChainId,
             projectId,
-            [
-              {
-                token: NATIVE_TOKEN,
-                decimals: NATIVE_TOKEN_DECIMALS,
-                currency: ETH_CURRENCY_ID,
-              },
-            ],
-            BigInt(NATIVE_TOKEN_DECIMALS),
-            BigInt(ETH_CURRENCY_ID),
-          ]);
+            version,
+          );
+
+          // v6 takes token addresses; v4/v5 take accounting context structs.
+          const surplus =
+            version === 6
+              ? await getContract({
+                  address: terminal,
+                  abi: jbMultiTerminalAbi,
+                  client: config.getClient({ chainId: peerChainId }),
+                }).read.currentSurplusOf([
+                  projectId,
+                  [NATIVE_TOKEN],
+                  BigInt(NATIVE_TOKEN_DECIMALS),
+                  BigInt(ETH_CURRENCY_ID),
+                ])
+              : await getContract({
+                  address: terminal,
+                  abi: jbMultiTerminalV5Abi,
+                  client: config.getClient({ chainId: peerChainId }),
+                }).read.currentSurplusOf([
+                  projectId,
+                  [
+                    {
+                      token: NATIVE_TOKEN,
+                      decimals: NATIVE_TOKEN_DECIMALS,
+                      currency: ETH_CURRENCY_ID,
+                    },
+                  ],
+                  BigInt(NATIVE_TOKEN_DECIMALS),
+                  BigInt(ETH_CURRENCY_ID),
+                ]);
 
           return { surplus, chainId: peerChainId, projectId };
-        })
+        }),
       );
 
       return surpluses;
