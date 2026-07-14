@@ -1,4 +1,4 @@
-export type JBVersion = 4 | 5;
+export type JBVersion = 4 | 5 | 6;
 
 export enum JBCoreContracts {
   JBController = "JBController",
@@ -50,6 +50,11 @@ export enum JBBuybackHookContracts {
   JBBuybackHookRegistry = "JBBuybackHookRegistry",
 }
 
+export enum JBRouterTerminalContracts {
+  JBRouterTerminal = "JBRouterTerminal",
+  JBRouterTerminalRegistry = "JBRouterTerminalRegistry",
+}
+
 export enum JBOmnichainDeployerContracts {
   JBOmnichainDeployer = "JBOmnichainDeployer",
   JBOmnichainDeployer4_1 = "JBOmnichainDeployer4_1",
@@ -68,6 +73,7 @@ export type Contract =
   | JBAddressRegistryContracts
   | JBSwapTerminalContracts
   | JBBuybackHookContracts
+  | JBRouterTerminalContracts
   | JBOmnichainDeployerContracts
   | RevnetCoreContracts;
 

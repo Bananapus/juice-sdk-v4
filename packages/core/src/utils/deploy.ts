@@ -3,7 +3,7 @@ import {
   NATIVE_TOKEN,
   USDC_ADDRESSES,
 } from "../constants.js";
-import { JBChainId } from "../types.js";
+import { JBChainId, JBVersion } from "../types.js";
 import { createSalt } from "./tx.js";
 
 // NOTE: A default of `0` is safe as long as we are deploying CCIP suckers, this is not a safe default for non-ccip suckers.
@@ -22,12 +22,18 @@ export function parseSuckerDeployerConfig(
   assets: MappableAsset[] = [MappableAsset.NATIVE],
   opts: {
     salt?: `0x${string}`;
+    /**
+     * The JB protocol version being deployed. Defaults to 5, which is also used for v4 deployments.
+     */
+    version?: JBVersion;
   } = {},
 ) {
+  const deployerAddresses =
+    CCIP_SUCKER_DEPLOYER_ADDRESSES[opts.version === 6 ? 6 : 5];
   const suckerChains = chains.filter((chainId) => chainId !== targetChainId);
   const deployerConfigurations =
     suckerChains?.map((chainId) => {
-      const deployer = CCIP_SUCKER_DEPLOYER_ADDRESSES[targetChainId]?.[chainId];
+      const deployer = deployerAddresses[targetChainId]?.[chainId];
       if (!deployer) {
         throw new Error(`No deployer found for ${targetChainId} -> ${chainId}`);
       }

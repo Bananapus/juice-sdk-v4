@@ -41,7 +41,9 @@ export function jbUrn(urn: string): {
 }
 
 export function toJbUrn(chainId: JBChainId, projectId: bigint): string | null {
-  const chain = Object.values(JB_CHAIN_SLUGS).find((chain) => chain.chain.id === chainId);
+  const chain = Object.values(JB_CHAIN_SLUGS).find(
+    (chain) => chain.chain.id === chainId,
+  );
   if (!chain) {
     return null;
   }
@@ -50,5 +52,5 @@ export function toJbUrn(chainId: JBChainId, projectId: bigint): string | null {
 }
 
 function isValidVersion(version: number): version is JBVersion {
-  return version === 4 || version === 5;
+  return version === 4 || version === 5 || version === 6;
 }
