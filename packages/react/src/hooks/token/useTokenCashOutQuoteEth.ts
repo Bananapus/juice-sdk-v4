@@ -4,6 +4,7 @@ import {
   NATIVE_TOKEN_DECIMALS,
   applyJbDaoCashOutFee,
   jbTerminalStoreAbi,
+  jbTerminalStoreV5Abi,
 } from "juice-sdk-core";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
@@ -17,13 +18,15 @@ export function useTokenCashOutQuoteEth(
   tokenAmountWei: bigint | undefined,
   { chainId }: { chainId?: JBChainId }
 ) {
-  const { projectId } = useJBContractContext();
+  const { projectId, version } = useJBContractContext();
   const { store } = useJBTerminalContext();
   const jbChainId = useJBChainId();
   const _chainId = chainId ?? jbChainId;
 
+  // The two array args are empty either way, but the selector differs: v6 takes
+  // (address[], address[]) where v4/v5 take (address[], tuple[]).
   return useReadContract({
-    abi: jbTerminalStoreAbi,
+    abi: version === 6 ? jbTerminalStoreAbi : jbTerminalStoreV5Abi,
     functionName: "currentReclaimableSurplusOf",
     chainId: _chainId,
     address: store.data ?? undefined,

@@ -1,7 +1,11 @@
 import { JB721HookContracts, JBAddressRegistryContracts, JBChainId, JBVersion } from "../types.js";
 import { getJBContractAddress } from "../utils/contracts.js";
 import { Address, PublicClient, getContract, isAddressEqual, zeroAddress } from "viem";
-import { jb721TiersHookAbi, jbAddressRegistryAbi } from "../generated/juicebox.js";
+import {
+  jb721TiersHookAbi,
+  jb721TiersHookV5Abi,
+  jbAddressRegistryAbi,
+} from "../generated/juicebox.js";
 import { debug } from "../utils/debug.js";
 
 /**
@@ -55,6 +59,7 @@ export async function find721DataHook(
     dataHookAddress: args.dataHookAddress,
     projectId: args.projectId,
     rulesetId: args.rulesetId,
+    version: args.version,
   });
 
   const res = await Promise.all(
@@ -83,11 +88,14 @@ export async function getHookSpecifications(
     dataHookAddress: Address;
     projectId: bigint;
     rulesetId: number;
+    version: JBVersion;
   }
 ) {
+  // v6's returned JBPayHookSpecification gained a `noop` field, so the v4/v5 response
+  // doesn't decode with the v6 ABI.
   const dataHook = getContract({
     address: args.dataHookAddress,
-    abi: jb721TiersHookAbi,
+    abi: args.version === 6 ? jb721TiersHookAbi : jb721TiersHookV5Abi,
     client: publicClient,
   });
 

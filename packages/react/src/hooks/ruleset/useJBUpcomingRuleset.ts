@@ -23,7 +23,7 @@ export function useJBUpcomingRuleset({
   rulesetMetadata: JBRulesetMetadata | undefined;
   isLoading: boolean;
 } {
-  const { contracts } = useJBContractContext();
+  const { contracts, version } = useJBContractContext();
 
   const { data, isLoading } = useReadContract({
     abi: jbControllerAbi,
@@ -68,6 +68,12 @@ export function useJBUpcomingRuleset({
         ..._latestUpcomingRulesetMetadata,
         reservedPercent: upcomingReservedPercent,
         cashOutTaxRate: upcomingCashOutTaxRate,
+        // v4/v5 store the INVERSE flag (`useTotalSurplusForCashOuts`) in this slot;
+        // normalize to the v6 field's semantics.
+        scopeCashOutsToLocalBalances:
+          version === 6
+            ? _latestUpcomingRulesetMetadata.scopeCashOutsToLocalBalances
+            : !_latestUpcomingRulesetMetadata.scopeCashOutsToLocalBalances,
         dataHook: resolvedDataHook,
       }
     : undefined;

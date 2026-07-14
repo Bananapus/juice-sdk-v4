@@ -25,7 +25,9 @@ async function buildAddressesFor(version: JBVersion) {
           chainId,
         );
       } catch (e) {
-        // Not every contract is deployed on every chain (e.g. the v6 JBBuybackHook is not on optimism_sepolia).
+        // Not every v6 contract is deployed on every chain (e.g. the v6 JBBuybackHook is not
+        // on optimism_sepolia). A missing v4/v5 artifact is a regression — fail loudly.
+        if (version !== 6) throw e;
         console.warn(
           `No v${version} ${name} deployment on chain ${chainId}, skipping.`,
         );

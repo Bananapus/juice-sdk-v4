@@ -1,5 +1,5 @@
-import { Address, PublicClient, getContract } from "viem";
-import { jbSuckerRegistryAbi } from "../generated/juicebox.js";
+import { Address, PublicClient, getAddress, getContract, sliceHex } from "viem";
+import { jbSuckerRegistryAbi, jbSuckerRegistryV5Abi } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
 import { JBChainId, JBSuckerContracts, JBVersion } from "../types.js";
 import { getJBContractAddress } from "../utils/contracts.js";
@@ -28,12 +28,23 @@ export async function getSuckerPairs({
   );
 
   const client = config.getClient({ chainId: Number(chainId) }) as PublicClient;
-  const suckerRegistry = getContract({
-    address: jbSuckerRegistry,
-    abi: jbSuckerRegistryAbi,
-    client,
-  });
-  const suckers = await suckerRegistry.read.suckerPairsOf([projectId]);
+
+  // v6 identifies remote suckers as bytes32 (for cross-VM compatibility); for EVM peers
+  // the address is in the low 20 bytes.
+  const suckers =
+    version === 6
+      ? (
+          await getContract({
+            address: jbSuckerRegistry,
+            abi: jbSuckerRegistryAbi,
+            client,
+          }).read.suckerPairsOf([projectId])
+        ).map((sucker) => ({ ...sucker, remote: getAddress(sliceHex(sucker.remote, 12)) }))
+      : await getContract({
+          address: jbSuckerRegistry,
+          abi: jbSuckerRegistryV5Abi,
+          client,
+        }).read.suckerPairsOf([projectId]);
 
   const suckerPairs = await Promise.all(
     suckers.map(async (sucker) => {

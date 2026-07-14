@@ -4,6 +4,7 @@ import {
   getProjectTerminalStore,
   JBChainId,
   jbTerminalStoreAbi,
+  jbTerminalStoreV5Abi,
   JBVersion,
   NATIVE_TOKEN_DECIMALS,
 } from "juice-sdk-core";
@@ -30,6 +31,7 @@ export function useSuckersCashOutQuote(tokenAmountWei: bigint) {
       "suckersTokenRedemptionQuote",
       projectId.toString(),
       chainId?.toString(),
+      version,
       tokenAmountWei.toString(),
       pairs.map((pair) => pair.peerChainId).join(","),
     ],
@@ -69,9 +71,11 @@ async function getTokenRedemptionQuote(
   tokenAmountWei: bigint,
   version: JBVersion
 ) {
+  // The two array args are empty either way, but the selector differs: v6 takes
+  // (address[], address[]) where v4/v5 take (address[], tuple[]).
   const contract = getContract({
     address: getProjectTerminalStore(chainId, version),
-    abi: jbTerminalStoreAbi,
+    abi: version === 6 ? jbTerminalStoreAbi : jbTerminalStoreV5Abi,
     client: config.getClient({ chainId }),
   });
 

@@ -30,6 +30,7 @@ export function useSuckersNativeTokenSurplus() {
       "suckersNativeTokenSurplus",
       projectId.toString(),
       chainId?.toString(),
+      version,
       pairs?.map((pair) => pair.peerChainId).join(","),
     ],
     queryFn: async () => {

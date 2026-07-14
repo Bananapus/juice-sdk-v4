@@ -17,7 +17,7 @@ export function useJBRuleset({
   projectId: bigint | undefined;
   chainId: JBChainId | undefined;
 }) {
-  const { contracts } = useJBContractContext();
+  const { contracts, version } = useJBContractContext();
 
   const query = useReadContract({
     chainId,
@@ -38,6 +38,12 @@ export function useJBRuleset({
             ...rulesetMetadata,
             cashOutTaxRate: new CashOutTaxRate(rulesetMetadata.cashOutTaxRate),
             reservedPercent: new ReservedPercent(rulesetMetadata.reservedPercent),
+            // v4/v5 store the INVERSE flag (`useTotalSurplusForCashOuts`) in this slot;
+            // normalize to the v6 field's semantics.
+            scopeCashOutsToLocalBalances:
+              version === 6
+                ? rulesetMetadata.scopeCashOutsToLocalBalances
+                : !rulesetMetadata.scopeCashOutsToLocalBalances,
           },
         };
       },
