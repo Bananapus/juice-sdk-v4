@@ -1,3 +1,4 @@
+import { pad, zeroHash } from "viem";
 import {
   CCIP_SUCKER_DEPLOYER_ADDRESSES,
   NATIVE_TOKEN,
@@ -31,35 +32,51 @@ export function parseSuckerDeployerConfig(
   const deployerAddresses =
     CCIP_SUCKER_DEPLOYER_ADDRESSES[opts.version === 6 ? 6 : 5];
   const suckerChains = chains.filter((chainId) => chainId !== targetChainId);
-  const deployerConfigurations =
-    suckerChains?.map((chainId) => {
-      const deployer = deployerAddresses[targetChainId]?.[chainId];
-      if (!deployer) {
-        throw new Error(`No deployer found for ${targetChainId} -> ${chainId}`);
-      }
 
-      return {
-        deployer,
-        mappings: assets.map((asset) => {
-          switch (asset) {
-            case MappableAsset.NATIVE:
-              return {
-                localToken: NATIVE_TOKEN,
-                remoteToken: NATIVE_TOKEN,
-                minGas: 200_000,
-                minBridgeAmount: DEFAULT_MIN_BRIDGE_AMOUNT,
-              };
-            case MappableAsset.USDC:
-              return {
-                localToken: USDC_ADDRESSES[targetChainId],
-                remoteToken: USDC_ADDRESSES[chainId],
-                minGas: 200_000,
-                minBridgeAmount: DEFAULT_MIN_BRIDGE_AMOUNT,
-              };
-          }
-        }),
-      };
-    }) ?? [];
+  const getDeployer = (chainId: JBChainId) => {
+    const deployer = deployerAddresses[targetChainId]?.[chainId];
+    if (!deployer) {
+      throw new Error(`No deployer found for ${targetChainId} -> ${chainId}`);
+    }
+    return deployer;
+  };
+
+  const getTokens = (asset: MappableAsset, chainId: JBChainId) => {
+    switch (asset) {
+      case MappableAsset.NATIVE:
+        return { localToken: NATIVE_TOKEN, remoteToken: NATIVE_TOKEN };
+      case MappableAsset.USDC:
+        return {
+          localToken: USDC_ADDRESSES[targetChainId],
+          remoteToken: USDC_ADDRESSES[chainId],
+        };
+    }
+  };
+
+  // v6 configs identify remote tokens/peers as bytes32 (a zero peer means the default
+  // same-address deterministic peer), and no longer take a min bridge amount.
+  const deployerConfigurations =
+    opts.version === 6
+      ? suckerChains.map((chainId) => ({
+          deployer: getDeployer(chainId),
+          peer: zeroHash,
+          mappings: assets.map((asset) => {
+            const { localToken, remoteToken } = getTokens(asset, chainId);
+            return {
+              localToken,
+              minGas: 200_000,
+              remoteToken: pad(remoteToken),
+            };
+          }),
+        }))
+      : suckerChains.map((chainId) => ({
+          deployer: getDeployer(chainId),
+          mappings: assets.map((asset) => ({
+            ...getTokens(asset, chainId),
+            minGas: 200_000,
+            minBridgeAmount: DEFAULT_MIN_BRIDGE_AMOUNT,
+          })),
+        }));
 
   return {
     deployerConfigurations,

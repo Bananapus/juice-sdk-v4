@@ -1,7 +1,7 @@
-import { JBChainId, erc2771ForwarderAbi, jbContractAddress } from "juice-sdk-core";
+import { JBChainId, JBVersion, erc2771ForwarderAbi, jbContractAddress } from "juice-sdk-core";
 import { useJBContractContext } from "../../../contexts/JBContractContext/JBContractContext";
 import { Address, Hash, encodeFunctionData, getContract } from "viem";
-import { useAccount, useConfig, useSignTypedData, useSwitchChain, version } from "wagmi";
+import { useAccount, useConfig, useSignTypedData, useSwitchChain } from "wagmi";
 
 export type ERC2771ForwardRequestData = {
   from: Address;
@@ -16,15 +16,20 @@ export function useSignErc2771ForwardRequest() {
   const { address } = useAccount();
   const config = useConfig();
   const { signTypedData } = useSignTypedData();
-  const { version } = useJBContractContext();
+  const { version: contextVersion } = useJBContractContext();
 
-  async function sign(messageData: ERC2771ForwardRequestData, chainId: JBChainId) {
+  async function sign(
+    messageData: ERC2771ForwardRequestData,
+    chainId: JBChainId,
+    version?: JBVersion
+  ) {
     await switchChainAsync({ chainId });
 
     return new Promise<Hash>(async (resolve, reject) => {
       if (!address) return;
 
-      const verifyingContract = jbContractAddress[version]["ERC2771Forwarder"][chainId];
+      const verifyingContract =
+        jbContractAddress[version ?? contextVersion]["ERC2771Forwarder"][chainId];
 
       // 48hrs
       const deadline = Number(((Date.now() + 3600 * 48 * 1000) / 1000).toFixed(0));
