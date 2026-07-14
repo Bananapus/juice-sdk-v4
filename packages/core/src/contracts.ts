@@ -64,6 +64,7 @@ export enum RevnetCoreContracts {
   REVDeployer = "REVDeployer",
   REVLoans = "REVLoans",
   REVLoans1_1 = "REVLoans1_1", // for v4
+  REVOwner = "REVOwner", // v6+
 }
 
 export type Contract =

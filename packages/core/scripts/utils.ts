@@ -247,6 +247,7 @@ export function getAllContractNames(version: JBVersion) {
       if (contract === JBRouterTerminalContracts.JBRouterTerminal) return false;
       if (contract === JBRouterTerminalContracts.JBRouterTerminalRegistry)
         return false;
+      if (contract === RevnetCoreContracts.REVOwner) return false; // Added in v6
     }
 
     if (version === 6) {
