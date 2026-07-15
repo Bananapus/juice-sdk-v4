@@ -1,4 +1,4 @@
-import { debug, JBChainId } from "juice-sdk-core";
+import { debug, JBChainId } from "@bananapus/nana-sdk-core";
 import { createContext, PropsWithChildren, useContext } from "react";
 
 /**

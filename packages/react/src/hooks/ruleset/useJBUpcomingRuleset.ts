@@ -7,7 +7,7 @@ import {
   ReservedPercent,
   RulesetWeight,
   WeightCutPercent,
-} from "juice-sdk-core";
+} from "@bananapus/nana-sdk-core";
 import { useReadContract } from "wagmi";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useResolveDataHook } from "./useResolveDataHook";

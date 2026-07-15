@@ -24,7 +24,7 @@ export async function find721DataHook(
 ) {
   const chainId = publicClient.chain?.id;
   if (!chainId) {
-    throw new Error("[juice-sdk-core] No chain ID on public client.");
+    throw new Error("[@bananapus/nana-sdk-core] No chain ID on public client.");
   }
 
   const deployerAddress = getJBContractAddress(
@@ -40,7 +40,7 @@ export async function find721DataHook(
   );
 
   if (!registerAddress) {
-    throw new Error(`[juice-sdk-core] No JBAddressRegistry address for chain ${chainId}.`);
+    throw new Error(`[@bananapus/nana-sdk-core] No JBAddressRegistry address for chain ${chainId}.`);
   }
 
   const registry = getContract({

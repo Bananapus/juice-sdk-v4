@@ -1,6 +1,6 @@
 {
-  "name": "juice-sdk-core",
-  "version": "3.0.0",
+  "name": "@bananapus/nana-sdk-core",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "generate": "wagmi generate",

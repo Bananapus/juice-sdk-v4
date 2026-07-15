@@ -1,4 +1,4 @@
-import { JBChainId, JBVersion } from "juice-sdk-core";
+import { JBChainId, JBVersion } from "@bananapus/nana-sdk-core";
 import { useRequestRelayrQuote } from "./useRequestRelayrQuote";
 import {
   ERC2771ForwardRequestData,

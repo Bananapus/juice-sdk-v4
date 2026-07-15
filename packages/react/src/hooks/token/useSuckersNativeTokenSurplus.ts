@@ -6,7 +6,7 @@ import {
   jbMultiTerminalV5Abi,
   NATIVE_TOKEN,
   NATIVE_TOKEN_DECIMALS,
-} from "juice-sdk-core";
+} from "@bananapus/nana-sdk-core";
 import { getContract } from "viem";
 import { useConfig } from "wagmi";
 import { useQuery } from "wagmi/query";

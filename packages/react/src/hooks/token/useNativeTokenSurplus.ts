@@ -5,7 +5,7 @@ import {
   jbMultiTerminalV5Abi,
   NATIVE_TOKEN,
   NATIVE_TOKEN_DECIMALS,
-} from "juice-sdk-core";
+} from "@bananapus/nana-sdk-core";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useReadContract } from "wagmi";

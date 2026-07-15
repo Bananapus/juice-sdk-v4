@@ -5,7 +5,7 @@ import {
   ReservedPercent,
   RulesetWeight,
   WeightCutPercent,
-} from "juice-sdk-core";
+} from "@bananapus/nana-sdk-core";
 import { createContext, useContext } from "react";
 import { ContractFunctionReturnType } from "viem";
 import { useReadContract } from "wagmi";

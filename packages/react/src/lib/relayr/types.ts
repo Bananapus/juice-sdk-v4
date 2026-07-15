@@ -1,4 +1,4 @@
-import { JBChainId } from "juice-sdk-core";
+import { JBChainId } from "@bananapus/nana-sdk-core";
 import { Hash } from "viem";
 
 export type ChainPayment = {

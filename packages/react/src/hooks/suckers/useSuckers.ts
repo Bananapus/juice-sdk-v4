@@ -1,6 +1,6 @@
 "use client";
 
-import { debug, JBChainId } from "juice-sdk-core";
+import { debug, JBChainId } from "@bananapus/nana-sdk-core";
 import { ProjectDocument } from "src/generated/graphql";
 import { useBendystrawQuery } from "src/lib/bendystraw/useBendystrawQuery";
 import {

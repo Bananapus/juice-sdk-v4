@@ -1,4 +1,4 @@
-import { ONE_JB_TOKEN } from "juice-sdk-core";
+import { ONE_JB_TOKEN } from "@bananapus/nana-sdk-core";
 import { formatEther } from "viem";
 import { useEtherPrice } from "../useEtherPrice";
 import { useSuckersCashOutQuote } from "./useSuckersCashOutQuote";

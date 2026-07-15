@@ -1,7 +1,7 @@
 # Juice SDK v4
 
-[![npm version](https://img.shields.io/npm/v/juice-sdk-core.svg)](https://www.npmjs.com/package/juice-sdk-core)
-[![npm version](https://img.shields.io/npm/v/juice-sdk-react.svg)](https://www.npmjs.com/package/juice-sdk-react)
+[![npm version](https://img.shields.io/npm/v/@bananapus/nana-sdk-core.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-core)
+[![npm version](https://img.shields.io/npm/v/@bananapus/nana-sdk-react.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-react)
 
 A JavaScript SDK for building applications on the [Juicebox protocol](https://docs.juicebox.money/) (V4, V5, and V6).
 
@@ -9,10 +9,10 @@ A JavaScript SDK for building applications on the [Juicebox protocol](https://do
 
 ```bash
 # For React applications
-npm install juice-sdk-react juice-sdk-core
+npm install @bananapus/nana-sdk-react @bananapus/nana-sdk-core
 
 # For vanilla JavaScript/Node.js
-npm install juice-sdk-core
+npm install @bananapus/nana-sdk-core
 
 # For Revnet-specific functionality
 npm install revnet-sdk
@@ -23,8 +23,8 @@ npm install revnet-sdk
 ### React Application
 
 ```tsx
-import { JBProjectProvider, useJBRuleset, useTokenCashOutQuoteEth } from "juice-sdk-react";
-import { formatTokenAmount } from "juice-sdk-core";
+import { JBProjectProvider, useJBRuleset, useTokenCashOutQuoteEth } from "@bananapus/nana-sdk-react";
+import { formatTokenAmount } from "@bananapus/nana-sdk-core";
 
 function ProjectDashboard() {
   const projectId = 1n;
@@ -66,7 +66,7 @@ import {
   parseTokenAmount,
   ReservedPercent,
   CashOutTaxRate,
-} from "juice-sdk-core";
+} from "@bananapus/nana-sdk-core";
 
 // Format token amounts for display
 const formatted = formatTokenAmount(1000000000000000000n); // "1.0"
@@ -80,8 +80,8 @@ const taxRate = new CashOutTaxRate(2.5); // 2.5% cash out tax
 
 | Package                               | Description                                       | NPM                                                                                                       |
 | ------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| [`juice-sdk-core`](./packages/core)   | Core utilities, contract bindings, and data types | [![npm](https://img.shields.io/npm/v/juice-sdk-core.svg)](https://www.npmjs.com/package/juice-sdk-core)   |
-| [`juice-sdk-react`](./packages/react) | React hooks, contexts, and components             | [![npm](https://img.shields.io/npm/v/juice-sdk-react.svg)](https://www.npmjs.com/package/juice-sdk-react) |
+| [`@bananapus/nana-sdk-core`](./packages/core)   | Core utilities, contract bindings, and data types | [![npm](https://img.shields.io/npm/v/@bananapus/nana-sdk-core.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-core)   |
+| [`@bananapus/nana-sdk-react`](./packages/react) | React hooks, contexts, and components             | [![npm](https://img.shields.io/npm/v/@bananapus/nana-sdk-react.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-react) |
 | [`revnet-sdk`](./packages/revnet)     | Revnet protocol utilities and hooks               | [![npm](https://img.shields.io/npm/v/revnet-sdk.svg)](https://www.npmjs.com/package/revnet-sdk)           |
 
 ### Core Package Features
@@ -115,7 +115,7 @@ See https://docs.juicebox.money to learn more.
 Juicebox contracts use fixed-point math for precision. The SDK provides helper classes:
 
 ```javascript
-import { ReservedPercent, CashOutTaxRate, RulesetWeight } from "juice-sdk-core";
+import { ReservedPercent, CashOutTaxRate, RulesetWeight } from "@bananapus/nana-sdk-core";
 
 // Create percentage values
 const reserved = new ReservedPercent(15); // 15%

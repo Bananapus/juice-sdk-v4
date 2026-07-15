@@ -10,7 +10,7 @@ import {
   JBCoreContracts,
   getJBContractAddress,
   Contract,
-} from "juice-sdk-core";
+} from "@bananapus/nana-sdk-core";
 import { PropsWithChildren, createContext, useCallback, useContext, useMemo } from "react";
 import { Address, isAddressEqual, zeroAddress } from "viem";
 import { useSuckers } from "../../hooks";

@@ -1,4 +1,4 @@
-import { debug } from "juice-sdk-core";
+import { debug } from "@bananapus/nana-sdk-core";
 import { useJBRulesetMetadata } from "../JBRulesetContext/JBRulesetContext";
 import { JBDataHookProvider } from "./JBDataHookContext";
 

@@ -1,12 +1,12 @@
 {
-  "name": "juice-sdk-react",
-  "version": "6.0.0",
+  "name": "@bananapus/nana-sdk-react",
+  "version": "1.0.0",
   "description": "Wagmi hooks for Juicebox",
   "type": "module",
   "scripts": {
     "test": "vitest run",
     "generate-gql": "graphql-code-generator --config codegen.yml -r",
-    "generate-types": "echo '🔧 Generating types...' && tsc --emitDeclarationOnly",
+    "generate-types": "echo '\ud83d\udd27 Generating types...' && tsc --emitDeclarationOnly",
     "prebuild": "rm -Rf dist",
     "build": "tsup && npm run generate-types",
     "dev": "tsup --watch",
@@ -16,10 +16,10 @@
   "license": "ISC",
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
-    "juice-sdk-core": "*",
     "react": "^18.3.1",
     "viem": "^2.14.1",
-    "wagmi": "^2.10.2"
+    "wagmi": "^2.10.2",
+    "@bananapus/nana-sdk-core": "*"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.2",
@@ -30,12 +30,12 @@
     "@tanstack/react-query": "^5.0.0",
     "@types/react": "^19.1.13",
     "change-case": "^5.4.4",
-    "juice-sdk-core": "*",
     "react": "^18.3.1",
     "tsup": "^8.1.0",
     "viem": "^2.14.1",
     "vitest": "^3.2.4",
-    "wagmi": "^2.10.2"
+    "wagmi": "^2.10.2",
+    "@bananapus/nana-sdk-core": "*"
   },
   "files": [
     "dist/**/*"

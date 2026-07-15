@@ -1,7 +1,7 @@
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { Address } from "viem";
 import { createMetadataTargetIdPayHash } from "./helpers";
-import { jb721TiersHookAbi } from "juice-sdk-core";
+import { jb721TiersHookAbi } from "@bananapus/nana-sdk-core";
 import { useReadContract } from "wagmi";
 
 /**

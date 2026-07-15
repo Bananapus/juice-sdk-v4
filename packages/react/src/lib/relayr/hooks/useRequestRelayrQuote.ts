@@ -1,5 +1,5 @@
 "use client";
-import { JBChainId, JBVersion, jbContractAddress } from "juice-sdk-core";
+import { JBChainId, JBVersion, jbContractAddress } from "@bananapus/nana-sdk-core";
 import { useJBContractContext } from "../../../contexts/JBContractContext/JBContractContext";
 import { useMutation } from "wagmi/query";
 import { API } from "../constants";

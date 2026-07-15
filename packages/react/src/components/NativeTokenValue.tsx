@@ -1,4 +1,4 @@
-import { NATIVE_TOKEN_DECIMALS, formatUnits } from "juice-sdk-core";
+import { NATIVE_TOKEN_DECIMALS, formatUnits } from "@bananapus/nana-sdk-core";
 import { useNativeTokenSymbol } from "../hooks/token/useNativeTokenSymbol";
 
 /**

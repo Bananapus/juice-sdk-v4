@@ -1,4 +1,4 @@
-import { jbMultiTerminalAbi } from "juice-sdk-core";
+import { jbMultiTerminalAbi } from "@bananapus/nana-sdk-core";
 import { PropsWithChildren, createContext, useContext } from "react";
 import { Address, ContractFunctionReturnType, isAddressEqual, zeroAddress } from "viem";
 import { useJBChainId } from "../JBChainContext/JBChainContext";

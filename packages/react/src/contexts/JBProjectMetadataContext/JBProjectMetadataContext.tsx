@@ -1,4 +1,4 @@
-import { JBProjectMetadata, debug, getProjectMetadata } from "juice-sdk-core";
+import { JBProjectMetadata, debug, getProjectMetadata } from "@bananapus/nana-sdk-core";
 import { createContext, useContext } from "react";
 import { Address } from "viem";
 import { usePublicClient } from "wagmi";
