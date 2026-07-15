@@ -5,7 +5,7 @@ import {
   applyJbDaoCashOutFee,
   jbTerminalStoreAbi,
   jbTerminalStoreV5Abi,
-} from "juice-sdk-core";
+} from "@bananapus/nana-sdk-core";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useJBTerminalContext } from "../../contexts/JBTerminalContext/JBTerminalContext";

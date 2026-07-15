@@ -1,10 +1,10 @@
-import { find721DataHook } from "juice-sdk-core";
+import { find721DataHook } from "@bananapus/nana-sdk-core";
 import { usePublicClient } from "wagmi";
 import { useQuery } from "wagmi/query";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useJBRulesetContext } from "../../contexts/JBRulesetContext/JBRulesetContext";
 import { useJBDataHookContext } from "../../contexts/JBDataHookContext/JBDataHookContext";
-import { debug } from "juice-sdk-core";
+import { debug } from "@bananapus/nana-sdk-core";
 
 /**
  * Return the 721 data hook (if it exists) for the project and current ruleset in context.

@@ -1,7 +1,7 @@
 import { PropsWithChildren, createContext, useContext, useMemo } from "react";
 import { Address } from "viem";
 import { AsyncData, AsyncDataNone } from "../types";
-import { debug } from "juice-sdk-core";
+import { debug } from "@bananapus/nana-sdk-core";
 
 /**
  * Data structure for the context for a given dataHook.

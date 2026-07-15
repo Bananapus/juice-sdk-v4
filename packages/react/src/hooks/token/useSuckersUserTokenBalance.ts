@@ -1,4 +1,4 @@
-import { JBChainId, JBCoreContracts, JBProjectToken, jbTokensAbi } from "juice-sdk-core";
+import { JBChainId, JBCoreContracts, JBProjectToken, jbTokensAbi } from "@bananapus/nana-sdk-core";
 import { getContract } from "viem";
 import { useAccount, useConfig, useReadContract } from "wagmi";
 import { useQuery } from "wagmi/query";

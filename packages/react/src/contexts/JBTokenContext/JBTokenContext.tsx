@@ -4,7 +4,7 @@ import {
   JBCoreContracts,
   JBProjectToken,
   jbTokensAbi,
-} from "juice-sdk-core";
+} from "@bananapus/nana-sdk-core";
 import { createContext, PropsWithChildren, useContext } from "react";
 import { isAddressEqual, zeroAddress } from "viem";
 import { useReadContract, useToken, UseTokenReturnType } from "wagmi";

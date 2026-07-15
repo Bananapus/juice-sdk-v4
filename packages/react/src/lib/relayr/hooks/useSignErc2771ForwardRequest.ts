@@ -1,4 +1,4 @@
-import { JBChainId, JBVersion, erc2771ForwarderAbi, jbContractAddress } from "juice-sdk-core";
+import { JBChainId, JBVersion, erc2771ForwarderAbi, jbContractAddress } from "@bananapus/nana-sdk-core";
 import { useJBContractContext } from "../../../contexts/JBContractContext/JBContractContext";
 import { Address, Hash, encodeFunctionData, getContract } from "viem";
 import { useAccount, useConfig, useSignTypedData, useSwitchChain } from "wagmi";

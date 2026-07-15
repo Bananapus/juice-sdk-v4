@@ -4,7 +4,7 @@ import {
   jbOmnichainDeployer4_1Abi,
   jbOmnichainDeployerAbi,
   jbOmnichainDeployerV5Abi,
-} from "juice-sdk-core";
+} from "@bananapus/nana-sdk-core";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { isAddressEqual, zeroAddress } from "viem";
 import { mainnet } from "viem/chains";

@@ -12,7 +12,7 @@ import {
 import { JBRulesetProvider } from "../JBRulesetContext/JBRulesetContext";
 import { JBTokenProvider, JBTokenProviderProps } from "../JBTokenContext/JBTokenContext";
 import { JBPrimaryNativeTerminalProvider } from "../JBTerminalContext/JBPrimaryNativeTerminalProvider";
-import { JBChainId, JBVersion } from "juice-sdk-core";
+import { JBChainId, JBVersion } from "@bananapus/nana-sdk-core";
 import { BendystrawConfig } from "../../lib/bendystraw/getBendystrawUrl";
 
 type JBProjectProviderProps = PropsWithChildren<{

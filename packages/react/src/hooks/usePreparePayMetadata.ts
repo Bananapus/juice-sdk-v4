@@ -1,8 +1,8 @@
 "use client";
-import { DEFAULT_ALLOW_OVERSPENDING, createHookMetadata } from "juice-sdk-core";
+import { DEFAULT_ALLOW_OVERSPENDING, createHookMetadata } from "@bananapus/nana-sdk-core";
 import { Address, Hash, encodeAbiParameters } from "viem";
 import { use721HookMetadataId } from "./jb721Hook/use721HookMetadataId";
-import { debug } from "juice-sdk-core";
+import { debug } from "@bananapus/nana-sdk-core";
 
 interface Jb721HookPayMetadata {
   tierIdsToMint: bigint[];

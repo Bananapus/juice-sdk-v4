@@ -1,4 +1,4 @@
-import { DEFAULT_NATIVE_TOKEN_SYMBOL, JB_CHAINS, JBChainId } from "juice-sdk-core";
+import { DEFAULT_NATIVE_TOKEN_SYMBOL, JB_CHAINS, JBChainId } from "@bananapus/nana-sdk-core";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 
 /**
