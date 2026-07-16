@@ -109,8 +109,10 @@ export function buildRevnetStageConfig(args: {
  * Build a `REVDeployer.deployFor` transaction request deploying a new revnet
  * (or a 721-shop revnet when `tiered721Config` is given).
  *
- * The transaction is payable and must send EXACTLY the current project
- * creation fee — read it with `getProjectCreationFee` on the same chain.
+ * Deploying a NEW revnet (`revnetId` 0n) is payable and must send EXACTLY the
+ * current project creation fee — read it with `getProjectCreationFee` on the
+ * same chain. Deploying for an EXISTING project must send no value (the
+ * deployer reverts otherwise), so `creationFee` is ignored in that case.
  * For omnichain revnets, send one transaction per chain with an identical
  * `config` (shared description salt, shared absolute stage starts) and a
  * shared sucker salt.
@@ -133,13 +135,20 @@ export function buildDeployRevnetTx(args: {
   config: REVConfig;
   accountingContexts: readonly JBAccountingContext[];
   suckerConfig: REVSuckerDeploymentConfig;
-  creationFee: bigint;
+  creationFee?: bigint;
   revnetId?: bigint;
   tiered721Config?: REVDeploy721TiersHookConfig;
   allowedPosts?: readonly REVCroptopAllowedPost[];
 }) {
   const address = v6Address("REVDeployer", args.chainId);
   const revnetId = args.revnetId ?? 0n;
+
+  // The deployer forwards msg.value to `JBProjects.createFor` for new revnets and
+  // reverts on any value when initializing an existing project.
+  if (revnetId === 0n && args.creationFee === undefined) {
+    throw new Error("creationFee is required when deploying a new revnet");
+  }
+  const value = revnetId === 0n ? (args.creationFee as bigint) : 0n;
 
   if (args.tiered721Config) {
     return {
@@ -155,7 +164,7 @@ export function buildDeployRevnetTx(args: {
         args.tiered721Config,
         args.allowedPosts ?? [],
       ] as const,
-      value: args.creationFee,
+      value,
     };
   }
   return {
@@ -169,7 +178,7 @@ export function buildDeployRevnetTx(args: {
       args.accountingContexts,
       args.suckerConfig,
     ] as const,
-    value: args.creationFee,
+    value,
   };
 }
 
