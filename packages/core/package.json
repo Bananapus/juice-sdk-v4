@@ -15,8 +15,14 @@
   },
   "exports": {
     ".": {
+      "types": "./dist/esm/index.d.ts",
       "import": "./dist/esm/index.js",
       "require": "./dist/cjs/index.js"
+    },
+    "./v6": {
+      "types": "./dist/esm/v6/index.d.ts",
+      "import": "./dist/esm/v6/index.js",
+      "require": "./dist/cjs/v6/index.js"
     }
   },
   "files": [
