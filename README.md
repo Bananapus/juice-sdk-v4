@@ -201,3 +201,48 @@ npm run changeset
 - `patch` - Bug fixes (1.0.0 → 1.0.1)
 - `minor` - New features (1.0.0 → 1.1.0)
 - `major` - Breaking changes (1.0.0 → 2.0.0)
+
+## V6 actions (@bananapus/nana-sdk-core/v6)
+
+A framework-agnostic Juicebox V6 action layer: writes are pure builders that return a fully typed, viem-compatible request object (no signing, no wallet, no React), and reads take a plain viem `PublicClient`. The same builders work with wagmi's `writeContract`, viem's `walletClient.writeContract`, or any other stack.
+
+```ts
+import { createPublicClient, createWalletClient, http } from "viem";
+import { sepolia } from "viem/chains";
+import { resolvePaymentTerminal, buildPayTx } from "@bananapus/nana-sdk-core/v6";
+
+const client = createPublicClient({ chain: sepolia, transport: http() });
+const wallet = createWalletClient({ chain: sepolia, transport: http() });
+
+const { address: terminal } = await resolvePaymentTerminal(client, {
+  chainId: sepolia.id,
+  projectId: 4n,
+  token: "0x000000000000000000000000000000000000EEEe",
+});
+const request = buildPayTx({
+  chainId: sepolia.id,
+  terminal,
+  projectId: 4n,
+  token: "0x000000000000000000000000000000000000EEEe",
+  amount: 10n ** 18n,
+  beneficiary: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+});
+await wallet.writeContract({ account, ...request });
+```
+
+Modules:
+
+- `launch` — project launches + creation fee
+- `omnichain` — multi-chain launches and ruleset queues via JBOmnichainDeployer
+- `rulesets` — queue + read rulesets
+- `splits` — split groups and exact-remainder percent math
+- `revnets` — REVDeployer + REVOwner actions
+- `terminals` — terminal resolution and accounting contexts
+- `pay` — pay builders and previews
+- `cashOut` — cash-out builders and quotes
+- `tokens` — ERC-20 deploys, claims, credits, mint/burn
+- `permissions` — JBPermissions ids, grants, and checks
+- `suckers` — cross-chain token bridging (prepare/toRemote/claim) + sucker pair reads
+- `loans` — REVLoans borrow/repay/reallocate + borrowable reads
+- `currency` — currency id helpers
+- `fees` — protocol fee constants and math
