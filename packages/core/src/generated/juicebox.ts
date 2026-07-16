@@ -62528,3 +62528,40 @@ export const revOwnerAbi = [
     }
   }
 } as const;
+
+  /**
+   * v6 native-bridge sucker deployer addresses, keyed by local chain then remote chain.
+   * Native bridges only connect Ethereum with an L2, so only L1<->L2 edges exist.
+   */
+  export const jbNativeSuckerDeployerAddress = {
+  "6": {
+    "1": {
+      "10": "0x298a775c030adcedb641a89d9047ec9972674e1a",
+      "8453": "0x54140331902de5c3445eb0c26e15099a5a9d59e6",
+      "42161": "0xa12ebfca3d4e0810e4ed174e4c08277c26917acb"
+    },
+    "10": {
+      "1": "0x298a775c030adcedb641a89d9047ec9972674e1a"
+    },
+    "8453": {
+      "1": "0x54140331902de5c3445eb0c26e15099a5a9d59e6"
+    },
+    "42161": {
+      "1": "0xa12ebfca3d4e0810e4ed174e4c08277c26917acb"
+    },
+    "84532": {
+      "11155111": "0x54140331902de5c3445eb0c26e15099a5a9d59e6"
+    },
+    "421614": {
+      "11155111": "0xa12ebfca3d4e0810e4ed174e4c08277c26917acb"
+    },
+    "11155111": {
+      "84532": "0x54140331902de5c3445eb0c26e15099a5a9d59e6",
+      "421614": "0xa12ebfca3d4e0810e4ed174e4c08277c26917acb",
+      "11155420": "0x298a775c030adcedb641a89d9047ec9972674e1a"
+    },
+    "11155420": {
+      "11155111": "0x298a775c030adcedb641a89d9047ec9972674e1a"
+    }
+  }
+} as const;

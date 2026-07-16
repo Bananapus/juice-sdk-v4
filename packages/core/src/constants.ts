@@ -12,6 +12,7 @@ import {
 import {
   jbCcipSuckerDeployerAddress,
   jbContractAddress,
+  jbNativeSuckerDeployerAddress,
 } from "./generated/juicebox.js";
 import { JBChainId, JBSuckerContracts, JBVersion } from "./types.js";
 
@@ -207,7 +208,7 @@ export const JB_CHAIN_SLUGS = Object.values(JB_CHAINS).reduce(
 
 export const DEFAULT_NATIVE_TOKEN_SYMBOL = "ETH";
 
-type CCIPMap = {
+type SuckerDeployerMap = {
   [k in JBChainId]?: {
     [k in JBChainId]?: Address;
   };
@@ -220,8 +221,8 @@ type CCIPMap = {
  *
  * @see https://discord.com/channels/1139291093310132376/1139291094069301385/1337164727008366683
  */
-export const CCIP_SUCKER_DEPLOYER_ADDRESSES: Record<5 | 6, CCIPMap> = {
-  6: jbCcipSuckerDeployerAddress[6] as CCIPMap,
+export const CCIP_SUCKER_DEPLOYER_ADDRESSES: Record<5 | 6, SuckerDeployerMap> = {
+  6: jbCcipSuckerDeployerAddress[6] as SuckerDeployerMap,
   5: {
     [sepolia.id]: {
       [optimismSepolia.id]:
@@ -333,6 +334,15 @@ export const CCIP_SUCKER_DEPLOYER_ADDRESSES: Record<5 | 6, CCIPMap> = {
         jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][base.id],
     },
   },
+};
+
+/**
+ * Native-bridge (OP/Base/Arbitrum standard bridge) sucker deployer addresses, keyed by
+ * version, then local chain, then remote chain. Native bridges only connect Ethereum
+ * with an L2, so only L1<->L2 edges exist. v6 only.
+ */
+export const NATIVE_SUCKER_DEPLOYER_ADDRESSES: Record<6, SuckerDeployerMap> = {
+  6: jbNativeSuckerDeployerAddress[6] as SuckerDeployerMap,
 };
 
 /**

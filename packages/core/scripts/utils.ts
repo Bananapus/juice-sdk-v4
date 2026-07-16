@@ -124,6 +124,38 @@ const CCIP_REMOTE_LABELS: Record<JBChainId, string> = {
   421614: "ARB_SEP",
 };
 
+/**
+ * The address of the v6 native-bridge sucker deployer on `chainId` that bridges to
+ * `peerChainId`, or null when the pair has no native bridge (native bridges only connect
+ * Ethereum with an L2). The deployer is named after the pair's rollup on both sides
+ * (e.g. `JBOptimismSuckerDeployer` on both ethereum and optimism).
+ */
+export async function getV6NativeDeployerAddress(
+  chainId: JBChainId,
+  peerChainId: JBChainId,
+) {
+  const localIsL1 = L1_CHAIN_IDS.includes(chainId);
+  const peerIsL1 = L1_CHAIN_IDS.includes(peerChainId);
+  if (localIsL1 === peerIsL1) return null;
+  const rollup = NATIVE_ROLLUP_LABELS[localIsL1 ? peerChainId : chainId];
+  if (!rollup) return null;
+  const { address } = await importDeploymentFile(
+    `@bananapus/suckers-v6/deployments/${getChainName(chainId)}/JB${rollup}SuckerDeployer.json`,
+  );
+  return address;
+}
+
+const L1_CHAIN_IDS: JBChainId[] = [1, 11155111];
+
+const NATIVE_ROLLUP_LABELS: Partial<Record<JBChainId, string>> = {
+  10: "Optimism",
+  8453: "Base",
+  42161: "Arbitrum",
+  11155420: "Optimism",
+  84532: "Base",
+  421614: "Arbitrum",
+};
+
 async function getContract(
   contract: Contract,
   version: JBVersion,

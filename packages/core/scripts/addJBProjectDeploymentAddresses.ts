@@ -4,6 +4,7 @@ import {
   getAllContractNames,
   getContractAddress,
   getV6CcipDeployerAddress,
+  getV6NativeDeployerAddress,
 } from "./utils.js";
 
 const chainIds = Object.keys(SUPPORTED_CHAINS).map(Number) as JBChainId[];
@@ -60,6 +61,30 @@ async function buildV6CcipDeployerAddresses() {
   return addresses;
 }
 
+/**
+ * v6 native-bridge sucker deployer addresses, keyed by local chain then remote chain.
+ * Only L1<->L2 edges exist (native bridges only connect Ethereum with an L2).
+ */
+async function buildV6NativeDeployerAddresses() {
+  const addresses = {};
+
+  for (const chainId of chainIds) {
+    const isMainnet = MAINNET_CHAIN_IDS.includes(chainId);
+    const peers = chainIds.filter(
+      (peer) =>
+        peer !== chainId && MAINNET_CHAIN_IDS.includes(peer) === isMainnet,
+    );
+
+    addresses[chainId] = {};
+    for (const peer of peers) {
+      const address = await getV6NativeDeployerAddress(chainId, peer);
+      if (address) addresses[chainId][peer] = address;
+    }
+  }
+
+  return addresses;
+}
+
 async function buildDefaultAddressContent() {
   const content = `
   /**
@@ -81,6 +106,18 @@ async function buildDefaultAddressContent() {
   export const jbCcipSuckerDeployerAddress = ${JSON.stringify(
     {
       6: await buildV6CcipDeployerAddresses(),
+    },
+    null,
+    2,
+  )} as const;
+
+  /**
+   * v6 native-bridge sucker deployer addresses, keyed by local chain then remote chain.
+   * Native bridges only connect Ethereum with an L2, so only L1<->L2 edges exist.
+   */
+  export const jbNativeSuckerDeployerAddress = ${JSON.stringify(
+    {
+      6: await buildV6NativeDeployerAddresses(),
     },
     null,
     2,

@@ -1,7 +1,11 @@
 import { Address, ContractFunctionArgs, Hex } from "viem";
 import { jbOmnichainDeployerAbi } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
-import { MappableAsset, parseSuckerDeployerConfig } from "../utils/deploy.js";
+import {
+  JBSuckerBridge,
+  MappableAsset,
+  parseSuckerDeployerConfig,
+} from "../utils/deploy.js";
 import { JBTerminalConfig } from "./launch.js";
 import { JBRulesetConfig } from "./rulesets.js";
 import { v6Address } from "./types.js";
@@ -59,6 +63,10 @@ export type JBSuckerDeploymentConfig = OmnichainLaunchArgs6[5];
  * `chainId`); sucker deployer configs are built for every other chain.
  * @param args.assets The assets to bridge between chains. Defaults to the
  * native token only.
+ * @param args.bridge The bridge infrastructure the suckers use: "ccip" (any
+ * chain pair, any asset — the default), "native" (OP/Base/Arbitrum standard
+ * bridges: Ethereum<->L2 pairs and the native token only), or "both" (a
+ * native AND a CCIP sucker per pair where both exist, for redundancy).
  * @param args.salt The shared salt (use the same value on every chain).
  * @param args.deploy721Config Optional tiered 721 hook to deploy with the
  * project (uses the 7-arg overload when given).
@@ -76,6 +84,7 @@ export function buildOmnichainLaunchProjectTx(args: {
   creationFee: bigint;
   salt: Hex;
   assets?: MappableAsset[];
+  bridge?: JBSuckerBridge;
   deploy721Config?: JBDeploy721TiersHookConfig;
 }) {
   // parseSuckerDeployerConfig's return type is a v5/v6 union that TS cannot
@@ -85,7 +94,7 @@ export function buildOmnichainLaunchProjectTx(args: {
     args.chainId,
     args.chainIds,
     args.assets ?? [MappableAsset.NATIVE],
-    { salt: args.salt, version: 6 },
+    { salt: args.salt, version: 6, bridge: args.bridge },
   ) as unknown as JBSuckerDeploymentConfig;
 
   const address = v6Address("JBOmnichainDeployer", args.chainId);
