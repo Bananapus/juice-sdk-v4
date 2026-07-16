@@ -1,12 +1,12 @@
 {
   "name": "@bananapus/nana-sdk-react",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Wagmi hooks for Juicebox",
   "type": "module",
   "scripts": {
     "test": "vitest run",
     "generate-gql": "graphql-code-generator --config codegen.yml -r",
-    "generate-types": "echo '\ud83d\udd27 Generating types...' && tsc --emitDeclarationOnly",
+    "generate-types": "echo '🔧 Generating types...' && tsc --emitDeclarationOnly",
     "prebuild": "rm -Rf dist",
     "build": "tsup && npm run generate-types",
     "dev": "tsup --watch",
