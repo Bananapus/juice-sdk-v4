@@ -108,6 +108,11 @@ export interface CashOutQuote {
  * accounting-context currency, `uint32(uint160(token))`). Defaults to the native
  * token's currency (61166).
  * @returns The raw reclaim amount and the amount net of the 2.5% protocol fee.
+ *
+ * NOTE: the defaults quote in NATIVE terms (decimals 18, token-keyed native
+ * currency). For a project whose accounting token is not the native token
+ * (e.g. USDC), pass that token's `decimals` and `tokenCurrencyId(token)` to
+ * quote in its own terms and avoid a price-feed conversion.
  */
 export async function getCashOutQuote(
   client: PublicClient,

@@ -227,7 +227,7 @@ const request = buildPayTx({
   amount: 10n ** 18n,
   beneficiary: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
 });
-await wallet.writeContract({ account, ...request });
+await wallet.writeContract({ account: "0xYourAccount", ...request });
 ```
 
 Modules:

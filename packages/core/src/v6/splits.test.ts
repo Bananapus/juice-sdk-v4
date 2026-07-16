@@ -57,14 +57,20 @@ describe("fillSplitPercents", () => {
     expect(filled.slice(1)).toEqual(Array(6).fill(seventh));
   });
 
-  test("a lone zero share absorbs the whole total", () => {
-    expect(fillSplitPercents([0])).toEqual([SPLITS_TOTAL_PERCENT]);
+  test("throws when the drift exceeds rounding error", () => {
+    expect(() => fillSplitPercents([0])).toThrow(/drift larger than rounding/);
+    expect(() => fillSplitPercents([50, 50])).toThrow(
+      /drift larger than rounding/,
+    );
+    expect(() => fillSplitPercents([0, 0, 0])).toThrow(
+      /drift larger than rounding/,
+    );
   });
 
   test("does not mutate the input", () => {
-    const shares = [1, 2, 3];
+    const shares = [499999999, 499999999, 1];
     fillSplitPercents(shares);
-    expect(shares).toEqual([1, 2, 3]);
+    expect(shares).toEqual([499999999, 499999999, 1]);
   });
 
   test("throws on negative or non-integer shares", () => {
@@ -84,10 +90,10 @@ describe("fillSplitPercents", () => {
   });
 
   test("throws when the group oversums beyond repair", () => {
-    // sum = 1.8e9; the -8e8 delta exceeds any single share.
+    // sum = 1.8e9; the -8e8 delta far exceeds rounding error.
     expect(() =>
       fillSplitPercents([600_000_000, 600_000_000, 600_000_000]),
-    ).toThrow(/exceeds SPLITS_TOTAL_PERCENT/);
+    ).toThrow(/drift larger than rounding/);
   });
 });
 

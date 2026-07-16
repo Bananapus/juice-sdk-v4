@@ -52,8 +52,9 @@ export function payoutSplitGroupId(token: Address): bigint {
  * corrected here).
  * @returns A new array summing to exactly `SPLITS_TOTAL_PERCENT`. An empty
  * input returns an empty array (an empty group is valid).
- * @throws If a share is negative or non-integer, or if the drift is larger
- * than the largest share (the input was not approximately normalized).
+ * @throws If a share is negative or non-integer, or if the drift from
+ * `SPLITS_TOTAL_PERCENT` exceeds one unit per share (the input was not
+ * normalized to `SPLITS_TOTAL_PERCENT`).
  */
 export function fillSplitPercents(shares: number[]): number[] {
   if (shares.length === 0) return [];
@@ -69,14 +70,18 @@ export function fillSplitPercents(shares: number[]): number[] {
   const delta = SPLITS_TOTAL_PERCENT - sum;
   if (delta === 0) return filled;
 
+  // Per-row rounding can drift by at most one unit per share. Anything larger means
+  // the input wasn't normalized to SPLITS_TOTAL_PERCENT — silently rewriting it would
+  // hand a beneficiary a very different share than intended.
+  if (Math.abs(delta) > filled.length) {
+    throw new Error(
+      `Split shares sum to ${sum}; expected ~${SPLITS_TOTAL_PERCENT} (drift larger than rounding error)`,
+    );
+  }
+
   let largestIndex = 0;
   for (let i = 1; i < filled.length; i++) {
     if (filled[i] > filled[largestIndex]) largestIndex = i;
-  }
-  if (filled[largestIndex] + delta < 0) {
-    throw new Error(
-      `Split shares sum to ${sum}, which exceeds SPLITS_TOTAL_PERCENT (${SPLITS_TOTAL_PERCENT}) by more than the largest share`,
-    );
   }
   filled[largestIndex] += delta;
   return filled;
