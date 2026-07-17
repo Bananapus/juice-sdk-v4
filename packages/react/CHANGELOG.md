@@ -1,5 +1,12 @@
 # juice-sdk-react
 
+## 3.0.0
+
+### Patch Changes
+
+- Updated dependencies [91c2361]
+  - @bananapus/nana-sdk-core@1.2.0
+
 ## 2.0.0
 
 ### Patch Changes
