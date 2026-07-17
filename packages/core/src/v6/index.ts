@@ -9,6 +9,7 @@ export * from "./revnets.js";
 export * from "./terminals.js";
 export * from "./pay.js";
 export * from "./cashOut.js";
+export * from "./nft.js";
 export * from "./tokens.js";
 export * from "./permissions.js";
 export * from "./suckers.js";

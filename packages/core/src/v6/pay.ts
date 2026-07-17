@@ -2,15 +2,12 @@ import {
   Address,
   Hex,
   PublicClient,
-  bytesToHex,
   encodeAbiParameters,
-  keccak256,
-  toBytes,
 } from "viem";
 import { DEFAULT_ALLOW_OVERSPENDING, NATIVE_TOKEN } from "../constants.js";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
-import { createHookMetadata } from "../utils/hook.js";
+import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 
 /**
  * A prepared `pay` transaction request, accepted as-is by viem's
@@ -153,51 +150,49 @@ export async function previewPay(
 }
 
 /**
- * The metadata id a JB721 hook looks up in pay metadata:
- * `bytes4(bytes20(target) ^ bytes20(keccak256("pay")))`, where the target is the hook's
- * own address (`JB721Hook.METADATA_ID_TARGET` is `address(this)`).
- *
- * @link https://github.com/Bananapus/nana-core-v6/blob/main/src/libraries/JBMetadataResolver.sol (`getId`)
- */
-function pay721MetadataId(hookAddress: Address): Hex {
-  const targetBytes = toBytes(hookAddress).slice(0, 20);
-  const purposeBytes = toBytes(keccak256(toBytes("pay"))).slice(0, 20);
-
-  const xorResult = targetBytes.map((byte, i) => byte ^ purposeBytes[i]);
-
-  return bytesToHex(xorResult.slice(0, 4));
-}
-
-/**
  * Build pay metadata instructing a project's JB721 tiers hook to mint specific tiers.
  *
  * The tier payload is `abi.encode(bool allowOverspending, uint16[] tierIdsToMint)`,
- * keyed by the hook's metadata id (`bytes4(bytes20(hookAddress) ^
+ * keyed by the hook's metadata id (`bytes4(bytes20(metadataIdTarget) ^
  * bytes20(keccak256("pay")))`) and packed into the JBMetadataResolver
  * word-offset-table format.
  *
- * @param args.hookAddress The project's JB721 tiers hook (the ruleset's data hook).
+ * @param args.metadataIdTarget The hook's `METADATA_ID_TARGET` — the shared
+ * *implementation* address, NOT the project's clone hook address (see
+ * {@link get721MetadataIdTarget}). Passing the clone address makes the hook ignore
+ * the tiers and the payment mints ZERO NFTs (it succeeds, minting only tokens).
+ * @param args.hookAddress Deprecated alias for `metadataIdTarget`. Only correct
+ * when it already holds `METADATA_ID_TARGET`; prefer `metadataIdTarget`.
  * @param args.tierIdsToMint The tier ids to mint, one entry per NFT.
  * @param args.allowOverspending Whether payment beyond the tiers' total price is
- * allowed (excess mints no NFT). Defaults to true.
+ * allowed (excess mints no NFT). Defaults to true. Note the hook still gates this
+ * on its store's `preventOverspending` flag.
  * @returns The metadata to pass as `pay`'s `metadata` argument.
  */
 export function build721PayMetadata({
+  metadataIdTarget,
   hookAddress,
   tierIdsToMint,
   allowOverspending = DEFAULT_ALLOW_OVERSPENDING,
 }: {
-  hookAddress: Address;
+  metadataIdTarget?: Address;
+  /** @deprecated Use `metadataIdTarget`. */
+  hookAddress?: Address;
   tierIdsToMint: bigint[];
   allowOverspending?: boolean;
 }): Hex {
+  const target = metadataIdTarget ?? hookAddress;
+  if (!target) {
+    throw new Error("build721PayMetadata requires metadataIdTarget");
+  }
+
   const tierPayload = encodeAbiParameters(
     [{ type: "bool" }, { type: "uint16[]" }],
     [allowOverspending, tierIdsToMint.map(Number)],
   );
 
   return createHookMetadata(
-    [pay721MetadataId(hookAddress)],
+    [hookMetadataId(target, "pay")],
     [tierPayload],
   ) as Hex;
 }

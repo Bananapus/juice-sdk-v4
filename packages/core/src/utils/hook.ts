@@ -1,9 +1,38 @@
-import { Hash, encodePacked, zeroHash } from "viem";
+import {
+  Address,
+  Hash,
+  Hex,
+  bytesToHex,
+  encodePacked,
+  keccak256,
+  toBytes,
+  zeroHash,
+} from "viem";
+
+/**
+ * The metadata lookup id a JB hook resolves via `JBMetadataResolver.getId`:
+ * `bytes4(bytes20(target) ^ bytes20(keccak256(purpose)))`.
+ *
+ * For JB721 hooks, `target` MUST be the hook's `METADATA_ID_TARGET` — which is
+ * `address(this)` in the *implementation's* constructor, so every delegatecall
+ * clone reports the shared implementation address, NOT its own clone address.
+ * Passing the clone address yields an id the hook never matches, so the pay or
+ * cash out silently ignores the tier/token payload. Resolve the target with
+ * `get721MetadataIdTarget` rather than passing a hook address directly.
+ *
+ * @link https://github.com/Bananapus/nana-core-v6/blob/main/src/libraries/JBMetadataResolver.sol (`getId`)
+ */
+export function hookMetadataId(target: Address, purpose: string): Hex {
+  const targetBytes = toBytes(target).slice(0, 20);
+  const purposeBytes = toBytes(keccak256(toBytes(purpose))).slice(0, 20);
+  const xored = targetBytes.map((byte, i) => byte ^ purposeBytes[i]);
+  return bytesToHex(xored.slice(0, 4));
+}
 
 /**
  *
  * Create metadata for pay or redeem hooks.
- * 
+ *
  * @link https://github.com/simplemachine92/JBMetadata-Helper
  * @attribution simplemachine92/nowonder
  */
