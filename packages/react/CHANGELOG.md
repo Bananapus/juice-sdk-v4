@@ -1,5 +1,16 @@
 # juice-sdk-react
 
+## 4.0.0
+
+### Minor Changes
+
+- 2cf603d: Add `useShopPurchases` and `useOwnedShopItems` hooks for a project's 721 "shop": the customers/purchases feed (bendystraw `mintNftEvents`) and a holder's currently-owned store items (bendystraw `nfts`), for the project + chain in context. `useOwnedShopItems` is the basis for a redeem/cash-out list (verify `ownerOf` on-chain before offering a redemption). The typed query documents are hand-written (self-contained) rather than codegen'd, so they add no generated-schema churn.
+
+### Patch Changes
+
+- Updated dependencies [ef9f7e2]
+  - @bananapus/nana-sdk-core@1.3.0
+
 ## 3.0.0
 
 ### Patch Changes
