@@ -1,10 +1,11 @@
-import { Address, Hex, PublicClient } from "viem";
+import { Address, Hex, PublicClient, encodeAbiParameters } from "viem";
 import {
   jbMultiTerminalAbi,
   jbTerminalStoreAbi,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
 import { applyJbDaoCashOutFee } from "../utils/fee.js";
+import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { NATIVE_TOKEN_CURRENCY_ID } from "./currency.js";
 import { v6Address } from "./types.js";
 
@@ -73,6 +74,50 @@ export function buildCashOutTx({
       metadata,
     ],
   };
+}
+
+/**
+ * Build cash-out metadata instructing a project's JB721 tiers hook to burn
+ * specific NFTs and reclaim their share of surplus.
+ *
+ * The payload is `abi.encode(uint256[] tokenIds)`, keyed by the hook's cash-out
+ * metadata id (`bytes4(bytes20(metadataIdTarget) ^ bytes20(keccak256("cashOut")))`)
+ * and packed into the JBMetadataResolver word-offset-table format. This is the
+ * cash-out mirror of {@link build721PayMetadata}. The NFTs are burned by the hook
+ * itself, so no ERC-721 approval is needed; pass `cashOutCount: 0` to
+ * `cashOutTokensOf` (fungible tokens cannot co-redeem in the same call).
+ *
+ * @param args.metadataIdTarget The hook's `METADATA_ID_TARGET` — the shared
+ * *implementation* address, NOT the project's clone hook address (see
+ * {@link get721MetadataIdTarget}). Passing the clone address makes the hook ignore
+ * the token ids and no NFTs are burned.
+ * @param args.tokenIds The token ids of the NFTs to redeem. Must be non-empty,
+ * unique, and non-zero (a real NFT token id is never 0).
+ * @returns The metadata to pass as `cashOutTokensOf`'s `metadata` argument.
+ */
+export function build721CashOutMetadata({
+  metadataIdTarget,
+  tokenIds,
+}: {
+  metadataIdTarget: Address;
+  tokenIds: bigint[];
+}): Hex {
+  if (tokenIds.length === 0) {
+    throw new Error("build721CashOutMetadata requires at least one token id");
+  }
+  if (new Set(tokenIds.map(String)).size !== tokenIds.length) {
+    throw new Error("build721CashOutMetadata token ids must be unique");
+  }
+  if (tokenIds.some((tokenId) => tokenId <= 0n)) {
+    throw new Error("build721CashOutMetadata token ids must be positive");
+  }
+
+  const payload = encodeAbiParameters([{ type: "uint256[]" }], [tokenIds]);
+
+  return createHookMetadata(
+    [hookMetadataId(metadataIdTarget, "cashOut")],
+    [payload],
+  ) as Hex;
 }
 
 /**

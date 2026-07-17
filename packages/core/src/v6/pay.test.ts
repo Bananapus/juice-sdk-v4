@@ -149,4 +149,17 @@ describe("pay", () => {
     // 0xadc75680 (first 4 bytes of keccak256("pay")) XOR 0x11111111.
     expect(sliceHex(metadata, 32, 36)).toEqual("0xbcd64791");
   });
+
+  test("build721PayMetadata metadataIdTarget matches the hookAddress alias", () => {
+    const target = "0x1111111111111111111111111111111111111111" as const;
+    expect(
+      build721PayMetadata({ metadataIdTarget: target, tierIdsToMint: [1n] }),
+    ).toEqual(build721PayMetadata({ hookAddress: target, tierIdsToMint: [1n] }));
+  });
+
+  test("build721PayMetadata throws when no target is given", () => {
+    expect(() => build721PayMetadata({ tierIdsToMint: [1n] })).toThrow(
+      /metadataIdTarget/,
+    );
+  });
 });

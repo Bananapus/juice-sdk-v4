@@ -1,8 +1,17 @@
-import { PublicClient, encodeFunctionData } from "viem";
+import {
+  PublicClient,
+  decodeAbiParameters,
+  encodeFunctionData,
+  sliceHex,
+} from "viem";
 import { describe, expect, test } from "vitest";
 import { NATIVE_TOKEN, ONE_ETHER } from "../constants.js";
 import { jbTerminalStoreAbi } from "../generated/juicebox.js";
-import { buildCashOutTx, getCashOutQuote } from "./cashOut.js";
+import {
+  build721CashOutMetadata,
+  buildCashOutTx,
+  getCashOutQuote,
+} from "./cashOut.js";
 import { v6Address } from "./types.js";
 
 const chainId = 11155111;
@@ -107,5 +116,37 @@ describe("cashOut", () => {
       6n,
       0x3606eb48n,
     ]);
+  });
+
+  test("build721CashOutMetadata packs the cashOut id and token ids", () => {
+    // With a target whose first 4 bytes are zero, the id is the first 4 bytes
+    // of keccak256("cashOut").
+    const metadata = build721CashOutMetadata({
+      metadataIdTarget: "0x00000000000000000000000000000000DeaDBeef",
+      tokenIds: [1_000_000_001n, 1_000_000_002n],
+    });
+
+    expect(sliceHex(metadata, 0, 32)).toEqual(`0x${"00".repeat(32)}`);
+    // keccak256("cashOut") first 4 bytes, then the payload word offset (2).
+    expect(sliceHex(metadata, 32, 36)).toEqual("0x86b14ff4");
+    expect(sliceHex(metadata, 36, 37)).toEqual("0x02");
+    const [tokenIds] = decodeAbiParameters(
+      [{ type: "uint256[]" }],
+      sliceHex(metadata, 64),
+    );
+    expect(tokenIds).toEqual([1_000_000_001n, 1_000_000_002n]);
+  });
+
+  test("build721CashOutMetadata rejects empty, duplicate, and zero token ids", () => {
+    const target = "0x00000000000000000000000000000000DeaDBeef" as const;
+    expect(() =>
+      build721CashOutMetadata({ metadataIdTarget: target, tokenIds: [] }),
+    ).toThrow(/at least one/);
+    expect(() =>
+      build721CashOutMetadata({ metadataIdTarget: target, tokenIds: [1n, 1n] }),
+    ).toThrow(/unique/);
+    expect(() =>
+      build721CashOutMetadata({ metadataIdTarget: target, tokenIds: [0n] }),
+    ).toThrow(/positive/);
   });
 });
