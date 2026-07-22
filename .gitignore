@@ -4,6 +4,7 @@
 node_modules
 .pnp
 .pnp.js
+.contract-source/
 
 # Local env files
 .env

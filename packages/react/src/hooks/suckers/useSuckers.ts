@@ -43,13 +43,15 @@ export function useSuckers(args?: { enabled: boolean }) {
 
   debug("useSuckers::args", { projectId, chainId });
 
-  const { data, ...rest } = useBendystrawQuery(ProjectDocument, {
-    projectId: Number(projectId),
-    chainId: Number(chainId),
-    version,
-    staleTime: Infinity,
-    enabled: !!chainId && enabled,
-  });
+  const { data, ...rest } = useBendystrawQuery(
+    ProjectDocument,
+    {
+      projectId: Number(projectId),
+      chainId: Number(chainId),
+      version,
+    },
+    { staleTime: Infinity, enabled: !!chainId && enabled },
+  );
 
   const pairs = useMemo(
     () =>
@@ -64,7 +66,7 @@ export function useSuckers(args?: { enabled: boolean }) {
           if (aChainId === -1 || bChainId === -1) return 0;
           return aChainId - bChainId;
         }),
-    [data]
+    [data],
   );
 
   return { data: pairs, ...rest };

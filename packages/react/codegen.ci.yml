@@ -1,0 +1,12 @@
+overwrite: true
+schema: ./graphql.schema.json
+documents: "src/**/*.graphql"
+generates:
+  src/generated/:
+    preset: client
+config:
+  namingConvention:
+    enumValues: keep
+  avoidOptionals:
+    field: true
+  skipTypename: true

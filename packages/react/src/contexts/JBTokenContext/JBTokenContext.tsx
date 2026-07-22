@@ -57,7 +57,10 @@ export type JBTokenProviderProps = PropsWithChildren<{
  *
  * @note depends on JBContractContext
  */
-export const JBTokenProvider = ({ children, withTotalOutstanding }: JBTokenProviderProps) => {
+export const JBTokenProvider = ({
+  children,
+  withTotalOutstanding,
+}: JBTokenProviderProps) => {
   const chainId = useJBChainId();
 
   const {
@@ -75,7 +78,9 @@ export const JBTokenProvider = ({ children, withTotalOutstanding }: JBTokenProvi
     query: { enabled: !!projectId && !!chainId && !!version },
   });
 
-  const fetchTokenEnabled = Boolean(tokenAddress && !isAddressEqual(tokenAddress, zeroAddress));
+  const fetchTokenEnabled = Boolean(
+    tokenAddress && !isAddressEqual(tokenAddress, zeroAddress),
+  );
   const token = useToken({
     chainId,
     address: fetchTokenEnabled ? tokenAddress : undefined,
@@ -93,9 +98,10 @@ export const JBTokenProvider = ({ children, withTotalOutstanding }: JBTokenProvi
     },
   });
 
-  const totalOutstandingData = totalOutstandingRes?.data
-    ? new JBProjectToken(totalOutstandingRes?.data)
-    : undefined;
+  const totalOutstandingData =
+    totalOutstandingRes?.data !== undefined
+      ? new JBProjectToken(totalOutstandingRes?.data)
+      : undefined;
 
   return (
     <JBTokenContext.Provider

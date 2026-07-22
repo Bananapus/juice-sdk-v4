@@ -23,6 +23,7 @@ export function useSendRelayrTx() {
         }
 
         const tx = await _sendTransaction.sendTransactionAsync({
+          chainId: chainPayment.chain,
           to: chainPayment.target,
           value: BigInt(chainPayment.amount),
           data: chainPayment.calldata,
@@ -33,7 +34,7 @@ export function useSendRelayrTx() {
         throw error;
       }
     },
-    [_sendTransaction.sendTransactionAsync, chainId, switchChainAsync]
+    [_sendTransaction.sendTransactionAsync, chainId, switchChainAsync],
   );
 
   return {

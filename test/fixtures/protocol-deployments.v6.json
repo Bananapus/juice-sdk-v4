@@ -1,0 +1,399 @@
+{
+  "format": "juice-sdk-v6-deployments-1",
+  "source": {
+    "repository": "Bananapus/deploy-all-v6",
+    "commit": "316e9d4d3f9e1c5b41a5df7c0ad6183abbeccc7f"
+  },
+  "chains": {
+    "1": "ethereum",
+    "10": "optimism",
+    "8453": "base",
+    "42161": "arbitrum",
+    "11155111": "sepolia",
+    "11155420": "optimism_sepolia",
+    "84532": "base_sepolia",
+    "421614": "arbitrum_sepolia"
+  },
+  "contracts": {
+    "JBController": {
+      "address": "0x3fcec3572e84b624477bcff4e2cf1f7deab648f1",
+      "abiSha256": "067b78a696c4ad206edae14e2f831b3339e898f9757c054b618e4cd5f62ea570"
+    },
+    "JBDeadline1Day": {
+      "address": "0x3a15ac0bcf4f7dd48359a36b3e293254cf26d4ca",
+      "abiSha256": "b49fe7e0a42ea33e80b39e9b6586b1cddc8442e77267b52fb36c4ba0a4968628"
+    },
+    "JBDeadline3Days": {
+      "address": "0xcda708c98fbdd15a7ff7f0c5c50f9371ca52c78f",
+      "abiSha256": "b49fe7e0a42ea33e80b39e9b6586b1cddc8442e77267b52fb36c4ba0a4968628"
+    },
+    "JBDeadline7Days": {
+      "address": "0x540923f7b6166bf9713490719a2210aeebc9fca2",
+      "abiSha256": "b49fe7e0a42ea33e80b39e9b6586b1cddc8442e77267b52fb36c4ba0a4968628"
+    },
+    "JBDeadline3Hours": {
+      "address": "0xd25264015483caa5c34643942d41f94bed5f1e92",
+      "abiSha256": "b49fe7e0a42ea33e80b39e9b6586b1cddc8442e77267b52fb36c4ba0a4968628"
+    },
+    "JBDirectory": {
+      "address": "0x5aff29060e023e6fb87be5596652b33c65af535b",
+      "abiSha256": "d163cc91ae95047dcaa9608965bf4b1fee8b320ac7b9b550a06a89c2b57495e5"
+    },
+    "JBMultiTerminal": {
+      "address": "0x130f5dd2bd8805443cf41755253d778a75a67f53",
+      "abiSha256": "b7e34261d8dd311ef1123ec68a3e2d8a5a2468c51a808c901494fabdb1d1153b"
+    },
+    "JBRulesets": {
+      "address": "0x26f2228a4e8b0079ed1c2a3d22f12ff7f83cdfba",
+      "abiSha256": "e031ab29b0e031094494887ad755c1053f1e8ec32d4482f72d9f01668c79bab8"
+    },
+    "JBPermissions": {
+      "address": "0xf92ac1ab5a00033e35a3975739124f61928c36b0",
+      "abiSha256": "eb1714b25748c30e1a4a85f67a4ebace4f65b1847612e6c53a906f1bd770881d"
+    },
+    "JBProjects": {
+      "address": "0x6017d1fba9dc279bfa0b03fd931c22e242ab3691",
+      "abiSha256": "7b5412765b8b5f3ad55aebc8194da7b665137ebae5f0eafe48798cb4a593aad4"
+    },
+    "JBSplits": {
+      "address": "0x28b3d11fcb8d2ad0a143c5b193cd9f2e4d43f4c3",
+      "abiSha256": "ec3c187a7f98d544fad0268c36bf828910a3fb5109822983ff5f5e561d72de76"
+    },
+    "JBTokens": {
+      "address": "0x1f80d8f057ee36b4c2656d107e4e4558b71ba7d9",
+      "abiSha256": "411defe79c614bd7a2d0f0fadf71103e2cffcef8aab37e094309cdaad4a05012"
+    },
+    "JBTerminalStore": {
+      "address": "0x7497ae014a60561925b51c0a3b4ade7460b9927c",
+      "abiSha256": "d36a32a07fa2a366a7f3eeccffb3f1681ecb8847cd1b80d9b9f26db2fd08811a"
+    },
+    "JBFundAccessLimits": {
+      "address": "0xc93360158f187fc8fc8f1062a1b31d06f185dbab",
+      "abiSha256": "cfdbfdd6a0266a947260349e1471a31b276dd482ba1c871fb57ef4dc30d65c6d"
+    },
+    "JBPrices": {
+      "address": "0xad45e4627f068d1e6b21e5301870d807543a8401",
+      "abiSha256": "8172fbb5f9e2e1f28dc894eced8d5ade60bff32023017524754bd52d78eb6003"
+    },
+    "ERC2771Forwarder": {
+      "address": "0x3ba60b60933916a7c87d0860dcee62a0ce34e3e2",
+      "abiSha256": "e6cd92ec458de2635d0e1d23bdaf6cd3d7d3fe30183216186dee9d1396475ac7"
+    },
+    "JB721TiersHookDeployer": {
+      "address": "0xb7b8ec35e2dd84afff04ee769c6189e7a4d44a78",
+      "abiSha256": "593270d9cee1a11b7930d2e1ec1faeebd886edc17dd97c24ca37293504f886ab"
+    },
+    "JB721TiersHookProjectDeployer": {
+      "address": "0x3ffdc94e7f1de4b74c52158ec9dd3b965585f451",
+      "abiSha256": "d72231797899c9c7d18d2f2b22dc6fd3a36bb433523279267a956196bfa8ce3b"
+    },
+    "JB721TiersHook": {
+      "address": "0xf4a5887170e4d7efb1c874ad88fc82ebf076b5ab",
+      "abiSha256": "7f58fcff04096850d4c207cd2234b81961194eb935b229a3befe1e94843d7caa"
+    },
+    "JB721TiersHookStore": {
+      "address": "0x69913acf79dbba170d9efafe605ee62b42164f9c",
+      "abiSha256": "abea532a7f83dbc60204ff932a892c4aebd03c61e34e3ea3826d708411d1f670"
+    },
+    "JBAddressRegistry": {
+      "address": "0x581bfd1ead279e0a27b736e49494db3a7d85993c",
+      "abiSha256": "671b622ef5a9ab249f1e24b22ad607366fdae1712774a79c261ceb9283642a24"
+    },
+    "JBSuckerRegistry": {
+      "address": "0x7903a854ae91eaf635430d120a1a434085cef297",
+      "abiSha256": "0501cc46db03513e7b3e963052dae82f73ae2a2bc39946b602292baf072a5264"
+    },
+    "JBBuybackHook": {
+      "address": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
+      "abiSha256": "5c5204b13ef6aaa41d0d177145113016f9261474239125fb380c6c53f03a41d0"
+    },
+    "JBBuybackHookRegistry": {
+      "address": "0x72f55a54cd53410a5ff175508a5a384227081788",
+      "abiSha256": "0d36f5baa0ba8b65e51a06178b85354337fd3bc1841995307c9f17d4d229e955"
+    },
+    "JBRouterTerminal": {
+      "address": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
+      "abiSha256": "04a30db77b9bbbf790e40df7af6d770e7e3ec224fb43496ba512e3870c0952ed"
+    },
+    "JBRouterTerminalRegistry": {
+      "address": "0xe0427f250fdb0379c8e98e884ee4570521208cbc",
+      "abiSha256": "4a2b24484f9353821501ddd7b2e84216e8263f42a9d80f78596505155a918d7e"
+    },
+    "JBOmnichainDeployer": {
+      "address": "0xb853758a70a6b4216c09f1d071ea2344aba0a34f",
+      "abiSha256": "b6ade0d07cae6b6a04e6dd4da5408aa9b3e6ad8a967667cda1792ebe96fa4ba0"
+    },
+    "REVDeployer": {
+      "address": "0xb552eb94284f94b833837d4b2cbb237128415d4e",
+      "abiSha256": "f62052865ed69d48c32e597bb9f8dadf73619dd34474ed658d529e744cec4e71"
+    },
+    "REVLoans": {
+      "address": "0x056265c31157748818f0910d1859acd2f7d427de",
+      "abiSha256": "a58d0bcc47498b5499f4449c0e9e9cfa1aafad29a509728d120da2c8160add65"
+    },
+    "REVOwner": {
+      "address": "0x2ba4705ad0332cdfb299b452068438bcba3faaf3",
+      "abiSha256": "73f69e2538d928b733e0f96c622154cd9d2f2bf209a124190d0bf46ff0ec3826"
+    }
+  },
+  "overrides": {
+    "11155420": {
+      "JBBuybackHook": null,
+      "JBRouterTerminal": null
+    }
+  },
+  "suckerDeployerPairs": [
+    {
+      "local": "1",
+      "remote": "10",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__OP",
+        "address": "0x41d28bedd5b0fbf65424b48c0e1de92d5c882fc7"
+      },
+      "native": {
+        "artifact": "JBOptimismSuckerDeployer",
+        "address": "0x298a775c030adcedb641a89d9047ec9972674e1a"
+      }
+    },
+    {
+      "local": "1",
+      "remote": "8453",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__BASE",
+        "address": "0x3955fec11fe15f0be4dfa2b0153feef55d55e1ee"
+      },
+      "native": {
+        "artifact": "JBBaseSuckerDeployer",
+        "address": "0x54140331902de5c3445eb0c26e15099a5a9d59e6"
+      }
+    },
+    {
+      "local": "1",
+      "remote": "42161",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ARB",
+        "address": "0x36a2e30029d87c46f77f71b7b6b97fec8a760660"
+      },
+      "native": {
+        "artifact": "JBArbitrumSuckerDeployer",
+        "address": "0xa12ebfca3d4e0810e4ed174e4c08277c26917acb"
+      }
+    },
+    {
+      "local": "10",
+      "remote": "1",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ETH",
+        "address": "0x41d28bedd5b0fbf65424b48c0e1de92d5c882fc7"
+      },
+      "native": {
+        "artifact": "JBOptimismSuckerDeployer",
+        "address": "0x298a775c030adcedb641a89d9047ec9972674e1a"
+      }
+    },
+    {
+      "local": "10",
+      "remote": "8453",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__BASE",
+        "address": "0x8f6f0a70939997310309d7ab66b1b199faafe7f0"
+      },
+      "native": null
+    },
+    {
+      "local": "10",
+      "remote": "42161",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ARB",
+        "address": "0x1d58d56fbdb753de44737be926c33b79cf009afa"
+      },
+      "native": null
+    },
+    {
+      "local": "8453",
+      "remote": "1",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ETH",
+        "address": "0x3955fec11fe15f0be4dfa2b0153feef55d55e1ee"
+      },
+      "native": {
+        "artifact": "JBBaseSuckerDeployer",
+        "address": "0x54140331902de5c3445eb0c26e15099a5a9d59e6"
+      }
+    },
+    {
+      "local": "8453",
+      "remote": "10",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__OP",
+        "address": "0x8f6f0a70939997310309d7ab66b1b199faafe7f0"
+      },
+      "native": null
+    },
+    {
+      "local": "8453",
+      "remote": "42161",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ARB",
+        "address": "0x2845f919af9ed7d8dab188d42114bd590340a242"
+      },
+      "native": null
+    },
+    {
+      "local": "42161",
+      "remote": "1",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ETH",
+        "address": "0x36a2e30029d87c46f77f71b7b6b97fec8a760660"
+      },
+      "native": {
+        "artifact": "JBArbitrumSuckerDeployer",
+        "address": "0xa12ebfca3d4e0810e4ed174e4c08277c26917acb"
+      }
+    },
+    {
+      "local": "42161",
+      "remote": "10",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__OP",
+        "address": "0x1d58d56fbdb753de44737be926c33b79cf009afa"
+      },
+      "native": null
+    },
+    {
+      "local": "42161",
+      "remote": "8453",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__BASE",
+        "address": "0x2845f919af9ed7d8dab188d42114bd590340a242"
+      },
+      "native": null
+    },
+    {
+      "local": "11155111",
+      "remote": "11155420",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__OP_SEP",
+        "address": "0x41d28bedd5b0fbf65424b48c0e1de92d5c882fc7"
+      },
+      "native": {
+        "artifact": "JBOptimismSuckerDeployer",
+        "address": "0x298a775c030adcedb641a89d9047ec9972674e1a"
+      }
+    },
+    {
+      "local": "11155111",
+      "remote": "84532",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__BASE_SEP",
+        "address": "0x3955fec11fe15f0be4dfa2b0153feef55d55e1ee"
+      },
+      "native": {
+        "artifact": "JBBaseSuckerDeployer",
+        "address": "0x54140331902de5c3445eb0c26e15099a5a9d59e6"
+      }
+    },
+    {
+      "local": "11155111",
+      "remote": "421614",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ARB_SEP",
+        "address": "0x36a2e30029d87c46f77f71b7b6b97fec8a760660"
+      },
+      "native": {
+        "artifact": "JBArbitrumSuckerDeployer",
+        "address": "0xa12ebfca3d4e0810e4ed174e4c08277c26917acb"
+      }
+    },
+    {
+      "local": "11155420",
+      "remote": "11155111",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ETH_SEP",
+        "address": "0x41d28bedd5b0fbf65424b48c0e1de92d5c882fc7"
+      },
+      "native": {
+        "artifact": "JBOptimismSuckerDeployer",
+        "address": "0x298a775c030adcedb641a89d9047ec9972674e1a"
+      }
+    },
+    {
+      "local": "11155420",
+      "remote": "84532",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__BASE_SEP",
+        "address": "0x8f6f0a70939997310309d7ab66b1b199faafe7f0"
+      },
+      "native": null
+    },
+    {
+      "local": "11155420",
+      "remote": "421614",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ARB_SEP",
+        "address": "0x1d58d56fbdb753de44737be926c33b79cf009afa"
+      },
+      "native": null
+    },
+    {
+      "local": "84532",
+      "remote": "11155111",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ETH_SEP",
+        "address": "0x3955fec11fe15f0be4dfa2b0153feef55d55e1ee"
+      },
+      "native": {
+        "artifact": "JBBaseSuckerDeployer",
+        "address": "0x54140331902de5c3445eb0c26e15099a5a9d59e6"
+      }
+    },
+    {
+      "local": "84532",
+      "remote": "11155420",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__OP_SEP",
+        "address": "0x8f6f0a70939997310309d7ab66b1b199faafe7f0"
+      },
+      "native": null
+    },
+    {
+      "local": "84532",
+      "remote": "421614",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ARB_SEP",
+        "address": "0x2845f919af9ed7d8dab188d42114bd590340a242"
+      },
+      "native": null
+    },
+    {
+      "local": "421614",
+      "remote": "11155111",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__ETH_SEP",
+        "address": "0x36a2e30029d87c46f77f71b7b6b97fec8a760660"
+      },
+      "native": {
+        "artifact": "JBArbitrumSuckerDeployer",
+        "address": "0xa12ebfca3d4e0810e4ed174e4c08277c26917acb"
+      }
+    },
+    {
+      "local": "421614",
+      "remote": "11155420",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__OP_SEP",
+        "address": "0x1d58d56fbdb753de44737be926c33b79cf009afa"
+      },
+      "native": null
+    },
+    {
+      "local": "421614",
+      "remote": "84532",
+      "ccip": {
+        "artifact": "JBCCIPSuckerDeployer__BASE_SEP",
+        "address": "0x2845f919af9ed7d8dab188d42114bd590340a242"
+      },
+      "native": null
+    }
+  ]
+}

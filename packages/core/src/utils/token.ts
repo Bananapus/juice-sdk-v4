@@ -21,7 +21,7 @@ import {
  */
 export const getTokenAToBQuote = <D extends number>(
   tokenAAmount: FixedInt<D>, // wei
-  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedPercent }
+  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedPercent },
 ) => {
   const { weight, reservedPercent } = cycleParams;
 
@@ -50,7 +50,7 @@ export const getTokenAToBQuote = <D extends number>(
  */
 export const getTokenBPrice = (
   tokenADecimals: number,
-  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedPercent }
+  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedPercent },
 ) => {
   const oneTokenA = FixedInt.parse("1", tokenADecimals);
   const weightRatio = BigInt(10 ** tokenADecimals);
@@ -74,7 +74,7 @@ export const getTokenBPrice = (
 export const getTokenBtoAQuote = <D extends number>(
   tokenBAmount: FixedInt<D>, // wei
   tokenADecimals: number,
-  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedPercent }
+  cycleParams: { weight: RulesetWeight; reservedPercent: ReservedPercent },
 ) => {
   const tokenBPrice = getTokenBPrice(tokenADecimals, cycleParams);
   const oneTokenA = parseUnits("1", tokenADecimals);
@@ -99,7 +99,7 @@ export const getTokenBtoAQuote = <D extends number>(
  * - `r` = cashOutTaxRate
  *
  * @implements JBCashOuts.cashOutFrom
- * @see https://github.com/Bananapus/nana-core/blob/44ae030f910e4a40a9a70a1eccf67cb0cf0c80f9/src/libraries/JBCashOuts.sol
+ * @see https://github.com/Bananapus/nana-core-v6/blob/89ac631620588687b63b06d8cebe8499f7a60bdf/src/libraries/JBCashOuts.sol
  * @see https://www.desmos.com/calculator/sp9ru6zbpk
  * @returns amount in ETH
  */
@@ -115,28 +115,53 @@ export const getTokenCashOutQuoteEth = (
     totalSupply: bigint;
     cashOutTaxRate: number;
     tokensReserved: bigint;
-  }
+  },
 ) => {
+  const maxUint256 = (1n << 256n) - 1n;
+  if (
+    tokensAmount < 0n ||
+    tokensAmount > maxUint256 ||
+    overflowWei < 0n ||
+    overflowWei > maxUint256 ||
+    totalSupply < 0n ||
+    totalSupply > maxUint256 ||
+    tokensReserved < 0n ||
+    tokensReserved > maxUint256 ||
+    totalSupply > maxUint256 - tokensReserved ||
+    !Number.isSafeInteger(cashOutTaxRate) ||
+    cashOutTaxRate < 0 ||
+    cashOutTaxRate > MAX_CASH_OUT_TAX_RATE
+  ) {
+    throw new RangeError("cash-out inputs are outside contract bounds");
+  }
+
   // alias names, to match the contract's implementation for easier manual comparison.
   const surplus = overflowWei;
   const cashOutCount = tokensAmount;
 
+  // `JBTerminalStore` supplies `JBCashOuts.cashOutFrom` with total outstanding
+  // tokens, which includes pending reserved tokens. Build that denominator
+  // before applying any of the library's edge conditions: a holder cashing out
+  // every minted token is not cashing out the full supply while reserved tokens
+  // are still pending.
+  const realTotalSupply = totalSupply + tokensReserved;
+
+  // Match JBCashOuts.cashOutFrom's first edge condition. This must precede the
+  // full-supply branch so a zero count against a zero supply cannot reclaim the
+  // surplus.
+  if (cashOutCount === 0n) {
+    return 0n;
+  }
+
   // If the cash out tax rate is the max, no surplus can be reclaimed.
   if (cashOutTaxRate === MAX_CASH_OUT_TAX_RATE) {
-    return 0;
+    return 0n;
   }
 
   // If the total supply is being cashed out, return the entire surplus.
-  if (cashOutCount >= totalSupply) {
+  if (cashOutCount >= realTotalSupply) {
     return surplus;
   }
-
-  //
-  /**
-   * totalOutstandingTokensOf in contract.
-   * @note this deviates from the contract's `cashOutFrom` implementation.
-   */
-  const realTotalSupply = totalSupply + tokensReserved;
 
   /**
    * Get a reference to the linear proportion.
