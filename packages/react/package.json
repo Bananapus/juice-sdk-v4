@@ -27,7 +27,7 @@
     "@graphql-codegen/cli": "^5.0.2",
     "@graphql-codegen/client-preset": "^4.3.0",
     "@graphql-codegen/introspection": "^4.0.3",
-    "@graphql-codegen/typescript": "^4.0.7",
+    "@graphql-codegen/typescript": "^6.1.0",
     "@graphql-codegen/typescript-operations": "^4.2.1",
     "@tanstack/react-query": "^5.0.0",
     "@types/react": "^19.1.13",
