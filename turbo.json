@@ -10,6 +10,8 @@
     "test:coverage": {
       "outputs": ["coverage/**"]
     },
-    "type-check": {}
+    "type-check": {
+      "dependsOn": ["build"]
+    }
   }
 }
