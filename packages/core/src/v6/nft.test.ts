@@ -4,15 +4,126 @@ import { JBOmnichainDeployerContracts } from "../contracts.js";
 import { jbContractAddress } from "../generated/juicebox.js";
 import {
   DISCOUNT_DENOMINATOR,
+  TIER_UNLIMITED_SUPPLY,
+  buildTierCategoryPlan,
+  buildTierMetadata,
   effectiveTierPrice,
   get721MetadataIdTarget,
   getProject721Shop,
+  isSafeTierMediaUri,
+  parseTierMetadataJson,
+  pickTierMetadata,
+  tierDisplayMetadata,
+  tierMediaImageUrl,
 } from "./nft.js";
 
 const chainId = 11155111;
 const hook = "0x1111111111111111111111111111111111111111" as const;
 const impl = "0x2222222222222222222222222222222222222222" as const;
 const store = "0x3333333333333333333333333333333333333333" as const;
+const CID = "QmbWqxBEKC3P8tqsKc98xmWNzrzDtRLMiMPL8wBuTGsMnR";
+
+describe("tier metadata", () => {
+  test("parses encoded and base64 JSON data URIs", () => {
+    expect(
+      parseTierMetadataJson(
+        `data:application/json,${encodeURIComponent(JSON.stringify({ name: "Café" }))}`,
+      ),
+    ).toEqual({ name: "Café" });
+    expect(
+      parseTierMetadataJson(
+        "data:application/json;base64,eyJwcm9kdWN0TmFtZSI6IkJhbm55In0=",
+      ),
+    ).toEqual({ productName: "Banny" });
+    expect(parseTierMetadataJson("https://example.com/tier.json")).toBeNull();
+    expect(parseTierMetadataJson("data:application/json,%7Bbad")).toBeNull();
+  });
+
+  test("normalizes legacy metadata aliases", () => {
+    expect(
+      pickTierMetadata({
+        productName: "Legacy name",
+        name: "Current name",
+        productDescription: "Legacy description",
+        imageUri: `ipfs://${CID}/image.png`,
+        animation_url: "https://example.com/animation.mp4",
+        mimeType: "video/mp4",
+        categoryName: "Wearables",
+      }),
+    ).toEqual({
+      name: "Legacy name",
+      description: "Legacy description",
+      image: `ipfs://${CID}/image.png`,
+      animationUrl: "https://example.com/animation.mp4",
+      mediaType: "video/mp4",
+      categoryName: "Wearables",
+    });
+  });
+
+  test("builds a canonical payload and validates media", () => {
+    expect(
+      buildTierMetadata({
+        name: "  Poster  ",
+        description: " ",
+        image: `ipfs://${CID}/poster.png`,
+        animationUrl: "https://example.com/poster.mp4",
+        mediaType: "video/mp4",
+      }),
+    ).toEqual({
+      name: "Poster",
+      description: undefined,
+      image: `ipfs://${CID}/poster.png`,
+      animation_url: "https://example.com/poster.mp4",
+      mediaType: "video/mp4",
+      categoryName: undefined,
+    });
+    expect(isSafeTierMediaUri(`${CID}/poster.png`)).toBe(true);
+    expect(() => buildTierMetadata({ name: " " })).toThrow(/name/);
+    expect(() =>
+      buildTierMetadata({ name: "Poster", image: "javascript:alert(1)" }),
+    ).toThrow(/images/);
+    expect(() =>
+      buildTierMetadata({ name: "Poster", mediaType: "not mime" }),
+    ).toThrow(/MIME/);
+  });
+
+  test("routes IPFS media and unwraps external images in SVG data URIs", () => {
+    expect(
+      tierDisplayMetadata(
+        {
+          image: `ipfs://${CID}/image.png`,
+          animation_url: `${CID}/animation.mp4`,
+        },
+        "/api/ipfs",
+      ),
+    ).toMatchObject({
+      image: `/api/ipfs/${CID}/image.png`,
+      animationUrl: `/api/ipfs/${CID}/animation.mp4`,
+    });
+    const svg = `<svg><image xlink:href="ipfs://${CID}/wrapped.png" /></svg>`;
+    expect(
+      tierMediaImageUrl(
+        `data:image/svg+xml,${encodeURIComponent(svg)}`,
+        "/api/ipfs",
+      ),
+    ).toBe(`/api/ipfs/${CID}/wrapped.png`);
+  });
+
+  test("assigns stable first-seen category ids", () => {
+    expect(
+      buildTierCategoryPlan([
+        { id: "one", categoryName: " Posters " },
+        { id: "two", categoryName: "" },
+        { id: "three", categoryName: "Posters" },
+        { id: "four", categoryName: "Music" },
+      ]),
+    ).toEqual({
+      categoryByTierId: { one: 1, two: 0, three: 1, four: 2 },
+      storeCategories: { "1": "Posters", "2": "Music" },
+    });
+    expect(TIER_UNLIMITED_SUPPLY).toBe(999_999_999);
+  });
+});
 
 describe("effectiveTierPrice", () => {
   test("floors like on-chain mulDiv(price, discountPercent, 200)", () => {
@@ -39,7 +150,9 @@ describe("get721MetadataIdTarget", () => {
       readContract: async () => impl,
     } as unknown as PublicClient;
 
-    expect(await get721MetadataIdTarget(client, { chainId, hook })).toEqual(impl);
+    expect(await get721MetadataIdTarget(client, { chainId, hook })).toEqual(
+      impl,
+    );
   });
 
   test("falls back to the hook address if the getter reverts", async () => {
@@ -49,7 +162,9 @@ describe("get721MetadataIdTarget", () => {
       },
     } as unknown as PublicClient;
 
-    expect(await get721MetadataIdTarget(client, { chainId, hook })).toEqual(hook);
+    expect(await get721MetadataIdTarget(client, { chainId, hook })).toEqual(
+      hook,
+    );
   });
 });
 
@@ -228,7 +343,10 @@ describe("getProject721Shop", () => {
     const client = {
       readContract: async ({ functionName }: { functionName: string }) => {
         if (functionName === "currentRulesetOf") {
-          return [{ id: 7 }, { useDataHookForPay: false, dataHook: zeroAddress }];
+          return [
+            { id: 7 },
+            { useDataHookForPay: false, dataHook: zeroAddress },
+          ];
         }
         throw new Error(`unexpected read ${functionName}`);
       },

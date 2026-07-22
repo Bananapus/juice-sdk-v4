@@ -9,6 +9,9 @@ import {
   getAllRulesets,
   getCurrentRuleset,
   getUpcomingRuleset,
+  RULESET_WEIGHT_INHERIT,
+  resolveRulesetIssuanceStages,
+  rulesetIssuanceRateAt,
 } from "./rulesets.js";
 import { v6Address } from "./types.js";
 
@@ -115,5 +118,67 @@ describe("ruleset reads", () => {
       size: 5n,
     });
     expect(calls[0]).toMatchObject({ args: [3n, 42n, 5n] });
+  });
+});
+
+describe("issuance schedule projection", () => {
+  test("exports core's non-zero inheritance sentinel", () => {
+    expect(RULESET_WEIGHT_INHERIT).toBe(1n);
+  });
+  test("sorts stages, applies recurring cuts, and resolves inheritance", () => {
+    const resolved = resolveRulesetIssuanceStages([
+      {
+        start: 200,
+        duration: 10,
+        weight: 0n,
+        weightCutPercent: 0,
+        inheritsWeight: true,
+      },
+      {
+        start: 100,
+        duration: 25,
+        weight: 1_000n * 10n ** 18n,
+        weightCutPercent: 100_000_000,
+      },
+    ]);
+
+    expect(resolved.map((stage) => stage.start)).toEqual([100, 200]);
+    expect(rulesetIssuanceRateAt(resolved, 99)).toBe(0);
+    expect(rulesetIssuanceRateAt(resolved, 100)).toBe(1_000);
+    expect(rulesetIssuanceRateAt(resolved, 125)).toBeCloseTo(900);
+    expect(resolved[1].issuanceRate).toBeCloseTo(656.1);
+    expect(rulesetIssuanceRateAt(resolved, 1_000)).toBeCloseTo(656.1);
+  });
+
+  test("a genuine zero-weight stage remains zero", () => {
+    const resolved = resolveRulesetIssuanceStages([
+      {
+        start: 1,
+        duration: 10,
+        weight: 100n * 10n ** 18n,
+        weightCutPercent: 0,
+      },
+      { start: 20, duration: 10, weight: 0n, weightCutPercent: 50_000_000 },
+    ]);
+    expect(rulesetIssuanceRateAt(resolved, 100)).toBe(0);
+  });
+
+  test("rejects invalid protocol values", () => {
+    expect(() =>
+      resolveRulesetIssuanceStages([
+        { start: 1, duration: 10, weight: 1n, weightCutPercent: 1_000_000_001 },
+      ]),
+    ).toThrow(/weight cut/);
+    expect(() =>
+      resolveRulesetIssuanceStages([
+        {
+          start: 1,
+          duration: 10,
+          weight: 1n,
+          weightCutPercent: 0,
+          inheritsWeight: true,
+        },
+      ]),
+    ).toThrow(/first ruleset/);
   });
 });

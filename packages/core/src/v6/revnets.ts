@@ -71,8 +71,9 @@ export type REVCroptopAllowedPost = RevDeployArgs6[5][number];
  *   issuance), out of 1e9; the group must total exactly 1e9 — use
  *   `fillSplitPercents`.
  * - `initialIssuance`: tokens minted per unit of base currency, 18-decimal
- *   fixed point (uint112). The sentinel 1n means "inherit the previous
- *   stage's issuance with its cuts applied".
+ *   fixed point (uint112). The exported `RULESET_WEIGHT_INHERIT` sentinel
+ *   (1n) means "inherit the previous stage's issuance with its cuts applied";
+ *   zero means genuine zero issuance.
  * - `issuanceCutFrequency`: seconds between issuance cuts (should be >= 1
  *   day; it becomes the stage's ruleset duration).
  * - `issuanceCutPercent`: how much issuance drops each period, out of 1e9

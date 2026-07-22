@@ -75,6 +75,64 @@ export const JBPermissionIdsV6 = {
 export type JBPermissionIdV6 =
   (typeof JBPermissionIdsV6)[keyof typeof JBPermissionIdsV6];
 
+/** A symbolic v6 permission name, such as `QUEUE_RULESETS`. */
+export type JBPermissionKeyV6 = keyof typeof JBPermissionIdsV6;
+
+/** Canonical permission names and ids, sorted by id. */
+export const JBPermissionCatalogV6: readonly {
+  key: JBPermissionKeyV6;
+  id: JBPermissionIdV6;
+}[] = (
+  Object.entries(JBPermissionIdsV6) as [JBPermissionKeyV6, JBPermissionIdV6][]
+)
+  .map(([key, id]) => ({ key, id }))
+  .sort((a, b) => a.id - b.id);
+
+const JB_PERMISSION_KEY_BY_ID = new Map<number, JBPermissionKeyV6>(
+  JBPermissionCatalogV6.map(({ key, id }) => [id, key]),
+);
+
+/** Return the SDK permission name for an id, or `null` for a newer/unknown id. */
+export function permissionKeyV6(id: number): JBPermissionKeyV6 | null {
+  return JB_PERMISSION_KEY_BY_ID.get(id) ?? null;
+}
+
+/**
+ * Decode `JBPermissions.permissionsOf`'s packed bitmap into ascending ids.
+ *
+ * By default only ids known to this SDK release are returned. Pass
+ * `includeUnknown: true` to preserve set bits from future permission-id
+ * releases as well.
+ */
+export function decodePermissionBitmap(
+  bitmap: bigint,
+  { includeUnknown = false }: { includeUnknown?: boolean } = {},
+): number[] {
+  if (bitmap < 0n) throw new Error("A permission bitmap cannot be negative.");
+  const ids: number[] = [];
+  const maxId = includeUnknown
+    ? 255
+    : (JBPermissionCatalogV6[JBPermissionCatalogV6.length - 1]?.id ?? 0);
+  for (let id = 1; id <= maxId; id++) {
+    if (((bitmap >> BigInt(id)) & 1n) === 1n) ids.push(id);
+  }
+  return ids;
+}
+
+/** Encode permission ids into the packed bitmap returned by `permissionsOf`. */
+export function encodePermissionBitmap(
+  permissionIds: readonly number[],
+): bigint {
+  let bitmap = 0n;
+  for (const id of permissionIds) {
+    if (!Number.isInteger(id) || id < 1 || id > 255) {
+      throw new Error(`Invalid permission id: ${id}.`);
+    }
+    bitmap |= 1n << BigInt(id);
+  }
+  return bitmap;
+}
+
 /**
  * A prepared `setPermissionsFor` transaction request.
  */
