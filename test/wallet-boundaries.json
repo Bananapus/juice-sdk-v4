@@ -1,0 +1,33 @@
+{
+  "format": "juice-sdk-wallet-boundaries-1",
+  "sites": [
+    {
+      "file": "packages/react/src/lib/relayr/hooks/useSendRelayrTx.ts",
+      "line": 11,
+      "api": "useSendTransaction",
+      "boundary": "Create the wagmi submission boundary for each reviewed Relayr transaction.",
+      "test": "packages/react/src/lib/relayr/hooks/useSendRelayrTx.test.ts"
+    },
+    {
+      "file": "packages/react/src/lib/relayr/hooks/useSendRelayrTx.ts",
+      "line": 25,
+      "api": "sendTransactionAsync",
+      "boundary": "Submit the exact target, calldata, and value after switching to its declared chain.",
+      "test": "packages/react/src/lib/relayr/hooks/useSendRelayrTx.test.ts"
+    },
+    {
+      "file": "packages/react/src/lib/relayr/hooks/useSignErc2771ForwardRequest.ts",
+      "line": 23,
+      "api": "useSignTypedData",
+      "boundary": "Create the wagmi EIP-712 signing boundary for a canonical ERC-2771 forward request.",
+      "test": "packages/react/src/lib/relayr/hooks/useSignErc2771ForwardRequest.test.ts"
+    },
+    {
+      "file": "packages/react/src/lib/relayr/hooks/useSignErc2771ForwardRequest.ts",
+      "line": 60,
+      "api": "signTypedDataAsync",
+      "boundary": "Sign only the validated chain, canonical forwarder domain, nonce, request, and deadline.",
+      "test": "packages/react/src/lib/relayr/hooks/useSignErc2771ForwardRequest.test.ts"
+    }
+  ]
+}

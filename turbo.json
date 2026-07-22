@@ -6,6 +6,10 @@
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": ["dist/**"]
     },
-    "test": {}
+    "test": {},
+    "test:coverage": {
+      "outputs": ["coverage/**"]
+    },
+    "type-check": {}
   }
 }

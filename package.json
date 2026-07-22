@@ -4,8 +4,19 @@
   "scripts": {
     "build": "turbo build",
     "test": "turbo test",
+    "test:coverage": "turbo test:coverage",
+    "type-check": "turbo type-check",
+    "check:generated": "git diff --exit-code -- packages/core/src/generated/juicebox.ts packages/react/src/generated",
+    "check:gql": "npm run generate-gql:ci --workspace @bananapus/nana-sdk-react && git diff --exit-code -- packages/react/src/generated",
+    "check:package": "node scripts/check-package-budgets.mjs",
+    "protocol:check": "tsx scripts/check-v6-protocol.ts",
+    "wallet:check": "node scripts/check-wallet-boundaries.mjs",
+    "deps:check": "npm ls --all --omit=dev",
+    "format:ratchet": "node scripts/check-format-ratchet.mjs",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "check": "npm run deps:check && npm run protocol:check && npm run wallet:check && npm run format:ratchet && npm run check:gql && npm run type-check && npm run test:coverage && npm run build && npm run check:package && npm run check:generated",
     "dev": "turbo dev",
-    "lint": "turbo lint",
+    "format:check": "prettier --check \"**/*.{ts,tsx,md}\"",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "changeset": "changeset",
     "version-packages": "changeset version",
@@ -15,9 +26,14 @@
     "@changesets/cli": "^2.27.1",
     "prettier": "^3.2.5",
     "turbo": "^2.0.4",
+    "tsx": "^4.20.5",
     "typescript": "^5.4.5"
   },
-  "packageManager": "npm@10.5.0",
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": "22.x",
+    "npm": "10.9.x"
+  },
   "workspaces": [
     "packages/*"
   ]

@@ -10,8 +10,14 @@ import { useBendystrawConfig } from "../../contexts/JBProjectProvider/JBProjectP
 export function useBendystrawQuery<TResult, TVariables>(
   document: TypedDocumentNode<TResult, TVariables>,
   ...[variables, options]: TVariables extends Record<string, never>
-    ? [undefined?, { pollInterval?: number; enabled?: boolean }?]
-    : [TVariables, { pollInterval?: number; enabled?: boolean }?]
+    ? [
+        undefined?,
+        { pollInterval?: number; enabled?: boolean; staleTime?: number }?,
+      ]
+    : [
+        TVariables,
+        { pollInterval?: number; enabled?: boolean; staleTime?: number }?,
+      ]
 ): UseQueryResult<TResult> {
   const chainId = useJBChainId();
   const config = useBendystrawConfig();
@@ -19,13 +25,19 @@ export function useBendystrawQuery<TResult, TVariables>(
   const url = chainId && config ? getBendystrawUrl(chainId, config) : undefined;
 
   return useQuery({
-    queryKey: [(document.definitions[0] as any).name.value, chainId, variables],
-    queryFn: async () => request(`${url}/graphql`, document, variables as object),
+    queryKey: [
+      (document.definitions[0] as any).name.value,
+      chainId,
+      url,
+      variables,
+    ],
+    queryFn: async () =>
+      request(`${url}/graphql`, document, variables as object),
     enabled: options?.enabled !== false && !!chainId && !!url,
     refetchInterval: options?.pollInterval,
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
-    staleTime: 30000, // Consider data stale after 30 seconds
+    staleTime: options?.staleTime ?? 30000, // Consider data stale after 30 seconds by default
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 }

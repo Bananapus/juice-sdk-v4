@@ -19,9 +19,26 @@ export function useGetRelayrTxQuote() {
    * the context version).
    */
   async function getRelayrTxQuote(
-    data: { chainId: JBChainId; data: ERC2771ForwardRequestData; version?: JBVersion }[]
+    data: {
+      chainId: JBChainId;
+      data: ERC2771ForwardRequestData;
+      version?: JBVersion;
+    }[],
   ) {
-    if (!data) return;
+    if (!data?.length) throw new Error("There are no Relayr calls to quote");
+
+    // Signing does not consume the forwarder nonce. Duplicates would authorize
+    // the same nonce and make at least one paid destination call fail.
+    const seenSigners = new Set<string>();
+    for (const request of data) {
+      const key = `${request.chainId}:${request.data.from.toLowerCase()}`;
+      if (seenSigners.has(key)) {
+        throw new Error(
+          "Relayr supports only one forward request per account and chain",
+        );
+      }
+      seenSigners.add(key);
+    }
 
     /**
      * Prompt user to sign transactions for each chain

@@ -23,7 +23,11 @@ npm install revnet-sdk
 ### React Application
 
 ```tsx
-import { JBProjectProvider, useJBRuleset, useTokenCashOutQuoteEth } from "@bananapus/nana-sdk-react";
+import {
+  JBProjectProvider,
+  useJBRuleset,
+  useTokenCashOutQuoteEth,
+} from "@bananapus/nana-sdk-react";
 import { formatTokenAmount } from "@bananapus/nana-sdk-core";
 
 function ProjectDashboard() {
@@ -78,11 +82,10 @@ const taxRate = new CashOutTaxRate(2.5); // 2.5% cash out tax
 
 ## Packages
 
-| Package                               | Description                                       | NPM                                                                                                       |
-| ------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Package                                         | Description                                       | NPM                                                                                                                           |
+| ----------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | [`@bananapus/nana-sdk-core`](./packages/core)   | Core utilities, contract bindings, and data types | [![npm](https://img.shields.io/npm/v/@bananapus/nana-sdk-core.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-core)   |
 | [`@bananapus/nana-sdk-react`](./packages/react) | React hooks, contexts, and components             | [![npm](https://img.shields.io/npm/v/@bananapus/nana-sdk-react.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-react) |
-| [`revnet-sdk`](./packages/revnet)     | Revnet protocol utilities and hooks               | [![npm](https://img.shields.io/npm/v/revnet-sdk.svg)](https://www.npmjs.com/package/revnet-sdk)           |
 
 ### Core Package Features
 
@@ -115,7 +118,11 @@ See https://docs.juicebox.money to learn more.
 Juicebox contracts use fixed-point math for precision. The SDK provides helper classes:
 
 ```javascript
-import { ReservedPercent, CashOutTaxRate, RulesetWeight } from "@bananapus/nana-sdk-core";
+import {
+  ReservedPercent,
+  CashOutTaxRate,
+  RulesetWeight,
+} from "@bananapus/nana-sdk-core";
 
 // Create percentage values
 const reserved = new ReservedPercent(15); // 15%
@@ -139,21 +146,24 @@ const percentage = reserved.formatAsPercent(); // "15%"
 
 ### React Hooks
 
-- [Generated hooks](./packages/react/src/generated/juicebox.ts) - Auto-generated contract hooks
+- [Generated Bendystraw types](./packages/react/src/generated/graphql.ts) - Types generated from the committed schema and reviewed queries
 - [Custom hooks](./packages/react/src/hooks/) - Higher-level functionality hooks
 
 ## Development
 
 ### Prerequisites
 
-- Node.js v20+ (`nvm use` or `nvm use 20`)
-- npm 10+
+- Node.js 22.16.0 (`nvm use` reads the repository pin)
+- npm 10.9.2
 
 ### Setup
 
 ```bash
-# Install dependencies
-npm install
+# Use the pinned Node/npm toolchain from .nvmrc and package.json.
+nvm use
+
+# Install exact locked dependencies
+npm ci
 
 # Build all packages
 npm run build
@@ -161,16 +171,27 @@ npm run build
 # Run tests
 npm run test
 
-# Run linting
-npm run lint
+# Run coverage and type safety gates
+npm run test:coverage
+npm run type-check
+
+# Verify V6 contract parity and the reviewed wallet boundary inventory
+npm run protocol:check
+npm run wallet:check
+
+# Run the full deterministic gate
+npm run check
 
 # Format code
 npm run format
 ```
 
+See [TESTING.md](./TESTING.md) for the pinned deploy-all-v6 source commit,
+coverage denominators, deterministic network policy, and CI/release invariants.
+
 ### Adding New Contracts
 
-1. Modify [`contracts.ts`](./packages/core/contracts.ts)
+1. Modify [`contracts.ts`](./packages/core/src/contracts.ts)
 2. Regenerate code: `npm run build`
 
 #### Add a default contract address for JB Project deployments
@@ -209,7 +230,10 @@ A framework-agnostic Juicebox V6 action layer: writes are pure builders that ret
 ```ts
 import { createPublicClient, createWalletClient, http } from "viem";
 import { sepolia } from "viem/chains";
-import { resolvePaymentTerminal, buildPayTx } from "@bananapus/nana-sdk-core/v6";
+import {
+  resolvePaymentTerminal,
+  buildPayTx,
+} from "@bananapus/nana-sdk-core/v6";
 
 const client = createPublicClient({ chain: sepolia, transport: http() });
 const wallet = createWalletClient({ chain: sepolia, transport: http() });

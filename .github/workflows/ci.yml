@@ -1,32 +1,73 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
-    types: [opened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build and Test
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
-
+  build-and-test:
+    timeout-minutes: 20
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          fetch-depth: 2
-
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
+          persist-credentials: false
+      - name: Check out the pinned V6 deployment artifacts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: 20
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build
+          repository: Bananapus/deploy-all-v6
+          ref: 316e9d4d3f9e1c5b41a5df7c0ad6183abbeccc7f
+          path: .contract-source/deploy-all-v6
+          sparse-checkout: deployments
+          sparse-checkout-cone-mode: true
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Verify the bundled npm release
+        run: test "$(npm --version)" = "10.9.2"
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify the published dependency graph
+        run: npm run deps:check
+      - name: Verify every public V6 deployment and ABI against the contracts
+        run: npm run protocol:check
+        env:
+          PROTOCOL_DEPLOYMENTS_DIR: .contract-source/deploy-all-v6
+      - name: Reject unreviewed wallet signing and submission sites
+        run: npm run wallet:check
+      - name: Reject new or silently changed formatting debt
+        run: npm run format:ratchet
+      - name: Reject high or critical production dependency advisories
+        run: npm run audit:prod
+      - name: Type-check both public packages
+        run: npm run type-check
+      - name: Regenerate GraphQL types from the committed Bendystraw schema
+        run: npm run check:gql
+      - name: Run contract and React tests with coverage
+        run: npm run test:coverage
+      - name: Build ESM, CJS, and React package artifacts
         run: npm run build
-
-      - name: Test
-        run: npm run test
+      - name: Enforce published package budgets
+        run: npm run check:package
+      - name: Verify generated contract bindings are committed
+        run: npm run check:generated
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sdk-coverage
+          path: packages/*/coverage/
+          if-no-files-found: ignore
+          retention-days: 14

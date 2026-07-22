@@ -9,36 +9,83 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   contents: write
+  id-token: write
   pull-requests: write
 
 jobs:
   release:
     name: Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: 20
+          persist-credentials: false
+
+      - name: Check out the pinned V6 deployment artifacts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: Bananapus/deploy-all-v6
+          ref: 316e9d4d3f9e1c5b41a5df7c0ad6183abbeccc7f
+          path: .contract-source/deploy-all-v6
+          sparse-checkout: deployments
+          sparse-checkout-cone-mode: true
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
           cache: "npm"
 
+      - name: Verify the bundled npm release
+        run: test "$(npm --version)" = "10.9.2"
+
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Verify the published dependency graph
+        run: npm run deps:check
+
+      - name: Verify every public V6 deployment and ABI against the contracts
+        run: npm run protocol:check
+        env:
+          PROTOCOL_DEPLOYMENTS_DIR: .contract-source/deploy-all-v6
+
+      - name: Reject unreviewed wallet signing and submission sites
+        run: npm run wallet:check
+
+      - name: Reject new or silently changed formatting debt
+        run: npm run format:ratchet
+
+      - name: Reject high or critical production dependency advisories
+        run: npm run audit:prod
+
+      - name: Type-check packages
+        run: npm run type-check
+
+      - name: Regenerate GraphQL types from the committed Bendystraw schema
+        run: npm run check:gql
 
       - name: Build packages
         run: npm run build
 
-      - name: Run tests
-        run: npm run test
+      - name: Enforce published package budgets
+        run: npm run check:package
+
+      - name: Verify generated contract bindings are committed
+        run: npm run check:generated
+
+      - name: Run tests with coverage floors
+        run: npm run test:coverage
 
       - name: Create Release Pull Request or Publish to npm
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           publish: npm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
