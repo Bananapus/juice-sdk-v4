@@ -1,9 +1,12 @@
 import {
   PublicClient,
+  encodeAbiParameters,
+  encodeEventTopics,
   decodeFunctionData,
   encodeFunctionData,
   parseEther,
   zeroAddress,
+  type Hex,
 } from "viem";
 import { sepolia } from "viem/chains";
 import { describe, expect, test } from "vitest";
@@ -15,7 +18,9 @@ import {
   buildRulesetConfiguration,
   buildRulesetMetadata,
   buildTerminalConfigurations,
+  decodeLaunchProjectId,
   getProjectCreationFee,
+  projectIdFromLaunchLogs,
 } from "./launch.js";
 import { v6Address } from "./types.js";
 
@@ -163,5 +168,46 @@ describe("getProjectCreationFee", () => {
       address: v6Address("JBProjects", sepolia.id),
       functionName: "creationFee",
     });
+  });
+});
+
+describe("launch receipt decoding", () => {
+  const launchLog = (address = v6Address("JBController", sepolia.id)) => ({
+    address,
+    topics: encodeEventTopics({
+      abi: jbControllerAbi,
+      eventName: "LaunchProject",
+    }) as readonly Hex[],
+    data: encodeAbiParameters(
+      [
+        { type: "uint256" },
+        { type: "uint256" },
+        { type: "string" },
+        { type: "string" },
+        { type: "address" },
+      ],
+      [12n, 42n, "ipfs://project", "launched", OWNER],
+    ),
+  });
+
+  test("decodes only the canonical controller's LaunchProject event", () => {
+    const log = launchLog();
+    expect(decodeLaunchProjectId(log, { chainId: sepolia.id })).toBe(42n);
+    expect(projectIdFromLaunchLogs([log], { chainId: sepolia.id })).toBe(42n);
+    expect(
+      decodeLaunchProjectId(
+        launchLog("0x1111111111111111111111111111111111111111"),
+        { chainId: sepolia.id },
+      ),
+    ).toBeNull();
+  });
+
+  test("returns null for malformed launch logs", () => {
+    expect(
+      decodeLaunchProjectId(
+        { ...launchLog(), data: "0x" },
+        { chainId: sepolia.id },
+      ),
+    ).toBeNull();
   });
 });

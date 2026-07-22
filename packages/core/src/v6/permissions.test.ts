@@ -2,9 +2,13 @@ import { PublicClient, encodeFunctionData } from "viem";
 import { describe, expect, test } from "vitest";
 import { jbPermissionsAbi } from "../generated/juicebox.js";
 import {
+  JBPermissionCatalogV6,
   JBPermissionIdsV6,
   buildSetPermissionsTx,
+  decodePermissionBitmap,
+  encodePermissionBitmap,
   hasPermissions,
+  permissionKeyV6,
 } from "./permissions.js";
 import { v6Address } from "./types.js";
 
@@ -33,6 +37,33 @@ describe("permissions", () => {
     expect(JBPermissionIdsV6.SET_ROUTER_TERMINAL).toEqual(31);
     expect(JBPermissionIdsV6.SET_SUCKER_DEPRECATION).toEqual(36);
     expect(JBPermissionIdsV6.REPAY_LOAN).toEqual(39);
+  });
+
+  test("catalog and bitmap codecs preserve canonical ids", () => {
+    expect(JBPermissionCatalogV6[0]).toEqual({ key: "ROOT", id: 1 });
+    expect(JBPermissionCatalogV6[JBPermissionCatalogV6.length - 1]).toEqual({
+      key: "REPAY_LOAN",
+      id: 39,
+    });
+    const ids = [
+      JBPermissionIdsV6.QUEUE_RULESETS,
+      JBPermissionIdsV6.ADJUST_721_TIERS,
+      JBPermissionIdsV6.REPAY_LOAN,
+    ];
+    const bitmap = encodePermissionBitmap(ids);
+    expect(decodePermissionBitmap(bitmap)).toEqual(ids);
+    expect(permissionKeyV6(24)).toBe("ADJUST_721_TIERS");
+    expect(permissionKeyV6(99)).toBeNull();
+  });
+
+  test("unknown bitmap bits are opt-in", () => {
+    const bitmap = encodePermissionBitmap([1, 200]);
+    expect(decodePermissionBitmap(bitmap)).toEqual([1]);
+    expect(decodePermissionBitmap(bitmap, { includeUnknown: true })).toEqual([
+      1, 200,
+    ]);
+    expect(() => encodePermissionBitmap([0])).toThrow(/Invalid/);
+    expect(() => decodePermissionBitmap(-1n)).toThrow(/negative/);
   });
 
   test("buildSetPermissionsTx encodes setPermissionsFor", () => {

@@ -5,6 +5,7 @@ export * from "./deploy.js";
 export * from "./fee.js";
 export * from "./format.js";
 export * from "./hook.js";
+export * from "./ipfs.js";
 export * from "./revnet.js";
 export * from "./ruleset.js";
 export * from "./token.js";

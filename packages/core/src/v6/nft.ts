@@ -7,14 +7,259 @@ import {
   jbOmnichainDeployerAbi,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
+import { ipfsAssetPath, isIpfsCid } from "../utils/ipfs.js";
 import { getRevnetTiered721Hook } from "./revnets.js";
 import { getCurrentRuleset } from "./rulesets.js";
+
+/**
+ * App-level sentinel convention used by Juicebox 721 shops for effectively
+ * unlimited inventory.
+ */
+export const TIER_UNLIMITED_SUPPLY = 999_999_999;
 
 /**
  * JB721TiersHookStore's `DISCOUNT_DENOMINATOR`: a tier's `discountPercent` is
  * out of 200, so the shopper-facing "% off" is `discountPercent / 2`.
  */
 export const DISCOUNT_DENOMINATOR = 200n;
+
+/** Canonical display fields understood across Juicebox 721 metadata writers. */
+export interface TierMetadata {
+  name?: string;
+  description?: string;
+  image?: string;
+  animationUrl?: string;
+  mediaType?: string;
+  categoryName?: string;
+}
+
+/** Input accepted by {@link buildTierMetadata}. */
+export interface TierMetadataInput {
+  name: string;
+  description?: string;
+  image?: string;
+  animationUrl?: string;
+  mediaType?: string;
+  categoryName?: string;
+}
+
+/** JSON shape written for a tier's pinned metadata. */
+export interface StoredTierMetadata {
+  name: string;
+  description?: string;
+  image?: string;
+  animation_url?: string;
+  mediaType?: string;
+  categoryName?: string;
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value ? value : undefined;
+}
+
+function decodeBase64Utf8(value: string): string {
+  const binary = atob(value);
+  return new TextDecoder().decode(
+    Uint8Array.from(binary, (character) => character.charCodeAt(0)),
+  );
+}
+
+/**
+ * Parse a `data:application/json` tier URI. Invalid, non-object, and non-data
+ * values return `null` so callers can fall back to an IPFS metadata fetch.
+ */
+export function parseTierMetadataJson(
+  uri: string,
+): Record<string, unknown> | null {
+  if (!uri.startsWith("data:application/json")) return null;
+  const comma = uri.indexOf(",");
+  if (comma === -1) return null;
+
+  try {
+    const header = uri.slice(0, comma);
+    const payload = uri.slice(comma + 1);
+    const json = JSON.parse(
+      header.split(";").includes("base64")
+        ? decodeBase64Utf8(payload)
+        : decodeURIComponent(payload),
+    ) as unknown;
+    return json !== null && typeof json === "object" && !Array.isArray(json)
+      ? (json as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Normalize legacy and current tier metadata field names into one display
+ * shape. Only non-empty strings are returned.
+ */
+export function pickTierMetadata(json: Record<string, unknown>): TierMetadata {
+  return {
+    name: nonEmptyString(json.productName) ?? nonEmptyString(json.name),
+    description:
+      nonEmptyString(json.productDescription) ??
+      nonEmptyString(json.description),
+    image: nonEmptyString(json.image) ?? nonEmptyString(json.imageUri),
+    animationUrl:
+      nonEmptyString(json.animation_url) ?? nonEmptyString(json.animationUrl),
+    mediaType:
+      nonEmptyString(json.mediaType) ??
+      nonEmptyString(json.animationType) ??
+      nonEmptyString(json.mimeType),
+    categoryName: nonEmptyString(json.categoryName),
+  };
+}
+
+/** Whether a tier media value uses an immutable or browser-loadable URI form. */
+export function isSafeTierMediaUri(value: string): boolean {
+  const uri = value.trim();
+  if (!uri || /\s/.test(uri)) return false;
+
+  const ipfsPath = ipfsAssetPath(uri);
+  if (ipfsPath && isIpfsCid(ipfsPath.split("/")[0])) return true;
+  if (isIpfsCid(uri.split("/")[0])) return true;
+  if (/^data:(image|audio|video)\/[a-z0-9.+-]+[;,]/i.test(uri)) return true;
+
+  try {
+    const url = new URL(uri);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+/** Build the canonical JSON object pinned for one tier. */
+export function buildTierMetadata(
+  input: TierMetadataInput,
+): StoredTierMetadata {
+  const name = input.name.trim();
+  if (!name) throw new Error("Tier name is required.");
+
+  const optional = (value: string | undefined) => value?.trim() || undefined;
+  const image = optional(input.image);
+  const animationUrl = optional(input.animationUrl);
+  const mediaType = optional(input.mediaType);
+  if (image && !isSafeTierMediaUri(image)) {
+    throw new Error(
+      "Tier images must use IPFS, HTTP, HTTPS, or an image data URI.",
+    );
+  }
+  if (animationUrl && !isSafeTierMediaUri(animationUrl)) {
+    throw new Error(
+      "Tier animations must use IPFS, HTTP, HTTPS, or a media data URI.",
+    );
+  }
+  if (
+    mediaType &&
+    !/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/i.test(mediaType)
+  ) {
+    throw new Error("Tier media type must be a valid MIME type.");
+  }
+
+  return {
+    name,
+    description: optional(input.description),
+    image,
+    animation_url: animationUrl,
+    mediaType,
+    categoryName: optional(input.categoryName),
+  };
+}
+
+/**
+ * Route IPFS media through a caller-selected gateway base URL. Data URIs and
+ * ordinary HTTP URLs pass through unchanged.
+ */
+export function tierMediaAssetUrl(
+  value: unknown,
+  ipfsGatewayBaseUrl = "https://ipfs.io/ipfs/",
+): string | undefined {
+  if (typeof value !== "string" || !value) return undefined;
+  if (value.startsWith("data:")) return value;
+  const trimmed = value.trim();
+  const path =
+    ipfsAssetPath(trimmed) ??
+    (isIpfsCid(trimmed.split("/")[0]) ? trimmed : null);
+  if (!path) return value;
+  return `${ipfsGatewayBaseUrl.replace(/\/?$/, "/")}${path}`;
+}
+
+function svgDataUriMarkup(uri: string): string | null {
+  const match = /^data:image\/svg\+xml([^,]*),([\s\S]*)$/.exec(uri);
+  if (!match) return null;
+  try {
+    return match[1].split(";").includes("base64")
+      ? decodeBase64Utf8(match[2])
+      : decodeURIComponent(match[2]);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Return a browser-renderable tier image URL. SVG data URIs that only wrap an
+ * external `<image href>` are unwrapped because browsers block that nested
+ * network request when the SVG itself is used as an `<img>` source.
+ */
+export function tierMediaImageUrl(
+  image: unknown,
+  ipfsGatewayBaseUrl?: string,
+): string | undefined {
+  if (typeof image !== "string" || !image) return undefined;
+  const markup = svgDataUriMarkup(image);
+  if (markup) {
+    const href = /<image[^>]+href=["']([^"']+)["']/.exec(markup)?.[1];
+    if (href && !href.startsWith("data:")) {
+      return tierMediaAssetUrl(href, ipfsGatewayBaseUrl);
+    }
+    return image;
+  }
+  return tierMediaAssetUrl(image, ipfsGatewayBaseUrl);
+}
+
+/** Pick and resolve all tier metadata fields in one pass. */
+export function tierDisplayMetadata(
+  json: Record<string, unknown>,
+  ipfsGatewayBaseUrl?: string,
+): TierMetadata {
+  const metadata = pickTierMetadata(json);
+  return {
+    ...metadata,
+    image: tierMediaImageUrl(metadata.image, ipfsGatewayBaseUrl),
+    animationUrl: tierMediaAssetUrl(metadata.animationUrl, ipfsGatewayBaseUrl),
+  };
+}
+
+/** Stable first-seen category ids, with blank categories assigned to 0. */
+export function buildTierCategoryPlan(
+  tiers: ReadonlyArray<{ id: string; categoryName?: string }>,
+): {
+  categoryByTierId: Record<string, number>;
+  storeCategories: Record<string, string>;
+} {
+  const categoryIds = new Map<string, number>();
+  const categoryByTierId: Record<string, number> = {};
+  const storeCategories: Record<string, string> = {};
+
+  for (const tier of tiers) {
+    const name = tier.categoryName?.trim() || "";
+    if (!name) {
+      categoryByTierId[tier.id] = 0;
+      continue;
+    }
+    let category = categoryIds.get(name);
+    if (category === undefined) {
+      category = categoryIds.size + 1;
+      categoryIds.set(name, category);
+      storeCategories[String(category)] = name;
+    }
+    categoryByTierId[tier.id] = category;
+  }
+
+  return { categoryByTierId, storeCategories };
+}
 
 /**
  * A tier's effective (discounted) price, matching the on-chain formula in
@@ -226,7 +471,10 @@ export async function getProject721Shop(
     hook,
     store,
     metadataIdTarget,
-    pricing: { currency: Number(pricingRaw[0]), decimals: Number(pricingRaw[1]) },
+    pricing: {
+      currency: Number(pricingRaw[0]),
+      decimals: Number(pricingRaw[1]),
+    },
     tiers,
   };
 }

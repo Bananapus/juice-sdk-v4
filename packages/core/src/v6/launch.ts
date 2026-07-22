@@ -1,4 +1,12 @@
-import { Address, ContractFunctionArgs, PublicClient, zeroAddress } from "viem";
+import {
+  Address,
+  ContractFunctionArgs,
+  Hex,
+  PublicClient,
+  decodeEventLog,
+  isAddressEqual,
+  zeroAddress,
+} from "viem";
 import { NATIVE_TOKEN, NATIVE_TOKEN_DECIMALS } from "../constants.js";
 import { jbControllerAbi, jbProjectsAbi } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
@@ -159,7 +167,8 @@ export function buildRulesetMetadata(
  * shared timestamp so every chain's ruleset is byte-identical.
  * @param args.duration Seconds the ruleset is locked for. 0 = no duration.
  * @param args.weight Tokens issued per unit of `baseCurrency` paid, as an
- * 18-decimal fixed point (uint112).
+ * 18-decimal fixed point (uint112). Later configurations can use the exported
+ * `RULESET_WEIGHT_INHERIT` sentinel (1n); zero means genuine zero issuance.
  * @param args.weightCutPercent Issuance cut applied each cycle, out of 1e9.
  * @param args.approvalHook A deadline contract queued rulesets must clear.
  * @param args.metadata Ruleset metadata; see {@link buildRulesetMetadata}.
@@ -229,4 +238,54 @@ export function buildLaunchProjectTx(args: {
     ] as const,
     value: args.creationFee,
   };
+}
+
+/** Minimal log shape needed to decode a project launch. */
+export interface V6LaunchProjectLog {
+  address: Address;
+  data: Hex;
+  topics: readonly Hex[];
+}
+
+/**
+ * Decode a v6 `LaunchProject` log emitted by the canonical controller.
+ *
+ * Checking the emitter matters: unrelated contracts can emit an event with the
+ * same signature, and ERC-721 `Transfer` logs in a complex receipt are not a
+ * reliable way to identify which mint was the Juicebox project NFT.
+ */
+export function decodeLaunchProjectId(
+  log: V6LaunchProjectLog,
+  { chainId }: { chainId: JBChainId },
+): bigint | null {
+  if (!isAddressEqual(log.address, v6Address("JBController", chainId))) {
+    return null;
+  }
+
+  try {
+    const decoded = decodeEventLog({
+      abi: jbControllerAbi,
+      eventName: "LaunchProject",
+      data: log.data,
+      topics: log.topics as [Hex, ...Hex[]],
+      strict: true,
+    });
+    return decoded.eventName === "LaunchProject"
+      ? decoded.args.projectId
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Return the first canonical v6 project id found in a transaction's logs. */
+export function projectIdFromLaunchLogs(
+  logs: readonly V6LaunchProjectLog[],
+  args: { chainId: JBChainId },
+): bigint | null {
+  for (const log of logs) {
+    const projectId = decodeLaunchProjectId(log, args);
+    if (projectId !== null) return projectId;
+  }
+  return null;
 }
