@@ -1,5 +1,21 @@
 # juice-sdk-react
 
+## 5.0.1
+
+### Patch Changes
+
+- 9b5bb93: Harden Relayr bundle submission and polling with explicit terminal status,
+  `hasFailed` and `isFetching` state, quote validation, destination-chain and
+  signature validation, and propagated Relayr errors. Scope Bendystraw cache
+  entries by service URL so clients configured for different endpoints cannot
+  share stale data. Declare React 19 as a supported peer alongside React 18.
+- d4dd71e: Keep React Query controls out of `useSuckers` GraphQL variables while preserving its infinite
+  stale-time behavior.
+- d4dd71e: Preserve a valid zero total-outstanding-token response in `JBTokenContext`
+  instead of treating it as missing data.
+- Updated dependencies [d4dd71e]
+  - @bananapus/nana-sdk-core@1.4.1
+
 ## 5.0.0
 
 ### Patch Changes

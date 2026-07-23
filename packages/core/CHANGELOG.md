@@ -1,5 +1,15 @@
 # juice-sdk-core
 
+## 1.4.1
+
+### Patch Changes
+
+- d4dd71e: Calculate cash-out quotes against the full outstanding supply, including pending
+  reserved tokens, before applying the full-supply shortcut. This matches
+  `JBCashOuts.cashOutFrom` and prevents overstating reclaimable surplus. Reject
+  negative, fractional, or out-of-range inputs—including a combined supply which
+  would overflow `uint256`—instead of returning an impossible quote.
+
 ## 1.4.0
 
 ### Minor Changes
