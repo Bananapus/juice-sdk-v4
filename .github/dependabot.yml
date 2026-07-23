@@ -28,7 +28,7 @@ updates:
       - dependency-name: viem
         versions: [">=2.55.0 <3"]
       - dependency-name: wagmi
-        versions: [">=2.19.0 <3"]
+        versions: [">=2.18.0 <3"]
     groups:
       routine:
         applies-to: version-updates
