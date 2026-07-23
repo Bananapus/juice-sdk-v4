@@ -1,14 +1,18 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+const repositoryUrl = "https://github.com/Bananapus/juice-sdk-v4";
 const budgets = {
   "@bananapus/nana-sdk-core": {
+    directory: "packages/core",
     packed: 750_000,
     unpacked: 16_800_000,
     entries: 350,
   },
   "@bananapus/nana-sdk-react": {
+    directory: "packages/react",
     packed: 155_000,
     unpacked: 1_820_000,
     entries: 110,
@@ -17,6 +21,19 @@ const budgets = {
 
 const failures = [];
 for (const [workspace, budget] of Object.entries(budgets)) {
+  const manifest = JSON.parse(
+    readFileSync(join(process.cwd(), budget.directory, "package.json"), "utf8"),
+  );
+  if (
+    manifest.repository?.type !== "git" ||
+    manifest.repository?.url !== repositoryUrl ||
+    manifest.repository?.directory !== budget.directory
+  ) {
+    failures.push(
+      `${workspace} repository metadata must identify ${repositoryUrl}/${budget.directory}`,
+    );
+  }
+
   const result = spawnSync(
     "npm",
     ["pack", "--dry-run", "--json", "--ignore-scripts", "--workspace", workspace],
