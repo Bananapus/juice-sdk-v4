@@ -12,6 +12,7 @@ updates:
       default-days: 7
       semver-minor-days: 14
       semver-patch-days: 7
+    versioning-strategy: lockfile-only
     allow:
       - dependency-type: all
         update-types:
@@ -21,11 +22,13 @@ updates:
     # validated lock lines until those migrations carry their own fixtures.
     ignore:
       - dependency-name: prettier
-        versions: [">=3.9.6 <4"]
+        versions: [">=3.9.0 <4"]
       - dependency-name: typescript
         versions: [">=5.9.3 <6"]
       - dependency-name: viem
-        versions: [">=2.55.7 <3"]
+        versions: [">=2.55.0 <3"]
+      - dependency-name: wagmi
+        versions: [">=2.19.0 <3"]
     groups:
       routine:
         applies-to: version-updates
