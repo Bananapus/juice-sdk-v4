@@ -29,6 +29,20 @@ updates:
         versions: [">=2.55.0 <3"]
       - dependency-name: wagmi
         versions: [">=2.18.0 <3"]
+      # These npm aliases, Git dependencies, and workspace paths are not
+      # registry package names; their real parent dependencies remain eligible.
+      - dependency-name: "@openzeppelin/contracts-4.7.3"
+      - dependency-name: "@openzeppelin/contracts-4.8.3"
+      - dependency-name: "@openzeppelin/contracts-4.9.6"
+      - dependency-name: "@openzeppelin/contracts-5.0.2"
+      - dependency-name: "@openzeppelin/contracts-5.1.0"
+      - dependency-name: "@uniswap/permit2"
+      - dependency-name: "@zksync/contracts"
+      - dependency-name: cbw-sdk
+      - dependency-name: packages/core
+      - dependency-name: packages/react
+      - dependency-name: packages/revnet
+      - dependency-name: packages/wagmi-config
     groups:
       routine:
         applies-to: version-updates
