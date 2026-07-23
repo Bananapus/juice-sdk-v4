@@ -7,28 +7,10 @@ updates:
       day: thursday
       time: "09:00"
       timezone: America/Sao_Paulo
-    open-pull-requests-limit: 1
-    cooldown:
-      default-days: 7
-      semver-minor-days: 14
-      semver-patch-days: 7
-    versioning-strategy: lockfile-only
-    allow:
-      - dependency-type: all
-        update-types:
-          - version-update:semver-minor
-          - version-update:semver-patch
-    # These updates need coordinated compiler/runtime migrations. Keep the
-    # validated lock lines until those migrations carry their own fixtures.
+    # SDK dependency upgrades are coordinated with release testing. Disable
+    # routine version PRs while keeping grouped security updates enabled.
+    open-pull-requests-limit: 0
     ignore:
-      - dependency-name: prettier
-        versions: [">=3.9.0 <4"]
-      - dependency-name: typescript
-        versions: [">=5.9.3 <6"]
-      - dependency-name: viem
-        versions: [">=2.55.0 <3"]
-      - dependency-name: wagmi
-        versions: [">=2.18.0 <3"]
       # These npm aliases, Git dependencies, and workspace paths are not
       # registry package names; their real parent dependencies remain eligible.
       - dependency-name: "@openzeppelin/contracts-4.7.3"
@@ -44,10 +26,6 @@ updates:
       - dependency-name: packages/revnet
       - dependency-name: packages/wagmi-config
     groups:
-      routine:
-        applies-to: version-updates
-        patterns: ["*"]
-        update-types: [minor, patch]
       security:
         applies-to: security-updates
         patterns: ["*"]
