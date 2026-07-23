@@ -1,6 +1,6 @@
 import { arbitrum, base, mainnet, optimism, sepolia } from "viem/chains";
 import { describe, expect, it } from "vitest";
-import { jbUrn } from "./urn.js";
+import { jbUrn, toJbUrn } from "./urn.js";
 
 describe("jbUrn", () => {
   describe("valid URNs", () => {
@@ -121,5 +121,15 @@ describe("jbUrn", () => {
       expect(jbUrn("eth-test:3")).toBeNull();
       expect(jbUrn("a".repeat(1000) + ":1")).toBeNull();
     });
+  });
+});
+
+describe("toJbUrn", () => {
+  it("formats a supported chain and project", () => {
+    expect(toJbUrn(mainnet.id, 3n)).toBe("eth:3");
+  });
+
+  it("returns null for an unsupported chain", () => {
+    expect(toJbUrn(999 as never, 3n)).toBeNull();
   });
 });

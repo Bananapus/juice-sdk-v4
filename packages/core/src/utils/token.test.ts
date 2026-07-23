@@ -5,6 +5,7 @@ import { ReservedPercent } from "./data.js";
 import {
   getTokenAToBQuote,
   getTokenBPrice,
+  getTokenBtoAQuote,
   getTokenCashOutQuoteEth,
 } from "./token.js";
 
@@ -49,6 +50,16 @@ describe("token", () => {
         expect(tokenBPrice.value).toBe(expectedTokenBPrice);
       },
     );
+
+    test("quotes the Token A amount needed for a requested Token B amount", () => {
+      const quote = getTokenBtoAQuote(FixedInt.parse("3", 6), 6, {
+        weight: FixedInt.parse("0.5", 18),
+        reservedPercent: new ReservedPercent(0),
+      });
+
+      expect(quote.value).toBe(parseUnits("6", 6));
+      expect(quote.decimals).toBe(6);
+    });
   });
 
   describe("getTokenCashOutQuoteEth", () => {

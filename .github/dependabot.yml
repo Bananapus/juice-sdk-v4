@@ -4,14 +4,36 @@ updates:
     directory: /
     schedule:
       interval: weekly
-      day: monday
+      day: thursday
       time: "09:00"
       timezone: America/Sao_Paulo
-    open-pull-requests-limit: 6
+    open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
+      semver-minor-days: 14
+      semver-patch-days: 7
+    allow:
+      - dependency-type: all
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
+    # These updates need coordinated compiler/runtime migrations. Keep the
+    # validated lock lines until those migrations carry their own fixtures.
+    ignore:
+      - dependency-name: prettier
+        versions: [">=3.9.6 <4"]
+      - dependency-name: typescript
+        versions: [">=5.9.3 <6"]
+      - dependency-name: viem
+        versions: [">=2.55.7 <3"]
     groups:
-      non-major-dependencies:
+      routine:
+        applies-to: version-updates
         patterns: ["*"]
         update-types: [minor, patch]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
     labels: [dependencies]
     commit-message:
       prefix: deps
@@ -20,14 +42,27 @@ updates:
     directory: /
     schedule:
       interval: weekly
-      day: monday
-      time: "09:30"
+      day: thursday
+      time: "09:00"
       timezone: America/Sao_Paulo
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
+      semver-minor-days: 14
+      semver-patch-days: 7
+    allow:
+      - dependency-type: all
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
     groups:
-      non-major-actions:
+      routine:
+        applies-to: version-updates
         patterns: ["*"]
         update-types: [minor, patch]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
     labels: [dependencies, ci]
     commit-message:
       prefix: ci

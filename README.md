@@ -153,8 +153,8 @@ const percentage = reserved.formatAsPercent(); // "15%"
 
 ### Prerequisites
 
-- Node.js 22.16.0 (`nvm use` reads the repository pin)
-- npm 10.9.2
+- Node.js 22.23.1 (`nvm use` reads the repository pin)
+- npm 10.9.8
 
 ### Setup
 

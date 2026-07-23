@@ -22,7 +22,7 @@ The SDK is the shared contract boundary for the frontends. Pull requests therefo
 - `npm run check:package` dry-runs both npm tarballs, rejects compiled tests/build caches, and caps packed size, unpacked size, and file count so generated growth is visible before it reaches every frontend consumer.
 - `npm run check` runs protocol parity, the wallet and formatting-debt inventories, deterministic type/coverage checks, both builds, package budgets, and generated-binding checks from a locked install. Run `npm run audit:prod` separately because advisory data is registry-backed and changes independently of the lockfile.
 
-Use Node 22.16.0 from `.nvmrc` and npm 10.9.2 from `packageManager` for the release-equivalent result.
+Use Node 22.23.1 from `.nvmrc` and npm 10.9.8 from `packageManager` for the release-equivalent result.
 
 CI and release use Ubuntu 24.04 and pin every reusable GitHub Action to a full
 commit SHA. Every checkout disables persisted credentials; the release action
@@ -30,10 +30,13 @@ receives its scoped token explicitly only when creating a release pull request
 or publishing. npm publication requests GitHub Actions provenance through OIDC,
 so consumers can verify which repository workflow produced a package.
 
-Dependabot proposes npm and GitHub Actions updates weekly. Minor and patch
-updates are grouped; majors remain separate so support migrations stay visible
-without being bundled into an unreviewable graph change. Every update passes
-the same protocol, package, type, coverage, generation, and audit gates.
+Dependabot checks npm and GitHub Actions on Thursdays at 09:00
+`America/Sao_Paulo`. Each ecosystem is limited to one grouped routine
+minor/patch pull request, with a 14-day cooldown for minor updates and a 7-day
+cooldown for patches. Security updates remain grouped without a SemVer
+restriction. Major version migrations are reviewed and curated by maintainers
+instead of being opened automatically. Every proposed update passes the same
+protocol, package, type, coverage, generation, and audit gates.
 
 ## Contract parity
 
@@ -84,15 +87,16 @@ Bendystraw is derivative data. React/indexer tests pin query shape, pagination, 
 
 Coverage explicitly includes every future non-generated production
 `src/**/*.{ts,tsx}` file in both packages. At this checkpoint that is 41 core
-files and 45 React files. The 31 core test files run 254 tests and cover
-6,604/6,893 statements and lines (95.80%), 638/765 branches (83.39%), and
-172/186 functions (92.47%), with 95/82/92/95
-global floors, 100% per-file floors for `dataHook`, `projectMetadata`, and
-`suckerPairs`, and a dedicated no-regression floor on the shared token quote
-math. The 36 React test files run 126 tests and cover 1,720/1,720 statements
-and lines (100%), 342/357 branches (95.79%), and 76/76 functions (100%), with
-100/95/100/100 global floors and stronger per-file floors on the money,
-indexer, and Relayr boundaries.
+files and 45 React files. The 34 core test files run 262 tests and cover
+3,655/3,838 statements and lines (95.23%), 650/774 branches (83.97%), and
+181/183 functions (98.90%), with 95/82/92/95 global floors, 100% per-file
+floors for `dataHook`, `projectMetadata`, and `suckerPairs`, and a dedicated
+no-regression floor on the shared token quote math. Focused public-surface,
+contract-helper, value-constructor, quote, and URN tests preserve those floors
+under patched Vitest 3's AST-aware V8 remapping. The 36 React test files run 126
+tests and cover 1,722/1,722 statements and lines (100%), 344/359 branches
+(95.82%), and 76/76 functions (100%), with 100/95/100/100 global floors and
+stronger per-file floors on the money, indexer, and Relayr boundaries.
 Generated contract/GraphQL output is excluded because deterministic
 regeneration and protocol parity gate it directly.
 
