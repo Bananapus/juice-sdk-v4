@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.5.0
+
+### Minor Changes
+
+- 9793326: Add typed Uniswap V4 direct-swap quoting and transaction builders, Permit2 authorization, and guaranteed-best payment route selection.
+
 ## 1.4.1
 
 ### Patch Changes
