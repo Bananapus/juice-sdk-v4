@@ -7,6 +7,7 @@ import {
   zeroAddress,
   zeroHash,
 } from "viem";
+import type { PublicClient } from "viem";
 import { describe, expect, test } from "vitest";
 import {
   UNISWAP_V4_MAX_TICK,
@@ -31,6 +32,7 @@ import {
   uniswapV4PositionTicks,
   uniswapV4PositionTokenIdFromLog,
   uniswapV4PriceFromSqrtPriceX96,
+  quoteUniswapV4ExactInputSingle,
   uniswapV4SqrtPriceX96AtTick,
   uniswapV4SqrtPriceX96FromSlot0,
 } from "./uniswapV4.js";
@@ -136,6 +138,97 @@ describe("Uniswap V4 direct swaps", () => {
       2_000_000_000,
     ]);
     expect(() => encodeFunctionData(tx)).not.toThrow();
+  });
+
+  test("quotes through the chain's canonical V4 quoter", async () => {
+    const calls: unknown[] = [];
+    const client = {
+      async call(params: unknown) {
+        calls.push(params);
+        return {
+          data: encodeAbiParameters(
+            [{ type: "uint256" }, { type: "uint256" }],
+            [950n, 123n],
+          ),
+        };
+      },
+    } as unknown as PublicClient;
+
+    await expect(
+      quoteUniswapV4ExactInputSingle(client, {
+        chainId: 1,
+        poolKey: key,
+        zeroForOne: true,
+        amountIn: 1_000n,
+      }),
+    ).resolves.toBe(950n);
+    expect(calls).toHaveLength(1);
+  });
+
+  test("builds ERC-20 swaps without native value", () => {
+    const tx = buildUniswapV4ExactInputSwapTx({
+      chainId: 8453,
+      poolKey: {
+        ...key,
+        currency0: TOKEN,
+        currency1: HOOK,
+      },
+      zeroForOne: true,
+      amountIn: 1_000n,
+      minimumAmountOut: 900n,
+      recipient: HOOK,
+      deadline: 123n,
+    });
+    expect(tx.value).toBe(0n);
+    expect(() => encodeFunctionData(tx)).not.toThrow();
+  });
+
+  test("fails closed for unsupported deployments and invalid bounds", async () => {
+    const client = {
+      call: async () => ({ data: undefined }),
+    } as unknown as PublicClient;
+    await expect(
+      quoteUniswapV4ExactInputSingle(client, {
+        chainId: 11155420,
+        poolKey: key,
+        zeroForOne: true,
+        amountIn: 1n,
+      }),
+    ).rejects.toThrow(/quoter/);
+    await expect(
+      quoteUniswapV4ExactInputSingle(client, {
+        chainId: 1,
+        poolKey: key,
+        zeroForOne: true,
+        amountIn: 0n,
+      }),
+    ).rejects.toThrow(/uint128/);
+    expect(() =>
+      buildUniswapV4ExactInputSwapTx({
+        chainId: 11155420,
+        poolKey: key,
+        zeroForOne: true,
+        amountIn: 1n,
+        minimumAmountOut: 1n,
+        recipient: TOKEN,
+        deadline: 1n,
+      }),
+    ).toThrow(/Universal Router/);
+    expect(() =>
+      buildPermit2ApproveTx({
+        chainId: 8453,
+        token: TOKEN,
+        amount: 0n,
+        expiration: 1,
+      }),
+    ).toThrow(/uint160/);
+    expect(() =>
+      buildPermit2ApproveTx({
+        chainId: 8453,
+        token: TOKEN,
+        expiration: 0,
+      }),
+    ).toThrow(/uint48/);
   });
 });
 
