@@ -1,4 +1,12 @@
-import { encodeAbiParameters, pad, zeroAddress, zeroHash } from "viem";
+import {
+  decodeAbiParameters,
+  decodeFunctionData,
+  encodeAbiParameters,
+  encodeFunctionData,
+  pad,
+  zeroAddress,
+  zeroHash,
+} from "viem";
 import { describe, expect, test } from "vitest";
 import {
   UNISWAP_V4_MAX_TICK,
@@ -7,6 +15,9 @@ import {
   UNISWAP_V4_POSITION_MANAGER_ADDRESSES,
   UNISWAP_V4_Q96,
   UNISWAP_V4_QUOTER_ADDRESSES,
+  UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES,
+  buildPermit2ApproveTx,
+  buildUniswapV4ExactInputSwapTx,
   isUniswapV4PoolManager,
   uniswapV4AlignTickDown,
   uniswapV4AlignTickUp,
@@ -68,11 +79,63 @@ describe("Uniswap V4 pool primitives", () => {
       poolManager: UNISWAP_V4_POOL_MANAGER_ADDRESSES[1],
       positionManager: UNISWAP_V4_POSITION_MANAGER_ADDRESSES[1],
       quoter: UNISWAP_V4_QUOTER_ADDRESSES[1],
+      universalRouter: UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES[1],
     });
     expect(isUniswapV4PoolManager(UNISWAP_V4_POOL_MANAGER_ADDRESSES[1]!)).toBe(
       true,
     );
     expect(isUniswapV4PoolManager(TOKEN)).toBe(false);
+  });
+});
+
+describe("Uniswap V4 direct swaps", () => {
+  const key = {
+    currency0: zeroAddress,
+    currency1: TOKEN,
+    fee: 10_000,
+    tickSpacing: 200,
+    hooks: HOOK,
+  } as const;
+
+  test("builds a native exact-input Universal Router swap", () => {
+    const tx = buildUniswapV4ExactInputSwapTx({
+      chainId: 1,
+      poolKey: key,
+      zeroForOne: true,
+      amountIn: 1_000n,
+      minimumAmountOut: 900n,
+      recipient: TOKEN,
+      deadline: 123n,
+    });
+    expect(tx.address).toBe(UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES[1]);
+    expect(tx.value).toBe(1_000n);
+    const decoded = decodeFunctionData({
+      abi: tx.abi,
+      data: encodeFunctionData(tx),
+    });
+    expect(decoded.functionName).toBe("execute");
+    expect(decoded.args?.[0]).toBe("0x10");
+    const [actions] = decodeAbiParameters(
+      [{ type: "bytes" }, { type: "bytes[]" }],
+      decoded.args?.[1][0] as `0x${string}`,
+    );
+    expect(actions).toBe("0x060c0e");
+  });
+
+  test("builds an on-chain Permit2 allowance for ERC-20 input", () => {
+    const tx = buildPermit2ApproveTx({
+      chainId: 8453,
+      token: TOKEN,
+      amount: 5_000n,
+      expiration: 2_000_000_000,
+    });
+    expect(tx.args).toEqual([
+      TOKEN,
+      UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES[8453],
+      5_000n,
+      2_000_000_000,
+    ]);
+    expect(() => encodeFunctionData(tx)).not.toThrow();
   });
 });
 

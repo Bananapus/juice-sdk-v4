@@ -1,9 +1,4 @@
-import {
-  Address,
-  Hex,
-  PublicClient,
-  encodeAbiParameters,
-} from "viem";
+import { Address, Hex, PublicClient, encodeAbiParameters } from "viem";
 import { DEFAULT_ALLOW_OVERSPENDING, NATIVE_TOKEN } from "../constants.js";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
@@ -97,6 +92,63 @@ export interface PayPreview {
    * The project token count that would be reserved for the project's reserved splits.
    */
   reservedTokenCount: bigint;
+}
+
+export type PaySettlement = "issuance" | "swap";
+
+export interface PayRouteCandidate extends PayPreview {
+  kind: "pay";
+  settlement: PaySettlement;
+}
+
+export interface DirectSwapRouteCandidate extends PayPreview {
+  kind: "direct-swap";
+  settlement: "swap";
+  quotedTokenCount: bigint;
+}
+
+export type BestPayRoute = PayRouteCandidate | DirectSwapRouteCandidate;
+
+/**
+ * Pick the executable route which guarantees the beneficiary the most tokens.
+ *
+ * A direct pool swap bypasses the terminal, so its reserved token count is always
+ * zero. Its quote is reduced by `slippageBps` before comparison: a route is only
+ * selected when its on-chain minimum beats the terminal preview, not merely when
+ * its optimistic quote does.
+ */
+export function chooseBestPayRoute({
+  pay,
+  paySettlement,
+  directSwapQuote,
+  slippageBps = 100n,
+}: {
+  pay: PayPreview;
+  paySettlement: PaySettlement;
+  directSwapQuote?: bigint | null;
+  slippageBps?: bigint;
+}): BestPayRoute {
+  if (slippageBps < 0n || slippageBps >= 10_000n) {
+    throw new Error("slippageBps must be between 0 and 9,999.");
+  }
+
+  const payRoute: PayRouteCandidate = {
+    kind: "pay",
+    settlement: paySettlement,
+    ...pay,
+  };
+  if (!directSwapQuote || directSwapQuote <= 0n) return payRoute;
+
+  const minimum = (directSwapQuote * (10_000n - slippageBps)) / 10_000n;
+  if (minimum <= pay.beneficiaryTokenCount) return payRoute;
+
+  return {
+    kind: "direct-swap",
+    settlement: "swap",
+    quotedTokenCount: directSwapQuote,
+    beneficiaryTokenCount: minimum,
+    reservedTokenCount: 0n,
+  };
 }
 
 /**

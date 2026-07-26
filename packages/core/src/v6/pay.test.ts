@@ -7,7 +7,12 @@ import {
 import { describe, expect, test } from "vitest";
 import { NATIVE_TOKEN } from "../constants.js";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
-import { build721PayMetadata, buildPayTx, previewPay } from "./pay.js";
+import {
+  build721PayMetadata,
+  buildPayTx,
+  chooseBestPayRoute,
+  previewPay,
+} from "./pay.js";
 
 const chainId = 11155111;
 const terminal = "0x1111111111111111111111111111111111111111" as const;
@@ -16,6 +21,44 @@ const beneficiary = "0x2222222222222222222222222222222222222222" as const;
 const usdc = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as const;
 
 describe("pay", () => {
+  test("chooses a guaranteed-better direct swap and removes reserved splits", () => {
+    const route = chooseBestPayRoute({
+      pay: {
+        beneficiaryTokenCount: 587_647n,
+        reservedTokenCount: 391_765n,
+      },
+      paySettlement: "swap",
+      directSwapQuote: 959_800n,
+      slippageBps: 100n,
+    });
+
+    expect(route).toEqual({
+      kind: "direct-swap",
+      settlement: "swap",
+      quotedTokenCount: 959_800n,
+      beneficiaryTokenCount: 950_202n,
+      reservedTokenCount: 0n,
+    });
+  });
+
+  test("keeps terminal payment unless the direct swap minimum is better", () => {
+    expect(
+      chooseBestPayRoute({
+        pay: {
+          beneficiaryTokenCount: 950_000n,
+          reservedTokenCount: 20_000n,
+        },
+        paySettlement: "issuance",
+        directSwapQuote: 959_000n,
+      }),
+    ).toEqual({
+      kind: "pay",
+      settlement: "issuance",
+      beneficiaryTokenCount: 950_000n,
+      reservedTokenCount: 20_000n,
+    });
+  });
+
   test("buildPayTx sets value for native token payments", () => {
     const tx = buildPayTx({
       chainId,
@@ -154,7 +197,9 @@ describe("pay", () => {
     const target = "0x1111111111111111111111111111111111111111" as const;
     expect(
       build721PayMetadata({ metadataIdTarget: target, tierIdsToMint: [1n] }),
-    ).toEqual(build721PayMetadata({ hookAddress: target, tierIdsToMint: [1n] }));
+    ).toEqual(
+      build721PayMetadata({ hookAddress: target, tierIdsToMint: [1n] }),
+    );
   });
 
   test("build721PayMetadata throws when no target is given", () => {
