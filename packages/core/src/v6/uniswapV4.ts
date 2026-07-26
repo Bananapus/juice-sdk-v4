@@ -1,5 +1,12 @@
-import { encodeAbiParameters, keccak256, toEventSelector } from "viem";
-import type { Address, Hex } from "viem";
+import {
+  decodeFunctionResult,
+  encodeAbiParameters,
+  encodeFunctionData,
+  keccak256,
+  toEventSelector,
+  zeroAddress,
+} from "viem";
+import type { Address, Hex, PublicClient } from "viem";
 import type { JBChainId } from "../types.js";
 
 /**
@@ -45,6 +52,19 @@ export const UNISWAP_V4_QUOTER_ADDRESSES: Readonly<
   11155111: "0x61b3f2011a92d183c7dbadbda940a7555ccf9227",
 };
 
+/** Canonical Universal Router deployments which support the V4_SWAP command. */
+export const UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES: Readonly<
+  Partial<Record<JBChainId, Address>>
+> = {
+  1: "0x66a9893cc07d91d95644aedd05d03f95e1dba8af",
+  10: "0x851116d9223fabed8e56c0e6b8ad0c31d98b3507",
+  8453: "0x6ff5693b99212da76ad316178a184ab56d299b43",
+  42161: "0xa51afafe0263b40edaef0df8781ea9aa03e381a3",
+  84532: "0x492e6456d9528771018deb9e87ef7750ef184104",
+  421614: "0xefd1d4bd4cf1e86da286bb4cb1b8bced9c10ba47",
+  11155111: "0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b",
+};
+
 /** Permit2 is deployed at the same address on supported EVM chains. */
 export const UNISWAP_PERMIT2_ADDRESS: Address =
   "0x000000000022D473030F116dDEE9F6B43aC78BA3";
@@ -54,6 +74,7 @@ export function uniswapV4Deployment(chainId: number): {
   poolManager: Address;
   positionManager: Address | null;
   quoter: Address | null;
+  universalRouter: Address | null;
   permit2: Address;
 } | null {
   const poolManager = (
@@ -76,6 +97,12 @@ export function uniswapV4Deployment(chainId: number): {
           Partial<Record<number, Address>>
         >
       )[chainId] ?? null,
+    universalRouter:
+      (
+        UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES as Readonly<
+          Partial<Record<number, Address>>
+        >
+      )[chainId] ?? null,
     permit2: UNISWAP_PERMIT2_ADDRESS,
   };
 }
@@ -90,6 +117,272 @@ export interface UniswapV4PoolKey {
   fee: number;
   tickSpacing: number;
   hooks: Address;
+}
+
+const V4_QUOTER_ABI = [
+  {
+    type: "function",
+    name: "quoteExactInputSingle",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "params",
+        type: "tuple",
+        components: [
+          {
+            name: "poolKey",
+            type: "tuple",
+            components: [
+              { name: "currency0", type: "address" },
+              { name: "currency1", type: "address" },
+              { name: "fee", type: "uint24" },
+              { name: "tickSpacing", type: "int24" },
+              { name: "hooks", type: "address" },
+            ],
+          },
+          { name: "zeroForOne", type: "bool" },
+          { name: "exactAmount", type: "uint128" },
+          { name: "hookData", type: "bytes" },
+        ],
+      },
+    ],
+    outputs: [
+      { name: "amountOut", type: "uint256" },
+      { name: "gasEstimate", type: "uint256" },
+    ],
+  },
+] as const;
+
+const UNIVERSAL_ROUTER_ABI = [
+  {
+    type: "function",
+    name: "execute",
+    stateMutability: "payable",
+    inputs: [
+      { name: "commands", type: "bytes" },
+      { name: "inputs", type: "bytes[]" },
+      { name: "deadline", type: "uint256" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+const PERMIT2_ABI = [
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint160" },
+      { name: "expiration", type: "uint48" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+const UINT128_MAX = (1n << 128n) - 1n;
+const UINT160_MAX = (1n << 160n) - 1n;
+
+/** Quote an exact-input single-pool swap, including the pool hook's behavior. */
+export async function quoteUniswapV4ExactInputSingle(
+  client: PublicClient,
+  {
+    chainId,
+    poolKey,
+    zeroForOne,
+    amountIn,
+    hookData = "0x",
+  }: {
+    chainId: JBChainId;
+    poolKey: UniswapV4PoolKey;
+    zeroForOne: boolean;
+    amountIn: bigint;
+    hookData?: Hex;
+  },
+): Promise<bigint> {
+  if (amountIn <= 0n || amountIn > UINT128_MAX) {
+    throw new Error("Swap amount is outside Uniswap V4's uint128 range.");
+  }
+  const quoter = uniswapV4Deployment(chainId)?.quoter;
+  if (!quoter)
+    throw new Error(`No supported Uniswap V4 quoter on chain ${chainId}.`);
+
+  const call = await client.call({
+    to: quoter,
+    data: encodeFunctionData({
+      abi: V4_QUOTER_ABI,
+      functionName: "quoteExactInputSingle",
+      args: [{ poolKey, zeroForOne, exactAmount: amountIn, hookData }],
+    }),
+  });
+  if (!call.data) throw new Error("Uniswap V4 quoter returned no data.");
+  const [amountOut] = decodeFunctionResult({
+    abi: V4_QUOTER_ABI,
+    functionName: "quoteExactInputSingle",
+    data: call.data,
+  });
+  return amountOut;
+}
+
+export interface UniswapV4SwapTxRequest {
+  chainId: JBChainId;
+  address: Address;
+  abi: typeof UNIVERSAL_ROUTER_ABI;
+  functionName: "execute";
+  args: readonly [Hex, readonly Hex[], bigint];
+  value: bigint;
+}
+
+/**
+ * Build a Universal Router exact-input V4 swap.
+ *
+ * ERC-20 input must first approve Permit2, then authorize the Universal Router
+ * with {@link buildPermit2ApproveTx}. Native input is supplied as `msg.value`.
+ */
+export function buildUniswapV4ExactInputSwapTx({
+  chainId,
+  poolKey,
+  zeroForOne,
+  amountIn,
+  minimumAmountOut,
+  recipient,
+  deadline,
+  hookData = "0x",
+}: {
+  chainId: JBChainId;
+  poolKey: UniswapV4PoolKey;
+  zeroForOne: boolean;
+  amountIn: bigint;
+  minimumAmountOut: bigint;
+  recipient: Address;
+  deadline: bigint;
+  hookData?: Hex;
+}): UniswapV4SwapTxRequest {
+  if (
+    amountIn <= 0n ||
+    amountIn > UINT128_MAX ||
+    minimumAmountOut <= 0n ||
+    minimumAmountOut > UINT128_MAX
+  ) {
+    throw new Error("Swap amounts are outside Uniswap V4's uint128 range.");
+  }
+  const universalRouter = uniswapV4Deployment(chainId)?.universalRouter;
+  if (!universalRouter) {
+    throw new Error(
+      `No supported Uniswap Universal Router on chain ${chainId}.`,
+    );
+  }
+
+  const currencyIn = zeroForOne ? poolKey.currency0 : poolKey.currency1;
+  const currencyOut = zeroForOne ? poolKey.currency1 : poolKey.currency0;
+  const swap = encodeAbiParameters(
+    [
+      {
+        type: "tuple",
+        components: [
+          {
+            type: "tuple",
+            components: [
+              { type: "address" },
+              { type: "address" },
+              { type: "uint24" },
+              { type: "int24" },
+              { type: "address" },
+            ],
+          },
+          { type: "bool" },
+          { type: "uint128" },
+          { type: "uint128" },
+          { type: "bytes" },
+        ],
+      },
+    ],
+    [
+      [
+        [
+          poolKey.currency0,
+          poolKey.currency1,
+          poolKey.fee,
+          poolKey.tickSpacing,
+          poolKey.hooks,
+        ],
+        zeroForOne,
+        amountIn,
+        minimumAmountOut,
+        hookData,
+      ],
+    ],
+  );
+  const settle = encodeAbiParameters(
+    [{ type: "address" }, { type: "uint256" }],
+    [currencyIn, amountIn],
+  );
+  const take = encodeAbiParameters(
+    [{ type: "address" }, { type: "address" }, { type: "uint256" }],
+    [currencyOut, recipient, 0n],
+  );
+  const input = encodeAbiParameters(
+    [{ type: "bytes" }, { type: "bytes[]" }],
+    ["0x060c0e", [swap, settle, take]],
+  );
+
+  return {
+    chainId,
+    address: universalRouter,
+    abi: UNIVERSAL_ROUTER_ABI,
+    functionName: "execute",
+    args: ["0x10", [input], deadline],
+    value: currencyIn.toLowerCase() === zeroAddress ? amountIn : 0n,
+  };
+}
+
+export interface Permit2ApproveTxRequest {
+  chainId: JBChainId;
+  address: Address;
+  abi: typeof PERMIT2_ABI;
+  functionName: "approve";
+  args: readonly [Address, Address, bigint, number];
+  value: 0n;
+}
+
+/** Authorize the Universal Router to spend an ERC-20 already approved to Permit2. */
+export function buildPermit2ApproveTx({
+  chainId,
+  token,
+  amount = UINT160_MAX,
+  expiration,
+}: {
+  chainId: JBChainId;
+  token: Address;
+  amount?: bigint;
+  expiration: number;
+}): Permit2ApproveTxRequest {
+  if (amount <= 0n || amount > UINT160_MAX) {
+    throw new Error("Permit2 amount is outside its uint160 range.");
+  }
+  if (
+    !Number.isInteger(expiration) ||
+    expiration <= 0 ||
+    expiration >= 2 ** 48
+  ) {
+    throw new Error("Permit2 expiration is outside its uint48 range.");
+  }
+  const deployment = uniswapV4Deployment(chainId);
+  if (!deployment?.universalRouter) {
+    throw new Error(
+      `No supported Uniswap Universal Router on chain ${chainId}.`,
+    );
+  }
+  return {
+    chainId,
+    address: deployment.permit2,
+    abi: PERMIT2_ABI,
+    functionName: "approve",
+    args: [token, deployment.universalRouter, amount, expiration],
+    value: 0n,
+  };
 }
 
 const POOL_KEY_TUPLE = [
