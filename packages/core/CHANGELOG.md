@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.5.1
+
+### Patch Changes
+
+- 1ba98eb: Allow accounting contexts to opt into a shared ETH or USD currency for protocol price-feed conversion, while preserving token-keyed currencies by default.
+
 ## 1.5.0
 
 ### Minor Changes
