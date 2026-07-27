@@ -12,6 +12,7 @@ import { sepolia } from "viem/chains";
 import { describe, expect, test } from "vitest";
 import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
 import { jbControllerAbi } from "../generated/juicebox.js";
+import { BASE_CURRENCY_ETH, BASE_CURRENCY_USD } from "./currency.js";
 import {
   buildAccountingContext,
   buildLaunchProjectTx,
@@ -52,6 +53,23 @@ describe("buildAccountingContext", () => {
     expect(context.token).toBe(usdc);
     expect(context.decimals).toBe(6);
     expect(context.currency).toBe(Number(BigInt(usdc) & 0xffffffffn));
+  });
+
+  test("accepts a shared canonical currency for price-feed conversion", () => {
+    expect(buildAccountingContext(NATIVE_TOKEN, 18, BASE_CURRENCY_ETH)).toEqual(
+      {
+        token: NATIVE_TOKEN,
+        decimals: 18,
+        currency: BASE_CURRENCY_ETH,
+      },
+    );
+    expect(
+      buildAccountingContext(USDC_ADDRESSES[sepolia.id], 6, BASE_CURRENCY_USD),
+    ).toEqual({
+      token: USDC_ADDRESSES[sepolia.id],
+      decimals: 6,
+      currency: BASE_CURRENCY_USD,
+    });
   });
 
   test("requires decimals for non-native tokens", () => {

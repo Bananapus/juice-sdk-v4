@@ -23,8 +23,8 @@ type RevDeployArgs4 = Extract<
 /**
  * A revnet's full configuration: its token description (name/ticker/uri and
  * the salt that fixes the ERC-20's deterministic address), base currency
- * (ETH=1 or USD=2 — a standard `JBCurrencyIds` id, never a token-keyed
- * currency), operator, and stage configurations.
+ * (either a token-keyed currency or a well-known `JBCurrencyIds` id such as
+ * ETH=1 or USD=2), operator, and stage configurations.
  */
 export type REVConfig = RevDeployArgs4[1];
 

@@ -55,19 +55,22 @@ export async function getProjectCreationFee(
 /**
  * Build a `JBAccountingContext` for a token.
  *
- * The context currency is ALWAYS token-keyed: `uint32(uint160(token))`
- * (native token → 61166). This is distinct from a ruleset's `baseCurrency`,
- * which must be a standard currency id (ETH=1, USD=2) — never use a
- * token-keyed currency as a base currency to "skip the price feed".
+ * By default the context currency is token-keyed: `uint32(uint160(token))`
+ * (native token → 61166). Pass an explicit shared currency such as ETH=1 or
+ * USD=2 when the terminal should convert this token through a protocol price
+ * feed. A ruleset's `baseCurrency` is the denomination used to interpret its
+ * issuance weight.
  *
  * @param token The token address. Defaults to the native token sentinel
  * (`0x…EEEe`).
  * @param decimals The token's decimals. Defaults to 18 for the native token;
  * REQUIRED for any other token (there is no safe default).
+ * @param currency The context's currency id. Defaults to the token-keyed id.
  */
 export function buildAccountingContext(
   token: Address = NATIVE_TOKEN,
   decimals?: number,
+  currency: number = tokenCurrencyId(token),
 ): JBAccountingContext {
   const isNative = token.toLowerCase() === NATIVE_TOKEN.toLowerCase();
   if (decimals === undefined && !isNative) {
@@ -78,7 +81,7 @@ export function buildAccountingContext(
   return {
     token,
     decimals: decimals ?? NATIVE_TOKEN_DECIMALS,
-    currency: tokenCurrencyId(token),
+    currency,
   };
 }
 
