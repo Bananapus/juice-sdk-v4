@@ -1,4 +1,10 @@
-import { Address, Hex, PublicClient, encodeAbiParameters } from "viem";
+import {
+  Address,
+  Hex,
+  PublicClient,
+  decodeAbiParameters,
+  encodeAbiParameters,
+} from "viem";
 import {
   jbMultiTerminalAbi,
   jbTerminalStoreAbi,
@@ -186,4 +192,396 @@ export async function getCashOutQuote(
     reclaimAmount,
     reclaimAmountAfterFee: applyJbDaoCashOutFee(reclaimAmount),
   };
+}
+
+/**
+ * The default cash-out slippage tolerance, in basis points (1%).
+ *
+ * Quotes from {@link getHookAwareCashOutQuote} are exact against current state;
+ * this tolerance only absorbs quote-to-inclusion drift (payments, other cash
+ * outs, sucker snapshot syncs, or pool moves that land first).
+ */
+export const DEFAULT_CASH_OUT_SLIPPAGE_BPS = 100n;
+
+const MAX_BPS = 10_000n;
+
+function requireBps(slippageBps: bigint): bigint {
+  if (slippageBps < 0n || slippageBps >= MAX_BPS) {
+    throw new Error("Slippage basis points must be in [0, 10000)");
+  }
+  return slippageBps;
+}
+
+/**
+ * Apply a slippage tolerance to a quoted output, flooring toward zero but
+ * never below 1 for a positive quote (a zero minimum disables protection).
+ *
+ * @param quoted The quoted output amount.
+ * @param slippageBps The tolerance in basis points. Defaults to
+ * {@link DEFAULT_CASH_OUT_SLIPPAGE_BPS}.
+ * @returns The minimum acceptable output.
+ */
+export function slippageFloor(
+  quoted: bigint,
+  slippageBps: bigint = DEFAULT_CASH_OUT_SLIPPAGE_BPS,
+): bigint {
+  requireBps(slippageBps);
+  if (quoted <= 0n) return 0n;
+  const floor = (quoted * (MAX_BPS - slippageBps)) / MAX_BPS;
+  return floor > 0n ? floor : 1n;
+}
+
+/**
+ * The exact protocol fee `JBMultiTerminal` deducts from a cash-out reclaim:
+ * `reclaimAmount / 40` (2.5%, floor division — NOT `× 975 / 1000`, which can
+ * differ by 1 wei and break an exact minimum).
+ *
+ * With a non-zero cash-out tax rate the fee applies to the full reclaim. With
+ * a zero tax rate it applies only up to the project's fee-free surplus
+ * (round-trip prevention). Feeless beneficiaries pay no fee.
+ *
+ * @param args.reclaimAmount The gross reclaim amount, before the terminal fee.
+ * @param args.cashOutTaxRate The ruleset's cash-out tax rate.
+ * @param args.beneficiaryIsFeeless Whether the beneficiary is feeless.
+ * @param args.feeFreeSurplus The project's `feeFreeSurplusOf` counter for the
+ * reclaimed token. Only consulted when the tax rate is zero.
+ * @returns The fee amount the terminal will deduct.
+ */
+export function cashOutProtocolFee({
+  reclaimAmount,
+  cashOutTaxRate,
+  beneficiaryIsFeeless = false,
+  feeFreeSurplus = 0n,
+}: {
+  reclaimAmount: bigint;
+  cashOutTaxRate: bigint;
+  beneficiaryIsFeeless?: boolean;
+  feeFreeSurplus?: bigint;
+}): bigint {
+  if (reclaimAmount <= 0n || beneficiaryIsFeeless) return 0n;
+  if (cashOutTaxRate > 0n) return reclaimAmount / 40n;
+  const feeable =
+    reclaimAmount < feeFreeSurplus ? reclaimAmount : feeFreeSurplus;
+  return feeable / 40n;
+}
+
+/**
+ * The diagnostic payload the buyback hook packs into its cash-out hook
+ * specification — the protocol's public preview API for the sell-side routing
+ * decision (returned by `previewCashOutFrom` whether or not the pool route
+ * wins).
+ */
+export interface BuybackCashOutSpec {
+  minimumSwapAmountOut: bigint;
+  cashOutCountToSell: bigint;
+  netDirectCashOutAmount: bigint;
+  twapTick: number;
+  twapLiquidity: bigint;
+  poolId: Hex;
+  rawSwapQuote: bigint;
+  hasUserSpecifiedMinimumSwapAmountOut: boolean;
+}
+
+const BUYBACK_CASH_OUT_SPEC_ABI = [
+  { name: "minimumSwapAmountOut", type: "uint256" },
+  { name: "cashOutCountToSell", type: "uint256" },
+  { name: "netDirectCashOutAmount", type: "uint256" },
+  { name: "twapTick", type: "int24" },
+  { name: "twapLiquidity", type: "uint128" },
+  { name: "poolId", type: "bytes32" },
+  { name: "rawSwapQuote", type: "uint256" },
+  { name: "hasUserSpecifiedMinimumSwapAmountOut", type: "bool" },
+] as const;
+
+/**
+ * Decode the buyback hook's cash-out specification metadata (see
+ * {@link BuybackCashOutSpec}).
+ */
+export function decodeBuybackCashOutSpec(metadata: Hex): BuybackCashOutSpec {
+  const [
+    minimumSwapAmountOut,
+    cashOutCountToSell,
+    netDirectCashOutAmount,
+    twapTick,
+    twapLiquidity,
+    poolId,
+    rawSwapQuote,
+    hasUserSpecifiedMinimumSwapAmountOut,
+  ] = decodeAbiParameters(BUYBACK_CASH_OUT_SPEC_ABI, metadata);
+  return {
+    minimumSwapAmountOut,
+    cashOutCountToSell,
+    netDirectCashOutAmount,
+    twapTick,
+    twapLiquidity,
+    poolId,
+    rawSwapQuote,
+    hasUserSpecifiedMinimumSwapAmountOut,
+  };
+}
+
+/**
+ * Build the buyback hook's `cashOut` metadata entry:
+ * `(uint256 minimumSwapAmountOut, bool skip)`.
+ *
+ * `minimumSwapAmountOut` is a hard floor on the net terminal-token output,
+ * enforced by the hook on BOTH the pool route and the direct bonding-curve
+ * fallback. Note an explicit non-zero minimum skips the hook's TWAP lookup:
+ * a minimum at or below the direct net keeps execution on the terminal path,
+ * a minimum above it routes through the pool. `skip: true` forces the
+ * terminal path outright (the floor still applies).
+ *
+ * @param args.hook The hook address the terminal consults (from the preview's
+ * hook specification).
+ * @param args.minimumSwapAmountOut The net-output floor.
+ * @param args.skip Force the direct terminal path. Defaults to false.
+ * @returns The metadata to pass as `cashOutTokensOf`'s `metadata` argument.
+ */
+export function buildBuybackCashOutMetadata({
+  hook,
+  minimumSwapAmountOut,
+  skip = false,
+}: {
+  hook: Address;
+  minimumSwapAmountOut: bigint;
+  skip?: boolean;
+}): Hex {
+  if (minimumSwapAmountOut < 0n) {
+    throw new Error("Cash out minimum cannot be negative");
+  }
+  const payload = encodeAbiParameters(
+    [{ type: "uint256" }, { type: "bool" }],
+    [minimumSwapAmountOut, skip],
+  );
+  return createHookMetadata(
+    [hookMetadataId(hook, "cashOut")],
+    [payload],
+  ) as Hex;
+}
+
+/** A hook specification tuple as returned by the terminal preview functions. */
+export interface CashOutHookSpecification {
+  hook: Address;
+  noop: boolean;
+  amount: bigint;
+  metadata: Hex;
+}
+
+/**
+ * A slippage-protected cash-out route: which venue the transaction should
+ * expect, and the exact `minTokensReclaimed`/`metadata` pair to submit.
+ */
+export interface CashOutRoute {
+  /** "treasury" = direct bonding-curve reclaim; "amm" = buyback pool sell. */
+  route: "treasury" | "amm";
+  /** The quoted net output on the chosen route. */
+  expectedReturn: bigint;
+  /** The slippage-floored minimum net output. */
+  minimumReturn: bigint;
+  /**
+   * The `minTokensReclaimed` to pass to `cashOutTokensOf`. Non-zero only on
+   * the treasury route — on the pool route the terminal itself reclaims
+   * nothing (the hook pays the beneficiary), so the floor lives in
+   * {@link CashOutRoute.metadata} instead.
+   */
+  terminalMinimum: bigint;
+  /** The `metadata` to pass to `cashOutTokensOf`. */
+  metadata: Hex;
+  /** The gross direct reclaim, before the terminal fee. */
+  treasuryGross: bigint;
+  /** The terminal fee on the direct reclaim. */
+  treasuryProtocolFee: bigint;
+  /** The net direct reclaim after the terminal fee. */
+  treasuryNet: bigint;
+  /** The decoded buyback diagnostics, when the hook was consulted. */
+  buyback: (BuybackCashOutSpec & { hook: Address }) | null;
+}
+
+/**
+ * Interpret a hook-aware `previewCashOutFrom` result and prepare a
+ * slippage-protected route.
+ *
+ * On the treasury route the floor is enforced via `minTokensReclaimed`; if the
+ * routing flips to the pool between quote and inclusion, the transaction
+ * reverts rather than executing a stale path — re-quote and retry. On the pool
+ * route the floor is moved into the hook's `cashOut` metadata (the terminal
+ * minimum must be zero there), and if the floored pool quote no longer beats
+ * the direct net, the route falls back to the treasury path.
+ *
+ * @param args.reclaimAmount `previewCashOutFrom`'s gross reclaim amount.
+ * @param args.cashOutTaxRate `previewCashOutFrom`'s cash-out tax rate.
+ * @param args.hookSpecifications `previewCashOutFrom`'s hook specifications.
+ * @param args.beneficiaryIsFeeless Whether the beneficiary is feeless.
+ * Defaults to false (conservative: assumes the fee applies).
+ * @param args.feeFreeSurplus The terminal's `feeFreeSurplusOf` for the token.
+ * Only consulted when the tax rate is zero. Defaults to 0.
+ * @param args.slippageBps Tolerance for quote-to-inclusion drift. Defaults to
+ * {@link DEFAULT_CASH_OUT_SLIPPAGE_BPS}.
+ * @returns The protected route.
+ */
+export function resolveCashOutRoute({
+  reclaimAmount,
+  cashOutTaxRate,
+  hookSpecifications,
+  beneficiaryIsFeeless = false,
+  feeFreeSurplus = 0n,
+  slippageBps = DEFAULT_CASH_OUT_SLIPPAGE_BPS,
+}: {
+  reclaimAmount: bigint;
+  cashOutTaxRate: bigint;
+  hookSpecifications: readonly CashOutHookSpecification[];
+  beneficiaryIsFeeless?: boolean;
+  feeFreeSurplus?: bigint;
+  slippageBps?: bigint;
+}): CashOutRoute {
+  requireBps(slippageBps);
+  const treasuryProtocolFee = cashOutProtocolFee({
+    reclaimAmount,
+    cashOutTaxRate,
+    beneficiaryIsFeeless,
+    feeFreeSurplus,
+  });
+  const treasuryNet = reclaimAmount - treasuryProtocolFee;
+
+  const specification =
+    hookSpecifications.find((spec) => spec.metadata !== "0x") ?? null;
+  const buyback = specification
+    ? {
+        hook: specification.hook,
+        ...decodeBuybackCashOutSpec(specification.metadata),
+      }
+    : null;
+
+  const treasuryRoute: CashOutRoute = {
+    route: "treasury",
+    expectedReturn: treasuryNet,
+    minimumReturn: slippageFloor(treasuryNet, slippageBps),
+    terminalMinimum: slippageFloor(treasuryNet, slippageBps),
+    metadata: "0x",
+    treasuryGross: reclaimAmount,
+    treasuryProtocolFee,
+    treasuryNet,
+    buyback,
+  };
+
+  if (!specification || specification.noop || !buyback) return treasuryRoute;
+
+  // The pool route won the preview. Re-previews with an explicit metadata
+  // minimum report that already-protected floor and no raw quote — preserve
+  // it instead of discounting a second time.
+  const quote =
+    buyback.rawSwapQuote > 0n
+      ? buyback.rawSwapQuote
+      : buyback.minimumSwapAmountOut;
+  const minimumReturn =
+    buyback.rawSwapQuote > 0n && !buyback.hasUserSpecifiedMinimumSwapAmountOut
+      ? slippageFloor(quote, slippageBps)
+      : buyback.minimumSwapAmountOut;
+
+  // An explicit metadata minimum at or below the direct net routes execution
+  // back to the terminal path anyway; take the deterministic treasury route.
+  if (quote <= 0n || minimumReturn <= buyback.netDirectCashOutAmount) {
+    return treasuryRoute;
+  }
+
+  return {
+    route: "amm",
+    expectedReturn: quote,
+    minimumReturn,
+    terminalMinimum: 0n,
+    metadata: buildBuybackCashOutMetadata({
+      hook: specification.hook,
+      minimumSwapAmountOut: minimumReturn,
+    }),
+    treasuryGross: reclaimAmount,
+    treasuryProtocolFee,
+    treasuryNet,
+    buyback,
+  };
+}
+
+/**
+ * Quote a cash out through `JBMultiTerminal.previewCashOutFrom` — the
+ * hook-aware simulation of the REAL cash-out path (data hook, buyback
+ * routing, cross-chain terms) — and prepare a slippage-protected route.
+ *
+ * Prefer this over {@link getCashOutQuote} for building transactions:
+ * `currentReclaimableSurplusOf` skips the data hook entirely, so its result
+ * can diverge from what `cashOutTokensOf` pays and is unsafe to use as a
+ * minimum.
+ *
+ * @param client A viem public client on the given chain.
+ * @param args.chainId The chain to quote on.
+ * @param args.projectId The project's id.
+ * @param args.holder The address whose tokens would be cashed out.
+ * @param args.cashOutCount The number of project tokens to cash out.
+ * @param args.tokenToReclaim The terminal token to reclaim.
+ * @param args.beneficiary The reclaim beneficiary. Defaults to the holder.
+ * @param args.terminal The terminal to quote against. Defaults to the chain's
+ * canonical `JBMultiTerminal`.
+ * @param args.beneficiaryIsFeeless Whether the beneficiary is feeless.
+ * Defaults to false.
+ * @param args.slippageBps Tolerance for quote-to-inclusion drift. Defaults to
+ * {@link DEFAULT_CASH_OUT_SLIPPAGE_BPS}.
+ * @returns The protected route (see {@link CashOutRoute}).
+ */
+export async function getHookAwareCashOutQuote(
+  client: PublicClient,
+  {
+    chainId,
+    projectId,
+    holder,
+    cashOutCount,
+    tokenToReclaim,
+    beneficiary,
+    terminal,
+    beneficiaryIsFeeless = false,
+    slippageBps = DEFAULT_CASH_OUT_SLIPPAGE_BPS,
+  }: {
+    chainId: JBChainId;
+    projectId: bigint;
+    holder: Address;
+    cashOutCount: bigint;
+    tokenToReclaim: Address;
+    beneficiary?: Address;
+    terminal?: Address;
+    beneficiaryIsFeeless?: boolean;
+    slippageBps?: bigint;
+  },
+): Promise<CashOutRoute> {
+  const terminalAddress = terminal ?? v6Address("JBMultiTerminal", chainId);
+  const [, reclaimAmount, cashOutTaxRate, hookSpecifications] =
+    await client.readContract({
+      address: terminalAddress,
+      abi: jbMultiTerminalAbi,
+      functionName: "previewCashOutFrom",
+      args: [
+        holder,
+        projectId,
+        cashOutCount,
+        tokenToReclaim,
+        beneficiary ?? holder,
+        "0x",
+      ],
+    });
+
+  // The fee-free surplus counter only matters on zero-tax rulesets.
+  const feeFreeSurplus =
+    cashOutTaxRate === 0n
+      ? await client.readContract({
+          address: terminalAddress,
+          abi: jbMultiTerminalAbi,
+          functionName: "feeFreeSurplusOf",
+          args: [projectId, tokenToReclaim],
+        })
+      : 0n;
+
+  return resolveCashOutRoute({
+    reclaimAmount,
+    cashOutTaxRate,
+    hookSpecifications,
+    beneficiaryIsFeeless,
+    feeFreeSurplus,
+    slippageBps,
+  });
 }

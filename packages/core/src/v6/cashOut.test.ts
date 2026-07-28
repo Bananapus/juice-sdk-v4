@@ -1,6 +1,7 @@
 import {
   PublicClient,
   decodeAbiParameters,
+  encodeAbiParameters,
   encodeFunctionData,
   sliceHex,
 } from "viem";
@@ -9,10 +10,17 @@ import { NATIVE_TOKEN, ONE_ETHER } from "../constants.js";
 import { jbTerminalStoreAbi } from "../generated/juicebox.js";
 import {
   build721CashOutMetadata,
+  buildBuybackCashOutMetadata,
   buildCashOutTx,
+  cashOutProtocolFee,
+  decodeBuybackCashOutSpec,
   getCashOutQuote,
+  getHookAwareCashOutQuote,
+  resolveCashOutRoute,
+  slippageFloor,
 } from "./cashOut.js";
 import { v6Address } from "./types.js";
+import { hookMetadataId } from "../utils/hook.js";
 
 const chainId = 11155111;
 const terminal = "0x1111111111111111111111111111111111111111" as const;
@@ -148,5 +156,221 @@ describe("cashOut", () => {
     expect(() =>
       build721CashOutMetadata({ metadataIdTarget: target, tokenIds: [0n] }),
     ).toThrow(/positive/);
+  });
+});
+
+describe("hook-aware cash-out routing", () => {
+  const hook = "0x4444444444444444444444444444444444444444" as const;
+  const poolId = `0x${"12".repeat(32)}` as const;
+
+  function specMetadata(
+    params: {
+      minimumSwap?: bigint;
+      netDirect?: bigint;
+      rawQuote?: bigint;
+      userSpecified?: boolean;
+    } = {},
+  ) {
+    return encodeAbiParameters(
+      [
+        { type: "uint256" },
+        { type: "uint256" },
+        { type: "uint256" },
+        { type: "int24" },
+        { type: "uint128" },
+        { type: "bytes32" },
+        { type: "uint256" },
+        { type: "bool" },
+      ],
+      [
+        params.minimumSwap ?? 1_100n,
+        100n,
+        params.netDirect ?? 900n,
+        -123,
+        456n,
+        poolId,
+        params.rawQuote ?? 1_200n,
+        params.userSpecified ?? false,
+      ],
+    );
+  }
+
+  test("slippageFloor floors but never zeroes a positive quote", () => {
+    expect(slippageFloor(1_000n, 100n)).toEqual(990n);
+    expect(slippageFloor(1n, 100n)).toEqual(1n);
+    expect(slippageFloor(0n, 100n)).toEqual(0n);
+    expect(() => slippageFloor(1_000n, 10_000n)).toThrow();
+  });
+
+  test("cashOutProtocolFee matches the terminal's exact /40 rounding", () => {
+    // 1001 / 40 = 25 exactly as the contract floors it; the legacy
+    // ×975/1000 estimate yields net 975 — one wei below the true 976.
+    expect(
+      cashOutProtocolFee({ reclaimAmount: 1_001n, cashOutTaxRate: 1n }),
+    ).toEqual(25n);
+    expect(cashOutProtocolFee({ reclaimAmount: 1_000n, cashOutTaxRate: 0n })).toEqual(
+      0n,
+    );
+    expect(
+      cashOutProtocolFee({
+        reclaimAmount: 1_000n,
+        cashOutTaxRate: 0n,
+        feeFreeSurplus: 400n,
+      }),
+    ).toEqual(10n);
+    expect(
+      cashOutProtocolFee({
+        reclaimAmount: 1_000n,
+        cashOutTaxRate: 1n,
+        beneficiaryIsFeeless: true,
+      }),
+    ).toEqual(0n);
+  });
+
+  test("treasury route floors the exact fee-adjusted net", () => {
+    const route = resolveCashOutRoute({
+      reclaimAmount: 1_000n,
+      cashOutTaxRate: 1n,
+      hookSpecifications: [],
+    });
+    expect(route.route).toEqual("treasury");
+    expect(route.treasuryProtocolFee).toEqual(25n);
+    expect(route.expectedReturn).toEqual(975n);
+    expect(route.terminalMinimum).toEqual(965n);
+    expect(route.metadata).toEqual("0x");
+  });
+
+  test("amm route moves the floor into hook metadata with zero terminal minimum", () => {
+    const route = resolveCashOutRoute({
+      reclaimAmount: 0n,
+      cashOutTaxRate: 10_000n,
+      hookSpecifications: [
+        { hook, noop: false, amount: 0n, metadata: specMetadata() },
+      ],
+    });
+    expect(route.route).toEqual("amm");
+    expect(route.expectedReturn).toEqual(1_200n);
+    expect(route.minimumReturn).toEqual(1_188n);
+    expect(route.terminalMinimum).toEqual(0n);
+    expect(route.metadata).toEqual(
+      buildBuybackCashOutMetadata({ hook, minimumSwapAmountOut: 1_188n }),
+    );
+  });
+
+  test("re-previewed explicit floor is preserved, not double-discounted", () => {
+    const route = resolveCashOutRoute({
+      reclaimAmount: 0n,
+      cashOutTaxRate: 10_000n,
+      hookSpecifications: [
+        {
+          hook,
+          noop: false,
+          amount: 0n,
+          metadata: specMetadata({
+            minimumSwap: 1_188n,
+            rawQuote: 0n,
+            userSpecified: true,
+          }),
+        },
+      ],
+    });
+    expect(route.route).toEqual("amm");
+    expect(route.minimumReturn).toEqual(1_188n);
+  });
+
+  test("noop spec stays on the treasury path", () => {
+    const route = resolveCashOutRoute({
+      reclaimAmount: 1_000n,
+      cashOutTaxRate: 1n,
+      hookSpecifications: [
+        { hook, noop: true, amount: 0n, metadata: specMetadata() },
+      ],
+    });
+    expect(route.route).toEqual("treasury");
+    expect(route.metadata).toEqual("0x");
+    expect(route.expectedReturn).toEqual(975n);
+    expect(route.buyback?.hook).toEqual(hook);
+  });
+
+  test("amm route without safe market advantage falls back to treasury", () => {
+    // Floored pool quote (990) does not beat the direct net (995): an
+    // explicit metadata minimum would re-route to the terminal path anyway.
+    const route = resolveCashOutRoute({
+      reclaimAmount: 1_000n,
+      cashOutTaxRate: 1n,
+      hookSpecifications: [
+        {
+          hook,
+          noop: false,
+          amount: 0n,
+          metadata: specMetadata({ rawQuote: 1_000n, netDirect: 995n }),
+        },
+      ],
+    });
+    expect(route.route).toEqual("treasury");
+    expect(route.terminalMinimum).toEqual(965n);
+  });
+
+  test("buyback cashOut metadata envelope roundtrips", () => {
+    const metadata = buildBuybackCashOutMetadata({
+      hook,
+      minimumSwapAmountOut: 123n,
+      skip: true,
+    });
+    // 32-byte reserved word, then the id/offset table entry.
+    expect(sliceHex(metadata, 0, 32)).toEqual(`0x${"00".repeat(32)}`);
+    expect(sliceHex(metadata, 32, 36)).toEqual(hookMetadataId(hook, "cashOut"));
+    const [minimum, skip] = decodeAbiParameters(
+      [{ type: "uint256" }, { type: "bool" }],
+      sliceHex(metadata, 64),
+    );
+    expect(minimum).toEqual(123n);
+    expect(skip).toEqual(true);
+  });
+
+  test("decodeBuybackCashOutSpec decodes the diagnostic payload", () => {
+    const spec = decodeBuybackCashOutSpec(
+      specMetadata({ minimumSwap: 5n, netDirect: 7n, rawQuote: 9n }),
+    );
+    expect(spec.minimumSwapAmountOut).toEqual(5n);
+    expect(spec.netDirectCashOutAmount).toEqual(7n);
+    expect(spec.rawSwapQuote).toEqual(9n);
+    expect(spec.poolId).toEqual(poolId);
+    expect(spec.twapTick).toEqual(-123);
+  });
+
+  test("getHookAwareCashOutQuote reads previewCashOutFrom and resolves", async () => {
+    const calls: { functionName: string }[] = [];
+    const client = {
+      readContract: async (call: {
+        functionName: string;
+        args: readonly unknown[];
+      }) => {
+        calls.push(call);
+        if (call.functionName === "previewCashOutFrom") {
+          return [
+            {},
+            1_000n,
+            1n,
+            [],
+          ];
+        }
+        throw new Error(`unexpected call ${call.functionName}`);
+      },
+    } as unknown as PublicClient;
+
+    const route = await getHookAwareCashOutQuote(client, {
+      chainId,
+      projectId,
+      holder,
+      cashOutCount: ONE_ETHER,
+      tokenToReclaim: NATIVE_TOKEN,
+    });
+    expect(calls.map((call) => call.functionName)).toEqual([
+      "previewCashOutFrom",
+    ]);
+    expect(route.route).toEqual("treasury");
+    expect(route.expectedReturn).toEqual(975n);
+    expect(route.terminalMinimum).toEqual(965n);
   });
 });
