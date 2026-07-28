@@ -411,6 +411,13 @@ export interface CashOutRoute {
  * @param args.reclaimAmount `previewCashOutFrom`'s gross reclaim amount.
  * @param args.cashOutTaxRate `previewCashOutFrom`'s cash-out tax rate.
  * @param args.hookSpecifications `previewCashOutFrom`'s hook specifications.
+ * @param args.buybackHookAddress The chain's `JBBuybackHook` address. Only a
+ * specification from this exact hook is interpreted as the buyback route —
+ * other data hooks (e.g. a 721 tiers hook) also emit specifications with
+ * metadata, and decoding one as a buyback quote would submit a cash out with
+ * a zero terminal minimum. When omitted, every specification is treated as
+ * non-buyback and the deterministic treasury route (with its real
+ * `minTokensReclaimed` floor) is returned.
  * @param args.beneficiaryIsFeeless Whether the beneficiary is feeless.
  * Defaults to false (conservative: assumes the fee applies).
  * @param args.feeFreeSurplus The terminal's `feeFreeSurplusOf` for the token.
@@ -423,6 +430,7 @@ export function resolveCashOutRoute({
   reclaimAmount,
   cashOutTaxRate,
   hookSpecifications,
+  buybackHookAddress,
   beneficiaryIsFeeless = false,
   feeFreeSurplus = 0n,
   slippageBps = DEFAULT_CASH_OUT_SLIPPAGE_BPS,
@@ -430,6 +438,7 @@ export function resolveCashOutRoute({
   reclaimAmount: bigint;
   cashOutTaxRate: bigint;
   hookSpecifications: readonly CashOutHookSpecification[];
+  buybackHookAddress?: Address;
   beneficiaryIsFeeless?: boolean;
   feeFreeSurplus?: bigint;
   slippageBps?: bigint;
@@ -443,8 +452,14 @@ export function resolveCashOutRoute({
   });
   const treasuryNet = reclaimAmount - treasuryProtocolFee;
 
+  const buybackHook = buybackHookAddress?.toLowerCase() ?? null;
   const specification =
-    hookSpecifications.find((spec) => spec.metadata !== "0x") ?? null;
+    (buybackHook &&
+      hookSpecifications.find(
+        (spec) =>
+          spec.hook.toLowerCase() === buybackHook && spec.metadata !== "0x",
+      )) ||
+    null;
   const buyback = specification
     ? {
         hook: specification.hook,
@@ -519,6 +534,11 @@ export function resolveCashOutRoute({
  * @param args.beneficiary The reclaim beneficiary. Defaults to the holder.
  * @param args.terminal The terminal to quote against. Defaults to the chain's
  * canonical `JBMultiTerminal`.
+ * @param args.buybackHookAddress The buyback hook whose specification may win
+ * the pool route. Defaults to the chain's canonical `JBBuybackHook`; pass it
+ * explicitly for a project whose `JBBuybackHookRegistry` entry points at a
+ * custom hook. On a chain with no `JBBuybackHook` deployment, specifications
+ * are treated as non-buyback and the treasury route is returned.
  * @param args.beneficiaryIsFeeless Whether the beneficiary is feeless.
  * Defaults to false.
  * @param args.slippageBps Tolerance for quote-to-inclusion drift. Defaults to
@@ -535,6 +555,7 @@ export async function getHookAwareCashOutQuote(
     tokenToReclaim,
     beneficiary,
     terminal,
+    buybackHookAddress,
     beneficiaryIsFeeless = false,
     slippageBps = DEFAULT_CASH_OUT_SLIPPAGE_BPS,
   }: {
@@ -545,11 +566,14 @@ export async function getHookAwareCashOutQuote(
     tokenToReclaim: Address;
     beneficiary?: Address;
     terminal?: Address;
+    buybackHookAddress?: Address;
     beneficiaryIsFeeless?: boolean;
     slippageBps?: bigint;
   },
 ): Promise<CashOutRoute> {
   const terminalAddress = terminal ?? v6Address("JBMultiTerminal", chainId);
+  const buybackHook =
+    buybackHookAddress ?? optionalV6Address("JBBuybackHook", chainId);
   const [, reclaimAmount, cashOutTaxRate, hookSpecifications] =
     await client.readContract({
       address: terminalAddress,
@@ -580,8 +604,24 @@ export async function getHookAwareCashOutQuote(
     reclaimAmount,
     cashOutTaxRate,
     hookSpecifications,
+    buybackHookAddress: buybackHook,
     beneficiaryIsFeeless,
     feeFreeSurplus,
     slippageBps,
   });
+}
+
+/**
+ * `v6Address`, but returning undefined instead of throwing on a chain the
+ * contract isn't deployed to.
+ */
+function optionalV6Address(
+  contract: Parameters<typeof v6Address>[0],
+  chainId: JBChainId,
+): Address | undefined {
+  try {
+    return v6Address(contract, chainId);
+  } catch {
+    return undefined;
+  }
 }
