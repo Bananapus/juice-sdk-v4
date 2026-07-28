@@ -247,6 +247,7 @@ describe("hook-aware cash-out routing", () => {
       hookSpecifications: [
         { hook, noop: false, amount: 0n, metadata: specMetadata() },
       ],
+      buybackHookAddress: hook,
     });
     expect(route.route).toEqual("amm");
     expect(route.expectedReturn).toEqual(1_200n);
@@ -273,6 +274,7 @@ describe("hook-aware cash-out routing", () => {
           }),
         },
       ],
+      buybackHookAddress: hook,
     });
     expect(route.route).toEqual("amm");
     expect(route.minimumReturn).toEqual(1_188n);
@@ -285,6 +287,7 @@ describe("hook-aware cash-out routing", () => {
       hookSpecifications: [
         { hook, noop: true, amount: 0n, metadata: specMetadata() },
       ],
+      buybackHookAddress: hook,
     });
     expect(route.route).toEqual("treasury");
     expect(route.metadata).toEqual("0x");
@@ -306,6 +309,7 @@ describe("hook-aware cash-out routing", () => {
           metadata: specMetadata({ rawQuote: 1_000n, netDirect: 995n }),
         },
       ],
+      buybackHookAddress: hook,
     });
     expect(route.route).toEqual("treasury");
     expect(route.terminalMinimum).toEqual(965n);
@@ -339,6 +343,85 @@ describe("hook-aware cash-out routing", () => {
     expect(spec.twapTick).toEqual(-123);
   });
 
+  test("spec from a non-buyback hook is never selected as the amm route", () => {
+    // A 721 tiers hook (or any other data-hook-returned specification) can
+    // carry metadata that garbage-decodes to plausible buyback values. It must
+    // NOT be routed as a pool sell with a zero terminal minimum.
+    const route = resolveCashOutRoute({
+      reclaimAmount: 1_000n,
+      cashOutTaxRate: 1n,
+      hookSpecifications: [
+        { hook, noop: false, amount: 0n, metadata: specMetadata() },
+      ],
+      buybackHookAddress: "0x5555555555555555555555555555555555555555",
+    });
+    expect(route.route).toEqual("treasury");
+    expect(route.terminalMinimum).toEqual(965n);
+    expect(route.metadata).toEqual("0x");
+    expect(route.buyback).toBeNull();
+  });
+
+  test("without a buyback hook address no spec is trusted as the amm route", () => {
+    const route = resolveCashOutRoute({
+      reclaimAmount: 1_000n,
+      cashOutTaxRate: 1n,
+      hookSpecifications: [
+        { hook, noop: false, amount: 0n, metadata: specMetadata() },
+      ],
+    });
+    expect(route.route).toEqual("treasury");
+    expect(route.terminalMinimum).toEqual(965n);
+    expect(route.metadata).toEqual("0x");
+    expect(route.buyback).toBeNull();
+  });
+
+  test("buyback spec is matched by address, case-insensitively", () => {
+    // Checksummed on-chain hook vs lowercase address-book entry.
+    const checksummed = "0xAbCdaBCDabcDabcdaBcdABCdaBCDAbCDaBcDABcd" as const;
+    const route = resolveCashOutRoute({
+      reclaimAmount: 0n,
+      cashOutTaxRate: 10_000n,
+      hookSpecifications: [
+        {
+          hook: checksummed,
+          noop: false,
+          amount: 0n,
+          metadata: specMetadata(),
+        },
+      ],
+      buybackHookAddress: "0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd",
+    });
+    expect(route.route).toEqual("amm");
+    expect(route.terminalMinimum).toEqual(0n);
+    expect(route.buyback?.hook).toEqual(checksummed);
+  });
+
+  test("mixed specs select the buyback one by address, not position", () => {
+    const otherHook = "0x6666666666666666666666666666666666666666" as const;
+    const route = resolveCashOutRoute({
+      reclaimAmount: 0n,
+      cashOutTaxRate: 10_000n,
+      hookSpecifications: [
+        // A non-buyback spec listed first, with metadata that happens to
+        // decode: the legacy first-with-metadata heuristic picked this one.
+        {
+          hook: otherHook,
+          noop: false,
+          amount: 0n,
+          metadata: specMetadata({ rawQuote: 9_999n }),
+        },
+        { hook, noop: false, amount: 0n, metadata: specMetadata() },
+      ],
+      buybackHookAddress: hook,
+    });
+    expect(route.route).toEqual("amm");
+    expect(route.expectedReturn).toEqual(1_200n);
+    expect(route.buyback?.hook).toEqual(hook);
+    expect(route.metadata).toEqual(
+      buildBuybackCashOutMetadata({ hook, minimumSwapAmountOut: 1_188n }),
+    );
+  });
+
   test("getHookAwareCashOutQuote reads previewCashOutFrom and resolves", async () => {
     const calls: { functionName: string }[] = [];
     const client = {
@@ -367,5 +450,58 @@ describe("hook-aware cash-out routing", () => {
     expect(route.route).toEqual("treasury");
     expect(route.expectedReturn).toEqual(975n);
     expect(route.terminalMinimum).toEqual(965n);
+  });
+
+  test("getHookAwareCashOutQuote routes to amm only for the chain's buyback hook", async () => {
+    const buybackHook = v6Address("JBBuybackHook", chainId);
+    const clientFor = (specHook: string) =>
+      ({
+        readContract: async (call: { functionName: string }) => {
+          if (call.functionName === "previewCashOutFrom") {
+            return [
+              {},
+              1_000n,
+              1n,
+              [
+                {
+                  hook: specHook,
+                  noop: false,
+                  amount: 0n,
+                  metadata: specMetadata(),
+                },
+              ],
+            ];
+          }
+          throw new Error(`unexpected call ${call.functionName}`);
+        },
+      }) as unknown as PublicClient;
+
+    // The chain's canonical buyback hook wins the pool route.
+    const ammRoute = await getHookAwareCashOutQuote(clientFor(buybackHook), {
+      chainId,
+      projectId,
+      holder,
+      cashOutCount: ONE_ETHER,
+      tokenToReclaim: NATIVE_TOKEN,
+    });
+    expect(ammRoute.route).toEqual("amm");
+    expect(ammRoute.terminalMinimum).toEqual(0n);
+    expect(ammRoute.buyback?.hook).toEqual(buybackHook);
+
+    // Any other hook's spec stays on the treasury path with a real minimum.
+    const treasuryRoute = await getHookAwareCashOutQuote(
+      clientFor("0x9999999999999999999999999999999999999999"),
+      {
+        chainId,
+        projectId,
+        holder,
+        cashOutCount: ONE_ETHER,
+        tokenToReclaim: NATIVE_TOKEN,
+      },
+    );
+    expect(treasuryRoute.route).toEqual("treasury");
+    expect(treasuryRoute.terminalMinimum).toEqual(965n);
+    expect(treasuryRoute.metadata).toEqual("0x");
+    expect(treasuryRoute.buyback).toBeNull();
   });
 });
