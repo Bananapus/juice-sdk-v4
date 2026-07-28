@@ -208,9 +208,9 @@ describe("hook-aware cash-out routing", () => {
     expect(
       cashOutProtocolFee({ reclaimAmount: 1_001n, cashOutTaxRate: 1n }),
     ).toEqual(25n);
-    expect(cashOutProtocolFee({ reclaimAmount: 1_000n, cashOutTaxRate: 0n })).toEqual(
-      0n,
-    );
+    expect(
+      cashOutProtocolFee({ reclaimAmount: 1_000n, cashOutTaxRate: 0n }),
+    ).toEqual(0n);
     expect(
       cashOutProtocolFee({
         reclaimAmount: 1_000n,
@@ -348,12 +348,7 @@ describe("hook-aware cash-out routing", () => {
       }) => {
         calls.push(call);
         if (call.functionName === "previewCashOutFrom") {
-          return [
-            {},
-            1_000n,
-            1n,
-            [],
-          ];
+          return [{}, 1_000n, 1n, []];
         }
         throw new Error(`unexpected call ${call.functionName}`);
       },
