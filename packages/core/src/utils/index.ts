@@ -1,4 +1,5 @@
 export * from "./contracts.js";
+export * from "./bendystraw.js";
 export * from "./data.js";
 export * from "./debug.js";
 export * from "./deploy.js";
