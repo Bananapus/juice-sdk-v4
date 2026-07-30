@@ -6,6 +6,7 @@ describe("published core SDK surfaces", () => {
   test("exports the framework-free utility and V6 transaction boundaries", () => {
     expect(sdk.getTokenAToBQuote).toBeTypeOf("function");
     expect(sdk.getProjectTerminalStore).toBeTypeOf("function");
+    expect(sdk.downsampleTimeSeries).toBeTypeOf("function");
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
     expect(v6.buildAutoIssueTx).toBeTypeOf("function");
   });
