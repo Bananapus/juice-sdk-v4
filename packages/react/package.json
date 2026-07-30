@@ -1,6 +1,6 @@
 {
   "name": "@bananapus/nana-sdk-react",
-  "version": "7.0.0",
+  "version": "8.0.0",
   "description": "Wagmi hooks for Juicebox",
   "type": "module",
   "repository": {

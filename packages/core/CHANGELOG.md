@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.7.0
+
+### Minor Changes
+
+- 068abea: Add a framework-agnostic Largest-Triangle-Three-Buckets time-series downsampler for complete chart histories.
+
 ## 1.6.1
 
 ### Patch Changes
