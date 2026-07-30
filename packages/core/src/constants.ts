@@ -8,7 +8,7 @@ import {
   optimism,
   optimismSepolia,
   sepolia,
-} from "viem/chains";
+} from "./chains.js";
 import {
   jbCcipSuckerDeployerAddress,
   jbContractAddress,
@@ -221,120 +221,125 @@ type SuckerDeployerMap = {
  *
  * @see https://discord.com/channels/1139291093310132376/1139291094069301385/1337164727008366683
  */
-export const CCIP_SUCKER_DEPLOYER_ADDRESSES: Record<5 | 6, SuckerDeployerMap> = {
-  6: jbCcipSuckerDeployerAddress[6] as SuckerDeployerMap,
-  5: {
-    [sepolia.id]: {
-      [optimismSepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
-          sepolia.id
-        ],
-      [baseSepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
-          sepolia.id
-        ],
-      [arbitrumSepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
-          sepolia.id
-        ],
-    },
-    [mainnet.id]: {
-      [optimism.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
-          mainnet.id
-        ],
-      [base.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
-          mainnet.id
-        ],
-      [arbitrum.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
-          mainnet.id
-        ],
-    },
+export const CCIP_SUCKER_DEPLOYER_ADDRESSES: Record<5 | 6, SuckerDeployerMap> =
+  {
+    6: jbCcipSuckerDeployerAddress[6] as SuckerDeployerMap,
+    5: {
+      [sepolia.id]: {
+        [optimismSepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
+            sepolia.id
+          ],
+        [baseSepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
+            sepolia.id
+          ],
+        [arbitrumSepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
+            sepolia.id
+          ],
+      },
+      [mainnet.id]: {
+        [optimism.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
+            mainnet.id
+          ],
+        [base.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
+            mainnet.id
+          ],
+        [arbitrum.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
+            mainnet.id
+          ],
+      },
 
-    [arbitrumSepolia.id]: {
-      [sepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
-          arbitrumSepolia.id
-        ],
-      [optimismSepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
-          arbitrumSepolia.id
-        ],
-      [baseSepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
-          arbitrumSepolia.id
-        ],
-    },
-    [arbitrum.id]: {
-      [mainnet.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
-          arbitrum.id
-        ],
-      [optimism.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
-          arbitrum.id
-        ],
-      [base.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
-          arbitrum.id
-        ],
-    },
+      [arbitrumSepolia.id]: {
+        [sepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
+            arbitrumSepolia.id
+          ],
+        [optimismSepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
+            arbitrumSepolia.id
+          ],
+        [baseSepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
+            arbitrumSepolia.id
+          ],
+      },
+      [arbitrum.id]: {
+        [mainnet.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
+            arbitrum.id
+          ],
+        [optimism.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
+            arbitrum.id
+          ],
+        [base.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
+            arbitrum.id
+          ],
+      },
 
-    [optimismSepolia.id]: {
-      [sepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
-          optimismSepolia.id
-        ],
-      [arbitrumSepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
-          optimismSepolia.id
-        ],
-      [baseSepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
-          optimismSepolia.id
-        ],
-    },
-    [optimism.id]: {
-      [mainnet.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
-          optimism.id
-        ],
-      [arbitrum.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
-          optimism.id
-        ],
-      [base.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
-          optimism.id
-        ],
-    },
+      [optimismSepolia.id]: {
+        [sepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
+            optimismSepolia.id
+          ],
+        [arbitrumSepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
+            optimismSepolia.id
+          ],
+        [baseSepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
+            optimismSepolia.id
+          ],
+      },
+      [optimism.id]: {
+        [mainnet.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
+            optimism.id
+          ],
+        [arbitrum.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
+            optimism.id
+          ],
+        [base.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
+            optimism.id
+          ],
+      },
 
-    [baseSepolia.id]: {
-      [sepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
-          baseSepolia.id
-        ],
-      [optimismSepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
-          baseSepolia.id
-        ],
-      [arbitrumSepolia.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
-          baseSepolia.id
-        ],
+      [baseSepolia.id]: {
+        [sepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][
+            baseSepolia.id
+          ],
+        [optimismSepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
+            baseSepolia.id
+          ],
+        [arbitrumSepolia.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
+            baseSepolia.id
+          ],
+      },
+      [base.id]: {
+        [mainnet.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][base.id],
+        [optimism.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][
+            base.id
+          ],
+        [arbitrum.id]:
+          jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][
+            base.id
+          ],
+      },
     },
-    [base.id]: {
-      [mainnet.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer][base.id],
-      [optimism.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_1][base.id],
-      [arbitrum.id]:
-        jbContractAddress[5][JBSuckerContracts.JBCCIPSuckerDeployer_2][base.id],
-    },
-  },
-};
+  };
 
 /**
  * Native-bridge (OP/Base/Arbitrum standard bridge) sucker deployer addresses, keyed by
