@@ -1,5 +1,15 @@
 # juice-sdk-react
 
+## 9.0.0
+
+### Patch Changes
+
+- 432b5f7: Add bounded Bendystraw requests, exact versioned project-reference filters,
+  and 200-reference query batching, and use the shared transport in the React
+  Bendystraw hook.
+- Updated dependencies [432b5f7]
+  - @bananapus/nana-sdk-core@1.8.0
+
 ## 8.0.0
 
 ### Patch Changes

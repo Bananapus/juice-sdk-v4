@@ -1,5 +1,13 @@
 # juice-sdk-core
 
+## 1.8.0
+
+### Minor Changes
+
+- 432b5f7: Add bounded Bendystraw requests, exact versioned project-reference filters,
+  and 200-reference query batching, and use the shared transport in the React
+  Bendystraw hook.
+
 ## 1.7.0
 
 ### Minor Changes
