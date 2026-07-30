@@ -1,11 +1,33 @@
+import { JB_CHAINS } from "../constants.js";
+
 export const BENDYSTRAW_TIMEOUT_MS = 15_000;
 export const MAX_BENDYSTRAW_RESPONSE_BYTES = 5 * 1024 * 1024;
 export const BENDYSTRAW_PROJECT_REF_BATCH_SIZE = 200;
+export const BENDYSTRAW_CACHE_TTL_MS = {
+  live: 15_000,
+  standard: 30_000,
+  stable: 60_000,
+} as const;
 
 const RETRY_DELAYS_MS = [250, 750] as const;
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
 export type BendystrawFilter = Record<string, unknown>;
+export type BendystrawNetwork = "mainnet" | "testnet";
+export type BendystrawCachePolicy = keyof typeof BENDYSTRAW_CACHE_TTL_MS;
+export type BendystrawValidator<T> = (value: unknown) => value is T;
+
+export type BendystrawNetworkSelection = {
+  chainId?: number;
+  defaultNetwork?: BendystrawNetwork;
+  network?: BendystrawNetwork;
+  variables?: unknown;
+};
+
+export type BendystrawEndpoints = {
+  mainnet: string;
+  testnet: string;
+};
 
 export type BendystrawProjectRef = {
   chainId: number;
@@ -29,13 +51,186 @@ export class BendystrawRequestError extends Error {
   }
 }
 
-export type BendystrawRequestOptions = {
+export type BendystrawRequestOptions<
+  TResult = unknown,
+  TVariables extends object = Record<string, never>,
+> = {
   fetch?: typeof fetch;
   maxResponseBytes?: number;
+  operationName?: string;
   retryDelaysMs?: readonly number[];
   signal?: AbortSignal;
   timeoutMs?: number;
+  validateData?: BendystrawValidator<TResult>;
+  validateVariables?: BendystrawValidator<TVariables>;
 };
+
+function collectBendystrawChainIds(
+  value: unknown,
+  chainIds: Set<number>,
+  depth = 0,
+): void {
+  if (value === null || typeof value !== "object") return;
+  if (depth > 12) {
+    throw new TypeError("Bendystraw variables exceed the nesting limit");
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectBendystrawChainIds(item, chainIds, depth + 1);
+    }
+    return;
+  }
+  for (const [key, item] of Object.entries(value)) {
+    if (key === "chainId" || key === "chainId_in") {
+      const candidates = Array.isArray(item) ? item : [item];
+      for (const candidate of candidates) {
+        const chainId =
+          typeof candidate === "string" && candidate.trim()
+            ? Number(candidate)
+            : candidate;
+        if (!Number.isSafeInteger(chainId) || Number(chainId) <= 0) {
+          throw new TypeError(`Invalid Bendystraw ${key}`);
+        }
+        chainIds.add(Number(chainId));
+      }
+    } else {
+      collectBendystrawChainIds(item, chainIds, depth + 1);
+    }
+  }
+}
+
+function networkForChainId(chainId: number): BendystrawNetwork {
+  const metadata = JB_CHAINS[chainId as keyof typeof JB_CHAINS];
+  if (!metadata) {
+    throw new TypeError(`Unsupported Bendystraw chain ID: ${chainId}`);
+  }
+  return metadata.chain.testnet ? "testnet" : "mainnet";
+}
+
+/**
+ * Resolve the Bendystraw network for an operation from every chain selector in
+ * its variables. Unknown chains, mixed networks, and explicit contradictions
+ * fail closed instead of silently querying the wrong index.
+ */
+export function resolveBendystrawNetwork(
+  selection: BendystrawNetworkSelection = {},
+): BendystrawNetwork {
+  const chainIds = new Set<number>();
+  if (selection.chainId !== undefined) {
+    if (!Number.isSafeInteger(selection.chainId) || selection.chainId <= 0) {
+      throw new TypeError("Invalid Bendystraw chainId");
+    }
+    chainIds.add(selection.chainId);
+  }
+  collectBendystrawChainIds(selection.variables, chainIds);
+
+  const inferred = new Set(
+    [...chainIds].map((chainId) => networkForChainId(chainId)),
+  );
+  if (inferred.size > 1) {
+    throw new TypeError(
+      "A Bendystraw request cannot mix mainnet and testnet chains",
+    );
+  }
+  const inferredNetwork = [...inferred][0];
+  if (
+    selection.network &&
+    inferredNetwork &&
+    selection.network !== inferredNetwork
+  ) {
+    throw new TypeError(
+      `Bendystraw network ${selection.network} conflicts with ${inferredNetwork} chain variables`,
+    );
+  }
+  return (
+    selection.network ??
+    inferredNetwork ??
+    selection.defaultNetwork ??
+    "mainnet"
+  );
+}
+
+/** Normalize a Bendystraw origin or endpoint to one canonical GraphQL URL. */
+export function normalizeBendystrawEndpoint(endpoint: string): string {
+  const url = new URL(endpoint);
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new TypeError("Bendystraw endpoint must use HTTP or HTTPS");
+  }
+  url.pathname = `${url.pathname
+    .replace(/\/graphql\/?$/u, "")
+    .replace(/\/$/u, "")}/graphql`;
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
+/** Select and normalize the endpoint for the operation's resolved network. */
+export function selectBendystrawEndpoint(
+  endpoints: BendystrawEndpoints,
+  selection: BendystrawNetworkSelection = {},
+): string {
+  return normalizeBendystrawEndpoint(
+    endpoints[resolveBendystrawNetwork(selection)],
+  );
+}
+
+export function isBendystrawRecord(
+  value: unknown,
+): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Build a lightweight guard for the required root fields of an operation. */
+export function bendystrawDataHasFields<const TKey extends string>(
+  ...fields: readonly TKey[]
+): BendystrawValidator<Record<TKey, unknown>> {
+  return (value): value is Record<TKey, unknown> =>
+    isBendystrawRecord(value) &&
+    fields.every((field) => Object.prototype.hasOwnProperty.call(value, field));
+}
+
+export function assertBendystrawData<T>(
+  value: unknown,
+  validator: BendystrawValidator<T>,
+  operationName = "Bendystraw operation",
+): T {
+  if (!validator(value)) {
+    throw new BendystrawRequestError(
+      `${operationName} returned invalid data`,
+      502,
+    );
+  }
+  return value;
+}
+
+export function assertBendystrawVariables<T extends object>(
+  value: unknown,
+  validator: BendystrawValidator<T>,
+  operationName = "Bendystraw operation",
+): T {
+  if (!validator(value)) {
+    throw new BendystrawRequestError(
+      `${operationName} received invalid variables`,
+      400,
+    );
+  }
+  return value;
+}
+
+/**
+ * Shared freshness vocabulary for clients. The transport does not cache.
+ *
+ * - `live`: balances, activity, and mutable project state.
+ * - `standard`: lists, search, and aggregate charts.
+ * - `stable`: metadata and historical records.
+ *
+ * Writes should invalidate affected reads. An indexer failure may fall back to
+ * an authoritative RPC read only when the fallback preserves the same scoped
+ * identity; failures must never be converted into zero or empty data.
+ */
+export function bendystrawCacheTtl(policy: BendystrawCachePolicy): number {
+  return BENDYSTRAW_CACHE_TTL_MS[policy];
+}
 
 function normalizeProjectRef(
   ref: BendystrawProjectRef,
@@ -232,7 +427,7 @@ export async function requestBendystraw<
   endpoint: string,
   query: string,
   variables: TVariables,
-  options: BendystrawRequestOptions = {},
+  options: BendystrawRequestOptions<TResult, TVariables> = {},
 ): Promise<TResult> {
   const fetchImpl = options.fetch ?? fetch;
   const maxResponseBytes =
@@ -245,6 +440,13 @@ export async function requestBendystraw<
   }
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new TypeError("timeoutMs must be positive");
+  }
+  if (options.validateVariables) {
+    assertBendystrawVariables(
+      variables,
+      options.validateVariables,
+      options.operationName,
+    );
   }
 
   for (let attempt = 0; ; attempt += 1) {
@@ -260,7 +462,13 @@ export async function requestBendystraw<
           Accept: "application/graphql-response+json, application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query, variables }),
+        body: JSON.stringify({
+          query,
+          variables,
+          ...(options.operationName
+            ? { operationName: options.operationName }
+            : {}),
+        }),
         signal: controller.signal,
       });
 
@@ -308,7 +516,14 @@ export async function requestBendystraw<
             502,
           );
         }
-        return envelope.data as TResult;
+        const data = envelope.data as TResult;
+        return options.validateData
+          ? assertBendystrawData(
+              data,
+              options.validateData,
+              options.operationName,
+            )
+          : data;
       }
     } catch (error) {
       const aborted =
