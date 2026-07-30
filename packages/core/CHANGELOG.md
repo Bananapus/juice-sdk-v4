@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.9.1
+
+### Patch Changes
+
+- ee80eb2: Define supported chains without importing the full viem chain barrel, keeping browser builds deterministic and warning-free.
+
 ## 1.9.0
 
 ### Minor Changes
