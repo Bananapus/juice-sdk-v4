@@ -1,5 +1,12 @@
 # juice-sdk-core
 
+## 1.9.0
+
+### Minor Changes
+
+- 616afa3: Add fail-closed Bendystraw network selection, canonical endpoint helpers,
+  operation-level runtime validation, and shared cache-policy constants.
+
 ## 1.8.0
 
 ### Minor Changes
