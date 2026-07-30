@@ -8,6 +8,7 @@ export * from "./hook.js";
 export * from "./ipfs.js";
 export * from "./revnet.js";
 export * from "./ruleset.js";
+export * from "./timeSeries.js";
 export * from "./token.js";
 export * from "./tx.js";
 export * from "./urn.js";

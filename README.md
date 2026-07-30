@@ -70,6 +70,7 @@ import {
   parseTokenAmount,
   ReservedPercent,
   CashOutTaxRate,
+  downsampleTimeSeries,
 } from "@bananapus/nana-sdk-core";
 
 // Format token amounts for display
@@ -78,6 +79,14 @@ const formatted = formatTokenAmount(1000000000000000000n); // "1.0"
 // Work with project economics
 const reservedRate = new ReservedPercent(10); // 10% reserved tokens
 const taxRate = new CashOutTaxRate(2.5); // 2.5% cash out tax
+
+// Fetch complete history first, then retain its visual shape within a chart budget
+const chartPoints = downsampleTimeSeries(
+  completeHistory,
+  3000,
+  (point) => point.timestamp,
+  (point) => point.price,
+);
 ```
 
 ## Packages
@@ -143,6 +152,7 @@ const percentage = reserved.formatAsPercent(); // "15%"
 - [Data utilities](./packages/core/src/utils/data.ts) - Fixed-point data types and formatters
 - [Contract utilities](./packages/core/src/utils/contracts.ts) - Address resolution and contract helpers
 - [IPFS utilities](./packages/core/src/utils/ipfs.ts) - Metadata upload and retrieval
+- [Time-series utilities](./packages/core/src/utils/timeSeries.ts) - Shape-preserving chart downsampling
 
 ### React Hooks
 
