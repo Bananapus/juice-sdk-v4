@@ -127,15 +127,17 @@ export const NATIVE_TOKEN_DECIMALS = 18 as const;
  */
 export const JBDAO_CASHOUT_FEE_PERCENT = 0.025;
 
-type JBChainMetadata = {
-  chain: Chain;
+type JBChainMetadata<ChainId extends JBChainId = JBChainId> = {
+  chain: Chain & { id: ChainId };
   name: string;
   slug: string;
   nativeTokenSymbol: string;
   etherscanHostname: string;
 };
 
-export const JB_CHAINS: Record<JBChainId, JBChainMetadata> = {
+export const JB_CHAINS: {
+  [ChainId in JBChainId]: JBChainMetadata<ChainId>;
+} = {
   [sepolia.id]: {
     chain: sepolia,
     name: "Sepolia",
