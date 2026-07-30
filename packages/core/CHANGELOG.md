@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.9.2
+
+### Patch Changes
+
+- 132bd4b: Preserve literal chain ID types when reading supported chain metadata from `JB_CHAINS`.
+
 ## 1.9.1
 
 ### Patch Changes
