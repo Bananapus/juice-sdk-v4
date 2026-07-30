@@ -1,8 +1,9 @@
 "use client";
 
 import { type TypedDocumentNode } from "@graphql-typed-document-node/core";
+import { requestBendystraw } from "@bananapus/nana-sdk-core";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import request from "graphql-request";
+import { analyzeDocument } from "graphql-request";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { getBendystrawUrl } from "./getBendystrawUrl";
 import { useBendystrawConfig } from "../../contexts/JBProjectProvider/JBProjectProvider";
@@ -32,11 +33,16 @@ export function useBendystrawQuery<TResult, TVariables>(
       variables,
     ],
     queryFn: async () =>
-      request(`${url}/graphql`, document, variables as object),
+      requestBendystraw<TResult, object>(
+        `${url}/graphql`,
+        analyzeDocument(document).expression,
+        variables as object,
+      ),
     enabled: options?.enabled !== false && !!chainId && !!url,
     refetchInterval: options?.pollInterval,
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    // requestBendystraw owns bounded transient retries. Retrying again here
+    // would multiply requests and make timeout behavior inconsistent.
+    retry: false,
     staleTime: options?.staleTime ?? 30000, // Consider data stale after 30 seconds by default
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });

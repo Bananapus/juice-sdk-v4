@@ -7,6 +7,9 @@ describe("published core SDK surfaces", () => {
     expect(sdk.getTokenAToBQuote).toBeTypeOf("function");
     expect(sdk.getProjectTerminalStore).toBeTypeOf("function");
     expect(sdk.downsampleTimeSeries).toBeTypeOf("function");
+    expect(sdk.requestBendystraw).toBeTypeOf("function");
+    expect(sdk.bendystrawProjectRefsFilter).toBeTypeOf("function");
+    expect(sdk.bendystrawProjectRefsFilters).toBeTypeOf("function");
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
     expect(v6.buildAutoIssueTx).toBeTypeOf("function");
   });
