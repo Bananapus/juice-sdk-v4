@@ -1,11 +1,18 @@
 import { describe, expect, test, vi } from "vitest";
 import {
+  BENDYSTRAW_CACHE_TTL_MS,
   BendystrawRequestError,
+  assertBendystrawData,
+  bendystrawCacheTtl,
+  bendystrawDataHasFields,
   bendystrawProjectRefFilter,
   bendystrawProjectRefsFilter,
   bendystrawProjectRefsFilters,
   matchesBendystrawProjectRef,
+  normalizeBendystrawEndpoint,
   requestBendystraw,
+  resolveBendystrawNetwork,
+  selectBendystrawEndpoint,
 } from "./bendystraw.js";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -120,6 +127,86 @@ describe("Bendystraw project reference filters", () => {
   });
 });
 
+describe("Bendystraw network and cache policy", () => {
+  test("infers networks from nested chain variables", () => {
+    expect(
+      resolveBendystrawNetwork({
+        variables: {
+          where: {
+            OR: [{ chainId: 1 }, { nested: { chainId_in: ["10", 8453] } }],
+          },
+        },
+      }),
+    ).toBe("mainnet");
+    expect(
+      resolveBendystrawNetwork({
+        variables: { where: { chainId_in: [11155111, 84532] } },
+      }),
+    ).toBe("testnet");
+    expect(resolveBendystrawNetwork({ defaultNetwork: "testnet" })).toBe(
+      "testnet",
+    );
+  });
+
+  test("fails closed for malformed, unsupported, mixed, and contradictory networks", () => {
+    expect(() =>
+      resolveBendystrawNetwork({ variables: { chainId: 0 } }),
+    ).toThrow("Invalid Bendystraw chainId");
+    expect(() =>
+      resolveBendystrawNetwork({ variables: { chainId: 999_999 } }),
+    ).toThrow("Unsupported Bendystraw chain ID");
+    expect(() =>
+      resolveBendystrawNetwork({
+        variables: { chainId_in: [1, 11155111] },
+      }),
+    ).toThrow("cannot mix mainnet and testnet");
+    expect(() =>
+      resolveBendystrawNetwork({
+        network: "mainnet",
+        variables: { chainId: 11155111 },
+      }),
+    ).toThrow("conflicts with testnet");
+    let tooDeep: Record<string, unknown> = { chainId: 1 };
+    for (let depth = 0; depth < 14; depth += 1) {
+      tooDeep = { nested: tooDeep };
+    }
+    expect(() => resolveBendystrawNetwork({ variables: tooDeep })).toThrow(
+      "nesting limit",
+    );
+  });
+
+  test("normalizes and selects canonical endpoints", () => {
+    expect(
+      normalizeBendystrawEndpoint(
+        "https://bendystraw.example/base/graphql/?ignored=yes#hash",
+      ),
+    ).toBe("https://bendystraw.example/base/graphql");
+    expect(
+      selectBendystrawEndpoint(
+        {
+          mainnet: "https://bendystraw.example",
+          testnet: "https://testnet.bendystraw.example/graphql",
+        },
+        { variables: { where: { chainId: 84532 } } },
+      ),
+    ).toBe("https://testnet.bendystraw.example/graphql");
+    expect(() =>
+      normalizeBendystrawEndpoint("ftp://bendystraw.example"),
+    ).toThrow("HTTP or HTTPS");
+  });
+
+  test("exposes one cache vocabulary without caching in the transport", () => {
+    expect(bendystrawCacheTtl("live")).toBe(15_000);
+    expect(bendystrawCacheTtl("standard")).toBe(30_000);
+    expect(bendystrawCacheTtl("stable")).toBe(60_000);
+    expect(BENDYSTRAW_CACHE_TTL_MS).toEqual({
+      live: 15_000,
+      standard: 30_000,
+      stable: 60_000,
+    });
+  });
+});
+
 describe("requestBendystraw", () => {
   test("posts the exact GraphQL envelope and returns data", async () => {
     const fetchMock = vi
@@ -149,6 +236,74 @@ describe("requestBendystraw", () => {
       variables: { projectId: 1 },
     });
     expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  test("validates variables and response data at the transport boundary", async () => {
+    const isVariables = (value: unknown): value is { projectId: number } =>
+      typeof value === "object" &&
+      value !== null &&
+      typeof (value as { projectId?: unknown }).projectId === "number";
+    const hasProject = bendystrawDataHasFields("project");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ data: { project: null } }))
+      .mockResolvedValueOnce(jsonResponse({ data: { wrong: null } }));
+
+    await expect(
+      requestBendystraw(
+        "https://bendystraw.example/graphql",
+        "query Project($projectId: Int!) { project(projectId: $projectId) { id } }",
+        { projectId: 1 },
+        {
+          fetch: fetchMock,
+          operationName: "Project",
+          validateVariables: isVariables,
+          validateData: hasProject,
+        },
+      ),
+    ).resolves.toEqual({ project: null });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      query:
+        "query Project($projectId: Int!) { project(projectId: $projectId) { id } }",
+      variables: { projectId: 1 },
+      operationName: "Project",
+    });
+
+    await expect(
+      requestBendystraw(
+        "https://bendystraw.example/graphql",
+        "query Project($projectId: Int!) { project(projectId: $projectId) { id } }",
+        { projectId: 1 },
+        {
+          fetch: fetchMock,
+          operationName: "Project",
+          validateData: hasProject,
+        },
+      ),
+    ).rejects.toMatchObject({
+      message: "Project returned invalid data",
+      status: 502,
+    });
+    expect(() => assertBendystrawData({}, hasProject, "Project")).toThrow(
+      "Project returned invalid data",
+    );
+
+    await expect(
+      requestBendystraw(
+        "https://bendystraw.example/graphql",
+        "query Project($projectId: Int!) { project(projectId: $projectId) { id } }",
+        { projectId: "not-a-number" } as unknown as { projectId: number },
+        {
+          fetch: fetchMock,
+          operationName: "Project",
+          validateVariables: isVariables,
+        },
+      ),
+    ).rejects.toMatchObject({
+      message: "Project received invalid variables",
+      status: 400,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   test("retries transient HTTP and network failures with a bounded schedule", async () => {

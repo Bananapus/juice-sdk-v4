@@ -8,6 +8,10 @@ describe("published core SDK surfaces", () => {
     expect(sdk.getProjectTerminalStore).toBeTypeOf("function");
     expect(sdk.downsampleTimeSeries).toBeTypeOf("function");
     expect(sdk.requestBendystraw).toBeTypeOf("function");
+    expect(sdk.resolveBendystrawNetwork).toBeTypeOf("function");
+    expect(sdk.selectBendystrawEndpoint).toBeTypeOf("function");
+    expect(sdk.bendystrawDataHasFields).toBeTypeOf("function");
+    expect(sdk.bendystrawCacheTtl).toBeTypeOf("function");
     expect(sdk.bendystrawProjectRefsFilter).toBeTypeOf("function");
     expect(sdk.bendystrawProjectRefsFilters).toBeTypeOf("function");
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
