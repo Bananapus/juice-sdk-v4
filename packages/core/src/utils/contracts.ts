@@ -1,4 +1,9 @@
-import { Address, PublicClient, getContract, zeroAddress } from "viem";
+import {
+  getContract,
+  zeroAddress,
+  type Address,
+  type PublicClient,
+} from "viem";
 import { useConfig } from "wagmi";
 import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
 import { JBCoreContracts, JBVersion } from "../contracts.js";
@@ -18,11 +23,22 @@ export function getJBContractAddress<V extends JBVersion>(
   contract: ContractsForVersion<V>,
   version: V,
   chainId: JBChainId,
-): `0x${string}` {
+): Address {
   const versionKey = version.toString() as keyof typeof jbContractAddress;
   const chainKey = chainId.toString();
+  const deployments = jbContractAddress[versionKey] as unknown as Record<
+    string,
+    Partial<Record<string, Address>>
+  >;
+  const address = deployments[String(contract)]?.[chainKey];
 
-  return (jbContractAddress[versionKey] as any)?.[contract]?.[chainKey];
+  if (!address) {
+    throw new Error(
+      `No ${String(contract)} deployment for Juicebox V${version} on chain ${chainId}.`,
+    );
+  }
+
+  return address;
 }
 
 export function getProjectTerminalStore(

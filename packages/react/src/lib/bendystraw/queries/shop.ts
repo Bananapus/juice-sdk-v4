@@ -34,7 +34,7 @@ export interface OwnedShopItem {
 }
 
 /** Filter on a bendystraw list query. Only the fields the shop hooks set. */
-export interface ShopEventFilter {
+interface ShopEventFilter {
   projectId?: number;
   chainId?: number;
   version?: number;
@@ -52,7 +52,9 @@ export interface ShopPurchasesResult {
 export interface OwnedShopItemsResult {
   nfts: {
     totalCount: number;
-    items: (Omit<OwnedShopItem, "hook"> & { hook: { address: string } | null })[];
+    items: (Omit<OwnedShopItem, "hook"> & {
+      hook: { address: string } | null;
+    })[];
   };
 }
 

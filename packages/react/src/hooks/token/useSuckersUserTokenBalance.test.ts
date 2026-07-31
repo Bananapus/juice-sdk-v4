@@ -1,8 +1,4 @@
-import {
-  JBCoreContracts,
-  JBProjectToken,
-  jbTokensAbi,
-} from "@bananapus/nana-sdk-core";
+import { JBProjectToken, jbTokensAbi } from "@bananapus/nana-sdk-core";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { useSuckersUserTokenBalance } from "./useSuckersUserTokenBalance";
 

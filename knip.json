@@ -1,0 +1,52 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreDependencies": [
+    "vitest"
+  ],
+  "workspaces": {
+    "packages/core": {
+      "entry": [
+        "wagmi.config.ts",
+        "src/**/*.test.{ts,tsx}"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}",
+        "scripts/**/*.ts"
+      ],
+      "ignoreDependencies": [
+        "@bananapus/721-hook",
+        "@bananapus/721-hook-v5",
+        "@bananapus/721-hook-v6",
+        "@bananapus/address-registry",
+        "@bananapus/address-registry-v5",
+        "@bananapus/address-registry-v6",
+        "@bananapus/buyback-hook",
+        "@bananapus/buyback-hook-v5",
+        "@bananapus/buyback-hook-v6",
+        "@bananapus/core",
+        "@bananapus/core-v5",
+        "@bananapus/core-v6",
+        "@bananapus/omnichain-deployers",
+        "@bananapus/omnichain-deployers-v5",
+        "@bananapus/omnichain-deployers-v6",
+        "@bananapus/router-terminal-v6",
+        "@bananapus/suckers",
+        "@bananapus/suckers-v5",
+        "@bananapus/suckers-v6",
+        "@bananapus/swap-terminal",
+        "@bananapus/swap-terminal-v5",
+        "@rev-net/core",
+        "@rev-net/core-v5",
+        "@rev-net/core-v6"
+      ]
+    },
+    "packages/react": {
+      "entry": [
+        "src/**/*.test.{ts,tsx}"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ]
+    }
+  }
+}
