@@ -5,6 +5,7 @@ import { useBendystrawQuery } from "./useBendystrawQuery";
 const mocks = vi.hoisted(() => ({
   chainId: 1 as number | undefined,
   config: { apiKey: "secret" } as { apiKey: string; url?: string } | undefined,
+  operationName: "Project" as string | undefined,
   queryConfig: undefined as any,
   requestBendystraw: vi.fn(),
 }));
@@ -23,7 +24,7 @@ vi.mock("@bananapus/nana-sdk-core", () => ({
 vi.mock("graphql-request", () => ({
   analyzeDocument: () => ({
     expression: "query Project($projectId: Int!) { project { id } }",
-    operationName: "Project",
+    operationName: mocks.operationName,
   }),
 }));
 
@@ -47,6 +48,7 @@ describe("useBendystrawQuery", () => {
     vi.clearAllMocks();
     mocks.chainId = 1;
     mocks.config = { apiKey: "secret" };
+    mocks.operationName = "Project";
     mocks.requestBendystraw.mockResolvedValue({ project: { id: "1" } });
   });
 
@@ -139,5 +141,13 @@ describe("useBendystrawQuery", () => {
     expect(mocks.queryConfig.retry).toBe(false);
     expect(mocks.queryConfig.staleTime).toBe(30000);
     expect(mocks.queryConfig.gcTime).toBe(300000);
+  });
+
+  test("rejects anonymous operations before they can share a cache key", () => {
+    mocks.operationName = undefined;
+
+    expect(() => useBendystrawQuery(document, { projectId: 1 })).toThrowError(
+      "Bendystraw operations must have a name.",
+    );
   });
 });

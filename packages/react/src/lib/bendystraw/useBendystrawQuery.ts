@@ -5,8 +5,8 @@ import { requestBendystraw } from "@bananapus/nana-sdk-core";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { analyzeDocument } from "graphql-request";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
-import { getBendystrawUrl } from "./getBendystrawUrl";
 import { useBendystrawConfig } from "../../contexts/JBProjectProvider/JBProjectProvider";
+import { getBendystrawUrl } from "./getBendystrawUrl";
 
 export function useBendystrawQuery<TResult, TVariables>(
   document: TypedDocumentNode<TResult, TVariables>,
@@ -24,18 +24,18 @@ export function useBendystrawQuery<TResult, TVariables>(
   const config = useBendystrawConfig();
 
   const url = chainId && config ? getBendystrawUrl(chainId, config) : undefined;
+  const { expression, operationName } = analyzeDocument(document);
+
+  if (!operationName) {
+    throw new Error("Bendystraw operations must have a name.");
+  }
 
   return useQuery({
-    queryKey: [
-      (document.definitions[0] as any).name.value,
-      chainId,
-      url,
-      variables,
-    ],
+    queryKey: [operationName, chainId, url, variables],
     queryFn: async () =>
       requestBendystraw<TResult, object>(
         `${url}/graphql`,
-        analyzeDocument(document).expression,
+        expression,
         variables as object,
       ),
     enabled: options?.enabled !== false && !!chainId && !!url,

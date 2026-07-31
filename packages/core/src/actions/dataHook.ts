@@ -1,6 +1,17 @@
-import { JB721HookContracts, JBAddressRegistryContracts, JBChainId, JBVersion } from "../types.js";
+import {
+  JB721HookContracts,
+  JBAddressRegistryContracts,
+  type JBChainId,
+  type JBVersion,
+} from "../types.js";
 import { getJBContractAddress } from "../utils/contracts.js";
-import { Address, PublicClient, getContract, isAddressEqual, zeroAddress } from "viem";
+import {
+  getContract,
+  isAddressEqual,
+  zeroAddress,
+  type Address,
+  type PublicClient,
+} from "viem";
 import {
   jb721TiersHookAbi,
   jb721TiersHookV5Abi,
@@ -20,28 +31,31 @@ export async function find721DataHook(
     projectId: bigint;
     rulesetId: number;
     version: JBVersion;
-  }
+  },
 ) {
   const chainId = publicClient.chain?.id;
   if (!chainId) {
     throw new Error("[@bananapus/nana-sdk-core] No chain ID on public client.");
   }
 
+  let registerAddress: Address;
+  try {
+    registerAddress = getJBContractAddress(
+      JBAddressRegistryContracts.JBAddressRegistry,
+      args.version,
+      chainId as JBChainId,
+    );
+  } catch {
+    throw new Error(
+      `[@bananapus/nana-sdk-core] No JBAddressRegistry address for chain ${chainId}.`,
+    );
+  }
+
   const deployerAddress = getJBContractAddress(
     JB721HookContracts.JB721TiersHookDeployer,
     args.version,
-    chainId as JBChainId
+    chainId as JBChainId,
   );
-
-  const registerAddress = getJBContractAddress(
-    JBAddressRegistryContracts.JBAddressRegistry,
-    args.version,
-    chainId as JBChainId
-  );
-
-  if (!registerAddress) {
-    throw new Error(`[@bananapus/nana-sdk-core] No JBAddressRegistry address for chain ${chainId}.`);
-  }
 
   const registry = getContract({
     address: registerAddress,
@@ -70,8 +84,8 @@ export async function find721DataHook(
         deployerOf,
         deployerAddress,
       });
-      return isAddressEqual(deployerOf, deployerAddress as Address);
-    })
+      return isAddressEqual(deployerOf, deployerAddress);
+    }),
   );
 
   const index = res.findIndex((r) => r);
@@ -89,7 +103,7 @@ export async function getHookSpecifications(
     projectId: bigint;
     rulesetId: number;
     version: JBVersion;
-  }
+  },
 ) {
   // v6's returned JBPayHookSpecification gained a `noop` field, so the v4/v5 response
   // doesn't decode with the v6 ABI.

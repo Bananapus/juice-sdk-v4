@@ -8,9 +8,4 @@ const AsyncDataNone: AsyncData<any> = {
   data: undefined,
 };
 
-const AsyncDataLoading: AsyncData<any> = {
-  isLoading: true,
-  data: undefined,
-};
-
-export { AsyncDataNone, AsyncDataLoading };
+export { AsyncDataNone };

@@ -2,6 +2,8 @@
   "compilerOptions": {
     "incremental": false,
     "strict": true /* Enable all strict type-checking options. */,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
 
     "target": "ES2021" /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */,
     "module": "NodeNext" /* Specify what module code is generated. */,

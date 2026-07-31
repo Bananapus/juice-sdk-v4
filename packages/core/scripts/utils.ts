@@ -216,7 +216,7 @@ function parseAbi(contractName: string, abi: any) {
 
 type Path = `@${"bananapus" | "rev-net"}/${string}/deployments/${string}`;
 
-export const PACKAGES: { contracts: Contract[]; path: Path }[] = [
+const PACKAGES: { contracts: Contract[]; path: Path }[] = [
   {
     contracts: Object.values(JBCoreContracts) as Contract[],
     path: "@bananapus/core/deployments/nana-core",
