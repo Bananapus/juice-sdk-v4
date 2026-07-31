@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.9.4
+
+### Patch Changes
+
+- 20dddb5: Correct buyback cash-out slippage routing; add best-execution selection across direct pool sales and terminal cash-outs, locked transaction preparation, and typed diagnostics; and normalize Uniswap V4 tick and price ranges across currency orderings.
+
 ## 1.9.3
 
 ### Patch Changes
