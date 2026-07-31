@@ -1,5 +1,13 @@
 # juice-sdk-react
 
+## 10.0.1
+
+### Patch Changes
+
+- cf64c43: Harden contract deployment lookup and Bendystraw operation handling while removing unused generated GraphQL and runtime surface.
+- Updated dependencies [cf64c43]
+  - @bananapus/nana-sdk-core@1.9.3
+
 ## 10.0.0
 
 ### Patch Changes
