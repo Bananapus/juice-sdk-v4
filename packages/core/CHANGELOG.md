@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.9.3
+
+### Patch Changes
+
+- cf64c43: Harden contract deployment lookup and Bendystraw operation handling while removing unused generated GraphQL and runtime surface.
+
 ## 1.9.2
 
 ### Patch Changes
