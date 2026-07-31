@@ -12,10 +12,16 @@ import {
   build721CashOutMetadata,
   buildBuybackCashOutMetadata,
   buildCashOutTx,
+  cashOutPoolBufferBps,
   cashOutProtocolFee,
+  chooseBestCashOutRoute,
+  classifyCashOutExecutionError,
   decodeBuybackCashOutSpec,
+  getBestCashOutRoute,
   getCashOutQuote,
   getHookAwareCashOutQuote,
+  prepareBestCashOut,
+  prepareHookAwareCashOut,
   resolveCashOutRoute,
   slippageFloor,
 } from "./cashOut.js";
@@ -251,10 +257,10 @@ describe("hook-aware cash-out routing", () => {
     });
     expect(route.route).toEqual("amm");
     expect(route.expectedReturn).toEqual(1_200n);
-    expect(route.minimumReturn).toEqual(1_188n);
+    expect(route.minimumReturn).toEqual(1_089n);
     expect(route.terminalMinimum).toEqual(0n);
     expect(route.metadata).toEqual(
-      buildBuybackCashOutMetadata({ hook, minimumSwapAmountOut: 1_188n }),
+      buildBuybackCashOutMetadata({ hook, minimumSwapAmountOut: 1_089n }),
     );
   });
 
@@ -278,6 +284,38 @@ describe("hook-aware cash-out routing", () => {
     });
     expect(route.route).toEqual("amm");
     expect(route.minimumReturn).toEqual(1_188n);
+  });
+
+  test("uses the executable pool quote rather than the optimistic raw quote", () => {
+    const route = resolveCashOutRoute({
+      reclaimAmount: 1_510_000n,
+      cashOutTaxRate: 1n,
+      hookSpecifications: [
+        {
+          hook,
+          noop: false,
+          amount: 0n,
+          metadata: specMetadata({
+            minimumSwap: 16_000_000n,
+            netDirect: 1_470_000n,
+            rawQuote: 16_419_630n,
+          }),
+        },
+      ],
+      buybackHookAddress: hook,
+      slippageBps: 100n,
+    });
+
+    expect(route.route).toEqual("amm");
+    expect(route.expectedReturn).toEqual(16_419_630n);
+    expect(route.minimumReturn).toEqual(15_840_000n);
+    expect(cashOutPoolBufferBps(route)).toEqual(256n);
+    expect(route.metadata).toEqual(
+      buildBuybackCashOutMetadata({
+        hook,
+        minimumSwapAmountOut: 15_840_000n,
+      }),
+    );
   });
 
   test("noop spec stays on the treasury path", () => {
@@ -418,8 +456,210 @@ describe("hook-aware cash-out routing", () => {
     expect(route.expectedReturn).toEqual(1_200n);
     expect(route.buyback?.hook).toEqual(hook);
     expect(route.metadata).toEqual(
-      buildBuybackCashOutMetadata({ hook, minimumSwapAmountOut: 1_188n }),
+      buildBuybackCashOutMetadata({ hook, minimumSwapAmountOut: 1_089n }),
     );
+  });
+
+  test("classifies nested cash-out execution errors without owning UI copy", () => {
+    expect(
+      classifyCashOutExecutionError({
+        message: "execution reverted",
+        cause: { details: "reverted with signature 0xe2d708a9" },
+      }),
+    ).toEqual({
+      code: "BUYBACK_SLIPPAGE_EXCEEDED",
+      selector: "0xe2d708a9",
+    });
+    expect(
+      classifyCashOutExecutionError({
+        cause: { errorName: "JBMultiTerminal_UnderMin" },
+      }),
+    ).toEqual({ code: "TERMINAL_UNDER_MIN", selector: "0x6b2bb382" });
+    expect(
+      classifyCashOutExecutionError(new Error("user rejected")),
+    ).toBeNull();
+  });
+
+  test("chooses a direct sale only for claimed tokens with a strictly better protected output", () => {
+    const cashOut = resolveCashOutRoute({
+      reclaimAmount: 1_000n,
+      cashOutTaxRate: 1n,
+      hookSpecifications: [],
+    });
+    const poolKey = {
+      currency0: holder,
+      currency1: "0x0000000000000000000000000000000000000000",
+      fee: 10_000,
+      tickSpacing: 200,
+      hooks: hook,
+    } as const;
+
+    expect(
+      chooseBestCashOutRoute({
+        cashOut,
+        directSwapQuote: 1_000n,
+        directSwapPoolKey: poolKey,
+        directSwapZeroForOne: true,
+        spendableProjectTokenCount: 100n,
+        cashOutCount: 100n,
+      }),
+    ).toMatchObject({
+      kind: "direct-swap",
+      expectedReturn: 1_000n,
+      minimumReturn: 990n,
+    });
+    expect(
+      chooseBestCashOutRoute({
+        cashOut,
+        directSwapQuote: 1_000n,
+        directSwapPoolKey: poolKey,
+        directSwapZeroForOne: true,
+        spendableProjectTokenCount: 99n,
+        cashOutCount: 100n,
+      }).kind,
+    ).toEqual("cash-out");
+    expect(
+      chooseBestCashOutRoute({
+        cashOut,
+        directSwapQuote: 980n,
+        directSwapPoolKey: poolKey,
+        directSwapZeroForOne: true,
+        spendableProjectTokenCount: 100n,
+        cashOutCount: 100n,
+      }).kind,
+    ).toEqual("cash-out");
+  });
+
+  test("quotes and prepares a direct native-pair sale when it safely beats cashing out", async () => {
+    const projectToken = "0x7777777777777777777777777777777777777777" as const;
+    const poolKey = {
+      currency0: "0x0000000000000000000000000000000000000000",
+      currency1: projectToken,
+      fee: 10_000,
+      tickSpacing: 200,
+      hooks: hook,
+    } as const;
+    const calls: string[] = [];
+    const client = {
+      readContract: async (call: { functionName: string }) => {
+        calls.push(call.functionName);
+        if (call.functionName === "previewCashOutFrom") {
+          return [{ id: 42n }, 1_000n, 1n, []];
+        }
+        throw new Error(`unexpected call ${call.functionName}`);
+      },
+      call: async () => {
+        calls.push("quoteExactInputSingle");
+        return {
+          data: encodeAbiParameters(
+            [{ type: "uint256" }, { type: "uint256" }],
+            [1_200n, 50_000n],
+          ),
+        };
+      },
+    } as unknown as PublicClient;
+    const args = {
+      chainId,
+      projectId,
+      holder,
+      cashOutCount: 100n,
+      tokenToReclaim: NATIVE_TOKEN,
+      directSwap: {
+        poolKey,
+        projectToken,
+        spendableProjectTokenCount: 100n,
+      },
+    } as const;
+
+    const best = await getBestCashOutRoute(client, args);
+    expect(best).toMatchObject({
+      kind: "direct-swap",
+      expectedReturn: 1_200n,
+      minimumReturn: 1_188n,
+      zeroForOne: false,
+    });
+
+    const prepared = await prepareBestCashOut(client, {
+      ...args,
+      beneficiary,
+      directSwapDeadline: 123_456n,
+    });
+    expect(prepared.kind).toEqual("direct-swap");
+    if (prepared.kind !== "direct-swap") throw new Error("expected swap");
+    expect(prepared.transaction.functionName).toEqual("execute");
+    expect(prepared.transaction.args[2]).toEqual(123_456n);
+    expect(prepared.route.minimumReturn).toEqual(1_188n);
+    expect(calls).toEqual([
+      "previewCashOutFrom",
+      "quoteExactInputSingle",
+      "previewCashOutFrom",
+      "quoteExactInputSingle",
+    ]);
+  });
+
+  test("does not quote a pool whose output is not the reclaim token", async () => {
+    const projectToken = "0x7777777777777777777777777777777777777777" as const;
+    let poolCalls = 0;
+    const client = {
+      readContract: async () => [{ id: 42n }, 1_000n, 1n, []],
+      call: async () => {
+        poolCalls += 1;
+        throw new Error("should not quote");
+      },
+    } as unknown as PublicClient;
+    const best = await getBestCashOutRoute(client, {
+      chainId,
+      projectId,
+      holder,
+      cashOutCount: 100n,
+      tokenToReclaim: NATIVE_TOKEN,
+      directSwap: {
+        projectToken,
+        spendableProjectTokenCount: 100n,
+        poolKey: {
+          currency0: projectToken,
+          currency1: beneficiary,
+          fee: 10_000,
+          tickSpacing: 200,
+          hooks: hook,
+        },
+      },
+    });
+    expect(best.kind).toEqual("cash-out");
+    expect(poolCalls).toEqual(0);
+  });
+
+  test("falls back to the terminal when the optional direct-swap quoter fails", async () => {
+    const projectToken = "0x7777777777777777777777777777777777777777" as const;
+    const client = {
+      readContract: async () => [{ id: 42n }, 1_000n, 1n, []],
+      call: async () => {
+        throw new Error("quoter unavailable");
+      },
+    } as unknown as PublicClient;
+    const best = await getBestCashOutRoute(client, {
+      chainId,
+      projectId,
+      holder,
+      cashOutCount: 100n,
+      tokenToReclaim: NATIVE_TOKEN,
+      directSwap: {
+        projectToken,
+        spendableProjectTokenCount: 100n,
+        poolKey: {
+          currency0: projectToken,
+          currency1: "0x0000000000000000000000000000000000000000",
+          fee: 10_000,
+          tickSpacing: 200,
+          hooks: hook,
+        },
+      },
+    });
+    expect(best).toMatchObject({
+      kind: "cash-out",
+      expectedReturn: 975n,
+      minimumReturn: 965n,
+    });
   });
 
   test("getHookAwareCashOutQuote reads previewCashOutFrom and resolves", async () => {
@@ -503,5 +743,98 @@ describe("hook-aware cash-out routing", () => {
     expect(treasuryRoute.terminalMinimum).toEqual(965n);
     expect(treasuryRoute.metadata).toEqual("0x");
     expect(treasuryRoute.buyback).toBeNull();
+  });
+
+  test("prepareHookAwareCashOut locks the pool route and builds its transaction", async () => {
+    const buybackHook = v6Address("JBBuybackHook", chainId);
+    const calls: { functionName: string; args: readonly unknown[] }[] = [];
+    const client = {
+      readContract: async (call: {
+        functionName: string;
+        args: readonly unknown[];
+      }) => {
+        calls.push(call);
+        if (call.functionName !== "previewCashOutFrom") {
+          throw new Error(`unexpected call ${call.functionName}`);
+        }
+        const metadata = call.args[5];
+        return [
+          { id: 42n },
+          0n,
+          10_000n,
+          [
+            {
+              hook: buybackHook,
+              noop: false,
+              amount: 0n,
+              metadata:
+                metadata === "0x"
+                  ? specMetadata()
+                  : specMetadata({
+                      minimumSwap: 1_089n,
+                      rawQuote: 0n,
+                      userSpecified: true,
+                    }),
+            },
+          ],
+        ];
+      },
+    } as unknown as PublicClient;
+
+    const prepared = await prepareHookAwareCashOut(client, {
+      chainId,
+      projectId,
+      holder,
+      cashOutCount: ONE_ETHER,
+      tokenToReclaim: NATIVE_TOKEN,
+      beneficiary,
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(prepared.preview.rulesetId).toEqual(42n);
+    expect(prepared.lockedPreview?.rulesetId).toEqual(42n);
+    expect(prepared.route.route).toEqual("amm");
+    expect(prepared.route.minimumReturn).toEqual(1_089n);
+    expect(prepared.transaction.args[4]).toEqual(0n);
+    expect(prepared.transaction.args[5]).toEqual(beneficiary);
+    expect(prepared.transaction.args[6]).toEqual(prepared.route.metadata);
+  });
+
+  test("prepareHookAwareCashOut rejects a route which changes while locking", async () => {
+    const buybackHook = v6Address("JBBuybackHook", chainId);
+    let previewCount = 0;
+    const client = {
+      readContract: async (call: { functionName: string }) => {
+        if (call.functionName !== "previewCashOutFrom") {
+          throw new Error(`unexpected call ${call.functionName}`);
+        }
+        previewCount += 1;
+        return [
+          { id: 42n },
+          previewCount === 1 ? 0n : 1_000n,
+          previewCount === 1 ? 10_000n : 1n,
+          previewCount === 1
+            ? [
+                {
+                  hook: buybackHook,
+                  noop: false,
+                  amount: 0n,
+                  metadata: specMetadata(),
+                },
+              ]
+            : [],
+        ];
+      },
+    } as unknown as PublicClient;
+
+    await expect(
+      prepareHookAwareCashOut(client, {
+        chainId,
+        projectId,
+        holder,
+        cashOutCount: ONE_ETHER,
+        tokenToReclaim: NATIVE_TOKEN,
+      }),
+    ).rejects.toMatchObject({ code: "CASH_OUT_ROUTE_CHANGED" });
   });
 });

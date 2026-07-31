@@ -14,6 +14,13 @@ import { applyJbDaoCashOutFee } from "../utils/fee.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { NATIVE_TOKEN_CURRENCY_ID } from "./currency.js";
 import { v6Address } from "./types.js";
+import {
+  buildUniswapV4ExactInputSwapTx,
+  quoteUniswapV4ExactInputSingle,
+  uniswapV4SwapDirection,
+  type UniswapV4PoolKey,
+  type UniswapV4SwapTxRequest,
+} from "./uniswapV4.js";
 
 /**
  * A prepared `cashOutTokensOf` transaction request, accepted as-is by viem's
@@ -397,6 +404,170 @@ export interface CashOutRoute {
   buyback: (BuybackCashOutSpec & { hook: Address }) | null;
 }
 
+/** A terminal cash out or a direct sale of already-claimed project ERC-20s. */
+export type BestCashOutRoute =
+  | {
+      kind: "cash-out";
+      expectedReturn: bigint;
+      minimumReturn: bigint;
+      cashOut: CashOutRoute;
+    }
+  | {
+      kind: "direct-swap";
+      expectedReturn: bigint;
+      minimumReturn: bigint;
+      /** The displaced terminal route, retained for comparison and fallback. */
+      cashOut: CashOutRoute;
+      poolKey: UniswapV4PoolKey;
+      zeroForOne: boolean;
+    };
+
+/**
+ * Pick the executable exit which guarantees the holder the most reclaim token.
+ *
+ * A direct pool sale can only spend claimed ERC-20s. Internal Juicebox credits
+ * stay on the terminal route until they are claimed. The direct route must beat
+ * the terminal's full expected output even after user slippage; an optimistic
+ * pool quote alone is never enough to displace a deterministic cash out.
+ */
+export function chooseBestCashOutRoute({
+  cashOut,
+  directSwapQuote,
+  directSwapPoolKey,
+  directSwapZeroForOne,
+  spendableProjectTokenCount = 0n,
+  cashOutCount,
+  slippageBps = DEFAULT_CASH_OUT_SLIPPAGE_BPS,
+}: {
+  cashOut: CashOutRoute;
+  directSwapQuote?: bigint | null;
+  directSwapPoolKey?: UniswapV4PoolKey;
+  directSwapZeroForOne?: boolean;
+  spendableProjectTokenCount?: bigint;
+  cashOutCount: bigint;
+  slippageBps?: bigint;
+}): BestCashOutRoute {
+  const cashOutCandidate: BestCashOutRoute = {
+    kind: "cash-out",
+    expectedReturn: cashOut.expectedReturn,
+    minimumReturn: cashOut.minimumReturn,
+    cashOut,
+  };
+  if (
+    !directSwapQuote ||
+    directSwapQuote <= 0n ||
+    !directSwapPoolKey ||
+    directSwapZeroForOne === undefined ||
+    cashOutCount <= 0n ||
+    spendableProjectTokenCount < cashOutCount
+  ) {
+    return cashOutCandidate;
+  }
+
+  const minimumReturn = slippageFloor(directSwapQuote, slippageBps);
+  if (minimumReturn <= cashOut.expectedReturn) return cashOutCandidate;
+
+  return {
+    kind: "direct-swap",
+    expectedReturn: directSwapQuote,
+    minimumReturn,
+    cashOut,
+    poolKey: directSwapPoolKey,
+    zeroForOne: directSwapZeroForOne,
+  };
+}
+
+export interface DirectCashOutSwapArguments {
+  poolKey: UniswapV4PoolKey;
+  projectToken: Address;
+  /** Claimed ERC-20 balance available to the Universal Router. */
+  spendableProjectTokenCount: bigint;
+}
+
+export interface BestCashOutArguments extends HookAwareCashOutArguments {
+  directSwap?: DirectCashOutSwapArguments;
+}
+
+/** Pool fee/impact already reflected by the buyback hook's executable quote. */
+export function cashOutPoolBufferBps(
+  route: CashOutRoute | null | undefined,
+): bigint | null {
+  const buyback = route?.route === "amm" ? route.buyback : null;
+  if (!buyback || buyback.rawSwapQuote <= 0n) return null;
+  const executableQuote =
+    buyback.minimumSwapAmountOut > buyback.rawSwapQuote
+      ? buyback.rawSwapQuote
+      : buyback.minimumSwapAmountOut;
+  return (
+    ((buyback.rawSwapQuote - executableQuote) * MAX_BPS +
+      buyback.rawSwapQuote -
+      1n) /
+    buyback.rawSwapQuote
+  );
+}
+
+/** Machine-readable cash-out failures which clients can translate into copy. */
+export type CashOutExecutionErrorCode =
+  | "BUYBACK_SLIPPAGE_EXCEEDED"
+  | "TERMINAL_UNDER_MIN";
+
+export interface CashOutExecutionError {
+  code: CashOutExecutionErrorCode;
+  selector: Hex;
+}
+
+const CASH_OUT_EXECUTION_ERRORS: readonly (CashOutExecutionError & {
+  matchers: readonly string[];
+})[] = [
+  {
+    code: "BUYBACK_SLIPPAGE_EXCEEDED",
+    selector: "0xe2d708a9",
+    matchers: ["0xe2d708a9", "jbbuybackhook_specifiedslippageexceeded"],
+  },
+  {
+    code: "TERMINAL_UNDER_MIN",
+    selector: "0x6b2bb382",
+    matchers: ["0x6b2bb382", "jbmultiterminal_undermin"],
+  },
+] as const;
+
+function collectCashOutErrorText(
+  value: unknown,
+  seen = new Set<unknown>(),
+  depth = 0,
+): string[] {
+  if (depth > 8 || value === null || value === undefined || seen.has(value)) {
+    return [];
+  }
+  if (typeof value === "string") return [value];
+  if (typeof value !== "object") return [];
+  seen.add(value);
+  const record = value as Record<string, unknown>;
+  return [
+    record.shortMessage,
+    record.message,
+    record.details,
+    record.errorName,
+    record.signature,
+    record.raw,
+    record.data,
+    record.cause,
+    record.error,
+  ].flatMap((item) => collectCashOutErrorText(item, seen, depth + 1));
+}
+
+/** Classify known cash-out errors through viem/wallet nested error shapes. */
+export function classifyCashOutExecutionError(
+  error: unknown,
+): CashOutExecutionError | null {
+  const text = collectCashOutErrorText(error).join(" | ").toLowerCase();
+  if (!text) return null;
+  const matched = CASH_OUT_EXECUTION_ERRORS.find(({ matchers }) =>
+    matchers.some((matcher) => text.includes(matcher)),
+  );
+  return matched ? { code: matched.code, selector: matched.selector } : null;
+}
+
 /**
  * Interpret a hook-aware `previewCashOutFrom` result and prepare a
  * slippage-protected route.
@@ -481,16 +652,23 @@ export function resolveCashOutRoute({
 
   if (!specification || specification.noop || !buyback) return treasuryRoute;
 
-  // The pool route won the preview. Re-previews with an explicit metadata
-  // minimum report that already-protected floor and no raw quote — preserve
-  // it instead of discounting a second time.
+  // The raw swap quote is an optimistic oracle quote used for display and
+  // route comparison. The hook's minimumSwapAmountOut is the executable pool
+  // quote after fee, liquidity, and price-impact constraints. User slippage
+  // must be applied to that executable value; applying it to rawSwapQuote can
+  // create a minimum the pool cannot satisfy.
   const quote =
     buyback.rawSwapQuote > 0n
       ? buyback.rawSwapQuote
       : buyback.minimumSwapAmountOut;
+  const executableQuote =
+    buyback.rawSwapQuote > 0n &&
+    buyback.minimumSwapAmountOut > buyback.rawSwapQuote
+      ? buyback.rawSwapQuote
+      : buyback.minimumSwapAmountOut;
   const minimumReturn =
     buyback.rawSwapQuote > 0n && !buyback.hasUserSpecifiedMinimumSwapAmountOut
-      ? slippageFloor(quote, slippageBps)
+      ? slippageFloor(executableQuote, slippageBps)
       : buyback.minimumSwapAmountOut;
 
   // An explicit metadata minimum at or below the direct net routes execution
@@ -545,6 +723,123 @@ export function resolveCashOutRoute({
  * {@link DEFAULT_CASH_OUT_SLIPPAGE_BPS}.
  * @returns The protected route (see {@link CashOutRoute}).
  */
+export interface HookAwareCashOutArguments {
+  chainId: JBChainId;
+  projectId: bigint;
+  holder: Address;
+  cashOutCount: bigint;
+  tokenToReclaim: Address;
+  beneficiary?: Address;
+  terminal?: Address;
+  buybackHookAddress?: Address;
+  beneficiaryIsFeeless?: boolean;
+  slippageBps?: bigint;
+}
+
+/** The protocol facts returned by one `previewCashOutFrom` call. */
+export interface CashOutPreviewSnapshot {
+  rulesetId: bigint | null;
+  reclaimAmount: bigint;
+  cashOutTaxRate: bigint;
+  hookSpecifications: readonly CashOutHookSpecification[];
+}
+
+function rulesetIdOf(ruleset: unknown): bigint | null {
+  const id =
+    ruleset && typeof ruleset === "object" && "id" in ruleset
+      ? (ruleset as { id?: unknown }).id
+      : Array.isArray(ruleset)
+        ? ruleset[0]
+        : null;
+  try {
+    return id === null || id === undefined ? null : BigInt(id as string);
+  } catch {
+    return null;
+  }
+}
+
+async function readCashOutPreviewSnapshot(
+  client: PublicClient,
+  {
+    terminal,
+    holder,
+    projectId,
+    cashOutCount,
+    tokenToReclaim,
+    beneficiary,
+    metadata,
+  }: {
+    terminal: Address;
+    holder: Address;
+    projectId: bigint;
+    cashOutCount: bigint;
+    tokenToReclaim: Address;
+    beneficiary: Address;
+    metadata: Hex;
+  },
+): Promise<CashOutPreviewSnapshot> {
+  const [ruleset, reclaimAmount, cashOutTaxRate, hookSpecifications] =
+    await client.readContract({
+      address: terminal,
+      abi: jbMultiTerminalAbi,
+      functionName: "previewCashOutFrom",
+      args: [
+        holder,
+        projectId,
+        cashOutCount,
+        tokenToReclaim,
+        beneficiary,
+        metadata,
+      ],
+    });
+  return {
+    rulesetId: rulesetIdOf(ruleset),
+    reclaimAmount,
+    cashOutTaxRate,
+    hookSpecifications,
+  };
+}
+
+async function resolveCashOutPreviewSnapshot(
+  client: PublicClient,
+  preview: CashOutPreviewSnapshot,
+  {
+    terminal,
+    projectId,
+    tokenToReclaim,
+    buybackHookAddress,
+    beneficiaryIsFeeless,
+    slippageBps,
+  }: {
+    terminal: Address;
+    projectId: bigint;
+    tokenToReclaim: Address;
+    buybackHookAddress?: Address;
+    beneficiaryIsFeeless: boolean;
+    slippageBps: bigint;
+  },
+): Promise<CashOutRoute> {
+  const feeFreeSurplus =
+    preview.cashOutTaxRate === 0n
+      ? await client.readContract({
+          address: terminal,
+          abi: jbMultiTerminalAbi,
+          functionName: "feeFreeSurplusOf",
+          args: [projectId, tokenToReclaim],
+        })
+      : 0n;
+
+  return resolveCashOutRoute({
+    reclaimAmount: preview.reclaimAmount,
+    cashOutTaxRate: preview.cashOutTaxRate,
+    hookSpecifications: preview.hookSpecifications,
+    buybackHookAddress,
+    beneficiaryIsFeeless,
+    feeFreeSurplus,
+    slippageBps,
+  });
+}
+
 export async function getHookAwareCashOutQuote(
   client: PublicClient,
   {
@@ -553,62 +848,249 @@ export async function getHookAwareCashOutQuote(
     holder,
     cashOutCount,
     tokenToReclaim,
-    beneficiary,
+    beneficiary = holder,
     terminal,
     buybackHookAddress,
     beneficiaryIsFeeless = false,
     slippageBps = DEFAULT_CASH_OUT_SLIPPAGE_BPS,
-  }: {
-    chainId: JBChainId;
-    projectId: bigint;
-    holder: Address;
-    cashOutCount: bigint;
-    tokenToReclaim: Address;
-    beneficiary?: Address;
-    terminal?: Address;
-    buybackHookAddress?: Address;
-    beneficiaryIsFeeless?: boolean;
-    slippageBps?: bigint;
-  },
+  }: HookAwareCashOutArguments,
 ): Promise<CashOutRoute> {
   const terminalAddress = terminal ?? v6Address("JBMultiTerminal", chainId);
   const buybackHook =
     buybackHookAddress ?? optionalV6Address("JBBuybackHook", chainId);
-  const [, reclaimAmount, cashOutTaxRate, hookSpecifications] =
-    await client.readContract({
-      address: terminalAddress,
-      abi: jbMultiTerminalAbi,
-      functionName: "previewCashOutFrom",
-      args: [
-        holder,
-        projectId,
-        cashOutCount,
-        tokenToReclaim,
-        beneficiary ?? holder,
-        "0x",
-      ],
-    });
-
-  // The fee-free surplus counter only matters on zero-tax rulesets.
-  const feeFreeSurplus =
-    cashOutTaxRate === 0n
-      ? await client.readContract({
-          address: terminalAddress,
-          abi: jbMultiTerminalAbi,
-          functionName: "feeFreeSurplusOf",
-          args: [projectId, tokenToReclaim],
-        })
-      : 0n;
-
-  return resolveCashOutRoute({
-    reclaimAmount,
-    cashOutTaxRate,
-    hookSpecifications,
+  const preview = await readCashOutPreviewSnapshot(client, {
+    terminal: terminalAddress,
+    holder,
+    projectId,
+    cashOutCount,
+    tokenToReclaim,
+    beneficiary,
+    metadata: "0x",
+  });
+  return resolveCashOutPreviewSnapshot(client, preview, {
+    terminal: terminalAddress,
+    projectId,
+    tokenToReclaim,
     buybackHookAddress: buybackHook,
     beneficiaryIsFeeless,
-    feeFreeSurplus,
     slippageBps,
   });
+}
+
+/**
+ * Quote the best user exit across the terminal and a directly spendable pool.
+ *
+ * `previewCashOutFrom` remains the source of truth for terminal and buyback-hook
+ * settlement. When a matching pool and sufficient claimed ERC-20 balance are
+ * supplied, the V4 Quoter is read as well and a direct swap wins only when its
+ * slippage-protected minimum exceeds the terminal route's full expected output.
+ */
+export async function getBestCashOutRoute(
+  client: PublicClient,
+  args: BestCashOutArguments,
+): Promise<BestCashOutRoute> {
+  const cashOut = await getHookAwareCashOutQuote(client, args);
+  const directSwap = args.directSwap;
+  if (
+    !directSwap ||
+    directSwap.spendableProjectTokenCount < args.cashOutCount ||
+    args.cashOutCount <= 0n
+  ) {
+    return chooseBestCashOutRoute({
+      cashOut,
+      cashOutCount: args.cashOutCount,
+      slippageBps: args.slippageBps,
+    });
+  }
+
+  const zeroForOne = uniswapV4SwapDirection({
+    poolKey: directSwap.poolKey,
+    tokenIn: directSwap.projectToken,
+    tokenOut: args.tokenToReclaim,
+  });
+  if (zeroForOne === null) {
+    return chooseBestCashOutRoute({
+      cashOut,
+      cashOutCount: args.cashOutCount,
+      slippageBps: args.slippageBps,
+    });
+  }
+
+  let directSwapQuote: bigint;
+  try {
+    directSwapQuote = await quoteUniswapV4ExactInputSingle(client, {
+      chainId: args.chainId,
+      poolKey: directSwap.poolKey,
+      zeroForOne,
+      amountIn: args.cashOutCount,
+    });
+  } catch {
+    // The direct pool is an optional optimization. A missing/reverting quoter
+    // must not make an otherwise valid terminal cash out unavailable.
+    return chooseBestCashOutRoute({
+      cashOut,
+      cashOutCount: args.cashOutCount,
+      slippageBps: args.slippageBps,
+    });
+  }
+  return chooseBestCashOutRoute({
+    cashOut,
+    directSwapQuote,
+    directSwapPoolKey: directSwap.poolKey,
+    directSwapZeroForOne: zeroForOne,
+    spendableProjectTokenCount: directSwap.spendableProjectTokenCount,
+    cashOutCount: args.cashOutCount,
+    slippageBps: args.slippageBps,
+  });
+}
+
+export class CashOutRouteChangedError extends Error {
+  readonly code = "CASH_OUT_ROUTE_CHANGED";
+
+  constructor() {
+    super(
+      "The cash-out route changed while its executable minimum was being locked.",
+    );
+    this.name = "CashOutRouteChangedError";
+  }
+}
+
+/** A fresh quote, locked AMM preview, and matching transaction request. */
+export interface PreparedHookAwareCashOut {
+  route: CashOutRoute;
+  transaction: V6CashOutTxRequest;
+  preview: CashOutPreviewSnapshot;
+  lockedPreview: CashOutPreviewSnapshot | null;
+}
+
+export type PreparedBestCashOut =
+  | ({ kind: "cash-out" } & PreparedHookAwareCashOut)
+  | {
+      kind: "direct-swap";
+      route: Extract<BestCashOutRoute, { kind: "direct-swap" }>;
+      transaction: UniswapV4SwapTxRequest;
+    };
+
+/**
+ * Prepare the exact hook-aware cash-out request a wallet should submit.
+ *
+ * Pool routes are re-previewed with their slippage metadata before the request
+ * is returned. This proves the executable minimum still selects the same route
+ * and avoids clients independently composing a stale quote and transaction.
+ */
+export async function prepareHookAwareCashOut(
+  client: PublicClient,
+  {
+    chainId,
+    projectId,
+    holder,
+    cashOutCount,
+    tokenToReclaim,
+    beneficiary = holder,
+    terminal,
+    buybackHookAddress,
+    beneficiaryIsFeeless = false,
+    slippageBps = DEFAULT_CASH_OUT_SLIPPAGE_BPS,
+  }: HookAwareCashOutArguments,
+): Promise<PreparedHookAwareCashOut> {
+  const terminalAddress = terminal ?? v6Address("JBMultiTerminal", chainId);
+  const buybackHook =
+    buybackHookAddress ?? optionalV6Address("JBBuybackHook", chainId);
+  const resolvePreview = (preview: CashOutPreviewSnapshot) =>
+    resolveCashOutPreviewSnapshot(client, preview, {
+      terminal: terminalAddress,
+      projectId,
+      tokenToReclaim,
+      buybackHookAddress: buybackHook,
+      beneficiaryIsFeeless,
+      slippageBps,
+    });
+
+  const preview = await readCashOutPreviewSnapshot(client, {
+    terminal: terminalAddress,
+    holder,
+    projectId,
+    cashOutCount,
+    tokenToReclaim,
+    beneficiary,
+    metadata: "0x",
+  });
+  const route = await resolvePreview(preview);
+  let lockedPreview: CashOutPreviewSnapshot | null = null;
+
+  if (route.route === "amm") {
+    lockedPreview = await readCashOutPreviewSnapshot(client, {
+      terminal: terminalAddress,
+      holder,
+      projectId,
+      cashOutCount,
+      tokenToReclaim,
+      beneficiary,
+      metadata: route.metadata,
+    });
+    const lockedRoute = await resolvePreview(lockedPreview);
+    if (
+      (preview.rulesetId !== null &&
+        lockedPreview.rulesetId !== null &&
+        lockedPreview.rulesetId !== preview.rulesetId) ||
+      lockedRoute.route !== "amm" ||
+      lockedRoute.minimumReturn !== route.minimumReturn ||
+      lockedRoute.metadata.toLowerCase() !== route.metadata.toLowerCase()
+    ) {
+      throw new CashOutRouteChangedError();
+    }
+  }
+
+  return {
+    route,
+    transaction: buildCashOutTx({
+      chainId,
+      terminal: terminalAddress,
+      holder,
+      projectId,
+      cashOutCount,
+      tokenToReclaim,
+      minTokensReclaimed: route.terminalMinimum,
+      beneficiary,
+      metadata: route.metadata,
+    }),
+    preview,
+    lockedPreview,
+  };
+}
+
+/**
+ * Freshly prepare the best executable cash-out or direct-swap transaction.
+ *
+ * A direct swap is freshly quoted and slippage-floored in the same operation
+ * which builds its Universal Router request. If it cannot safely beat the
+ * terminal, the terminal path is re-previewed and locked instead.
+ */
+export async function prepareBestCashOut(
+  client: PublicClient,
+  args: BestCashOutArguments & { directSwapDeadline: bigint },
+): Promise<PreparedBestCashOut> {
+  const best = await getBestCashOutRoute(client, args);
+  if (best.kind === "direct-swap") {
+    return {
+      kind: "direct-swap",
+      route: best,
+      transaction: buildUniswapV4ExactInputSwapTx({
+        chainId: args.chainId,
+        poolKey: best.poolKey,
+        zeroForOne: best.zeroForOne,
+        amountIn: args.cashOutCount,
+        minimumAmountOut: best.minimumReturn,
+        recipient: args.beneficiary ?? args.holder,
+        deadline: args.directSwapDeadline,
+      }),
+    };
+  }
+
+  return {
+    kind: "cash-out",
+    ...(await prepareHookAwareCashOut(client, args)),
+  };
 }
 
 /**
