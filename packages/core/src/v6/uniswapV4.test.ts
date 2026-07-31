@@ -9,6 +9,7 @@ import {
 } from "viem";
 import type { PublicClient } from "viem";
 import { describe, expect, test } from "vitest";
+import { NATIVE_TOKEN } from "../constants.js";
 import {
   UNISWAP_V4_MAX_TICK,
   UNISWAP_V4_MODIFY_LIQUIDITY_TOPIC,
@@ -31,10 +32,15 @@ import {
   uniswapV4PoolStateSlot,
   uniswapV4PositionTicks,
   uniswapV4PositionTokenIdFromLog,
+  uniswapV4PriceAtTick,
   uniswapV4PriceFromSqrtPriceX96,
+  uniswapV4PriceRangeFromTicks,
   quoteUniswapV4ExactInputSingle,
   uniswapV4SqrtPriceX96AtTick,
   uniswapV4SqrtPriceX96FromSlot0,
+  uniswapV4SwapDirection,
+  uniswapV4TickAtPrice,
+  uniswapV4TickRangeFromPrices,
 } from "./uniswapV4.js";
 
 const TOKEN = "0x00000000000000000000000000000000000000aa" as const;
@@ -98,6 +104,30 @@ describe("Uniswap V4 direct swaps", () => {
     tickSpacing: 200,
     hooks: HOOK,
   } as const;
+
+  test("matches both sides of the pair and normalizes the native sentinel", () => {
+    expect(
+      uniswapV4SwapDirection({
+        poolKey: key,
+        tokenIn: NATIVE_TOKEN,
+        tokenOut: TOKEN,
+      }),
+    ).toBe(true);
+    expect(
+      uniswapV4SwapDirection({
+        poolKey: key,
+        tokenIn: TOKEN,
+        tokenOut: NATIVE_TOKEN,
+      }),
+    ).toBe(false);
+    expect(
+      uniswapV4SwapDirection({
+        poolKey: key,
+        tokenIn: TOKEN,
+        tokenOut: HOOK,
+      }),
+    ).toBeNull();
+  });
 
   test("builds a native exact-input Universal Router swap", () => {
     const tx = buildUniswapV4ExactInputSwapTx({
@@ -247,6 +277,48 @@ describe("Uniswap V4 tick and liquidity math", () => {
     expect(() => uniswapV4SqrtPriceX96AtTick(UNISWAP_V4_MAX_TICK + 1)).toThrow(
       /outside/,
     );
+  });
+
+  test("normalizes tick and price ranges for either currency ordering", () => {
+    const currency0LowTick = uniswapV4PriceAtTick(-600, true, 18);
+    const currency0HighTick = uniswapV4PriceAtTick(600, true, 18);
+    const currency1LowTick = uniswapV4PriceAtTick(-600, false, 18);
+    const currency1HighTick = uniswapV4PriceAtTick(600, false, 18);
+
+    expect(currency0LowTick).toBeGreaterThan(currency0HighTick!);
+    expect(currency1LowTick).toBeLessThan(currency1HighTick!);
+    expect(uniswapV4TickAtPrice(currency0HighTick!, true, 18)).toBeCloseTo(
+      600,
+      5,
+    );
+    expect(uniswapV4TickAtPrice(currency1HighTick!, false, 18)).toBeCloseTo(
+      600,
+      5,
+    );
+
+    for (const pairIsCurrency0 of [true, false]) {
+      const prices = uniswapV4PriceRangeFromTicks(
+        -600,
+        600,
+        pairIsCurrency0,
+        18,
+      );
+      expect(prices?.min).toBeLessThan(prices!.max);
+      const ticks = uniswapV4TickRangeFromPrices(
+        prices!.min,
+        prices!.max,
+        pairIsCurrency0,
+        18,
+      );
+      expect(ticks?.lower).toBeCloseTo(-600, 5);
+      expect(ticks?.upper).toBeCloseTo(600, 5);
+    }
+  });
+
+  test("rejects invalid human tick/price inputs", () => {
+    expect(uniswapV4PriceAtTick(1.5, true, 18)).toBeNull();
+    expect(uniswapV4TickAtPrice(0, true, 18)).toBeNull();
+    expect(uniswapV4TickRangeFromPrices(0, 1, true, 18)).toBeNull();
   });
 
   test("derived liquidity never consumes more than the supplied amounts", () => {

@@ -7,6 +7,7 @@ import {
   zeroAddress,
 } from "viem";
 import type { Address, Hex, PublicClient } from "viem";
+import { NATIVE_TOKEN } from "../constants.js";
 import type { JBChainId } from "../types.js";
 
 /**
@@ -117,6 +118,38 @@ export interface UniswapV4PoolKey {
   fee: number;
   tickSpacing: number;
   hooks: Address;
+}
+
+function normalizeUniswapV4Currency(token: Address): string {
+  return token.toLowerCase() === NATIVE_TOKEN.toLowerCase()
+    ? zeroAddress
+    : token.toLowerCase();
+}
+
+/**
+ * Resolve the exact swap direction for a token pair, normalizing Juicebox's
+ * native-token sentinel to Uniswap V4's zero-address currency.
+ *
+ * Returns `null` unless both input and output match opposite sides of the pool.
+ * Clients should fail closed on `null` instead of inferring the output token
+ * from the input side alone.
+ */
+export function uniswapV4SwapDirection({
+  poolKey,
+  tokenIn,
+  tokenOut,
+}: {
+  poolKey: UniswapV4PoolKey;
+  tokenIn: Address;
+  tokenOut: Address;
+}): boolean | null {
+  const input = normalizeUniswapV4Currency(tokenIn);
+  const output = normalizeUniswapV4Currency(tokenOut);
+  const currency0 = poolKey.currency0.toLowerCase();
+  const currency1 = poolKey.currency1.toLowerCase();
+  if (input === currency0 && output === currency1) return true;
+  if (input === currency1 && output === currency0) return false;
+  return null;
 }
 
 const V4_QUOTER_ABI = [
@@ -442,6 +475,85 @@ export function uniswapV4PriceFromSqrtPriceX96(
   if (rawRatio === null) return null;
   const price = rawRatio * 10 ** (18 - pairTokenDecimals);
   return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+/** Human pair-token price at a Uniswap V4 tick, in either currency ordering. */
+export function uniswapV4PriceAtTick(
+  tick: number,
+  pairIsCurrency0: boolean,
+  pairTokenDecimals: number,
+): number | null {
+  if (!Number.isInteger(tick)) return null;
+  return uniswapV4PriceFromSqrtPriceX96(
+    uniswapV4SqrtPriceX96AtTick(tick),
+    pairIsCurrency0,
+    pairTokenDecimals,
+  );
+}
+
+/** Inverse of {@link uniswapV4PriceAtTick}; returns a fractional raw tick. */
+export function uniswapV4TickAtPrice(
+  price: number,
+  pairIsCurrency0: boolean,
+  pairTokenDecimals: number,
+): number | null {
+  if (
+    !(price > 0) ||
+    !Number.isFinite(price) ||
+    !Number.isSafeInteger(pairTokenDecimals)
+  ) {
+    return null;
+  }
+  const decimalFactor = 10 ** (18 - pairTokenDecimals);
+  const rawRatio = pairIsCurrency0
+    ? decimalFactor / price
+    : price / decimalFactor;
+  const tick = Math.log(rawRatio) / Math.log(1.0001);
+  return Number.isFinite(tick) ? tick : null;
+}
+
+/** Map two ticks to an order-independent human-price range. */
+export function uniswapV4PriceRangeFromTicks(
+  tickA: number,
+  tickB: number,
+  pairIsCurrency0: boolean,
+  pairTokenDecimals: number,
+): { min: number; max: number } | null {
+  const priceA = uniswapV4PriceAtTick(
+    tickA,
+    pairIsCurrency0,
+    pairTokenDecimals,
+  );
+  const priceB = uniswapV4PriceAtTick(
+    tickB,
+    pairIsCurrency0,
+    pairTokenDecimals,
+  );
+  return priceA === null || priceB === null
+    ? null
+    : { min: Math.min(priceA, priceB), max: Math.max(priceA, priceB) };
+}
+
+/** Map two human prices to an order-independent raw-tick range. */
+export function uniswapV4TickRangeFromPrices(
+  priceA: number,
+  priceB: number,
+  pairIsCurrency0: boolean,
+  pairTokenDecimals: number,
+): { lower: number; upper: number } | null {
+  const tickA = uniswapV4TickAtPrice(
+    priceA,
+    pairIsCurrency0,
+    pairTokenDecimals,
+  );
+  const tickB = uniswapV4TickAtPrice(
+    priceB,
+    pairIsCurrency0,
+    pairTokenDecimals,
+  );
+  return tickA === null || tickB === null
+    ? null
+    : { lower: Math.min(tickA, tickB), upper: Math.max(tickA, tickB) };
 }
 
 /** Exact integer port of Uniswap V4 TickMath.getSqrtPriceAtTick. */
