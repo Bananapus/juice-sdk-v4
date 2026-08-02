@@ -1,7 +1,10 @@
 import type { Address, Hex, PublicClient } from "viem";
 import { NATIVE_TOKEN } from "../constants.js";
 import type { JBChainId } from "../types.js";
-import { UNISWAP_PERMIT2_ADDRESS, uniswapV4Deployment } from "./uniswapV4.js";
+import {
+  UNISWAP_PERMIT2_ADDRESS,
+  uniswapV4Deployment,
+} from "./uniswapV4Deployments.js";
 
 /** Canonical Permit2 deployment shared by supported EVM chains. */
 export const PERMIT2_ADDRESS = UNISWAP_PERMIT2_ADDRESS;

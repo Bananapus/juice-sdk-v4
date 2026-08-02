@@ -8,10 +8,11 @@ const budgets = {
   "@bananapus/nana-sdk-core": {
     directory: "packages/core",
     // Includes the public Bendystraw transport, supported-chain definitions,
-    // direct-pay routing, and Permit2 helpers in both ESM and CJS formats.
+    // direct-pay routing, Permit2 helpers, and tree-shakable loan/deployment
+    // entry points in both ESM and CJS formats.
     packed: 790_000,
     unpacked: 16_950_000,
-    entries: 380,
+    entries: 395,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
