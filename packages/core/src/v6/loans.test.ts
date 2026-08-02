@@ -5,12 +5,15 @@ import {
   EMPTY_SINGLE_ALLOWANCE,
   LOANS_MAX_FEE,
   MIN_PREPAID_FEE_PERCENT,
+  MAX_PREPAID_FEE_PERCENT,
   REVLOANS_PERMISSION_ID,
   REV_PREPAID_FEE_PERCENT,
   buildBorrowTx,
   buildReallocateCollateralTx,
   buildRepayLoanTx,
   getBorrowableAmount,
+  loanOpeningAmounts,
+  netLoanProceeds,
 } from "./loans.js";
 import { v6Address } from "./types.js";
 
@@ -21,9 +24,44 @@ const holder = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8" as const;
 describe("loans", () => {
   test("constants match REVLoans", () => {
     expect(MIN_PREPAID_FEE_PERCENT).toEqual(25n);
+    expect(MAX_PREPAID_FEE_PERCENT).toEqual(500n);
     expect(REV_PREPAID_FEE_PERCENT).toEqual(10n);
     expect(LOANS_MAX_FEE).toEqual(1000n);
     expect(REVLOANS_PERMISSION_ID).toEqual(1);
+  });
+
+  describe("loan opening fees", () => {
+    test("matches contract floor rounding at the minimum source fee", () => {
+      expect(loanOpeningAmounts({ grossBorrowAmount: 384_045_300n })).toEqual({
+        grossBorrowAmount: 384_045_300n,
+        protocolFee: 9_601_132n,
+        revFee: 3_840_453n,
+        sourceFee: 9_601_132n,
+        netBorrowAmount: 361_002_583n,
+      });
+      expect(netLoanProceeds(384_045_300n)).toBe(361_002_583n);
+    });
+
+    test("supports feeless beneficiaries and enforces REVLoans bounds", () => {
+      expect(
+        loanOpeningAmounts({
+          grossBorrowAmount: 1_000n,
+          protocolFeeApplies: false,
+          revFeeApplies: false,
+        }),
+      ).toMatchObject({
+        protocolFee: 0n,
+        revFee: 0n,
+        sourceFee: 25n,
+        netBorrowAmount: 975n,
+      });
+      expect(() =>
+        loanOpeningAmounts({
+          grossBorrowAmount: 1_000n,
+          prepaidSourceFeePercent: 24n,
+        }),
+      ).toThrow(/between 25 and 500/);
+    });
   });
 
   describe("buildBorrowTx", () => {
@@ -143,7 +181,7 @@ describe("loans", () => {
           address: v6Address("REVLoans", 11155111),
           functionName: "borrowableAmountFrom",
           args: [4n, 100n, 18n, 1n],
-        })
+        }),
       );
       expect(result).toEqual({
         borrowableNow: 111n,
