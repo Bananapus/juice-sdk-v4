@@ -53,6 +53,23 @@ export const UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES: Readonly<
   11155111: "0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b",
 };
 
+/**
+ * Canonical StateView deployments — the periphery lens over PoolManager's
+ * `extsload` storage. Each address was verified by calling `poolManager()` and
+ * matching it against {@link UNISWAP_V4_POOL_MANAGER_ADDRESSES} for the chain.
+ */
+export const UNISWAP_V4_STATE_VIEW_ADDRESSES: Readonly<
+  Partial<Record<JBChainId, Address>>
+> = {
+  1: "0x7ffe42c4a5deea5b0fec41c94c136cf115597227",
+  10: "0xc18a3169788f4f75a170290584eca6395c75ecdb",
+  8453: "0xa3c0c9b65bad0b08107aa264b0f3db444b867a71",
+  42161: "0x76fd297e2d437cd7f76d50f01afe6160f86e9990",
+  84532: "0x571291b572ed32ce6751a2cb2486ebee8defb9b4",
+  421614: "0x9d467fa9062b6e9b1a46e26007ad82db116c67cb",
+  11155111: "0xe1dd9c3fa50edb962e442f60dfbc432e24537e4c",
+};
+
 /** Permit2 is deployed at the same address on supported EVM chains. */
 export const UNISWAP_PERMIT2_ADDRESS: Address =
   "0x000000000022D473030F116dDEE9F6B43aC78BA3";
@@ -63,6 +80,7 @@ export function uniswapV4Deployment(chainId: number): {
   positionManager: Address | null;
   quoter: Address | null;
   universalRouter: Address | null;
+  stateView: Address | null;
   permit2: Address;
 } | null {
   const poolManager = (
@@ -88,6 +106,12 @@ export function uniswapV4Deployment(chainId: number): {
     universalRouter:
       (
         UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES as Readonly<
+          Partial<Record<number, Address>>
+        >
+      )[chainId] ?? null,
+    stateView:
+      (
+        UNISWAP_V4_STATE_VIEW_ADDRESSES as Readonly<
           Partial<Record<number, Address>>
         >
       )[chainId] ?? null,

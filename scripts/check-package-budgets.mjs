@@ -12,7 +12,7 @@ const budgets = {
     // entry points in both ESM and CJS formats.
     packed: 790_000,
     unpacked: 16_950_000,
-    entries: 395,
+    entries: 403,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

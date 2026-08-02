@@ -15,6 +15,7 @@ export * from "./cashOut.js";
 export * from "./nft.js";
 export * from "./tokens.js";
 export * from "./uniswapV4.js";
+export * from "./uniswapV4Fees.js";
 export * from "./permissions.js";
 export * from "./suckers.js";
 export * from "./loans.js";
