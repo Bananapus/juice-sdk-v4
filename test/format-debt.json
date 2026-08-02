@@ -12,8 +12,6 @@
     "packages/core/src/utils/hook.ts": "40e5c69767ccd19354e1c5fdd8fdb24d03655d1ee7e1ab2376aa5ef1fd887d98",
     "packages/core/src/utils/revnet.ts": "4ce8edaa7ee22a4954d9bce253038f2a096e72d4d592a132e23dc854d5dfa644",
     "packages/core/src/utils/ruleset.test.ts": "7339ccffd77c43ab55628e08330629ac0af3ec7d813b9c6b3d716d7d45c9ba24",
-    "packages/core/src/v6/loans.test.ts": "4df7587bd481407aa951c822c3ade6185e0f2600d9fe3c730ba38e7720b3a95b",
-    "packages/core/src/v6/loans.ts": "3d5f7ac17195804ae2589b4be5597ced493ed8e6b701498dbb87b0ca5af4ced3",
     "packages/react/src/components/NativeTokenValue.tsx": "e93d648614c7f307701e80f7276bfaf6077e7fd2bd08c3930356f1adb12cc0ba",
     "packages/react/src/contexts/JBChainContext/JBChainContext.tsx": "ec81d902ce5d01d3c287da3dfdf6d6ebc89b29fb93c9d36150bea2c178bc6e0a",
     "packages/react/src/contexts/JBContractContext/JBContractContext.tsx": "7e70a1d3d6b2cc2abd4ce66ee0913a4477b05286433158e61ddd12b03627fe09",

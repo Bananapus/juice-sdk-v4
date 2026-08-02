@@ -7,11 +7,11 @@ const repositoryUrl = "https://github.com/Bananapus/juice-sdk-v4";
 const budgets = {
   "@bananapus/nana-sdk-core": {
     directory: "packages/core",
-    // Includes the public Bendystraw transport and explicit supported-chain
-    // definitions in both ESM and CJS formats.
-    packed: 775_000,
-    unpacked: 16_800_000,
-    entries: 365,
+    // Includes the public Bendystraw transport, supported-chain definitions,
+    // direct-pay routing, and Permit2 helpers in both ESM and CJS formats.
+    packed: 790_000,
+    unpacked: 16_950_000,
+    entries: 380,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

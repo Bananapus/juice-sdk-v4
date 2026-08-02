@@ -17,11 +17,80 @@ export const LOANS_MAX_FEE = 1000n;
  */
 export const MIN_PREPAID_FEE_PERCENT = 25n;
 
+/** The largest prepaid source fee REVLoans accepts: 500 / 1000 = 50%. */
+export const MAX_PREPAID_FEE_PERCENT = 500n;
+
 /**
  * The upfront fee REVLoans routes to the $REV revnet on every borrow: 10 of
  * {@link LOANS_MAX_FEE} (1%), taken in addition to the prepaid fee.
  */
 export const REV_PREPAID_FEE_PERCENT = 10n;
+
+export interface LoanOpeningAmounts {
+  grossBorrowAmount: bigint;
+  protocolFee: bigint;
+  revFee: bigint;
+  sourceFee: bigint;
+  netBorrowAmount: bigint;
+}
+
+/**
+ * Calculate a borrower's spendable proceeds using the same floor-rounded fee
+ * arithmetic as REVLoans, JBMultiTerminal, and JBFees.
+ *
+ * `grossBorrowAmount` is the principal recorded on the loan. The terminal's
+ * standard 2.5% allowance fee is deducted first, followed by REVLoans' 1% REV
+ * fee and the selected prepaid source fee (2.5% minimum).
+ */
+export function loanOpeningAmounts({
+  grossBorrowAmount,
+  prepaidSourceFeePercent = MIN_PREPAID_FEE_PERCENT,
+  protocolFeeApplies = true,
+  revFeeApplies = true,
+}: {
+  grossBorrowAmount: bigint;
+  prepaidSourceFeePercent?: bigint;
+  protocolFeeApplies?: boolean;
+  revFeeApplies?: boolean;
+}): LoanOpeningAmounts {
+  if (grossBorrowAmount < 0n) {
+    throw new Error("grossBorrowAmount cannot be negative.");
+  }
+  if (
+    prepaidSourceFeePercent < MIN_PREPAID_FEE_PERCENT ||
+    prepaidSourceFeePercent > MAX_PREPAID_FEE_PERCENT
+  ) {
+    throw new Error(
+      `prepaidSourceFeePercent must be between ${MIN_PREPAID_FEE_PERCENT} and ${MAX_PREPAID_FEE_PERCENT}.`,
+    );
+  }
+  const protocolFee = protocolFeeApplies ? grossBorrowAmount / 40n : 0n;
+  const revFee = revFeeApplies
+    ? (grossBorrowAmount * REV_PREPAID_FEE_PERCENT) / LOANS_MAX_FEE
+    : 0n;
+  const sourceFee =
+    (grossBorrowAmount * prepaidSourceFeePercent) / LOANS_MAX_FEE;
+  const totalFees = protocolFee + revFee + sourceFee;
+  return {
+    grossBorrowAmount,
+    protocolFee,
+    revFee,
+    sourceFee,
+    netBorrowAmount:
+      grossBorrowAmount > totalFees ? grossBorrowAmount - totalFees : 0n,
+  };
+}
+
+/** Convenience accessor for {@link loanOpeningAmounts}. */
+export function netLoanProceeds(
+  grossBorrowAmount: bigint,
+  prepaidSourceFeePercent = MIN_PREPAID_FEE_PERCENT,
+): bigint {
+  return loanOpeningAmounts({
+    grossBorrowAmount,
+    prepaidSourceFeePercent,
+  }).netBorrowAmount;
+}
 
 /**
  * The JBPermissions permission id apps grant to the REVLoans contract before borrowing
@@ -267,7 +336,7 @@ export async function getBorrowableAmount(
     collateralCount: bigint;
     decimals: bigint;
     currency: bigint;
-  }
+  },
 ): Promise<{ borrowableNow: bigint; borrowableCapacity: bigint }> {
   const [borrowableNow, borrowableCapacity] = await client.readContract({
     address: v6Address("REVLoans", chainId),

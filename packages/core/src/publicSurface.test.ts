@@ -16,5 +16,9 @@ describe("published core SDK surfaces", () => {
     expect(sdk.bendystrawProjectRefsFilters).toBeTypeOf("function");
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
     expect(v6.buildAutoIssueTx).toBeTypeOf("function");
+    expect(v6.quoteDirectPaySwap).toBeTypeOf("function");
+    expect(v6.buildDirectPaySwapTx).toBeTypeOf("function");
+    expect(v6.permit2TypedData).toBeTypeOf("function");
+    expect(v6.netLoanProceeds).toBeTypeOf("function");
   });
 });
