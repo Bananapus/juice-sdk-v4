@@ -2,6 +2,7 @@
   "name": "@bananapus/nana-sdk-core",
   "version": "1.10.0",
   "type": "module",
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "https://github.com/Bananapus/juice-sdk-v4",
@@ -29,6 +30,41 @@
       "types": "./dist/esm/v6/index.d.ts",
       "import": "./dist/esm/v6/index.js",
       "require": "./dist/cjs/v6/index.js"
+    },
+    "./v6/direct-pay": {
+      "types": "./dist/esm/v6/directPay.d.ts",
+      "import": "./dist/esm/v6/directPay.js",
+      "require": "./dist/cjs/v6/directPay.js"
+    },
+    "./v6/permit2": {
+      "types": "./dist/esm/v6/permit2.d.ts",
+      "import": "./dist/esm/v6/permit2.js",
+      "require": "./dist/cjs/v6/permit2.js"
+    },
+    "./v6/loans": {
+      "types": "./dist/esm/v6/loans.d.ts",
+      "import": "./dist/esm/v6/loans.js",
+      "require": "./dist/cjs/v6/loans.js"
+    },
+    "./v6/loan-math": {
+      "types": "./dist/esm/v6/loanMath.d.ts",
+      "import": "./dist/esm/v6/loanMath.js",
+      "require": "./dist/cjs/v6/loanMath.js"
+    },
+    "./v6/cash-out": {
+      "types": "./dist/esm/v6/cashOut.d.ts",
+      "import": "./dist/esm/v6/cashOut.js",
+      "require": "./dist/cjs/v6/cashOut.js"
+    },
+    "./v6/uniswap-v4": {
+      "types": "./dist/esm/v6/uniswapV4.d.ts",
+      "import": "./dist/esm/v6/uniswapV4.js",
+      "require": "./dist/cjs/v6/uniswapV4.js"
+    },
+    "./v6/uniswap-v4-deployments": {
+      "types": "./dist/esm/v6/uniswapV4Deployments.d.ts",
+      "import": "./dist/esm/v6/uniswapV4Deployments.js",
+      "require": "./dist/cjs/v6/uniswapV4Deployments.js"
     }
   },
   "files": [
