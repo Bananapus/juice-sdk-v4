@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.10.0
+
+### Minor Changes
+
+- 55ddb17: Add reusable four-mainnet cross-currency direct-pay routing, Permit2 signature and allowance helpers, and contract-exact loan opening proceeds.
+
 ## 1.9.4
 
 ### Patch Changes
