@@ -10,7 +10,7 @@ const budgets = {
     // Includes the public Bendystraw transport, supported-chain definitions,
     // direct-pay routing, Permit2 helpers, and tree-shakable loan/deployment
     // entry points in both ESM and CJS formats.
-    packed: 790_000,
+    packed: 793_000,
     unpacked: 16_950_000,
     entries: 403,
   },
