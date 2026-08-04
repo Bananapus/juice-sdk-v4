@@ -4,9 +4,14 @@ import { JBOmnichainDeployerContracts } from "../contracts.js";
 import { jbContractAddress } from "../generated/juicebox.js";
 import {
   DISCOUNT_DENOMINATOR,
+  JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES,
+  JB721_RULESET_METADATA_PAUSE_TRANSFERS,
+  JB_RULESET_METADATA_APP_BITS_MAX,
   TIER_UNLIMITED_SUPPLY,
+  build721RulesetMetadata,
   buildTierCategoryPlan,
   buildTierMetadata,
+  decode721RulesetMetadata,
   effectiveTierPrice,
   get721MetadataIdTarget,
   getProject721Shop,
@@ -22,6 +27,79 @@ const hook = "0x1111111111111111111111111111111111111111" as const;
 const impl = "0x2222222222222222222222222222222222222222" as const;
 const store = "0x3333333333333333333333333333333333333333" as const;
 const CID = "QmbWqxBEKC3P8tqsKc98xmWNzrzDtRLMiMPL8wBuTGsMnR";
+
+describe("721 ruleset metadata", () => {
+  test("sets and decodes both 721 hook flags", () => {
+    const metadata = build721RulesetMetadata({
+      pauseTransfers: true,
+      pauseMintPendingReserves: true,
+    });
+
+    expect(metadata).toBe(
+      JB721_RULESET_METADATA_PAUSE_TRANSFERS |
+        JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES,
+    );
+    expect(decode721RulesetMetadata(metadata)).toEqual({
+      pauseTransfers: true,
+      pauseMintPendingReserves: true,
+    });
+  });
+
+  test("preserves unrelated metadata bits when setting or clearing flags", () => {
+    const unrelatedBits = (1 << 2) | (1 << 13);
+    expect(
+      build721RulesetMetadata({
+        metadata:
+          unrelatedBits | JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES,
+        pauseTransfers: true,
+      }),
+    ).toBe(
+      unrelatedBits |
+        JB721_RULESET_METADATA_PAUSE_TRANSFERS |
+        JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES,
+    );
+    expect(
+      build721RulesetMetadata({
+        metadata: unrelatedBits | JB721_RULESET_METADATA_PAUSE_TRANSFERS,
+        pauseTransfers: false,
+      }),
+    ).toBe(unrelatedBits);
+  });
+
+  test("preserves omitted flags and updates reserve minting independently", () => {
+    expect(
+      build721RulesetMetadata({
+        metadata: JB721_RULESET_METADATA_PAUSE_TRANSFERS,
+        pauseMintPendingReserves: true,
+      }),
+    ).toBe(
+      JB721_RULESET_METADATA_PAUSE_TRANSFERS |
+        JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES,
+    );
+    expect(
+      build721RulesetMetadata({
+        metadata:
+          JB721_RULESET_METADATA_PAUSE_TRANSFERS |
+          JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES,
+        pauseMintPendingReserves: false,
+      }),
+    ).toBe(JB721_RULESET_METADATA_PAUSE_TRANSFERS);
+  });
+
+  test.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 0x4000])(
+    "rejects invalid app metadata %s",
+    (metadata) => {
+      expect(() => build721RulesetMetadata({ metadata })).toThrow(/integer/);
+      expect(() => decode721RulesetMetadata(metadata)).toThrow(/integer/);
+    },
+  );
+
+  test("accepts the highest 14-bit metadata value", () => {
+    expect(
+      build721RulesetMetadata({ metadata: JB_RULESET_METADATA_APP_BITS_MAX }),
+    ).toBe(JB_RULESET_METADATA_APP_BITS_MAX);
+  });
+});
 
 describe("tier metadata", () => {
   test("parses encoded and base64 JSON data URIs", () => {

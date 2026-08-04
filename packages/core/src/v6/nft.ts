@@ -23,6 +23,90 @@ export const TIER_UNLIMITED_SUPPLY = 999_999_999;
  */
 export const DISCOUNT_DENOMINATOR = 200n;
 
+/** The 721 tiers hook's ruleset-metadata bit which pauses eligible transfers. */
+export const JB721_RULESET_METADATA_PAUSE_TRANSFERS = 1 << 0;
+
+/** The 721 tiers hook's ruleset-metadata bit which pauses pending reserve mints. */
+export const JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES = 1 << 1;
+
+/** The protocol stores 14 app-specific bits in `JBRulesetMetadata.metadata`. */
+export const JB_RULESET_METADATA_APP_BITS_MAX = 0x3fff;
+
+/** 721-specific overrides accepted by {@link build721RulesetMetadata}. */
+export interface JB721RulesetMetadataInput {
+  /** Existing app-specific metadata. Unrelated bits are preserved. */
+  metadata?: number;
+  /** Pause transfers for tiers whose `transfersPausable` flag is enabled. */
+  pauseTransfers?: boolean;
+  /** Pause minting the hook's pending reserve tokens. */
+  pauseMintPendingReserves?: boolean;
+}
+
+/** 721-specific flags decoded from app-specific ruleset metadata. */
+export interface JB721RulesetMetadata {
+  pauseTransfers: boolean;
+  pauseMintPendingReserves: boolean;
+}
+
+function assertRulesetAppMetadata(metadata: number): void {
+  if (
+    !Number.isInteger(metadata) ||
+    metadata < 0 ||
+    metadata > JB_RULESET_METADATA_APP_BITS_MAX
+  ) {
+    throw new Error(
+      `Ruleset app metadata must be an integer between 0 and ${JB_RULESET_METADATA_APP_BITS_MAX}.`,
+    );
+  }
+}
+
+function setMetadataFlag(
+  metadata: number,
+  flag: number,
+  enabled: boolean | undefined,
+): number {
+  if (enabled === undefined) return metadata;
+  return enabled ? metadata | flag : metadata & ~flag;
+}
+
+/**
+ * Set the 721 tiers hook's ruleset flags while preserving every unrelated app
+ * metadata bit. This is important when composing with other hooks; for
+ * example, Revnets use another bit to permit sucker deployment.
+ *
+ * A transfer is only paused when `pauseTransfers` is true AND the transferred
+ * tier was created with `transfersPausable`. Mints and burns remain possible.
+ * Omitted overrides preserve the corresponding bit in `metadata`.
+ */
+export function build721RulesetMetadata(
+  input: JB721RulesetMetadataInput = {},
+): number {
+  const metadata = input.metadata ?? 0;
+  assertRulesetAppMetadata(metadata);
+
+  return setMetadataFlag(
+    setMetadataFlag(
+      metadata,
+      JB721_RULESET_METADATA_PAUSE_TRANSFERS,
+      input.pauseTransfers,
+    ),
+    JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES,
+    input.pauseMintPendingReserves,
+  );
+}
+
+/** Decode the 721 tiers hook's flags without interpreting unrelated bits. */
+export function decode721RulesetMetadata(
+  metadata: number,
+): JB721RulesetMetadata {
+  assertRulesetAppMetadata(metadata);
+  return {
+    pauseTransfers: (metadata & JB721_RULESET_METADATA_PAUSE_TRANSFERS) !== 0,
+    pauseMintPendingReserves:
+      (metadata & JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES) !== 0,
+  };
+}
+
 /** Canonical display fields understood across Juicebox 721 metadata writers. */
 export interface TierMetadata {
   name?: string;

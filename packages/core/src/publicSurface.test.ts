@@ -20,5 +20,7 @@ describe("published core SDK surfaces", () => {
     expect(v6.buildDirectPaySwapTx).toBeTypeOf("function");
     expect(v6.permit2TypedData).toBeTypeOf("function");
     expect(v6.netLoanProceeds).toBeTypeOf("function");
+    expect(v6.build721RulesetMetadata).toBeTypeOf("function");
+    expect(v6.decode721RulesetMetadata).toBeTypeOf("function");
   });
 });
