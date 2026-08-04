@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 1.11.1
+
+### Patch Changes
+
+- 5580e71: Add V6 721 ruleset metadata helpers which encode and decode transfer and reserve-mint pauses while preserving unrelated hook metadata bits.
+
 ## 1.11.0
 
 ### Minor Changes
