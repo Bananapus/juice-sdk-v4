@@ -1,4 +1,3 @@
-"use client";
 import { Chain } from "viem";
 import { useAccount, useClient } from "wagmi";
 

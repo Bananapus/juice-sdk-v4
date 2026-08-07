@@ -26,6 +26,11 @@
       "import": "./dist/esm/index.js",
       "require": "./dist/cjs/index.js"
     },
+    "./chains": {
+      "types": "./dist/esm/chains.d.ts",
+      "import": "./dist/esm/chains.js",
+      "require": "./dist/cjs/chains.js"
+    },
     "./v6": {
       "types": "./dist/esm/v6/index.d.ts",
       "import": "./dist/esm/v6/index.js",
@@ -100,6 +105,7 @@
     "@bananapus/suckers-v6": "^1.1.2",
     "@bananapus/swap-terminal": "^1.0.1",
     "@bananapus/swap-terminal-v5": "^0.0.4",
+    "@bananapus/univ4-lp-split-hook-v6": "^1.4.0",
     "@rev-net/core": "^1.0.1",
     "@rev-net/core-v5": "^0.0.3",
     "@rev-net/core-v6": "^1.1.0",

@@ -65,7 +65,7 @@ describe("useNativeTokenSurplus", () => {
   test("selects the legacy accounting-context overload on V5", () => {
     mocks.contract.version = 5;
 
-    expect(useNativeTokenSurplus({ chainId: 1 })).toEqual({
+    expect(useNativeTokenSurplus({ chainId: 10 })).toEqual({
       data: 500n,
       source: "legacy",
     });
@@ -73,7 +73,7 @@ describe("useNativeTokenSurplus", () => {
     expect(mocks.readContract).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        chainId: 1,
+        chainId: 10,
         abi: jbMultiTerminalV5Abi,
         args: [
           7n,
@@ -90,6 +90,21 @@ describe("useNativeTokenSurplus", () => {
         query: { enabled: true },
       }),
     );
+    expect(mocks.readContract.mock.calls[0][0].query.enabled).toBe(false);
+  });
+
+  test("refuses to quote another chain with this chain's project and terminal", () => {
+    useNativeTokenSurplus({ chainId: 1 });
+
+    expect(mocks.readContract.mock.calls[0][0].query.enabled).toBe(false);
+    expect(mocks.readContract.mock.calls[1][0].query.enabled).toBe(false);
+  });
+
+  test("stays disabled until the context chain is known", () => {
+    mocks.chainId = undefined;
+
+    useNativeTokenSurplus();
+
     expect(mocks.readContract.mock.calls[0][0].query.enabled).toBe(false);
   });
 });

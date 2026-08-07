@@ -134,4 +134,38 @@ describe("JBTokenContext", () => {
     expect(mocks.readContract.mock.calls[1][0].query.enabled).toBe(false);
     expect(element.props.value.totalOutstanding.data).toBeUndefined();
   });
+
+  test.each([
+    ["no chain", undefined],
+    ["a chain with no JBTokens deployment", 999_999],
+  ])(
+    "disables the token read for %s instead of throwing in render",
+    (_label, chainId) => {
+      mocks.chainId = chainId;
+
+      expect(() =>
+        JBTokenProvider({ withTotalOutstanding: false, children: null }),
+      ).not.toThrow();
+
+      expect(mocks.readContract.mock.calls[0][0].address).toBeUndefined();
+      expect(mocks.readContract.mock.calls[0][0].query.enabled).toBe(false);
+    },
+  );
+
+  test("reports the token as loading while its address is still being read", () => {
+    mocks.readContract.mockImplementation((config) =>
+      config.functionName === "tokenOf"
+        ? { data: undefined, isLoading: true }
+        : { data: undefined, isLoading: false },
+    );
+    mocks.useToken.mockReturnValue({ data: undefined, isLoading: false });
+
+    const element = JBTokenProvider({
+      withTotalOutstanding: false,
+      children: null,
+    }) as unknown as { props: { value: Record<string, any> } };
+
+    // Otherwise `isLoading: false, data: undefined` reads as "no token".
+    expect(element.props.value.token.isLoading).toBe(true);
+  });
 });

@@ -10,7 +10,10 @@ import {
   JBProjectMetadataProviderProps,
 } from "../JBProjectMetadataContext/JBProjectMetadataContext";
 import { JBRulesetProvider } from "../JBRulesetContext/JBRulesetContext";
-import { JBTokenProvider, JBTokenProviderProps } from "../JBTokenContext/JBTokenContext";
+import {
+  JBTokenProvider,
+  JBTokenProviderProps,
+} from "../JBTokenContext/JBTokenContext";
 import { JBPrimaryNativeTerminalProvider } from "../JBTerminalContext/JBPrimaryNativeTerminalProvider";
 import { JBChainId, JBVersion } from "@bananapus/nana-sdk-core";
 import { BendystrawConfig } from "../../lib/bendystraw/getBendystrawUrl";
@@ -34,7 +37,9 @@ export type JBProjectContextData = {
   bendystraw: BendystrawConfig;
 };
 
-export const JBProjectContext = createContext<JBProjectContextData | undefined>(undefined);
+export const JBProjectContext = createContext<JBProjectContextData | undefined>(
+  undefined,
+);
 
 /**
  * Juicebox project context provider. Loads all the data for a project.
@@ -53,14 +58,22 @@ export const JBProjectProvider = ({
   bendystraw,
 }: JBProjectProviderProps) => {
   return (
-    <JBProjectContext.Provider value={{ chainId, projectId, version, bendystraw }}>
+    <JBProjectContext.Provider
+      value={{ chainId, projectId, version, bendystraw }}
+    >
       <JBChainProvider chainId={chainId}>
-        <JBContractProvider projectId={projectId} version={version} {...ctxProps?.contract}>
+        <JBContractProvider
+          projectId={projectId}
+          version={version}
+          {...ctxProps?.contract}
+        >
           <JBRulesetProvider>
             <JBProjectMetadataProvider {...ctxProps?.metadata}>
               <JBCurrentDataHookProvider>
                 <JBPrimaryNativeTerminalProvider>
-                  <JBTokenProvider {...ctxProps?.token}>{children}</JBTokenProvider>
+                  <JBTokenProvider {...ctxProps?.token}>
+                    {children}
+                  </JBTokenProvider>
                 </JBPrimaryNativeTerminalProvider>
               </JBCurrentDataHookProvider>
             </JBProjectMetadataProvider>
@@ -71,8 +84,16 @@ export const JBProjectProvider = ({
   );
 };
 
-export function useJBProject(): Omit<JBProjectContextData, "bendystraw"> | undefined {
-  return useContext(JBProjectContext);
+export function useJBProject():
+  | Omit<JBProjectContextData, "bendystraw">
+  | undefined {
+  const context = useContext(JBProjectContext);
+  if (!context) return undefined;
+
+  // The `Omit` is only a type-level promise: returning the context as-is hands
+  // every consumer of the project's identity the Bendystraw API key too.
+  const { bendystraw: _bendystraw, ...project } = context;
+  return project;
 }
 
 export function useBendystrawConfig(): BendystrawConfig | undefined {

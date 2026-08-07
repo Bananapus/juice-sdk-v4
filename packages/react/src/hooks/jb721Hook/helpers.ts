@@ -8,7 +8,7 @@ import { Address, bytesToHex, keccak256, toBytes } from "viem";
  */
 export function createMetadataTargetIdPayHash(
   metadataTargetId: Address,
-  purpose: string = "pay"
+  purpose: string = "pay",
 ) {
   const targetBytes = toBytes(metadataTargetId);
   const purposeBytes = toBytes(purpose);

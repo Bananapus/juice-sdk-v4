@@ -31,5 +31,9 @@ export const JBChainProvider = ({
 }: PropsWithChildren<{ chainId: JBChainId }>) => {
   debug("JBChainContext", { chainId });
 
-  return <JBChainContext.Provider value={{ chainId }}>{children}</JBChainContext.Provider>;
+  return (
+    <JBChainContext.Provider value={{ chainId }}>
+      {children}
+    </JBChainContext.Provider>
+  );
 };

@@ -1,7 +1,15 @@
-import { Address, PublicClient, zeroAddress } from "viem";
+import {
+  Address,
+  ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
+  ContractFunctionZeroDataError,
+  HttpRequestError,
+  PublicClient,
+  zeroAddress,
+} from "viem";
 import { describe, expect, test } from "vitest";
 import { JBOmnichainDeployerContracts } from "../contracts.js";
-import { jbContractAddress } from "../generated/juicebox.js";
+import { jb721TiersHookAbi, jbContractAddress } from "../generated/juicebox.js";
 import {
   DISCOUNT_DENOMINATOR,
   JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES,
@@ -233,16 +241,91 @@ describe("get721MetadataIdTarget", () => {
     );
   });
 
-  test("falls back to the hook address if the getter reverts", async () => {
+  test("falls back to the hook address when the contract reverts the getter", async () => {
+    const revert = new ContractFunctionExecutionError(
+      new ContractFunctionRevertedError({
+        abi: jb721TiersHookAbi,
+        functionName: "METADATA_ID_TARGET",
+      }),
+      {
+        abi: jb721TiersHookAbi,
+        args: [],
+        contractAddress: hook,
+        functionName: "METADATA_ID_TARGET",
+      },
+    );
     const client = {
       readContract: async () => {
-        throw new Error("no such function");
+        throw revert;
       },
     } as unknown as PublicClient;
 
     expect(await get721MetadataIdTarget(client, { chainId, hook })).toEqual(
       hook,
     );
+  });
+
+  test("falls back to the hook address when the getter returns no data (older hook)", async () => {
+    const zeroData = new ContractFunctionExecutionError(
+      new ContractFunctionZeroDataError({
+        functionName: "METADATA_ID_TARGET",
+      }),
+      {
+        abi: jb721TiersHookAbi,
+        args: [],
+        contractAddress: hook,
+        functionName: "METADATA_ID_TARGET",
+      },
+    );
+    const client = {
+      readContract: async () => {
+        throw zeroData;
+      },
+    } as unknown as PublicClient;
+
+    expect(await get721MetadataIdTarget(client, { chainId, hook })).toEqual(
+      hook,
+    );
+  });
+
+  test("rethrows transport errors instead of returning the clone address", async () => {
+    // A transient RPC failure proves nothing about the hook. Falling back to
+    // the clone address here would build pay metadata the hook silently
+    // ignores: the user pays and receives no NFT.
+    const transport = new ContractFunctionExecutionError(
+      new HttpRequestError({
+        url: "https://rpc.example",
+        details: "fetch failed",
+      }),
+      {
+        abi: jb721TiersHookAbi,
+        args: [],
+        contractAddress: hook,
+        functionName: "METADATA_ID_TARGET",
+      },
+    );
+    const client = {
+      readContract: async () => {
+        throw transport;
+      },
+    } as unknown as PublicClient;
+
+    await expect(
+      get721MetadataIdTarget(client, { chainId, hook }),
+    ).rejects.toBe(transport);
+  });
+
+  test("rethrows non-viem errors", async () => {
+    const failure = new Error("socket hang up");
+    const client = {
+      readContract: async () => {
+        throw failure;
+      },
+    } as unknown as PublicClient;
+
+    await expect(
+      get721MetadataIdTarget(client, { chainId, hook }),
+    ).rejects.toBe(failure);
   });
 });
 
@@ -397,13 +480,25 @@ describe("getProject721Shop", () => {
 
   test("custom project: data hook that is not a 721 hook is no shop", async () => {
     const notAHook = "0x4444444444444444444444444444444444444444" as const;
+    // A PROVEN revert — the contract answered that it has no `STORE()`.
+    const revert = new ContractFunctionExecutionError(
+      new ContractFunctionRevertedError({
+        abi: jb721TiersHookAbi,
+        functionName: "STORE",
+      }),
+      {
+        abi: jb721TiersHookAbi,
+        args: [],
+        contractAddress: notAHook,
+        functionName: "STORE",
+      },
+    );
     const client = {
       readContract: async ({ functionName }: { functionName: string }) => {
         if (functionName === "currentRulesetOf") {
           return [{ id: 7 }, { useDataHookForPay: true, dataHook: notAHook }];
         }
-        // Non-authoritative candidate: STORE() reverts => not a 721 hook.
-        if (functionName === "STORE") throw new Error("no STORE");
+        if (functionName === "STORE") throw revert;
         throw new Error(`unexpected read ${functionName}`);
       },
     } as unknown as PublicClient;
@@ -415,6 +510,29 @@ describe("getProject721Shop", () => {
         isRevnet: false,
       }),
     ).toBeNull();
+  });
+
+  test("custom project: a transport failure on the STORE probe throws", async () => {
+    // Not a revert: the chain never answered. Rendering "no shop" here hides a
+    // shop that exists.
+    const notAHook = "0x4444444444444444444444444444444444444444" as const;
+    const client = {
+      readContract: async ({ functionName }: { functionName: string }) => {
+        if (functionName === "currentRulesetOf") {
+          return [{ id: 7 }, { useDataHookForPay: true, dataHook: notAHook }];
+        }
+        if (functionName === "STORE") throw new Error("fetch failed");
+        throw new Error(`unexpected read ${functionName}`);
+      },
+    } as unknown as PublicClient;
+
+    await expect(
+      getProject721Shop(client, {
+        chainId: 11155111,
+        projectId: 9n,
+        isRevnet: false,
+      }),
+    ).rejects.toThrow("fetch failed");
   });
 
   test("custom project: no pay data hook is no shop", async () => {

@@ -50,6 +50,12 @@ export enum JBBuybackHookContracts {
   JBBuybackHookRegistry = "JBBuybackHookRegistry",
 }
 
+export enum JBUniswapV4LPSplitHookContracts {
+  JBUniswapV4LPSplitHook = "JBUniswapV4LPSplitHook",
+  JBUniswapV4LPSplitHookDeployer = "JBUniswapV4LPSplitHookDeployer",
+  JBP6FeeLPSplitHook = "JBP6FeeLPSplitHook",
+}
+
 export enum JBRouterTerminalContracts {
   JBRouterTerminal = "JBRouterTerminal",
   JBRouterTerminalRegistry = "JBRouterTerminalRegistry",
@@ -75,6 +81,7 @@ export type Contract =
   | JBSwapTerminalContracts
   | JBBuybackHookContracts
   | JBRouterTerminalContracts
+  | JBUniswapV4LPSplitHookContracts
   | JBOmnichainDeployerContracts
   | RevnetCoreContracts;
 

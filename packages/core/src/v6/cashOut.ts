@@ -10,7 +10,6 @@ import {
   jbTerminalStoreAbi,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
-import { applyJbDaoCashOutFee } from "../utils/fee.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { NATIVE_TOKEN_CURRENCY_ID } from "./currency.js";
 import { v6Address } from "./types.js";
@@ -142,12 +141,17 @@ export interface CashOutQuote {
    */
   reclaimAmount: bigint;
   /**
-   * The reclaim amount net of the 2.5% protocol cash out fee.
+   * The reclaim amount net of the 2.5% protocol cash out fee (`x - x / 40`),
+   * computed via {@link cashOutProtocolFee}.
    *
-   * The fee only applies when the ruleset's cash out tax rate is non-zero — for
-   * zero-tax rulesets the full {@link CashOutQuote.reclaimAmount} is paid out.
+   * The fee is conditional: with a non-zero cash-out tax rate every cash out
+   * pays it in full; zero-tax cash outs pay it on
+   * `min(reclaimAmount, feeFreeSurplusOf)`, which is often but NOT always
+   * zero; feeless beneficiaries pay none. `undefined` when the gating inputs
+   * (`cashOutTaxRate`, plus `feeFreeSurplus` for zero-tax rulesets) were not
+   * supplied — an unknown fee is not fabricated as either extreme.
    */
-  reclaimAmountAfterFee: bigint;
+  reclaimAmountAfterFee: bigint | undefined;
 }
 
 /**
@@ -165,12 +169,38 @@ export interface CashOutQuote {
  * @param args.currency The currency to quote the reclaim amount in (an
  * accounting-context currency, `uint32(uint160(token))`). Defaults to the native
  * token's currency (61166).
- * @returns The raw reclaim amount and the amount net of the 2.5% protocol fee.
+ * @param args.cashOutTaxRate The ruleset's cash-out tax rate, used to gate the
+ * protocol fee (see {@link cashOutProtocolFee}). When omitted,
+ * `reclaimAmountAfterFee` is `undefined` rather than a fabricated value.
+ * @param args.feeFreeSurplus The terminal's `feeFreeSurplusOf` for the reclaimed
+ * token. Required to resolve the fee when `cashOutTaxRate` is zero.
+ * @param args.beneficiaryIsFeeless Whether the beneficiary is feeless (pays no
+ * protocol fee). Defaults to false.
+ * @returns The raw reclaim amount and, when the fee inputs are resolved, the
+ * amount net of the conditional 2.5% protocol fee.
  *
  * NOTE: the defaults quote in NATIVE terms (decimals 18, token-keyed native
  * currency). For a project whose accounting token is not the native token
  * (e.g. USDC), pass that token's `decimals` and `tokenCurrencyId(token)` to
  * quote in its own terms and avoid a price-feed conversion.
+ *
+ * The quote envelope is set by the CURRENCY CONVENTION of the project's
+ * accounting contexts, not by which token it accounts in. `JBPrices` has no
+ * native special-case (`JBPrices.sol:226-246` only short-circuits same-currency
+ * pairs), so any cross-currency quote needs a registered feed. `deploy-all`
+ * registers the project-0 defaults `{ETH(1), uint32(NATIVE)}` (an identity
+ * feed) and `{ETH(1), USD(2)}` (`Deploy.s.sol:1546-1562`). So:
+ *
+ * - Native-context projects quote in ETH(1) fine.
+ * - Projects using the USD(2) currency convention for their ERC-20 contexts
+ *   quote in ETH(1) fine.
+ * - Projects whose ERC-20 context is TOKEN-KEYED (`uint32(uint160(usdc))`)
+ *   have no `{ETH(1), uint32(usdc)}` feed, so an ETH-denominated quote
+ *   reverts.
+ *
+ * Prefer quoting each accounting context in its OWN currency
+ * (`tokenCurrencyId(context.token)` with `context.decimals`), which never needs
+ * a feed, and convert for display separately.
  */
 export async function getCashOutQuote(
   client: PublicClient,
@@ -180,12 +210,18 @@ export async function getCashOutQuote(
     cashOutCount,
     decimals = 18n,
     currency = BigInt(NATIVE_TOKEN_CURRENCY_ID),
+    cashOutTaxRate,
+    feeFreeSurplus,
+    beneficiaryIsFeeless = false,
   }: {
     chainId: JBChainId;
     projectId: bigint;
     cashOutCount: bigint;
     decimals?: bigint;
     currency?: bigint;
+    cashOutTaxRate?: bigint;
+    feeFreeSurplus?: bigint;
+    beneficiaryIsFeeless?: boolean;
   },
 ): Promise<CashOutQuote> {
   const reclaimAmount = await client.readContract({
@@ -197,8 +233,43 @@ export async function getCashOutQuote(
 
   return {
     reclaimAmount,
-    reclaimAmountAfterFee: applyJbDaoCashOutFee(reclaimAmount),
+    reclaimAmountAfterFee: resolvedReclaimAmountAfterFee({
+      reclaimAmount,
+      cashOutTaxRate,
+      feeFreeSurplus,
+      beneficiaryIsFeeless,
+    }),
   };
+}
+
+/**
+ * The reclaim net of the protocol fee, or `undefined` while the fee-gating
+ * inputs are unresolved (never a fabricated value): the fee needs the ruleset's
+ * `cashOutTaxRate`, and — when that rate is zero — the terminal's
+ * `feeFreeSurplusOf` too. Feeless beneficiaries resolve without either.
+ */
+function resolvedReclaimAmountAfterFee({
+  reclaimAmount,
+  cashOutTaxRate,
+  feeFreeSurplus,
+  beneficiaryIsFeeless,
+}: {
+  reclaimAmount: bigint;
+  cashOutTaxRate: bigint | undefined;
+  feeFreeSurplus: bigint | undefined;
+  beneficiaryIsFeeless: boolean;
+}): bigint | undefined {
+  if (beneficiaryIsFeeless) return reclaimAmount;
+  if (cashOutTaxRate === undefined) return undefined;
+  if (cashOutTaxRate === 0n && feeFreeSurplus === undefined) return undefined;
+  return (
+    reclaimAmount -
+    cashOutProtocolFee({
+      reclaimAmount,
+      cashOutTaxRate,
+      feeFreeSurplus: feeFreeSurplus ?? 0n,
+    })
+  );
 }
 
 /**

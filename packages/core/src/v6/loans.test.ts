@@ -6,6 +6,7 @@ import {
   LOANS_MAX_FEE,
   MIN_PREPAID_FEE_PERCENT,
   MAX_PREPAID_FEE_PERCENT,
+  REVLOANS_BURN_PERMISSION_ID,
   REVLOANS_PERMISSION_ID,
   REV_PREPAID_FEE_PERCENT,
   buildBorrowTx,
@@ -27,7 +28,12 @@ describe("loans", () => {
     expect(MAX_PREPAID_FEE_PERCENT).toEqual(500n);
     expect(REV_PREPAID_FEE_PERCENT).toEqual(10n);
     expect(LOANS_MAX_FEE).toEqual(1000n);
-    expect(REVLOANS_PERMISSION_ID).toEqual(1);
+    // BURN_TOKENS (JBPermissionIds.sol:56) — the ONLY permission REVLoans
+    // needs (`JBController.burnTokensOf` gates on it). Never ROOT (1), which
+    // silently satisfies every permission check.
+    expect(REVLOANS_BURN_PERMISSION_ID).toEqual(11);
+    // The deprecated alias must carry the SAFE value, not the historical ROOT.
+    expect(REVLOANS_PERMISSION_ID).toEqual(REVLOANS_BURN_PERMISSION_ID);
   });
 
   describe("loan opening fees", () => {

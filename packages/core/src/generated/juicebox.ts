@@ -36711,6 +36711,798 @@ export const jbOmnichainDeployerV5Abi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBP6FeeLPSplitHook
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbp6FeeLpSplitHookAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      { name: 'directory', internalType: 'address', type: 'address' },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      { name: 'tokens', internalType: 'address', type: 'address' },
+      {
+        name: 'permit2',
+        internalType: 'contract IAllowanceTransfer',
+        type: 'address',
+      },
+      {
+        name: 'suckerRegistry',
+        internalType: 'contract IJBSuckerRegistry',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'BPS',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IAllowanceTransfer',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'POOL_FEE',
+    outputs: [{ name: '', internalType: 'uint24', type: 'uint24' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'SUCKER_REGISTRY',
+    outputs: [
+      { name: '', internalType: 'contract IJBSuckerRegistry', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TICK_SPACING',
+    outputs: [{ name: '', internalType: 'int24', type: 'int24' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TOKENS',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'accumulatedProjectTokens',
+    outputs: [
+      {
+        name: 'accumulatedProjectTokens',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'activeTickLowerOf',
+    outputs: [{ name: 'tickLower', internalType: 'int24', type: 'int24' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'activeTickUpperOf',
+    outputs: [{ name: 'tickUpper', internalType: 'int24', type: 'int24' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'minCashOutReturn', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'addLiquidity',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'buybackHook',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBBuybackHookRegistry',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+    ],
+    name: 'claimFeeTokensFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'claimableFeeCredits',
+    outputs: [
+      { name: 'claimableFeeCredits', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'claimableFeeTokenOf',
+    outputs: [{ name: 'claimToken', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'claimableFeeTokens',
+    outputs: [
+      { name: 'claimableFeeTokens', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'collectAndRouteLPFees',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'minCashOutReturn', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'deployPool',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'feePercent',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'feeProjectId',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'hasDeployedPool',
+    outputs: [{ name: 'hasDeployedPool', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'initialWeightOf',
+    outputs: [{ name: 'weight', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'initialFeeProjectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'initialFeePercent', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'newPoolManager',
+        internalType: 'contract IPoolManager',
+        type: 'address',
+      },
+      {
+        name: 'newPositionManager',
+        internalType: 'contract IPositionManager',
+        type: 'address',
+      },
+      {
+        name: 'newOracleHook',
+        internalType: 'contract IHooks',
+        type: 'address',
+      },
+      {
+        name: 'newBuybackHook',
+        internalType: 'contract IJBBuybackHookRegistry',
+        type: 'address',
+      },
+    ],
+    name: 'initialize',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'isPoolDeployed',
+    outputs: [{ name: 'deployed', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'oracleHook',
+    outputs: [{ name: '', internalType: 'contract IHooks', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'poolKeyOf',
+    outputs: [
+      {
+        name: 'key',
+        internalType: 'struct PoolKey',
+        type: 'tuple',
+        components: [
+          { name: 'currency0', internalType: 'Currency', type: 'address' },
+          { name: 'currency1', internalType: 'Currency', type: 'address' },
+          { name: 'fee', internalType: 'uint24', type: 'uint24' },
+          { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+          { name: 'hooks', internalType: 'contract IHooks', type: 'address' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'poolKeysOf',
+    outputs: [
+      { name: 'currency0', internalType: 'Currency', type: 'address' },
+      { name: 'currency1', internalType: 'Currency', type: 'address' },
+      { name: 'fee', internalType: 'uint24', type: 'uint24' },
+      { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+      { name: 'hooks', internalType: 'contract IHooks', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'poolManager',
+    outputs: [
+      { name: '', internalType: 'contract IPoolManager', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'positionManager',
+    outputs: [
+      { name: '', internalType: 'contract IPositionManager', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBSplitHookContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'groupId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'split',
+            internalType: 'struct JBSplit',
+            type: 'tuple',
+            components: [
+              { name: 'percent', internalType: 'uint32', type: 'uint32' },
+              { name: 'projectId', internalType: 'uint64', type: 'uint64' },
+              {
+                name: 'beneficiary',
+                internalType: 'address payable',
+                type: 'address',
+              },
+              {
+                name: 'preferAddToBalance',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'lockedUntil', internalType: 'uint48', type: 'uint48' },
+              {
+                name: 'hook',
+                internalType: 'contract IJBSplitHook',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    name: 'processSplitWith',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'decreaseAmount0Min', internalType: 'uint256', type: 'uint256' },
+      { name: 'decreaseAmount1Min', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'rebalanceLiquidity',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'tokenIdOf',
+    outputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'FeeTokensClaimed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'totalAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'feeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'remainingAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'feeTokensMinted',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'LPFeesRouted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'isNewPosition',
+        internalType: 'bool',
+        type: 'bool',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'LiquidityAdded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'poolId',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'ProjectDeployed',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'dataLength', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBMetadataResolver_DataNotPadded',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'offset', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxOffset', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBMetadataResolver_MetadataTooLong',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'metadataLength', internalType: 'uint256', type: 'uint256' },
+      { name: 'minMetadataLength', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBMetadataResolver_MetadataTooShort',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'JBUniswapV4LPSplitHook_AlreadyInitialized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'existingPrice', internalType: 'uint160', type: 'uint160' },
+      { name: 'lowerBound', internalType: 'uint160', type: 'uint160' },
+      { name: 'upperBound', internalType: 'uint160', type: 'uint160' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_ExistingPoolPriceOutOfBounds',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'feePercent', internalType: 'uint256', type: 'uint256' },
+      { name: 'feeProjectId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_FeePercentWithoutFeeProject',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'available', internalType: 'uint256', type: 'uint256' },
+      { name: 'required', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'liquidity', internalType: 'uint128', type: 'uint128' }],
+    name: 'JBUniswapV4LPSplitHook_InsufficientLiquidity',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'feePercent', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InvalidFeePercent',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'controller', internalType: 'address', type: 'address' },
+      { name: 'projectToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InvalidProjectId',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InvalidStageForAction',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InvalidTerminalToken',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBUniswapV4LPSplitHook_NoTokensAccumulated',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'expectedHook', internalType: 'address', type: 'address' },
+      { name: 'actualHook', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_NotHookSpecifiedInContext',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_OnlyOneTerminalTokenSupported',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_Permit2AmountOverflow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_PoolAlreadyDeployed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'spotTick', internalType: 'int24', type: 'int24' },
+      { name: 'twapTick', internalType: 'int24', type: 'int24' },
+      { name: 'maxDeviationTicks', internalType: 'int24', type: 'int24' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_PriceDeviationTooHigh',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'controller', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_SplitSenderNotValidControllerOrTerminal',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'spender', internalType: 'address', type: 'address' },
+      { name: 'allowance', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_TemporaryAllowanceNotConsumed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_TerminalNotFound',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'groupId', internalType: 'uint256', type: 'uint256' },
+      { name: 'requiredGroupId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_TerminalTokensNotAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_TwapUnavailable',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'previousToken', internalType: 'address', type: 'address' },
+      { name: 'nextToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_UnclaimedFeeTokenChanged',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount0', internalType: 'uint256', type: 'uint256' },
+      { name: 'amount1', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_ZeroLiquidity',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBPermissions
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -48079,6 +48871,18 @@ export const jbTerminalStoreAbi = [
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+      { name: 'surplus', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'currentReclaimableSurplusOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
       {
         name: 'terminals',
         internalType: 'contract IJBTerminal[]',
@@ -50892,6 +51696,964 @@ export const jbTokensV5Abi = [
     type: 'error',
     inputs: [{ name: 'decimals', internalType: 'uint256', type: 'uint256' }],
     name: 'JBTokens_TokensMustHave18Decimals',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBUniswapV4LPSplitHook
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbUniswapV4LpSplitHookAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      { name: 'directory', internalType: 'address', type: 'address' },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      { name: 'tokens', internalType: 'address', type: 'address' },
+      {
+        name: 'permit2',
+        internalType: 'contract IAllowanceTransfer',
+        type: 'address',
+      },
+      {
+        name: 'suckerRegistry',
+        internalType: 'contract IJBSuckerRegistry',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'BPS',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IAllowanceTransfer',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'POOL_FEE',
+    outputs: [{ name: '', internalType: 'uint24', type: 'uint24' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'SUCKER_REGISTRY',
+    outputs: [
+      { name: '', internalType: 'contract IJBSuckerRegistry', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TICK_SPACING',
+    outputs: [{ name: '', internalType: 'int24', type: 'int24' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TOKENS',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'accumulatedProjectTokens',
+    outputs: [
+      {
+        name: 'accumulatedProjectTokens',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'activeTickLowerOf',
+    outputs: [{ name: 'tickLower', internalType: 'int24', type: 'int24' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'activeTickUpperOf',
+    outputs: [{ name: 'tickUpper', internalType: 'int24', type: 'int24' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'minCashOutReturn', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'addLiquidity',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'buybackHook',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBBuybackHookRegistry',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+    ],
+    name: 'claimFeeTokensFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'claimableFeeCredits',
+    outputs: [
+      { name: 'claimableFeeCredits', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'claimableFeeTokenOf',
+    outputs: [{ name: 'claimToken', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'claimableFeeTokens',
+    outputs: [
+      { name: 'claimableFeeTokens', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'collectAndRouteLPFees',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'minCashOutReturn', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'deployPool',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'feePercent',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'feeProjectId',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'hasDeployedPool',
+    outputs: [{ name: 'hasDeployedPool', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'initialWeightOf',
+    outputs: [{ name: 'weight', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'initialFeeProjectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'initialFeePercent', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'newPoolManager',
+        internalType: 'contract IPoolManager',
+        type: 'address',
+      },
+      {
+        name: 'newPositionManager',
+        internalType: 'contract IPositionManager',
+        type: 'address',
+      },
+      {
+        name: 'newOracleHook',
+        internalType: 'contract IHooks',
+        type: 'address',
+      },
+      {
+        name: 'newBuybackHook',
+        internalType: 'contract IJBBuybackHookRegistry',
+        type: 'address',
+      },
+    ],
+    name: 'initialize',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'isPoolDeployed',
+    outputs: [{ name: 'deployed', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'oracleHook',
+    outputs: [{ name: '', internalType: 'contract IHooks', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'poolKeyOf',
+    outputs: [
+      {
+        name: 'key',
+        internalType: 'struct PoolKey',
+        type: 'tuple',
+        components: [
+          { name: 'currency0', internalType: 'Currency', type: 'address' },
+          { name: 'currency1', internalType: 'Currency', type: 'address' },
+          { name: 'fee', internalType: 'uint24', type: 'uint24' },
+          { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+          { name: 'hooks', internalType: 'contract IHooks', type: 'address' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'poolKeysOf',
+    outputs: [
+      { name: 'currency0', internalType: 'Currency', type: 'address' },
+      { name: 'currency1', internalType: 'Currency', type: 'address' },
+      { name: 'fee', internalType: 'uint24', type: 'uint24' },
+      { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+      { name: 'hooks', internalType: 'contract IHooks', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'poolManager',
+    outputs: [
+      { name: '', internalType: 'contract IPoolManager', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'positionManager',
+    outputs: [
+      { name: '', internalType: 'contract IPositionManager', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBSplitHookContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'groupId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'split',
+            internalType: 'struct JBSplit',
+            type: 'tuple',
+            components: [
+              { name: 'percent', internalType: 'uint32', type: 'uint32' },
+              { name: 'projectId', internalType: 'uint64', type: 'uint64' },
+              {
+                name: 'beneficiary',
+                internalType: 'address payable',
+                type: 'address',
+              },
+              {
+                name: 'preferAddToBalance',
+                internalType: 'bool',
+                type: 'bool',
+              },
+              { name: 'lockedUntil', internalType: 'uint48', type: 'uint48' },
+              {
+                name: 'hook',
+                internalType: 'contract IJBSplitHook',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    name: 'processSplitWith',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'decreaseAmount0Min', internalType: 'uint256', type: 'uint256' },
+      { name: 'decreaseAmount1Min', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'rebalanceLiquidity',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'tokenIdOf',
+    outputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'FeeTokensClaimed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'totalAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'feeAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'remainingAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'feeTokensMinted',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'LPFeesRouted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'isNewPosition',
+        internalType: 'bool',
+        type: 'bool',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'LiquidityAdded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'poolId',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'ProjectDeployed',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'dataLength', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBMetadataResolver_DataNotPadded',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'offset', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxOffset', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBMetadataResolver_MetadataTooLong',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'metadataLength', internalType: 'uint256', type: 'uint256' },
+      { name: 'minMetadataLength', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBMetadataResolver_MetadataTooShort',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'JBUniswapV4LPSplitHook_AlreadyInitialized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'existingPrice', internalType: 'uint160', type: 'uint160' },
+      { name: 'lowerBound', internalType: 'uint160', type: 'uint160' },
+      { name: 'upperBound', internalType: 'uint160', type: 'uint160' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_ExistingPoolPriceOutOfBounds',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'feePercent', internalType: 'uint256', type: 'uint256' },
+      { name: 'feeProjectId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_FeePercentWithoutFeeProject',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'available', internalType: 'uint256', type: 'uint256' },
+      { name: 'required', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'liquidity', internalType: 'uint128', type: 'uint128' }],
+    name: 'JBUniswapV4LPSplitHook_InsufficientLiquidity',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'feePercent', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxFeePercent', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InvalidFeePercent',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'controller', internalType: 'address', type: 'address' },
+      { name: 'projectToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InvalidProjectId',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InvalidStageForAction',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InvalidTerminalToken',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBUniswapV4LPSplitHook_NoTokensAccumulated',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'expectedHook', internalType: 'address', type: 'address' },
+      { name: 'actualHook', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_NotHookSpecifiedInContext',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_OnlyOneTerminalTokenSupported',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_Permit2AmountOverflow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_PoolAlreadyDeployed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'spotTick', internalType: 'int24', type: 'int24' },
+      { name: 'twapTick', internalType: 'int24', type: 'int24' },
+      { name: 'maxDeviationTicks', internalType: 'int24', type: 'int24' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_PriceDeviationTooHigh',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'controller', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_SplitSenderNotValidControllerOrTerminal',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'spender', internalType: 'address', type: 'address' },
+      { name: 'allowance', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_TemporaryAllowanceNotConsumed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_TerminalNotFound',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'groupId', internalType: 'uint256', type: 'uint256' },
+      { name: 'requiredGroupId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_TerminalTokensNotAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_TwapUnavailable',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'previousToken', internalType: 'address', type: 'address' },
+      { name: 'nextToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_UnclaimedFeeTokenChanged',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount0', internalType: 'uint256', type: 'uint256' },
+      { name: 'amount1', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_ZeroLiquidity',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBUniswapV4LPSplitHookDeployer
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbUniswapV4LpSplitHookDeployerAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'addressRegistry',
+        internalType: 'contract IJBAddressRegistry',
+        type: 'address',
+      },
+      {
+        name: 'newHookImplementation',
+        internalType: 'contract JBUniswapV4LPSplitHook',
+        type: 'address',
+      },
+      { name: 'deployer', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'ADDRESS_REGISTRY',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IJBAddressRegistry',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'feeProjectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'feePercent', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'buybackHook',
+        internalType: 'contract IJBBuybackHookRegistry',
+        type: 'address',
+      },
+      { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    name: 'deployHookFor',
+    outputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBUniswapV4LPSplitHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'hookImplementation',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract JBUniswapV4LPSplitHook',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'oracleHook',
+    outputs: [{ name: '', internalType: 'contract IHooks', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'poolManager',
+    outputs: [
+      { name: '', internalType: 'contract IPoolManager', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'positionManager',
+    outputs: [
+      { name: '', internalType: 'contract IPositionManager', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'newPoolManager',
+        internalType: 'contract IPoolManager',
+        type: 'address',
+      },
+      {
+        name: 'newPositionManager',
+        internalType: 'contract IPositionManager',
+        type: 'address',
+      },
+      {
+        name: 'newOracleHook',
+        internalType: 'contract IHooks',
+        type: 'address',
+      },
+    ],
+    name: 'setChainSpecificConstants',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'feeProjectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'feePercent',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'hook',
+        internalType: 'contract IJBUniswapV4LPSplitHook',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'HookDeployed',
+  },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'JBUniswapV4LPSplitHookDeployer_AlreadyConfigured',
+  },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'JBUniswapV4LPSplitHookDeployer_NotConfigured',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBUniswapV4LPSplitHookDeployer_Unauthorized',
   },
 ] as const
 
@@ -62437,6 +64199,33 @@ export const revOwnerAbi = [
       "421614": "0xe0427f250fdb0379c8e98e884ee4570521208cbc",
       "11155111": "0xe0427f250fdb0379c8e98e884ee4570521208cbc",
       "11155420": "0xe0427f250fdb0379c8e98e884ee4570521208cbc"
+    },
+    "JBUniswapV4LPSplitHook": {
+      "1": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251",
+      "10": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251",
+      "8453": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251",
+      "42161": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251",
+      "84532": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251",
+      "421614": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251",
+      "11155111": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251"
+    },
+    "JBUniswapV4LPSplitHookDeployer": {
+      "1": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da",
+      "10": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da",
+      "8453": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da",
+      "42161": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da",
+      "84532": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da",
+      "421614": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da",
+      "11155111": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da"
+    },
+    "JBP6FeeLPSplitHook": {
+      "1": "0xe9493bc776699714a89aa982cf828d843f040d2a",
+      "10": "0xe9493bc776699714a89aa982cf828d843f040d2a",
+      "8453": "0xe9493bc776699714a89aa982cf828d843f040d2a",
+      "42161": "0xe9493bc776699714a89aa982cf828d843f040d2a",
+      "84532": "0xe9493bc776699714a89aa982cf828d843f040d2a",
+      "421614": "0xe9493bc776699714a89aa982cf828d843f040d2a",
+      "11155111": "0xe9493bc776699714a89aa982cf828d843f040d2a"
     },
     "JBOmnichainDeployer": {
       "1": "0xb853758a70a6b4216c09f1d071ea2344aba0a34f",

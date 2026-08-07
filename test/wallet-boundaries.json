@@ -10,7 +10,7 @@
     },
     {
       "file": "packages/react/src/lib/relayr/hooks/useSendRelayrTx.ts",
-      "line": 25,
+      "line": 24,
       "api": "sendTransactionAsync",
       "boundary": "Submit the exact target, calldata, and value after switching to its declared chain.",
       "test": "packages/react/src/lib/relayr/hooks/useSendRelayrTx.test.ts"

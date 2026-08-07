@@ -1,4 +1,9 @@
-import { JBChainId, JBCoreContracts, JBProjectToken, jbTokensAbi } from "@bananapus/nana-sdk-core";
+import {
+  JBChainId,
+  JBCoreContracts,
+  JBProjectToken,
+  jbTokensAbi,
+} from "@bananapus/nana-sdk-core";
 import { getContract } from "viem";
 import { useAccount, useConfig, useReadContract } from "wagmi";
 import { useQuery } from "wagmi/query";
@@ -13,16 +18,29 @@ export function useSuckersUserTokenBalance() {
   const config = useConfig();
 
   const chainId = useJBChainId();
-  const { projectId, contractAddress } = useJBContractContext();
+  const { projectId, version, contractAddress } = useJBContractContext();
   const { address: userAddress } = useAccount();
+
+  // `contractAddress` throws for a chain with no deployment, and it runs in the
+  // render body — before any `enabled` gate can help. An unresolvable address
+  // disables the read instead of taking the tree down.
+  let jbTokensAddress: `0x${string}` | undefined;
+  try {
+    jbTokensAddress = chainId
+      ? contractAddress(JBCoreContracts.JBTokens)
+      : undefined;
+  } catch {
+    jbTokensAddress = undefined;
+  }
 
   const currentChainQuery = useReadContract({
     abi: jbTokensAbi,
     functionName: "totalBalanceOf",
-    address: contractAddress(JBCoreContracts.JBTokens),
+    address: jbTokensAddress,
     chainId,
     args: userAddress ? [userAddress, projectId] : undefined,
     query: {
+      enabled: !!userAddress && !!jbTokensAddress,
       select(data) {
         return new JBProjectToken(data);
       },
@@ -31,10 +49,15 @@ export function useSuckersUserTokenBalance() {
   const { data: pairs = [], isLoading, isError } = useSuckers();
 
   const balanceQuery = useQuery({
+    // The balances are keyed to a wallet and a protocol version as much as to a
+    // project: without them a previous account's (or version's) balances are
+    // served to the next one.
     queryKey: [
       "suckersUserTokenBalance",
       projectId.toString(),
       chainId?.toString(),
+      version,
+      userAddress,
       currentChainQuery.data?.value.toString(),
       pairs?.map((pair) => pair.peerChainId).join(","),
     ],
@@ -60,17 +83,22 @@ export function useSuckersUserTokenBalance() {
             client: config.getClient({ chainId: peerChainId }),
           });
 
-          const balance = await contract.read.totalBalanceOf([userAddress, projectId]);
+          const balance = await contract.read.totalBalanceOf([
+            userAddress,
+            projectId,
+          ]);
 
           return {
             balance: new JBProjectToken(balance),
             chainId: peerChainId,
             projectId,
           };
-        })
+        }),
       );
 
-      if (!balances.some((balance) => balance.chainId === currentChain.chainId)) {
+      if (
+        !balances.some((balance) => balance.chainId === currentChain.chainId)
+      ) {
         // Add the current chain's balance to the list.
         balances.push(currentChain);
       }

@@ -60,16 +60,19 @@ describe("JBProjectMetadataContext", () => {
       ipfsGatewayHostname: "gateway.example",
     }) as unknown as {
       queryKey: unknown[];
+      enabled: boolean;
       queryFn: () => Promise<unknown>;
     };
 
     expect(query.queryKey).toEqual([
       "juice-sdk",
       "useProjectMetadata",
+      10,
       "7",
       controller,
       "gateway.example",
     ]);
+    expect(query.enabled).toBe(true);
     await expect(query.queryFn()).resolves.toEqual(metadata);
     expect(mocks.getProjectMetadata).toHaveBeenCalledWith(
       mocks.publicClient,
@@ -82,7 +85,8 @@ describe("JBProjectMetadataContext", () => {
     const incomplete = useProjectMetadata({
       projectId: undefined,
       jbControllerAddress: undefined,
-    }) as unknown as { queryFn: () => Promise<unknown> };
+    }) as unknown as { enabled: boolean; queryFn: () => Promise<unknown> };
+    expect(incomplete.enabled).toBe(false);
     await expect(incomplete.queryFn()).resolves.toBeNull();
     expect(mocks.getProjectMetadata).not.toHaveBeenCalled();
 

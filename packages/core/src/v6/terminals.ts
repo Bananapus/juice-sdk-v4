@@ -13,8 +13,17 @@ export interface ResolvedPaymentTerminal {
   address: Address;
   /**
    * True when the project has no primary terminal for the token and the
-   * JBRouterTerminalRegistry (a universal terminal with the same `pay` signature) is
-   * used instead.
+   * JBRouterTerminalRegistry (which exposes the same `pay` signature) is used
+   * instead.
+   *
+   * The registry is NOT a universal terminal: it forwards to a per-project
+   * resolved terminal and reverts `JBRouterTerminalRegistry_TerminalNotSet`
+   * when none resolves — the cold-start case, where a project has no pinned
+   * terminal and has not reached the default-terminal threshold. So `isRouter`
+   * means "the router is where the payment would go", not "this token is
+   * payable". Probe routability with `previewPayFor` before offering the
+   * route: a `previewPayFor` call against the resolved address reverts for a
+   * cold-start project and succeeds otherwise.
    */
   isRouter: boolean;
 }
@@ -42,8 +51,19 @@ export interface JBAccountingContext {
  *
  * Reads `JBDirectory.primaryTerminalOf(projectId, token)`. When the project has no
  * primary terminal for the token (zero address), falls back to the
- * JBRouterTerminalRegistry — a universal terminal that accepts any token and exposes
- * the same `pay` signature.
+ * JBRouterTerminalRegistry, which exposes the same `pay` signature.
+ *
+ * The registry is a FORWARDER, not a universal terminal: it resolves a
+ * per-project terminal (the project's pinned one, else the threshold-resolved
+ * default) and reverts `JBRouterTerminalRegistry_TerminalNotSet` when neither
+ * exists (`JBRouterTerminalRegistry.sol:429-432`, reached from both `pay` and
+ * `previewPayFor`). Its view surface is deliberately softer — an unresolved
+ * `accountingContextForTokenOf` returns an EMPTY context rather than reverting
+ * (`:182-186`) — so an empty context is not proof the token is unsupported.
+ *
+ * A returned `isRouter: true` therefore does not mean the token is payable.
+ * Probe routability with {@link previewPay} against the returned address: it
+ * reverts for a cold-start project and returns a preview otherwise.
  *
  * @param client A viem public client on the given chain.
  * @param args.chainId The chain to resolve on.

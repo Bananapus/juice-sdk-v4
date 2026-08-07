@@ -7,6 +7,7 @@ import {
   jbOmnichainDeployerAbi,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
+import { isMissingContractFunctionError } from "../utils/errors.js";
 import { ipfsAssetPath, isIpfsCid } from "../utils/ipfs.js";
 import { getRevnetTiered721Hook } from "./revnets.js";
 import { getCurrentRuleset } from "./rulesets.js";
@@ -405,8 +406,11 @@ export interface Project721Shop {
 /**
  * Read a JB721 hook's `METADATA_ID_TARGET` — the shared *implementation* address
  * that pay/cash-out metadata ids must key off (a delegatecall clone reports the
- * implementation, not itself). Falls back to `hook` if the read reverts (e.g. an
- * older hook without the getter), which is only correct for a non-clone hook.
+ * implementation, not itself). Falls back to `hook` ONLY when the contract
+ * itself answered that it has no such getter (a revert or empty return — an
+ * older, non-clone hook). Transport/RPC failures are rethrown: treating them as
+ * "old hook" would key pay metadata off the clone address, which the hook
+ * silently ignores — the payer pays and receives no NFT.
  *
  * @param client A viem public client on the given chain.
  * @param args.hook The project's 721 tiers hook (clone) address.
@@ -421,7 +425,10 @@ export async function get721MetadataIdTarget(
       abi: jb721TiersHookAbi,
       functionName: "METADATA_ID_TARGET",
     })
-    .catch(() => hook);
+    .catch((error: unknown) => {
+      if (isMissingContractFunctionError(error)) return hook;
+      throw error;
+    });
 }
 
 /**
@@ -432,12 +439,13 @@ export async function get721MetadataIdTarget(
  * `REVOwner.tiered721HookOf`; custom projects read the current ruleset's pay
  * data hook — either the omnichain deployer (the real hook lives in
  * `JBOmnichainDeployer.tiered721HookOf(projectId, rulesetId)`) or the 721 hook
- * itself, verified by probing `STORE()` (a revert means it is not a 721 hook, so
- * the project has no shop).
+ * itself, verified by probing `STORE()` (a proven revert or empty return means
+ * it is not a 721 hook, so the project has no shop).
  *
- * Returns `null` when the project authoritatively has no 721 shop. RPC failures
- * on authoritative reads throw, so a transient error surfaces as an error rather
- * than a false "no shop".
+ * Returns `null` only when the project authoritatively has no 721 shop. RPC and
+ * transport failures throw — on authoritative reads and on the `STORE()` probe
+ * alike — so a transient error surfaces as an error rather than a false
+ * "no shop".
  *
  * @param client A viem public client on the given chain.
  * @param args.projectId The project (or revnet) id.
@@ -502,8 +510,10 @@ export async function getProject721Shop(
   }
   if (!hook) return null;
 
-  // 2. The hook's store. For a non-authoritative candidate a revert means "not a
-  // 721 hook" (no shop); for an authoritative one, let failures throw.
+  // 2. The hook's store. For a non-authoritative candidate a PROVEN revert (or
+  // empty return) means "not a 721 hook" — no shop. Transport failures prove
+  // nothing and are rethrown; swallowing them would render "no shop" for a
+  // project that has one. For an authoritative hook, let every failure throw.
   const readStore = () =>
     client.readContract({
       address: hook!,
@@ -512,7 +522,10 @@ export async function getProject721Shop(
     });
   const store = authoritative
     ? await readStore()
-    : await readStore().catch(() => null);
+    : await readStore().catch((error: unknown) => {
+        if (isMissingContractFunctionError(error)) return null;
+        throw error;
+      });
   if (!store) return null;
 
   // 3. Metadata id target + pricing context. Pricing is meaningless without the

@@ -17,7 +17,8 @@ vi.mock("@tanstack/react-query", () => ({
   },
 }));
 
-vi.mock("@bananapus/nana-sdk-core", () => ({
+vi.mock("@bananapus/nana-sdk-core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@bananapus/nana-sdk-core")>()),
   requestBendystraw: mocks.requestBendystraw,
 }));
 

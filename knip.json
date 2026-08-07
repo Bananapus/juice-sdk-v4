@@ -35,6 +35,7 @@
         "@bananapus/suckers-v6",
         "@bananapus/swap-terminal",
         "@bananapus/swap-terminal-v5",
+        "@bananapus/univ4-lp-split-hook-v6",
         "@rev-net/core",
         "@rev-net/core-v5",
         "@rev-net/core-v6"

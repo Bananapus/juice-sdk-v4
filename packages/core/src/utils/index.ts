@@ -3,6 +3,7 @@ export * from "./bendystraw.js";
 export * from "./data.js";
 export * from "./debug.js";
 export * from "./deploy.js";
+export * from "./errors.js";
 export * from "./fee.js";
 export * from "./format.js";
 export * from "./hook.js";

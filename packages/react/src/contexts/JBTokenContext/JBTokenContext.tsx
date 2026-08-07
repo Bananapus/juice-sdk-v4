@@ -69,14 +69,27 @@ export const JBTokenProvider = ({
     contracts: { controller },
   } = useJBContractContext();
 
-  const { data: tokenAddress } = useReadContract({
-    address: getJBContractAddress(JBCoreContracts.JBTokens, version, chainId!),
-    abi: jbTokensAbi,
-    functionName: "tokenOf",
-    chainId,
-    args: [projectId],
-    query: { enabled: !!projectId && !!chainId && !!version },
-  });
+  // `getJBContractAddress` throws for a chain with no deployment, and it runs in
+  // the render body — before any `enabled` gate can help. An unresolvable
+  // address disables the read instead of taking the tree down.
+  let jbTokensAddress: `0x${string}` | undefined;
+  try {
+    jbTokensAddress = chainId
+      ? getJBContractAddress(JBCoreContracts.JBTokens, version, chainId)
+      : undefined;
+  } catch {
+    jbTokensAddress = undefined;
+  }
+
+  const { data: tokenAddress, isLoading: isTokenAddressLoading } =
+    useReadContract({
+      address: jbTokensAddress,
+      abi: jbTokensAbi,
+      functionName: "tokenOf",
+      chainId,
+      args: [projectId],
+      query: { enabled: !!projectId && !!jbTokensAddress },
+    });
 
   const fetchTokenEnabled = Boolean(
     tokenAddress && !isAddressEqual(tokenAddress, zeroAddress),
@@ -106,10 +119,18 @@ export const JBTokenProvider = ({
   return (
     <JBTokenContext.Provider
       value={{
-        token,
+        // The ERC-20 read is disabled until `tokenOf` answers, which would
+        // otherwise publish `isLoading: false, data: undefined` — "this project
+        // has no token" — on every page load.
+        token: {
+          ...token,
+          isLoading: Boolean(token.isLoading || isTokenAddressLoading),
+        },
         totalOutstanding: {
           data: totalOutstandingData,
-          isLoading: totalOutstandingRes?.isLoading,
+          isLoading: Boolean(
+            totalOutstandingRes?.isLoading || controller?.isLoading,
+          ),
         },
       }}
     >

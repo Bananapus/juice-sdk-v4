@@ -94,28 +94,13 @@ function normalizeParameter(parameter: AbiParameter) {
  * noise and declaration order. Duplicate declarations do not change the public
  * interface, so the digest is over a sorted set.
  *
- * Generation intentionally removes JBTerminalStore's legacy four-argument
- * currentReclaimableSurplusOf overload. Apply that one reviewed exception to
- * the contract artifact before comparison; every other function, event, and
- * error must match exactly.
+ * Generation carries every artifact declaration through verbatim: there are no
+ * per-contract exceptions, so every function, event, and error must match
+ * exactly.
  */
-function normalizeAbi(
-  abi: AbiItem[],
-  contractName: string,
-  source: "artifact" | "generated",
-) {
+function normalizeAbi(abi: AbiItem[]) {
   const items = abi
     .filter((item) => ["error", "event", "function"].includes(item.type ?? ""))
-    .filter(
-      (item) =>
-        !(
-          contractName === "JBTerminalStore" &&
-          source === "artifact" &&
-          item.type === "function" &&
-          item.name === "currentReclaimableSurplusOf" &&
-          item.inputs?.length === 4
-        ),
-    )
     .map((item) => ({
       type: item.type ?? "",
       name: item.name ?? "",
@@ -131,17 +116,26 @@ function normalizeAbi(
   return sorted(new Set(items));
 }
 
-function abiDigest(
-  abi: AbiItem[],
-  contractName: string,
-  source: "artifact" | "generated",
-) {
+function abiDigest(abi: AbiItem[]) {
   return createHash("sha256")
-    .update(JSON.stringify(normalizeAbi(abi, contractName, source)))
+    .update(JSON.stringify(normalizeAbi(abi)))
     .digest("hex");
 }
 
+/**
+ * Contracts whose generated export name is not the plain prefix-lowercased
+ * slice: wagmi camelizes runs of capitals (`LPSplit` -> `LpSplit`, `JBP6` ->
+ * `jbp6`), which the slice rule below cannot express.
+ */
+const ABI_EXPORT_NAMES: Record<string, string> = {
+  JBP6FeeLPSplitHook: "jbp6FeeLpSplitHookAbi",
+  JBUniswapV4LPSplitHook: "jbUniswapV4LpSplitHookAbi",
+  JBUniswapV4LPSplitHookDeployer: "jbUniswapV4LpSplitHookDeployerAbi",
+};
+
 function abiExportName(contractName: string) {
+  const override = ABI_EXPORT_NAMES[contractName];
+  if (override) return override;
   if (contractName.startsWith("JB")) return `jb${contractName.slice(2)}Abi`;
   if (contractName.startsWith("REV")) return `rev${contractName.slice(3)}Abi`;
   if (contractName.startsWith("ERC")) return `erc${contractName.slice(3)}Abi`;
@@ -202,8 +196,8 @@ assertExactKeys(
   "v6 contracts",
 );
 invariant(
-  contractNames.length === 30,
-  `Expected 30 v6 contracts; got ${contractNames.length}`,
+  contractNames.length === 33,
+  `Expected 33 v6 contracts; got ${contractNames.length}`,
 );
 invariant(
   chainIds.length === 8,
@@ -219,7 +213,7 @@ if (process.argv.includes("--print-abi-digests")) {
         join(root, "deployments", firstAlias, `${contractName}.json`),
       );
       invariant(Array.isArray(artifact.abi), `${contractName} has no ABI`);
-      return [contractName, abiDigest(artifact.abi, contractName, "artifact")];
+      return [contractName, abiDigest(artifact.abi)];
     }),
   );
   process.stdout.write(`${JSON.stringify(digests, null, 2)}\n`);
@@ -276,7 +270,7 @@ for (const [contractName, expectedContract] of Object.entries(
     Array.isArray(abi),
     `Missing generated public ABI export ${exportName}`,
   );
-  const actualDigest = abiDigest(abi as AbiItem[], contractName, "generated");
+  const actualDigest = abiDigest(abi as AbiItem[]);
   invariant(
     actualDigest === expectedContract.abiSha256,
     `${exportName} does not match the pinned ${contractName} artifact ABI: fixture=${expectedContract.abiSha256}, SDK=${actualDigest}`,
@@ -301,8 +295,8 @@ for (const [chainId, overrides] of Object.entries(fixture.overrides)) {
   }
 }
 invariant(
-  explicitAbsences === 2,
-  `Expected 2 explicit deployment absences; got ${explicitAbsences}`,
+  explicitAbsences === 5,
+  `Expected 5 explicit deployment absences; got ${explicitAbsences}`,
 );
 
 const chainFamilies = [
@@ -451,8 +445,7 @@ for (const [chainId, alias] of Object.entries(fixture.chains)) {
       `${contractName} on ${chainId} has no ABI`,
     );
     invariant(
-      abiDigest(artifact.abi, contractName, "artifact") ===
-        expectedContract.abiSha256,
+      abiDigest(artifact.abi) === expectedContract.abiSha256,
       `${contractName} ABI on ${chainId} differs from its pinned public surface`,
     );
     contractArtifacts += 1;
@@ -484,17 +477,17 @@ for (const pair of fixture.suckerDeployerPairs) {
 }
 
 invariant(
-  contractArtifacts === 238,
-  `Expected 238 deployed contract artifacts; got ${contractArtifacts}`,
+  contractArtifacts === 259,
+  `Expected 259 deployed contract artifacts; got ${contractArtifacts}`,
 );
 invariant(
-  artifactAbiChecks === 238,
-  `Expected 238 artifact ABI checks; got ${artifactAbiChecks}`,
+  artifactAbiChecks === 259,
+  `Expected 259 artifact ABI checks; got ${artifactAbiChecks}`,
 );
 invariant(
   suckerArtifacts === 36,
   `Expected 36 sucker artifact checks; got ${suckerArtifacts}`,
 );
 process.stdout.write(
-  `Verified 240 contract deployment slots (238 artifacts, 2 absences), 30 generated ABI surfaces against 238 chain artifacts, and 36 directional sucker artifacts at deploy-all-v6 ${fixture.source.commit}.\n`,
+  `Verified 264 contract deployment slots (259 artifacts, 5 absences), 33 generated ABI surfaces against 259 chain artifacts, and 36 directional sucker artifacts at deploy-all-v6 ${fixture.source.commit}.\n`,
 );

@@ -32,8 +32,10 @@ function config(
   return { config: { getClient } as any, calls, getClient };
 }
 
+const paddedLocal = `0x${"0".repeat(24)}${localSucker.slice(2)}` as const;
+
 describe("getSuckerPairs", () => {
-  test("decodes v6 bytes32 remotes and preserves the peer project identity", async () => {
+  test("reads the peer project id off the remote sucker itself, not its peer()", async () => {
     const fixture = config({
       1: (request) => {
         expect(request.abi).toBe(jbSuckerRegistryAbi);
@@ -48,14 +50,12 @@ describe("getSuckerPairs", () => {
       },
       10: (request) => {
         expect(request.abi).toBe(JBSuckerAbi);
-        if (request.functionName === "peer") {
-          expect(request.address).toBe(getAddress(remoteSucker));
-          return peer;
-        }
-        expect(request).toMatchObject({
-          address: peer,
-          functionName: "projectId",
-        });
+        // The peer sucker sits at a different address than the local one, so
+        // reading projectId() at peer() on the remote chain would land on the
+        // wrong contract entirely.
+        expect(request.address).toBe(getAddress(remoteSucker));
+        if (request.functionName === "peer") return paddedLocal;
+        expect(request.functionName).toBe("projectId");
         return 91n;
       },
     });
@@ -85,10 +85,9 @@ describe("getSuckerPairs", () => {
         ];
       },
       10: (request) => {
-        if (request.functionName === "peer") {
-          expect(request.address).toBe(remoteSucker);
-          return peer;
-        }
+        expect(request.address).toBe(remoteSucker);
+        // A v5 `address` return decodes identically under the bytes32 entry.
+        if (request.functionName === "peer") return paddedLocal;
         return 12n;
       },
     });
@@ -103,12 +102,15 @@ describe("getSuckerPairs", () => {
     ).resolves.toEqual([{ peerChainId: 10, projectId: 12n }]);
   });
 
-  test("filters an uninitialized remote peer", async () => {
+  test("rejects a cleared remote instead of truncating it to a bogus address", async () => {
     const fixture = config({
       1: () => [
-        { local: localSucker, remote: paddedRemote, remoteChainId: 10n },
+        {
+          local: localSucker,
+          remote: `0x${"0".repeat(64)}`,
+          remoteChainId: 10n,
+        },
       ],
-      10: () => undefined,
     });
 
     await expect(
@@ -118,8 +120,51 @@ describe("getSuckerPairs", () => {
         projectId: 7n,
         version: 6,
       }),
-    ).resolves.toEqual([]);
-    expect(fixture.calls[10]).toHaveLength(1);
+    ).rejects.toThrow("does not contain an address");
+    expect(fixture.calls[10]).toBeUndefined();
+  });
+
+  test("rejects a non-EVM remote instead of truncating it to a bogus address", async () => {
+    const fixture = config({
+      1: () => [
+        {
+          local: localSucker,
+          remote: `0x${"11".repeat(12)}${remoteSucker.slice(2)}`,
+          remoteChainId: 10n,
+        },
+      ],
+    });
+
+    await expect(
+      getSuckerPairs({
+        config: fixture.config,
+        chainId: 1,
+        projectId: 7n,
+        version: 6,
+      }),
+    ).rejects.toThrow("is not an EVM address");
+  });
+
+  test("rejects a remote sucker that is not paired back to the local one", async () => {
+    const fixture = config({
+      1: () => [
+        { local: localSucker, remote: paddedRemote, remoteChainId: 10n },
+      ],
+      10: (request) => {
+        if (request.functionName === "peer")
+          return `0x${"0".repeat(24)}${peer.slice(2)}`;
+        return 91n;
+      },
+    });
+
+    await expect(
+      getSuckerPairs({
+        config: fixture.config,
+        chainId: 1,
+        projectId: 7n,
+        version: 6,
+      }),
+    ).rejects.toThrow("is not paired back to");
   });
 
   test("propagates registry and peer read failures", async () => {
@@ -159,24 +204,26 @@ describe("getSuckerPairs", () => {
 });
 
 describe("resolveSuckers", () => {
-  test("adds transitive peers once and retains exact project IDs", async () => {
-    const remoteBackToMainnet =
-      "0x5000000000000000000000000000000000000005" as Address;
-    const paddedBack = `0x${"0".repeat(24)}${remoteBackToMainnet.slice(2)}`;
+  // chain 1 (project 7) <-> chain 10 (project 91) <-> chain 8453 (project 55),
+  // reached only through chain 10's registry.
+  const baseSucker = "0x4000000000000000000000000000000000000004" as Address;
+  const opSuckerToBase =
+    "0x6000000000000000000000000000000000000006" as Address;
+  const pad = (address: Address) => `0x${"0".repeat(24)}${address.slice(2)}`;
+
+  test("puts the local pair first and picks up transitive peers", async () => {
     const fixture = config({
       1: (request) => {
         if (request.functionName === "suckerPairsOf") {
-          return request.args[0] === 7n
-            ? [
-                {
-                  local: localSucker,
-                  remote: paddedRemote,
-                  remoteChainId: 10n,
-                },
-              ]
-            : [];
+          return [
+            {
+              local: localSucker,
+              remote: pad(remoteSucker),
+              remoteChainId: 10n,
+            },
+          ];
         }
-        if (request.functionName === "peer") return peer;
+        if (request.functionName === "peer") return pad(remoteSucker);
         return 7n;
       },
       10: (request) => {
@@ -184,16 +231,26 @@ describe("resolveSuckers", () => {
           return [
             {
               local: remoteSucker,
-              remote: paddedBack,
+              remote: pad(localSucker),
               remoteChainId: 1n,
+            },
+            {
+              local: opSuckerToBase,
+              remote: pad(baseSucker),
+              remoteChainId: 8453n,
             },
           ];
         }
-        if (request.functionName === "peer") return peer;
+        if (request.functionName === "peer") return pad(localSucker);
         return 91n;
+      },
+      8453: (request) => {
+        if (request.functionName === "peer") return pad(opSuckerToBase);
+        return 55n;
       },
     });
 
+    // The back edge (chain 1, project 7) collapses into the local entry.
     await expect(
       resolveSuckers({
         config: fixture.config,
@@ -202,26 +259,72 @@ describe("resolveSuckers", () => {
         version: 6,
       }),
     ).resolves.toEqual([
-      { peerChainId: 10, projectId: 91n },
       { peerChainId: 1, projectId: 7n },
+      { peerChainId: 10, projectId: 91n },
+      { peerChainId: 8453, projectId: 55n },
     ]);
   });
 
-  test("keeps resolved peers when a transitive registry is unavailable", async () => {
+  test("keeps a same-chain pair that carries a different project id", async () => {
+    const otherLocalSucker =
+      "0x7000000000000000000000000000000000000007" as Address;
+    const fixture = config({
+      1: (request) => {
+        if (request.functionName === "suckerPairsOf") {
+          return [
+            {
+              local: localSucker,
+              remote: pad(remoteSucker),
+              remoteChainId: 10n,
+            },
+          ];
+        }
+        if (request.functionName === "peer") return pad(remoteSucker);
+        return request.address === otherLocalSucker ? 42n : 7n;
+      },
+      10: (request) => {
+        if (request.functionName === "suckerPairsOf") {
+          // Chain 10 also sucks into a DIFFERENT project back on chain 1.
+          return [
+            {
+              local: remoteSucker,
+              remote: pad(otherLocalSucker),
+              remoteChainId: 1n,
+            },
+          ];
+        }
+        if (request.functionName === "peer") return pad(localSucker);
+        return 91n;
+      },
+    });
+
+    // Deduping on peerChainId alone would drop (1, 42) as "already have chain 1".
+    await expect(
+      resolveSuckers({
+        config: fixture.config,
+        chainId: 1,
+        projectId: 7n,
+        version: 6,
+      }),
+    ).resolves.toEqual([
+      { peerChainId: 1, projectId: 7n },
+      { peerChainId: 10, projectId: 91n },
+      { peerChainId: 1, projectId: 42n },
+    ]);
+  });
+
+  test("rejects rather than returning a silently truncated group", async () => {
     const failure = new Error("remote registry unavailable");
     const fixture = config({
       1: () => [
         { local: localSucker, remote: paddedRemote, remoteChainId: 10n },
       ],
       10: (request) => {
-        if (request.functionName === "peer") return peer;
+        if (request.functionName === "peer") return pad(localSucker);
         if (request.functionName === "projectId") return 91n;
         throw failure;
       },
     });
-    const error = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
 
     await expect(
       resolveSuckers({
@@ -230,7 +333,6 @@ describe("resolveSuckers", () => {
         projectId: 7n,
         version: 6,
       }),
-    ).resolves.toEqual([{ peerChainId: 10, projectId: 91n }]);
-    expect(error).toHaveBeenCalledWith("peer error", failure);
+    ).rejects.toBe(failure);
   });
 });

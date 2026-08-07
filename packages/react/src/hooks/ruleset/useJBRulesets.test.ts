@@ -104,7 +104,7 @@ describe("ruleset hooks", () => {
     expect(result.ruleset).toBeUndefined();
     expect(result.rulesetMetadata).toBeUndefined();
     expect(mocks.resolveDataHook).toHaveBeenCalledWith(
-      expect.objectContaining({ rulesetId: 0n }),
+      expect.objectContaining({ rulesetId: undefined }),
     );
   });
 
@@ -157,7 +157,7 @@ describe("ruleset hooks", () => {
     });
     expect(mocks.readContract.mock.calls[0][0].args).toBeUndefined();
     expect(mocks.resolveDataHook).toHaveBeenCalledWith(
-      expect.objectContaining({ rulesetId: 0n }),
+      expect.objectContaining({ rulesetId: undefined }),
     );
   });
 });

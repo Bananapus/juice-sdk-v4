@@ -1,5 +1,3 @@
-"use client";
-
 import { type TypedDocumentNode } from "@graphql-typed-document-node/core";
 import { requestBendystraw } from "@bananapus/nana-sdk-core";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";

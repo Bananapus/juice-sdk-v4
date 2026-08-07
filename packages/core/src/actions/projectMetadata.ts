@@ -7,17 +7,21 @@ import {
 } from "viem";
 import { jbControllerAbi } from "../generated/juicebox.js";
 import { JBProjectMetadata } from "../types.js";
-import { ipfsGatewayUrl } from "../utils/ipfs.js";
+import { ipfsAssetPath, ipfsGatewayUrl, isIpfsCid } from "../utils/ipfs.js";
 
 /**
- * Fetch the onchain metadata CID for the given project, using the given JBController contract.
+ * Fetch the onchain metadata URI for the given project via the given
+ * JBController contract, and resolve it to a validated IPFS asset path
+ * (`<cid>[/path]`). `ipfs://` URIs, HTTP gateway URLs, and bare CIDs are all
+ * recognized; anything else (including path-less garbage such as a plain file
+ * name) resolves to `undefined` rather than a bogus gateway fetch.
  */
-const getMetadataCid = async (
+const getMetadataAssetPath = async (
   publicClient: PublicClient,
   args: {
     jbControllerAddress: Address;
     projectId: bigint;
-  }
+  },
 ) => {
   if (isAddressEqual(args.jbControllerAddress, zeroAddress)) {
     return;
@@ -29,12 +33,13 @@ const getMetadataCid = async (
     client: publicClient,
   });
 
-  // ipfs://cid or https://cid, probably
-  const metadataUri = await JBController.read.uriOf([args.projectId]);
+  // ipfs://<cid>[/path], an HTTP gateway URL, or a bare CID.
+  const metadataUri = (await JBController.read.uriOf([args.projectId])).trim();
 
-  const metadataCid = metadataUri.split("/").pop();
-
-  return metadataCid;
+  return (
+    ipfsAssetPath(metadataUri) ??
+    (isIpfsCid(metadataUri) ? metadataUri : undefined)
+  );
 };
 
 /**
@@ -52,13 +57,15 @@ export const getProjectMetadata = async (
   },
   opts?: {
     ipfsGatewayHostname?: string;
-  }
+  },
 ): Promise<JBProjectMetadata | undefined> => {
-  const metadataCid = await getMetadataCid(publicClient, args);
-  if (!metadataCid) {
+  const metadataAssetPath = await getMetadataAssetPath(publicClient, args);
+  const ipfsUrl = metadataAssetPath
+    ? ipfsGatewayUrl(metadataAssetPath, opts?.ipfsGatewayHostname)
+    : null;
+  if (!ipfsUrl) {
     return;
   }
-  const ipfsUrl = ipfsGatewayUrl(metadataCid, opts?.ipfsGatewayHostname);
   const res = (await fetch(ipfsUrl).then((res) => res.json())) as
     | JBProjectMetadata
     | undefined;

@@ -28,7 +28,20 @@ describe("IPFS utilities", () => {
     expect(ipfsGatewayUrl(cid, "another-gateway.com")).toEqual(
       `https://another-gateway.com/ipfs/${cid}`,
     );
-    expect(ipfsGatewayUrl(undefined)).toEqual("https://ipfs.io/ipfs/undefined");
+    expect(ipfsGatewayUrl(`${cid}/metadata.json`)).toEqual(
+      `https://ipfs.io/ipfs/${cid}/metadata.json`,
+    );
+    expect(ipfsGatewayUrl(` ${cid} `)).toEqual(`https://ipfs.io/ipfs/${cid}`);
+  });
+
+  test("returns null rather than a gateway URL for a non-CID", () => {
+    // The regression: an unvalidated interpolation shipped
+    // `https://ipfs.io/ipfs/undefined` as a real URL, so the failure surfaced
+    // as a gateway 4xx far from its source.
+    expect(ipfsGatewayUrl(undefined as unknown as string)).toBeNull();
+    expect(ipfsGatewayUrl("")).toBeNull();
+    expect(ipfsGatewayUrl("metadata.json")).toBeNull();
+    expect(ipfsGatewayUrl(`ipfs://${cid}`)).toBeNull();
   });
 
   test("encodes IPFS CID correctly", () => {

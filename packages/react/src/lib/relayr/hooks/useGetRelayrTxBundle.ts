@@ -78,7 +78,9 @@ export function useGetRelayrTxBundle() {
     hasFailed,
     uuid,
     response: getRelayrTxBundle.data,
-    isPolling: !!uuid && !isComplete && !hasFailed,
+    // A bundle whose fetches keep erroring is not still polling: without the
+    // error term a consumer's spinner never stops.
+    isPolling: !!uuid && !isComplete && !hasFailed && !getRelayrTxBundle.error,
     isFetching: getRelayrTxBundle.isFetching,
     error: getRelayrTxBundle.error,
   };

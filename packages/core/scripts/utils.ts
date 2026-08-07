@@ -14,6 +14,7 @@ import { JBSwapTerminalContracts } from "../src/contracts.js";
 import { JBBuybackHookContracts } from "../src/contracts.js";
 import { JBRouterTerminalContracts } from "../src/contracts.js";
 import { JBOmnichainDeployerContracts } from "../src/contracts.js";
+import { JBUniswapV4LPSplitHookContracts } from "../src/contracts.js";
 
 /**
  * The v6 ERC2771Forwarder. It isn't included in the `@bananapus/core-v6` deployment files,
@@ -57,10 +58,7 @@ export async function getContractsList() {
     }
   }
 
-  return allContracts.map(({ name, abi }) => ({
-    name,
-    abi: parseAbi(name, abi),
-  }));
+  return allContracts.map(({ name, abi }) => ({ name, abi }));
 }
 
 // Normalizes away artifact-format noise (JSON key order, `internalType`) so only real
@@ -200,20 +198,6 @@ function getChainName(chainId: JBChainId) {
   return SUPPORTED_CHAINS[chainId];
 }
 
-function parseAbi(contractName: string, abi: any) {
-  /**
-   * @note there are 2 versions of `currentReclaimableSurplusOf` in JBTerminalStore ABI. We only want one of them.
-   * Filter out the one we don't want.
-   */
-  if (contractName === JBCoreContracts.JBTerminalStore) {
-    return abi.filter(
-      (a: any) =>
-        !(a.name === "currentReclaimableSurplusOf" && a.inputs.length === 4),
-    );
-  }
-  return abi;
-}
-
 type Path = `@${"bananapus" | "rev-net"}/${string}/deployments/${string}`;
 
 const PACKAGES: { contracts: Contract[]; path: Path }[] = [
@@ -238,12 +222,32 @@ const PACKAGES: { contracts: Contract[]; path: Path }[] = [
     path: "@bananapus/swap-terminal/deployments/nana-swap-terminal",
   },
   {
+    // PIN WATCH: `@bananapus/buyback-hook-v6` is held at ^1.2.1 on purpose.
+    // 1.3.x (the derived-floor fix) is committed upstream but has NOT been
+    // executed on-chain — `DeployBuybackFloorFix.s.sol` uses a fresh CREATE2
+    // salt, so it lands at a new address, and every
+    // `deploy-all-v6/deployments/*/JBBuybackHook.json` still records
+    // 0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948, which the registry still
+    // returns as `defaultHook`. Bumping the pin before the migration executes
+    // would ship an ABI/address pair that does not exist on chain.
+    // Bump to ^1.3.x (and regenerate) once the floor-fix broadcast lands and
+    // the deployment artifacts move.
     contracts: Object.values(JBBuybackHookContracts) as Contract[],
     path: "@bananapus/buyback-hook/deployments/nana-buyback-hook",
   },
   {
     contracts: Object.values(JBRouterTerminalContracts) as Contract[],
     path: "@bananapus/router-terminal/deployments/nana-router-terminal",
+  },
+  {
+    // v6-only. The ABI comes from the package's `deployments/` artifacts, NOT
+    // its `src/`: monorepo HEAD (1.4.0) changed `deployPool(uint256,uint256)`
+    // to `deployPool(uint256)` — a different selector — and that generation is
+    // deployed NOWHERE. The published artifacts still describe the live 2-arg
+    // contract, so generating from them is what keeps this ABI honest, and it
+    // will follow the chain automatically when a new generation is broadcast.
+    contracts: Object.values(JBUniswapV4LPSplitHookContracts) as Contract[],
+    path: "@bananapus/univ4-lp-split-hook/deployments/nana-univ4-lp-split-hook",
   },
   {
     contracts: Object.values(JBOmnichainDeployerContracts) as Contract[],
@@ -280,6 +284,16 @@ export function getAllContractNames(version: JBVersion) {
       if (contract === JBRouterTerminalContracts.JBRouterTerminalRegistry)
         return false;
       if (contract === RevnetCoreContracts.REVOwner) return false; // Added in v6
+      // The Uniswap V4 LP split hook only ships a v6 package.
+      if (contract === JBUniswapV4LPSplitHookContracts.JBUniswapV4LPSplitHook)
+        return false;
+      if (
+        contract ===
+        JBUniswapV4LPSplitHookContracts.JBUniswapV4LPSplitHookDeployer
+      )
+        return false;
+      if (contract === JBUniswapV4LPSplitHookContracts.JBP6FeeLPSplitHook)
+        return false;
     }
 
     if (version === 6) {

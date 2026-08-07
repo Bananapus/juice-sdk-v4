@@ -65,7 +65,7 @@
     },
     "JBTerminalStore": {
       "address": "0x7497ae014a60561925b51c0a3b4ade7460b9927c",
-      "abiSha256": "d36a32a07fa2a366a7f3eeccffb3f1681ecb8847cd1b80d9b9f26db2fd08811a"
+      "abiSha256": "e4898fccedeb7ce0d9184884e9befd901c7649959ca6a11348baa144248e3260"
     },
     "JBFundAccessLimits": {
       "address": "0xc93360158f187fc8fc8f1062a1b31d06f185dbab",
@@ -134,12 +134,27 @@
     "REVOwner": {
       "address": "0x2ba4705ad0332cdfb299b452068438bcba3faaf3",
       "abiSha256": "73f69e2538d928b733e0f96c622154cd9d2f2bf209a124190d0bf46ff0ec3826"
+    },
+    "JBUniswapV4LPSplitHook": {
+      "address": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251",
+      "abiSha256": "85264c1d57b6e54b22badcedb7f9bab99386f40a36d0e7692ca1cedbc39db374"
+    },
+    "JBUniswapV4LPSplitHookDeployer": {
+      "address": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da",
+      "abiSha256": "e619e63a46a3092b2112718b279c1149adb0651e22e6193ca5db9f37960b8749"
+    },
+    "JBP6FeeLPSplitHook": {
+      "address": "0xe9493bc776699714a89aa982cf828d843f040d2a",
+      "abiSha256": "85264c1d57b6e54b22badcedb7f9bab99386f40a36d0e7692ca1cedbc39db374"
     }
   },
   "overrides": {
     "11155420": {
       "JBBuybackHook": null,
-      "JBRouterTerminal": null
+      "JBRouterTerminal": null,
+      "JBUniswapV4LPSplitHook": null,
+      "JBUniswapV4LPSplitHookDeployer": null,
+      "JBP6FeeLPSplitHook": null
     }
   },
   "suckerDeployerPairs": [

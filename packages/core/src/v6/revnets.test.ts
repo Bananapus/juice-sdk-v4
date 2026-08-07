@@ -14,6 +14,7 @@ import {
   REVConfig,
   REVDeploy721TiersHookConfig,
   REVSuckerDeploymentConfig,
+  REV_METADATA_ALLOW_SUCKER_DEPLOYMENT,
   buildAutoIssueTx,
   buildDeployRevnetTx,
   buildRevnetStageConfig,
@@ -138,8 +139,38 @@ describe("buildRevnetStageConfig", () => {
       issuanceCutFrequency: 0,
       issuanceCutPercent: 0,
       cashOutTaxRate: 0,
-      extraMetadata: 0,
+      // Bit 2 defaults ON: without it the stage can never deploy suckers, so
+      // the revnet would be permanently un-extendable to new chains.
+      extraMetadata: REV_METADATA_ALLOW_SUCKER_DEPLOYMENT,
     });
+  });
+
+  test("ORs the sucker-deployment bit into caller-provided extraMetadata", () => {
+    const stage = buildRevnetStageConfig({
+      startsAtOrAfter: DEPLOY_START,
+      initialIssuance: parseEther("1"),
+      extraMetadata: 0b1000,
+    });
+    expect(stage.extraMetadata).toBe(
+      0b1000 | REV_METADATA_ALLOW_SUCKER_DEPLOYMENT,
+    );
+  });
+
+  test("allowSuckerDeployment: false leaves extraMetadata untouched", () => {
+    const stage = buildRevnetStageConfig({
+      startsAtOrAfter: DEPLOY_START,
+      initialIssuance: parseEther("1"),
+      allowSuckerDeployment: false,
+    });
+    expect(stage.extraMetadata).toBe(0);
+
+    const withBits = buildRevnetStageConfig({
+      startsAtOrAfter: DEPLOY_START,
+      initialIssuance: parseEther("1"),
+      extraMetadata: 0b1000,
+      allowSuckerDeployment: false,
+    });
+    expect(withBits.extraMetadata).toBe(0b1000);
   });
 
   test("carries auto-issuances", () => {
@@ -195,6 +226,81 @@ describe("buildDeployRevnetTx", () => {
     expect(request.args[5]).toEqual([]); // allowedPosts default
 
     expect(() => encodeFunctionData(request)).not.toThrow();
+  });
+
+  const CROSS_CHAIN_SUCKER_CONFIG: REVSuckerDeploymentConfig = {
+    deployerConfigurations: [
+      {
+        deployer: OPERATOR,
+        peer: zeroHash,
+        mappings: [
+          {
+            localToken: "0x000000000000000000000000000000000000EEEe",
+            minGas: 200_000,
+            remoteToken: zeroHash,
+          },
+        ],
+      },
+    ],
+    salt: SALT,
+  };
+
+  test("throws when a cross-chain revnet has a stage without the sucker-deployment bit", () => {
+    const base = revnetConfig();
+    const config: REVConfig = {
+      ...base,
+      stageConfigurations: [
+        base.stageConfigurations[0],
+        buildRevnetStageConfig({
+          startsAtOrAfter: DEPLOY_START + 730 * 86_400,
+          initialIssuance: 1n,
+          allowSuckerDeployment: false,
+        }),
+      ],
+    };
+
+    expect(() =>
+      buildDeployRevnetTx({
+        chainId: sepolia.id,
+        config,
+        accountingContexts: [buildAccountingContext()],
+        suckerConfig: CROSS_CHAIN_SUCKER_CONFIG,
+        creationFee: parseEther("0.01"),
+      }),
+    ).toThrow(/Stage 1 .*REV_METADATA_ALLOW_SUCKER_DEPLOYMENT/);
+  });
+
+  test("encodes a cross-chain revnet when every stage sets the bit", () => {
+    const request = buildDeployRevnetTx({
+      chainId: sepolia.id,
+      config: revnetConfig(),
+      accountingContexts: [buildAccountingContext()],
+      suckerConfig: CROSS_CHAIN_SUCKER_CONFIG,
+      creationFee: parseEther("0.01"),
+    });
+    expect(() => encodeFunctionData(request)).not.toThrow();
+  });
+
+  test("does not gate single-chain revnets on the sucker-deployment bit", () => {
+    const config: REVConfig = {
+      ...revnetConfig(),
+      stageConfigurations: [
+        buildRevnetStageConfig({
+          startsAtOrAfter: DEPLOY_START,
+          initialIssuance: parseEther("1"),
+          allowSuckerDeployment: false,
+        }),
+      ],
+    };
+    expect(() =>
+      buildDeployRevnetTx({
+        chainId: sepolia.id,
+        config,
+        accountingContexts: [buildAccountingContext()],
+        suckerConfig: SUCKER_CONFIG,
+        creationFee: parseEther("0.01"),
+      }),
+    ).not.toThrow();
   });
 });
 

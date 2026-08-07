@@ -84,6 +84,7 @@ describe("useSuckersNativeTokenBalance", () => {
       "suckersNativeTokenBalance",
       "7",
       "10",
+      6,
       "1,10",
     ]);
     await expect(config.queryFn()).resolves.toEqual([

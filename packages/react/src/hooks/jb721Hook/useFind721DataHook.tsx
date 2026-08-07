@@ -1,6 +1,7 @@
 import { find721DataHook } from "@bananapus/nana-sdk-core";
 import { usePublicClient } from "wagmi";
 import { useQuery } from "wagmi/query";
+import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";
 import { useJBRulesetContext } from "../../contexts/JBRulesetContext/JBRulesetContext";
 import { useJBDataHookContext } from "../../contexts/JBDataHookContext/JBDataHookContext";
@@ -13,7 +14,9 @@ export function useFind721DataHook() {
   const { data } = useJBDataHookContext();
   const { projectId, version } = useJBContractContext();
   const { ruleset } = useJBRulesetContext();
-  const publicClient = usePublicClient();
+  const chainId = useJBChainId();
+  // Without an explicit chain this reads the wallet's chain, not the project's.
+  const publicClient = usePublicClient({ chainId });
 
   const rulesetId = ruleset.data?.id;
   const dataHookAddress = data?.dataHookAddress;
@@ -26,7 +29,17 @@ export function useFind721DataHook() {
   });
 
   const jb721DataHookQuery = useQuery({
-    queryKey: ["dataHook", projectId, rulesetId, dataHookAddress],
+    // Chain and version are read inputs, and with `staleTime: Infinity` a key
+    // that omits them serves one chain's (or version's) hook for another's.
+    queryKey: [
+      "dataHook",
+      chainId,
+      version,
+      projectId,
+      rulesetId,
+      dataHookAddress,
+    ],
+    enabled: !!chainId && !!rulesetId && !!dataHookAddress,
     staleTime: Infinity,
     queryFn: async () => {
       if (!rulesetId || !dataHookAddress) return null;

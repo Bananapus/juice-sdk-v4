@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   suckerError: false,
   queryLoading: false,
   queryError: false,
+  addressResolutionFails: false,
   useQuery: vi.fn(),
   readContract: vi.fn(),
   getContract: vi.fn(),
@@ -38,10 +39,17 @@ vi.mock("../../contexts/JBChainContext/JBChainContext", () => ({
 vi.mock("../../contexts/JBContractContext/JBContractContext", () => ({
   useJBContractContext: () => ({
     projectId: 7n,
-    contractAddress: (_contract: unknown, chainId?: number) =>
-      chainId === 1
+    version: 6,
+    contractAddress: (_contract: unknown, chainId?: number) => {
+      if (mocks.addressResolutionFails) {
+        throw new Error(
+          "No JBTokens deployment for Juicebox V6 on chain 999999.",
+        );
+      }
+      return chainId === 1
         ? "0x2222222222222222222222222222222222222222"
-        : "0x3333333333333333333333333333333333333333",
+        : "0x3333333333333333333333333333333333333333";
+    },
   }),
 }));
 vi.mock("../suckers/useSuckers", () => ({
@@ -62,6 +70,7 @@ describe("useSuckersUserTokenBalance", () => {
     mocks.suckerError = false;
     mocks.queryLoading = false;
     mocks.queryError = false;
+    mocks.addressResolutionFails = false;
     mocks.readContract.mockImplementation((config) => ({
       data: config.args ? config.query.select(50n) : undefined,
       isLoading: false,
@@ -97,6 +106,8 @@ describe("useSuckersUserTokenBalance", () => {
       "suckersUserTokenBalance",
       "7",
       "10",
+      6,
+      mocks.user,
       "50",
       "1",
     ]);
@@ -159,6 +170,22 @@ describe("useSuckersUserTokenBalance", () => {
     ]);
     expect(mocks.getContract).not.toHaveBeenCalled();
   });
+
+  test.each([
+    ["no chain", true, false],
+    ["a chain with no JBTokens deployment", false, true],
+  ])(
+    "disables the balance read for %s instead of throwing in render",
+    (_label, chainless, resolutionFails) => {
+      if (chainless) mocks.chainId = undefined;
+      mocks.addressResolutionFails = resolutionFails;
+
+      expect(() => useSuckersUserTokenBalance()).not.toThrow();
+
+      expect(mocks.readContract.mock.calls[0][0].address).toBeUndefined();
+      expect(mocks.readContract.mock.calls[0][0].query.enabled).toBe(false);
+    },
+  );
 
   test("short-circuits without wallet identity and combines query status", async () => {
     mocks.user = undefined;

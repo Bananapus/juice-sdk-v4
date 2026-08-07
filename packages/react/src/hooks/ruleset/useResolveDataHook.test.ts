@@ -159,6 +159,45 @@ describe("useResolveDataHook", () => {
 
     expect(result.resolvedDataHook).toBe(ordinaryHook);
     expect(result.dataHookIsOmnichainDeployer).toBe(false);
-    expect(isAddressEqual(result.resolvedDataHook, ordinaryHook)).toBe(true);
+    expect(isAddressEqual(result.resolvedDataHook!, ordinaryHook)).toBe(true);
+  });
+
+  test.each([6, 5] as const)(
+    "withholds the V%s hook while the deployer lookup is pending",
+    (version) => {
+      mocks.version = version;
+      mocks.readContract.mockReturnValue({ data: undefined, isLoading: true });
+
+      const result = useResolveDataHook({
+        dataHookAddress: version === 6 ? v6Deployer() : legacyDeployer(5),
+        projectId: 7n,
+        chainId: 10,
+        rulesetId: 9n,
+      });
+
+      // The deployer address is not a data hook: publishing it would make
+      // `METADATA_ID_TARGET` revert and a pay mint no NFTs.
+      expect(result.resolvedDataHook).toBeUndefined();
+      expect(result.isLoading).toBe(true);
+    },
+  );
+
+  test("keeps the deployer as the hook once V6 lookups answer with none", () => {
+    mocks.readContract
+      .mockReturnValueOnce({ data: undefined, isLoading: false })
+      .mockReturnValueOnce({ data: [zeroAddress], isLoading: false })
+      .mockReturnValueOnce({
+        data: { dataHook: zeroAddress },
+        isLoading: false,
+      });
+
+    const result = useResolveDataHook({
+      dataHookAddress: v6Deployer(),
+      projectId: 7n,
+      chainId: 10,
+      rulesetId: 9n,
+    });
+
+    expect(result.resolvedDataHook).toBe(v6Deployer());
   });
 });

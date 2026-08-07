@@ -51,6 +51,22 @@ export class BendystrawRequestError extends Error {
   }
 }
 
+/**
+ * The internal per-attempt request timeout elapsed.
+ *
+ * It exists so a timeout can be told apart from a caller cancel: both abort the
+ * same `AbortController`, and without a distinct reason the timeout surfaces as
+ * a bare `AbortError` indistinguishable from `options.signal` firing. Bendystraw
+ * is known to spike to 5-13 s, so treating its timeout as a deliberate cancel
+ * turned the most likely transient failure into a hard first-attempt error.
+ */
+export class BendystrawTimeoutError extends Error {
+  constructor(readonly timeoutMs: number) {
+    super(`Bendystraw request timed out after ${timeoutMs}ms`);
+    this.name = "BendystrawTimeoutError";
+  }
+}
+
 export type BendystrawRequestOptions<
   TResult = unknown,
   TVariables extends object = Record<string, never>,
@@ -416,9 +432,12 @@ function delay(milliseconds: number): Promise<void> {
 /**
  * Execute a bounded, timeout-protected Bendystraw GraphQL request.
  *
- * The helper retries only transient transport failures. GraphQL errors,
- * invalid envelopes, invalid content types, oversized bodies, and caller
- * cancellation fail closed without being retried.
+ * The helper retries only transient transport failures — including its own
+ * per-attempt {@link BendystrawTimeoutError}. GraphQL errors, invalid
+ * envelopes, invalid content types, oversized bodies, and caller cancellation
+ * (`options.signal`) fail closed without being retried.
+ *
+ * @throws {BendystrawTimeoutError} When every attempt timed out.
  */
 export async function requestBendystraw<
   TResult,
@@ -453,7 +472,11 @@ export async function requestBendystraw<
     const controller = new AbortController();
     const abort = () => controller.abort(options.signal?.reason);
     options.signal?.addEventListener("abort", abort, { once: true });
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutReason = new BendystrawTimeoutError(timeoutMs);
+    const timeout = setTimeout(
+      () => controller.abort(timeoutReason),
+      timeoutMs,
+    );
     try {
       if (options.signal?.aborted) abort();
       const response = await fetchImpl(endpoint, {
@@ -526,16 +549,24 @@ export async function requestBendystraw<
           : data;
       }
     } catch (error) {
-      const aborted =
-        options.signal?.aborted ||
-        abortName(error) === "AbortError" ||
-        abortName(error) === "TimeoutError";
+      // The internal timeout is a transient transport failure, so it retries.
+      // Only a CALLER cancel fails closed — hence the distinct abort reason.
+      const timedOut =
+        controller.signal.reason === timeoutReason ||
+        error === timeoutReason ||
+        error instanceof BendystrawTimeoutError;
+      const cancelled =
+        !timedOut &&
+        (options.signal?.aborted ||
+          abortName(error) === "AbortError" ||
+          abortName(error) === "TimeoutError");
       if (
-        aborted ||
+        cancelled ||
         error instanceof BendystrawRequestError ||
         attempt >= retryDelaysMs.length
       ) {
-        throw error;
+        // Surface the timeout as itself rather than as an opaque `AbortError`.
+        throw timedOut ? timeoutReason : error;
       }
     } finally {
       clearTimeout(timeout);
