@@ -7,6 +7,7 @@ import {
 } from "./JBContractContext";
 import {
   JBCoreContracts,
+  NATIVE_TOKEN,
   getJBContractAddress,
   jbControllerAbi,
   jbDirectoryAbi,
@@ -77,15 +78,25 @@ describe("JBContractContext", () => {
     installContractReads();
   });
 
-  test("loads the V6 project contract graph from the canonical directory", () => {
-    expect(
-      (
-        JBContractContext as unknown as {
-          _value: { contractAddress: () => string };
-        }
-      )._value.contractAddress(),
-    ).toBe(zeroAddress);
+  test("refuses to answer for a project outside a provider", () => {
+    const outside = (
+      JBContractContext as unknown as {
+        _value: {
+          projectId: bigint;
+          version: number;
+          contractAddress: () => string;
+        };
+      }
+    )._value;
 
+    expect(() => outside.projectId).toThrow("outside a JBContractProvider");
+    expect(() => outside.version).toThrow("outside a JBContractProvider");
+    expect(() => outside.contractAddress()).toThrow(
+      "outside a JBContractProvider",
+    );
+  });
+
+  test("loads the V6 project contract graph from the canonical directory", () => {
     const element = JBContractProvider({
       projectId: 7n,
       version: 6,
@@ -153,7 +164,7 @@ describe("JBContractContext", () => {
     expect(mocks.readContract.mock.calls[6][0].query.enabled).toBe(false);
   });
 
-  test("normalizes a missing controller to zero before dependent reads", () => {
+  test("keeps dependent reads off a zero controller instead of caching the failure", () => {
     mocks.readContract.mockImplementation((config) => ({
       data:
         config.functionName === "controllerOf"
@@ -167,8 +178,66 @@ describe("JBContractContext", () => {
     JBContractProvider({ projectId: 7n, version: 6, children: null });
 
     for (const call of mocks.readContract.mock.calls.slice(3)) {
-      expect(call[0].address).toBe(zeroAddress);
+      expect(call[0].address).toBeUndefined();
+      expect(call[0].query.enabled).toBe(false);
+      expect(call[0].query.staleTime).toBe(Infinity);
     }
+  });
+
+  test("reports dependent contracts as loading while the controller resolves", () => {
+    mocks.readContract.mockImplementation((config) => ({
+      data: undefined,
+      isLoading: config.functionName === "controllerOf",
+    }));
+
+    const element = JBContractProvider({
+      projectId: 7n,
+      version: 6,
+      children: null,
+    }) as unknown as { props: { value: Record<string, any> } };
+
+    for (const contract of [
+      "fundAccessLimits",
+      "rulesets",
+      "tokens",
+      "splits",
+    ]) {
+      expect(element.props.value.contracts[contract]).toEqual({
+        data: undefined,
+        isLoading: true,
+      });
+    }
+  });
+
+  test("publishes no primary terminal when both accounting tokens resolve to zero", () => {
+    installContractReads({ ethTerminal: zeroAddress });
+    mocks.readContract.mockImplementation((config) =>
+      config.functionName === "primaryTerminalOf"
+        ? { data: zeroAddress, isLoading: false }
+        : { data: controller, isLoading: false },
+    );
+
+    const element = JBContractProvider({
+      projectId: 7n,
+      version: 6,
+      children: null,
+    }) as unknown as { props: { value: Record<string, any> } };
+
+    expect(
+      element.props.value.contracts.primaryNativeTerminal.data,
+    ).toBeUndefined();
+  });
+
+  test("never asks for the zero token's terminal on a chain without USDC", () => {
+    mocks.chainId = 999_999;
+
+    JBContractProvider({ projectId: 7n, version: 6, children: null });
+
+    expect(mocks.readContract.mock.calls[0][0].args).toEqual([
+      7n,
+      NATIVE_TOKEN,
+    ]);
+    expect(mocks.readContract.mock.calls[1][0].args).toBeUndefined();
   });
 
   test("does not invent a directory address before the chain resolves", () => {

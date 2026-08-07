@@ -1,3 +1,4 @@
+import { JB_CHAINS } from "@bananapus/nana-sdk-core";
 import { describe, expect, test } from "vitest";
 import {
   arbitrum,
@@ -50,5 +51,25 @@ describe("getBendystrawUrl", () => {
         apiKey: "secret",
       }),
     ).toBe("https://indexer.example/secret");
+  });
+
+  test("leaves no empty key segment on an explicit origin", () => {
+    // Callers append `/graphql`, so a trailing slash here becomes `//graphql`.
+    expect(
+      getBendystrawUrl(mainnet.id, {
+        url: "https://indexer.example",
+        apiKey: "",
+      }),
+    ).toBe("https://indexer.example");
+  });
+
+  test("routes every supported production chain to the production indexer", () => {
+    for (const [chainId, { chain }] of Object.entries(JB_CHAINS)) {
+      expect(getBendystrawUrl(Number(chainId), { apiKey: "key" })).toBe(
+        chain.testnet
+          ? "https://testnet.bendystraw.xyz/key"
+          : "https://bendystraw.xyz/key",
+      );
+    }
   });
 });

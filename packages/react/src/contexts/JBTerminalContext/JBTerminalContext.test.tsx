@@ -92,10 +92,17 @@ describe("JBTerminalContext", () => {
     ).toBe(true);
   });
 
-  test("only wraps children after the primary native terminal resolves", () => {
-    expect(JBPrimaryNativeTerminalProvider({ children: "child" })).toBe(
-      "child",
-    );
+  test("wraps children with the same provider before and after the terminal resolves", () => {
+    const pending = JBPrimaryNativeTerminalProvider({
+      children: "child",
+    }) as unknown as {
+      type: unknown;
+      props: { address: string | undefined; children: unknown };
+    };
+    // The element type must not change when the address arrives, or React
+    // remounts the whole subtree below it.
+    expect(pending.type).toBe(JBTerminalProvider);
+    expect(pending.props).toEqual({ address: undefined, children: "child" });
 
     mocks.terminal = terminal;
     const element = JBPrimaryNativeTerminalProvider({

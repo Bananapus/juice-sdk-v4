@@ -106,11 +106,11 @@ describe("JBProjectProvider", () => {
       bendystraw,
     };
 
+    // The API key must not ride along with the project's identity.
     expect(useJBProject()).toEqual({
       projectId: 7n,
       chainId: 10,
       version: 6,
-      bendystraw,
     });
     expect(useBendystrawConfig()).toBe(bendystraw);
 

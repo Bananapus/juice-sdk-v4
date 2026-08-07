@@ -7,10 +7,20 @@ export * from "./loanMath.js";
 
 /**
  * The JBPermissions permission id apps grant to the REVLoans contract before borrowing
- * against a holder's tokens (v6 ROOT permission id 1). REVLoans needs it to manage the
- * holder's collateral tokens on their behalf.
+ * against a holder's tokens: `BURN_TOKENS` (11, per `JBPermissionIds`). REVLoans burns
+ * the holder's collateral via `JBController.burnTokensOf`, which is gated on this
+ * permission ONLY — never grant ROOT (1) to REVLoans; ROOT silently satisfies every
+ * permission check and hands the contract full operator power over the holder.
  */
-export const REVLOANS_PERMISSION_ID = 1;
+export const REVLOANS_BURN_PERMISSION_ID = 11;
+
+/**
+ * @deprecated Use {@link REVLOANS_BURN_PERMISSION_ID}. This constant previously held
+ * ROOT (1) — a grant that gives REVLoans unrestricted operator power over the holder.
+ * It now aliases `BURN_TOKENS` (11), the only permission REVLoans needs. Audit any
+ * grants made with the old value and revoke ROOT from REVLoans.
+ */
+export const REVLOANS_PERMISSION_ID = REVLOANS_BURN_PERMISSION_ID;
 
 /**
  * A Permit2 single allowance, passed to `repayLoan` when repaying with an ERC-20 via a
@@ -42,7 +52,7 @@ export const EMPTY_SINGLE_ALLOWANCE: JBSingleAllowance = {
  * tokens.
  *
  * The caller must be the holder or have permission to act on their behalf, and the holder
- * must have granted permission id {@link REVLOANS_PERMISSION_ID} to REVLoans.
+ * must have granted permission id {@link REVLOANS_BURN_PERMISSION_ID} to REVLoans.
  *
  * @param args.chainId The chain to borrow on.
  * @param args.revnetId The revnet to borrow from.

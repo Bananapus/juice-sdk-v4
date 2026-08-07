@@ -22,7 +22,17 @@ export function useNativeTokenSurplus({
     contracts: { primaryNativeTerminal },
   } = useJBContractContext();
 
-  const _chainId = chainId ?? useJBChainId();
+  // `??` short-circuits, so calling the hook on the right-hand side would skip
+  // it whenever a chain is passed — a hook-count change on the render where the
+  // caller's chainId flips defined <-> undefined.
+  const contextChainId = useJBChainId();
+  const _chainId = chainId ?? contextChainId;
+
+  // `projectId` and the primary terminal in context both belong to the context
+  // chain: a project's id and its terminal differ per chain. Reading them
+  // against another chain answers for the wrong project, so only the context
+  // chain is quotable here — use `useSuckersNativeTokenSurplus` for the group.
+  const isContextChain = !!_chainId && _chainId === contextChainId;
 
   // v6 takes token addresses; v4/v5 take accounting context structs.
   const v6Query = useReadContract({
@@ -36,7 +46,7 @@ export function useNativeTokenSurplus({
       BigInt(NATIVE_TOKEN_DECIMALS),
       BigInt(ETH_CURRENCY_ID),
     ],
-    query: { enabled: version === 6 },
+    query: { enabled: version === 6 && isContextChain },
   });
 
   const legacyQuery = useReadContract({
@@ -56,7 +66,7 @@ export function useNativeTokenSurplus({
       BigInt(NATIVE_TOKEN_DECIMALS),
       BigInt(ETH_CURRENCY_ID),
     ],
-    query: { enabled: version !== 6 },
+    query: { enabled: version !== 6 && isContextChain },
   });
 
   return version === 6 ? v6Query : legacyQuery;

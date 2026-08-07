@@ -89,12 +89,13 @@ describe("jbUrn", () => {
     it("should handle invalid project IDs", () => {
       expect(jbUrn("eth:abc")).toBeNull();
       expect(jbUrn("eth:3.14")).toBeNull();
-      // 0x123 = 291
-      expect(jbUrn("eth:0x123")).toEqual({
-        chainId: mainnet.id,
-        projectId: 291n,
-        version: 4,
-      });
+      // Only decimal digits are a project id. `BigInt` would happily read
+      // "0x123" as 291 and "0b11" as 3 — silently naming a different project.
+      expect(jbUrn("eth:0x123")).toBeNull();
+      expect(jbUrn("eth:0b11")).toBeNull();
+      expect(jbUrn("eth:1e3")).toBeNull();
+      expect(jbUrn("eth:-1")).toBeNull();
+      expect(jbUrn("eth: ")).toBeNull();
     });
   });
 
@@ -114,7 +115,8 @@ describe("jbUrn", () => {
 
     it("should handle numeric edge cases", () => {
       expect(jbUrn("eth:0003")?.projectId).toBe(3n);
-      expect(jbUrn("eth:0")?.projectId).toBe(0n);
+      // Project ids start at 1, so 0 names nothing.
+      expect(jbUrn("eth:0")).toBeNull();
     });
 
     it("should reject invalid formats", () => {
@@ -129,7 +131,31 @@ describe("toJbUrn", () => {
     expect(toJbUrn(mainnet.id, 3n)).toBe("eth:3");
   });
 
+  it("emits a version prefix for every version but the default", () => {
+    expect(toJbUrn(mainnet.id, 3n, 4)).toBe("eth:3");
+    expect(toJbUrn(mainnet.id, 3n, 5)).toBe("v5:eth:3");
+    expect(toJbUrn(optimism.id, 7n, 6)).toBe("v6:op:7");
+  });
+
+  it("round-trips every version through jbUrn", () => {
+    for (const version of [4, 5, 6] as const) {
+      const urn = toJbUrn(base.id, 12n, version);
+      expect(urn).not.toBeNull();
+      expect(jbUrn(urn!)).toEqual({
+        chainId: base.id,
+        projectId: 12n,
+        version,
+      });
+    }
+  });
+
   it("returns null for an unsupported chain", () => {
     expect(toJbUrn(999 as never, 3n)).toBeNull();
+  });
+
+  it("returns null for input jbUrn could not read back", () => {
+    expect(toJbUrn(mainnet.id, 0n)).toBeNull();
+    expect(toJbUrn(mainnet.id, -1n)).toBeNull();
+    expect(toJbUrn(mainnet.id, 3n, 3 as never)).toBeNull();
   });
 });

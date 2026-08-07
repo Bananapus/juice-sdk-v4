@@ -23,7 +23,11 @@ export type JBRulesetContext = {
    */
   ruleset: AsyncData<
     Omit<
-      ContractFunctionReturnType<typeof jbControllerAbi, "view", "currentRulesetOf">[0],
+      ContractFunctionReturnType<
+        typeof jbControllerAbi,
+        "view",
+        "currentRulesetOf"
+      >[0],
       "weight" | "weightCutPercent"
     > & {
       weight: RulesetWeight;
@@ -35,7 +39,11 @@ export type JBRulesetContext = {
    */
   rulesetMetadata: AsyncData<
     Omit<
-      ContractFunctionReturnType<typeof jbControllerAbi, "view", "currentRulesetOf">[1],
+      ContractFunctionReturnType<
+        typeof jbControllerAbi,
+        "view",
+        "currentRulesetOf"
+      >[1],
       "cashOutTaxRate" | "reservedPercent"
     > & {
       cashOutTaxRate: CashOutTaxRate;
@@ -71,17 +79,24 @@ export function useJBRulesetMetadata() {
  *
  * @note depends on JBContractContext
  */
-export const JBRulesetProvider = ({ children }: { children: React.ReactNode }) => {
+export const JBRulesetProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const { contracts, projectId, version } = useJBContractContext();
   const chainId = useJBChainId();
+
+  const controllerAddress = contracts.controller.data ?? undefined;
 
   const { data: ruleset, isLoading } = useReadContract({
     chainId,
     abi: jbControllerAbi,
     functionName: "currentRulesetOf",
-    address: contracts.controller.data ?? undefined,
+    address: controllerAddress,
     args: [projectId],
     query: {
+      enabled: !!controllerAddress,
       select([ruleset, rulesetMetadata]) {
         return {
           data: {
@@ -92,7 +107,9 @@ export const JBRulesetProvider = ({ children }: { children: React.ReactNode }) =
           metadata: {
             ...rulesetMetadata,
             cashOutTaxRate: new CashOutTaxRate(rulesetMetadata.cashOutTaxRate),
-            reservedPercent: new ReservedPercent(rulesetMetadata.reservedPercent),
+            reservedPercent: new ReservedPercent(
+              rulesetMetadata.reservedPercent,
+            ),
             // v4/v5 store the INVERSE flag (`useTotalSurplusForCashOuts`) in this slot;
             // normalize to the v6 field's semantics.
             scopeCashOutsToLocalBalances:
@@ -105,40 +122,44 @@ export const JBRulesetProvider = ({ children }: { children: React.ReactNode }) =
     },
   });
 
-  const { resolvedDataHook } = useResolveDataHook({
-    dataHookAddress: ruleset?.metadata?.dataHook,
-    projectId,
-    chainId,
-    rulesetId: BigInt(ruleset?.data.id ?? 0),
-  });
+  const { resolvedDataHook, isLoading: isDataHookLoading } = useResolveDataHook(
+    {
+      dataHookAddress: ruleset?.metadata?.dataHook,
+      projectId,
+      chainId,
+      rulesetId:
+        ruleset?.data.id === undefined ? undefined : BigInt(ruleset.data.id),
+    },
+  );
 
-  const rulesetMetadataWithResolvedDataHook = ruleset?.metadata && {
-    ...ruleset.metadata,
-    dataHook: resolvedDataHook,
+  // A read that is disabled because its controller has not resolved yet reports
+  // `isLoading: false`, which reads downstream as "this project has no ruleset".
+  const isRulesetLoading = Boolean(isLoading || contracts.controller.isLoading);
+
+  // `resolvedDataHook` is undefined while the hook behind the omnichain deployer
+  // is still being resolved. Publishing the metadata with the deployer address in
+  // that window makes a pay revert in `use721HookMetadataId`.
+  const rulesetMetadataWithResolvedDataHook =
+    ruleset?.metadata && resolvedDataHook
+      ? { ...ruleset.metadata, dataHook: resolvedDataHook }
+      : undefined;
+
+  const rulesetState = { data: ruleset?.data, isLoading: isRulesetLoading };
+  const rulesetMetadataState = {
+    data: rulesetMetadataWithResolvedDataHook,
+    isLoading: Boolean(isRulesetLoading || isDataHookLoading),
   };
 
   debug("JBRulesetContext", {
-    ruleset: {
-      data: ruleset?.data,
-      isLoading,
-    },
-    rulesetMetadata: {
-      data: rulesetMetadataWithResolvedDataHook,
-      isLoading,
-    },
+    ruleset: rulesetState,
+    rulesetMetadata: rulesetMetadataState,
   });
 
   return (
     <JBRulesetContext.Provider
       value={{
-        ruleset: {
-          data: ruleset?.data,
-          isLoading,
-        },
-        rulesetMetadata: {
-          data: rulesetMetadataWithResolvedDataHook,
-          isLoading,
-        },
+        ruleset: rulesetState,
+        rulesetMetadata: rulesetMetadataState,
       }}
     >
       {children}

@@ -1,5 +1,8 @@
-"use client";
-import { JBChainId, JBVersion, jbContractAddress } from "@bananapus/nana-sdk-core";
+import {
+  JBChainId,
+  JBVersion,
+  jbContractAddress,
+} from "@bananapus/nana-sdk-core";
 import { useJBContractContext } from "../../../contexts/JBContractContext/JBContractContext";
 import { useMutation } from "wagmi/query";
 import { API } from "../constants";
@@ -15,13 +18,16 @@ export function useRequestRelayrQuote() {
         chain: JBChainId;
         value: string;
         version?: JBVersion;
-      }[]
+      }[],
     ) => {
       const transactions = args.map((ct) => {
         return {
           chain: ct.chain,
           data: ct.data,
-          target: jbContractAddress[ct.version ?? contextVersion]["ERC2771Forwarder"][ct.chain],
+          target:
+            jbContractAddress[ct.version ?? contextVersion]["ERC2771Forwarder"][
+              ct.chain
+            ],
           value: ct.value,
         };
       });

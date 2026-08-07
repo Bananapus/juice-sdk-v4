@@ -22,5 +22,11 @@ describe("published core SDK surfaces", () => {
     expect(v6.netLoanProceeds).toBeTypeOf("function");
     expect(v6.build721RulesetMetadata).toBeTypeOf("function");
     expect(v6.decode721RulesetMetadata).toBeTypeOf("function");
+    expect(sdk.isContractRevertError).toBeTypeOf("function");
+    expect(sdk.isMissingContractFunctionError).toBeTypeOf("function");
+    expect(v6.requiredFeedPairs).toBeTypeOf("function");
+    expect(v6.probeFeedReachability).toBeTypeOf("function");
+    expect(v6.REV_METADATA_ALLOW_SUCKER_DEPLOYMENT).toBe(1 << 2);
+    expect(v6.REVLOANS_BURN_PERMISSION_ID).toBe(11);
   });
 });

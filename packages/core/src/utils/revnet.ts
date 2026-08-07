@@ -1,4 +1,4 @@
-import { JBChainId } from "src/types.js";
+import { JBChainId } from "../types.js";
 import { JBVersion } from "../contracts.js";
 import { jbContractAddress } from "../generated/juicebox.js";
 
@@ -13,7 +13,8 @@ const MAX_PREPAYMENT_MONTHS_BIGINT = 120n;
 
 export function calcPrepaidFee(monthsToPrePay: number): bigint {
   const calcd =
-    (BigInt(monthsToPrePay) * MAX_PREPAID_FEE_PERCENT_BIGINT) / MAX_PREPAYMENT_MONTHS_BIGINT +
+    (BigInt(monthsToPrePay) * MAX_PREPAID_FEE_PERCENT_BIGINT) /
+      MAX_PREPAYMENT_MONTHS_BIGINT +
     MIN_PREPAID_FEE;
 
   if (calcd < MIN_PREPAID_FEE) {

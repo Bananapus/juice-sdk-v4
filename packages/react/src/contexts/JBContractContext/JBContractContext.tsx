@@ -11,7 +11,13 @@ import {
   getJBContractAddress,
   Contract,
 } from "@bananapus/nana-sdk-core";
-import { PropsWithChildren, createContext, useCallback, useContext, useMemo } from "react";
+import {
+  PropsWithChildren,
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+} from "react";
 import { Address, isAddressEqual, zeroAddress } from "viem";
 import { useSuckers } from "../../hooks";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
@@ -36,15 +42,30 @@ export type JBContractContextData = {
 };
 
 /**
+ * There is no honest default for a project's identity: `projectId: 0n` with
+ * `version: 5` reading at `zeroAddress` is a silent wrong answer, not an empty
+ * one. Fail loudly instead so the missing provider is obvious at the call site.
+ */
+function outsideProvider(): never {
+  throw new Error(
+    "JBContractContext was read outside a JBContractProvider. Wrap the tree in JBProjectProvider or JBContractProvider.",
+  );
+}
+
+/**
  * Context for project-specific contracts.
  */
 export const JBContractContext = createContext<JBContractContextData>({
   /**
    * The project id of the Juicebox project.
    */
-  projectId: 0n,
+  get projectId(): bigint {
+    return outsideProvider();
+  },
 
-  version: 5,
+  get version(): JBVersion {
+    return outsideProvider();
+  },
 
   /**
    * The addresses of the contracts for the project.
@@ -58,7 +79,7 @@ export const JBContractContext = createContext<JBContractContextData>({
     splits: AsyncDataNone,
   },
 
-  contractAddress: () => zeroAddress,
+  contractAddress: outsideProvider,
 });
 
 export function useJBContractContext() {
@@ -99,7 +120,9 @@ export function useJBProjectId(chainId?: JBChainId): {
     return { projectId: currentProjectId, chainId: currentChainId, version };
   }
 
-  const projectId = suckers.find((suckerPair) => suckerPair.peerChainId === chainId)?.projectId;
+  const projectId = suckers.find(
+    (suckerPair) => suckerPair.peerChainId === chainId,
+  )?.projectId;
 
   return { projectId, chainId, version };
 }
@@ -121,7 +144,7 @@ export const JBContractProvider = ({
       if (typeof include === "undefined") return true;
       return include.some((c) => selector.includes(c));
     },
-    [include]
+    [include],
   );
 
   const jbDirectoryAddress = chainId
@@ -138,20 +161,38 @@ export const JBContractProvider = ({
       : undefined,
   });
 
+  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
+
   const primaryNativeTerminalUsdc = useReadContract({
     address: jbDirectoryAddress,
     abi: jbDirectoryAbi,
     functionName: "primaryTerminalOf",
     chainId,
-    args: enabled([DynamicContract.PrimaryNativePaymentTerminal])
-      ? [projectId, chainId ? USDC_ADDRESSES[chainId] : zeroAddress]
-      : undefined,
+    args:
+      usdcAddress && enabled([DynamicContract.PrimaryNativePaymentTerminal])
+        ? [projectId, usdcAddress]
+        : undefined,
   });
 
   const primaryNativeTerminal = useMemo(() => {
-    return primaryNativeTerminalEth.data !== zeroAddress
-      ? primaryNativeTerminalEth
-      : primaryNativeTerminalUsdc;
+    const isTerminal = (address: Address | undefined) =>
+      address !== undefined && !isAddressEqual(address, zeroAddress);
+
+    if (isTerminal(primaryNativeTerminalEth.data))
+      return primaryNativeTerminalEth;
+    if (isTerminal(primaryNativeTerminalUsdc.data))
+      return primaryNativeTerminalUsdc;
+
+    // Neither accounting token resolved to a terminal. `primaryTerminalOf`
+    // answers `zeroAddress` for "none", which must not be published as if it
+    // were a contract to read from.
+    return {
+      ...primaryNativeTerminalEth,
+      data: undefined,
+      isLoading:
+        primaryNativeTerminalEth.isLoading ||
+        primaryNativeTerminalUsdc.isLoading,
+    };
   }, [primaryNativeTerminalEth, primaryNativeTerminalUsdc]);
 
   const controller = useReadContract({
@@ -169,89 +210,105 @@ export const JBContractProvider = ({
   const controllerAddress = useMemo(() => controller.data, [controller.data]);
 
   const hasController = useMemo(() => {
-    return controllerAddress && !isAddressEqual(controllerAddress, zeroAddress);
+    return Boolean(
+      controllerAddress && !isAddressEqual(controllerAddress, zeroAddress),
+    );
   }, [controllerAddress]);
 
-  const normalizedControllerAddress = useMemo(() => {
-    return hasController ? controllerAddress : zeroAddress;
+  // An unresolved controller is `undefined`, never `zeroAddress`: with
+  // `staleTime: Infinity` a read aimed at `0x0` would be cached as the
+  // project's permanent answer.
+  const resolvedControllerAddress = useMemo(() => {
+    return hasController ? controllerAddress : undefined;
   }, [controllerAddress, hasController]);
 
   const fundAccessLimits = useReadContract({
     chainId,
-    address: normalizedControllerAddress,
+    address: resolvedControllerAddress,
     abi: jbControllerAbi,
     functionName: "FUND_ACCESS_LIMITS",
     query: {
-      enabled: enabled([DynamicContract.Controller, DynamicContract.FundAccessLimits]),
+      enabled:
+        hasController &&
+        enabled([DynamicContract.Controller, DynamicContract.FundAccessLimits]),
       staleTime: Infinity,
     },
   });
 
   const rulesets = useReadContract({
     chainId,
-    address: normalizedControllerAddress,
+    address: resolvedControllerAddress,
     abi: jbControllerAbi,
     functionName: "RULESETS",
     query: {
-      enabled: enabled([DynamicContract.Controller, DynamicContract.Rulesets]),
+      enabled:
+        hasController &&
+        enabled([DynamicContract.Controller, DynamicContract.Rulesets]),
       staleTime: Infinity,
     },
   });
 
   const tokens = useReadContract({
     chainId,
-    address: normalizedControllerAddress,
+    address: resolvedControllerAddress,
     abi: jbControllerAbi,
     functionName: "TOKENS",
     query: {
-      enabled: enabled([DynamicContract.Controller, DynamicContract.Tokens]),
+      enabled:
+        hasController &&
+        enabled([DynamicContract.Controller, DynamicContract.Tokens]),
       staleTime: Infinity,
     },
   });
 
   const splits = useReadContract({
     chainId,
-    address: normalizedControllerAddress,
+    address: resolvedControllerAddress,
     abi: jbControllerAbi,
     functionName: "SPLITS",
     query: {
-      enabled: enabled([DynamicContract.Controller, DynamicContract.Splits]),
+      enabled:
+        hasController &&
+        enabled([DynamicContract.Controller, DynamicContract.Splits]),
       staleTime: Infinity,
     },
+  });
+
+  // A dependent read that is disabled because its controller has not resolved
+  // yet reports `isLoading: false, data: undefined` — indistinguishable from
+  // "this project has none". Carry the upstream's loading state instead.
+  const dependent = <T,>(query: {
+    data: T | undefined;
+    isLoading: boolean;
+  }) => ({
+    ...query,
+    isLoading: Boolean(query.isLoading || controller.isLoading),
   });
 
   const contractAddress = useCallback(
     (contract: Contract, _chainId?: JBChainId) => {
       return getJBContractAddress(contract, version, _chainId || chainId!);
     },
-    [version, chainId]
+    [version, chainId],
   );
 
-  debug("JBContractContext", {
-    projectId,
-    contracts: {
-      controller,
-      fundAccessLimits,
-      primaryNativeTerminal,
-      rulesets,
-      tokens,
-      splits,
-    },
-  });
+  const contracts = {
+    controller,
+    fundAccessLimits: dependent(fundAccessLimits),
+    primaryNativeTerminal,
+    rulesets: dependent(rulesets),
+    tokens: dependent(tokens),
+    splits: dependent(splits),
+  };
+
+  debug("JBContractContext", { projectId, contracts });
 
   return (
     <JBContractContext.Provider
       value={{
         version,
         projectId,
-        contracts: {
-          controller,
-          fundAccessLimits,
-          primaryNativeTerminal,
-          rulesets,
-          tokens,
-          splits,
-        },
+        contracts,
         contractAddress,
       }}
     >

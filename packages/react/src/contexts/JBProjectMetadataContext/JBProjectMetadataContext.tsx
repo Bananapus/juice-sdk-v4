@@ -1,4 +1,8 @@
-import { JBProjectMetadata, debug, getProjectMetadata } from "@bananapus/nana-sdk-core";
+import {
+  JBProjectMetadata,
+  debug,
+  getProjectMetadata,
+} from "@bananapus/nana-sdk-core";
 import { createContext, useContext } from "react";
 import { Address } from "viem";
 import { usePublicClient } from "wagmi";
@@ -11,9 +15,11 @@ export type JBProjectMetadataContext = {
   metadata: AsyncData<JBProjectMetadata>;
 };
 
-export const JBProjectMetadataContext = createContext<JBProjectMetadataContext>({
-  metadata: AsyncDataNone,
-});
+export const JBProjectMetadataContext = createContext<JBProjectMetadataContext>(
+  {
+    metadata: AsyncDataNone,
+  },
+);
 
 export function useJBProjectMetadataContext() {
   return useContext(JBProjectMetadataContext);
@@ -32,13 +38,18 @@ export function useProjectMetadata({
   const publicClient = usePublicClient({ chainId });
 
   return useQuery({
+    // The chain is part of the read's identity: the same project id resolves to
+    // a different project on every chain, so omitting it lets one chain's name
+    // and logo be served for another's project.
     queryKey: [
       "juice-sdk",
       "useProjectMetadata",
+      chainId,
       projectId?.toString(),
       jbControllerAddress,
       ipfsGatewayHostname,
     ],
+    enabled: !!chainId && !!projectId && !!jbControllerAddress,
     queryFn: async () => {
       if (!projectId || !jbControllerAddress) return null;
 
@@ -54,7 +65,7 @@ export function useProjectMetadata({
         },
         {
           ipfsGatewayHostname,
-        }
+        },
       );
 
       return response ?? null;

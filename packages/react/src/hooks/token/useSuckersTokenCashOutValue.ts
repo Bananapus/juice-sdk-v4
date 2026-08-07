@@ -6,10 +6,22 @@ import { useSuckersCashOutQuote } from "./useSuckersCashOutQuote";
 /**
  * Return the current cashout value of one project token.
  */
-export function useSuckersTokenCashOutValue({ targetCurrency }: { targetCurrency: "eth" | "usd" }) {
-  const { data: ethPrice, isLoading: isEthLoading } = useEtherPrice();
+export function useSuckersTokenCashOutValue({
+  targetCurrency,
+}: {
+  targetCurrency: "eth" | "usd";
+}) {
+  const {
+    data: ethPrice,
+    isLoading: isEthLoading,
+    error: ethPriceError,
+  } = useEtherPrice();
 
-  const { data: quote, isLoading: isQuoteLoading, errors } = useSuckersCashOutQuote(ONE_JB_TOKEN);
+  const {
+    data: quote,
+    isLoading: isQuoteLoading,
+    errors,
+  } = useSuckersCashOutQuote(ONE_JB_TOKEN);
 
   const loading = isQuoteLoading || isEthLoading;
 
@@ -17,13 +29,27 @@ export function useSuckersTokenCashOutValue({ targetCurrency }: { targetCurrency
     return { loading: true, data: undefined };
   }
 
-  const quoteEth = parseFloat(formatEther(quote ?? 0n));
+  // A missing quote means the read failed, not that the token is worth 0.
+  if (quote == null) {
+    return { loading, data: undefined, errors };
+  }
 
-  const data = targetCurrency === "eth" ? quoteEth : quoteEth * (ethPrice ?? 0);
+  const quoteEth = parseFloat(formatEther(quote));
+
+  if (targetCurrency === "eth") {
+    return { loading, data: quoteEth, errors };
+  }
+
+  // Same rule for the USD leg: a failed price fetch means the value is unknown,
+  // not that a token is worth $0. Surface the price error alongside the others.
+  const allErrors = ethPriceError ? [...errors, ethPriceError] : errors;
+  if (ethPrice === undefined) {
+    return { loading, data: undefined, errors: allErrors };
+  }
 
   return {
     loading,
-    data,
-    errors,
+    data: quoteEth * ethPrice,
+    errors: allErrors,
   };
 }

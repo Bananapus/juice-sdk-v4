@@ -12,27 +12,21 @@ export function useSendRelayrTx() {
 
   const sendRelayrTx = useCallback(
     async (chainPayment: ChainPayment) => {
-      try {
-        if (chainId !== chainPayment.chain) {
-          try {
-            await switchChainAsync({ chainId: chainPayment.chain });
-          } catch (e) {
-            console.error(e);
-            throw new Error("Failed to switch to correct chain");
-          }
+      if (chainId !== chainPayment.chain) {
+        try {
+          await switchChainAsync({ chainId: chainPayment.chain });
+        } catch (e) {
+          console.error(e);
+          throw new Error("Failed to switch to correct chain");
         }
-
-        const tx = await _sendTransaction.sendTransactionAsync({
-          chainId: chainPayment.chain,
-          to: chainPayment.target,
-          value: BigInt(chainPayment.amount),
-          data: chainPayment.calldata,
-        });
-
-        return tx;
-      } catch (error) {
-        throw error;
       }
+
+      return await _sendTransaction.sendTransactionAsync({
+        chainId: chainPayment.chain,
+        to: chainPayment.target,
+        value: BigInt(chainPayment.amount),
+        data: chainPayment.calldata,
+      });
     },
     [_sendTransaction.sendTransactionAsync, chainId, switchChainAsync],
   );

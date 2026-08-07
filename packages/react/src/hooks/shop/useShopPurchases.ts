@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo } from "react";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 import { useJBContractContext } from "../../contexts/JBContractContext/JBContractContext";

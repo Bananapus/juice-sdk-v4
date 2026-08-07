@@ -111,16 +111,20 @@ export type JBSplit = Omit<
 
 /**
  * The type of split.
+ *
+ * Only the reserved-token group has a fixed id. Payout groups are keyed by
+ * `uint256(uint160(token))` and therefore cannot be enumerated — see
+ * `payoutSplitGroupId` in `@bananapus/nana-sdk-core/v6`.
+ *
+ * @deprecated Use `RESERVED_TOKEN_SPLIT_GROUP_ID` and `payoutSplitGroupId`
+ * from `@bananapus/nana-sdk-core/v6`.
  */
 export enum SplitGroup {
   /**
-   * Splits that are paid out in ETH.
+   * Splits that are reserved for a project's token
+   * (`JBSplitGroupIds.RESERVED_TOKENS`).
    */
-  ETHPayout = 1,
-  /**
-   * Splits that are reserved for a project's token.
-   */
-  ReservedTokens = 2,
+  ReservedTokens = 1,
 }
 
 /**
@@ -138,12 +142,10 @@ export interface GroupedSplits<G> {
 }
 
 /**
- * Splits that are paid out in ETH.
- */
-export type ETHPayoutGroupedSplits = GroupedSplits<SplitGroup.ETHPayout>;
-
-/**
  * Splits for a project's reserved token list.
+ *
+ * @deprecated Use `JBSplitGroup` from `@bananapus/nana-sdk-core/v6`, whose
+ * `groupId` is `RESERVED_TOKEN_SPLIT_GROUP_ID` or `payoutSplitGroupId(token)`.
  */
 export type ReservedTokensGroupedSplits =
   GroupedSplits<SplitGroup.ReservedTokens>;

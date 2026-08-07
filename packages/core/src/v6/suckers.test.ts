@@ -25,6 +25,7 @@ import {
   getAllV6SuckerPairs,
   getSuckerMovements,
   relativeSuckerDrift,
+  suckerAccountingContextKey,
   suckerBytes32ToAddress,
   suckerBranchRoot,
   suckerHashPair,
@@ -35,6 +36,8 @@ import {
   getV6SuckerPairs,
   jbSuckerV6Abi,
 } from "./suckers.js";
+import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
+import { JBChainId } from "../types.js";
 import { v6Address } from "./types.js";
 
 const sucker = "0x00000000000000000000000000000000000000aa" as const;
@@ -236,6 +239,67 @@ describe("suckers", () => {
           remoteChainId: 10n,
         },
       ]);
+    });
+
+    test("rejects a cleared or non-EVM remote rather than truncating it", async () => {
+      const withRemote = (remote: string) =>
+        ({
+          readContract: vi
+            .fn()
+            .mockResolvedValue([{ local: sucker, remote, remoteChainId: 10n }]),
+        }) as unknown as PublicClient;
+
+      await expect(
+        getV6SuckerPairs(withRemote(`0x${"00".repeat(32)}`), {
+          chainId: 11155111,
+          projectId: 4n,
+        }),
+      ).rejects.toThrow(/does not contain an address/);
+
+      // High bytes set: a raw sliceHex would hand back a plausible bogus address.
+      await expect(
+        getV6SuckerPairs(
+          withRemote(
+            "0x111111111111111111111111f39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+          ),
+          { chainId: 11155111, projectId: 4n },
+        ),
+      ).rejects.toThrow(/not an EVM address/);
+    });
+  });
+
+  describe("suckerAccountingContextKey", () => {
+    test("normalizes native and USDC across chains and keys everything else by address", () => {
+      // Same logical asset, different addresses per chain: one shared key.
+      expect(suckerAccountingContextKey(NATIVE_TOKEN, 1, 18)).toBe("native@18");
+      expect(suckerAccountingContextKey(NATIVE_TOKEN, 8453, 18)).toBe(
+        "native@18",
+      );
+      expect(suckerAccountingContextKey(USDC_ADDRESSES[1], 1, 6)).toBe(
+        "usdc@6",
+      );
+      expect(suckerAccountingContextKey(USDC_ADDRESSES[8453], 8453, 6)).toBe(
+        "usdc@6",
+      );
+
+      // A chain's USDC is not another chain's USDC.
+      expect(suckerAccountingContextKey(USDC_ADDRESSES[8453], 1, 6)).toBe(
+        `${USDC_ADDRESSES[8453].toLowerCase()}@6`,
+      );
+
+      // Decimals are part of the identity.
+      expect(suckerAccountingContextKey(NATIVE_TOKEN, 1, 6)).not.toBe(
+        suckerAccountingContextKey(NATIVE_TOKEN, 1, 18),
+      );
+
+      // A chain with no USDC entry takes the address branch instead of throwing.
+      expect(
+        suckerAccountingContextKey(
+          USDC_ADDRESSES[1],
+          999_999 as unknown as JBChainId,
+          6,
+        ),
+      ).toBe(`${USDC_ADDRESSES[1].toLowerCase()}@6`);
     });
   });
 

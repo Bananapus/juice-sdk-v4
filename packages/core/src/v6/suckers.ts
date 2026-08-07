@@ -10,6 +10,7 @@ import {
   zeroAddress,
   zeroHash,
 } from "viem";
+import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
 import { jbSuckerRegistryAbi } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
 import { v6Address } from "./types.js";
@@ -1092,9 +1093,31 @@ export async function getV6SuckerPairs(
 
   return pairs.map((pair) => ({
     local: pair.local,
-    remote: getAddress(sliceHex(pair.remote, 12)),
+    remote: suckerBytes32ToAddress(pair.remote),
     remoteChainId: pair.remoteChainId,
   }));
+}
+
+/**
+ * The key a sucker's accounting context is compared under across chains.
+ *
+ * The same logical asset carries a different address on every chain, so native
+ * and USDC normalize to shared keys and everything else keys by its own address
+ * in that chain's namespace. Decimals are part of the key: two contexts for the
+ * same asset at different decimals are not interchangeable amounts.
+ *
+ * Chains with no USDC deployment simply take the address-keyed branch.
+ */
+export function suckerAccountingContextKey(
+  token: Address,
+  chainId: JBChainId,
+  decimals: number,
+): string {
+  const normalized = token.toLowerCase();
+  if (normalized === NATIVE_TOKEN.toLowerCase()) return `native@${decimals}`;
+  const usdc = USDC_ADDRESSES[chainId] as Address | undefined;
+  if (usdc && normalized === usdc.toLowerCase()) return `usdc@${decimals}`;
+  return `${normalized}@${decimals}`;
 }
 
 /**

@@ -5,6 +5,7 @@ import { useSuckersTokenCashOutValue } from "./useSuckersTokenCashOutValue";
 const mocks = vi.hoisted(() => ({
   ethPrice: 2_000 as number | undefined,
   ethLoading: false,
+  ethPriceError: undefined as Error | undefined,
   quote: 500_000_000_000_000_000n as bigint | undefined,
   quoteLoading: false,
   errors: [] as Error[],
@@ -15,6 +16,7 @@ vi.mock("../useEtherPrice", () => ({
   useEtherPrice: () => ({
     data: mocks.ethPrice,
     isLoading: mocks.ethLoading,
+    error: mocks.ethPriceError,
   }),
 }));
 vi.mock("./useSuckersCashOutQuote", () => ({
@@ -26,6 +28,7 @@ describe("useSuckersTokenCashOutValue", () => {
     vi.clearAllMocks();
     mocks.ethPrice = 2_000;
     mocks.ethLoading = false;
+    mocks.ethPriceError = undefined;
     mocks.quote = parseEther("0.5");
     mocks.quoteLoading = false;
     mocks.errors = [];
@@ -64,9 +67,42 @@ describe("useSuckersTokenCashOutValue", () => {
     });
   });
 
-  test("defaults missing price and quote data to zero", () => {
-    mocks.ethPrice = undefined;
+  test("propagates a missing quote as undefined, not zero", () => {
+    const error = new Error("quote failed");
     mocks.quote = undefined;
-    expect(useSuckersTokenCashOutValue({ targetCurrency: "usd" }).data).toBe(0);
+    mocks.errors = [error];
+    expect(useSuckersTokenCashOutValue({ targetCurrency: "usd" })).toEqual({
+      loading: false,
+      data: undefined,
+      errors: [error],
+    });
+  });
+
+  test("propagates a failed ETH price as undefined USD, not zero", () => {
+    const priceError = new Error("price unavailable");
+    mocks.ethPrice = undefined;
+    mocks.ethPriceError = priceError;
+
+    expect(useSuckersTokenCashOutValue({ targetCurrency: "usd" })).toEqual({
+      loading: false,
+      data: undefined,
+      errors: [priceError],
+    });
+    // The ETH leg does not depend on the price, so it still answers.
+    expect(useSuckersTokenCashOutValue({ targetCurrency: "eth" })).toEqual({
+      loading: false,
+      data: 0.5,
+      errors: [],
+    });
+  });
+
+  test("withholds the USD value when the price is simply absent", () => {
+    mocks.ethPrice = undefined;
+
+    expect(useSuckersTokenCashOutValue({ targetCurrency: "usd" })).toEqual({
+      loading: false,
+      data: undefined,
+      errors: [],
+    });
   });
 });

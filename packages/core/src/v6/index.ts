@@ -8,6 +8,7 @@ export * from "./splits.js";
 export * from "./revnets.js";
 export * from "./terminals.js";
 export * from "./pay.js";
+export * from "./priceFeeds.js";
 export * from "./directPay.js";
 export * from "./permit2.js";
 export * from "./projectPayers.js";

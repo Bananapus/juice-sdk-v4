@@ -1,20 +1,22 @@
 /**
- * The Juicebox protocol fee, as a decimal fraction: 2.5%.
- *
- * Applies to payouts sent outside the protocol and to cash outs from rulesets with a
- * non-zero cash out tax rate.
- */
-export const PROTOCOL_FEE_PERCENT = 0.025;
-
-/**
  * The standard protocol fee expressed out of {@link MAX_FEE}: 25 / 1000 = 2.5%.
+ *
+ * Applies to payouts sent outside the protocol and to cash outs (see
+ * `cashOutProtocolFee` for the conditions).
  *
  * @link JBMultiTerminal.sol `FEE`
  */
 export const STANDARD_FEE = 25n;
 
 /**
- * The denominator for {@link STANDARD_FEE}-style fee percents.
+ * The fee denominator, `JBConstants.MAX_FEE`: the protocol fee is
+ * `STANDARD_FEE / MAX_FEE`.
+ *
+ * Not to be confused with the root entry point's deprecated
+ * `MAX_FEE_PER_BILLION` (1e9), which is the denominator of
+ * {@link TERMINAL_FEE_PER_BILLION}, not of {@link STANDARD_FEE}.
+ *
+ * @link JBConstants.sol `MAX_FEE`
  */
 export const MAX_FEE = 1000n;
 

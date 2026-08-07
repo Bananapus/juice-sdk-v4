@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { useFind721DataHook } from "./useFind721DataHook";
 
 const mocks = vi.hoisted(() => ({
+  chainId: 10 as number | undefined,
   dataHookAddress: "0x1111111111111111111111111111111111111111" as
     | `0x${string}`
     | undefined,
   rulesetId: 9n as bigint | undefined,
   publicClient: { chain: { id: 10 } } as object | undefined,
   find721DataHook: vi.fn(),
+  usePublicClient: vi.fn(),
   useQuery: vi.fn(),
 }));
 
@@ -15,8 +17,11 @@ vi.mock("@bananapus/nana-sdk-core", () => ({
   debug: vi.fn(),
   find721DataHook: mocks.find721DataHook,
 }));
-vi.mock("wagmi", () => ({ usePublicClient: () => mocks.publicClient }));
+vi.mock("wagmi", () => ({ usePublicClient: mocks.usePublicClient }));
 vi.mock("wagmi/query", () => ({ useQuery: mocks.useQuery }));
+vi.mock("../../contexts/JBChainContext/JBChainContext", () => ({
+  useJBChainId: () => mocks.chainId,
+}));
 vi.mock("../../contexts/JBDataHookContext/JBDataHookContext", () => ({
   useJBDataHookContext: () => ({
     data: { dataHookAddress: mocks.dataHookAddress },
@@ -34,9 +39,11 @@ vi.mock("../../contexts/JBRulesetContext/JBRulesetContext", () => ({
 describe("useFind721DataHook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.chainId = 10;
     mocks.dataHookAddress = "0x1111111111111111111111111111111111111111";
     mocks.rulesetId = 9n;
     mocks.publicClient = { chain: { id: 10 } };
+    mocks.usePublicClient.mockImplementation(() => mocks.publicClient);
     mocks.useQuery.mockImplementation((config) => config);
   });
 
@@ -46,11 +53,21 @@ describe("useFind721DataHook", () => {
 
     const query = useFind721DataHook() as unknown as {
       queryKey: unknown[];
+      enabled: boolean;
       staleTime: number;
       queryFn: () => Promise<unknown>;
     };
 
-    expect(query.queryKey).toEqual(["dataHook", 7n, 9n, mocks.dataHookAddress]);
+    expect(mocks.usePublicClient).toHaveBeenCalledWith({ chainId: 10 });
+    expect(query.queryKey).toEqual([
+      "dataHook",
+      10,
+      6,
+      7n,
+      9n,
+      mocks.dataHookAddress,
+    ]);
+    expect(query.enabled).toBe(true);
     expect(query.staleTime).toBe(Infinity);
     await expect(query.queryFn()).resolves.toBe(found);
     expect(mocks.find721DataHook).toHaveBeenCalledWith(mocks.publicClient, {
@@ -64,10 +81,22 @@ describe("useFind721DataHook", () => {
   test("returns null for incomplete ruleset state", async () => {
     mocks.rulesetId = undefined;
     const query = useFind721DataHook() as unknown as {
+      enabled: boolean;
       queryFn: () => Promise<unknown>;
     };
+    expect(query.enabled).toBe(false);
     await expect(query.queryFn()).resolves.toBeNull();
     expect(mocks.find721DataHook).not.toHaveBeenCalled();
+  });
+
+  test("stays disabled until the project's chain is known", () => {
+    mocks.chainId = undefined;
+    const query = useFind721DataHook() as unknown as {
+      queryKey: unknown[];
+      enabled: boolean;
+    };
+    expect(query.enabled).toBe(false);
+    expect(query.queryKey[1]).toBeUndefined();
   });
 
   test("fails closed when no public client is available", async () => {

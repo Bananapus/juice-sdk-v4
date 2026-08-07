@@ -1,4 +1,4 @@
-import { Address, Chain, Hash, parseEther, parseUnits } from "viem";
+import { Address, Chain, parseEther, parseUnits } from "viem";
 import {
   arbitrum,
   arbitrumSepolia,
@@ -26,10 +26,6 @@ export const ONE_ETHER = parseEther("1");
  */
 export const DEFAULT_MEMO = "";
 
-/**
- * Default value for `metadata` arguments in Juicebox transactions.
- */
-export const DEFAULT_METADATA = "0x0" as Hash;
 export const DEFAULT_MIN_RETURNED_TOKENS = 0n;
 export const DEFAULT_ALLOW_OVERSPENDING = true;
 
@@ -55,9 +51,17 @@ export const MAX_CASH_OUT_TAX_RATE = 10_000;
 export const MAX_WEIGHT_CUT_PERCENT = 1_000_000_000;
 
 /**
- * @link JBConstants.sol
+ * The per-billion (1e9) denominator used by the legacy fixed-point fee helpers.
+ *
+ * NOT `JBConstants.MAX_FEE`, which is `1000` in v4, v5 and v6 alike — the
+ * protocol fee is `STANDARD_FEE / MAX_FEE` = `25 / 1000`. For the contract
+ * denominator use `MAX_FEE` from `@bananapus/nana-sdk-core/v6`, and for the
+ * per-billion rate use `TERMINAL_FEE_PER_BILLION` from the same entry point.
+ *
+ * @deprecated Use `MAX_FEE` / `TERMINAL_FEE_PER_BILLION` from
+ * `@bananapus/nana-sdk-core/v6`.
  */
-export const MAX_FEE = 1_000_000_000;
+export const MAX_FEE_PER_BILLION = 1_000_000_000;
 
 /**
  * @link JBConstants.sol
@@ -124,6 +128,12 @@ export const NATIVE_TOKEN_DECIMALS = 18 as const;
 
 /**
  * The fee percentage taken by Juicebox DAO on cashing out Tokens.
+ *
+ * @deprecated Use `cashOutProtocolFee` from `@bananapus/nana-sdk-core/v6/cash-out`.
+ * The contract fee is `reclaimAmount / 40` (floor division, NOT a float
+ * multiply), it is skipped for feeless beneficiaries, and zero-tax cash outs
+ * pay it only on `min(reclaimAmount, feeFreeSurplusOf)`. A float percentage
+ * cannot express any of that.
  */
 export const JBDAO_CASHOUT_FEE_PERCENT = 0.025;
 
@@ -135,64 +145,73 @@ type JBChainMetadata<ChainId extends JBChainId = JBChainId> = {
   etherscanHostname: string;
 };
 
+/**
+ * A chain's block-explorer hostname, derived from the chain definition's own
+ * `blockExplorers` entry so it can never diverge from the explorer URL the
+ * chain object carries (a hand-maintained copy once shipped the DNS-dead
+ * `optimism.etherscan.io` while the chain definition had the correct
+ * `optimistic.etherscan.io`).
+ */
+const explorerHostname = (chain: Chain): string =>
+  new URL(chain.blockExplorers!.default.url).hostname;
+
+/**
+ * The chain-agnostic half of a `JB_CHAINS` entry: everything derivable from the
+ * chain definition itself. `name` is the chain object's own `name`, so the
+ * display string can never drift from what wallets and `chains.ts` report (a
+ * hand-maintained copy once read "Optimism"/"Arbitrum" while the definitions
+ * said "OP Mainnet"/"Arbitrum One").
+ */
+const derivedChainMetadata = <ChainId extends JBChainId>(
+  chain: Chain & { id: ChainId },
+) => ({
+  chain,
+  name: chain.name,
+  etherscanHostname: explorerHostname(chain),
+});
+
 export const JB_CHAINS: {
   [ChainId in JBChainId]: JBChainMetadata<ChainId>;
 } = {
   [sepolia.id]: {
-    chain: sepolia,
-    name: "Sepolia",
+    ...derivedChainMetadata(sepolia),
     slug: "sep",
     nativeTokenSymbol: "SepETH",
-    etherscanHostname: "sepolia.etherscan.io",
   },
   [optimismSepolia.id]: {
-    chain: optimismSepolia,
-    name: "Optimism Sepolia",
+    ...derivedChainMetadata(optimismSepolia),
     slug: "opsep",
     nativeTokenSymbol: "OPSepETH",
-    etherscanHostname: "sepolia-optimism.etherscan.io",
   },
   [baseSepolia.id]: {
-    chain: baseSepolia,
-    name: "Base Sepolia",
+    ...derivedChainMetadata(baseSepolia),
     slug: "basesep",
     nativeTokenSymbol: "BaseSepETH",
-    etherscanHostname: "sepolia.basescan.org",
   },
   [arbitrumSepolia.id]: {
-    chain: arbitrumSepolia,
-    name: "Arbitrum Sepolia",
+    ...derivedChainMetadata(arbitrumSepolia),
     slug: "arbsep",
     nativeTokenSymbol: "ArbSepETH",
-    etherscanHostname: "sepolia.arbiscan.io",
   },
   [mainnet.id]: {
-    chain: mainnet,
-    name: "Ethereum",
+    ...derivedChainMetadata(mainnet),
     slug: "eth",
     nativeTokenSymbol: "ETH",
-    etherscanHostname: "etherscan.io",
   },
   [optimism.id]: {
-    chain: optimism,
-    name: "Optimism",
+    ...derivedChainMetadata(optimism),
     slug: "op",
     nativeTokenSymbol: "ETH",
-    etherscanHostname: "optimism.etherscan.io",
   },
   [base.id]: {
-    chain: base,
-    name: "Base",
+    ...derivedChainMetadata(base),
     slug: "base",
     nativeTokenSymbol: "ETH",
-    etherscanHostname: "basescan.org",
   },
   [arbitrum.id]: {
-    chain: arbitrum,
-    name: "Arbitrum",
+    ...derivedChainMetadata(arbitrum),
     slug: "arb",
     nativeTokenSymbol: "ETH",
-    etherscanHostname: "arbiscan.io",
   },
 };
 

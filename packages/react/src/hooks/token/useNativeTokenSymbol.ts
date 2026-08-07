@@ -1,4 +1,8 @@
-import { DEFAULT_NATIVE_TOKEN_SYMBOL, JB_CHAINS, JBChainId } from "@bananapus/nana-sdk-core";
+import {
+  DEFAULT_NATIVE_TOKEN_SYMBOL,
+  JB_CHAINS,
+  JBChainId,
+} from "@bananapus/nana-sdk-core";
 import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
 
 /**
@@ -7,7 +11,11 @@ import { useJBChainId } from "../../contexts/JBChainContext/JBChainContext";
  * Depends on JBChainContext.
  */
 export function useNativeTokenSymbol(chainId?: JBChainId) {
-  const _chainId = chainId ?? useJBChainId();
+  // `??` short-circuits, so calling the hook on the right-hand side would skip
+  // it whenever a chain is passed — a hook-count change on the render where the
+  // caller's chainId flips defined <-> undefined.
+  const contextChainId = useJBChainId();
+  const _chainId = chainId ?? contextChainId;
   if (!_chainId) {
     return DEFAULT_NATIVE_TOKEN_SYMBOL;
   }

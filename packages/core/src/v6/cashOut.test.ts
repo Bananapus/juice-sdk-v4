@@ -79,7 +79,7 @@ describe("cashOut", () => {
     expect(() => encodeFunctionData(tx)).not.toThrow();
   });
 
-  test("getCashOutQuote reads the terminal store and applies the 2.5% fee", async () => {
+  test("getCashOutQuote reads the terminal store; the fee stays unresolved without the tax rate", async () => {
     const calls: any[] = [];
     const client = {
       async readContract(params: unknown) {
@@ -95,7 +95,10 @@ describe("cashOut", () => {
     });
 
     expect(quote.reclaimAmount).toEqual(ONE_ETHER);
-    expect(quote.reclaimAmountAfterFee).toEqual(975000000000000000n);
+    // The protocol fee is conditional on the ruleset's cash-out tax rate (and,
+    // at zero tax, on feeFreeSurplusOf) — without those inputs the net amount
+    // is unresolved, never fabricated.
+    expect(quote.reclaimAmountAfterFee).toBeUndefined();
 
     expect(calls[0].address).toEqual(v6Address("JBTerminalStore", chainId));
     expect(calls[0].abi).toBe(jbTerminalStoreAbi);
@@ -103,6 +106,88 @@ describe("cashOut", () => {
     // Empty terminal/token arrays use all of the project's terminals and tokens;
     // defaults quote 18 decimals in the native token's currency.
     expect(calls[0].args).toEqual([projectId, ONE_ETHER, [], [], 18n, 61166n]);
+  });
+
+  test("getCashOutQuote applies the full x/40 fee with a non-zero tax rate", async () => {
+    const client = {
+      async readContract() {
+        return ONE_ETHER;
+      },
+    } as unknown as PublicClient;
+
+    const quote = await getCashOutQuote(client, {
+      chainId,
+      projectId,
+      cashOutCount: ONE_ETHER,
+      cashOutTaxRate: 2000n,
+    });
+
+    expect(quote.reclaimAmountAfterFee).toEqual(ONE_ETHER - ONE_ETHER / 40n);
+  });
+
+  test("getCashOutQuote gates the zero-tax fee on min(reclaim, feeFreeSurplus)", async () => {
+    const client = {
+      async readContract() {
+        return ONE_ETHER;
+      },
+    } as unknown as PublicClient;
+
+    // Zero tax with zero fee-free surplus: no fee at all.
+    expect(
+      (
+        await getCashOutQuote(client, {
+          chainId,
+          projectId,
+          cashOutCount: ONE_ETHER,
+          cashOutTaxRate: 0n,
+          feeFreeSurplus: 0n,
+        })
+      ).reclaimAmountAfterFee,
+    ).toEqual(ONE_ETHER);
+
+    // Zero tax with a partial fee-free surplus: the fee applies to the
+    // feeable portion only.
+    const feeFreeSurplus = ONE_ETHER / 2n;
+    expect(
+      (
+        await getCashOutQuote(client, {
+          chainId,
+          projectId,
+          cashOutCount: ONE_ETHER,
+          cashOutTaxRate: 0n,
+          feeFreeSurplus,
+        })
+      ).reclaimAmountAfterFee,
+    ).toEqual(ONE_ETHER - feeFreeSurplus / 40n);
+
+    // Zero tax with an UNKNOWN fee-free surplus: unresolved, not assumed zero.
+    expect(
+      (
+        await getCashOutQuote(client, {
+          chainId,
+          projectId,
+          cashOutCount: ONE_ETHER,
+          cashOutTaxRate: 0n,
+        })
+      ).reclaimAmountAfterFee,
+    ).toBeUndefined();
+  });
+
+  test("getCashOutQuote resolves feeless beneficiaries without the other inputs", async () => {
+    const client = {
+      async readContract() {
+        return ONE_ETHER;
+      },
+    } as unknown as PublicClient;
+
+    const quote = await getCashOutQuote(client, {
+      chainId,
+      projectId,
+      cashOutCount: ONE_ETHER,
+      beneficiaryIsFeeless: true,
+    });
+
+    expect(quote.reclaimAmountAfterFee).toEqual(ONE_ETHER);
   });
 
   test("getCashOutQuote respects custom decimals and currency", async () => {

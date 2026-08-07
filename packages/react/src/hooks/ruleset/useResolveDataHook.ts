@@ -96,8 +96,10 @@ export function useResolveDataHook({
       error,
     };
 
-  // Resolve the actual data hook address.
-  let resolvedDataHook = dataHookAddress;
+  // Resolve the actual data hook address. Until the deployer's own reads land,
+  // the answer is unknown: publishing the deployer address as the data hook
+  // makes downstream `METADATA_ID_TARGET` reads revert and pays mint no NFTs.
+  let resolvedDataHook: `0x${string}` | undefined = dataHookAddress;
   if (dataHookIsOmnichainDeployer) {
     if (version === 6) {
       const tiered721Hook = tiered721HookQuery.data?.[0];
@@ -106,8 +108,12 @@ export function useResolveDataHook({
         resolvedDataHook = tiered721Hook;
       } else if (extraDataHook && !isAddressEqual(extraDataHook, zeroAddress)) {
         resolvedDataHook = extraDataHook;
+      } else if (tiered721Hook === undefined || extraDataHook === undefined) {
+        resolvedDataHook = undefined;
       }
-    } else if (legacyDataHookQuery.data?.[2]) {
+    } else if (legacyDataHookQuery.data === undefined) {
+      resolvedDataHook = undefined;
+    } else if (legacyDataHookQuery.data[2]) {
       resolvedDataHook = legacyDataHookQuery.data[2];
     }
   }

@@ -1,6 +1,11 @@
 import { jbMultiTerminalAbi } from "@bananapus/nana-sdk-core";
 import { PropsWithChildren, createContext, useContext } from "react";
-import { Address, ContractFunctionReturnType, isAddressEqual, zeroAddress } from "viem";
+import {
+  Address,
+  ContractFunctionReturnType,
+  isAddressEqual,
+  zeroAddress,
+} from "viem";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
 import { AsyncData, AsyncDataNone } from "../types";
 import { useReadContract } from "wagmi";
@@ -39,22 +44,28 @@ type JBTerminalProviderProps = PropsWithChildren<{
 /**
  * Provide details about a given terminal.
  */
-export const JBTerminalProvider = ({ address, children }: JBTerminalProviderProps) => {
+export const JBTerminalProvider = ({
+  address,
+  children,
+}: JBTerminalProviderProps) => {
   const chainId = useJBChainId();
 
   const { data: store, isLoading: isStoreLoading } = useReadContract({
     abi: jbMultiTerminalAbi,
     functionName: "STORE",
     chainId,
-    address: address && isAddressEqual(address, zeroAddress) ? undefined : address,
+    address:
+      address && isAddressEqual(address, zeroAddress) ? undefined : address,
   });
 
-  const { data: accountingContexts, isLoading: accountingContextsLoading } = useReadContract({
-    abi: jbMultiTerminalAbi,
-    functionName: "accountingContextsOf",
-    chainId,
-    address: address && isAddressEqual(address, zeroAddress) ? undefined : address,
-  });
+  const { data: accountingContexts, isLoading: accountingContextsLoading } =
+    useReadContract({
+      abi: jbMultiTerminalAbi,
+      functionName: "accountingContextsOf",
+      chainId,
+      address:
+        address && isAddressEqual(address, zeroAddress) ? undefined : address,
+    });
 
   return (
     <JBTerminalContext.Provider

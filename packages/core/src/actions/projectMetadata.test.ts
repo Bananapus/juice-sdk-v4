@@ -59,8 +59,44 @@ describe("getProjectMetadata", () => {
         args: [42n],
       }),
     );
+    // The FULL validated asset path is fetched — a path-style URI must keep
+    // its CID, never collapse to the trailing file name.
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://ipfs.io/ipfs/metadata.json",
+      `https://ipfs.io/ipfs/${cid}/metadata.json`,
+    );
+  });
+
+  test("fetches a bare CID uri as-is", async () => {
+    const { client: publicClient } = client(cid);
+    const metadata = { name: "Bare CID" };
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => metadata });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getProjectMetadata(publicClient, {
+        jbControllerAddress: controller,
+        projectId: 7n,
+      }),
+    ).resolves.toBe(metadata);
+    expect(fetchMock).toHaveBeenCalledWith(`https://ipfs.io/ipfs/${cid}`);
+  });
+
+  test("re-resolves an HTTP gateway uri through the requested gateway", async () => {
+    const { client: publicClient } = client(
+      `https://other-gateway.example/ipfs/${cid}/metadata.json`,
+    );
+    const metadata = { name: "Gateway uri" };
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => metadata });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getProjectMetadata(publicClient, {
+        jbControllerAddress: controller,
+        projectId: 8n,
+      }),
+    ).resolves.toBe(metadata);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `https://ipfs.io/ipfs/${cid}/metadata.json`,
     );
   });
 
@@ -82,8 +118,13 @@ describe("getProjectMetadata", () => {
     );
   });
 
-  test.each(["", "ipfs://cid/"])(
-    "does not fetch when uriOf has no final metadata component (%j)",
+  test.each([
+    "",
+    "ipfs://cid/",
+    "not-a-cid",
+    "https://example.com/metadata.json",
+  ])(
+    "does not fetch when uriOf carries no valid IPFS asset path (%j)",
     async (uri) => {
       const { client: publicClient } = client(uri);
 

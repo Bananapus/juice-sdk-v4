@@ -58,6 +58,15 @@ export type REVDeploy721TiersHookConfig = RevDeployArgs6[4];
 export type REVCroptopAllowedPost = RevDeployArgs6[5][number];
 
 /**
+ * Ruleset `extraMetadata` bit 2: allows `REVDeployer.deploySuckersFor` to extend
+ * the revnet to new chains while the stage is active (the deployer checks
+ * `(metadata >> 2) & 1`). `extraMetadata` is folded into the revnet's immutable
+ * encoded-configuration hash, so a stage without this bit can NEVER be extended —
+ * there is no later fix.
+ */
+export const REV_METADATA_ALLOW_SUCKER_DEPLOYMENT = 1 << 2;
+
+/**
  * Build a `REVStageConfig` (spec-exact encodings, documented per field).
  *
  * ENCODINGS:
@@ -79,8 +88,13 @@ export type REVCroptopAllowedPost = RevDeployArgs6[5][number];
  * - `issuanceCutPercent`: how much issuance drops each period, out of 1e9
  *   (`MAX_WEIGHT_CUT_PERCENT`; e.g. 20% = 200,000,000).
  * - `cashOutTaxRate`: out of 10,000 (`MAX_CASH_OUT_TAX_RATE`). Any non-zero
- *   rate makes EVERY cash out incur the 2.5% protocol fee.
- * - `extraMetadata`: extra metadata bits forwarded to hooks; 0 by default.
+ *   rate makes EVERY cash out incur the 2.5% protocol fee; zero-tax cash outs
+ *   still pay it on `min(reclaimAmount, feeFreeSurplusOf)`, which is often
+ *   but not always zero.
+ * - `extraMetadata`: extra metadata bits forwarded to hooks.
+ *   {@link REV_METADATA_ALLOW_SUCKER_DEPLOYMENT} (bit 2) is ORed in by default
+ *   so the revnet stays extendable to new chains; pass
+ *   `allowSuckerDeployment: false` to opt out PERMANENTLY for the stage.
  */
 export function buildRevnetStageConfig(args: {
   startsAtOrAfter: number;
@@ -92,7 +106,17 @@ export function buildRevnetStageConfig(args: {
   issuanceCutPercent?: number;
   cashOutTaxRate?: number;
   extraMetadata?: number;
+  /**
+   * Whether `REVDeployer.deploySuckersFor` may extend the revnet to new chains
+   * during this stage. Defaults to TRUE — a stage without the bit is
+   * un-extendable forever, since stages are immutable once deployed.
+   */
+  allowSuckerDeployment?: boolean;
 }): REVStageConfig {
+  const extraMetadata =
+    args.allowSuckerDeployment === false
+      ? (args.extraMetadata ?? 0)
+      : (args.extraMetadata ?? 0) | REV_METADATA_ALLOW_SUCKER_DEPLOYMENT;
   return {
     startsAtOrAfter: args.startsAtOrAfter,
     autoIssuances: args.autoIssuances ?? [],
@@ -102,7 +126,7 @@ export function buildRevnetStageConfig(args: {
     issuanceCutFrequency: args.issuanceCutFrequency ?? 0,
     issuanceCutPercent: args.issuanceCutPercent ?? 0,
     cashOutTaxRate: args.cashOutTaxRate ?? 0,
-    extraMetadata: args.extraMetadata ?? 0,
+    extraMetadata,
   };
 }
 
@@ -143,6 +167,27 @@ export function buildDeployRevnetTx(args: {
 }) {
   const address = v6Address("REVDeployer", args.chainId);
   const revnetId = args.revnetId ?? 0n;
+
+  // An omnichain revnet whose stages lack the sucker-deployment bit can never
+  // be extended to new chains (or have failed sucker deploys retried): stages
+  // are immutable and `deploySuckersFor` checks the CURRENT stage's bit. Refuse
+  // to encode that foot-gun — `buildRevnetStageConfig` sets the bit by default.
+  if (args.suckerConfig.deployerConfigurations.length > 0) {
+    const blockedStage = args.config.stageConfigurations.findIndex(
+      (stage) =>
+        (Number(stage.extraMetadata) & REV_METADATA_ALLOW_SUCKER_DEPLOYMENT) ===
+        0,
+    );
+    if (blockedStage !== -1) {
+      throw new Error(
+        `Stage ${blockedStage} does not set REV_METADATA_ALLOW_SUCKER_DEPLOYMENT ` +
+          `(extraMetadata bit 2), so this cross-chain revnet could never deploy ` +
+          `suckers during that stage — permanently. Build stages with ` +
+          `buildRevnetStageConfig (which sets the bit by default), or OR the bit ` +
+          `into extraMetadata.`,
+      );
+    }
+  }
 
   // The deployer forwards msg.value to `JBProjects.createFor` for new revnets and
   // reverts on any value when initializing an existing project.

@@ -23,10 +23,13 @@ export function useSuckersNativeTokenBalance() {
   const { data: pairs = [], isLoading, isError } = useSuckers();
 
   const balanceQuery = useQuery({
+    // The terminal store address is version-specific, so the version is part of
+    // the read's identity (as it already is in `useSuckersCashOutQuote`).
     queryKey: [
       "suckersNativeTokenBalance",
       projectId.toString(),
       chainId?.toString(),
+      version,
       pairs.map((pair) => pair.peerChainId).join(","),
     ],
     queryFn: async () => {
@@ -39,7 +42,12 @@ export function useSuckersNativeTokenBalance() {
       const balances = await Promise.all(
         pairs.map(async (pair) => {
           const { peerChainId, projectId } = pair;
-          const terminal = await getPrimaryNativeTerminal(config, peerChainId, projectId, version);
+          const terminal = await getPrimaryNativeTerminal(
+            config,
+            peerChainId,
+            projectId,
+            version,
+          );
 
           const contract = getContract({
             address: getProjectTerminalStore(peerChainId, version),
@@ -47,10 +55,14 @@ export function useSuckersNativeTokenBalance() {
             client: config.getClient({ chainId: peerChainId }),
           });
 
-          const balance = await contract.read.balanceOf([terminal, projectId, NATIVE_TOKEN]);
+          const balance = await contract.read.balanceOf([
+            terminal,
+            projectId,
+            NATIVE_TOKEN,
+          ]);
 
           return { balance, chainId: peerChainId, projectId };
-        })
+        }),
       );
 
       return balances;

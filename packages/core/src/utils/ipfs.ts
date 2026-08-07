@@ -11,13 +11,25 @@ function validatedIpfsAssetPath(value: string): string | null {
   return cid && isIpfsCid(cid) ? value : null;
 }
 
+/**
+ * An HTTP gateway URL for a CID (optionally with a path), or `null` when
+ * `cid` is not a CID.
+ *
+ * Fails closed rather than interpolating whatever it was handed: the previous
+ * signature accepted `undefined` and happily returned
+ * `https://ipfs.io/ipfs/undefined`, a 4xx fetch far from its source.
+ */
 export function ipfsGatewayUrl(
-  cid: string | undefined,
+  cid: string,
   gatewayHostname?: string,
-): string {
+): string | null {
+  // Guarded at runtime too: JS callers were the ones passing `undefined`.
+  const assetPath =
+    typeof cid === "string" ? validatedIpfsAssetPath(cid.trim()) : null;
+  if (!assetPath) return null;
   return `https://${
     gatewayHostname ?? PUBLIC_IPFS_GATEWAY_HOSTNAME
-  }/ipfs/${cid}`;
+  }/ipfs/${assetPath}`;
 }
 
 /** Return an `ipfs://` URI for a CID and optional path. */

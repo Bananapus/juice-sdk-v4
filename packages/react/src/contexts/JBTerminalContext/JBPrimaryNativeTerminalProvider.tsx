@@ -13,11 +13,13 @@ export function JBPrimaryNativeTerminalProvider({
   children: React.ReactNode;
 }) {
   const { contracts } = useJBContractContext();
-  const terminalAddress = contracts?.primaryNativeTerminal?.data;
+  const terminalAddress = contracts?.primaryNativeTerminal?.data ?? undefined;
   debug("JBPrimaryNativeTerminalProvider", { terminalAddress });
 
-  if (!terminalAddress) return children;
-
+  // Always render the provider: swapping between bare children and a wrapped
+  // subtree changes the element type, so React would remount everything below
+  // (losing state and refiring queries) the moment the terminal resolves. An
+  // undefined address keeps the terminal reads disabled on its own.
   return (
     <JBTerminalProvider address={terminalAddress}>
       {children}

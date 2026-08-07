@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import {
   BENDYSTRAW_CACHE_TTL_MS,
   BendystrawRequestError,
+  BendystrawTimeoutError,
   assertBendystrawData,
   bendystrawCacheTtl,
   bendystrawDataHasFields,
@@ -380,6 +381,54 @@ describe("requestBendystraw", () => {
         { fetch: vi.fn().mockResolvedValue(streamed), maxResponseBytes: 10 },
       ),
     ).rejects.toThrow("size limit");
+  });
+
+  test("retries its own timeout, unlike a caller cancel", async () => {
+    // A request that never settles until the internal timeout aborts it.
+    const hang = (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(
+            init.signal?.reason ?? new DOMException("Aborted", "AbortError"),
+          ),
+        );
+      });
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(hang)
+      .mockResolvedValueOnce(jsonResponse({ data: { value: 1 } }));
+
+    await expect(
+      requestBendystraw(
+        "https://bendystraw.example/graphql",
+        "query { value }",
+        {},
+        { fetch: fetchMock, timeoutMs: 5, retryDelaysMs: [0] },
+      ),
+    ).resolves.toEqual({ value: 1 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("surfaces an exhausted timeout as BendystrawTimeoutError", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(init.signal?.reason),
+          );
+        });
+      });
+
+    await expect(
+      requestBendystraw(
+        "https://bendystraw.example/graphql",
+        "query { value }",
+        {},
+        { fetch: fetchMock, timeoutMs: 5, retryDelaysMs: [0] },
+      ),
+    ).rejects.toBeInstanceOf(BendystrawTimeoutError);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   test("honors caller cancellation and validates resource bounds", async () => {
