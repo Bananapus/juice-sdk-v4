@@ -1,6 +1,6 @@
 {
   "name": "@bananapus/nana-sdk-react",
-  "version": "12.0.0",
+  "version": "13.0.0",
   "description": "Wagmi hooks for Juicebox",
   "type": "module",
   "repository": {
@@ -26,7 +26,7 @@
     "react": "^18.3.1 || ^19.0.0",
     "viem": "^2.14.1",
     "wagmi": "^2.10.2",
-    "@bananapus/nana-sdk-core": "^1.11.1"
+    "@bananapus/nana-sdk-core": "^2.0.0"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.2",
