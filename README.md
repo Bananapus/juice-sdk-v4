@@ -9,14 +9,15 @@ A JavaScript SDK for building applications on the [Juicebox protocol](https://do
 
 Use the framework-independent JB Center client to prepare and publish undeployed
 project intents, include them in search, record verified deployments, and pin
-project media:
+project media. It also provides constrained read-only RPC access without exposing
+an upstream provider credential:
 
 ```ts
 import { createJBCenterClient } from "@bananapus/nana-sdk-core/jbcenter";
 
 const center = createJBCenterClient({
-  // Keep this key on a trusted server. Browser pin requests from the approved
-  // Juicebox Money and Revnet Money origins may omit it.
+  // Keep this key on a trusted server. Browser pin and read-only RPC requests
+  // from the approved Juicebox Money and Revnet Money origins may omit it.
   apiKey: process.env.JBCENTER_API_KEY,
 });
 
@@ -36,6 +37,23 @@ const intent = await center.publishIntent({
   ...prepared.envelope,
   publisher: account.address,
   signature,
+});
+
+const chainId = await center.rpc<`0x${string}`>(1, {
+  method: "eth_chainId",
+});
+```
+
+The chain-bound provider is structurally compatible with EIP-1193 consumers
+such as viem:
+
+```ts
+import { custom, createPublicClient, mainnet } from "viem";
+import { createJBCenterRpcProvider } from "@bananapus/nana-sdk-core/jbcenter";
+
+const publicClient = createPublicClient({
+  chain: mainnet,
+  transport: custom(createJBCenterRpcProvider(mainnet.id)),
 });
 ```
 

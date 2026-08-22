@@ -1,9 +1,12 @@
 import { describe, expect, test, vi } from "vitest";
+import { custom } from "viem";
 import {
   JBCENTER_DEFAULT_URL,
   JBCenterRequestError,
+  JBCenterRpcError,
   JBCenterTimeoutError,
   createJBCenterClient,
+  createJBCenterRpcProvider,
 } from "./jbcenter.js";
 
 const hash = `0x${"12".repeat(32)}` as const;
@@ -176,6 +179,101 @@ describe("JB Center client", () => {
     const image = (fetchMock.mock.calls[1]?.[1]?.body as FormData).get("file");
     expect((image as File).name).toBe("logo.png");
     expect(fetchMock.mock.calls[2]?.[1]?.body).toBeInstanceOf(FormData);
+  });
+
+  test("routes typed read-only RPC requests through JB Center", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ jsonrpc: "2.0", id: 1, result: "0x1" }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ jsonrpc: "2.0", id: 2, result: "0x1234" }),
+      );
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(
+      client.rpc<string>(1, { method: "eth_chainId" }),
+    ).resolves.toBe("0x1");
+    await expect(
+      client.rpc<string>(1, {
+        method: "eth_call",
+        params: [{ to: address, data: "0x" }, "latest"],
+      }),
+    ).resolves.toBe("0x1234");
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "https://juicebox.center/v1/rpc/1",
+      "https://juicebox.center/v1/rpc/1",
+    ]);
+    const firstInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(firstInit.headers).has("authorization")).toBe(false);
+    expect(JSON.parse(String(firstInit.body))).toEqual({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "eth_chainId",
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "eth_call",
+      params: [{ to: address, data: "0x" }, "latest"],
+    });
+  });
+
+  test("surfaces RPC errors and rejects malformed envelopes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jsonrpc: "2.0",
+          id: 1,
+          error: { code: -32000, message: "RPC request failed", data: "0x12" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ jsonrpc: "2.0", id: 999, result: "0x1" }),
+      );
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.rpc(1, { method: "eth_call" })).rejects.toMatchObject({
+      name: "JBCenterRpcError",
+      code: -32000,
+      message: "RPC request failed",
+      data: "0x12",
+    });
+    await expect(
+      client.rpc(1, { method: "eth_chainId" }),
+    ).rejects.toMatchObject({
+      name: "JBCenterRequestError",
+      status: 502,
+    });
+    expect(new JBCenterRpcError(-32000, "RPC request failed")).toBeInstanceOf(
+      Error,
+    );
+  });
+
+  test("exposes an EIP-1193-shaped provider and fails locally on unsupported methods", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse({ jsonrpc: "2.0", id: 1, result: "0x1" }),
+      );
+    const provider = createJBCenterRpcProvider(1, { fetch: fetchMock });
+    expect(custom(provider)).toBeTypeOf("function");
+
+    await expect(
+      provider.request<string>({ method: "eth_chainId" }),
+    ).resolves.toBe("0x1");
+    await expect(
+      provider.request({ method: "eth_sendRawTransaction", params: ["0x"] }),
+    ).rejects.toThrow("not supported");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    expect(() => createJBCenterRpcProvider(0)).toThrow("chainId");
+    await expect(
+      createJBCenterClient().rpc(1.5, { method: "eth_chainId" }),
+    ).rejects.toThrow("chainId");
   });
 
   test("surfaces structured API failures and rejects invalid successful responses", async () => {
