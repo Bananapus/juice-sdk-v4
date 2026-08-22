@@ -1,5 +1,12 @@
 # juice-sdk-core
 
+## 2.1.0
+
+### Minor Changes
+
+- 59dce8e: Add a typed, framework-independent JB Center client for project intents, search,
+  deployment reconciliation, and redundant IPFS pinning.
+
 ## 2.0.0
 
 ### Major Changes
