@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 2.2.0
+
+### Minor Changes
+
+- 971785b: Add a typed Juicebox Center read-only RPC client and EIP-1193-compatible provider.
+
 ## 2.1.0
 
 ### Minor Changes
