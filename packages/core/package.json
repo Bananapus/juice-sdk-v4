@@ -31,6 +31,11 @@
       "import": "./dist/esm/chains.js",
       "require": "./dist/cjs/chains.js"
     },
+    "./jbcenter": {
+      "types": "./dist/esm/jbcenter.d.ts",
+      "import": "./dist/esm/jbcenter.js",
+      "require": "./dist/cjs/jbcenter.js"
+    },
     "./v6": {
       "types": "./dist/esm/v6/index.d.ts",
       "import": "./dist/esm/v6/index.js",

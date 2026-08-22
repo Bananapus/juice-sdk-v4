@@ -10,10 +10,11 @@ const budgets = {
     // Includes the public Bendystraw transport, supported-chain definitions,
     // direct-pay routing, Permit2 helpers, the viem error discriminators, the
     // price-feed reachability probe, the Uniswap V4 LP-split-hook ABIs, and
-    // tree-shakable loan/deployment entry points in both ESM and CJS formats.
+    // tree-shakable loan/deployment and JB Center entry points in both ESM and
+    // CJS formats.
     packed: 860_000,
     unpacked: 17_600_000,
-    entries: 420,
+    entries: 426,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
