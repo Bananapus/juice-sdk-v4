@@ -4,5 +4,6 @@ export * from "./actions/suckerPairs.js";
 export * from "./constants.js";
 export * from "./contracts.js";
 export * from "./generated/juicebox.js";
+export * from "./jbcenter.js";
 export * from "./types.js";
 export * from "./utils/index.js";

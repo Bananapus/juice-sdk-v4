@@ -5,6 +5,40 @@
 
 A JavaScript SDK for building applications on the [Juicebox protocol](https://docs.juicebox.money/) (V4, V5, and V6).
 
+## JB Center
+
+Use the framework-independent JB Center client to prepare and publish undeployed
+project intents, include them in search, record verified deployments, and pin
+project media:
+
+```ts
+import { createJBCenterClient } from "@bananapus/nana-sdk-core/jbcenter";
+
+const center = createJBCenterClient({
+  // Keep this key on a trusted server. Browser pin requests from the approved
+  // Juicebox Money and Revnet Money origins may omit it.
+  apiKey: process.env.JBCENTER_API_KEY,
+});
+
+const prepared = await center.prepareIntent({
+  format: "juicebox.money/v1",
+  deploymentVersion: "6",
+  chainIds: [1],
+  jb,
+});
+
+const signature = await walletClient.signMessage({
+  account,
+  message: prepared.message,
+});
+
+const intent = await center.publishIntent({
+  ...prepared.envelope,
+  publisher: account.address,
+  signature,
+});
+```
+
 ## Installation
 
 ```bash
