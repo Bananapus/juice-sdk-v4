@@ -5,6 +5,50 @@ export const JBCENTER_REQUEST_TIMEOUT_MS = 15_000;
 export const JBCENTER_PIN_TIMEOUT_MS = 300_000;
 export const MAX_JBCENTER_RESPONSE_BYTES = 5 * 1024 * 1024;
 
+export const JBCENTER_RPC_METHODS = [
+  "eth_blobBaseFee",
+  "eth_blockNumber",
+  "eth_call",
+  "eth_chainId",
+  "eth_createAccessList",
+  "eth_estimateGas",
+  "eth_feeHistory",
+  "eth_gasPrice",
+  "eth_getBalance",
+  "eth_getBlockByHash",
+  "eth_getBlockByNumber",
+  "eth_getBlockReceipts",
+  "eth_getBlockTransactionCountByHash",
+  "eth_getBlockTransactionCountByNumber",
+  "eth_getCode",
+  "eth_getLogs",
+  "eth_getProof",
+  "eth_getStorageAt",
+  "eth_getTransactionByBlockHashAndIndex",
+  "eth_getTransactionByBlockNumberAndIndex",
+  "eth_getTransactionByHash",
+  "eth_getTransactionCount",
+  "eth_getTransactionReceipt",
+  "eth_maxPriorityFeePerGas",
+  "eth_syncing",
+  "net_version",
+] as const;
+
+export type JBCenterRpcMethod = (typeof JBCENTER_RPC_METHODS)[number];
+
+export type JBCenterRpcRequest = {
+  method: JBCenterRpcMethod;
+  params?: readonly unknown[];
+};
+
+/** Structurally compatible with EIP-1193 providers, including viem's `custom`. */
+export type JBCenterRpcProvider = {
+  request<TResult = unknown>(request: {
+    method: string;
+    params?: readonly unknown[];
+  }): Promise<TResult>;
+};
+
 export type JBCenterJson =
   | null
   | boolean
@@ -123,6 +167,14 @@ type ErrorEnvelope = {
   error?: { code?: unknown; message?: unknown };
 };
 
+type RpcEnvelope =
+  | { jsonrpc: "2.0"; id: number; result: unknown }
+  | {
+      jsonrpc: "2.0";
+      id: number;
+      error: { code: number; message: string; data?: Hex };
+    };
+
 type Validator<T> = (value: unknown) => value is T;
 
 export class JBCenterRequestError extends Error {
@@ -145,6 +197,17 @@ export class JBCenterTimeoutError extends Error {
   }
 }
 
+export class JBCenterRpcError extends Error {
+  constructor(
+    readonly code: number,
+    message: string,
+    readonly data?: Hex,
+  ) {
+    super(message);
+    this.name = "JBCenterRpcError";
+  }
+}
+
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -158,6 +221,28 @@ function isSignature(value: unknown): value is Hex {
     typeof value === "string" &&
     /^0x(?:[0-9a-f]{128}|[0-9a-f]{130})$/iu.test(value)
   );
+}
+
+function isRpcErrorData(value: unknown): value is Hex {
+  return typeof value === "string" && /^0x(?:[0-9a-f]{2})*$/iu.test(value);
+}
+
+function rpcEnvelope(id: number): Validator<RpcEnvelope> {
+  return (value: unknown): value is RpcEnvelope => {
+    if (!record(value) || value.jsonrpc !== "2.0" || value.id !== id) {
+      return false;
+    }
+    const hasResult = Object.prototype.hasOwnProperty.call(value, "result");
+    const hasError = Object.prototype.hasOwnProperty.call(value, "error");
+    if (hasResult === hasError) return false;
+    if (hasResult) return true;
+    return (
+      record(value.error) &&
+      Number.isSafeInteger(value.error.code) &&
+      typeof value.error.message === "string" &&
+      (value.error.data === undefined || isRpcErrorData(value.error.data))
+    );
+  };
 }
 
 function isAddress(value: unknown): value is Address {
@@ -355,6 +440,7 @@ export class JBCenterClient {
   private readonly fetchImpl: typeof fetch;
   private readonly maxResponseBytes: number;
   private readonly timeoutMs: number;
+  private nextRpcId = 1;
 
   constructor(options: JBCenterClientOptions = {}) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl ?? JBCENTER_DEFAULT_URL);
@@ -474,6 +560,66 @@ export class JBCenterClient {
     return this.pinFile("v1/pins/media", content, "media", options);
   }
 
+  /**
+   * Sends one read-only JSON-RPC request through JB Center. The service rejects
+   * wallet, signing, transaction-submission, batch, and privileged methods.
+   */
+  async rpc<TResult = unknown>(
+    chainId: number,
+    request: JBCenterRpcRequest,
+    options?: JBCenterRequestOptions,
+  ): Promise<TResult> {
+    if (!Number.isSafeInteger(chainId) || chainId <= 0) {
+      throw new TypeError("chainId must be a positive safe integer");
+    }
+    if (!JBCENTER_RPC_METHODS.includes(request.method)) {
+      throw new TypeError("JB Center RPC method is not supported");
+    }
+    if (request.params !== undefined && !Array.isArray(request.params)) {
+      throw new TypeError("JB Center RPC params must be an array");
+    }
+
+    const id = this.nextRpcId;
+    this.nextRpcId = id === Number.MAX_SAFE_INTEGER ? 1 : id + 1;
+    const body = await this.fetchJson(
+      `v1/rpc/${chainId}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ jsonrpc: "2.0", id, ...request }),
+      },
+      rpcEnvelope(id),
+      options,
+    );
+    if ("error" in body) {
+      throw new JBCenterRpcError(
+        body.error.code,
+        body.error.message,
+        body.error.data,
+      );
+    }
+    return body.result as TResult;
+  }
+
+  /** Returns an EIP-1193-shaped provider suitable for viem's `custom`. */
+  rpcProvider(chainId: number): JBCenterRpcProvider {
+    if (!Number.isSafeInteger(chainId) || chainId <= 0) {
+      throw new TypeError("chainId must be a positive safe integer");
+    }
+    return {
+      request: async <TResult = unknown>(request: {
+        method: string;
+        params?: readonly unknown[];
+      }) => {
+        if (
+          !(JBCENTER_RPC_METHODS as readonly string[]).includes(request.method)
+        ) {
+          throw new TypeError("JB Center RPC method is not supported");
+        }
+        return this.rpc<TResult>(chainId, request as JBCenterRpcRequest);
+      },
+    };
+  }
+
   private pinFile(
     path: string,
     content: Blob,
@@ -573,4 +719,11 @@ export function createJBCenterClient(
   options: JBCenterClientOptions = {},
 ): JBCenterClient {
   return new JBCenterClient(options);
+}
+
+export function createJBCenterRpcProvider(
+  chainId: number,
+  options: JBCenterClientOptions = {},
+): JBCenterRpcProvider {
+  return new JBCenterClient(options).rpcProvider(chainId);
 }

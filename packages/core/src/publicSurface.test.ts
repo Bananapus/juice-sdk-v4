@@ -15,7 +15,9 @@ describe("published core SDK surfaces", () => {
     expect(sdk.bendystrawProjectRefsFilter).toBeTypeOf("function");
     expect(sdk.bendystrawProjectRefsFilters).toBeTypeOf("function");
     expect(sdk.createJBCenterClient).toBeTypeOf("function");
+    expect(sdk.createJBCenterRpcProvider).toBeTypeOf("function");
     expect(sdk.JBCENTER_DEFAULT_URL).toBe("https://juicebox.center");
+    expect(sdk.JBCENTER_RPC_METHODS).toContain("eth_chainId");
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
     expect(v6.buildAutoIssueTx).toBeTypeOf("function");
     expect(v6.quoteDirectPaySwap).toBeTypeOf("function");
