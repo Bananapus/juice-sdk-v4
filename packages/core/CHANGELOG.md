@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 2.3.2
+
+### Patch Changes
+
+- f7e7182: Bind Juicebox Center's default fetch implementation so browser requests work.
+
 ## 2.3.1
 
 ### Patch Changes
