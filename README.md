@@ -13,18 +13,27 @@ project media. It also provides constrained read-only RPC access without exposin
 an upstream provider credential:
 
 ```ts
-import { createJBCenterClient } from "@bananapus/nana-sdk-core/jbcenter";
+import {
+  createJBCenterClient,
+  createJBCenterDeploymentCall,
+} from "@bananapus/nana-sdk-core/jbcenter";
 
-const center = createJBCenterClient({
-  // Keep this key on a trusted server. Browser pin and read-only RPC requests
-  // from the approved Juicebox Money and Revnet Money origins may omit it.
-  apiKey: process.env.JBCENTER_API_KEY,
+const center = createJBCenterClient();
+
+// Freeze the exact viem request the wallet, Safe, or Relayr will execute.
+const deploymentCall = createJBCenterDeploymentCall({
+  chainId: launchRequest.chainId,
+  address: launchRequest.address,
+  abi: launchRequest.abi,
+  functionName: launchRequest.functionName,
+  args: launchRequest.args,
 });
 
 const prepared = await center.prepareIntent({
   format: "juicebox.money/v1",
   deploymentVersion: "6",
-  chainIds: [1],
+  chainIds: [launchRequest.chainId],
+  deploymentCalls: [deploymentCall],
   jb,
 });
 
@@ -37,6 +46,14 @@ const intent = await center.publishIntent({
   ...prepared.envelope,
   publisher: account.address,
   signature,
+});
+
+// No reconciler credential is needed. Center matches this transaction's
+// direct or nested call trace to the publisher's signed deployment call.
+await center.recordDeployment(intent.id, {
+  chainId: launchRequest.chainId,
+  projectId,
+  transactionHash,
 });
 
 const chainId = await center.rpc<`0x${string}`>(1, {

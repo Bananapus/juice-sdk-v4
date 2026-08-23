@@ -1,11 +1,12 @@
 import { describe, expect, test, vi } from "vitest";
-import { custom } from "viem";
+import { custom, encodeFunctionData } from "viem";
 import {
   JBCENTER_DEFAULT_URL,
   JBCenterRequestError,
   JBCenterRpcError,
   JBCenterTimeoutError,
   createJBCenterClient,
+  createJBCenterDeploymentCall,
   createJBCenterRpcProvider,
 } from "./jbcenter.js";
 
@@ -13,16 +14,18 @@ const hash = `0x${"12".repeat(32)}` as const;
 const signature = `0x${"34".repeat(65)}` as const;
 const address = `0x${"56".repeat(20)}` as const;
 const envelope = {
-  version: 1 as const,
+  version: 2 as const,
   format: "juicebox.money/v1",
   deploymentVersion: "6",
   chainIds: [1],
+  deploymentCalls: [{ chainId: 1, to: address, data: "0x12345678" as const }],
   jb: { name: "Example", chains: [1] },
 };
 const intentInput = {
   format: envelope.format,
   deploymentVersion: envelope.deploymentVersion,
   chainIds: envelope.chainIds,
+  deploymentCalls: envelope.deploymentCalls,
   jb: envelope.jb,
 };
 
@@ -58,7 +61,7 @@ describe("JB Center client", () => {
       .mockResolvedValue(
         jsonResponse({ contentHash: hash, message: "sign me", envelope }),
       );
-    const client = createJBCenterClient({ apiKey: "secret", fetch: fetchMock });
+    const client = createJBCenterClient({ fetch: fetchMock });
 
     await expect(client.prepareIntent(intentInput)).resolves.toEqual({
       contentHash: hash,
@@ -71,9 +74,7 @@ describe("JB Center client", () => {
     expect(url).toBe("https://juicebox.center/v1/intents/message");
     expect(init.method).toBe("POST");
     expect(new Headers(init.headers)).toMatchObject({});
-    expect(new Headers(init.headers).get("authorization")).toBe(
-      "Bearer secret",
-    );
+    expect(new Headers(init.headers).has("authorization")).toBe(false);
     expect(new Headers(init.headers).get("content-type")).toBe(
       "application/json",
     );
@@ -81,6 +82,7 @@ describe("JB Center client", () => {
       format: envelope.format,
       deploymentVersion: "6",
       chainIds: [1],
+      deploymentCalls: envelope.deploymentCalls,
       jb: envelope.jb,
     });
   });
@@ -121,7 +123,7 @@ describe("JB Center client", () => {
       .mockResolvedValueOnce(jsonResponse(intent()))
       .mockResolvedValueOnce(jsonResponse(page))
       .mockResolvedValueOnce(jsonResponse(deployment));
-    const client = createJBCenterClient({ apiKey: "secret", fetch: fetchMock });
+    const client = createJBCenterClient({ fetch: fetchMock });
 
     await expect(
       client.publishIntent({
@@ -148,6 +150,61 @@ describe("JB Center client", () => {
       "https://juicebox.center/v1/search?q=public+goods&limit=20&cursor=40",
       `https://juicebox.center/v1/intents/${intent().id}/deployments`,
     ]);
+  });
+
+  test("freezes typed viem contract requests into signed deployment calls", () => {
+    const abi = [
+      {
+        type: "function",
+        name: "launch",
+        stateMutability: "payable",
+        inputs: [{ name: "projectId", type: "uint256" }],
+        outputs: [],
+      },
+    ] as const;
+    expect(
+      createJBCenterDeploymentCall({
+        chainId: 1,
+        address,
+        abi,
+        functionName: "launch",
+        args: [42n],
+      }),
+    ).toEqual({
+      chainId: 1,
+      to: address,
+      data: encodeFunctionData({ abi, functionName: "launch", args: [42n] }),
+    });
+  });
+
+  test("reads legacy v1 intents but requires v2 for newly prepared intents", async () => {
+    const legacy = {
+      ...intent(),
+      envelope: {
+        version: 1,
+        format: envelope.format,
+        deploymentVersion: envelope.deploymentVersion,
+        chainIds: envelope.chainIds,
+        jb: envelope.jb,
+      },
+    } as const;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(legacy))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          contentHash: hash,
+          message: "sign me",
+          envelope: legacy.envelope,
+        }),
+      );
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.getIntent(legacy.id)).resolves.toEqual(legacy);
+    await expect(client.prepareIntent(intentInput)).rejects.toMatchObject({
+      status: 502,
+      message: "JB Center returned an invalid response",
+    });
   });
 
   test("pins JSON and multipart content without forcing an authorization header", async () => {
@@ -387,21 +444,12 @@ describe("JB Center client", () => {
     expect(() =>
       createJBCenterClient({ baseUrl: "ftp://example.com" }),
     ).toThrow("HTTP or HTTPS");
-    expect(() => createJBCenterClient({ apiKey: "" })).toThrow("apiKey");
-    expect(() => createJBCenterClient({ apiKey: "   " })).toThrow("apiKey");
     expect(() =>
       createJBCenterClient({ baseUrl: "https://user@example.com" }),
     ).toThrow("credentials");
-    expect(() =>
-      createJBCenterClient({
-        baseUrl: "http://example.com",
-        apiKey: "secret",
-      }),
-    ).toThrow("requires HTTPS");
     expect(
       createJBCenterClient({
         baseUrl: "http://localhost:3000",
-        apiKey: "secret",
       }).baseUrl,
     ).toBe("http://localhost:3000");
     expect(() => createJBCenterClient({ maxResponseBytes: 0 })).toThrow(
