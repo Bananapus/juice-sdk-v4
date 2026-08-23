@@ -54,6 +54,25 @@ function intent() {
 }
 
 describe("JB Center client", () => {
+  test("binds the default browser fetch to the global receiver", async () => {
+    const fetchMock = vi.fn(function (this: unknown) {
+      if (this !== globalThis) throw new TypeError("Illegal invocation");
+      return Promise.resolve(
+        jsonResponse({ contentHash: hash, message: "sign me", envelope }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      await expect(
+        createJBCenterClient().prepareIntent(intentInput),
+      ).resolves.toMatchObject({ contentHash: hash });
+      expect(fetchMock).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   test("uses the canonical endpoint and prepares an intent for wallet signing", async () => {
     const fetchMock = vi
       .fn()
