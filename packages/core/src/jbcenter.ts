@@ -111,15 +111,7 @@ export type JBCenterIntentInput<
 
 export type JBCenterIntentEnvelope<
   TJb extends JBCenterJsonObject = JBCenterJsonObject,
-> = JBCenterIntentInput<TJb> & { version: 2 };
-
-export type JBCenterLegacyIntentEnvelope<
-  TJb extends JBCenterJsonObject = JBCenterJsonObject,
-> = Omit<JBCenterIntentInput<TJb>, "deploymentCalls"> & { version: 1 };
-
-export type JBCenterStoredIntentEnvelope<
-  TJb extends JBCenterJsonObject = JBCenterJsonObject,
-> = JBCenterIntentEnvelope<TJb> | JBCenterLegacyIntentEnvelope<TJb>;
+> = JBCenterIntentInput<TJb>;
 
 export type JBCenterPreparedIntent<
   TJb extends JBCenterJsonObject = JBCenterJsonObject,
@@ -160,7 +152,7 @@ export type JBCenterIntent<
   id: string;
   status: "undeployed" | "deployed";
   contentHash: Hex;
-  envelope: JBCenterStoredIntentEnvelope<TJb>;
+  envelope: JBCenterIntentEnvelope<TJb>;
   publisher: Address;
   signature: Hex;
   createdAt: string;
@@ -320,7 +312,7 @@ function isDeploymentCall(value: unknown): value is JBCenterDeploymentCall {
   );
 }
 
-function isEnvelope(value: unknown): value is JBCenterStoredIntentEnvelope {
+function isEnvelope(value: unknown): value is JBCenterIntentEnvelope {
   if (
     !record(value) ||
     typeof value.format !== "string" ||
@@ -331,9 +323,7 @@ function isEnvelope(value: unknown): value is JBCenterStoredIntentEnvelope {
   ) {
     return false;
   }
-  if (value.version === 1) return value.deploymentCalls === undefined;
   if (
-    value.version !== 2 ||
     !Array.isArray(value.deploymentCalls) ||
     !value.deploymentCalls.every(isDeploymentCall) ||
     value.deploymentCalls.length !== value.chainIds.length
@@ -348,10 +338,6 @@ function isEnvelope(value: unknown): value is JBCenterStoredIntentEnvelope {
     new Set(callChains).size === callChains.length &&
     chains.every((chainId, index) => callChains[index] === chainId)
   );
-}
-
-function isCommittedEnvelope(value: unknown): value is JBCenterIntentEnvelope {
-  return isEnvelope(value) && value.version === 2;
 }
 
 function isMetadata(value: Record<string, unknown>): boolean {
@@ -397,7 +383,7 @@ function isPreparedIntent(value: unknown): value is JBCenterPreparedIntent {
     record(value) &&
     isHash(value.contentHash) &&
     typeof value.message === "string" &&
-    isCommittedEnvelope(value.envelope)
+    isEnvelope(value.envelope)
   );
 }
 

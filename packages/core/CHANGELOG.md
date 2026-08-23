@@ -4,7 +4,7 @@
 
 ### Minor Changes
 
-- 2dee99f: Support JB Center v2 signed deployment calls, add a typed viem request helper, and remove the obsolete API-key option.
+- 2dee99f: Support JB Center signed deployment calls, add a typed viem request helper, and remove the obsolete API-key option.
 
 ## 2.2.0
 
