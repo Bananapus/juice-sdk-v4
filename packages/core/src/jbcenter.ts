@@ -1,9 +1,17 @@
-import type { Address, Hex } from "viem";
+import {
+  encodeFunctionData,
+  type Abi,
+  type Address,
+  type ContractFunctionName,
+  type ContractFunctionParameters,
+  type Hex,
+} from "viem";
 
 export const JBCENTER_DEFAULT_URL = "https://juicebox.center";
 export const JBCENTER_REQUEST_TIMEOUT_MS = 15_000;
+export const JBCENTER_DEPLOYMENT_TIMEOUT_MS = 45_000;
 export const JBCENTER_PIN_TIMEOUT_MS = 300_000;
-export const MAX_JBCENTER_RESPONSE_BYTES = 5 * 1024 * 1024;
+export const MAX_JBCENTER_RESPONSE_BYTES = 20 * 1024 * 1024;
 
 export const JBCENTER_RPC_METHODS = [
   "eth_blobBaseFee",
@@ -59,18 +67,59 @@ export type JBCenterJson =
 
 export type JBCenterJsonObject = { [key: string]: JBCenterJson };
 
+export type JBCenterDeploymentCall = {
+  chainId: number;
+  to: Address;
+  data: Hex;
+};
+
+export type JBCenterContractCall<
+  TAbi extends Abi = Abi,
+  TFunctionName extends ContractFunctionName<
+    TAbi,
+    "payable" | "nonpayable"
+  > = ContractFunctionName<TAbi, "payable" | "nonpayable">,
+> = {
+  chainId: number;
+  address: Address;
+} & ContractFunctionParameters<TAbi, "payable" | "nonpayable", TFunctionName>;
+
+/** Freeze a typed viem contract request into the call signed by JB Center. */
+export function createJBCenterDeploymentCall<
+  const TAbi extends Abi,
+  TFunctionName extends ContractFunctionName<TAbi, "payable" | "nonpayable">,
+>(request: JBCenterContractCall<TAbi, TFunctionName>): JBCenterDeploymentCall {
+  const { chainId, address, ...parameters } = request;
+  return {
+    chainId,
+    to: address,
+    data: encodeFunctionData(
+      parameters as Parameters<typeof encodeFunctionData>[0],
+    ),
+  };
+}
+
 export type JBCenterIntentInput<
   TJb extends JBCenterJsonObject = JBCenterJsonObject,
 > = {
   format: string;
   deploymentVersion: string;
   chainIds: number[];
+  deploymentCalls: JBCenterDeploymentCall[];
   jb: TJb;
 };
 
 export type JBCenterIntentEnvelope<
   TJb extends JBCenterJsonObject = JBCenterJsonObject,
-> = JBCenterIntentInput<TJb> & { version: 1 };
+> = JBCenterIntentInput<TJb> & { version: 2 };
+
+export type JBCenterLegacyIntentEnvelope<
+  TJb extends JBCenterJsonObject = JBCenterJsonObject,
+> = Omit<JBCenterIntentInput<TJb>, "deploymentCalls"> & { version: 1 };
+
+export type JBCenterStoredIntentEnvelope<
+  TJb extends JBCenterJsonObject = JBCenterJsonObject,
+> = JBCenterIntentEnvelope<TJb> | JBCenterLegacyIntentEnvelope<TJb>;
 
 export type JBCenterPreparedIntent<
   TJb extends JBCenterJsonObject = JBCenterJsonObject,
@@ -111,7 +160,7 @@ export type JBCenterIntent<
   id: string;
   status: "undeployed" | "deployed";
   contentHash: Hex;
-  envelope: JBCenterIntentEnvelope<TJb>;
+  envelope: JBCenterStoredIntentEnvelope<TJb>;
   publisher: Address;
   signature: Hex;
   createdAt: string;
@@ -155,8 +204,6 @@ export type JBCenterRequestOptions = {
 };
 
 export type JBCenterClientOptions = {
-  /** A server-side API key. Omit it for trusted-origin browser pin requests. */
-  apiKey?: string;
   baseUrl?: string;
   fetch?: typeof fetch;
   maxResponseBytes?: number;
@@ -262,15 +309,49 @@ function isNumberArray(value: unknown): value is number[] {
   );
 }
 
-function isEnvelope(value: unknown): value is JBCenterIntentEnvelope {
+function isDeploymentCall(value: unknown): value is JBCenterDeploymentCall {
   return (
     record(value) &&
-    value.version === 1 &&
-    typeof value.format === "string" &&
-    typeof value.deploymentVersion === "string" &&
-    isNumberArray(value.chainIds) &&
-    record(value.jb)
+    Number.isSafeInteger(value.chainId) &&
+    Number(value.chainId) > 0 &&
+    isAddress(value.to) &&
+    typeof value.data === "string" &&
+    /^0x(?:[0-9a-f]{2}){4,}$/iu.test(value.data)
   );
+}
+
+function isEnvelope(value: unknown): value is JBCenterStoredIntentEnvelope {
+  if (
+    !record(value) ||
+    typeof value.format !== "string" ||
+    typeof value.deploymentVersion !== "string" ||
+    !isNumberArray(value.chainIds) ||
+    new Set(value.chainIds).size !== value.chainIds.length ||
+    !record(value.jb)
+  ) {
+    return false;
+  }
+  if (value.version === 1) return value.deploymentCalls === undefined;
+  if (
+    value.version !== 2 ||
+    !Array.isArray(value.deploymentCalls) ||
+    !value.deploymentCalls.every(isDeploymentCall) ||
+    value.deploymentCalls.length !== value.chainIds.length
+  ) {
+    return false;
+  }
+  const chains = [...value.chainIds].sort((a, b) => a - b);
+  const callChains = value.deploymentCalls
+    .map(({ chainId }) => chainId)
+    .sort((a, b) => a - b);
+  return (
+    new Set(callChains).size === callChains.length &&
+    chains.every((chainId, index) => callChains[index] === chainId)
+  );
+}
+
+function isCommittedEnvelope(value: unknown): value is JBCenterIntentEnvelope {
+  return isEnvelope(value) && value.version === 2;
 }
 
 function isMetadata(value: Record<string, unknown>): boolean {
@@ -316,7 +397,7 @@ function isPreparedIntent(value: unknown): value is JBCenterPreparedIntent {
     record(value) &&
     isHash(value.contentHash) &&
     typeof value.message === "string" &&
-    isEnvelope(value.envelope)
+    isCommittedEnvelope(value.envelope)
   );
 }
 
@@ -436,7 +517,6 @@ function filenameOf(content: Blob, fallback: string): string {
 
 export class JBCenterClient {
   readonly baseUrl: string;
-  private readonly apiKey?: string;
   private readonly fetchImpl: typeof fetch;
   private readonly maxResponseBytes: number;
   private readonly timeoutMs: number;
@@ -444,20 +524,6 @@ export class JBCenterClient {
 
   constructor(options: JBCenterClientOptions = {}) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl ?? JBCENTER_DEFAULT_URL);
-    if (options.apiKey !== undefined && !options.apiKey.trim()) {
-      throw new TypeError("JB Center apiKey cannot be empty");
-    }
-    const endpoint = new URL(this.baseUrl);
-    if (
-      options.apiKey &&
-      endpoint.protocol !== "https:" &&
-      !["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)
-    ) {
-      throw new TypeError(
-        "JB Center apiKey requires HTTPS outside local development",
-      );
-    }
-    this.apiKey = options.apiKey;
     this.fetchImpl = options.fetch ?? fetch;
     this.maxResponseBytes =
       options.maxResponseBytes ?? MAX_JBCENTER_RESPONSE_BYTES;
@@ -530,7 +596,10 @@ export class JBCenterClient {
       `v1/intents/${encodeURIComponent(intentId)}/deployments`,
       { method: "POST", body: JSON.stringify(deployment) },
       isDeployment,
-      options,
+      {
+        ...options,
+        timeoutMs: options?.timeoutMs ?? JBCENTER_DEPLOYMENT_TIMEOUT_MS,
+      },
     );
   }
 
@@ -664,8 +733,6 @@ export class JBCenterClient {
       if (typeof init.body === "string") {
         headers.set("Content-Type", "application/json");
       }
-      if (this.apiKey) headers.set("Authorization", `Bearer ${this.apiKey}`);
-
       const response = await this.fetchImpl(`${this.baseUrl}/${path}`, {
         ...init,
         headers,
