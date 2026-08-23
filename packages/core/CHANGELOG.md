@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 2.3.1
+
+### Patch Changes
+
+- 5d6dac6: Use JB Center's single unversioned intent envelope format.
+
 ## 2.3.0
 
 ### Minor Changes
