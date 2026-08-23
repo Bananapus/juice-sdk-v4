@@ -510,7 +510,10 @@ export class JBCenterClient {
 
   constructor(options: JBCenterClientOptions = {}) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl ?? JBCENTER_DEFAULT_URL);
-    this.fetchImpl = options.fetch ?? fetch;
+    // Calling a native browser fetch through `this.fetchImpl(...)` otherwise
+    // supplies the JBCenterClient as its receiver. Browsers brand-check the
+    // receiver as Window and reject the request with "Illegal invocation".
+    this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.maxResponseBytes =
       options.maxResponseBytes ?? MAX_JBCENTER_RESPONSE_BYTES;
     this.timeoutMs = options.timeoutMs ?? JBCENTER_REQUEST_TIMEOUT_MS;
