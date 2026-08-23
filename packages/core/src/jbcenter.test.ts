@@ -14,7 +14,6 @@ const hash = `0x${"12".repeat(32)}` as const;
 const signature = `0x${"34".repeat(65)}` as const;
 const address = `0x${"56".repeat(20)}` as const;
 const envelope = {
-  version: 2 as const,
   format: "juicebox.money/v1",
   deploymentVersion: "6",
   chainIds: [1],
@@ -177,31 +176,20 @@ describe("JB Center client", () => {
     });
   });
 
-  test("reads legacy v1 intents but requires v2 for newly prepared intents", async () => {
-    const legacy = {
+  test("rejects incomplete intent envelopes", async () => {
+    const incomplete = {
       ...intent(),
       envelope: {
-        version: 1,
         format: envelope.format,
         deploymentVersion: envelope.deploymentVersion,
         chainIds: envelope.chainIds,
         jb: envelope.jb,
       },
     } as const;
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(legacy))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          contentHash: hash,
-          message: "sign me",
-          envelope: legacy.envelope,
-        }),
-      );
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(incomplete));
     const client = createJBCenterClient({ fetch: fetchMock });
 
-    await expect(client.getIntent(legacy.id)).resolves.toEqual(legacy);
-    await expect(client.prepareIntent(intentInput)).rejects.toMatchObject({
+    await expect(client.getIntent(incomplete.id)).rejects.toMatchObject({
       status: 502,
       message: "JB Center returned an invalid response",
     });
