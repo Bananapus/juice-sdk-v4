@@ -10,7 +10,7 @@ import { JBChainId } from "../types.js";
 import { isMissingContractFunctionError } from "../utils/errors.js";
 import { ipfsAssetPath, isIpfsCid } from "../utils/ipfs.js";
 import { getRevnetTiered721Hook } from "./revnets.js";
-import { getCurrentRuleset } from "./rulesets.js";
+import { getCurrentRuleset, type JBRulesetWithMetadata } from "./rulesets.js";
 
 /**
  * App-level sentinel convention used by Juicebox 721 shops for effectively
@@ -401,6 +401,13 @@ export interface Project721Shop {
   /** The hook's pricing context: `currency` id and `decimals`. */
   pricing: { currency: number; decimals: number };
   tiers: Project721Tier[];
+  /**
+   * The current ruleset (with decoded metadata) when hook resolution had to
+   * read it — every non-revnet project. `null` for revnets, whose hook comes
+   * from `REVOwner` without a ruleset read. Reuse it instead of calling
+   * `getCurrentRuleset` again.
+   */
+  ruleset: JBRulesetWithMetadata | null;
 }
 
 /**
@@ -452,6 +459,11 @@ export async function get721MetadataIdTarget(
  * @param args.isRevnet Whether the project is a revnet (changes hook resolution).
  * @param args.tierLimit Max tiers to read from `tiersOf`. Defaults to 100.
  * @param args.categories Tier categories to filter by (empty = all). Defaults to `[]`.
+ * @param args.includeResolvedUri Ask the store to run the hook's token URI
+ * resolver for every tier (`tiersOf`'s `includeResolvedUri`). Defaults to
+ * `false`: resolver output (often inline SVG data URIs) is packed into one
+ * eth_call return, and over a large shop the upstream RPC rejects it. Turn it
+ * on only for small reads that need `resolvedUri` without an indexer.
  */
 export async function getProject721Shop(
   client: PublicClient,
@@ -461,12 +473,14 @@ export async function getProject721Shop(
     isRevnet,
     tierLimit = 100,
     categories = [],
+    includeResolvedUri = false,
   }: {
     chainId: JBChainId;
     projectId: bigint;
     isRevnet: boolean;
     tierLimit?: number;
     categories?: bigint[];
+    includeResolvedUri?: boolean;
   },
 ): Promise<Project721Shop | null> {
   // 1. Resolve the 721 hook.
@@ -474,6 +488,7 @@ export async function getProject721Shop(
   // A non-authoritative candidate is the ruleset data hook, which might be some
   // other kind of hook; the STORE() probe below decides.
   let authoritative = true;
+  let currentRuleset: JBRulesetWithMetadata | null = null;
 
   if (isRevnet) {
     const revnetHook = await getRevnetTiered721Hook(client, {
@@ -482,10 +497,8 @@ export async function getProject721Shop(
     });
     hook = revnetHook !== zeroAddress ? revnetHook : null;
   } else {
-    const { ruleset, metadata } = await getCurrentRuleset(client, {
-      chainId,
-      projectId,
-    });
+    currentRuleset = await getCurrentRuleset(client, { chainId, projectId });
+    const { ruleset, metadata } = currentRuleset;
     const dataHook = metadata.dataHook as Address;
     if (metadata.useDataHookForPay && dataHook && dataHook !== zeroAddress) {
       const omni = jbContractAddress["6"][
@@ -540,13 +553,12 @@ export async function getProject721Shop(
     }),
   ]);
 
-  // 4. The tiers, with resolver URIs included so callers can name tiers without
-  // a per-tier resolver read.
+  // 4. The tiers. Resolver URIs are opt-in (see `includeResolvedUri`).
   const raw = await client.readContract({
     address: store,
     abi: jb721TiersHookStoreAbi,
     functionName: "tiersOf",
-    args: [hook, categories, true, 0n, BigInt(tierLimit)],
+    args: [hook, categories, includeResolvedUri, 0n, BigInt(tierLimit)],
   });
 
   const tiers: Project721Tier[] = raw
@@ -573,5 +585,6 @@ export async function getProject721Shop(
       decimals: Number(pricingRaw[1]),
     },
     tiers,
+    ruleset: currentRuleset,
   };
 }
