@@ -412,6 +412,94 @@ describe("getProject721Shop", () => {
     expect(shop!.tiers[0]).toMatchObject({ id: 1, price: 1000n });
   });
 
+  test("asks tiersOf for resolved URIs only when opted in, and returns no ruleset for a revnet", async () => {
+    const seen: boolean[] = [];
+    const client = {
+      readContract: async ({
+        address,
+        functionName,
+        args,
+      }: {
+        address: string;
+        functionName: string;
+        args?: readonly unknown[];
+      }) => {
+        if (functionName === "tiered721HookOf") return hook;
+        if (address === hook && functionName === "STORE") return store;
+        if (functionName === "METADATA_ID_TARGET") return impl;
+        if (functionName === "pricingContext") return [61166n, 18n];
+        if (functionName === "tiersOf") {
+          seen.push(args![2] as boolean);
+          return [];
+        }
+        throw new Error(`unexpected read ${functionName}`);
+      },
+    } as unknown as PublicClient;
+
+    const byDefault = await getProject721Shop(client, {
+      chainId,
+      projectId: 1n,
+      isRevnet: true,
+    });
+    await getProject721Shop(client, {
+      chainId,
+      projectId: 1n,
+      isRevnet: true,
+      includeResolvedUri: true,
+    });
+
+    expect(seen).toEqual([false, true]);
+    expect(byDefault!.ruleset).toBeNull();
+  });
+
+  test("returns the ruleset it read for a custom project", async () => {
+    const ruleset = {
+      id: 7,
+      cycleNumber: 1,
+      basedOnId: 0,
+      start: 0,
+      duration: 0,
+      weight: 0n,
+      weightCutPercent: 0,
+      approvalHook: zeroAddress,
+      metadata: 0n,
+    };
+    const metadata = {
+      dataHook: hook,
+      useDataHookForPay: true,
+      useDataHookForCashOut: false,
+    };
+    let rulesetReads = 0;
+    const client = {
+      readContract: async ({
+        address,
+        functionName,
+      }: {
+        address: string;
+        functionName: string;
+      }) => {
+        if (functionName === "currentRulesetOf") {
+          rulesetReads += 1;
+          return [ruleset, metadata];
+        }
+        if (address === hook && functionName === "STORE") return store;
+        if (functionName === "METADATA_ID_TARGET") return impl;
+        if (functionName === "pricingContext") return [61166n, 18n];
+        if (functionName === "tiersOf") return [];
+        throw new Error(`unexpected read ${functionName}`);
+      },
+    } as unknown as PublicClient;
+
+    const shop = await getProject721Shop(client, {
+      chainId,
+      projectId: 1n,
+      isRevnet: false,
+    });
+
+    expect(rulesetReads).toBe(1);
+    expect(shop!.ruleset).toEqual({ ruleset, metadata });
+  });
+
   const tiersOfOne = () => [
     {
       id: 1,
