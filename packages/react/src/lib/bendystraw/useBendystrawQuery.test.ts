@@ -107,7 +107,7 @@ describe("useBendystrawQuery", () => {
     );
   });
 
-  test("disables requests without a chain or Bendystraw configuration", () => {
+  test("disables requests without a chain", () => {
     mocks.chainId = undefined;
     useBendystrawQuery(document, { projectId: 1 });
     expect(mocks.queryConfig.enabled).toBe(false);
@@ -117,11 +117,13 @@ describe("useBendystrawQuery", () => {
       undefined,
       { projectId: 1 },
     ]);
+  });
 
-    mocks.chainId = 1;
+  test("fails loudly without a Bendystraw configuration", () => {
     mocks.config = undefined;
-    useBendystrawQuery(document, { projectId: 1 });
-    expect(mocks.queryConfig.enabled).toBe(false);
+    expect(() => useBendystrawQuery(document, { projectId: 1 })).toThrow(
+      /JBProjectProvider/,
+    );
   });
 
   test("honors explicit enablement and polling options", () => {

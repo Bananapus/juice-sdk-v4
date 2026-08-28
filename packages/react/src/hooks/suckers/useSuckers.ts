@@ -33,6 +33,9 @@ const chainOrder = [
 /**
  * Return sucker pairs for the project ID in context.
  *
+ * Reads Bendystraw, so the tree must be wrapped in `JBProjectProvider` with a
+ * `bendystraw={{ apiKey }}` prop; composing `JBChainProvider` /
+ * `JBContractProvider` directly is not enough.
  */
 export function useSuckers(args?: { enabled: boolean }) {
   const { enabled = true } = args ?? {};

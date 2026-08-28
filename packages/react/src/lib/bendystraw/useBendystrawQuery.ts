@@ -21,7 +21,15 @@ export function useBendystrawQuery<TResult, TVariables>(
   const chainId = useJBChainId();
   const config = useBendystrawConfig();
 
-  const url = chainId && config ? getBendystrawUrl(chainId, config) : undefined;
+  // A missing config is a wiring bug, not a transient state: the query would
+  // otherwise sit disabled forever with no request, no error, and no data.
+  if (!config) {
+    throw new Error(
+      "Bendystraw config missing. Wrap the tree in JBProjectProvider with a `bendystraw={{ apiKey }}` prop.",
+    );
+  }
+
+  const url = chainId ? getBendystrawUrl(chainId, config) : undefined;
   const { expression, operationName } = analyzeDocument(document);
 
   if (!operationName) {
