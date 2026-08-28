@@ -1,5 +1,11 @@
 # juice-sdk-react
 
+## 18.0.0
+
+### Major Changes
+
+- 8b3ef4b: `useBendystrawQuery` (and every hook built on it, including `useSuckers`) now throws when no Bendystraw config is in context instead of silently staying disabled. Wrap the tree in `JBProjectProvider` with a `bendystraw={{ apiKey }}` prop.
+
 ## 17.0.0
 
 ### Patch Changes
