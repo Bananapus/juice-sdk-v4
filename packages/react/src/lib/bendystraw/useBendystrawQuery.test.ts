@@ -117,7 +117,6 @@ describe("useBendystrawQuery", () => {
       undefined,
       { projectId: 1 },
     ]);
-
   });
 
   test("fails loudly without a Bendystraw configuration", () => {
