@@ -11,7 +11,10 @@ import {
 import { sepolia } from "viem/chains";
 import { describe, expect, test } from "vitest";
 import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
-import { jbControllerAbi } from "../generated/juicebox.js";
+import {
+  jbControllerAbi,
+  jbProjectsAbi,
+} from "../generated/juicebox.js";
 import { BASE_CURRENCY_ETH, BASE_CURRENCY_USD } from "./currency.js";
 import {
   buildAccountingContext,
@@ -215,6 +218,49 @@ describe("launch receipt decoding", () => {
     expect(
       decodeLaunchProjectId(
         launchLog("0x1111111111111111111111111111111111111111"),
+        { chainId: sepolia.id },
+      ),
+    ).toBeNull();
+  });
+
+  test("decodes LaunchRulesets from the canonical controller (deployer-created projects)", () => {
+    // JBOmnichainDeployer creates the project via JBProjects.createFor and then
+    // calls launchRulesetsFor, so the controller emits LaunchRulesets, not LaunchProject.
+    const log = {
+      address: v6Address("JBController", sepolia.id),
+      topics: encodeEventTopics({
+        abi: jbControllerAbi,
+        eventName: "LaunchRulesets",
+      }) as readonly Hex[],
+      data: encodeAbiParameters(
+        [
+          { type: "uint256" },
+          { type: "uint256" },
+          { type: "string" },
+          { type: "string" },
+          { type: "address" },
+        ],
+        [12n, 14n, "ipfs://project", "", OWNER],
+      ),
+    };
+    expect(decodeLaunchProjectId(log, { chainId: sepolia.id })).toBe(14n);
+    expect(projectIdFromLaunchLogs([log], { chainId: sepolia.id })).toBe(14n);
+  });
+
+  test("decodes JBProjects.Create from the canonical JBProjects, and only from it", () => {
+    const createLog = (address = v6Address("JBProjects", sepolia.id)) => ({
+      address,
+      topics: encodeEventTopics({
+        abi: jbProjectsAbi,
+        eventName: "Create",
+        args: { projectId: 14n, owner: OWNER },
+      }) as readonly Hex[],
+      data: encodeAbiParameters([{ type: "address" }], [OWNER]),
+    });
+    expect(decodeLaunchProjectId(createLog(), { chainId: sepolia.id })).toBe(14n);
+    expect(
+      decodeLaunchProjectId(
+        createLog("0x1111111111111111111111111111111111111111"),
         { chainId: sepolia.id },
       ),
     ).toBeNull();
