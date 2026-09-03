@@ -11,10 +11,7 @@ import {
 import { sepolia } from "viem/chains";
 import { describe, expect, test } from "vitest";
 import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
-import {
-  jbControllerAbi,
-  jbProjectsAbi,
-} from "../generated/juicebox.js";
+import { jbControllerAbi, jbProjectsAbi } from "../generated/juicebox.js";
 import { BASE_CURRENCY_ETH, BASE_CURRENCY_USD } from "./currency.js";
 import {
   buildAccountingContext,
@@ -257,7 +254,9 @@ describe("launch receipt decoding", () => {
       }) as readonly Hex[],
       data: encodeAbiParameters([{ type: "address" }], [OWNER]),
     });
-    expect(decodeLaunchProjectId(createLog(), { chainId: sepolia.id })).toBe(14n);
+    expect(decodeLaunchProjectId(createLog(), { chainId: sepolia.id })).toBe(
+      14n,
+    );
     expect(
       decodeLaunchProjectId(
         createLog("0x1111111111111111111111111111111111111111"),
