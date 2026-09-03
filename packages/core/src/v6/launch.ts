@@ -251,7 +251,18 @@ export interface V6LaunchProjectLog {
 }
 
 /**
- * Decode a v6 `LaunchProject` log emitted by the canonical controller.
+ * Decode the id of a project launched in a transaction, from one of its logs.
+ *
+ * Three logs identify a launch, and which one a receipt carries depends on the
+ * path taken:
+ *
+ * - `JBController.LaunchProject` — a direct `launchProjectFor` on the controller.
+ * - `JBController.LaunchRulesets` — a deployer-created project. `JBOmnichainDeployer`
+ *   (and the 721 project deployer) create the project through `JBProjects.createFor`
+ *   and then call `launchRulesetsFor`, so the controller never emits `LaunchProject`
+ *   for them.
+ * - `JBProjects.Create` — emitted by every path, since every project is an NFT
+ *   minted by `JBProjects`.
  *
  * Checking the emitter matters: unrelated contracts can emit an event with the
  * same signature, and ERC-721 `Transfer` logs in a complex receipt are not a
@@ -261,24 +272,42 @@ export function decodeLaunchProjectId(
   log: V6LaunchProjectLog,
   { chainId }: { chainId: JBChainId },
 ): bigint | null {
-  if (!isAddressEqual(log.address, v6Address("JBController", chainId))) {
+  const topics = log.topics as [Hex, ...Hex[]];
+
+  if (isAddressEqual(log.address, v6Address("JBController", chainId))) {
+    for (const eventName of ["LaunchProject", "LaunchRulesets"] as const) {
+      try {
+        const decoded = decodeEventLog({
+          abi: jbControllerAbi,
+          eventName,
+          data: log.data,
+          topics,
+          strict: true,
+        });
+        if (decoded.eventName === eventName) return decoded.args.projectId;
+      } catch {
+        // Not this event; try the next.
+      }
+    }
     return null;
   }
 
-  try {
-    const decoded = decodeEventLog({
-      abi: jbControllerAbi,
-      eventName: "LaunchProject",
-      data: log.data,
-      topics: log.topics as [Hex, ...Hex[]],
-      strict: true,
-    });
-    return decoded.eventName === "LaunchProject"
-      ? decoded.args.projectId
-      : null;
-  } catch {
-    return null;
+  if (isAddressEqual(log.address, v6Address("JBProjects", chainId))) {
+    try {
+      const decoded = decodeEventLog({
+        abi: jbProjectsAbi,
+        eventName: "Create",
+        data: log.data,
+        topics,
+        strict: true,
+      });
+      return decoded.eventName === "Create" ? decoded.args.projectId : null;
+    } catch {
+      return null;
+    }
   }
+
+  return null;
 }
 
 /** Return the first canonical v6 project id found in a transaction's logs. */
