@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { validateRolloutDeployment } from "../packages/core/scripts/validateRolloutDeployment.js";
 import * as bindingsModule from "../packages/core/src/generated/juicebox.js";
 
 type AbiParameter = {
@@ -150,7 +151,14 @@ function abiExportName(contractName: string) {
 
 function readDeployment(path: string) {
   invariant(existsSync(path), `Missing deployment artifact ${path}`);
-  return JSON.parse(readFileSync(path, "utf8")) as Deployment;
+  const deployment = JSON.parse(readFileSync(path, "utf8")) as Deployment;
+  validateRolloutDeployment(
+    deployment,
+    basename(dirname(path)),
+    basename(path, ".json"),
+    path,
+  );
+  return deployment;
 }
 
 function checkedDeploymentsRoot() {

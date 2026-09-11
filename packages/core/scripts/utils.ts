@@ -6,6 +6,7 @@ import {
   SUPPORTED_CHAINS,
 } from "../src/contracts.js";
 import { mainnet, sepolia } from "viem/chains";
+import { validateRolloutDeployment } from "./validateRolloutDeployment.js";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
@@ -333,6 +334,10 @@ async function importDeploymentFile(path: string) {
     !Array.isArray(deployment.abi)
   ) {
     throw new Error(`Invalid deployment artifact ${file}`);
+  }
+  const v6Artifact = path.match(/-v6\/deployments\/([^/]+)\/([^/]+)\.json$/);
+  if (v6Artifact) {
+    validateRolloutDeployment(deployment, v6Artifact[1], v6Artifact[2], file);
   }
   return deployment as { address: string; abi: unknown[] };
 }

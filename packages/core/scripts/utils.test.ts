@@ -2,7 +2,11 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { JBCoreContracts, JBBuybackHookContracts } from "../src/contracts.js";
+import {
+  JBCoreContracts,
+  JBBuybackHookContracts,
+  JBRouterTerminalContracts,
+} from "../src/contracts.js";
 import {
   deploymentFilePath,
   getContractAddress,
@@ -15,11 +19,28 @@ const address = "0x1111111111111111111111111111111111111111";
 function artifact(
   chain: string,
   name: string,
-  value: unknown = { address, abi: [] },
+  value: Record<string, unknown> = {},
 ) {
   const directory = join(root, "deployments", chain);
   mkdirSync(directory, { recursive: true });
-  writeFileSync(join(directory, `${name}.json`), JSON.stringify(value));
+  writeFileSync(
+    join(directory, `${name}.json`),
+    JSON.stringify({
+      address,
+      abi: [],
+      format: "sphinx-sol-ct-artifact-1",
+      contractName: name.replace(/_deprecated\d*$/, ""),
+      chainId: chain === "ethereum" ? "0x1" : "0xaa36a7",
+      receipt: {
+        status: "0x1",
+        blockNumber: "0x123",
+        transactionHash: `0x${"1".repeat(64)}`,
+        blockHash: `0x${"2".repeat(64)}`,
+        contractAddress: null,
+      },
+      ...value,
+    }),
+  );
 }
 
 beforeEach(() => {
@@ -83,5 +104,84 @@ describe("executed v6 deployment sources", () => {
         1,
       ),
     ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+
+describe("rollout receipt evidence", () => {
+  const validReceipt = {
+    status: "0x1",
+    blockNumber: "0x123",
+    transactionHash: `0x${"1".repeat(64)}`,
+    blockHash: `0x${"2".repeat(64)}`,
+  };
+  test.each([
+    ["missing receipt", { receipt: undefined }],
+    ["failed receipt", { receipt: { ...validReceipt, status: "0x0" } }],
+    ["missing status", { receipt: { ...validReceipt, status: undefined } }],
+    ["unmined block", { receipt: { ...validReceipt, blockNumber: "0x0" } }],
+    [
+      "invalid transaction",
+      { receipt: { ...validReceipt, transactionHash: "0x1234" } },
+    ],
+    [
+      "missing block hash",
+      { receipt: { ...validReceipt, blockHash: undefined } },
+    ],
+    [
+      "placeholder block hash",
+      { receipt: { ...validReceipt, blockHash: `0x${"0".repeat(64)}` } },
+    ],
+    ["wrong chain", { chainId: "0x1" }],
+    ["wrong identity", { contractName: "JBRouterTerminal" }],
+    ["unknown format", { format: "proposal" }],
+  ])("rejects a canonical gateway with %s", async (_, invalid) => {
+    artifact("sepolia", "JBRouterTerminalGateway", invalid);
+    await expect(
+      getContractAddress(
+        JBRouterTerminalContracts.JBRouterTerminalGateway,
+        6,
+        11155111,
+      ),
+    ).rejects.toThrow("Invalid executed rollout artifact");
+  });
+  test.each([
+    JBBuybackHookContracts.JBBuybackHook,
+    JBRouterTerminalContracts.JBRouterTerminal,
+    JBCoreContracts.JBRatioPriceFeed,
+  ])("requires execution evidence for %s too", async (name) => {
+    artifact("sepolia", name, { receipt: undefined });
+    await expect(getContractAddress(name, 6, 11155111)).rejects.toThrow(
+      "Invalid executed rollout artifact",
+    );
+  });
+  test("a retired filename cannot bypass receipt validation", async () => {
+    artifact("sepolia", "JBBuybackHook_deprecated1", {
+      receipt: { ...validReceipt, status: "0x0" },
+    });
+    await expect(
+      getHistoricalContract(
+        JBBuybackHookContracts.JBBuybackHook,
+        "previous",
+        11155111,
+      ),
+    ).rejects.toThrow("Invalid executed rollout artifact");
+  });
+  test("accepts successful numeric receipts and CREATE2 contractAddress=null", async () => {
+    artifact("sepolia", "JBRouterTerminalGateway", {
+      chainId: 11155111,
+      receipt: {
+        ...validReceipt,
+        status: 1,
+        blockNumber: 291,
+        contractAddress: null,
+      },
+    });
+    expect(
+      await getContractAddress(
+        JBRouterTerminalContracts.JBRouterTerminalGateway,
+        6,
+        11155111,
+      ),
+    ).toBe(address);
   });
 });

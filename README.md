@@ -244,7 +244,9 @@ Generation reads `PROTOCOL_DEPLOYMENTS_DIR` when set, otherwise each sibling
 repository's flat `deployments/<chain>/` tree, then a pinned
 `.contract-source/deploy-all-v6` checkout, then npm artifacts when no local tree exists.
 Missing records in a selected tree stay absent; malformed records fail the
-build. CI pins the deployment source independently of npm publication. After
+build. Hook, router, gateway and ratio-feed artifacts (including retained
+generations) must identify the expected contract and chain and contain a successful
+mined receipt with transaction and block hashes. CI pins the deployment source independently of npm publication. After
 an executed rollout, regenerate and review the source pin and fixture together:
 
 ```sh
