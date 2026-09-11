@@ -5,6 +5,7 @@ import {
   SUPPORTED_CHAINS,
 } from "../src/contracts.js";
 import fs from "fs";
+import { aliasRouterAbis } from "./aliasRouterAbis.js";
 import {
   getAllContractNames,
   getHistoricalContract,
@@ -176,7 +177,8 @@ async function buildDefaultAddressContent() {
 async function addDefaultAddresses() {
   const filePath = "src/generated/juicebox.ts";
   const content = await buildDefaultAddressContent();
-  fs.appendFileSync(filePath, content);
+  const bindings = aliasRouterAbis(fs.readFileSync(filePath, "utf8"));
+  fs.writeFileSync(filePath, bindings + content);
 }
 
 addDefaultAddresses();
