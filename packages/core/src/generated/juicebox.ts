@@ -68672,6 +68672,10 @@ export const revOwnerAbi = [
       "11155420": "0xad45e4627f068d1e6b21e5301870d807543a8401"
     },
     "JBRatioPriceFeed": {
+      "1": "0x3fa39399bbc752418ee7e16addeb0b95d6386943",
+      "10": "0xedb20e9963b22bcd3b0652b246aac2c222510d36",
+      "8453": "0x3c2f3742785b0dec9bbb401de6615b70f740e4ca",
+      "42161": "0xa588449291852a49962276d75a25d51d8e285469",
       "84532": "0x552da193c58a71d8ad9f354f7d09b29f79c12422",
       "421614": "0xda4bbf677ba6f1f70054bd2bd6240d839141027d",
       "11155111": "0xbfcd029ee4e8a550409e65b5e2eca4f21de30c94",
@@ -68748,10 +68752,10 @@ export const revOwnerAbi = [
       "11155420": "0x7903a854ae91eaf635430d120a1a434085cef297"
     },
     "JBBuybackHook": {
-      "1": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-      "10": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-      "8453": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-      "42161": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
+      "1": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
+      "10": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
+      "8453": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
+      "42161": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
       "84532": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
       "421614": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
       "11155111": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91"
@@ -68767,15 +68771,19 @@ export const revOwnerAbi = [
       "11155420": "0x72f55a54cd53410a5ff175508a5a384227081788"
     },
     "JBRouterTerminal": {
-      "1": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-      "10": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-      "8453": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-      "42161": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
+      "1": "0x62e2fe718ca3008a6a322deec9903286463f1add",
+      "10": "0x62e2fe718ca3008a6a322deec9903286463f1add",
+      "8453": "0x62e2fe718ca3008a6a322deec9903286463f1add",
+      "42161": "0x62e2fe718ca3008a6a322deec9903286463f1add",
       "84532": "0x62e2fe718ca3008a6a322deec9903286463f1add",
       "421614": "0x62e2fe718ca3008a6a322deec9903286463f1add",
       "11155111": "0x62e2fe718ca3008a6a322deec9903286463f1add"
     },
     "JBRouterTerminalGateway": {
+      "1": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "10": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "8453": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "42161": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
       "84532": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
       "421614": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
       "11155111": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901"
@@ -68995,19 +69003,19 @@ export const revOwnerAbi = [
   export const jbContractAbiGeneration = {
   "6": {
     "JBBuybackHook": {
-      "1": "previous",
-      "10": "previous",
-      "8453": "previous",
-      "42161": "previous",
+      "1": "current",
+      "10": "current",
+      "8453": "current",
+      "42161": "current",
       "84532": "current",
       "421614": "current",
       "11155111": "current"
     },
     "JBRouterTerminal": {
-      "1": "previous",
-      "10": "previous",
-      "8453": "previous",
-      "42161": "previous",
+      "1": "current",
+      "10": "current",
+      "8453": "current",
+      "42161": "current",
       "84532": "current",
       "421614": "current",
       "11155111": "current"

@@ -66,7 +66,7 @@ describe("executed v6 deployment sources", () => {
       ),
     ).toBe(join(root, "deployments/sepolia/JBRatioPriceFeed.json"));
   });
-  test("an absent local mainnet record cannot fall back to a published npm address", async () => {
+  test("a synthetic absent chain record cannot fall back to a published npm address", async () => {
     await expect(
       getContractAddress(JBBuybackHookContracts.JBBuybackHook, 6, 1),
     ).rejects.toMatchObject({ code: "ENOENT" });
@@ -78,7 +78,7 @@ describe("executed v6 deployment sources", () => {
     ).rejects.toThrow("Invalid deployment artifact");
     expect(isMissingDeployment(new SyntaxError("invalid JSON"))).toBe(false);
   });
-  test("preserves the previous generation while mainnet still records it as canonical", async () => {
+  test("preserves the previous generation on a synthetic chain that still records it as canonical", async () => {
     artifact("sepolia", "JBBuybackHook_deprecated1");
     artifact("ethereum", "JBBuybackHook");
     expect(

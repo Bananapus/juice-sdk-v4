@@ -231,7 +231,10 @@ const percentage = reserved.formatAsPercent(); // "15%"
 ## Deployment generations
 
 `jbContractAddress[6]` records only executed deployments on each chain. The
-canonical ABI exports describe the latest executed Sepolia generation, with
+floor-fix buyback hook, router, gateway and ratio feed are deployed on Ethereum,
+Optimism, Base, Arbitrum, Sepolia, Base Sepolia and Arbitrum Sepolia. OP Sepolia
+has only the ratio feed from this rollout. The canonical ABI exports describe
+this executed generation, sourced from Sepolia, with
 `jbBuybackHookPreviousAbi`, `jbBuybackHookV1Abi`,
 `jbRouterTerminalPreviousAbi`, and `jbRouterTerminalV1Abi` retained for older
 interfaces. `jbContractAbiGeneration[6]` identifies which ABI generation each
@@ -389,12 +392,12 @@ if (route.status === "gateway") {
 }
 ```
 
-The generated address table records deployments per chain. Pending mainnet
-proposals do not make the new gateway available there; the same helper follows
-each chain as its deployment records are updated. Historical router addresses
-remain recognizable for projects that have not migrated. An RPC read failure
-rejects the helper promise so callers can distinguish an unavailable read from
-an unresolved route.
+The generated address table includes the executed gateway on all four mainnets,
+Sepolia, Base Sepolia and Arbitrum Sepolia; OP Sepolia remains feed-only for this
+rollout. Deployment availability does not establish a project's selected route.
+Historical router addresses remain recognizable for projects that have not
+migrated. An RPC read failure rejects the helper promise so callers can
+distinguish an unavailable read from an unresolved route.
 
 Continue using `resolvePaymentTerminal` for the token-specific payment address
 and a payment preview to check routability. `resolveRouterPath` describes the

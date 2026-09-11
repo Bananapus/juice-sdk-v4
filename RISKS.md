@@ -4,8 +4,11 @@
 
 Deployment availability, ABI generation and a project's selected terminal are
 separate facts. A package upgrade does not deploy contracts or migrate registry
-pins and cohorts. Mainnets and testnets can therefore use different generations
-in the same SDK release; an absent chain record must remain unavailable.
+pins and cohorts. The floor-fix hook, router, gateway and ratio feed are now
+deployed on all four mainnets, Sepolia, Base Sepolia and Arbitrum Sepolia;
+OP Sepolia has only the ratio feed from this rollout. Projects can still use
+different generations in the same SDK release; an absent chain record must
+remain unavailable.
 
 `resolveRouterPath` reads the registry-selected route. The payment token can have
 a different primary terminal in the directory, which `resolvePaymentTerminal`
@@ -25,8 +28,8 @@ locally selected artifact tree therefore carries the same provenance obligation
 as the pinned checkout. Missing records stay absent and invalid evidence fails
 generation.
 
-Unsuffixed ABIs describe the latest executed Sepolia generation. Use the
-chain-specific address book, `jbContractAbiGeneration` and historical ABI exports
+Unsuffixed ABIs describe the executed rollout generation, sourced from Sepolia.
+Use the chain-specific address book, `jbContractAbiGeneration` and historical ABI exports
 for the contract being called or decoded. Historical availability does not mean
 that a registry permits selecting that generation again. Custom deployments are
 not classified from a familiar-looking interface.

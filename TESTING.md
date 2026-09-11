@@ -2,7 +2,7 @@
 
 The SDK is the shared contract boundary for the frontends. Pull requests therefore run the same checks consumers rely on:
 
-- `npm run protocol:check` validates every exported V6 address and normalized public ABI against an independently reviewed deployment fixture. CI and release additionally compare that fixture with an exact sparse checkout of `Bananapus/deploy-all-v6` commit `8522541297557c80f8bc2dd674c3098f8849b527`.
+- `npm run protocol:check` validates every exported V6 address and normalized public ABI against an independently reviewed deployment fixture. CI and release additionally compare that fixture with an exact sparse checkout of `Bananapus/deploy-all-v6` commit `a6ab40c5806b52ff4cb21f9eaefe275e621796f9`, which records the executed production rollout.
 - `npm run wallet:check` rejects a production wallet sign/send API unless its exact source site and focused test are reviewed in `test/wallet-boundaries.json`.
 - `npm run deps:check` requires the dependency graph shipped to SDK consumers
   to be internally valid. Historical contract-generation packages remain
@@ -46,22 +46,25 @@ permission, signer, beneficiary, amount, or other contract invariant.
 
 `test/fixtures/protocol-deployments.v6.json` was reviewed directly from the
 pinned deploy-all checkout, independently of the generated SDK file. The local
-gate covers all 30 contracts exported under `jbContractAddress["6"]` on all
-eight supported chains: 240 address slots in total, comprising 238 deployment
-artifacts and the explicit absence of `JBBuybackHook` and `JBRouterTerminal` on
-OP Sepolia. It also covers all 24 directed production/testnet sucker pairs and
-their 36 deployed CCIP/native artifacts, with 12 native-bridge absences stated
-explicitly.
+gate covers all 35 contracts exported under `jbContractAddress["6"]` on all
+eight supported chains: 280 address slots in total, comprising 274 deployment
+artifacts and six explicit absences on OP Sepolia: `JBBuybackHook`,
+`JBRouterTerminal`, `JBRouterTerminalGateway`, `JBUniswapV4LPSplitHook`,
+`JBUniswapV4LPSplitHookDeployer` and `JBP6FeeLPSplitHook`. The floor-fix hook,
+router, gateway and ratio feed are recorded on all four mainnets, Sepolia, Base
+Sepolia and Arbitrum Sepolia; OP Sepolia has only the ratio feed from this
+rollout. The fixture also covers the previous and V1 hook/router generations,
+plus all 24 directed production/testnet sucker pairs and their 36 deployed
+CCIP/native artifacts, with 12 native-bridge absences stated explicitly.
 
 Each contract fixture also pins a SHA-256 digest of its normalized public
-functions, events, and errors. The gate compares all 30 generated public V6 ABI
+functions, events, and errors. The gate compares all 35 generated public V6 ABI
 exports with those digests. With an external checkout, it additionally compares
-all 238 per-chain ABI copies so chain-specific drift cannot hide. Normalization
-removes only declaration order, duplicate declarations, `internalType`, and
-other artifact formatting. The one semantic allowlist is generation's existing,
-documented removal of the legacy four-argument
-`JBTerminalStore.currentReclaimableSurplusOf` overload; every other name,
-parameter/component, event index, output, mutability, and error must match.
+all 274 per-chain ABI copies and the retained historical generations so
+chain-specific drift cannot hide. Normalization removes only declaration order,
+duplicate declarations, `internalType`, and
+other artifact formatting. Every name, parameter/component, event index, output,
+mutability, and error must match; there are no per-contract semantic exceptions.
 
 Run the source-artifact comparison locally with:
 

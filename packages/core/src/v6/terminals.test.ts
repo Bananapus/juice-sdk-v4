@@ -122,26 +122,29 @@ describe("terminals", () => {
     },
   );
 
-  test("resolveRouterPath unwraps the selected deployed gateway", async () => {
-    const gateway = v6Address("JBRouterTerminalGateway", chainId);
-    const terminal = `0x${gateway.slice(2).toUpperCase()}` as Address;
-    const router = v6Address("JBRouterTerminal", chainId);
-    const { client, readContract } = mockRouteClient(terminal, router);
+  test.each([1, 10, 8453, 42161, chainId] as const)(
+    "resolveRouterPath unwraps the selected deployed gateway on chain %s",
+    async (chainId) => {
+      const gateway = v6Address("JBRouterTerminalGateway", chainId);
+      const terminal = `0x${gateway.slice(2).toUpperCase()}` as Address;
+      const router = v6Address("JBRouterTerminal", chainId);
+      const { client, readContract } = mockRouteClient(terminal, router);
 
-    expect(await resolveRouterPath(client, { chainId, projectId })).toEqual({
-      status: "gateway",
-      registry: v6Address("JBRouterTerminalRegistry", chainId),
-      terminal,
-      gateway: terminal,
-      router,
-    });
-    expect(readContract).toHaveBeenCalledTimes(2);
-    expect(readContract).toHaveBeenNthCalledWith(2, {
-      address: terminal,
-      abi: jbRouterTerminalGatewayAbi,
-      functionName: "ROUTER",
-    });
-  });
+      expect(await resolveRouterPath(client, { chainId, projectId })).toEqual({
+        status: "gateway",
+        registry: v6Address("JBRouterTerminalRegistry", chainId),
+        terminal,
+        gateway: terminal,
+        router,
+      });
+      expect(readContract).toHaveBeenCalledTimes(2);
+      expect(readContract).toHaveBeenNthCalledWith(2, {
+        address: terminal,
+        abi: jbRouterTerminalGatewayAbi,
+        functionName: "ROUTER",
+      });
+    },
+  );
 
   test("resolveRouterPath preserves unknown terminals without probing their ABI", async () => {
     const terminal = "0x1111111111111111111111111111111111111111";

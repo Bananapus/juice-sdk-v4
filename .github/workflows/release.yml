@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Bananapus/deploy-all-v6
-          ref: 8522541297557c80f8bc2dd674c3098f8849b527
+          ref: a6ab40c5806b52ff4cb21f9eaefe275e621796f9
           path: .contract-source/deploy-all-v6
           sparse-checkout: deployments
           sparse-checkout-cone-mode: true
