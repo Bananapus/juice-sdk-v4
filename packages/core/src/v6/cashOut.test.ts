@@ -7,7 +7,10 @@ import {
 } from "viem";
 import { describe, expect, test } from "vitest";
 import { NATIVE_TOKEN, ONE_ETHER } from "../constants.js";
-import { jbTerminalStoreAbi } from "../generated/juicebox.js";
+import {
+  jbTerminalStoreAbi,
+  jbContractAddressHistory,
+} from "../generated/juicebox.js";
 import {
   build721CashOutMetadata,
   buildBuybackCashOutMetadata,
@@ -812,6 +815,19 @@ describe("hook-aware cash-out routing", () => {
     expect(ammRoute.route).toEqual("amm");
     expect(ammRoute.terminalMinimum).toEqual(0n);
     expect(ammRoute.buyback?.hook).toEqual(buybackHook);
+
+    // Projects that have not migrated retain their executed previous hook route.
+    const previous =
+      jbContractAddressHistory["6"].JBBuybackHook.previous[chainId];
+    const previousRoute = await getHookAwareCashOutQuote(clientFor(previous), {
+      chainId,
+      projectId,
+      holder,
+      cashOutCount: ONE_ETHER,
+      tokenToReclaim: NATIVE_TOKEN,
+    });
+    expect(previousRoute.route).toEqual("amm");
+    expect(previousRoute.buyback?.hook).toEqual(previous);
 
     // Any other hook's spec stays on the treasury path with a real minimum.
     const treasuryRoute = await getHookAwareCashOutQuote(

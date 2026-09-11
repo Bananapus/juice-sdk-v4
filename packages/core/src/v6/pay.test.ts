@@ -9,6 +9,7 @@ import { NATIVE_TOKEN } from "../constants.js";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
 import {
   build721PayMetadata,
+  buildBuybackPayMetadata,
   buildPayTx,
   chooseBestPayRoute,
   previewPay,
@@ -206,5 +207,39 @@ describe("pay", () => {
     expect(() => build721PayMetadata({ tierIdsToMint: [1n] })).toThrow(
       /metadataIdTarget/,
     );
+  });
+});
+
+describe("buyback pay quote", () => {
+  test.each([false, true])(
+    "encodes the required third word (skipSplits=%s)",
+    (skipSplits) => {
+      const metadata = buildBuybackPayMetadata({
+        hook: terminal,
+        amountToSwapWith: 100n,
+        minimumSwapAmountOut: 99n,
+        skipSplits,
+      });
+      expect(
+        decodeAbiParameters(
+          [{ type: "uint256" }, { type: "uint256" }, { type: "bool" }],
+          sliceHex(metadata, 64),
+        ),
+      ).toEqual([100n, 99n, skipSplits]);
+      expect(metadata.length).toBe(2 + 5 * 64);
+    },
+  );
+  test("defaults to honoring reserved splits with an oracle-derived floor", () => {
+    const metadata = buildBuybackPayMetadata({
+      hook: terminal,
+      amountToSwapWith: 100n,
+      minimumSwapAmountOut: 0n,
+    });
+    expect(
+      decodeAbiParameters(
+        [{ type: "uint256" }, { type: "uint256" }, { type: "bool" }],
+        sliceHex(metadata, 64),
+      ),
+    ).toEqual([100n, 0n, false]);
   });
 });

@@ -248,3 +248,31 @@ export function build721PayMetadata({
     [tierPayload],
   ) as Hex;
 }
+
+/**
+ * Encode the three-word pay quote required by buyback hook 1.4.0.
+ * An explicit minimum is a settlement guarantee; zero uses the oracle floor,
+ * whose underfill unwinds the swap and falls back to minting. Resolve the
+ * project's actual hook before selecting this metadata target.
+ */
+export function buildBuybackPayMetadata({
+  hook,
+  amountToSwapWith,
+  minimumSwapAmountOut,
+  skipSplits = false,
+}: {
+  hook: Address;
+  amountToSwapWith: bigint;
+  minimumSwapAmountOut: bigint;
+  skipSplits?: boolean;
+}): Hex {
+  return createHookMetadata(
+    [hookMetadataId(hook, "pay")],
+    [
+      encodeAbiParameters(
+        [{ type: "uint256" }, { type: "uint256" }, { type: "bool" }],
+        [amountToSwapWith, minimumSwapAmountOut, skipSplits],
+      ),
+    ],
+  );
+}

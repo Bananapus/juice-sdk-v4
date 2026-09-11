@@ -5,7 +5,90 @@ import {
   RevnetCoreContracts,
   SUPPORTED_CHAINS,
 } from "../src/contracts.js";
-import { mainnet } from "viem/chains";
+import { mainnet, sepolia } from "viem/chains";
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
+
+const require = createRequire(import.meta.url);
+// wagmi bundles this module into its config, so import.meta.url is not a
+// stable source-directory anchor. Both workspace and root commands find the
+// SDK through its checked-in config instead.
+function findSdkRoot() {
+  let directory = process.cwd();
+  while (!existsSync(resolve(directory, "packages/core/wagmi.config.ts"))) {
+    const parent = dirname(directory);
+    if (parent === directory)
+      throw new Error(
+        "Run contract generation inside the juice-sdk repository.",
+      );
+    directory = parent;
+  }
+  return directory;
+}
+const sdkRoot = findSdkRoot();
+const siblingRoot = resolve(sdkRoot, "..");
+
+/** Only missing artifacts denote an unavailable chain; malformed data must fail generation. */
+export function isMissingDeployment(error: unknown) {
+  return ["ENOENT", "MODULE_NOT_FOUND", "ERR_MODULE_NOT_FOUND"].includes(
+    (error as NodeJS.ErrnoException)?.code ?? "",
+  );
+}
+
+export const V6_HISTORY = {
+  JBBuybackHook: { previous: "_deprecated1", v1: "_deprecated" },
+  JBRouterTerminal: { previous: "_deprecated1", v1: "_deprecated" },
+} as const;
+
+export async function getHistoricalContract(
+  contract: Contract,
+  generation: "previous" | "v1",
+  chainId: JBChainId,
+) {
+  const suffix = V6_HISTORY[contract as keyof typeof V6_HISTORY]?.[generation];
+  if (!suffix) throw new Error(`No historical generations for ${contract}`);
+  try {
+    return await getContract(contract, 6, chainId, suffix);
+  } catch (error) {
+    if (!isMissingDeployment(error) || generation !== "previous") throw error;
+    // Before a chain migrates, its previous-generation deployment is still
+    // canonical. Identify it from an executed retired record on another chain.
+    const canonical = await getContract(contract, 6, chainId);
+    for (const peer of Object.keys(SUPPORTED_CHAINS).map(
+      Number,
+    ) as JBChainId[]) {
+      try {
+        const retired = await getContract(contract, 6, peer, suffix);
+        if (
+          retired.address.toLowerCase() === canonical.address.toLowerCase() &&
+          abiKey(retired.abi) === abiKey(canonical.abi)
+        )
+          return canonical;
+      } catch (missing) {
+        if (!isMissingDeployment(missing)) throw missing;
+      }
+    }
+    throw error;
+  }
+}
+
+async function getLatestContract(contract: Contract) {
+  // The canonical ABI is the newest executed testnet generation. Mainnet and
+  // historical interfaces remain separately addressable during phased rollout.
+  for (const chainId of [
+    sepolia.id,
+    mainnet.id,
+    ...Object.keys(SUPPORTED_CHAINS).map(Number),
+  ] as JBChainId[]) {
+    try {
+      return await getContract(contract, 6, chainId);
+    } catch (error) {
+      if (!isMissingDeployment(error)) throw error;
+    }
+  }
+  throw new Error(`No executed v6 deployment for ${contract}`);
+}
 import { JBCoreContracts } from "../src/contracts.js";
 import { JB721HookContracts } from "../src/contracts.js";
 import { JBAddressRegistryContracts } from "../src/contracts.js";
@@ -24,7 +107,7 @@ const V6_ERC2771_FORWARDER = "0x3bA60b60933916a7C87D0860DcEE62a0CE34E3e2";
 
 export async function getContractsList() {
   const v6Contracts = await Promise.all(
-    getAllContractNames(6).map((name) => getContract(name, 6, mainnet.id)),
+    getAllContractNames(6).map((name) => getLatestContract(name)),
   );
 
   const v5Contracts = await Promise.all(
@@ -58,6 +141,28 @@ export async function getContractsList() {
     }
   }
 
+  for (const name of Object.keys(V6_HISTORY) as Contract[]) {
+    for (const generation of ["previous", "v1"] as const) {
+      for (const chainId of Object.keys(SUPPORTED_CHAINS).map(
+        Number,
+      ) as JBChainId[]) {
+        try {
+          const contract = await getHistoricalContract(
+            name,
+            generation,
+            chainId,
+          );
+          allContracts.push({
+            ...contract,
+            name: `${name}${generation === "previous" ? "Previous" : "V1"}`,
+          });
+          break;
+        } catch (error) {
+          if (!isMissingDeployment(error)) throw error;
+        }
+      }
+    }
+  }
   return allContracts.map(({ name, abi }) => ({ name, abi }));
 }
 
@@ -158,6 +263,7 @@ async function getContract(
   contract: Contract,
   version: JBVersion,
   chainId: JBChainId,
+  suffix = "",
 ) {
   if (version === 6 && contract === JBCoreContracts.ERC2771Forwarder) {
     // Same OZ forwarder ABI as v4; only the address differs.
@@ -173,7 +279,7 @@ async function getContract(
   const pkgPath = getVersionedPath(pkg.path, version);
 
   const { abi, address } = await importDeploymentFile(
-    `${pkgPath}/${getChainName(chainId)}/${contract}.json`,
+    `${pkgPath}/${getChainName(chainId)}/${contract}${suffix}.json`,
   );
 
   return { name: contract, abi, address };
@@ -187,10 +293,47 @@ function getVersionedPath(path: Path, version: JBVersion) {
   return `${scope}/${packageName}-v${version}/deployments/${dir === "nana-address-registry" ? dir : `${dir}-v${version}`}`;
 }
 
+/** Read a flat v6 artifact tree, never substituting an npm record for an absent local deployment. */
+export function deploymentFilePath(path: string) {
+  const match = path.match(
+    /^(@bananapus|@rev-net)\/([^/]+)-v6\/deployments\/(.+)$/,
+  );
+  if (match) {
+    const [, scope, packageName, relative] = match;
+    const configured = process.env.PROTOCOL_DEPLOYMENTS_DIR;
+    const checkedOut = resolve(sdkRoot, ".contract-source/deploy-all-v6");
+    const repository =
+      scope === "@rev-net"
+        ? "revnet-core-v6"
+        : packageName === "univ4-lp-split-hook"
+          ? `${packageName}-v6`
+          : `nana-${packageName}-v6`;
+    const sibling = resolve(siblingRoot, repository, "deployments");
+    if (configured) {
+      const root = resolve(sdkRoot, configured);
+      return resolve(
+        existsSync(resolve(root, "deployments"))
+          ? resolve(root, "deployments")
+          : root,
+        relative,
+      );
+    }
+    if (existsSync(sibling)) return resolve(sibling, relative);
+    if (existsSync(checkedOut))
+      return resolve(checkedOut, "deployments", relative);
+  }
+  return require.resolve(path);
+}
+
 async function importDeploymentFile(path: string) {
-  const { default: deployment } = await import(path, {
-    with: { type: "json" },
-  });
+  const file = deploymentFilePath(path);
+  const deployment = JSON.parse(readFileSync(file, "utf8"));
+  if (
+    !/^0x[0-9a-fA-F]{40}$/.test(deployment.address) ||
+    !Array.isArray(deployment.abi)
+  ) {
+    throw new Error(`Invalid deployment artifact ${file}`);
+  }
   return deployment as { address: string; abi: unknown[] };
 }
 
@@ -222,16 +365,8 @@ const PACKAGES: { contracts: Contract[]; path: Path }[] = [
     path: "@bananapus/swap-terminal/deployments/nana-swap-terminal",
   },
   {
-    // PIN WATCH: `@bananapus/buyback-hook-v6` is held at ^1.2.1 on purpose.
-    // 1.3.x (the derived-floor fix) is committed upstream but has NOT been
-    // executed on-chain — `DeployBuybackFloorFix.s.sol` uses a fresh CREATE2
-    // salt, so it lands at a new address, and every
-    // `deploy-all-v6/deployments/*/JBBuybackHook.json` still records
-    // 0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948, which the registry still
-    // returns as `defaultHook`. Bumping the pin before the migration executes
-    // would ship an ABI/address pair that does not exist on chain.
-    // Bump to ^1.3.x (and regenerate) once the floor-fix broadcast lands and
-    // the deployment artifacts move.
+    // Resolve executed per-chain artifacts, including still-live historical
+    // generations. Package versions alone never enable a mainnet rollout.
     contracts: Object.values(JBBuybackHookContracts) as Contract[],
     path: "@bananapus/buyback-hook/deployments/nana-buyback-hook",
   },
@@ -280,6 +415,9 @@ export function getAllContractNames(version: JBVersion) {
 
     // The router terminal replaces the swap terminal in v6.
     if (version < 6) {
+      if (contract === JBCoreContracts.JBRatioPriceFeed) return false;
+      if (contract === JBRouterTerminalContracts.JBRouterTerminalGateway)
+        return false;
       if (contract === JBRouterTerminalContracts.JBRouterTerminal) return false;
       if (contract === JBRouterTerminalContracts.JBRouterTerminalRegistry)
         return false;

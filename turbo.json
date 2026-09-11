@@ -1,7 +1,9 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["PROTOCOL_DEPLOYMENTS_DIR"],
   "tasks": {
     "build": {
+      "cache": false,
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": ["dist/**"]

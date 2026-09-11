@@ -7,6 +7,7 @@ import {
 } from "viem";
 import {
   jbMultiTerminalAbi,
+  jbContractAddressHistory,
   jbTerminalStoreAbi,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
@@ -784,9 +785,9 @@ export function resolveCashOutRoute({
  * @param args.terminal The terminal to quote against. Defaults to the chain's
  * canonical `JBMultiTerminal`.
  * @param args.buybackHookAddress The buyback hook whose specification may win
- * the pool route. Defaults to the chain's canonical `JBBuybackHook`; pass it
- * explicitly for a project whose `JBBuybackHookRegistry` entry points at a
- * custom hook. On a chain with no `JBBuybackHook` deployment, specifications
+ * the pool route. By default, recognizes the chain's executed current and
+ * previous `JBBuybackHook` deployments. Pass it explicitly for a custom hook.
+ * On a chain with no `JBBuybackHook` deployment, specifications
  * are treated as non-buyback and the treasury route is returned.
  * @param args.beneficiaryIsFeeless Whether the beneficiary is feeless.
  * Defaults to false.
@@ -927,8 +928,6 @@ export async function getHookAwareCashOutQuote(
   }: HookAwareCashOutArguments,
 ): Promise<CashOutRoute> {
   const terminalAddress = terminal ?? v6Address("JBMultiTerminal", chainId);
-  const buybackHook =
-    buybackHookAddress ?? optionalV6Address("JBBuybackHook", chainId);
   const preview = await readCashOutPreviewSnapshot(client, {
     terminal: terminalAddress,
     holder,
@@ -942,7 +941,8 @@ export async function getHookAwareCashOutQuote(
     terminal: terminalAddress,
     projectId,
     tokenToReclaim,
-    buybackHookAddress: buybackHook,
+    buybackHookAddress:
+      buybackHookAddress ?? knownBuybackHook(chainId, preview),
     beneficiaryIsFeeless,
     slippageBps,
   });
@@ -1065,14 +1065,13 @@ export async function prepareHookAwareCashOut(
   }: HookAwareCashOutArguments,
 ): Promise<PreparedHookAwareCashOut> {
   const terminalAddress = terminal ?? v6Address("JBMultiTerminal", chainId);
-  const buybackHook =
-    buybackHookAddress ?? optionalV6Address("JBBuybackHook", chainId);
   const resolvePreview = (preview: CashOutPreviewSnapshot) =>
     resolveCashOutPreviewSnapshot(client, preview, {
       terminal: terminalAddress,
       projectId,
       tokenToReclaim,
-      buybackHookAddress: buybackHook,
+      buybackHookAddress:
+        buybackHookAddress ?? knownBuybackHook(chainId, preview),
       beneficiaryIsFeeless,
       slippageBps,
     });
@@ -1164,10 +1163,29 @@ export async function prepareBestCashOut(
   };
 }
 
-/**
- * `v6Address`, but returning undefined instead of throwing on a chain the
- * contract isn't deployed to.
- */
+function knownBuybackHook(
+  chainId: JBChainId,
+  preview: CashOutPreviewSnapshot,
+): Address | undefined {
+  const canonical = optionalV6Address("JBBuybackHook", chainId);
+  const previous = (
+    jbContractAddressHistory["6"].JBBuybackHook.previous as Partial<
+      Record<JBChainId, Address>
+    >
+  )[chainId];
+  // Preserve the previously supported 1.1.1 route after the canonical rollout.
+  // V1 remains available for historical decoding, outside this quote parser.
+  const known = [canonical, previous].filter(
+    (address): address is Address => !!address,
+  );
+  return preview.hookSpecifications.find((specification) =>
+    known.some(
+      (address) => address.toLowerCase() === specification.hook.toLowerCase(),
+    ),
+  )?.hook;
+}
+
+/** Like v6Address, but undefined when the chain has no deployment. */
 function optionalV6Address(
   contract: Parameters<typeof v6Address>[0],
   chainId: JBChainId,

@@ -228,6 +228,36 @@ const percentage = reserved.formatAsPercent(); // "15%"
 - [Generated Bendystraw types](./packages/react/src/generated/graphql.ts) - Types generated from the committed schema and reviewed queries
 - [Custom hooks](./packages/react/src/hooks/) - Higher-level functionality hooks
 
+## Deployment generations
+
+`jbContractAddress[6]` records only executed deployments on each chain. The
+canonical ABI exports describe the latest executed Sepolia generation, with
+`jbBuybackHookPreviousAbi`, `jbBuybackHookV1Abi`,
+`jbRouterTerminalPreviousAbi`, and `jbRouterTerminalV1Abi` retained for older
+interfaces. `jbContractAbiGeneration[6]` identifies which ABI generation each
+canonical router or hook uses; `jbContractAddressHistory[6]` preserves retired
+addresses for activity and projects that have not migrated. A deployment's
+presence does not prove that a project has selected it: use `resolveRouterPath`
+and the registry's project-specific hook selection.
+
+Generation reads `PROTOCOL_DEPLOYMENTS_DIR` when set, otherwise each sibling
+repository's flat `deployments/<chain>/` tree, then a pinned
+`.contract-source/deploy-all-v6` checkout, then npm artifacts when no local tree exists.
+Missing records in a selected tree stay absent; malformed records fail the
+build. CI pins the deployment source independently of npm publication. After
+an executed rollout, regenerate and review the source pin and fixture together:
+
+```sh
+PROTOCOL_DEPLOYMENTS_DIR=../deploy-all-v6 npm run generate --workspace @bananapus/nana-sdk-core
+PROTOCOL_DEPLOYMENTS_DIR=../deploy-all-v6 node --import tsx scripts/check-v6-protocol.ts --update-fixture
+PROTOCOL_DEPLOYMENTS_DIR=../deploy-all-v6 npm run protocol:check
+```
+
+`buildBuybackPayMetadata` emits the three-word quote for hook 1.4.0 under the
+selected hook's `pay` metadata ID. It defaults `skipSplits` to false. A zero
+minimum uses the oracle floor and its mint fallback; an explicit minimum remains
+a settlement guarantee.
+
 ## Development
 
 ### Prerequisites
@@ -333,6 +363,57 @@ const request = buildPayTx({
 await wallet.writeContract({ account: "0xYourAccount", ...request });
 ```
 
+Use `resolveRouterPath` to display a project's registry-selected router path. It
+reads `terminalOf(projectId)`, respecting pinned terminals and cohort defaults,
+then reads `ROUTER()` only when the selected terminal matches a deployed gateway
+on that chain:
+
+```ts
+import { resolveRouterPath } from "@bananapus/nana-sdk-core/v6";
+
+const route = await resolveRouterPath(client, {
+  chainId: sepolia.id,
+  projectId: 4n,
+});
+
+if (route.status === "gateway") {
+  // Display route.registry -> route.gateway -> route.router.
+} else if (route.status === "direct") {
+  // Display route.registry -> route.router, including retired router generations.
+} else if (route.status === "unknown") {
+  // Display route.terminal as an unrecognized terminal; no router was assumed.
+} else {
+  // The registry currently resolves no terminal for this project.
+}
+```
+
+The generated address table records deployments per chain. Pending mainnet
+proposals do not make the new gateway available there; the same helper follows
+each chain as its deployment records are updated. Historical router addresses
+remain recognizable for projects that have not migrated. An RPC read failure
+rejects the helper promise so callers can distinguish an unavailable read from
+an unresolved route.
+
+Continue using `resolvePaymentTerminal` for the token-specific payment address
+and a payment preview to check routability. `resolveRouterPath` describes the
+registry route; its underlying `router` address is not a substitute payment
+target. The gateway can retain eligible failed source-project-opted calls,
+including protocol fees, in the original input token. A successful transaction
+that queues a pending call has not settled that payment. Track
+`QueuePendingCall`, `ProcessPendingCall`, `RefundPendingCall`, and
+`RecordTerminalCallFailure`, together with `pendingCallCount`,
+`pendingCallCommitmentOf`, and `pendingCallFailureOf`, to show custody and retry
+or refund state. Calls without retention eligibility still revert synchronously.
+
+For buyback hook 1.4.0, the `pay` metadata entry contains three ABI words:
+`(uint256 amountToSwapWith, uint256 minimumSwapAmountOut, bool skipSplits)`.
+Build the entry under `hookMetadataId(selectedHook, "pay")` with
+`createHookMetadata`; resolve the hook used by the project before choosing the
+metadata ID or version. Two-word quote entries revert on this hook. Keep
+`skipSplits` false to honor reserved splits on swapped tokens. For payments
+without an explicit minimum, a swap that misses the TWAP floor unwinds and falls
+back to issuance; an explicit user minimum still applies to the resulting output.
+
 Modules:
 
 - `launch` — project launches + creation fee
@@ -340,7 +421,7 @@ Modules:
 - `rulesets` — queue + read rulesets
 - `splits` — split groups and exact-remainder percent math
 - `revnets` — REVDeployer + REVOwner actions
-- `terminals` — terminal resolution and accounting contexts
+- `terminals` — payment terminal and effective router path resolution, accounting contexts
 - `pay` — pay builders and previews
 - `cashOut` — cash-out builders and quotes
 - `tokens` — ERC-20 deploys, claims, credits, mint/burn
