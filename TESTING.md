@@ -2,7 +2,7 @@
 
 The SDK is the shared contract boundary for the frontends. Pull requests therefore run the same checks consumers rely on:
 
-- `npm run protocol:check` validates every exported V6 address and normalized public ABI against an independently reviewed deployment fixture. CI and release additionally compare that fixture with an exact sparse checkout of `Bananapus/deploy-all-v6` commit `316e9d4d3f9e1c5b41a5df7c0ad6183abbeccc7f`.
+- `npm run protocol:check` validates every exported V6 address and normalized public ABI against an independently reviewed deployment fixture. CI and release additionally compare that fixture with an exact sparse checkout of `Bananapus/deploy-all-v6` commit `8522541297557c80f8bc2dd674c3098f8849b527`.
 - `npm run wallet:check` rejects a production wallet sign/send API unless its exact source site and focused test are reviewed in `test/wallet-boundaries.json`.
 - `npm run deps:check` requires the dependency graph shipped to SDK consumers
   to be internally valid. Historical contract-generation packages remain
