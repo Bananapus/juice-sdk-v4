@@ -38,6 +38,7 @@ export const JBCENTER_RPC_METHODS = [
   "eth_getTransactionCount",
   "eth_getTransactionReceipt",
   "eth_maxPriorityFeePerGas",
+  "eth_simulateV1",
   "eth_syncing",
   "net_version",
 ] as const;
