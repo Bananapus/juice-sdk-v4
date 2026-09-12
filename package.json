@@ -9,7 +9,7 @@
     "check:generated": "git diff --exit-code -- packages/core/src/generated/juicebox.ts packages/react/src/generated",
     "check:gql": "npm run generate-gql:ci --workspace @bananapus/nana-sdk-react && git diff --exit-code -- packages/react/src/generated",
     "check:package": "node scripts/check-package-budgets.mjs",
-    "protocol:check": "tsx scripts/check-v6-protocol.ts",
+    "protocol:check": "node --import tsx scripts/check-v6-protocol.ts",
     "wallet:check": "node scripts/check-wallet-boundaries.mjs",
     "dead-code:check": "knip --exclude duplicates",
     "deps:check": "npm ls --all --omit=dev",

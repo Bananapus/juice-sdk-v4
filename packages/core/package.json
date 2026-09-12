@@ -10,7 +10,7 @@
   },
   "scripts": {
     "generate": "wagmi generate",
-    "postgenerate": "tsx ./scripts/addJBProjectDeploymentAddresses.ts",
+    "postgenerate": "node --import tsx ./scripts/addJBProjectDeploymentAddresses.ts",
     "prebuild": "rm -Rf dist/",
     "build": "npm run generate && npm run build:esm && npm run build:cjs",
     "build:esm": "tsc --project ./tsconfig.json",

@@ -1,7 +1,16 @@
-import { JBChainId, JBVersion, SUPPORTED_CHAINS } from "../src/contracts.js";
+import {
+  Contract,
+  JBChainId,
+  JBVersion,
+  SUPPORTED_CHAINS,
+} from "../src/contracts.js";
 import fs from "fs";
+import { aliasRouterAbis } from "./aliasRouterAbis.js";
 import {
   getAllContractNames,
+  getHistoricalContract,
+  isMissingDeployment,
+  V6_HISTORY,
   getContractAddress,
   getV6CcipDeployerAddress,
   getV6NativeDeployerAddress,
@@ -28,7 +37,7 @@ async function buildAddressesFor(version: JBVersion) {
       } catch (e) {
         // Not every v6 contract is deployed on every chain (e.g. the v6 JBBuybackHook is not
         // on optimism_sepolia). A missing v4/v5 artifact is a regression — fail loudly.
-        if (version !== 6) throw e;
+        if (version !== 6 || !isMissingDeployment(e)) throw e;
         console.warn(
           `No v${version} ${name} deployment on chain ${chainId}, skipping.`,
         );
@@ -85,7 +94,41 @@ async function buildV6NativeDeployerAddresses() {
   return addresses;
 }
 
+async function buildV6History() {
+  const history = {};
+  for (const name of Object.keys(V6_HISTORY) as Contract[]) {
+    history[name] = {};
+    for (const generation of ["previous", "v1"] as const) {
+      history[name][generation] = {};
+      for (const chainId of chainIds) {
+        try {
+          history[name][generation][chainId] = (
+            await getHistoricalContract(name, generation, chainId)
+          ).address;
+        } catch (error) {
+          if (!isMissingDeployment(error)) throw error;
+        }
+      }
+    }
+  }
+  return history;
+}
+
 async function buildDefaultAddressContent() {
+  const current = await buildAddressesFor(6);
+  const history = await buildV6History();
+  const generations = {};
+  for (const name of Object.keys(V6_HISTORY)) {
+    generations[name] = {};
+    for (const [chainId, address] of Object.entries(current[name])) {
+      generations[name][chainId] =
+        ["previous", "v1"].find(
+          (generation) =>
+            history[name][generation][chainId]?.toLowerCase() ===
+            (address as string).toLowerCase(),
+        ) ?? "current";
+    }
+  }
   const content = `
   /**
    * Addresses to use in JB project deployments.
@@ -94,7 +137,7 @@ async function buildDefaultAddressContent() {
     {
       4: await buildAddressesFor(4),
       5: await buildAddressesFor(5),
-      6: await buildAddressesFor(6),
+      6: current,
     },
     null,
     2,
@@ -121,14 +164,21 @@ async function buildDefaultAddressContent() {
     },
     null,
     2,
-  )} as const;`;
+  )} as const;
+
+  /** Historical v6 deployments retained for activity decoding and projects that have not migrated. */
+  export const jbContractAddressHistory = ${JSON.stringify({ 6: history }, null, 2)} as const;
+
+  /** ABI generation for each canonical v6 deployment during the phased rollout. */
+  export const jbContractAbiGeneration = ${JSON.stringify({ 6: generations }, null, 2)} as const;`;
   return content;
 }
 
 async function addDefaultAddresses() {
   const filePath = "src/generated/juicebox.ts";
   const content = await buildDefaultAddressContent();
-  fs.appendFileSync(filePath, content);
+  const bindings = aliasRouterAbis(fs.readFileSync(filePath, "utf8"));
+  fs.writeFileSync(filePath, bindings + content);
 }
 
 addDefaultAddresses();

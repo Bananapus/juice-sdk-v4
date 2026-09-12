@@ -17,6 +17,7 @@ export enum JBCoreContracts {
   JBTerminalStore = "JBTerminalStore",
   JBFundAccessLimits = "JBFundAccessLimits",
   JBPrices = "JBPrices",
+  JBRatioPriceFeed = "JBRatioPriceFeed",
   ERC2771Forwarder = "ERC2771Forwarder",
 }
 
@@ -58,6 +59,7 @@ export enum JBUniswapV4LPSplitHookContracts {
 
 export enum JBRouterTerminalContracts {
   JBRouterTerminal = "JBRouterTerminal",
+  JBRouterTerminalGateway = "JBRouterTerminalGateway",
   JBRouterTerminalRegistry = "JBRouterTerminalRegistry",
 }
 

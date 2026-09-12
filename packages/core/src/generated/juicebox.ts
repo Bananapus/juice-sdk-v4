@@ -11889,6 +11889,845 @@ export const jbBuybackHookAbi = [
   {
     type: 'error',
     inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_DerivedFloorNotMet',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'swapAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'totalPaid', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_InsufficientPayAmount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+      { name: 'min', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_InvalidTwapWindow',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'poolId', internalType: 'PoolId', type: 'bytes32' }],
+    name: 'JBBuybackHook_PoolAlreadySet',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'actualSqrtPriceX96', internalType: 'uint160', type: 'uint160' },
+      {
+        name: 'expectedSqrtPriceX96',
+        internalType: 'uint160',
+        type: 'uint160',
+      },
+    ],
+    name: 'JBBuybackHook_PoolInitializedAtWrongPrice',
+  },
+  {
+    type: 'error',
+    inputs: [],
+    name: 'JBBuybackHook_PoolKeyCurrenciesMismatch',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'poolId', internalType: 'PoolId', type: 'bytes32' }],
+    name: 'JBBuybackHook_PoolNotInitialized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBBuybackHook_PoolNotSet',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_SpecifiedSlippageExceeded',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'projectToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBBuybackHook_TerminalTokenIsProjectToken',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBBuybackHook_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBBuybackHook_ZeroProjectToken',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBBuybackHookPrevious
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbBuybackHookPreviousAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      { name: 'prices', internalType: 'contract IJBPrices', type: 'address' },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'tokens', internalType: 'contract IJBTokens', type: 'address' },
+      { name: 'deployer', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_TWAP_WINDOW',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_TWAP_WINDOW',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PRICES',
+    outputs: [
+      { name: '', internalType: 'contract IJBPrices', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TOKENS',
+    outputs: [
+      { name: '', internalType: 'contract IJBTokens', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TWAP_SLIPPAGE_DENOMINATOR',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAfterCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'reclaimedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'beneficiary',
+            internalType: 'address payable',
+            type: 'address',
+          },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'cashOutMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'afterCashOutRecordedWith',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAfterPayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'payer', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'newlyIssuedTokenCount',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'payerMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'afterPayRecordedWith',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforeCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'surplus',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'scopeCashOutsToLocalBalances',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          { name: 'beneficiaryIsFeeless', internalType: 'bool', type: 'bool' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforeCashOutRecordedWith',
+    outputs: [
+      { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+      { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'effectiveSurplusValue',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBCashOutHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBCashOutHook',
+            type: 'address',
+          },
+          { name: 'noop', internalType: 'bool', type: 'bool' },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforePayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'payer', internalType: 'address', type: 'address' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          { name: 'reservedPercent', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforePayRecordedWith',
+    outputs: [
+      { name: 'weight', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBPayHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBPayHook',
+            type: 'address',
+          },
+          { name: 'noop', internalType: 'bool', type: 'bool' },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+      { name: '', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasMintPermissionFor',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'fee', internalType: 'uint24', type: 'uint24' },
+      { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+      { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'sqrtPriceX96', internalType: 'uint160', type: 'uint160' },
+    ],
+    name: 'initializePoolFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'oracleHook',
+    outputs: [{ name: '', internalType: 'contract IHooks', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'poolKeyOf',
+    outputs: [
+      {
+        name: 'key',
+        internalType: 'struct PoolKey',
+        type: 'tuple',
+        components: [
+          { name: 'currency0', internalType: 'Currency', type: 'address' },
+          { name: 'currency1', internalType: 'Currency', type: 'address' },
+          { name: 'fee', internalType: 'uint24', type: 'uint24' },
+          { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+          { name: 'hooks', internalType: 'contract IHooks', type: 'address' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'poolManager',
+    outputs: [
+      { name: '', internalType: 'contract IPoolManager', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'projectTokenOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'newPoolManager',
+        internalType: 'contract IPoolManager',
+        type: 'address',
+      },
+      {
+        name: 'newOracleHook',
+        internalType: 'contract IHooks',
+        type: 'address',
+      },
+    ],
+    name: 'setChainSpecificConstants',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'fee', internalType: 'uint24', type: 'uint24' },
+      { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+      { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'setPoolFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'poolKey',
+        internalType: 'struct PoolKey',
+        type: 'tuple',
+        components: [
+          { name: 'currency0', internalType: 'Currency', type: 'address' },
+          { name: 'currency1', internalType: 'Currency', type: 'address' },
+          { name: 'fee', internalType: 'uint24', type: 'uint24' },
+          { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+          { name: 'hooks', internalType: 'contract IHooks', type: 'address' },
+        ],
+      },
+      { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'setPoolFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'newWindow', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'setTwapWindowOf',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'twapWindowOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'data', internalType: 'bytes', type: 'bytes' }],
+    name: 'unlockCallback',
+    outputs: [{ name: '', internalType: 'bytes', type: 'bytes' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'cashOutCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'poolId',
+        internalType: 'PoolId',
+        type: 'bytes32',
+        indexed: true,
+      },
+      {
+        name: 'amountReceived',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'CashOutSwap',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'leftoverAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'tokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Mint',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'poolId',
+        internalType: 'PoolId',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'PoolAdded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'holder',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SellSwapReverted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'amountToSwapWith',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'poolId',
+        internalType: 'PoolId',
+        type: 'bytes32',
+        indexed: true,
+      },
+      {
+        name: 'amountReceived',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Swap',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'oldWindow',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newWindow',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'TwapWindowChanged',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  { type: 'error', inputs: [], name: 'JBBuybackHook_AlreadyConfigured' },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBBuybackHook_CallerNotPoolManager',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBBuybackHook_CallerNotTerminal',
+  },
+  {
+    type: 'error',
+    inputs: [
       { name: 'swapAmount', internalType: 'uint256', type: 'uint256' },
       { name: 'totalPaid', internalType: 'uint256', type: 'uint256' },
     ],
@@ -13072,6 +13911,832 @@ export const jbBuybackHookRegistryV5Abi = [
     type: 'error',
     inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
     name: 'OwnableUnauthorizedAccount',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBBuybackHookV1
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbBuybackHookV1Abi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+      {
+        name: 'permissions',
+        internalType: 'contract IJBPermissions',
+        type: 'address',
+      },
+      { name: 'prices', internalType: 'contract IJBPrices', type: 'address' },
+      {
+        name: 'projects',
+        internalType: 'contract IJBProjects',
+        type: 'address',
+      },
+      { name: 'tokens', internalType: 'contract IJBTokens', type: 'address' },
+      { name: 'deployer', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'receive', stateMutability: 'payable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_TWAP_WINDOW',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_TWAP_WINDOW',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMISSIONS',
+    outputs: [
+      { name: '', internalType: 'contract IJBPermissions', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PRICES',
+    outputs: [
+      { name: '', internalType: 'contract IJBPrices', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PROJECTS',
+    outputs: [
+      { name: '', internalType: 'contract IJBProjects', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TOKENS',
+    outputs: [
+      { name: '', internalType: 'contract IJBTokens', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TWAP_SLIPPAGE_DENOMINATOR',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAfterCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'reclaimedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'beneficiary',
+            internalType: 'address payable',
+            type: 'address',
+          },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'cashOutMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'afterCashOutRecordedWith',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAfterPayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'payer', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'newlyIssuedTokenCount',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'payerMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'afterPayRecordedWith',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforeCashOutRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'holder', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+          { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'surplus',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'scopeCashOutsToLocalBalances',
+            internalType: 'bool',
+            type: 'bool',
+          },
+          { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+          { name: 'beneficiaryIsFeeless', internalType: 'bool', type: 'bool' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforeCashOutRecordedWith',
+    outputs: [
+      { name: 'cashOutTaxRate', internalType: 'uint256', type: 'uint256' },
+      { name: 'cashOutCount', internalType: 'uint256', type: 'uint256' },
+      { name: 'totalSupply', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'effectiveSurplusValue',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBCashOutHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBCashOutHook',
+            type: 'address',
+          },
+          { name: 'noop', internalType: 'bool', type: 'bool' },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBBeforePayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'terminal', internalType: 'address', type: 'address' },
+          { name: 'payer', internalType: 'address', type: 'address' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          { name: 'reservedPercent', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    name: 'beforePayRecordedWith',
+    outputs: [
+      { name: 'weight', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBPayHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBPayHook',
+            type: 'address',
+          },
+          { name: 'noop', internalType: 'bool', type: 'bool' },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+      { name: '', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasMintPermissionFor',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'fee', internalType: 'uint24', type: 'uint24' },
+      { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+      { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'sqrtPriceX96', internalType: 'uint160', type: 'uint160' },
+    ],
+    name: 'initializePoolFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'oracleHook',
+    outputs: [{ name: '', internalType: 'contract IHooks', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'poolKeyOf',
+    outputs: [
+      {
+        name: 'key',
+        internalType: 'struct PoolKey',
+        type: 'tuple',
+        components: [
+          { name: 'currency0', internalType: 'Currency', type: 'address' },
+          { name: 'currency1', internalType: 'Currency', type: 'address' },
+          { name: 'fee', internalType: 'uint24', type: 'uint24' },
+          { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+          { name: 'hooks', internalType: 'contract IHooks', type: 'address' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'poolManager',
+    outputs: [
+      { name: '', internalType: 'contract IPoolManager', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'projectTokenOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'newPoolManager',
+        internalType: 'contract IPoolManager',
+        type: 'address',
+      },
+      {
+        name: 'newOracleHook',
+        internalType: 'contract IHooks',
+        type: 'address',
+      },
+    ],
+    name: 'setChainSpecificConstants',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'fee', internalType: 'uint24', type: 'uint24' },
+      { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+      { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'setPoolFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'poolKey',
+        internalType: 'struct PoolKey',
+        type: 'tuple',
+        components: [
+          { name: 'currency0', internalType: 'Currency', type: 'address' },
+          { name: 'currency1', internalType: 'Currency', type: 'address' },
+          { name: 'fee', internalType: 'uint24', type: 'uint24' },
+          { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+          { name: 'hooks', internalType: 'contract IHooks', type: 'address' },
+        ],
+      },
+      { name: 'twapWindow', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'setPoolFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'newWindow', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'setTwapWindowOf',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'twapWindowOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'data', internalType: 'bytes', type: 'bytes' }],
+    name: 'unlockCallback',
+    outputs: [{ name: '', internalType: 'bytes', type: 'bytes' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'cashOutCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'poolId',
+        internalType: 'PoolId',
+        type: 'bytes32',
+        indexed: true,
+      },
+      {
+        name: 'amountReceived',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'CashOutSwap',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'leftoverAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'tokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Mint',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'poolId',
+        internalType: 'PoolId',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'PoolAdded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'holder',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SellSwapReverted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'amountToSwapWith',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'poolId',
+        internalType: 'PoolId',
+        type: 'bytes32',
+        indexed: true,
+      },
+      {
+        name: 'amountReceived',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Swap',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'oldWindow',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newWindow',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'TwapWindowChanged',
+  },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
+  { type: 'error', inputs: [], name: 'JBBuybackHook_AlreadyConfigured' },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBBuybackHook_CallerNotPoolManager',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBBuybackHook_CallerNotTerminal',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'swapAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'totalPaid', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_InsufficientPayAmount',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+      { name: 'min', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_InvalidTwapWindow',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'poolId', internalType: 'PoolId', type: 'bytes32' }],
+    name: 'JBBuybackHook_PoolAlreadySet',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'actualSqrtPriceX96', internalType: 'uint160', type: 'uint160' },
+      {
+        name: 'expectedSqrtPriceX96',
+        internalType: 'uint160',
+        type: 'uint160',
+      },
+    ],
+    name: 'JBBuybackHook_PoolInitializedAtWrongPrice',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'poolId', internalType: 'PoolId', type: 'bytes32' }],
+    name: 'JBBuybackHook_PoolNotInitialized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBBuybackHook_PoolNotSet',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_SpecifiedSlippageExceeded',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+      { name: 'projectToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBBuybackHook_TerminalTokenIsProjectToken',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'JBBuybackHook_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBBuybackHook_ZeroProjectToken',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'permissionId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBPermissioned_Unauthorized',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'x', internalType: 'uint256', type: 'uint256' },
+      { name: 'y', internalType: 'uint256', type: 'uint256' },
+      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'PRBMath_MulDiv_Overflow',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
   },
 ] as const
 
@@ -39906,6 +41571,57 @@ export const jbProjectsV5Abi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBRatioPriceFeed
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbRatioPriceFeedAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'numerator',
+        internalType: 'contract IJBPriceFeed',
+        type: 'address',
+      },
+      {
+        name: 'denominator',
+        internalType: 'contract IJBPriceFeed',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DENOMINATOR',
+    outputs: [
+      { name: '', internalType: 'contract IJBPriceFeed', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'NUMERATOR',
+    outputs: [
+      { name: '', internalType: 'contract IJBPriceFeed', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'decimals', internalType: 'uint256', type: 'uint256' }],
+    name: 'currentUnitPrice',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  { type: 'error', inputs: [], name: 'JBRatioPriceFeed_ZeroDenominator' },
+  { type: 'error', inputs: [], name: 'JBRatioPriceFeed_ZeroDenominatorPrice' },
+  { type: 'error', inputs: [], name: 'JBRatioPriceFeed_ZeroNumerator' },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBRouterTerminal
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -40818,6 +42534,1047 @@ export const jbRouterTerminalAbi = [
   },
   { type: 'error', inputs: [], name: 'T' },
 ] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBRouterTerminalGateway
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const jbRouterTerminalGatewayAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'directory',
+        internalType: 'contract IJBDirectory',
+        type: 'address',
+      },
+      { name: 'permit2', internalType: 'contract IPermit2', type: 'address' },
+      {
+        name: 'router',
+        internalType: 'contract IJBRouterTerminal',
+        type: 'address',
+      },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DIRECTORY',
+    outputs: [
+      { name: '', internalType: 'contract IJBDirectory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'FINALIZATION_FAILURE_COUNT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PERMIT2',
+    outputs: [{ name: '', internalType: 'contract IPermit2', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'QUALIFIED_CALL_GAS',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'RETRY_DELAY',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'ROUTER',
+    outputs: [
+      { name: '', internalType: 'contract IJBRouterTerminal', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'accountingContextForTokenOf',
+    outputs: [
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'accountingContextsOf',
+    outputs: [
+      {
+        name: 'contexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'accountingContexts',
+        internalType: 'struct JBAccountingContext[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+      },
+    ],
+    name: 'addAccountingContextsFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'addToBalanceOf',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'tokens', internalType: 'address[]', type: 'address[]' },
+      { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+      { name: 'currency', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'currentSurplusOf',
+    outputs: [{ name: 'surplus', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'normalizedTokenIn', internalType: 'address', type: 'address' },
+      { name: 'normalizedTokenOut', internalType: 'address', type: 'address' },
+    ],
+    name: 'discoverBestPool',
+    outputs: [
+      {
+        name: 'pool',
+        internalType: 'struct PoolInfo',
+        type: 'tuple',
+        components: [
+          { name: 'isV4', internalType: 'bool', type: 'bool' },
+          {
+            name: 'v3Pool',
+            internalType: 'contract IUniswapV3Pool',
+            type: 'address',
+          },
+          {
+            name: 'v4Key',
+            internalType: 'struct PoolKey',
+            type: 'tuple',
+            components: [
+              { name: 'currency0', internalType: 'Currency', type: 'address' },
+              { name: 'currency1', internalType: 'Currency', type: 'address' },
+              { name: 'fee', internalType: 'uint24', type: 'uint24' },
+              { name: 'tickSpacing', internalType: 'int24', type: 'int24' },
+              {
+                name: 'hooks',
+                internalType: 'contract IHooks',
+                type: 'address',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'normalizedTokenIn', internalType: 'address', type: 'address' },
+      { name: 'normalizedTokenOut', internalType: 'address', type: 'address' },
+    ],
+    name: 'discoverPool',
+    outputs: [
+      {
+        name: 'pool',
+        internalType: 'contract IUniswapV3Pool',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'id', internalType: 'bytes32', type: 'bytes32' },
+      {
+        name: 'call',
+        internalType: 'struct JBPendingRouterTerminalCall',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'preferAddToBalance', internalType: 'bool', type: 'bool' },
+          { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'refundTo', internalType: 'address', type: 'address' },
+          { name: 'sourceProjectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'token', internalType: 'address', type: 'address' },
+        ],
+      },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'finalizePendingCall',
+    outputs: [
+      { name: 'wasRefunded', internalType: 'bool', type: 'bool' },
+      {
+        name: 'beneficiaryTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'id', internalType: 'bytes32', type: 'bytes32' },
+      {
+        name: 'call',
+        internalType: 'struct JBPendingRouterTerminalCall',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'preferAddToBalance', internalType: 'bool', type: 'bool' },
+          { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'refundTo', internalType: 'address', type: 'address' },
+          { name: 'sourceProjectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'token', internalType: 'address', type: 'address' },
+        ],
+      },
+      { name: 'gasLimit', internalType: 'uint256', type: 'uint256' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'finalizePendingCallWithGas',
+    outputs: [
+      { name: 'wasRefunded', internalType: 'bool', type: 'bool' },
+      {
+        name: 'beneficiaryTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'maximumQualifiedCallGas',
+    outputs: [{ name: 'gasLimit', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'contract IJBTerminal', type: 'address' },
+    ],
+    name: 'migrateBalanceOf',
+    outputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'originalPayer',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+      { name: 'minReturnedTokens', internalType: 'uint256', type: 'uint256' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'pay',
+    outputs: [
+      {
+        name: 'beneficiaryTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'id', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'pendingCallCommitmentOf',
+    outputs: [{ name: 'commitment', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pendingCallCount',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'id', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'pendingCallFailureOf',
+    outputs: [
+      {
+        name: 'failure',
+        internalType: 'struct JBPendingRouterTerminalCallFailure',
+        type: 'tuple',
+        components: [
+          { name: 'errorHash', internalType: 'bytes32', type: 'bytes32' },
+          { name: 'count', internalType: 'uint32', type: 'uint32' },
+          { name: 'lastFailureAt', internalType: 'uint48', type: 'uint48' },
+          { name: 'highestGasLimit', internalType: 'uint64', type: 'uint64' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'beneficiary', internalType: 'address', type: 'address' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'previewPayFor',
+    outputs: [
+      {
+        name: 'ruleset',
+        internalType: 'struct JBRuleset',
+        type: 'tuple',
+        components: [
+          { name: 'cycleNumber', internalType: 'uint48', type: 'uint48' },
+          { name: 'id', internalType: 'uint48', type: 'uint48' },
+          { name: 'basedOnId', internalType: 'uint48', type: 'uint48' },
+          { name: 'start', internalType: 'uint48', type: 'uint48' },
+          { name: 'duration', internalType: 'uint32', type: 'uint32' },
+          { name: 'weight', internalType: 'uint112', type: 'uint112' },
+          { name: 'weightCutPercent', internalType: 'uint32', type: 'uint32' },
+          {
+            name: 'approvalHook',
+            internalType: 'contract IJBRulesetApprovalHook',
+            type: 'address',
+          },
+          { name: 'metadata', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+      {
+        name: 'beneficiaryTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'reservedTokenCount', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'hookSpecifications',
+        internalType: 'struct JBPayHookSpecification[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'hook',
+            internalType: 'contract IJBPayHook',
+            type: 'address',
+          },
+          { name: 'noop', internalType: 'bool', type: 'bool' },
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'id', internalType: 'bytes32', type: 'bytes32' },
+      {
+        name: 'call',
+        internalType: 'struct JBPendingRouterTerminalCall',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'preferAddToBalance', internalType: 'bool', type: 'bool' },
+          { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'refundTo', internalType: 'address', type: 'address' },
+          { name: 'sourceProjectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'token', internalType: 'address', type: 'address' },
+        ],
+      },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'processPendingCall',
+    outputs: [
+      {
+        name: 'beneficiaryTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'id', internalType: 'bytes32', type: 'bytes32' },
+      {
+        name: 'call',
+        internalType: 'struct JBPendingRouterTerminalCall',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'preferAddToBalance', internalType: 'bool', type: 'bool' },
+          { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'refundTo', internalType: 'address', type: 'address' },
+          { name: 'sourceProjectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'token', internalType: 'address', type: 'address' },
+        ],
+      },
+      { name: 'gasLimit', internalType: 'uint256', type: 'uint256' },
+      { name: 'memo', internalType: 'string', type: 'string' },
+      { name: 'metadata', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'processPendingCallWithGas',
+    outputs: [
+      {
+        name: 'beneficiaryTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: 'supported', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'terminalOf',
+    outputs: [
+      {
+        name: 'terminal',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'returnedFees',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'AddToBalance',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'hook',
+        internalType: 'contract IJBPayHook',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAfterPayRecordedContext',
+        type: 'tuple',
+        components: [
+          { name: 'payer', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'rulesetId', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'amount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          {
+            name: 'forwardedAmount',
+            internalType: 'struct JBTokenAmount',
+            type: 'tuple',
+            components: [
+              { name: 'token', internalType: 'address', type: 'address' },
+              { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+              { name: 'currency', internalType: 'uint32', type: 'uint32' },
+              { name: 'value', internalType: 'uint256', type: 'uint256' },
+            ],
+          },
+          { name: 'weight', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'newlyIssuedTokenCount',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'hookMetadata', internalType: 'bytes', type: 'bytes' },
+          { name: 'payerMetadata', internalType: 'bytes', type: 'bytes' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'specificationAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'HookAfterRecordPay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'id', internalType: 'bytes32', type: 'bytes32', indexed: true },
+      {
+        name: 'call',
+        internalType: 'struct JBPendingRouterTerminalCall',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'preferAddToBalance', internalType: 'bool', type: 'bool' },
+          { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'refundTo', internalType: 'address', type: 'address' },
+          { name: 'sourceProjectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'token', internalType: 'address', type: 'address' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'beneficiaryTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBRouterTerminalGateway_ProcessPendingCall',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'id', internalType: 'bytes32', type: 'bytes32', indexed: true },
+      {
+        name: 'call',
+        internalType: 'struct JBPendingRouterTerminalCall',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'preferAddToBalance', internalType: 'bool', type: 'bool' },
+          { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'refundTo', internalType: 'address', type: 'address' },
+          { name: 'sourceProjectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'token', internalType: 'address', type: 'address' },
+        ],
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'errorHash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBRouterTerminalGateway_QueuePendingCall',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'id', internalType: 'bytes32', type: 'bytes32', indexed: true },
+      {
+        name: 'errorHash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: true,
+      },
+      { name: 'count', internalType: 'uint32', type: 'uint32', indexed: false },
+      {
+        name: 'nextAttemptAt',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBRouterTerminalGateway_RecordTerminalCallFailure',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'id', internalType: 'bytes32', type: 'bytes32', indexed: true },
+      {
+        name: 'call',
+        internalType: 'struct JBPendingRouterTerminalCall',
+        type: 'tuple',
+        components: [
+          { name: 'amount', internalType: 'uint256', type: 'uint256' },
+          { name: 'preferAddToBalance', internalType: 'bool', type: 'bool' },
+          { name: 'shouldReturnHeldFees', internalType: 'bool', type: 'bool' },
+          { name: 'beneficiary', internalType: 'address', type: 'address' },
+          { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'refundTo', internalType: 'address', type: 'address' },
+          { name: 'sourceProjectId', internalType: 'uint256', type: 'uint256' },
+          { name: 'token', internalType: 'address', type: 'address' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'JBRouterTerminalGateway_RefundPendingCall',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'to',
+        internalType: 'contract IJBTerminal',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'MigrateTerminal',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rulesetId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'rulesetCycleNumber',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'payer',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newlyIssuedTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'memo', internalType: 'string', type: 'string', indexed: false },
+      {
+        name: 'metadata',
+        internalType: 'bytes',
+        type: 'bytes',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Pay',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'reason', internalType: 'bytes', type: 'bytes', indexed: false },
+    ],
+    name: 'Permit2AllowanceFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'reason', internalType: 'bytes', type: 'bytes', indexed: false },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Permit2AllowanceFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'context',
+        internalType: 'struct JBAccountingContext',
+        type: 'tuple',
+        components: [
+          { name: 'token', internalType: 'address', type: 'address' },
+          { name: 'decimals', internalType: 'uint8', type: 'uint8' },
+          { name: 'currency', internalType: 'uint32', type: 'uint32' },
+        ],
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SetAccountingContext',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBRouterTerminalGateway_AmountOverflow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'maximum', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBRouterTerminalGateway_BlockGasLimitTooLow',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'expectedCommitment', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'actualCommitment', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    name: 'JBRouterTerminalGateway_CallDataMismatch',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'available', internalType: 'uint256', type: 'uint256' },
+      { name: 'required', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBRouterTerminalGateway_InsufficientRetryGas',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'value', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBRouterTerminalGateway_NoMsgValueAllowed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'id', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'failureCount', internalType: 'uint32', type: 'uint32' },
+    ],
+    name: 'JBRouterTerminalGateway_PendingCallNotFinalizable',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'id', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'JBRouterTerminalGateway_PendingCallNotFound',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'id', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'nextAttemptAt', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBRouterTerminalGateway_PendingCallNotReady',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'id', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'JBRouterTerminalGateway_PendingCallRequiresFinalization',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'allowance', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBRouterTerminalGateway_PermitAllowanceNotEnough',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'JBRouterTerminalGateway_ReentrantTokenTransfer',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'originalTerminal', internalType: 'address', type: 'address' },
+      { name: 'primaryTerminal', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBRouterTerminalGateway_RefundFailed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'gasLimit', internalType: 'uint256', type: 'uint256' },
+      { name: 'maximum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBRouterTerminalGateway_RetryGasLimitTooHigh',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'gasLimit', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBRouterTerminalGateway_RetryGasLimitTooLow',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'errorHash', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'JBRouterTerminalGateway_RouteFailed',
+  },
+  { type: 'error', inputs: [], name: 'JBRouterTerminalGateway_ZeroAddress' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBRouterTerminalPrevious
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export { jbRouterTerminalAbi as jbRouterTerminalPreviousAbi }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBRouterTerminalRegistry
@@ -41741,6 +44498,12 @@ export const jbRouterTerminalRegistryAbi = [
     name: 'SafeERC20FailedOperation',
   },
 ] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBRouterTerminalV1
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export { jbRouterTerminalAbi as jbRouterTerminalV1Abi }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBRulesets
@@ -64092,6 +66855,16 @@ export const revOwnerAbi = [
       "11155111": "0xad45e4627f068d1e6b21e5301870d807543a8401",
       "11155420": "0xad45e4627f068d1e6b21e5301870d807543a8401"
     },
+    "JBRatioPriceFeed": {
+      "1": "0x3fa39399bbc752418ee7e16addeb0b95d6386943",
+      "10": "0xedb20e9963b22bcd3b0652b246aac2c222510d36",
+      "8453": "0x3c2f3742785b0dec9bbb401de6615b70f740e4ca",
+      "42161": "0xa588449291852a49962276d75a25d51d8e285469",
+      "84532": "0x552da193c58a71d8ad9f354f7d09b29f79c12422",
+      "421614": "0xda4bbf677ba6f1f70054bd2bd6240d839141027d",
+      "11155111": "0xbfcd029ee4e8a550409e65b5e2eca4f21de30c94",
+      "11155420": "0x866aea0a4dba3d191790b68d564e96f1dd4d1f49"
+    },
     "ERC2771Forwarder": {
       "1": "0x3bA60b60933916a7C87D0860DcEE62a0CE34E3e2",
       "10": "0x3bA60b60933916a7C87D0860DcEE62a0CE34E3e2",
@@ -64163,13 +66936,13 @@ export const revOwnerAbi = [
       "11155420": "0x7903a854ae91eaf635430d120a1a434085cef297"
     },
     "JBBuybackHook": {
-      "1": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-      "10": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-      "8453": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-      "42161": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-      "84532": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-      "421614": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-      "11155111": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948"
+      "1": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
+      "10": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
+      "8453": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
+      "42161": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
+      "84532": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
+      "421614": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
+      "11155111": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91"
     },
     "JBBuybackHookRegistry": {
       "1": "0x72f55a54cd53410a5ff175508a5a384227081788",
@@ -64182,13 +66955,22 @@ export const revOwnerAbi = [
       "11155420": "0x72f55a54cd53410a5ff175508a5a384227081788"
     },
     "JBRouterTerminal": {
-      "1": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-      "10": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-      "8453": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-      "42161": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-      "84532": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-      "421614": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-      "11155111": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
+      "1": "0x62e2fe718ca3008a6a322deec9903286463f1add",
+      "10": "0x62e2fe718ca3008a6a322deec9903286463f1add",
+      "8453": "0x62e2fe718ca3008a6a322deec9903286463f1add",
+      "42161": "0x62e2fe718ca3008a6a322deec9903286463f1add",
+      "84532": "0x62e2fe718ca3008a6a322deec9903286463f1add",
+      "421614": "0x62e2fe718ca3008a6a322deec9903286463f1add",
+      "11155111": "0x62e2fe718ca3008a6a322deec9903286463f1add"
+    },
+    "JBRouterTerminalGateway": {
+      "1": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "10": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "8453": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "42161": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "84532": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "421614": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "11155111": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901"
     },
     "JBRouterTerminalRegistry": {
       "1": "0xe0427f250fdb0379c8e98e884ee4570521208cbc",
@@ -64351,6 +67133,76 @@ export const revOwnerAbi = [
     },
     "11155420": {
       "11155111": "0x298a775c030adcedb641a89d9047ec9972674e1a"
+    }
+  }
+} as const;
+
+  /** Historical v6 deployments retained for activity decoding and projects that have not migrated. */
+  export const jbContractAddressHistory = {
+  "6": {
+    "JBBuybackHook": {
+      "previous": {
+        "1": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
+        "10": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
+        "8453": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
+        "42161": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
+        "84532": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
+        "421614": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
+        "11155111": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948"
+      },
+      "v1": {
+        "1": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
+        "10": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
+        "8453": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
+        "42161": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
+        "84532": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
+        "421614": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
+        "11155111": "0xc7c8334b09e43a38c20b43cf0f824e074280b566"
+      }
+    },
+    "JBRouterTerminal": {
+      "previous": {
+        "1": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
+        "10": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
+        "8453": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
+        "42161": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
+        "84532": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
+        "421614": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
+        "11155111": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
+      },
+      "v1": {
+        "1": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
+        "10": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
+        "8453": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
+        "42161": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
+        "84532": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
+        "421614": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
+        "11155111": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61"
+      }
+    }
+  }
+} as const;
+
+  /** ABI generation for each canonical v6 deployment during the phased rollout. */
+  export const jbContractAbiGeneration = {
+  "6": {
+    "JBBuybackHook": {
+      "1": "current",
+      "10": "current",
+      "8453": "current",
+      "42161": "current",
+      "84532": "current",
+      "421614": "current",
+      "11155111": "current"
+    },
+    "JBRouterTerminal": {
+      "1": "current",
+      "10": "current",
+      "8453": "current",
+      "42161": "current",
+      "84532": "current",
+      "421614": "current",
+      "11155111": "current"
     }
   }
 } as const;

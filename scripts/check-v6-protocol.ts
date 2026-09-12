@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
+import { validateRolloutDeployment } from "../packages/core/scripts/validateRolloutDeployment.js";
 import * as bindingsModule from "../packages/core/src/generated/juicebox.js";
 
 type AbiParameter = {
@@ -34,6 +35,10 @@ type PairFixture = {
 };
 
 type ContractFixture = { address: string; abiSha256: string };
+type HistoryFixture = {
+  abiSha256: string;
+  deployments: Record<string, { address: string; artifact: string }>;
+};
 type ProtocolFixture = {
   format: string;
   source: { commit: string; repository: string };
@@ -41,6 +46,8 @@ type ProtocolFixture = {
   contracts: Record<string, ContractFixture>;
   overrides: Record<string, Record<string, string | null>>;
   suckerDeployerPairs: PairFixture[];
+  abiOverrides: Record<string, Record<string, string>>;
+  history: Record<string, Record<string, HistoryFixture>>;
 };
 
 const fixturePath = resolve("test/fixtures/protocol-deployments.v6.json");
@@ -144,7 +151,14 @@ function abiExportName(contractName: string) {
 
 function readDeployment(path: string) {
   invariant(existsSync(path), `Missing deployment artifact ${path}`);
-  return JSON.parse(readFileSync(path, "utf8")) as Deployment;
+  const deployment = JSON.parse(readFileSync(path, "utf8")) as Deployment;
+  validateRolloutDeployment(
+    deployment,
+    basename(dirname(path)),
+    basename(path, ".json"),
+    path,
+  );
+  return deployment;
 }
 
 function checkedDeploymentsRoot() {
@@ -165,19 +179,6 @@ function checkedDeploymentsRoot() {
   return root;
 }
 
-invariant(
-  fixture.format === "juice-sdk-v6-deployments-1",
-  `Unsupported protocol fixture format in ${fixturePath}`,
-);
-invariant(
-  fixture.source.commit === "316e9d4d3f9e1c5b41a5df7c0ad6183abbeccc7f",
-  "The protocol source commit changed without a reviewed parity-gate update.",
-);
-invariant(
-  fixture.source.repository === "Bananapus/deploy-all-v6",
-  `Unexpected protocol source repository ${fixture.source.repository}`,
-);
-
 const sdkAddressBook = bindings.jbContractAddress as {
   "6": Record<string, Record<string, string>>;
 };
@@ -190,14 +191,124 @@ const sdkNativeAddressBook = bindings.jbNativeSuckerDeployerAddress as {
 const chainIds = Object.keys(fixture.chains);
 const contractNames = Object.keys(fixture.contracts);
 
+// Explicit refresh reads only executed deployment artifacts. Proposal files are
+// never inputs. Review the resulting fixture and matching CI source pin together.
+if (process.argv.includes("--update-fixture")) {
+  invariant(
+    process.env.PROTOCOL_DEPLOYMENTS_DIR,
+    "Set PROTOCOL_DEPLOYMENTS_DIR to the executed deploy-all-v6 checkout.",
+  );
+  const root = resolve(process.env.PROTOCOL_DEPLOYMENTS_DIR);
+  fixture.source.commit = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  }).trim();
+  fixture.format = "juice-sdk-v6-deployments-2";
+  fixture.contracts = {};
+  fixture.overrides = {};
+  fixture.abiOverrides = {};
+  fixture.history = {};
+  for (const name of Object.keys(sdkAddressBook["6"])) {
+    const artifacts = Object.fromEntries(
+      Object.entries(fixture.chains).flatMap(([chainId, alias]) => {
+        const path = join(root, "deployments", alias, `${name}.json`);
+        return existsSync(path) ? [[chainId, readDeployment(path)]] : [];
+      }),
+    );
+    const first = Object.values(artifacts)[0];
+    const canonical = artifacts["11155111"] ?? first;
+    invariant(first?.address && canonical?.abi, `Missing ${name} deployment`);
+    const canonicalDigest = abiDigest(canonical.abi);
+    fixture.contracts[name] = {
+      address: first.address.toLowerCase(),
+      abiSha256: canonicalDigest,
+    };
+    for (const chainId of chainIds) {
+      const artifact = artifacts[chainId];
+      const address = artifact?.address?.toLowerCase() ?? null;
+      if (address !== fixture.contracts[name].address) {
+        (fixture.overrides[chainId] ??= {})[name] = address;
+      }
+      if (artifact?.abi && abiDigest(artifact.abi) !== canonicalDigest) {
+        (fixture.abiOverrides[chainId] ??= {})[name] = abiDigest(artifact.abi);
+      }
+    }
+  }
+  for (const name of ["JBBuybackHook", "JBRouterTerminal"]) {
+    fixture.history[name] = {};
+    for (const [generation, suffix] of [
+      ["previous", "_deprecated1"],
+      ["v1", "_deprecated"],
+    ]) {
+      const records = Object.fromEntries(
+        Object.entries(fixture.chains).flatMap(([chainId, alias]) => {
+          const artifact = `${name}${suffix}`;
+          const path = join(root, "deployments", alias, `${artifact}.json`);
+          return existsSync(path)
+            ? [[chainId, { artifact, deployment: readDeployment(path) }]]
+            : [];
+        }),
+      );
+      const reference = Object.values(records)[0]?.deployment;
+      invariant(
+        reference?.abi && reference.address,
+        `Missing ${name} ${generation}`,
+      );
+      const digest = abiDigest(reference.abi);
+      const deployments: HistoryFixture["deployments"] = {};
+      for (const [chainId, alias] of Object.entries(fixture.chains)) {
+        let record = records[chainId];
+        if (!record && generation === "previous") {
+          const path = join(root, "deployments", alias, `${name}.json`);
+          if (existsSync(path)) {
+            const candidate = readDeployment(path);
+            if (
+              candidate.address?.toLowerCase() ===
+                reference.address.toLowerCase() &&
+              candidate.abi &&
+              abiDigest(candidate.abi) === digest
+            ) {
+              record = { artifact: name, deployment: candidate };
+            }
+          }
+        }
+        if (record?.deployment.address)
+          deployments[chainId] = {
+            artifact: record.artifact,
+            address: record.deployment.address.toLowerCase(),
+          };
+      }
+      fixture.history[name][generation] = { abiSha256: digest, deployments };
+    }
+  }
+  writeFileSync(fixturePath, `${JSON.stringify(fixture, null, 2)}\n`);
+  process.stdout.write(
+    `Updated executed deployment fixture from ${fixture.source.commit}. Review the CI source pin before committing.\n`,
+  );
+  process.exit(0);
+}
+
+invariant(
+  fixture.format === "juice-sdk-v6-deployments-2",
+  `Unsupported protocol fixture format in ${fixturePath}`,
+);
+invariant(
+  /^[0-9a-f]{40}$/.test(fixture.source.commit),
+  "Pin a full reviewed deployment source commit.",
+);
+invariant(
+  fixture.source.repository === "Bananapus/deploy-all-v6",
+  `Unexpected protocol source repository ${fixture.source.repository}`,
+);
+
 assertExactKeys(
   Object.keys(sdkAddressBook["6"]),
   contractNames,
   "v6 contracts",
 );
 invariant(
-  contractNames.length === 33,
-  `Expected 33 v6 contracts; got ${contractNames.length}`,
+  contractNames.length === 35,
+  `Expected 35 v6 contracts; got ${contractNames.length}`,
 );
 invariant(
   chainIds.length === 8,
@@ -206,11 +317,18 @@ invariant(
 
 if (process.argv.includes("--print-abi-digests")) {
   const root = checkedDeploymentsRoot();
-  const firstAlias = fixture.chains[chainIds[0]];
+  const aliases = [
+    fixture.chains["11155111"],
+    ...Object.values(fixture.chains),
+  ];
   const digests = Object.fromEntries(
     contractNames.map((contractName) => {
       const artifact = readDeployment(
-        join(root, "deployments", firstAlias, `${contractName}.json`),
+        aliases
+          .map((alias) =>
+            join(root, "deployments", alias, `${contractName}.json`),
+          )
+          .find(existsSync)!,
       );
       invariant(Array.isArray(artifact.abi), `${contractName} has no ABI`);
       return [contractName, abiDigest(artifact.abi)];
@@ -294,10 +412,6 @@ for (const [chainId, overrides] of Object.entries(fixture.overrides)) {
     );
   }
 }
-invariant(
-  explicitAbsences === 5,
-  `Expected 5 explicit deployment absences; got ${explicitAbsences}`,
-);
 
 const chainFamilies = [
   ["1", "10", "8453", "42161"],
@@ -399,6 +513,69 @@ invariant(
   "The v6 native sucker-deployer address book does not match the pinned directional fixture.",
 );
 
+const sdkHistory = bindings.jbContractAddressHistory as {
+  "6": Record<string, Record<string, Record<string, string>>>;
+};
+const sdkGenerations = bindings.jbContractAbiGeneration as {
+  "6": Record<string, Record<string, string>>;
+};
+assertExactKeys(
+  Object.keys(sdkHistory["6"]),
+  Object.keys(fixture.history),
+  "historical contracts",
+);
+for (const [name, generations] of Object.entries(fixture.history)) {
+  assertExactKeys(
+    Object.keys(sdkHistory["6"][name]),
+    Object.keys(generations),
+    `${name} generations`,
+  );
+  for (const [generation, historical] of Object.entries(generations)) {
+    const addressBook = sdkHistory["6"][name][generation];
+    assertExactKeys(
+      Object.keys(addressBook),
+      Object.keys(historical.deployments),
+      `${name} ${generation} chains`,
+    );
+    const exportName = abiExportName(
+      `${name}${generation === "previous" ? "Previous" : "V1"}`,
+    );
+    const abi = bindings[exportName] as AbiItem[];
+    invariant(
+      Array.isArray(abi) && abiDigest(abi) === historical.abiSha256,
+      `${exportName} differs from its executed artifact`,
+    );
+    for (const [chainId, deployment] of Object.entries(
+      historical.deployments,
+    )) {
+      invariant(
+        normalizeAddress(addressBook[chainId]) === deployment.address,
+        `${name} ${generation} on ${chainId} differs`,
+      );
+    }
+  }
+  for (const [chainId, address] of Object.entries(sdkAddressBook["6"][name])) {
+    const generation =
+      Object.entries(generations).find(
+        ([, history]) =>
+          history.deployments[chainId]?.address === address.toLowerCase(),
+      )?.[0] ?? "current";
+    invariant(
+      sdkGenerations["6"][name][chainId] === generation,
+      `${name} ABI generation on ${chainId} differs`,
+    );
+    const digest =
+      generation === "current"
+        ? fixture.contracts[name].abiSha256
+        : generations[generation].abiSha256;
+    invariant(
+      (fixture.abiOverrides[chainId]?.[name] ??
+        fixture.contracts[name].abiSha256) === digest,
+      `${name} selected ABI on ${chainId} does not match its generated generation`,
+    );
+  }
+}
+
 const deploymentsRoot = process.env.PROTOCOL_DEPLOYMENTS_DIR;
 if (!deploymentsRoot) {
   process.stdout.write(
@@ -445,11 +622,36 @@ for (const [chainId, alias] of Object.entries(fixture.chains)) {
       `${contractName} on ${chainId} has no ABI`,
     );
     invariant(
-      abiDigest(artifact.abi) === expectedContract.abiSha256,
+      abiDigest(artifact.abi) ===
+        (fixture.abiOverrides[chainId]?.[contractName] ??
+          expectedContract.abiSha256),
       `${contractName} ABI on ${chainId} differs from its pinned public surface`,
     );
     contractArtifacts += 1;
     artifactAbiChecks += 1;
+  }
+}
+
+for (const [name, generations] of Object.entries(fixture.history)) {
+  for (const [generation, historical] of Object.entries(generations)) {
+    for (const [chainId, deployment] of Object.entries(
+      historical.deployments,
+    )) {
+      const artifact = readDeployment(
+        join(
+          root,
+          "deployments",
+          fixture.chains[chainId],
+          `${deployment.artifact}.json`,
+        ),
+      );
+      invariant(
+        normalizeAddress(artifact.address) === deployment.address &&
+          artifact.abi &&
+          abiDigest(artifact.abi) === historical.abiSha256,
+        `${name} ${generation} on ${chainId} differs from its source artifact`,
+      );
+    }
   }
 }
 
@@ -477,17 +679,17 @@ for (const pair of fixture.suckerDeployerPairs) {
 }
 
 invariant(
-  contractArtifacts === 259,
-  `Expected 259 deployed contract artifacts; got ${contractArtifacts}`,
+  contractArtifacts === addressSlots - explicitAbsences,
+  `Deployed artifact count differs from the fixture: ${contractArtifacts}`,
 );
 invariant(
-  artifactAbiChecks === 259,
-  `Expected 259 artifact ABI checks; got ${artifactAbiChecks}`,
+  artifactAbiChecks === contractArtifacts,
+  `Expected an ABI check for every artifact; got ${artifactAbiChecks}`,
 );
 invariant(
   suckerArtifacts === 36,
   `Expected 36 sucker artifact checks; got ${suckerArtifacts}`,
 );
 process.stdout.write(
-  `Verified 264 contract deployment slots (259 artifacts, 5 absences), 33 generated ABI surfaces against 259 chain artifacts, and 36 directional sucker artifacts at deploy-all-v6 ${fixture.source.commit}.\n`,
+  `Verified ${addressSlots} contract deployment slots (${contractArtifacts} artifacts, ${explicitAbsences} absences), ${generatedAbiCount} generated ABI surfaces plus retained historical generations against ${artifactAbiChecks} chain artifacts, and 36 directional sucker artifacts at deploy-all-v6 ${fixture.source.commit}.\n`,
 );

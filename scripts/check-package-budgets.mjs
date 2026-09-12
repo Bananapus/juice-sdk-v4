@@ -11,9 +11,10 @@ const budgets = {
     // direct-pay routing, Permit2 helpers, the viem error discriminators, the
     // price-feed reachability probe, the Uniswap V4 LP-split-hook ABIs, and
     // tree-shakable loan/deployment and JB Center entry points in both ESM and
-    // CJS formats.
-    packed: 860_000,
-    unpacked: 17_600_000,
+    // CJS formats, plus the router gateway, ratio feed, and preserved router/
+    // buyback ABI generations required by projects that have not migrated.
+    packed: 900_000,
+    unpacked: 18_750_000,
     entries: 426,
   },
   "@bananapus/nana-sdk-react": {

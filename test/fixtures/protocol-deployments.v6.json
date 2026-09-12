@@ -1,18 +1,18 @@
 {
-  "format": "juice-sdk-v6-deployments-1",
+  "format": "juice-sdk-v6-deployments-2",
   "source": {
     "repository": "Bananapus/deploy-all-v6",
-    "commit": "316e9d4d3f9e1c5b41a5df7c0ad6183abbeccc7f"
+    "commit": "a6ab40c5806b52ff4cb21f9eaefe275e621796f9"
   },
   "chains": {
     "1": "ethereum",
     "10": "optimism",
     "8453": "base",
     "42161": "arbitrum",
-    "11155111": "sepolia",
-    "11155420": "optimism_sepolia",
     "84532": "base_sepolia",
-    "421614": "arbitrum_sepolia"
+    "421614": "arbitrum_sepolia",
+    "11155111": "sepolia",
+    "11155420": "optimism_sepolia"
   },
   "contracts": {
     "JBController": {
@@ -75,6 +75,10 @@
       "address": "0xad45e4627f068d1e6b21e5301870d807543a8401",
       "abiSha256": "8172fbb5f9e2e1f28dc894eced8d5ade60bff32023017524754bd52d78eb6003"
     },
+    "JBRatioPriceFeed": {
+      "address": "0x3fa39399bbc752418ee7e16addeb0b95d6386943",
+      "abiSha256": "9111ae8cca68c73dc587a012ece8541dce2a6421860bd00228d255534b47e8d7"
+    },
     "ERC2771Forwarder": {
       "address": "0x3ba60b60933916a7c87d0860dcee62a0ce34e3e2",
       "abiSha256": "e6cd92ec458de2635d0e1d23bdaf6cd3d7d3fe30183216186dee9d1396475ac7"
@@ -104,20 +108,36 @@
       "abiSha256": "0501cc46db03513e7b3e963052dae82f73ae2a2bc39946b602292baf072a5264"
     },
     "JBBuybackHook": {
-      "address": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-      "abiSha256": "5c5204b13ef6aaa41d0d177145113016f9261474239125fb380c6c53f03a41d0"
+      "address": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
+      "abiSha256": "7e164bcfab57f67d50090de468d6f536e0fad66c03695ed4dc1cbecbf506161e"
     },
     "JBBuybackHookRegistry": {
       "address": "0x72f55a54cd53410a5ff175508a5a384227081788",
       "abiSha256": "0d36f5baa0ba8b65e51a06178b85354337fd3bc1841995307c9f17d4d229e955"
     },
     "JBRouterTerminal": {
-      "address": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
+      "address": "0x62e2fe718ca3008a6a322deec9903286463f1add",
       "abiSha256": "04a30db77b9bbbf790e40df7af6d770e7e3ec224fb43496ba512e3870c0952ed"
+    },
+    "JBRouterTerminalGateway": {
+      "address": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "abiSha256": "25b36165fc7da556bab2c7d314628c3b600052ad9626532f0c0576f9617e4f0c"
     },
     "JBRouterTerminalRegistry": {
       "address": "0xe0427f250fdb0379c8e98e884ee4570521208cbc",
       "abiSha256": "4a2b24484f9353821501ddd7b2e84216e8263f42a9d80f78596505155a918d7e"
+    },
+    "JBUniswapV4LPSplitHook": {
+      "address": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251",
+      "abiSha256": "85264c1d57b6e54b22badcedb7f9bab99386f40a36d0e7692ca1cedbc39db374"
+    },
+    "JBUniswapV4LPSplitHookDeployer": {
+      "address": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da",
+      "abiSha256": "e619e63a46a3092b2112718b279c1149adb0651e22e6193ca5db9f37960b8749"
+    },
+    "JBP6FeeLPSplitHook": {
+      "address": "0xe9493bc776699714a89aa982cf828d843f040d2a",
+      "abiSha256": "85264c1d57b6e54b22badcedb7f9bab99386f40a36d0e7692ca1cedbc39db374"
     },
     "JBOmnichainDeployer": {
       "address": "0xb853758a70a6b4216c09f1d071ea2344aba0a34f",
@@ -134,24 +154,32 @@
     "REVOwner": {
       "address": "0x2ba4705ad0332cdfb299b452068438bcba3faaf3",
       "abiSha256": "73f69e2538d928b733e0f96c622154cd9d2f2bf209a124190d0bf46ff0ec3826"
-    },
-    "JBUniswapV4LPSplitHook": {
-      "address": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251",
-      "abiSha256": "85264c1d57b6e54b22badcedb7f9bab99386f40a36d0e7692ca1cedbc39db374"
-    },
-    "JBUniswapV4LPSplitHookDeployer": {
-      "address": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da",
-      "abiSha256": "e619e63a46a3092b2112718b279c1149adb0651e22e6193ca5db9f37960b8749"
-    },
-    "JBP6FeeLPSplitHook": {
-      "address": "0xe9493bc776699714a89aa982cf828d843f040d2a",
-      "abiSha256": "85264c1d57b6e54b22badcedb7f9bab99386f40a36d0e7692ca1cedbc39db374"
     }
   },
   "overrides": {
+    "10": {
+      "JBRatioPriceFeed": "0xedb20e9963b22bcd3b0652b246aac2c222510d36"
+    },
+    "8453": {
+      "JBRatioPriceFeed": "0x3c2f3742785b0dec9bbb401de6615b70f740e4ca"
+    },
+    "42161": {
+      "JBRatioPriceFeed": "0xa588449291852a49962276d75a25d51d8e285469"
+    },
+    "84532": {
+      "JBRatioPriceFeed": "0x552da193c58a71d8ad9f354f7d09b29f79c12422"
+    },
+    "421614": {
+      "JBRatioPriceFeed": "0xda4bbf677ba6f1f70054bd2bd6240d839141027d"
+    },
+    "11155111": {
+      "JBRatioPriceFeed": "0xbfcd029ee4e8a550409e65b5e2eca4f21de30c94"
+    },
     "11155420": {
+      "JBRatioPriceFeed": "0x866aea0a4dba3d191790b68d564e96f1dd4d1f49",
       "JBBuybackHook": null,
       "JBRouterTerminal": null,
+      "JBRouterTerminalGateway": null,
       "JBUniswapV4LPSplitHook": null,
       "JBUniswapV4LPSplitHookDeployer": null,
       "JBP6FeeLPSplitHook": null
@@ -410,5 +438,144 @@
       },
       "native": null
     }
-  ]
+  ],
+  "abiOverrides": {},
+  "history": {
+    "JBBuybackHook": {
+      "previous": {
+        "abiSha256": "5c5204b13ef6aaa41d0d177145113016f9261474239125fb380c6c53f03a41d0",
+        "deployments": {
+          "1": {
+            "artifact": "JBBuybackHook_deprecated1",
+            "address": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948"
+          },
+          "10": {
+            "artifact": "JBBuybackHook_deprecated1",
+            "address": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948"
+          },
+          "8453": {
+            "artifact": "JBBuybackHook_deprecated1",
+            "address": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948"
+          },
+          "42161": {
+            "artifact": "JBBuybackHook_deprecated1",
+            "address": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948"
+          },
+          "84532": {
+            "artifact": "JBBuybackHook_deprecated1",
+            "address": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948"
+          },
+          "421614": {
+            "artifact": "JBBuybackHook_deprecated1",
+            "address": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948"
+          },
+          "11155111": {
+            "artifact": "JBBuybackHook_deprecated1",
+            "address": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948"
+          }
+        }
+      },
+      "v1": {
+        "abiSha256": "366d51fb43cbe29c4239984e7e5cc8c97158926699da2036f22a781fa5b96daa",
+        "deployments": {
+          "1": {
+            "artifact": "JBBuybackHook_deprecated",
+            "address": "0xc7c8334b09e43a38c20b43cf0f824e074280b566"
+          },
+          "10": {
+            "artifact": "JBBuybackHook_deprecated",
+            "address": "0xc7c8334b09e43a38c20b43cf0f824e074280b566"
+          },
+          "8453": {
+            "artifact": "JBBuybackHook_deprecated",
+            "address": "0xc7c8334b09e43a38c20b43cf0f824e074280b566"
+          },
+          "42161": {
+            "artifact": "JBBuybackHook_deprecated",
+            "address": "0xc7c8334b09e43a38c20b43cf0f824e074280b566"
+          },
+          "84532": {
+            "artifact": "JBBuybackHook_deprecated",
+            "address": "0xc7c8334b09e43a38c20b43cf0f824e074280b566"
+          },
+          "421614": {
+            "artifact": "JBBuybackHook_deprecated",
+            "address": "0xc7c8334b09e43a38c20b43cf0f824e074280b566"
+          },
+          "11155111": {
+            "artifact": "JBBuybackHook_deprecated",
+            "address": "0xc7c8334b09e43a38c20b43cf0f824e074280b566"
+          }
+        }
+      }
+    },
+    "JBRouterTerminal": {
+      "previous": {
+        "abiSha256": "04a30db77b9bbbf790e40df7af6d770e7e3ec224fb43496ba512e3870c0952ed",
+        "deployments": {
+          "1": {
+            "artifact": "JBRouterTerminal_deprecated1",
+            "address": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
+          },
+          "10": {
+            "artifact": "JBRouterTerminal_deprecated1",
+            "address": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
+          },
+          "8453": {
+            "artifact": "JBRouterTerminal_deprecated1",
+            "address": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
+          },
+          "42161": {
+            "artifact": "JBRouterTerminal_deprecated1",
+            "address": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
+          },
+          "84532": {
+            "artifact": "JBRouterTerminal_deprecated1",
+            "address": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
+          },
+          "421614": {
+            "artifact": "JBRouterTerminal_deprecated1",
+            "address": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
+          },
+          "11155111": {
+            "artifact": "JBRouterTerminal_deprecated1",
+            "address": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
+          }
+        }
+      },
+      "v1": {
+        "abiSha256": "04a30db77b9bbbf790e40df7af6d770e7e3ec224fb43496ba512e3870c0952ed",
+        "deployments": {
+          "1": {
+            "artifact": "JBRouterTerminal_deprecated",
+            "address": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61"
+          },
+          "10": {
+            "artifact": "JBRouterTerminal_deprecated",
+            "address": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61"
+          },
+          "8453": {
+            "artifact": "JBRouterTerminal_deprecated",
+            "address": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61"
+          },
+          "42161": {
+            "artifact": "JBRouterTerminal_deprecated",
+            "address": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61"
+          },
+          "84532": {
+            "artifact": "JBRouterTerminal_deprecated",
+            "address": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61"
+          },
+          "421614": {
+            "artifact": "JBRouterTerminal_deprecated",
+            "address": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61"
+          },
+          "11155111": {
+            "artifact": "JBRouterTerminal_deprecated",
+            "address": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61"
+          }
+        }
+      }
+    }
+  }
 }
