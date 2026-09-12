@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 2.5.0
+
+### Minor Changes
+
+- 04fef83: Export the deployed router gateway and ratio-feed ABIs, per-chain rollout addresses, historical hook/router generations, and effective project router resolution. Encode the buyback hook's three-word pay quote and preserve cash-out routing for projects still using the previous hook. Include the executed production rollout from deployment records while preserving historical project routes and chain-specific absences.
+
 ## 2.4.1
 
 ### Patch Changes
