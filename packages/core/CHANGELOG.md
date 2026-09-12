@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 2.5.1
+
+### Patch Changes
+
+- 9866b3d: Allow the read-only `eth_simulateV1` method through the JB Center client and EIP-1193 provider so applications can inspect full-transaction simulation logs, including buyback fee fallbacks.
+
 ## 2.5.0
 
 ### Minor Changes
