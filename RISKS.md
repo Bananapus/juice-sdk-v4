@@ -54,3 +54,5 @@ not classified from a familiar-looking interface.
   recorded on that chain. V1 artifacts remain available for historical decoding;
   the default quote parser does not extend support to them. A custom hook requires
   an explicit caller-selected address and compatible diagnostic metadata.
+
+`JBCENTER_RPC_METHODS` includes the gateway-supported `eth_simulateV1` read method. The client forwards the caller’s simulation parameters unchanged and the gateway enforces its existing simulation size and method restrictions. Simulation results do not authorize or submit transactions and are not guarantees of later execution; wallet, transaction-submission, and privileged debug methods remain excluded.

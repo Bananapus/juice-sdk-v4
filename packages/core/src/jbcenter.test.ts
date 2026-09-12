@@ -285,6 +285,64 @@ describe("JB Center client", () => {
     });
   });
 
+  test.each(["client", "provider"] as const)(
+    "forwards eth_simulateV1 through the %s without changing the reviewed calls",
+    async (surface) => {
+      const result = [
+        { calls: [{ status: "0x1", returnData: "0x", logs: [] }] },
+      ];
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(jsonResponse({ jsonrpc: "2.0", id: 1, result }));
+      const request = {
+        method: "eth_simulateV1" as const,
+        params: [
+          {
+            blockStateCalls: [
+              {
+                calls: [
+                  { from: address, to: address, data: "0x", value: "0x0" },
+                ],
+              },
+            ],
+            validation: false,
+          },
+          "0x123",
+        ],
+      };
+      const response =
+        surface === "client"
+          ? createJBCenterClient({ fetch: fetchMock }).rpc(8453, request)
+          : createJBCenterRpcProvider(8453, { fetch: fetchMock }).request(
+              request,
+            );
+      await expect(response).resolves.toEqual(result);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(
+        "https://juicebox.center/v1/rpc/8453",
+      );
+      expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+        jsonrpc: "2.0",
+        id: 1,
+        ...request,
+      });
+    },
+  );
+
+  test.each([
+    "eth_sendTransaction",
+    "eth_sendRawTransaction",
+    "debug_traceCall",
+    "wallet_sendCalls",
+  ])("still rejects %s before making a network request", async (method) => {
+    const fetchMock = vi.fn();
+    const provider = createJBCenterRpcProvider(8453, { fetch: fetchMock });
+    await expect(provider.request({ method, params: [] })).rejects.toThrow(
+      "not supported",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   test("surfaces RPC errors and rejects malformed envelopes", async () => {
     const fetchMock = vi
       .fn()
