@@ -1,5 +1,14 @@
 # juice-sdk-core
 
+## 2.6.0
+
+### Minor Changes
+
+- 8753bc5: Add the framework-independent `/safe` entry point for ordinary Safe 1.4.1
+  multisigs. Resolve existing addresses or prepare deterministic Safe deployments,
+  verify canonical deployments and their owner policies, and compose deployment
+  calls with compatible project launches without signing or submitting transactions.
+
 ## 2.5.1
 
 ### Patch Changes
