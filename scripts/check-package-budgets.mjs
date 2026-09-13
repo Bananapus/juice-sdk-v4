@@ -13,9 +13,10 @@ const budgets = {
     // tree-shakable loan/deployment and JB Center entry points in both ESM and
     // CJS formats, plus the router gateway, ratio feed, and preserved router/
     // buyback ABI generations required by projects that have not migrated.
+    // The /safe entry point adds eight ESM/CJS JS/declaration/map artifacts.
     packed: 900_000,
     unpacked: 18_750_000,
-    entries: 426,
+    entries: 434,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

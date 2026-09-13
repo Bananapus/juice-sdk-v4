@@ -74,6 +74,81 @@ const publicClient = createPublicClient({
 });
 ```
 
+## Inline Safe creation
+
+`@bananapus/nana-sdk-core/safe` prepares ordinary Safe 1.4.1 multisigs without
+React, a wallet, a relayer, or a hosted account service. Apps supply the owner
+addresses and approval threshold, and assign the resulting address to their own
+project Owner, Operator, or other role:
+
+```ts
+import {
+  bundleSafeLaunch,
+  checkSafeDeployments,
+  resolveSafeAddress,
+  verifySafeDeployments,
+  verifySafeLaunchSimulation,
+  type SafeCall,
+} from "@bananapus/nana-sdk-core/safe";
+
+// Persist the nonce and returned plan with the draft so retries use the same Safe.
+// publicClients contains a read client for every destination chain.
+const owner = await resolveSafeAddress(
+  { kind: "create", owners: signerAddresses, threshold: 2, saltNonce },
+  publicClients,
+);
+const plans = owner.plan ? [owner.plan] : [];
+
+// Alternatively, accept an existing address without deploying a new Safe:
+const operator = await resolveSafeAddress(
+  { kind: "existing", address: existingOperatorAddress },
+  [],
+);
+
+// Build an app-specific launch using owner.address and operator.address.
+// Only bundle calls whose authorization tolerates Multicall3 as msg.sender.
+const launchCall: SafeCall = buildAuthenticatedLaunchCall({
+  owner: owner.address,
+  operator: operator.address,
+});
+await checkSafeDeployments(publicClient, plans);
+const batch = bundleSafeLaunch(launchCall, plans);
+const simulation = await publicClient.call({ ...batch, account });
+await verifySafeLaunchSimulation(publicClient, plans, simulation.data);
+
+// The app signs/submits `batch`, then waits for a successful receipt.
+await verifySafeDeployments(publicClient, plans, {
+  blockNumber: receipt.blockNumber,
+});
+```
+
+Each new configuration accepts 1–50 unique signer addresses and a threshold from
+1 through the signer count. `saltNonce` is a 32-byte hex value. Resolution verifies
+the canonical Safe factory, singleton, and fallback handler runtimes on every
+supplied chain. Safe initialization adds no modules, guards, setup hooks, or
+payments. Existing-address resolution normalizes the address; it does not certify
+that the supplied address is a Safe.
+
+The same Safe address across chains requires the same ordered signers,
+threshold, nonce, initializer, factory, and proxy creation bytecode. Create-mode
+resolution rejects differing creation bytecode across the supplied clients. Keep
+the plan stable when resuming a launch. Preflight and receipt verification check
+the deployed Safe runtime and owner policy; verification errors must prevent an
+app from reporting success.
+
+`bundleSafeLaunch` uses Multicall3 `CALL`, so the launch contract sees Multicall3
+as `msg.sender`. Use a sender-independent launch or a forwarded call that already
+authenticates its signer. `buildSafeDeploymentTx(chainId, plans)` prepares a
+separate deployment transaction when the launch must preserve its original
+caller. Deployment calls tolerate retries, so a successful outer simulation
+alone is insufficient: verify its inner results and the deployed Safes as shown
+above.
+
+Compose and submit one batch per destination chain. A Relayr integration may
+fund several chains with one payment, but chains confirm independently; these
+batches do not provide atomic execution across chains. The client owns signing,
+funding, progress, and recovery.
+
 ## Installation
 
 ```bash
@@ -328,8 +403,13 @@ We use [Changesets](https://github.com/changesets/changesets) for automated publ
 # Create a changeset
 npm run changeset
 
-# Packages are automatically published when merged to main
+# Commit the changeset together with the implementation
 ```
+
+After the change reaches `main`, the release workflow runs the verification
+gates and opens or updates a versioning pull request. Merge that pull request to
+apply the version bumps and changelogs; the following `main` workflow publishes
+the new packages to npm with GitHub Actions provenance.
 
 **Change Types:**
 

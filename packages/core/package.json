@@ -36,6 +36,11 @@
       "import": "./dist/esm/jbcenter.js",
       "require": "./dist/cjs/jbcenter.js"
     },
+    "./safe": {
+      "types": "./dist/esm/safe.d.ts",
+      "import": "./dist/esm/safe.js",
+      "require": "./dist/cjs/safe.js"
+    },
     "./v6": {
       "types": "./dist/esm/v6/index.d.ts",
       "import": "./dist/esm/v6/index.js",
