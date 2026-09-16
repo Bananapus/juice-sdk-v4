@@ -24,6 +24,12 @@ const budgets = {
     unpacked: 1_820_000,
     entries: 110,
   },
+  "@bananapus/nana-sdk-connect": {
+    directory: "packages/connect",
+    packed: 60_000,
+    unpacked: 400_000,
+    entries: 40,
+  },
 };
 
 const failures = [];

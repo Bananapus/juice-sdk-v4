@@ -5,6 +5,7 @@ import ts from "typescript";
 const productionRoots = [
   resolve("packages/core/src"),
   resolve("packages/react/src"),
+  resolve("packages/connect/src"),
 ];
 const inventoryPath = resolve("test/wallet-boundaries.json");
 const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
