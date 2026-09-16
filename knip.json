@@ -48,6 +48,14 @@
       "project": [
         "src/**/*.{ts,tsx}"
       ]
+    },
+    "packages/connect": {
+      "entry": [
+        "src/**/*.test.{ts,tsx}"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ]
     }
   }
 }
