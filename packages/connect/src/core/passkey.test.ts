@@ -7,17 +7,148 @@ function wallet(pending: { status: string } | null = null) {
     launch,
     wallet: {
       prepareConnection: vi.fn(async () => ({ launch })),
+      completeConnection: vi.fn(async (url: string) => ({ url })),
+      retryConnection: vi.fn(async () => ({ retried: true })),
       disconnect: vi.fn(),
       payments: () => ({ pendingPayment: () => pending }),
     },
   };
 }
+/** A page whose window.open yields a popup that answers the launch with a callback message. */
+function page(popupOpens = true) {
+  const listeners = new Set<(event: MessageEvent) => void>();
+  const popup = { closed: false, close: vi.fn(), postMessage: vi.fn() };
+  const win = {
+    location: { origin: "https://app.example" },
+    open: vi.fn(() => (popupOpens ? popup : null)),
+    addEventListener: (
+      _type: string,
+      listener: (event: MessageEvent) => void,
+    ) => listeners.add(listener),
+    removeEventListener: (
+      _type: string,
+      listener: (event: MessageEvent) => void,
+    ) => listeners.delete(listener),
+  };
+  const callback = (url: string) => {
+    for (const listener of listeners)
+      listener({
+        data: { type: "juicebox-center:callback", url },
+        origin: win.location.origin,
+        source: popup,
+      } as unknown as MessageEvent);
+  };
+  return { win: win as unknown as Window, popup, callback };
+}
+const url = "https://app.example/center/callback?code=c&state=s&iss=i";
 
 describe("passkeyOption", () => {
+  test("opens the popup in the click, launches into it, completes the delivered callback in the page, then tells the app", async () => {
+    const w = wallet(),
+      p = page(),
+      connected = vi.fn();
+    const option = passkeyOption({
+      wallet: () => w.wallet,
+      connected,
+      window: p.win,
+    });
+    const connecting = option.connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+    });
+    // The window opens synchronously, before the wallet loads.
+    expect(p.win.open).toHaveBeenCalledOnce();
+    await vi.waitFor(() =>
+      expect(w.launch).toHaveBeenCalledWith({ target: "juicebox-center" }),
+    );
+    p.callback(url);
+    await connecting;
+    expect(w.wallet.completeConnection).toHaveBeenCalledWith(url);
+    expect(connected).toHaveBeenCalledWith({ url });
+    expect(p.popup.close).toHaveBeenCalled();
+  });
+  test("a blocked popup, or popup: false, falls back to the full-page redirect", async () => {
+    const blocked = wallet(),
+      p = page(false),
+      connected = vi.fn();
+    await passkeyOption({
+      wallet: () => blocked.wallet,
+      connected,
+      window: p.win,
+    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    expect(blocked.launch).toHaveBeenCalledWith();
+    expect(connected).not.toHaveBeenCalled();
+    const off = wallet(),
+      q = page();
+    await passkeyOption({
+      wallet: () => off.wallet,
+      popup: false,
+      window: q.win,
+    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    expect(q.win.open).not.toHaveBeenCalled();
+    expect(off.launch).toHaveBeenCalledWith();
+  });
+  test("an exchange still pending from an earlier attempt is retried in the page, without a launch", async () => {
+    const w = wallet(),
+      p = page(),
+      connected = vi.fn();
+    w.wallet.prepareConnection.mockRejectedValue(
+      Object.assign(new Error("pending"), { code: "WALLET_HANDOFF_PENDING" }),
+    );
+    await passkeyOption({
+      wallet: () => w.wallet,
+      connected,
+      window: p.win,
+    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    expect(w.wallet.retryConnection).toHaveBeenCalledOnce();
+    expect(w.launch).not.toHaveBeenCalled();
+    expect(connected).toHaveBeenCalledWith({ retried: true });
+    expect(p.popup.close).toHaveBeenCalled();
+    // After a full-page redirect the callback page owns the retry; the option only reports.
+    const redirected = wallet();
+    redirected.wallet.prepareConnection.mockRejectedValue(
+      Object.assign(new Error("pending"), { code: "WALLET_HANDOFF_PENDING" }),
+    );
+    await expect(
+      passkeyOption({ wallet: () => redirected.wallet, popup: false }).connect({
+        signal: new AbortController().signal,
+        handoff: () => {},
+      }),
+    ).rejects.toThrow("pending");
+    expect(redirected.wallet.retryConnection).not.toHaveBeenCalled();
+  });
+  test("closes the popup when preparing fails or the connection is cancelled", async () => {
+    const broken = wallet(),
+      p = page();
+    broken.wallet.prepareConnection.mockRejectedValue(new Error("down"));
+    await expect(
+      passkeyOption({ wallet: () => broken.wallet, window: p.win }).connect({
+        signal: new AbortController().signal,
+        handoff: () => {},
+      }),
+    ).rejects.toThrow("down");
+    expect(p.popup.close).toHaveBeenCalled();
+    const w = wallet(),
+      q = page(),
+      controller = new AbortController();
+    const connecting = passkeyOption({
+      wallet: () => w.wallet,
+      window: q.win,
+    }).connect({ signal: controller.signal, handoff: () => {} });
+    await vi.waitFor(() => expect(w.launch).toHaveBeenCalled());
+    controller.abort();
+    await expect(connecting).rejects.toMatchObject({ name: "AbortError" });
+    expect(q.popup.close).toHaveBeenCalled();
+    expect(w.wallet.completeConnection).not.toHaveBeenCalled();
+  });
   test("saves the app's return state, prepares, then launches", async () => {
     const w = wallet();
     const beforeLaunch = vi.fn();
-    const option = passkeyOption({ wallet: () => w.wallet, beforeLaunch });
+    const option = passkeyOption({
+      wallet: () => w.wallet,
+      beforeLaunch,
+      popup: false,
+    });
     expect(option).toMatchObject({
       id: "juicebox-center",
       name: "Juicebox account",

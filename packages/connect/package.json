@@ -64,6 +64,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@me.jango/center-wallet": "^0.1.0"
+    "@me.jango/center-wallet": "^0.2.0"
   }
 }
