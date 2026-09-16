@@ -56,6 +56,10 @@ export function passkeyOption(input: {
                   wallet.restoreConnection?.()))
             )
               return null;
+            // The tab's saved connection state moved between two steps (another attempt
+            // settling); it is settled now, so prepare once more before reporting anything.
+            if (code === "WALLET_HANDOFF_CHANGED")
+              return wallet.prepareConnection();
             // An abandoned handoff lives in session storage until it is disconnected.
             if (code !== "WALLET_HANDOFF_EXPIRED") throw error;
             wallet.disconnect();

@@ -152,6 +152,37 @@ describe("passkeyOption", () => {
     expect(done.launch).not.toHaveBeenCalled();
     expect(q.popup.close).toHaveBeenCalled();
   });
+  test("a connection state that changed underneath preparing is prepared once more, quietly", async () => {
+    const w = wallet(),
+      p = page();
+    w.wallet.prepareConnection
+      .mockRejectedValueOnce(
+        Object.assign(new Error("changed"), { code: "WALLET_HANDOFF_CHANGED" }),
+      )
+      .mockResolvedValueOnce({ launch: w.launch });
+    const connecting = passkeyOption({
+      wallet: () => w.wallet,
+      window: p.win,
+    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    await vi.waitFor(() =>
+      expect(w.launch).toHaveBeenCalledWith({ target: "juicebox-center" }),
+    );
+    p.callback(url);
+    await connecting;
+    expect(w.wallet.prepareConnection).toHaveBeenCalledTimes(2);
+    // A second change in a row is still reported.
+    const twice = wallet();
+    twice.wallet.prepareConnection.mockRejectedValue(
+      Object.assign(new Error("changed"), { code: "WALLET_HANDOFF_CHANGED" }),
+    );
+    await expect(
+      passkeyOption({ wallet: () => twice.wallet, popup: false }).connect({
+        signal: new AbortController().signal,
+        handoff: () => {},
+      }),
+    ).rejects.toThrow("changed");
+    expect(twice.wallet.prepareConnection).toHaveBeenCalledTimes(2);
+  });
   test("closes the popup when preparing fails or the connection is cancelled", async () => {
     const broken = wallet(),
       p = page();
