@@ -20,6 +20,7 @@ describe("published connect SDK surface", () => {
     expect(Object.keys(react).sort()).toEqual([
       "JBConnectModal",
       "connectModalCss",
+      "passkeyLabel",
     ]);
     for (const value of [
       ...Object.values(core),
