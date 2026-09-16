@@ -150,7 +150,7 @@ describe("awaitPopupCallback and deliverCenterCallback", () => {
       vi.useRealTimers();
     }
   });
-  test("a callback page without a listening opener completes on its own", async () => {
+  test("a callback page keeps offering the callback while a same-origin opener is alive, and completes on its own only without one", async () => {
     vi.useFakeTimers();
     try {
       const alone = pair();
@@ -158,14 +158,61 @@ describe("awaitPopupCallback and deliverCenterCallback", () => {
       await expect(
         deliverCenterCallback(url, { window: alone.popup }),
       ).resolves.toBe(false);
+      // A cross-origin opener (the app tab itself was opened from elsewhere) is not ours.
+      const foreign = pair();
+      Object.defineProperty(foreign.page, "location", {
+        get() {
+          throw new DOMException("Blocked", "SecurityError");
+        },
+      });
+      await expect(
+        deliverCenterCallback(url, { window: foreign.popup }),
+      ).resolves.toBe(false);
+      // A slow opener gets the offer again every retryMs; the third one is acknowledged.
+      const slow = pair();
+      let offers = 0;
+      (slow.page.postMessage as ReturnType<typeof vi.fn>).mockImplementation(
+        (_data: unknown, target: string) => {
+          if (++offers === 3 && target === slow.page.location.origin)
+            slow.deliver(slow.popup, slow.page, {
+              type: "juicebox-center:received",
+            });
+        },
+      );
+      const late = deliverCenterCallback(url, {
+        window: slow.popup,
+        retryMs: 1000,
+      });
+      await vi.advanceTimersByTimeAsync(2500);
+      await expect(late).resolves.toBe(true);
+      expect(offers).toBe(3);
+      expect(slow.popup.close).toHaveBeenCalled();
+      // An opener that closes ends the offers; the page then completes on its own.
+      const gone = pair();
+      const orphaned = deliverCenterCallback(url, {
+        window: gone.popup,
+        retryMs: 1000,
+      });
+      (gone.page as unknown as { closed: boolean }).closed = true;
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(orphaned).resolves.toBe(false);
+      expect(gone.popup.close).not.toHaveBeenCalled();
+      // A silent opener is given up on at the cap; a late acknowledgement still closes the window.
       const silent = pair();
       const attempt = deliverCenterCallback(url, {
         window: silent.popup,
-        timeoutMs: 1000,
+        timeoutMs: 5000,
+        retryMs: 1000,
       });
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(5000);
       await expect(attempt).resolves.toBe(false);
+      // The first offer plus one per second until the cap.
+      expect(silent.page.postMessage).toHaveBeenCalledTimes(6);
       expect(silent.popup.close).not.toHaveBeenCalled();
+      silent.deliver(silent.popup, silent.page, {
+        type: "juicebox-center:received",
+      });
+      expect(silent.popup.close).toHaveBeenCalled();
       const wrong = pair();
       const rejected = deliverCenterCallback(url, {
         window: wrong.popup,

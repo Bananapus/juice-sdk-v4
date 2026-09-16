@@ -117,6 +117,41 @@ describe("passkeyOption", () => {
     ).rejects.toThrow("pending");
     expect(redirected.wallet.retryConnection).not.toHaveBeenCalled();
   });
+  test("a popup closed while preparing ends the attempt quietly, and an already connected wallet just reports it", async () => {
+    const w = wallet(),
+      p = page(),
+      connected = vi.fn();
+    w.wallet.prepareConnection.mockImplementation(async () => {
+      p.popup.closed = true;
+      return { launch: w.launch };
+    });
+    await expect(
+      passkeyOption({
+        wallet: () => w.wallet,
+        connected,
+        window: p.win,
+      }).connect({ signal: new AbortController().signal, handoff: () => {} }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(w.launch).not.toHaveBeenCalled();
+    const done = wallet(),
+      q = page(),
+      told = vi.fn();
+    done.wallet.prepareConnection.mockRejectedValue(
+      Object.assign(new Error("connected"), {
+        code: "WALLET_ALREADY_CONNECTED",
+      }),
+    );
+    (done.wallet as { restoreConnection?: () => unknown }).restoreConnection =
+      vi.fn(() => ({ address: "0xabc" }));
+    await passkeyOption({
+      wallet: () => done.wallet,
+      connected: told,
+      window: q.win,
+    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    expect(told).toHaveBeenCalledWith({ address: "0xabc" });
+    expect(done.launch).not.toHaveBeenCalled();
+    expect(q.popup.close).toHaveBeenCalled();
+  });
   test("closes the popup when preparing fails or the connection is cancelled", async () => {
     const broken = wallet(),
       p = page();

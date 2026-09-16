@@ -6,6 +6,8 @@ export type PasskeyWallet = {
   prepareConnection(): Promise<{ launch(options?: { target?: string }): void }>;
   completeConnection(url: string): Promise<unknown>;
   retryConnection(): Promise<unknown>;
+  /** The current connection, when one is already held in this tab. */
+  restoreConnection?(): unknown;
   disconnect(): void;
   payments(): { pendingPayment(): { status: string } | null };
 };
@@ -45,8 +47,15 @@ export function passkeyOption(input: {
           .catch(async (error: unknown) => {
             const code = (error as { code?: string } | null)?.code;
             // A callback already delivered to this page whose exchange did not complete is
-            // finished here; no new launch is needed.
-            if (code === "WALLET_HANDOFF_PENDING" && popup) return null;
+            // finished here; no new launch is needed. A tab that is already connected (a
+            // `connected` hook that failed last time) only needs telling again.
+            if (
+              popup &&
+              (code === "WALLET_HANDOFF_PENDING" ||
+                (code === "WALLET_ALREADY_CONNECTED" &&
+                  wallet.restoreConnection?.()))
+            )
+              return null;
             // An abandoned handoff lives in session storage until it is disconnected.
             if (code !== "WALLET_HANDOFF_EXPIRED") throw error;
             wallet.disconnect();
@@ -60,10 +69,18 @@ export function passkeyOption(input: {
         }
         let connection: unknown;
         if (prepared) {
+          // The window the form targets must still exist, or the browser opens a new one.
+          if (popup.closed)
+            throw new DOMException(
+              "The sign-in window was closed.",
+              "AbortError",
+            );
           prepared.launch({ target: popupName });
           const url = await awaitPopupCallback(win!, popup, signal);
           connection = await wallet.completeConnection(url);
-        } else connection = await wallet.retryConnection();
+        } else
+          connection =
+            wallet.restoreConnection?.() ?? (await wallet.retryConnection());
         await input.connected?.(connection);
       } finally {
         popup?.close();
