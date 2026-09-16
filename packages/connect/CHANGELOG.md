@@ -1,5 +1,11 @@
 # @bananapus/nana-sdk-connect
 
+## 0.2.1
+
+### Patch Changes
+
+- c216ef3: Name the platform's prompt on the passkey button: "Continue with Touch ID" on Mac and iPad, "Continue with Face ID" on iPhone, "Continue with Windows Hello" on Windows, and "Continue with a passkey" elsewhere. A `passkeyLabel` prop overrides it, and the `passkeyLabel()` helper is exported.
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@bananapus/nana-sdk-connect",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Sign in to a Juicebox app with a passkey account from Juicebox Center or an external wallet",
   "type": "module",
   "repository": {
