@@ -78,23 +78,42 @@ export function awaitPopupCallback(
   });
 }
 
-/** For the app's callback page. Hands the callback URL to the page that opened this window and
- * closes it once that page acknowledges; false when there is no such page, so the callback page
- * completes the exchange itself as it does after a full-page redirect. */
+/** For the app's callback page. Hands the callback URL to the same-origin page that opened this
+ * window and closes it once that page acknowledges. The page may be slow to answer (a backgrounded
+ * tab on a phone), so the offer repeats until it is acknowledged or the opener closes. The cap
+ * (default fifteen minutes, the life of a Center request) covers an opener that navigated away;
+ * after it the callback page completes the exchange itself, as it does after a full-page
+ * redirect, while still closing on a late acknowledgement. False when there is no same-origin
+ * opener. */
 export function deliverCenterCallback(
   url: string,
-  options: { window?: Window; timeoutMs?: number } = {},
+  options: { window?: Window; timeoutMs?: number; retryMs?: number } = {},
 ): Promise<boolean> {
   const win = options.window;
   const opener = win?.opener as Window | null | undefined;
   if (!win || !opener) return Promise.resolve(false);
   const origin = win.location.origin;
+  // A cross-origin opener (the app tab was opened from elsewhere) throws here: not ours.
+  try {
+    if (opener.closed || opener.location.origin !== origin)
+      return Promise.resolve(false);
+  } catch {
+    return Promise.resolve(false);
+  }
   return new Promise((resolve) => {
+    let settled = false;
     const finish = (delivered: boolean) => {
-      win.removeEventListener("message", onMessage);
-      clearTimeout(timer);
-      if (delivered) win.close();
-      resolve(delivered);
+      clearInterval(again);
+      clearTimeout(cap);
+      if (delivered) {
+        win.removeEventListener("message", onMessage);
+        win.close();
+      }
+      // After the cap the page goes on alone, but a late acknowledgement still closes this window.
+      if (!settled) {
+        settled = true;
+        resolve(delivered);
+      }
     };
     const onMessage = (event: MessageEvent) => {
       const data = event.data as { type?: unknown } | null;
@@ -106,8 +125,13 @@ export function deliverCenterCallback(
         return;
       finish(true);
     };
-    const timer = setTimeout(() => finish(false), options.timeoutMs ?? 1500);
+    const offer = () => {
+      if (opener.closed) return finish(false);
+      opener.postMessage({ type: callbackType, url }, origin);
+    };
+    const again = setInterval(offer, options.retryMs ?? 1500);
+    const cap = setTimeout(() => finish(false), options.timeoutMs ?? 900_000);
     win.addEventListener("message", onMessage);
-    opener.postMessage({ type: callbackType, url }, origin);
+    offer();
   });
 }
