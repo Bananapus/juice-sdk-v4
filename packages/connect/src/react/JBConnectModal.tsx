@@ -1,4 +1,11 @@
-import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { passkeyLabel } from "./passkeyLabel.js";
 import type { ConnectController, ConnectOption } from "../core/controller.js";
 import { connectModalCss } from "./styles.js";
 
@@ -9,6 +16,8 @@ export type JBConnectModalProps = {
   onClose(): void;
   /** Which option is the passkey account; it renders as the primary button. */
   passkeyId?: string;
+  /** The primary button's text. Defaults to the platform's prompt: Touch ID, Face ID, Windows Hello, or a passkey. */
+  passkeyLabel?: string;
   title?: ReactNode;
   /** Renders a pairing URI (a QR code, a deep link) once an option publishes one. */
   renderHandoff?(uri: string, option: ConnectOption): ReactNode;
@@ -29,6 +38,11 @@ export function JBConnectModal(props: JBConnectModalProps) {
     controller.getState,
   );
   const dialog = useRef<HTMLDialogElement>(null);
+  // Resolved after mount so server and first client render agree.
+  const [platformLabel, setPlatformLabel] = useState("Continue with a passkey");
+  useEffect(() => {
+    setPlatformLabel(passkeyLabel(navigator.userAgent));
+  }, []);
   useEffect(() => {
     const element = dialog.current;
     if (!element) return;
@@ -101,7 +115,7 @@ export function JBConnectModal(props: JBConnectModalProps) {
                 disabled={passkey.disabled}
                 onClick={() => void controller.choose(passkey.id)}
               >
-                Continue with a passkey
+                {props.passkeyLabel ?? platformLabel}
               </button>
               <p className="jb-connect-powered">Powered by Juicebox Center</p>
             </>

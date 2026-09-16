@@ -149,6 +149,43 @@ describe("JBConnectModal", () => {
       view.querySelector(".jb-connect-handoff a")!.getAttribute("href"),
     ).toBe("wc:pair");
   });
+  test("names the platform's prompt on the primary button, and a prop overrides it", async () => {
+    const controller = createConnectController([
+      option("juicebox-center", "Juicebox account"),
+    ]);
+    const original = navigator.userAgent;
+    Object.defineProperty(navigator, "userAgent", {
+      value: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5)",
+      configurable: true,
+    });
+    try {
+      const view = mount(
+        <JBConnectModal open controller={controller} onClose={() => {}} />,
+      );
+      expect(view.querySelector(".jb-connect-primary")!.textContent).toBe(
+        "Continue with Touch ID",
+      );
+      act(() =>
+        root!.render(
+          <JBConnectModal
+            open
+            controller={controller}
+            onClose={() => {}}
+            passkeyLabel="Use your passkey"
+          />,
+        ),
+      );
+      expect(view.querySelector(".jb-connect-primary")!.textContent).toBe(
+        "Use your passkey",
+      );
+    } finally {
+      Object.defineProperty(navigator, "userAgent", {
+        value: original,
+        configurable: true,
+      });
+    }
+  });
+
   test("Escape and the backdrop cancel; closing resets the controller and reopening follows the open prop", async () => {
     const controller = createConnectController([
       option("juicebox-center", "Juicebox account"),
