@@ -1,5 +1,11 @@
 # @bananapus/nana-sdk-connect
 
+## 0.3.2
+
+### Patch Changes
+
+- 3504aed: When the tab's saved connection state changed underneath preparing (an earlier attempt settling), the passkey option prepares once more instead of showing "This tab changed its wallet connection".
+
 ## 0.3.1
 
 ### Patch Changes
