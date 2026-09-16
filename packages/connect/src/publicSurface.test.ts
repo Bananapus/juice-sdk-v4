@@ -11,6 +11,7 @@ describe("published connect SDK surface", () => {
       "completeCenterCallback",
       "createCenterWalletClient",
       "createConnectController",
+      "deliverCenterCallback",
       "ownerOperationSignature",
       "ownerOperationSigning",
       "passkeyOption",

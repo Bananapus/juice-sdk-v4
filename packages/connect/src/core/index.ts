@@ -5,6 +5,7 @@ export {
   type ConnectState,
 } from "./controller.js";
 export { passkeyOption, type PasskeyWallet } from "./passkey.js";
+export { deliverCenterCallback } from "./popup.js";
 export {
   completeCenterCallback,
   type CenterCallbackResult,
