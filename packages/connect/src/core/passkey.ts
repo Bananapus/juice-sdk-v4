@@ -42,7 +42,7 @@ export function passkeyOption(input: {
             "Finish your pending Juicebox payment before signing in again.",
           );
         input.beforeLaunch?.();
-        const prepared = await wallet
+        let prepared = await wallet
           .prepareConnection()
           .catch(async (error: unknown) => {
             const code = (error as { code?: string } | null)?.code;
@@ -60,44 +60,64 @@ export function passkeyOption(input: {
             // settling); it is settled now, so prepare once more before reporting anything.
             if (code === "WALLET_HANDOFF_CHANGED")
               return wallet.prepareConnection();
-            // An abandoned handoff lives in session storage until it is disconnected.
-            if (code !== "WALLET_HANDOFF_EXPIRED") throw error;
+            // A record this tap cannot use — an abandoned handoff, a connection whose grant has
+            // run out, a record an older client wrote — is dropped and a fresh sign-in prepared.
+            if (
+              code !== "WALLET_HANDOFF_EXPIRED" &&
+              code !== "WALLET_ALREADY_CONNECTED" &&
+              code !== "WALLET_STORAGE_INVALID"
+            )
+              throw error;
             wallet.disconnect();
             return wallet.prepareConnection();
           });
+        if (!prepared) {
+          const restored = wallet.restoreConnection?.();
+          if (restored) {
+            await input.connected?.(restored);
+            return;
+          }
+          let connection: unknown;
+          try {
+            // Evaluated before the optional hook call, which would otherwise skip it.
+            connection = await wallet.retryConnection();
+          } catch (error) {
+            const code = (error as { code?: string } | null)?.code;
+            // Another tab finished the same exchange first; its connection is this tab's too.
+            const raced =
+              code === "WALLET_HANDOFF_CHANGED"
+                ? wallet.restoreConnection?.()
+                : null;
+            if (raced) {
+              await input.connected?.(raced);
+              return;
+            }
+            if (code !== "WALLET_REQUEST_REJECTED") throw error;
+            // Center refused the replay (its window closed, or policy changed): the record can
+            // never finish, so this same tap drops it and signs in afresh.
+            wallet.disconnect();
+            prepared = await wallet.prepareConnection();
+          }
+          if (!prepared) {
+            await input.connected?.(connection);
+            return;
+          }
+        }
         // Closing the dialog while preparing must never cause a delayed redirect.
         signal.throwIfAborted();
-        if (!popup && prepared) {
+        if (!popup) {
           prepared.launch();
           return;
         }
-        let connection: unknown;
-        if (prepared && popup) {
-          // The window the form targets must still exist, or the browser opens a new one.
-          if (popup.closed)
-            throw new DOMException(
-              "The sign-in window was closed.",
-              "AbortError",
-            );
-          prepared.launch({ target: popupName });
-          const url = await awaitPopupCallback(win!, popup, signal);
-          connection = await wallet.completeConnection(url);
-        } else
-          connection =
-            wallet.restoreConnection?.() ??
-            (await wallet.retryConnection().catch((error: unknown) => {
-              const code = (error as { code?: string } | null)?.code;
-              // Center refused the replay (its window closed, or policy changed): the record
-              // can never finish, so it is dropped and the next attempt starts clean.
-              if (code === "WALLET_REQUEST_REJECTED") wallet.disconnect();
-              // Another tab finished the same exchange first; its connection is this tab's too.
-              const restored =
-                code === "WALLET_HANDOFF_CHANGED"
-                  ? wallet.restoreConnection?.()
-                  : null;
-              if (restored) return restored;
-              throw error;
-            }));
+        // The window the form targets must still exist, or the browser opens a new one.
+        if (popup.closed)
+          throw new DOMException(
+            "The sign-in window was closed.",
+            "AbortError",
+          );
+        prepared.launch({ target: popupName });
+        const url = await awaitPopupCallback(win!, popup, signal);
+        const connection = await wallet.completeConnection(url);
         await input.connected?.(connection);
       } finally {
         popup?.close();
