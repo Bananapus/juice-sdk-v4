@@ -46,14 +46,14 @@ export function passkeyOption(input: {
           .prepareConnection()
           .catch(async (error: unknown) => {
             const code = (error as { code?: string } | null)?.code;
-            // A callback already delivered to this page whose exchange did not complete is
-            // finished here; no new launch is needed. A tab that is already connected (a
-            // `connected` hook that failed last time) only needs telling again.
+            // A callback already delivered whose exchange did not complete is finished here,
+            // popup or not: the page that received it may never run again (a hand-back that
+            // failed on the way in), and a retry only replays Center's receipt. A tab that is
+            // already connected (a `connected` hook that failed last time) only needs telling again.
             if (
-              popup &&
-              (code === "WALLET_HANDOFF_PENDING" ||
-                (code === "WALLET_ALREADY_CONNECTED" &&
-                  wallet.restoreConnection?.()))
+              code === "WALLET_HANDOFF_PENDING" ||
+              (code === "WALLET_ALREADY_CONNECTED" &&
+                wallet.restoreConnection?.())
             )
               return null;
             // The tab's saved connection state moved between two steps (another attempt
@@ -67,12 +67,12 @@ export function passkeyOption(input: {
           });
         // Closing the dialog while preparing must never cause a delayed redirect.
         signal.throwIfAborted();
-        if (!popup) {
-          prepared!.launch();
+        if (!popup && prepared) {
+          prepared.launch();
           return;
         }
         let connection: unknown;
-        if (prepared) {
+        if (prepared && popup) {
           // The window the form targets must still exist, or the browser opens a new one.
           if (popup.closed)
             throw new DOMException(
@@ -84,7 +84,20 @@ export function passkeyOption(input: {
           connection = await wallet.completeConnection(url);
         } else
           connection =
-            wallet.restoreConnection?.() ?? (await wallet.retryConnection());
+            wallet.restoreConnection?.() ??
+            (await wallet.retryConnection().catch((error: unknown) => {
+              const code = (error as { code?: string } | null)?.code;
+              // Center refused the replay (its window closed, or policy changed): the record
+              // can never finish, so it is dropped and the next attempt starts clean.
+              if (code === "WALLET_REQUEST_REJECTED") wallet.disconnect();
+              // Another tab finished the same exchange first; its connection is this tab's too.
+              const restored =
+                code === "WALLET_HANDOFF_CHANGED"
+                  ? wallet.restoreConnection?.()
+                  : null;
+              if (restored) return restored;
+              throw error;
+            }));
         await input.connected?.(connection);
       } finally {
         popup?.close();

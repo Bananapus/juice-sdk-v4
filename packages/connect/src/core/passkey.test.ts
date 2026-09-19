@@ -9,6 +9,7 @@ function wallet(pending: { status: string } | null = null) {
       prepareConnection: vi.fn(async () => ({ launch })),
       completeConnection: vi.fn(async (url: string) => ({ url })),
       retryConnection: vi.fn(async () => ({ retried: true })),
+      restoreConnection: vi.fn((): unknown => null),
       disconnect: vi.fn(),
       payments: () => ({ pendingPayment: () => pending }),
     },
@@ -104,18 +105,54 @@ describe("passkeyOption", () => {
     expect(w.launch).not.toHaveBeenCalled();
     expect(connected).toHaveBeenCalledWith({ retried: true });
     expect(p.popup.close).toHaveBeenCalled();
-    // After a full-page redirect the callback page owns the retry; the option only reports.
-    const redirected = wallet();
+    // Without a popup the pending exchange is retried in place as well: the callback page that
+    // received it may already have run and failed, leaving no page that would ever retry.
+    const redirected = wallet(),
+      reported = vi.fn();
     redirected.wallet.prepareConnection.mockRejectedValue(
       Object.assign(new Error("pending"), { code: "WALLET_HANDOFF_PENDING" }),
     );
+    await passkeyOption({
+      wallet: () => redirected.wallet,
+      popup: false,
+      connected: reported,
+    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    expect(redirected.wallet.retryConnection).toHaveBeenCalledOnce();
+    expect(redirected.launch).not.toHaveBeenCalled();
+    expect(reported).toHaveBeenCalledWith({ retried: true });
+    // A replay Center refuses drops the record so the next attempt starts clean; another tab
+    // finishing the same exchange first hands over its connection.
+    const refused = wallet();
+    refused.wallet.prepareConnection.mockRejectedValue(
+      Object.assign(new Error("pending"), { code: "WALLET_HANDOFF_PENDING" }),
+    );
+    refused.wallet.retryConnection.mockRejectedValue(
+      Object.assign(new Error("refused"), { code: "WALLET_REQUEST_REJECTED" }),
+    );
     await expect(
-      passkeyOption({ wallet: () => redirected.wallet, popup: false }).connect({
+      passkeyOption({ wallet: () => refused.wallet, popup: false }).connect({
         signal: new AbortController().signal,
         handoff: () => {},
       }),
-    ).rejects.toThrow("pending");
-    expect(redirected.wallet.retryConnection).not.toHaveBeenCalled();
+    ).rejects.toThrow("refused");
+    expect(refused.wallet.disconnect).toHaveBeenCalledOnce();
+    const raced = wallet(),
+      handed = vi.fn();
+    raced.wallet.prepareConnection.mockRejectedValue(
+      Object.assign(new Error("pending"), { code: "WALLET_HANDOFF_PENDING" }),
+    );
+    raced.wallet.retryConnection.mockRejectedValue(
+      Object.assign(new Error("changed"), { code: "WALLET_HANDOFF_CHANGED" }),
+    );
+    raced.wallet.restoreConnection
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce({ restored: true });
+    await passkeyOption({
+      wallet: () => raced.wallet,
+      popup: false,
+      connected: handed,
+    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    expect(handed).toHaveBeenCalledWith({ restored: true });
   });
   test("a popup closed while preparing ends the attempt quietly, and an already connected wallet just reports it", async () => {
     const w = wallet(),
