@@ -123,19 +123,58 @@ describe("passkeyOption", () => {
     // A replay Center refuses drops the record so the next attempt starts clean; another tab
     // finishing the same exchange first hands over its connection.
     const refused = wallet();
-    refused.wallet.prepareConnection.mockRejectedValue(
+    refused.wallet.prepareConnection.mockRejectedValueOnce(
       Object.assign(new Error("pending"), { code: "WALLET_HANDOFF_PENDING" }),
     );
     refused.wallet.retryConnection.mockRejectedValue(
       Object.assign(new Error("refused"), { code: "WALLET_REQUEST_REJECTED" }),
     );
-    await expect(
-      passkeyOption({ wallet: () => refused.wallet, popup: false }).connect({
+    await passkeyOption({ wallet: () => refused.wallet, popup: false }).connect(
+      {
         signal: new AbortController().signal,
         handoff: () => {},
-      }),
-    ).rejects.toThrow("refused");
+      },
+    );
     expect(refused.wallet.disconnect).toHaveBeenCalledOnce();
+    expect(refused.wallet.prepareConnection).toHaveBeenCalledTimes(2);
+    expect(refused.launch).toHaveBeenCalledOnce();
+    // Without a `connected` hook the retry still runs (an optional call must not skip its argument).
+    const silent = wallet();
+    silent.wallet.prepareConnection.mockRejectedValueOnce(
+      Object.assign(new Error("pending"), { code: "WALLET_HANDOFF_PENDING" }),
+    );
+    await passkeyOption({ wallet: () => silent.wallet, popup: false }).connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+    });
+    expect(silent.wallet.retryConnection).toHaveBeenCalledOnce();
+    expect(silent.launch).not.toHaveBeenCalled();
+    // With a popup the same recovery launches the fresh sign-in into the tap's own window.
+    const popped = wallet(),
+      pp = page();
+    popped.wallet.prepareConnection.mockRejectedValueOnce(
+      Object.assign(new Error("pending"), { code: "WALLET_HANDOFF_PENDING" }),
+    );
+    popped.wallet.retryConnection.mockRejectedValue(
+      Object.assign(new Error("refused"), { code: "WALLET_REQUEST_REJECTED" }),
+    );
+    const told = vi.fn();
+    const popupRun = passkeyOption({
+      wallet: () => popped.wallet,
+      window: pp.win,
+      connected: told,
+    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    await vi.waitFor(() =>
+      expect(popped.launch).toHaveBeenCalledWith({
+        target: expect.any(String),
+      }),
+    );
+    pp.callback(url);
+    await popupRun;
+    expect(popped.wallet.disconnect).toHaveBeenCalledOnce();
+    expect(popped.wallet.completeConnection).toHaveBeenCalledWith(url);
+    expect(told).toHaveBeenCalledWith({ url });
+    expect(pp.popup.close).toHaveBeenCalled();
     const raced = wallet(),
       handed = vi.fn();
     raced.wallet.prepareConnection.mockRejectedValue(
@@ -154,6 +193,21 @@ describe("passkeyOption", () => {
     }).connect({ signal: new AbortController().signal, handoff: () => {} });
     expect(handed).toHaveBeenCalledWith({ restored: true });
   });
+  test.each(["WALLET_ALREADY_CONNECTED", "WALLET_STORAGE_INVALID"])(
+    "a stored record this tap cannot use (%s) is dropped and a fresh sign-in launched",
+    async (code) => {
+      const w = wallet();
+      w.wallet.prepareConnection.mockRejectedValueOnce(
+        Object.assign(new Error(code), { code }),
+      );
+      await passkeyOption({ wallet: () => w.wallet, popup: false }).connect({
+        signal: new AbortController().signal,
+        handoff: () => {},
+      });
+      expect(w.wallet.disconnect).toHaveBeenCalledOnce();
+      expect(w.launch).toHaveBeenCalledOnce();
+    },
+  );
   test("a popup closed while preparing ends the attempt quietly, and an already connected wallet just reports it", async () => {
     const w = wallet(),
       p = page(),
