@@ -61,7 +61,8 @@ export function JBConnectModal(props: JBConnectModalProps) {
     onClose();
   };
   // A framed sign-in: the frame is as tall as the page inside says it is (Center reports its
-  // height whenever it changes); only the frame's own window is heard.
+  // height whenever it changes); only the frame's own window is heard. Each report is answered
+  // with this dialog's theme, so the page inside takes the app's colours, font and corners.
   const frame = useRef<HTMLIFrameElement>(null);
   const [frameHeight, setFrameHeight] = useState<number>();
   useEffect(() => {
@@ -78,6 +79,12 @@ export function JBConnectModal(props: JBConnectModalProps) {
       )
         return;
       setFrameHeight(Math.min(1200, Math.max(160, Math.ceil(data.height))) + 2);
+      if (dialog.current)
+        frame.current.contentWindow.postMessage(
+          { type: "juicebox-center:theme", theme: themeOf(dialog.current) },
+          // Design tokens only; the page inside checks its framer, this dialog does not learn the issuer.
+          "*",
+        );
     };
     window.addEventListener("message", sized);
     return () => window.removeEventListener("message", sized);
@@ -193,9 +200,31 @@ export function JBConnectModal(props: JBConnectModalProps) {
       <div className="jb-connect-footer">
         {props.footer}
         <button type="button" className="jb-connect-text" onClick={cancel}>
-          {pending ? "Cancel connection" : "Cancel"}
+          Cancel
         </button>
       </div>
     </dialog>
   );
+}
+
+/** The dialog's resolved theme, as the framed Center page understands it. */
+export function themeOf(dialog: HTMLElement): Record<string, string> {
+  const style = getComputedStyle(dialog);
+  const token = (name: string) => style.getPropertyValue(name).trim();
+  const theme: Record<string, string> = {};
+  for (const [key, name] of [
+    ["background", "--jb-connect-bg"],
+    ["foreground", "--jb-connect-fg"],
+    ["muted", "--jb-connect-muted"],
+    ["line", "--jb-connect-line"],
+    ["accent", "--jb-connect-accent"],
+    ["accentForeground", "--jb-connect-accent-fg"],
+    ["radius", "--jb-connect-radius"],
+  ] as const) {
+    const value = token(name);
+    if (value) theme[key] = value;
+  }
+  const font = style.fontFamily;
+  if (font) theme.font = font;
+  return theme;
 }
