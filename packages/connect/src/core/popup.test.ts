@@ -292,6 +292,19 @@ describe("awaitFrameCallback and a framed deliverCenterCallback", () => {
     await expect(
       deliverCenterCallback(url, { window: foreign.inner }),
     ).resolves.toBe(false);
+    // A parent whose origin cannot even be read (opaque, cross-origin) is not ours either.
+    const opaque = framed();
+    Object.defineProperty(opaque.inner, "parent", {
+      value: {
+        get location(): { origin: string } {
+          throw new DOMException("Blocked", "SecurityError");
+        },
+        postMessage: vi.fn(),
+      },
+    });
+    await expect(
+      deliverCenterCallback(url, { window: opaque.inner }),
+    ).resolves.toBe(false);
     expect(
       (
         foreign.inner as unknown as {

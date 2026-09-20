@@ -477,4 +477,43 @@ describe("passkeyOption", () => {
       "https://app.example",
     );
   });
+  test("frame: true gives up when the frame never appears or the sign-in is closed first", async () => {
+    vi.useFakeTimers();
+    try {
+      const w = wallet(),
+        p = page();
+      (p.win as unknown as { document: unknown }).document = {
+        querySelector: () => null,
+      };
+      const option = passkeyOption({
+        wallet: () => w.wallet,
+        frame: true,
+        window: p.win,
+      });
+      const closing = new AbortController();
+      const closed = option.connect({
+        signal: closing.signal,
+        handoff: () => {},
+        frame: () => {},
+      });
+      closed.catch(() => {});
+      await vi.advanceTimersByTimeAsync(50);
+      closing.abort();
+      await vi.advanceTimersByTimeAsync(50);
+      await expect(closed).rejects.toMatchObject({ name: "AbortError" });
+      const missing = option.connect({
+        signal: new AbortController().signal,
+        handoff: () => {},
+        frame: () => {},
+      });
+      missing.catch(() => {});
+      await vi.advanceTimersByTimeAsync(6000);
+      await expect(missing).rejects.toThrow(
+        "The sign-in frame did not appear.",
+      );
+      expect(w.launch).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
