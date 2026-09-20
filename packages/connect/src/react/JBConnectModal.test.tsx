@@ -6,7 +6,7 @@ import {
   createConnectController,
   type ConnectOption,
 } from "../core/controller";
-import { JBConnectModal } from "./JBConnectModal";
+import { JBConnectModal, themeOf } from "./JBConnectModal";
 
 beforeAll(() => {
   (
@@ -83,9 +83,7 @@ describe("JBConnectModal", () => {
       "Continuing at Juicebox Center",
     );
     expect(view.querySelector(".jb-connect-primary")).toBeNull();
-    expect(view.querySelector(".jb-connect-text")!.textContent).toBe(
-      "Cancel connection",
-    );
+    expect(view.querySelector(".jb-connect-text")!.textContent).toBe("Cancel");
     await act(async () =>
       view.querySelector<HTMLButtonElement>(".jb-connect-text")!.click(),
     );
@@ -180,8 +178,24 @@ describe("JBConnectModal", () => {
       );
     await act(async () => size(window, 500));
     expect(frame.style.height).toBe("");
+    const dialogElement = view.querySelector("dialog")!;
+    const posted = vi.spyOn(frame.contentWindow!, "postMessage");
     await act(async () => size(frame.contentWindow, 500));
     expect(frame.style.height).toBe("502px");
+    // The size report is answered with the dialog's resolved theme (jsdom resolves the custom
+    // properties from the dialog's own stylesheet but no inherited font).
+    expect(posted).toHaveBeenCalledWith(
+      { type: "juicebox-center:theme", theme: themeOf(dialogElement) },
+      "*",
+    );
+    expect(themeOf(dialogElement)).toEqual(
+      expect.objectContaining({
+        background: "#fff",
+        accent: "#1a1a1a",
+        accentForeground: "#fff",
+        radius: "16px",
+      }),
+    );
     await act(async () => size(frame.contentWindow, "tall"));
     expect(frame.style.height).toBe("502px");
     await act(async () =>
