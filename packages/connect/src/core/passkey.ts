@@ -1,5 +1,11 @@
 import type { ConnectOption } from "./controller.js";
-import { awaitPopupCallback, openCenterPopup, popupName } from "./popup.js";
+import {
+  awaitFrameCallback,
+  awaitPopupCallback,
+  frameName,
+  openCenterPopup,
+  popupName,
+} from "./popup.js";
 
 /** The wallet client surface the passkey option needs (`createCenterWalletClient` satisfies it). */
 export type PasskeyWallet = {
@@ -15,12 +21,16 @@ const settled = new Set(["paid", "reverted", "cancelled", "expired"]);
 
 /** The built-in way in: a passkey account at Juicebox Center. By default Center opens in a popup
  * and the page stays; the callback comes back by message and the exchange finishes here, then
- * `connected` runs. When the popup is blocked, or with `popup: false`, connecting is a full-page
- * redirect, so `beforeLaunch` is where the app saves what it needs to come back to. */
+ * `connected` runs. With `frame: true` Center opens in a frame the app shows instead (the modal
+ * renders it under the name the option asks for); Center serves the sign-in framed only for apps
+ * its operator admits, and the page inside offers "Open as a page" when it cannot continue there.
+ * When the popup is blocked, or with `popup: false`, connecting is a full-page redirect, so
+ * `beforeLaunch` is where the app saves what it needs to come back to. */
 export function passkeyOption(input: {
   wallet(): Promise<PasskeyWallet> | PasskeyWallet;
   beforeLaunch?(): void;
   popup?: boolean;
+  frame?: boolean;
   /** After a popup sign-in completes in this page: connect the app's wallet layer. */
   connected?(connection: unknown): Promise<void> | void;
   /** Defaults to the global window. */
@@ -29,11 +39,12 @@ export function passkeyOption(input: {
   return {
     id: "juicebox-center",
     name: "Juicebox account",
-    async connect({ signal }) {
+    async connect({ signal, frame }) {
       signal.throwIfAborted();
       const win = input.window ?? globalThis.window;
       // Before any await: browsers only allow the window inside the click itself.
-      const popup = input.popup === false ? null : openCenterPopup(win);
+      const popup =
+        input.frame || input.popup === false ? null : openCenterPopup(win);
       try {
         const wallet = await input.wallet();
         const payment = wallet.payments().pendingPayment();
@@ -105,6 +116,15 @@ export function passkeyOption(input: {
         }
         // Closing the dialog while preparing must never cause a delayed redirect.
         signal.throwIfAborted();
+        if (input.frame) {
+          frame(frameName);
+          const element = await frameElement(win!, signal);
+          prepared.launch({ target: frameName });
+          const url = await awaitFrameCallback(win!, element, signal);
+          const connection = await wallet.completeConnection(url);
+          await input.connected?.(connection);
+          return;
+        }
         if (!popup) {
           prepared.launch();
           return;
@@ -124,4 +144,28 @@ export function passkeyOption(input: {
       }
     },
   };
+}
+
+/** The frame the app renders once asked for; the app's render is a tick or two away. */
+function frameElement(
+  win: Window,
+  signal: AbortSignal,
+): Promise<HTMLIFrameElement> {
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    const look = () => {
+      if (signal.aborted)
+        return reject(
+          new DOMException("The sign-in was closed.", "AbortError"),
+        );
+      const element = win.document?.querySelector<HTMLIFrameElement>(
+        `iframe[name="${frameName}"]`,
+      );
+      if (element) return resolve(element);
+      if (Date.now() - started > 5000)
+        return reject(new Error("The sign-in frame did not appear."));
+      setTimeout(look, 20);
+    };
+    look();
+  });
 }

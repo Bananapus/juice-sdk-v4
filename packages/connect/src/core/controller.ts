@@ -10,6 +10,9 @@ export type ConnectOption = {
   connect(context: {
     signal: AbortSignal;
     handoff(uri: string): void;
+    /** Asks the app to show a frame under this name for the option to continue in (the passkey
+     * sign-in at Center, when Center admits the app to frame it). */
+    frame(name: string): void;
   }): Promise<void>;
 };
 export type ConnectState = {
@@ -18,6 +21,8 @@ export type ConnectState = {
   pending: string | null;
   error: string | null;
   handoffUri: string | null;
+  /** The name of the frame the pending option continues in, once it asks for one. */
+  frameName: string | null;
 };
 export type ConnectController = {
   readonly options: readonly ConnectOption[];
@@ -29,7 +34,12 @@ export type ConnectController = {
   cancel(): void;
 };
 
-const idle: ConnectState = { pending: null, error: null, handoffUri: null };
+const idle: ConnectState = {
+  pending: null,
+  error: null,
+  handoffUri: null,
+  frameName: null,
+};
 
 export function createConnectController(
   options: readonly ConnectOption[],
@@ -52,17 +62,25 @@ export function createConnectController(
       const option = options.find((candidate) => candidate.id === id);
       if (!option || option.disabled || current) return;
       const controller = (current = new AbortController());
-      set({ pending: id, error: null, handoffUri: null });
+      set({ pending: id, error: null, handoffUri: null, frameName: null });
       try {
         await option.connect({
           signal: controller.signal,
           handoff: (uri) => {
             if (current === controller) set({ handoffUri: uri });
           },
+          frame: (name) => {
+            if (current === controller) set({ frameName: name });
+          },
         });
       } catch (error) {
         if (current === controller)
-          set({ pending: null, handoffUri: null, error: messageOf(error) });
+          set({
+            pending: null,
+            handoffUri: null,
+            frameName: null,
+            error: messageOf(error),
+          });
       } finally {
         if (current === controller) current = null;
       }

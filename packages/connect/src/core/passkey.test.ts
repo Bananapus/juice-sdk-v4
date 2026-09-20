@@ -31,15 +31,16 @@ function page(popupOpens = true) {
       listener: (event: MessageEvent) => void,
     ) => listeners.delete(listener),
   };
-  const callback = (url: string) => {
+  const callbackFrom = (source: unknown, url: string) => {
     for (const listener of listeners)
       listener({
         data: { type: "juicebox-center:callback", url },
         origin: win.location.origin,
-        source: popup,
+        source,
       } as unknown as MessageEvent);
   };
-  return { win: win as unknown as Window, popup, callback };
+  const callback = (url: string) => callbackFrom(popup, url);
+  return { win: win as unknown as Window, popup, callback, callbackFrom };
 }
 const url = "https://app.example/center/callback?code=c&state=s&iss=i";
 
@@ -56,6 +57,7 @@ describe("passkeyOption", () => {
     const connecting = option.connect({
       signal: new AbortController().signal,
       handoff: () => {},
+      frame: () => {},
     });
     // The window opens synchronously, before the wallet loads.
     expect(p.win.open).toHaveBeenCalledOnce();
@@ -76,7 +78,11 @@ describe("passkeyOption", () => {
       wallet: () => blocked.wallet,
       connected,
       window: p.win,
-    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    }).connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+      frame: () => {},
+    });
     expect(blocked.launch).toHaveBeenCalledWith();
     expect(connected).not.toHaveBeenCalled();
     const off = wallet(),
@@ -85,7 +91,11 @@ describe("passkeyOption", () => {
       wallet: () => off.wallet,
       popup: false,
       window: q.win,
-    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    }).connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+      frame: () => {},
+    });
     expect(q.win.open).not.toHaveBeenCalled();
     expect(off.launch).toHaveBeenCalledWith();
   });
@@ -100,7 +110,11 @@ describe("passkeyOption", () => {
       wallet: () => w.wallet,
       connected,
       window: p.win,
-    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    }).connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+      frame: () => {},
+    });
     expect(w.wallet.retryConnection).toHaveBeenCalledOnce();
     expect(w.launch).not.toHaveBeenCalled();
     expect(connected).toHaveBeenCalledWith({ retried: true });
@@ -116,7 +130,11 @@ describe("passkeyOption", () => {
       wallet: () => redirected.wallet,
       popup: false,
       connected: reported,
-    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    }).connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+      frame: () => {},
+    });
     expect(redirected.wallet.retryConnection).toHaveBeenCalledOnce();
     expect(redirected.launch).not.toHaveBeenCalled();
     expect(reported).toHaveBeenCalledWith({ retried: true });
@@ -133,6 +151,7 @@ describe("passkeyOption", () => {
       {
         signal: new AbortController().signal,
         handoff: () => {},
+        frame: () => {},
       },
     );
     expect(refused.wallet.disconnect).toHaveBeenCalledOnce();
@@ -146,6 +165,7 @@ describe("passkeyOption", () => {
     await passkeyOption({ wallet: () => silent.wallet, popup: false }).connect({
       signal: new AbortController().signal,
       handoff: () => {},
+      frame: () => {},
     });
     expect(silent.wallet.retryConnection).toHaveBeenCalledOnce();
     expect(silent.launch).not.toHaveBeenCalled();
@@ -163,7 +183,11 @@ describe("passkeyOption", () => {
       wallet: () => popped.wallet,
       window: pp.win,
       connected: told,
-    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    }).connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+      frame: () => {},
+    });
     await vi.waitFor(() =>
       expect(popped.launch).toHaveBeenCalledWith({
         target: expect.any(String),
@@ -190,7 +214,11 @@ describe("passkeyOption", () => {
       wallet: () => raced.wallet,
       popup: false,
       connected: handed,
-    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    }).connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+      frame: () => {},
+    });
     expect(handed).toHaveBeenCalledWith({ restored: true });
   });
   test.each(["WALLET_ALREADY_CONNECTED", "WALLET_STORAGE_INVALID"])(
@@ -203,6 +231,7 @@ describe("passkeyOption", () => {
       await passkeyOption({ wallet: () => w.wallet, popup: false }).connect({
         signal: new AbortController().signal,
         handoff: () => {},
+        frame: () => {},
       });
       expect(w.wallet.disconnect).toHaveBeenCalledOnce();
       expect(w.launch).toHaveBeenCalledOnce();
@@ -221,7 +250,11 @@ describe("passkeyOption", () => {
         wallet: () => w.wallet,
         connected,
         window: p.win,
-      }).connect({ signal: new AbortController().signal, handoff: () => {} }),
+      }).connect({
+        signal: new AbortController().signal,
+        handoff: () => {},
+        frame: () => {},
+      }),
     ).rejects.toMatchObject({ name: "AbortError" });
     expect(w.launch).not.toHaveBeenCalled();
     const done = wallet(),
@@ -238,7 +271,11 @@ describe("passkeyOption", () => {
       wallet: () => done.wallet,
       connected: told,
       window: q.win,
-    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    }).connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+      frame: () => {},
+    });
     expect(told).toHaveBeenCalledWith({ address: "0xabc" });
     expect(done.launch).not.toHaveBeenCalled();
     expect(q.popup.close).toHaveBeenCalled();
@@ -254,7 +291,11 @@ describe("passkeyOption", () => {
     const connecting = passkeyOption({
       wallet: () => w.wallet,
       window: p.win,
-    }).connect({ signal: new AbortController().signal, handoff: () => {} });
+    }).connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+      frame: () => {},
+    });
     await vi.waitFor(() =>
       expect(w.launch).toHaveBeenCalledWith({ target: "juicebox-center" }),
     );
@@ -270,6 +311,7 @@ describe("passkeyOption", () => {
       passkeyOption({ wallet: () => twice.wallet, popup: false }).connect({
         signal: new AbortController().signal,
         handoff: () => {},
+        frame: () => {},
       }),
     ).rejects.toThrow("changed");
     expect(twice.wallet.prepareConnection).toHaveBeenCalledTimes(2);
@@ -282,6 +324,7 @@ describe("passkeyOption", () => {
       passkeyOption({ wallet: () => broken.wallet, window: p.win }).connect({
         signal: new AbortController().signal,
         handoff: () => {},
+        frame: () => {},
       }),
     ).rejects.toThrow("down");
     expect(p.popup.close).toHaveBeenCalled();
@@ -291,7 +334,11 @@ describe("passkeyOption", () => {
     const connecting = passkeyOption({
       wallet: () => w.wallet,
       window: q.win,
-    }).connect({ signal: controller.signal, handoff: () => {} });
+    }).connect({
+      signal: controller.signal,
+      handoff: () => {},
+      frame: () => {},
+    });
     await vi.waitFor(() => expect(w.launch).toHaveBeenCalled());
     controller.abort();
     await expect(connecting).rejects.toMatchObject({ name: "AbortError" });
@@ -313,6 +360,7 @@ describe("passkeyOption", () => {
     await option.connect({
       signal: new AbortController().signal,
       handoff: () => {},
+      frame: () => {},
     });
     expect(beforeLaunch.mock.invocationCallOrder[0]).toBeLessThan(
       w.wallet.prepareConnection.mock.invocationCallOrder[0]!,
@@ -325,6 +373,7 @@ describe("passkeyOption", () => {
       await passkeyOption({ wallet: () => settled.wallet }).connect({
         signal: new AbortController().signal,
         handoff: () => {},
+        frame: () => {},
       });
       expect(settled.launch).toHaveBeenCalledOnce();
     }
@@ -335,6 +384,7 @@ describe("passkeyOption", () => {
     await passkeyOption({ wallet: () => stale.wallet }).connect({
       signal: new AbortController().signal,
       handoff: () => {},
+      frame: () => {},
     });
     expect(stale.wallet.disconnect).toHaveBeenCalledOnce();
     expect(stale.launch).toHaveBeenCalledOnce();
@@ -346,6 +396,7 @@ describe("passkeyOption", () => {
       passkeyOption({ wallet: () => broken.wallet }).connect({
         signal: new AbortController().signal,
         handoff: () => {},
+        frame: () => {},
       }),
     ).rejects.toThrow("down");
     expect(broken.wallet.disconnect).not.toHaveBeenCalled();
@@ -356,6 +407,7 @@ describe("passkeyOption", () => {
       passkeyOption({ wallet: () => untouched.wallet }).connect({
         signal: cancelled.signal,
         handoff: () => {},
+        frame: () => {},
       }),
     ).rejects.toThrow();
     expect(untouched.wallet.prepareConnection).not.toHaveBeenCalled();
@@ -366,6 +418,7 @@ describe("passkeyOption", () => {
       passkeyOption({ wallet: async () => pending.wallet }).connect({
         signal: new AbortController().signal,
         handoff: () => {},
+        frame: () => {},
       }),
     ).rejects.toThrow(/pending Juicebox payment/);
     const w = wallet();
@@ -378,8 +431,50 @@ describe("passkeyOption", () => {
       passkeyOption({ wallet: () => w.wallet }).connect({
         signal: abort.signal,
         handoff: () => {},
+        frame: () => {},
       }),
     ).rejects.toThrow();
     expect(w.launch).not.toHaveBeenCalled();
+  });
+  test("frame: true asks the app for a frame, launches into it, and finishes on the callback the frame hands up", async () => {
+    const w = wallet(),
+      p = page(),
+      connected = vi.fn(),
+      frame = vi.fn();
+    const contentWindow = { postMessage: vi.fn() };
+    const element = { contentWindow } as unknown as HTMLIFrameElement;
+    (p.win as unknown as { document: unknown }).document = {
+      querySelector: vi.fn((selector: string) =>
+        selector === 'iframe[name="juicebox-center-frame"]' ? element : null,
+      ),
+    };
+    const connecting = passkeyOption({
+      wallet: () => w.wallet,
+      connected,
+      frame: true,
+      window: p.win,
+    }).connect({
+      signal: new AbortController().signal,
+      handoff: () => {},
+      frame,
+    });
+    // No popup: the frame is where Center opens.
+    expect(p.win.open).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(frame).toHaveBeenCalledWith("juicebox-center-frame"),
+    );
+    await vi.waitFor(() =>
+      expect(w.launch).toHaveBeenCalledWith({
+        target: "juicebox-center-frame",
+      }),
+    );
+    p.callbackFrom(contentWindow, url);
+    await connecting;
+    expect(w.wallet.completeConnection).toHaveBeenCalledWith(url);
+    expect(connected).toHaveBeenCalledWith({ url });
+    expect(contentWindow.postMessage).toHaveBeenCalledWith(
+      { type: "juicebox-center:received" },
+      "https://app.example",
+    );
   });
 });

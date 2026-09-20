@@ -149,6 +149,47 @@ describe("JBConnectModal", () => {
       view.querySelector(".jb-connect-handoff a")!.getAttribute("href"),
     ).toBe("wc:pair");
   });
+  test("shows the frame an option asks for, sized by the page inside it, and drops it on cancel", async () => {
+    let ask!: (name: string) => void;
+    const controller = createConnectController([
+      option("juicebox-center", "Juicebox account", ({ frame }) => {
+        ask = frame;
+        return new Promise(() => {});
+      }),
+    ]);
+    const view = mount(
+      <JBConnectModal open controller={controller} onClose={() => {}} />,
+    );
+    await act(async () =>
+      view.querySelector<HTMLButtonElement>(".jb-connect-primary")!.click(),
+    );
+    expect(view.querySelector("iframe")).toBeNull();
+    await act(async () => ask("juicebox-center-frame"));
+    const frame = view.querySelector("iframe")!;
+    expect(frame.getAttribute("name")).toBe("juicebox-center-frame");
+    expect(frame.getAttribute("allow")).toBe("publickey-credentials-get");
+    expect(frame.getAttribute("referrerpolicy")).toBe("no-referrer");
+    expect(frame.style.height).toBe("");
+    // Only the frame's own window sizes it; anything else is ignored.
+    const size = (source: unknown, height: unknown) =>
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "juicebox-center:size", height },
+          source: source as Window,
+        }),
+      );
+    await act(async () => size(window, 500));
+    expect(frame.style.height).toBe("");
+    await act(async () => size(frame.contentWindow, 500));
+    expect(frame.style.height).toBe("502px");
+    await act(async () => size(frame.contentWindow, "tall"));
+    expect(frame.style.height).toBe("502px");
+    await act(async () =>
+      view.querySelector<HTMLButtonElement>(".jb-connect-text")!.click(),
+    );
+    expect(view.querySelector("iframe")).toBeNull();
+    expect(controller.getState().frameName).toBeNull();
+  });
   test("names the platform's prompt on the primary button, and a prop overrides it", async () => {
     const controller = createConnectController([
       option("juicebox-center", "Juicebox account"),

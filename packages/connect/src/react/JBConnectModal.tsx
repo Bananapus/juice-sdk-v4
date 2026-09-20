@@ -60,6 +60,28 @@ export function JBConnectModal(props: JBConnectModalProps) {
     controller.cancel();
     onClose();
   };
+  // A framed sign-in: the frame is as tall as the page inside says it is (Center reports its
+  // height whenever it changes); only the frame's own window is heard.
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [frameHeight, setFrameHeight] = useState<number>();
+  useEffect(() => {
+    if (!state.frameName) return;
+    setFrameHeight(undefined);
+    const sized = (event: MessageEvent) => {
+      const data = event.data as { type?: unknown; height?: unknown } | null;
+      if (
+        !frame.current?.contentWindow ||
+        event.source !== frame.current.contentWindow ||
+        data?.type !== "juicebox-center:size" ||
+        typeof data.height !== "number" ||
+        !Number.isFinite(data.height)
+      )
+        return;
+      setFrameHeight(Math.min(1200, Math.max(160, Math.ceil(data.height))) + 2);
+    };
+    window.addEventListener("message", sized);
+    return () => window.removeEventListener("message", sized);
+  }, [state.frameName]);
   const passkey = controller.options.find((option) => option.id === passkeyId);
   const wallets = controller.options.filter(
     (option) => option.id !== passkeyId,
@@ -93,7 +115,17 @@ export function JBConnectModal(props: JBConnectModalProps) {
       <h2 tabIndex={-1}>{props.title ?? "Sign in"}</h2>
       {pending ? (
         <div role="status" aria-label="Connection">
-          {state.handoffUri && props.renderHandoff ? (
+          {state.frameName ? (
+            <iframe
+              ref={frame}
+              name={state.frameName}
+              className="jb-connect-frame"
+              title="Juicebox Center"
+              allow="publickey-credentials-get"
+              referrerPolicy="no-referrer"
+              style={frameHeight ? { height: frameHeight } : undefined}
+            />
+          ) : state.handoffUri && props.renderHandoff ? (
             <div className="jb-connect-handoff">
               {props.renderHandoff(state.handoffUri, pending)}
             </div>

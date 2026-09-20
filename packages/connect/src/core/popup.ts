@@ -3,6 +3,8 @@
  * its URL back to the page by message, the page finishes the exchange, and the popup closes. Every
  * message is same-origin: the page and the callback page are both the app. */
 export const popupName = "juicebox-center";
+/** The frame the sign-in continues in when Center admits the app to frame it. */
+export const frameName = "juicebox-center-frame";
 const callbackType = "juicebox-center:callback";
 const receivedType = "juicebox-center:received";
 
@@ -78,8 +80,47 @@ export function awaitPopupCallback(
   });
 }
 
+/** The passkey sign-in in a frame the app shows: Center's launch form targets it, the callback lands
+ * on the app's own origin inside it, and the callback page hands its URL up by message. Resolves
+ * with that URL; rejects with an AbortError when the signal aborts. Same-origin messages only. */
+export function awaitFrameCallback(
+  win: Window,
+  frame: HTMLIFrameElement,
+  signal: AbortSignal,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const origin = win.location.origin;
+    const done = () => {
+      win.removeEventListener("message", onMessage);
+      signal.removeEventListener("abort", onAbort);
+    };
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: unknown; url?: unknown } | null;
+      if (
+        !frame.contentWindow ||
+        event.source !== frame.contentWindow ||
+        event.origin !== origin ||
+        data?.type !== callbackType ||
+        typeof data.url !== "string"
+      )
+        return;
+      done();
+      frame.contentWindow.postMessage({ type: receivedType }, origin);
+      resolve(data.url);
+    };
+    const onAbort = () => {
+      done();
+      reject(new DOMException("The sign-in was closed.", "AbortError"));
+    };
+    if (signal.aborted) return onAbort();
+    win.addEventListener("message", onMessage);
+    signal.addEventListener("abort", onAbort);
+  });
+}
+
 /** For the app's callback page. Hands the callback URL to the same-origin page that opened this
- * window and closes it once that page acknowledges. The page may be slow to answer (a backgrounded
+ * window (a popup sign-in) or frames it (a framed sign-in or payment review), and closes a popup
+ * once that page acknowledges. The page may be slow to answer (a backgrounded
  * tab on a phone), so the offer repeats until it is acknowledged or the opener closes. The cap
  * (default fifteen minutes, the life of a Center request) covers an opener that navigated away;
  * after it the callback page completes the exchange itself, as it does after a full-page
@@ -90,9 +131,22 @@ export function deliverCenterCallback(
   options: { window?: Window; timeoutMs?: number; retryMs?: number } = {},
 ): Promise<boolean> {
   const win = options.window;
-  const opener = win?.opener as Window | null | undefined;
-  if (!win || !opener) return Promise.resolve(false);
+  if (!win) return Promise.resolve(false);
   const origin = win.location.origin;
+  // Framed by a same-origin page: that page takes the callback and removes the frame; nothing
+  // here closes. A cross-origin parent throws on inspection: not ours.
+  if (win.parent && win.parent !== win) {
+    try {
+      if (win.parent.location.origin === origin) {
+        win.parent.postMessage({ type: callbackType, url }, origin);
+        return Promise.resolve(true);
+      }
+    } catch {
+      /* Not our frame. */
+    }
+  }
+  const opener = win.opener as Window | null | undefined;
+  if (!opener) return Promise.resolve(false);
   // A cross-origin opener (the app tab was opened from elsewhere) throws here: not ours.
   try {
     if (opener.closed || opener.location.origin !== origin)

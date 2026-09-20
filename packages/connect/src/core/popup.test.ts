@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 import {
+  awaitFrameCallback,
   awaitPopupCallback,
   deliverCenterCallback,
   openCenterPopup,
@@ -234,5 +235,76 @@ describe("awaitPopupCallback and deliverCenterCallback", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("awaitFrameCallback and a framed deliverCenterCallback", () => {
+  const url = "https://app.example/center/callback?code=c&state=s&iss=i";
+  /** A page framing the callback page: the frame's window is the popup stand-in, with the page as its parent. */
+  function framed(origin = "https://app.example", parentOrigin = origin) {
+    const { page, popup, deliver } = pair(origin);
+    const inner = popup as unknown as Record<string, unknown>;
+    inner.parent =
+      parentOrigin === origin
+        ? page
+        : { location: { origin: parentOrigin }, postMessage: vi.fn() };
+    inner.opener = null;
+    const frame = { contentWindow: popup } as unknown as HTMLIFrameElement;
+    return { page, inner: popup, frame, deliver };
+  }
+  test("the callback page inside the frame hands its URL to the framing page, which acknowledges", async () => {
+    const { page, inner, frame } = framed();
+    const waiting = awaitFrameCallback(
+      page,
+      frame,
+      new AbortController().signal,
+    );
+    await expect(deliverCenterCallback(url, { window: inner })).resolves.toBe(
+      true,
+    );
+    await expect(waiting).resolves.toBe(url);
+    expect(
+      (inner as unknown as { close: ReturnType<typeof vi.fn> }).close,
+    ).not.toHaveBeenCalled();
+  });
+  test("the framing page hears only its own frame, and a foreign parent is never told", async () => {
+    const { page, inner, frame, deliver } = framed();
+    const waiting = awaitFrameCallback(
+      page,
+      frame,
+      new AbortController().signal,
+    );
+    deliver(page, {}, { type: "juicebox-center:callback", url });
+    deliver(
+      page,
+      inner,
+      { type: "juicebox-center:callback", url },
+      "https://evil.example",
+    );
+    deliver(page, inner, { type: "juicebox-center:callback", url: 5 });
+    expect(
+      (page as unknown as { postMessage: ReturnType<typeof vi.fn> })
+        .postMessage,
+    ).not.toHaveBeenCalled();
+    deliver(page, inner, { type: "juicebox-center:callback", url });
+    await expect(waiting).resolves.toBe(url);
+    const foreign = framed("https://app.example", "https://evil.example");
+    await expect(
+      deliverCenterCallback(url, { window: foreign.inner }),
+    ).resolves.toBe(false);
+    expect(
+      (
+        foreign.inner as unknown as {
+          parent: { postMessage: ReturnType<typeof vi.fn> };
+        }
+      ).parent.postMessage,
+    ).not.toHaveBeenCalled();
+  });
+  test("aborting the framed wait rejects with an AbortError", async () => {
+    const { page, frame } = framed();
+    const controller = new AbortController();
+    const waiting = awaitFrameCallback(page, frame, controller.signal);
+    controller.abort();
+    await expect(waiting).rejects.toMatchObject({ name: "AbortError" });
   });
 });

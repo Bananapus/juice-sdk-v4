@@ -26,6 +26,7 @@ describe("createConnectController", () => {
       pending: "wc",
       error: null,
       handoffUri: "wc:uri",
+      frameName: null,
     });
     await controller.choose("other");
     expect(other.connect).not.toHaveBeenCalled();
@@ -37,6 +38,7 @@ describe("createConnectController", () => {
       pending: "wc",
       error: null,
       handoffUri: "wc:uri",
+      frameName: null,
     });
     expect(seen).toHaveLength(2);
   });
@@ -61,6 +63,7 @@ describe("createConnectController", () => {
       pending: null,
       error: "Wallet closed.",
       handoffUri: null,
+      frameName: null,
     });
     await controller.choose("worse");
     expect(controller.getState().error).toBe(
@@ -87,6 +90,7 @@ describe("createConnectController", () => {
       pending: null,
       error: null,
       handoffUri: null,
+      frameName: null,
     });
     await quiet.choose("aborted");
     expect(quiet.getState().error).toBeNull();
@@ -115,6 +119,7 @@ describe("createConnectController", () => {
       pending: null,
       error: null,
       handoffUri: null,
+      frameName: null,
     });
     late("stale:uri");
     fail(new Error("aborted"));
@@ -123,6 +128,7 @@ describe("createConnectController", () => {
       pending: null,
       error: null,
       handoffUri: null,
+      frameName: null,
     });
     await controller.choose("ok");
     expect(controller.getState().pending).toBe("ok");
