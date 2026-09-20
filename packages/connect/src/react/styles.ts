@@ -9,6 +9,7 @@ export const connectModalCss = `
 .jb-connect button:disabled{cursor:default;opacity:.55}
 .jb-connect .jb-connect-primary{display:block;width:100%;min-height:50px;padding:14px 20px;border:0;border-radius:calc(var(--jb-connect-radius) / 2);background:var(--jb-connect-accent);color:var(--jb-connect-accent-fg);font-weight:600}
 .jb-connect .jb-connect-powered{margin:8px 0 0;font-size:13px;color:var(--jb-connect-muted);text-align:center}
+.jb-connect .jb-connect-frame{display:block;width:100%;height:23rem;border:1px solid var(--jb-connect-line);border-radius:calc(var(--jb-connect-radius) / 2);background:var(--jb-connect-bg)}
 .jb-connect .jb-connect-divider{margin:24px 0 10px;font-size:13px;color:var(--jb-connect-muted)}
 .jb-connect .jb-connect-tiles{display:flex;gap:10px;min-height:var(--jb-connect-tile);padding:4px;margin:-4px;overflow-x:auto}
 .jb-connect .jb-connect-tile{display:grid;place-items:center;flex:0 0 var(--jb-connect-tile);width:var(--jb-connect-tile);height:var(--jb-connect-tile);padding:8px;border:1px solid var(--jb-connect-line);border-radius:9px;background:var(--jb-connect-bg)}
