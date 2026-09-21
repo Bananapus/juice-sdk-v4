@@ -165,7 +165,9 @@ describe("JBConnectModal", () => {
     await act(async () => ask("juicebox-center-frame"));
     const frame = view.querySelector("iframe")!;
     expect(frame.getAttribute("name")).toBe("juicebox-center-frame");
-    expect(frame.getAttribute("allow")).toBe("publickey-credentials-get");
+    expect(frame.getAttribute("allow")).toBe(
+      "publickey-credentials-get; publickey-credentials-create",
+    );
     expect(frame.getAttribute("referrerpolicy")).toBe("no-referrer");
     expect(frame.style.height).toBe("");
     // Only the frame's own window sizes it; anything else is ignored.
