@@ -113,6 +113,9 @@ const launch = decodeDeploymentCall(deploymentCall);
 if (launch.flavor === "revnet") {
   // launch.stages, launch.description, launch.accountingContexts
 }
+if (launch.flavor === "homerun-fund") {
+  // launch.tokenName, launch.ticker, launch.mustStartAtOrAfter, launch.salt
+}
 ```
 
 List views merge deployed projects and undeployed intents by creation time
@@ -127,6 +130,63 @@ const rows = mergeSearch(deployedProjectRows, searchPage.items);
 An undeployed intent in a merged list routes to `/intent/<id>` (`intentPath`).
 Once `isFullyDeployed` reports every chain deployed, redirect that route to
 the project's own page instead of continuing to render the intent view.
+
+A publisher signs JB Center's prepared message, not its own - so it has to
+check the message first. `publishSignedIntent` does that check and then
+publishes, with the app's own signer passed in; this package never reaches a
+wallet:
+
+```ts
+import { publishSignedIntent } from "@bananapus/nana-sdk-core/jbcenter";
+
+const published = await publishSignedIntent(
+  center,
+  intent,
+  (message) => walletClient.signMessage({ account, message }),
+  { publisher: account.address },
+);
+```
+
+It refuses with a `JBCenterIntentMismatchError` before calling the signer when
+JB Center's prepared envelope carries different values than the intent built
+locally (`reason: "envelope"` - key order and hex casing are JB Center's to
+choose, the values are not), or when the prepared message does not carry the
+content hash of what is being signed (`reason: "message"`).
+
+When JB Center declines to sponsor a deploy, show its refusal in fixed
+wording rather than a provider's text:
+
+```ts
+import { describeCenterRefusal } from "@bananapus/nana-sdk-core/jbcenter";
+
+const refusal = describeCenterRefusal(error);
+if (refusal) showNotice(refusal.message);
+else throw error;
+```
+
+The module's helpers, in full:
+
+| Helper                         | What it does                                                                                       |
+| ------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `createJBCenterClient`         | Builds the `JBCenterClient` every helper below takes.                                              |
+| `createJBCenterRpcProvider`    | A chain-bound EIP-1193 provider over JB Center's read-only RPC.                                    |
+| `createJBCenterDeploymentCall` | Freezes a typed viem request into the `{ chainId, to, data }` call an intent signs.                |
+| `publishSignedIntent`          | Prepares, checks JB Center's envelope and message, signs with the caller's signer, publishes.      |
+| `JBCenterIntentMismatchError`  | Thrown by `publishSignedIntent` before signing; `reason` is `"envelope"` or `"message"`.           |
+| `decodeDeploymentCall`         | Reads a frozen call back as a project, 721, omnichain, revnet, or Homerun FUND launch.             |
+| `mergeSearch`                  | Interleaves undeployed intent rows into a list of deployed project rows by creation time.          |
+| `intentRow`                    | Turns one search item into the row `mergeSearch` merges.                                           |
+| `intentPath`                   | The `/intent/<id>` route for an undeployed intent.                                                 |
+| `deployedChains`               | The chain ids an intent has landed on.                                                             |
+| `isFullyDeployed`              | Whether every chain in the intent has landed.                                                      |
+| `isSponsorable`                | Whether JB Center's sponsor covers every chain in the list.                                        |
+| `ensureDeployed`               | The pre-step before an intent's first on-chain write: one sender per intent, polled to completion. |
+| `EnsureDeployedError`          | Thrown by `ensureDeployed` when a chain cannot be finished; carries the `chainId`.                 |
+| `describeCenterRefusal`        | The fixed sentence for a sponsorship refusal, or `null` when the failure is something else.        |
+| `JBCenterRequestError`         | A non-2xx answer from JB Center; carries `status`, `code`, `requestId`, `retryAfter`.              |
+| `JBCenterTimeoutError`         | A request that passed its `timeoutMs`.                                                             |
+| `JBCenterRpcError`             | A JSON-RPC error from the read-only RPC; carries `code` and `data`.                                |
+| `JBCENTER_SPONSORED_CHAIN_IDS` | The chain ids JB Center's sponsor covers.                                                          |
 
 ## Inline Safe creation
 

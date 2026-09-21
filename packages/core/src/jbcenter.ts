@@ -95,6 +95,18 @@ export {
   ensureDeployed,
 } from "./jbcenter/ensureDeployed.js";
 
+export type { PublishSignedIntentOptions } from "./jbcenter/publish.js";
+export {
+  JBCenterIntentMismatchError,
+  publishSignedIntent,
+} from "./jbcenter/publish.js";
+
+export type {
+  JBCenterRefusal,
+  JBCenterRefusalCode,
+} from "./jbcenter/refusal.js";
+export { describeCenterRefusal } from "./jbcenter/refusal.js";
+
 export type JBCenterContractCall<
   TAbi extends Abi = Abi,
   TFunctionName extends ContractFunctionName<

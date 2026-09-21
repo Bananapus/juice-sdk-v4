@@ -15,10 +15,10 @@ const budgets = {
     // buyback ABI generations required by projects that have not migrated.
     // The /safe entry point adds eight ESM/CJS JS/declaration/map artifacts.
     // The JB Center intent decoder, merger, and deploy pre-step add
-    // twenty-four more.
-    packed: 900_000,
-    unpacked: 18_750_000,
-    entries: 460,
+    // twenty-four more, and its guarded publish and refusal wording sixteen.
+    packed: 940_000,
+    unpacked: 18_900_000,
+    entries: 480,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
