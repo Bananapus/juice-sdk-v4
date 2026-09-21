@@ -21,6 +21,6 @@ export const connectModalCss = `
 .jb-connect .jb-connect-error{padding:12px 15px;border-left:3px solid #c8755e;background:#fae9e4;color:#873b2e;overflow-wrap:anywhere}
 .jb-connect .jb-connect-handoff{margin-top:16px}
 .jb-connect .jb-connect-footer{display:flex;align-items:baseline;justify-content:flex-end;gap:16px;margin-top:20px}
-.jb-connect .jb-connect-text{min-height:40px;padding:8px 0;border:0;background:none;font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.jb-connect .jb-connect-text{min-height:auto;padding:4px 0;margin:-4px 0;border:0;background:none;font-size:14px;text-decoration:underline;text-underline-offset:3px}
 @media (max-width:540px){.jb-connect{--jb-connect-pad:20px;padding:24px var(--jb-connect-pad)}.jb-connect h2{font-size:24px}}
 `;
