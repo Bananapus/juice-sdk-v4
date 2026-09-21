@@ -1,5 +1,11 @@
 # @bananapus/nana-sdk-connect
 
+## 0.5.3
+
+### Patch Changes
+
+- c77ca9e: The framed Center sign-in spans the modal edge to edge with no border of its own: the page inside carries its own inset. The dialog's padding is the `--jb-connect-pad` token (32px; 20px under 540px), which the frame's bleed follows.
+
 ## 0.5.2
 
 ### Patch Changes
