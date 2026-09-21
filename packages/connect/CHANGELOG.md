@@ -1,5 +1,11 @@
 # @bananapus/nana-sdk-connect
 
+## 0.5.6
+
+### Patch Changes
+
+- 6fa49f5: The modal's Cancel sits on the dialog's own bottom inset instead of a 40px box above it.
+
 ## 0.5.5
 
 ### Patch Changes
