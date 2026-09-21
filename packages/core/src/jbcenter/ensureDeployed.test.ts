@@ -179,6 +179,41 @@ describe("ensureDeployed", () => {
     ]);
   });
 
+  test("cleans up its abort listener when a poll wait completes on a signal that never aborts", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ deploys: [deploy(8453, "queued")] }, { status: 202 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          intent([8453], {
+            deploys: [deploy(8453, "confirmed", TX_HASH_1)],
+            deployments: [
+              {
+                chainId: 8453,
+                projectId: "55",
+                transactionHash: TX_HASH_1,
+                createdAt: "",
+              },
+            ],
+          }),
+        ),
+      );
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const controller = new AbortController();
+
+    const promise = ensureDeployed({
+      client,
+      intent: intent([8453]),
+      signal: controller.signal,
+    });
+
+    await vi.advanceTimersByTimeAsync(4_000);
+
+    await expect(promise).resolves.toEqual({ 8453: "55" });
+  });
+
   test("falls back to self-paid and records each deployment when the sponsor is rate limited", async () => {
     const fetchMock = vi
       .fn()

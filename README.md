@@ -74,6 +74,55 @@ const publicClient = createPublicClient({
 });
 ```
 
+### Project intents
+
+A published intent (`publishIntent`, above) is firm: JB Center exposes no edit
+or withdraw endpoint, so the signed envelope is final the moment it publishes.
+
+Every chain in an intent is deployed by exactly one sender - either JB Center's
+sponsor or the app's own wallet - never a mix of the two across the same
+intent. `ensureDeployed` picks the sender and polls to completion, falling
+back to `selfPaid` when the intent isn't sponsorable or the sponsor can't take
+it; apps never call `requestDeploy` directly, `ensureDeployed` does that on
+the sponsor path:
+
+```ts
+import { ensureDeployed } from "@bananapus/nana-sdk-core/jbcenter";
+
+const deployedChainIds = await ensureDeployed({
+  client: center,
+  intent,
+  // Runs the app's own launch pipeline for every chain JB Center didn't
+  // sponsor, then reports each result back to Center.
+  selfPaid: (calls) => Promise.all(calls.map(runOwnLaunchPipeline)),
+  onStep: (step) => console.log(step.chainId, step.status),
+});
+```
+
+Render an intent's frozen calldata without re-decoding it yourself:
+
+```ts
+import { decodeDeploymentCall } from "@bananapus/nana-sdk-core/jbcenter";
+
+const launch = decodeDeploymentCall(deploymentCall);
+if (launch.flavor === "revnet") {
+  // launch.stages, launch.description, launch.accountingContexts
+}
+```
+
+List views merge deployed projects and undeployed intents by creation time
+with `mergeSearch`:
+
+```ts
+import { mergeSearch } from "@bananapus/nana-sdk-core/jbcenter";
+
+const rows = mergeSearch(deployedProjectRows, searchPage.items);
+```
+
+An undeployed intent in a merged list routes to `/intent/<id>` (`intentPath`).
+Once `isFullyDeployed` reports every chain deployed, redirect that route to
+the project's own page instead of continuing to render the intent view.
+
 ## Inline Safe creation
 
 `@bananapus/nana-sdk-core/safe` prepares ordinary Safe 1.4.1 multisigs without
