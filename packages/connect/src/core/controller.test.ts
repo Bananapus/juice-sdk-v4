@@ -27,6 +27,7 @@ describe("createConnectController", () => {
       error: null,
       handoffUri: "wc:uri",
       frameName: null,
+      frameOrigin: null,
     });
     await controller.choose("other");
     expect(other.connect).not.toHaveBeenCalled();
@@ -39,6 +40,7 @@ describe("createConnectController", () => {
       error: null,
       handoffUri: "wc:uri",
       frameName: null,
+      frameOrigin: null,
     });
     expect(seen).toHaveLength(2);
   });
@@ -64,6 +66,7 @@ describe("createConnectController", () => {
       error: "Wallet closed.",
       handoffUri: null,
       frameName: null,
+      frameOrigin: null,
     });
     await controller.choose("worse");
     expect(controller.getState().error).toBe(
@@ -91,6 +94,7 @@ describe("createConnectController", () => {
       error: null,
       handoffUri: null,
       frameName: null,
+      frameOrigin: null,
     });
     await quiet.choose("aborted");
     expect(quiet.getState().error).toBeNull();
@@ -104,10 +108,12 @@ describe("createConnectController", () => {
     let seenSignal!: AbortSignal;
     let fail!: (error: Error) => void;
     let late!: (uri: string) => void;
+    let lateFrame!: (name: string, origin: string) => void;
     const controller = createConnectController([
-      option("wc", ({ signal, handoff }) => {
+      option("wc", ({ signal, handoff, frame }) => {
         seenSignal = signal;
         late = handoff;
+        lateFrame = frame;
         return new Promise((_, reject) => (fail = reject));
       }),
       option("ok", async () => {}),
@@ -120,8 +126,10 @@ describe("createConnectController", () => {
       error: null,
       handoffUri: null,
       frameName: null,
+      frameOrigin: null,
     });
     late("stale:uri");
+    lateFrame("stale-frame", "https://stale.example");
     fail(new Error("aborted"));
     await run;
     expect(controller.getState()).toEqual({
@@ -129,6 +137,7 @@ describe("createConnectController", () => {
       error: null,
       handoffUri: null,
       frameName: null,
+      frameOrigin: null,
     });
     await controller.choose("ok");
     expect(controller.getState().pending).toBe("ok");

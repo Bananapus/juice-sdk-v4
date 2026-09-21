@@ -6,7 +6,10 @@ function wallet(pending: { status: string } | null = null) {
   return {
     launch,
     wallet: {
-      prepareConnection: vi.fn(async () => ({ launch })),
+      prepareConnection: vi.fn(async () => ({
+        authorizationUrl: "https://center.example/wallet/authorize/1",
+        launch,
+      })),
       completeConnection: vi.fn(async (url: string) => ({ url })),
       retryConnection: vi.fn(async () => ({ retried: true })),
       restoreConnection: vi.fn((): unknown => null),
@@ -461,7 +464,10 @@ describe("passkeyOption", () => {
     // No popup: the frame is where Center opens.
     expect(p.win.open).not.toHaveBeenCalled();
     await vi.waitFor(() =>
-      expect(frame).toHaveBeenCalledWith("juicebox-center-frame"),
+      expect(frame).toHaveBeenCalledWith(
+        "juicebox-center-frame",
+        "https://center.example",
+      ),
     );
     await vi.waitFor(() =>
       expect(w.launch).toHaveBeenCalledWith({

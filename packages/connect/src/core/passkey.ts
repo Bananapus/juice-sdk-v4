@@ -9,7 +9,11 @@ import {
 
 /** The wallet client surface the passkey option needs (`createCenterWalletClient` satisfies it). */
 export type PasskeyWallet = {
-  prepareConnection(): Promise<{ launch(options?: { target?: string }): void }>;
+  prepareConnection(): Promise<{
+    /** Where the launch lands: its origin is what a frame delegates passkeys to. */
+    authorizationUrl: string;
+    launch(options?: { target?: string }): void;
+  }>;
   completeConnection(url: string): Promise<unknown>;
   retryConnection(): Promise<unknown>;
   /** The current connection, when one is already held in this tab. */
@@ -117,7 +121,7 @@ export function passkeyOption(input: {
         // Closing the dialog while preparing must never cause a delayed redirect.
         signal.throwIfAborted();
         if (input.frame) {
-          frame(frameName);
+          frame(frameName, new URL(prepared.authorizationUrl).origin);
           const element = await frameElement(win!, signal);
           prepared.launch({ target: frameName });
           const url = await awaitFrameCallback(win!, element, signal);
