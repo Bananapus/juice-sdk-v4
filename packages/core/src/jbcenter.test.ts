@@ -2,12 +2,14 @@ import { describe, expect, test, vi } from "vitest";
 import { custom, encodeFunctionData } from "viem";
 import {
   JBCENTER_DEFAULT_URL,
+  JBCENTER_SPONSORED_CHAIN_IDS,
   JBCenterRequestError,
   JBCenterRpcError,
   JBCenterTimeoutError,
   createJBCenterClient,
   createJBCenterDeploymentCall,
   createJBCenterRpcProvider,
+  isSponsorable,
 } from "./jbcenter.js";
 
 const hash = `0x${"12".repeat(32)}` as const;
@@ -44,6 +46,7 @@ function intent() {
     signature,
     createdAt: "2026-08-22T00:00:00.000Z",
     deployments: [],
+    deploys: [],
     name: "Example",
     description: null,
     tagline: null,
@@ -209,6 +212,71 @@ describe("JB Center client", () => {
     const client = createJBCenterClient({ fetch: fetchMock });
 
     await expect(client.getIntent(incomplete.id)).rejects.toMatchObject({
+      status: 502,
+      message: "JB Center returned an invalid response",
+    });
+  });
+
+  test("requestDeploy returns the queued rows", async () => {
+    const deploys = [
+      {
+        chainId: 84532,
+        status: "queued",
+        transactionHash: null,
+        bundleUuid: null,
+        error: null,
+        createdAt: "2026-09-21T00:00:00.000Z",
+        updatedAt: "2026-09-21T00:00:00.000Z",
+      },
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ deploys }, { status: 202 }));
+
+    await expect(
+      createJBCenterClient({ fetch: fetchMock }).requestDeploy(intent().id),
+    ).resolves.toEqual({ deploys });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      `https://juicebox.center/v1/intents/${intent().id}/deploy`,
+    );
+    expect(init.method).toBe("POST");
+  });
+
+  test("sponsorable chain sets", () => {
+    expect(isSponsorable([8453, 10])).toBe(true);
+    expect(isSponsorable([1, 8453])).toBe(false);
+    expect(isSponsorable([])).toBe(false);
+    expect(JBCENTER_SPONSORED_CHAIN_IDS).toContain(84532);
+  });
+
+  test("accepts a non-empty deploys list on getIntent", async () => {
+    const deploy = {
+      chainId: 8453,
+      status: "confirmed",
+      transactionHash: hash,
+      bundleUuid: "1c2d3e4f",
+      error: null,
+      createdAt: "2026-09-21T00:00:00.000Z",
+      updatedAt: "2026-09-21T00:00:01.000Z",
+    };
+    const withDeploys = { ...intent(), deploys: [deploy] };
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(withDeploys));
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.getIntent(intent().id)).resolves.toEqual(withDeploys);
+  });
+
+  test("rejects a malformed deploy row on getIntent", async () => {
+    const malformed = {
+      ...intent(),
+      deploys: [{ chainId: 8453, status: "queued" }],
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(malformed));
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.getIntent(intent().id)).rejects.toMatchObject({
       status: 502,
       message: "JB Center returned an invalid response",
     });
