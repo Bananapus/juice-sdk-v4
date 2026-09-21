@@ -220,6 +220,7 @@ export function themeOf(dialog: HTMLElement): Record<string, string> {
     ["accent", "--jb-connect-accent"],
     ["accentForeground", "--jb-connect-accent-fg"],
     ["radius", "--jb-connect-radius"],
+    ["inset", "--jb-connect-pad"],
   ] as const) {
     const value = token(name);
     if (value) theme[key] = value;
