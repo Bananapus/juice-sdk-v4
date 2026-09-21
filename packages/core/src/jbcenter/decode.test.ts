@@ -1,6 +1,7 @@
 import {
   encodeFunctionData,
   isAddressEqual,
+  parseAbi,
   parseEther,
   zeroAddress,
   zeroHash,
@@ -366,5 +367,62 @@ describe("decodeDeploymentCall", () => {
       data: "0x12345678",
     });
     expect(decoded).toEqual({ flavor: "unknown", to, selector: "0x12345678" });
+  });
+
+  test("HomerunDeployer.launchFundFor round-trips through a deployment call", () => {
+    // The signature the selector must match, from HomerunDeployer.sol:
+    // launchFundFor(address,string,string,string,uint48,bytes32,address[])
+    const abi = parseAbi([
+      "function launchFundFor(address owner, string projectUri, string name, string ticker, uint48 mustStartAtOrAfter, bytes32 salt, address[] peerSuckerDeployers) payable returns (uint256 projectId, address token)",
+    ]);
+    const deployer = "0x00000000000000000000000000000000000fa0ed" as const;
+    const peers = [
+      "0x0000000000000000000000000000000000000001",
+      "0x0000000000000000000000000000000000000002",
+    ] as const;
+
+    const call = createJBCenterDeploymentCall({
+      chainId: CHAIN_ID,
+      address: deployer,
+      abi,
+      functionName: "launchFundFor",
+      args: [OWNER, "ipfs://fund", "Fund", "FUND", 1_790_000_000, SALT, peers],
+    });
+
+    expect(call.data.slice(0, 10)).toBe("0x011fb19e");
+    expect(decodeDeploymentCall(call)).toEqual({
+      flavor: "homerun-fund",
+      owner: OWNER,
+      projectUri: "ipfs://fund",
+      tokenName: "Fund",
+      ticker: "FUND",
+      mustStartAtOrAfter: 1_790_000_000,
+      salt: SALT,
+      peerSuckerDeployers: peers,
+    });
+  });
+
+  test("an unlinked FUND decodes with a zero salt and no peers", () => {
+    const abi = parseAbi([
+      "function launchFundFor(address owner, string projectUri, string name, string ticker, uint48 mustStartAtOrAfter, bytes32 salt, address[] peerSuckerDeployers) payable returns (uint256 projectId, address token)",
+    ]);
+    const call = createJBCenterDeploymentCall({
+      chainId: CHAIN_ID,
+      address: "0x00000000000000000000000000000000000fa0ed",
+      abi,
+      functionName: "launchFundFor",
+      args: [OWNER, "ipfs://fund", "Fund", "FUND", 0, zeroHash, []],
+    });
+
+    expect(decodeDeploymentCall(call)).toEqual({
+      flavor: "homerun-fund",
+      owner: OWNER,
+      projectUri: "ipfs://fund",
+      tokenName: "Fund",
+      ticker: "FUND",
+      mustStartAtOrAfter: 0,
+      salt: zeroHash,
+      peerSuckerDeployers: [],
+    });
   });
 });

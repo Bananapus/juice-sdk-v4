@@ -1,6 +1,7 @@
 import {
   decodeFunctionData,
   isAddressEqual,
+  parseAbi,
   slice,
   type Address,
   type Hex,
@@ -53,6 +54,16 @@ export type JBCenterDecodedLaunch =
       stages: REVConfig["stageConfigurations"];
       description: REVConfig["description"];
       accountingContexts: readonly JBAccountingContext[];
+    }
+  | {
+      flavor: "homerun-fund";
+      owner: Address;
+      projectUri: string;
+      tokenName: string;
+      ticker: string;
+      mustStartAtOrAfter: number;
+      salt: Hex;
+      peerSuckerDeployers: readonly Address[];
     }
   | { flavor: "unknown"; to: Address; selector: Hex };
 
@@ -203,11 +214,52 @@ function decodeRevnetDeploy(
   }
 }
 
+/** Source: HomerunDeployer.sol. Carried here because Homerun deploys its own
+ * per-chain deployer, which the V6 address registry does not name. */
+const homerunLaunchFundAbi = parseAbi([
+  "function launchFundFor(address owner, string projectUri, string name, string ticker, uint48 mustStartAtOrAfter, bytes32 salt, address[] peerSuckerDeployers) payable returns (uint256 projectId, address token)",
+]);
+
+/** Matched on the selector alone: the target address is Homerun's, not one
+ * this package can resolve, so this runs after every address-gated decoder. */
+function decodeHomerunFundLaunch(
+  call: JBCenterDeploymentCall,
+): JBCenterDecodedLaunch | null {
+  try {
+    const decoded = decodeFunctionData({
+      abi: homerunLaunchFundAbi,
+      data: call.data,
+    });
+    const [
+      owner,
+      projectUri,
+      tokenName,
+      ticker,
+      mustStartAtOrAfter,
+      salt,
+      peerSuckerDeployers,
+    ] = decoded.args;
+    return {
+      flavor: "homerun-fund",
+      owner,
+      projectUri,
+      tokenName,
+      ticker,
+      mustStartAtOrAfter,
+      salt,
+      peerSuckerDeployers,
+    };
+  } catch {
+    return null;
+  }
+}
+
 const DECODERS = [
   decodeProjectLaunch,
   decodeProject721Launch,
   decodeOmnichainLaunch,
   decodeRevnetDeploy,
+  decodeHomerunFundLaunch,
 ];
 
 /**
