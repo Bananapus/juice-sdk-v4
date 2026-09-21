@@ -1,5 +1,11 @@
 # @bananapus/nana-sdk-connect
 
+## 0.5.5
+
+### Patch Changes
+
+- 449ea48: The framed Center sign-in opens at the height of its sign-in page (14rem) and eases to each size the page reports, instead of jumping.
+
 ## 0.5.4
 
 ### Patch Changes
