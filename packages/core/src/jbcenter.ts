@@ -77,6 +77,15 @@ export type JBCenterDeploymentCall = {
 export type { JBCenterDecodedLaunch } from "./jbcenter/decode.js";
 export { decodeDeploymentCall } from "./jbcenter/decode.js";
 
+export type { JBCenterIntentRow } from "./jbcenter/merge.js";
+export {
+  deployedChains,
+  intentPath,
+  intentRow,
+  isFullyDeployed,
+  mergeSearch,
+} from "./jbcenter/merge.js";
+
 export type JBCenterContractCall<
   TAbi extends Abi = Abi,
   TFunctionName extends ContractFunctionName<
