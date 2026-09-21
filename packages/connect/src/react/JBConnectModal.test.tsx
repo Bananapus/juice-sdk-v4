@@ -199,6 +199,7 @@ describe("JBConnectModal", () => {
         accent: "#1a1a1a",
         accentForeground: "#fff",
         radius: "16px",
+        inset: "32px",
       }),
     );
     await act(async () => size(frame.contentWindow, "tall"));
