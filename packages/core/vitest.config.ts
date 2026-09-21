@@ -45,6 +45,12 @@ export default defineConfig({
           functions: 75,
           lines: 94,
         },
+        "src/jbcenter/publish.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
       },
     },
   },
