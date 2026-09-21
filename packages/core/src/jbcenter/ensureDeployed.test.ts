@@ -229,18 +229,30 @@ describe("ensureDeployed", () => {
     ]);
   });
 
-  test("throws EnsureDeployedError with the failing chainId when a row fails", async () => {
+  test("throws EnsureDeployedError with the failing chainId when a row fails, after reporting every change in that batch", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        jsonResponse({ deploys: [deploy(8453, "queued")] }, { status: 202 }),
+        jsonResponse(
+          { deploys: [deploy(8453, "queued"), deploy(10, "queued")] },
+          { status: 202 },
+        ),
       )
       .mockResolvedValueOnce(
-        jsonResponse(intent([8453], { deploys: [deploy(8453, "failed")] })),
+        jsonResponse(
+          intent([8453, 10], {
+            deploys: [deploy(8453, "failed"), deploy(10, "sent")],
+          }),
+        ),
       );
     const client = createJBCenterClient({ fetch: fetchMock });
+    const onStep = vi.fn();
 
-    const promise = ensureDeployed({ client, intent: intent([8453]) });
+    const promise = ensureDeployed({
+      client,
+      intent: intent([8453, 10]),
+      onStep,
+    });
     const instanceAssertion =
       expect(promise).rejects.toBeInstanceOf(EnsureDeployedError);
     const assertion = expect(promise).rejects.toMatchObject({
@@ -251,6 +263,36 @@ describe("ensureDeployed", () => {
     await vi.advanceTimersByTimeAsync(4_000);
     await assertion;
     await instanceAssertion;
+
+    expect(onStep.mock.calls.map((args) => args[0])).toEqual([
+      { chainId: 8453, status: "queued", transactionHash: undefined },
+      { chainId: 10, status: "queued", transactionHash: undefined },
+      { chainId: 8453, status: "failed", transactionHash: undefined },
+      { chainId: 10, status: "sent", transactionHash: undefined },
+    ]);
+  });
+
+  test("a transient failure while polling propagates without ever self-paying", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ deploys: [deploy(8453, "queued")] }, { status: 202 }),
+      )
+      .mockResolvedValueOnce(jsonResponse({}, { status: 503 }));
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const selfPaid = vi.fn();
+
+    const promise = ensureDeployed({
+      client,
+      intent: intent([8453]),
+      selfPaid,
+    });
+    const assertion =
+      expect(promise).rejects.toBeInstanceOf(JBCenterRequestError);
+
+    await vi.advanceTimersByTimeAsync(4_000);
+    await assertion;
+    expect(selfPaid).not.toHaveBeenCalled();
   });
 
   test("never mixes senders: existing deploy rows poll without calling requestDeploy", async () => {
@@ -312,6 +354,53 @@ describe("ensureDeployed", () => {
 
     expect(selfPaid).toHaveBeenCalledWith([call(10)]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects on an already-aborted signal before invoking self-paid", async () => {
+    const fetchMock = vi.fn();
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const controller = new AbortController();
+    controller.abort(new Error("aborted before self-paid"));
+    const selfPaid = vi.fn();
+
+    await expect(
+      ensureDeployed({
+        client,
+        intent: intent([1]),
+        selfPaid,
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow("aborted before self-paid");
+    expect(selfPaid).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("rejects a self-paid result that returns a chain outside the remaining set, before recording anything", async () => {
+    const fetchMock = vi.fn();
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const selfPaid = vi.fn().mockResolvedValue([
+      { chainId: 1, projectId: "55", transactionHash: TX_HASH_1 },
+      { chainId: 999, projectId: "56", transactionHash: TX_HASH_2 },
+    ]);
+
+    await expect(
+      ensureDeployed({ client, intent: intent([1]), selfPaid }),
+    ).rejects.toMatchObject({ name: "EnsureDeployedError", chainId: 999 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("rejects a self-paid result that returns the same chain twice, before recording anything", async () => {
+    const fetchMock = vi.fn();
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const selfPaid = vi.fn().mockResolvedValue([
+      { chainId: 1, projectId: "55", transactionHash: TX_HASH_1 },
+      { chainId: 1, projectId: "56", transactionHash: TX_HASH_2 },
+    ]);
+
+    await expect(
+      ensureDeployed({ client, intent: intent([1]), selfPaid }),
+    ).rejects.toMatchObject({ name: "EnsureDeployedError", chainId: 1 });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test("throws EnsureDeployedError when not sponsorable and no self-paid fallback is given", async () => {

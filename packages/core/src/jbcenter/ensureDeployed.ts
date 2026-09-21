@@ -69,6 +69,8 @@ function reportSteps(
   seen: Map<number, string>,
   onStep: EnsureDeployedOptions["onStep"],
 ): void {
+  let failedChainId: number | undefined;
+
   for (const deploy of deploys) {
     if (seen.get(deploy.chainId) === deploy.status) continue;
     seen.set(deploy.chainId, deploy.status);
@@ -77,12 +79,16 @@ function reportSteps(
       status: deploy.status,
       transactionHash: deploy.transactionHash ?? undefined,
     });
-    if (deploy.status === "failed") {
-      throw new EnsureDeployedError(
-        `JB Center could not deploy chain ${deploy.chainId}`,
-        deploy.chainId,
-      );
+    if (deploy.status === "failed" && failedChainId === undefined) {
+      failedChainId = deploy.chainId;
     }
+  }
+
+  if (failedChainId !== undefined) {
+    throw new EnsureDeployedError(
+      `JB Center could not deploy chain ${failedChainId}`,
+      failedChainId,
+    );
   }
 }
 
@@ -129,12 +135,33 @@ async function runSelfPaid(
     );
   }
 
+  checkAborted(signal);
+
   const deployed = deployedChains(intent);
   const remainingCalls = intent.envelope.deploymentCalls.filter(
     (call) => !(call.chainId in deployed),
   );
 
   const deployments = await selfPaid(remainingCalls);
+
+  const remainingChainIds = new Set(remainingCalls.map((call) => call.chainId));
+  const returnedChainIds = new Set<number>();
+  for (const deployment of deployments) {
+    if (!remainingChainIds.has(deployment.chainId)) {
+      throw new EnsureDeployedError(
+        `Self-paid deploy returned an unexpected chain ${deployment.chainId}`,
+        deployment.chainId,
+      );
+    }
+    if (returnedChainIds.has(deployment.chainId)) {
+      throw new EnsureDeployedError(
+        `Self-paid deploy returned chain ${deployment.chainId} more than once`,
+        deployment.chainId,
+      );
+    }
+    returnedChainIds.add(deployment.chainId);
+  }
+
   const result: Record<number, string> = { ...deployed };
 
   for (const deployment of deployments) {
@@ -180,17 +207,10 @@ export async function ensureDeployed(
     return runSelfPaid(client, intent, selfPaid, onStep, signal);
   }
 
+  let deploys: JBCenterIntentDeploy[];
   try {
     checkAborted(signal);
-    const { deploys } = await client.requestDeploy(intent.id, { signal });
-    return await pollUntilDeployed(
-      client,
-      { ...intent, deploys },
-      pollMs,
-      timeoutMs,
-      signal,
-      onStep,
-    );
+    ({ deploys } = await client.requestDeploy(intent.id, { signal }));
   } catch (error) {
     if (
       error instanceof JBCenterRequestError &&
@@ -200,4 +220,13 @@ export async function ensureDeployed(
     }
     throw error;
   }
+
+  return pollUntilDeployed(
+    client,
+    { ...intent, deploys },
+    pollMs,
+    timeoutMs,
+    signal,
+    onStep,
+  );
 }
