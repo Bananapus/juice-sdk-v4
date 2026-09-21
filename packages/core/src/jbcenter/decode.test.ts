@@ -36,6 +36,8 @@ const CHAIN_ID = 8453;
 const OWNER = "0x000000000000000000000000000000000000dEaD" as const;
 const SALT =
   "0xabababababababababababababababababababababababababababababababab" as const;
+/** HomerunDeployer on the mainnets, from Homerun's deployments directory. */
+const HOMERUN_DEPLOYER = "0xac9250654ea223513ffee25fdb647dc016873905" as const;
 
 const DEPLOY_721_CONFIG: JBDeploy721TiersHookConfig = {
   deployTiersHookConfig: {
@@ -375,7 +377,6 @@ describe("decodeDeploymentCall", () => {
     const abi = parseAbi([
       "function launchFundFor(address owner, string projectUri, string name, string ticker, uint48 mustStartAtOrAfter, bytes32 salt, address[] peerSuckerDeployers) payable returns (uint256 projectId, address token)",
     ]);
-    const deployer = "0x00000000000000000000000000000000000fa0ed" as const;
     const peers = [
       "0x0000000000000000000000000000000000000001",
       "0x0000000000000000000000000000000000000002",
@@ -383,7 +384,7 @@ describe("decodeDeploymentCall", () => {
 
     const call = createJBCenterDeploymentCall({
       chainId: CHAIN_ID,
-      address: deployer,
+      address: HOMERUN_DEPLOYER,
       abi,
       functionName: "launchFundFor",
       args: [OWNER, "ipfs://fund", "Fund", "FUND", 1_790_000_000, SALT, peers],
@@ -396,9 +397,63 @@ describe("decodeDeploymentCall", () => {
       projectUri: "ipfs://fund",
       tokenName: "Fund",
       ticker: "FUND",
+      to: HOMERUN_DEPLOYER,
       mustStartAtOrAfter: 1_790_000_000,
       salt: SALT,
       peerSuckerDeployers: peers,
+    });
+  });
+
+  test("the same FUND calldata at another address yields unknown", () => {
+    const abi = parseAbi([
+      "function launchFundFor(address owner, string projectUri, string name, string ticker, uint48 mustStartAtOrAfter, bytes32 salt, address[] peerSuckerDeployers) payable returns (uint256 projectId, address token)",
+    ]);
+    const to = "0x00000000000000000000000000000000000fa0ed" as const;
+    const call = createJBCenterDeploymentCall({
+      chainId: CHAIN_ID,
+      address: to,
+      abi,
+      functionName: "launchFundFor",
+      args: [OWNER, "ipfs://fund", "Fund", "FUND", 1_790_000_000, SALT, []],
+    });
+
+    expect(decodeDeploymentCall(call)).toEqual({
+      flavor: "unknown",
+      to,
+      selector: "0x011fb19e",
+    });
+  });
+
+  test("HomerunDeployer's own address on a chain it is not deployed to yields unknown", () => {
+    const abi = parseAbi([
+      "function launchFundFor(address owner, string projectUri, string name, string ticker, uint48 mustStartAtOrAfter, bytes32 salt, address[] peerSuckerDeployers) payable returns (uint256 projectId, address token)",
+    ]);
+    const call = createJBCenterDeploymentCall({
+      chainId: 999_999,
+      address: HOMERUN_DEPLOYER,
+      abi,
+      functionName: "launchFundFor",
+      args: [OWNER, "ipfs://fund", "Fund", "FUND", 1_790_000_000, SALT, []],
+    });
+
+    expect(decodeDeploymentCall(call)).toEqual({
+      flavor: "unknown",
+      to: HOMERUN_DEPLOYER,
+      selector: "0x011fb19e",
+    });
+  });
+
+  test("the FUND selector with a garbage tail yields unknown", () => {
+    expect(
+      decodeDeploymentCall({
+        chainId: CHAIN_ID,
+        to: HOMERUN_DEPLOYER,
+        data: `0x011fb19e${"ab".repeat(64)}`,
+      }),
+    ).toEqual({
+      flavor: "unknown",
+      to: HOMERUN_DEPLOYER,
+      selector: "0x011fb19e",
     });
   });
 
@@ -408,7 +463,7 @@ describe("decodeDeploymentCall", () => {
     ]);
     const call = createJBCenterDeploymentCall({
       chainId: CHAIN_ID,
-      address: "0x00000000000000000000000000000000000fa0ed",
+      address: HOMERUN_DEPLOYER,
       abi,
       functionName: "launchFundFor",
       args: [OWNER, "ipfs://fund", "Fund", "FUND", 0, zeroHash, []],
@@ -420,6 +475,7 @@ describe("decodeDeploymentCall", () => {
       projectUri: "ipfs://fund",
       tokenName: "Fund",
       ticker: "FUND",
+      to: HOMERUN_DEPLOYER,
       mustStartAtOrAfter: 0,
       salt: zeroHash,
       peerSuckerDeployers: [],
