@@ -11,8 +11,10 @@ export type ConnectOption = {
     signal: AbortSignal;
     handoff(uri: string): void;
     /** Asks the app to show a frame under this name for the option to continue in (the passkey
-     * sign-in at Center, when Center admits the app to frame it). */
-    frame(name: string): void;
+     * sign-in at Center, when Center admits the app to frame it). `origin` is the page that will
+     * load in it, named in the frame's `allow` so the browser delegates passkeys to it: a frame
+     * without a `src` (Center's launch form posts into it by name) delegates nothing otherwise. */
+    frame(name: string, origin: string): void;
   }): Promise<void>;
 };
 export type ConnectState = {
@@ -23,6 +25,8 @@ export type ConnectState = {
   handoffUri: string | null;
   /** The name of the frame the pending option continues in, once it asks for one. */
   frameName: string | null;
+  /** The origin the frame delegates passkeys to. */
+  frameOrigin: string | null;
 };
 export type ConnectController = {
   readonly options: readonly ConnectOption[];
@@ -39,6 +43,7 @@ const idle: ConnectState = {
   error: null,
   handoffUri: null,
   frameName: null,
+  frameOrigin: null,
 };
 
 export function createConnectController(
@@ -62,15 +67,22 @@ export function createConnectController(
       const option = options.find((candidate) => candidate.id === id);
       if (!option || option.disabled || current) return;
       const controller = (current = new AbortController());
-      set({ pending: id, error: null, handoffUri: null, frameName: null });
+      set({
+        pending: id,
+        error: null,
+        handoffUri: null,
+        frameName: null,
+        frameOrigin: null,
+      });
       try {
         await option.connect({
           signal: controller.signal,
           handoff: (uri) => {
             if (current === controller) set({ handoffUri: uri });
           },
-          frame: (name) => {
-            if (current === controller) set({ frameName: name });
+          frame: (name, origin) => {
+            if (current === controller)
+              set({ frameName: name, frameOrigin: origin });
           },
         });
       } catch (error) {
@@ -79,6 +91,7 @@ export function createConnectController(
             pending: null,
             handoffUri: null,
             frameName: null,
+            frameOrigin: null,
             error: messageOf(error),
           });
       } finally {

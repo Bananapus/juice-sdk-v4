@@ -148,7 +148,7 @@ describe("JBConnectModal", () => {
     ).toBe("wc:pair");
   });
   test("shows the frame an option asks for, sized by the page inside it, and drops it on cancel", async () => {
-    let ask!: (name: string) => void;
+    let ask!: (name: string, origin: string) => void;
     const controller = createConnectController([
       option("juicebox-center", "Juicebox account", ({ frame }) => {
         ask = frame;
@@ -162,11 +162,14 @@ describe("JBConnectModal", () => {
       view.querySelector<HTMLButtonElement>(".jb-connect-primary")!.click(),
     );
     expect(view.querySelector("iframe")).toBeNull();
-    await act(async () => ask("juicebox-center-frame"));
+    await act(async () =>
+      ask("juicebox-center-frame", "https://center.example"),
+    );
     const frame = view.querySelector("iframe")!;
     expect(frame.getAttribute("name")).toBe("juicebox-center-frame");
+    // Center's origin by name: the frame has no src for the browser to take it from.
     expect(frame.getAttribute("allow")).toBe(
-      "publickey-credentials-get; publickey-credentials-create",
+      "publickey-credentials-get https://center.example; publickey-credentials-create https://center.example",
     );
     expect(frame.getAttribute("referrerpolicy")).toBe("no-referrer");
     expect(frame.style.height).toBe("");

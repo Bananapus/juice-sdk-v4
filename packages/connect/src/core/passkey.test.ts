@@ -1,12 +1,16 @@
 import { describe, expect, test, vi } from "vitest";
 import { passkeyOption } from "./passkey";
 
+const center = "https://center.example/wallet/authorize/1";
 function wallet(pending: { status: string } | null = null) {
   const launch = vi.fn();
   return {
     launch,
     wallet: {
-      prepareConnection: vi.fn(async () => ({ launch })),
+      prepareConnection: vi.fn(async () => ({
+        authorizationUrl: center,
+        launch,
+      })),
       completeConnection: vi.fn(async (url: string) => ({ url })),
       retryConnection: vi.fn(async () => ({ retried: true })),
       restoreConnection: vi.fn((): unknown => null),
@@ -243,7 +247,7 @@ describe("passkeyOption", () => {
       connected = vi.fn();
     w.wallet.prepareConnection.mockImplementation(async () => {
       p.popup.closed = true;
-      return { launch: w.launch };
+      return { authorizationUrl: center, launch: w.launch };
     });
     await expect(
       passkeyOption({
@@ -287,7 +291,7 @@ describe("passkeyOption", () => {
       .mockRejectedValueOnce(
         Object.assign(new Error("changed"), { code: "WALLET_HANDOFF_CHANGED" }),
       )
-      .mockResolvedValueOnce({ launch: w.launch });
+      .mockResolvedValueOnce({ authorizationUrl: center, launch: w.launch });
     const connecting = passkeyOption({
       wallet: () => w.wallet,
       window: p.win,
@@ -425,7 +429,7 @@ describe("passkeyOption", () => {
     const abort = new AbortController();
     w.wallet.prepareConnection.mockImplementation(async () => {
       abort.abort();
-      return { launch: w.launch };
+      return { authorizationUrl: center, launch: w.launch };
     });
     await expect(
       passkeyOption({ wallet: () => w.wallet }).connect({
@@ -461,7 +465,10 @@ describe("passkeyOption", () => {
     // No popup: the frame is where Center opens.
     expect(p.win.open).not.toHaveBeenCalled();
     await vi.waitFor(() =>
-      expect(frame).toHaveBeenCalledWith("juicebox-center-frame"),
+      expect(frame).toHaveBeenCalledWith(
+        "juicebox-center-frame",
+        "https://center.example",
+      ),
     );
     await vi.waitFor(() =>
       expect(w.launch).toHaveBeenCalledWith({

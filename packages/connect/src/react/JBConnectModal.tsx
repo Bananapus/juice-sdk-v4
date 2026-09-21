@@ -128,7 +128,7 @@ export function JBConnectModal(props: JBConnectModalProps) {
               name={state.frameName}
               className="jb-connect-frame"
               title="Juicebox Center"
-              allow="publickey-credentials-get; publickey-credentials-create"
+              allow={`publickey-credentials-get ${state.frameOrigin}; publickey-credentials-create ${state.frameOrigin}`}
               referrerPolicy="no-referrer"
               style={frameHeight ? { height: frameHeight } : undefined}
             />
