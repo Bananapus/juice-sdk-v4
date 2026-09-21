@@ -26,6 +26,16 @@ describe("published core SDK surfaces", () => {
     expect(sdk.createJBCenterRpcProvider).toBeTypeOf("function");
     expect(sdk.JBCENTER_DEFAULT_URL).toBe("https://juicebox.center");
     expect(sdk.JBCENTER_RPC_METHODS).toContain("eth_chainId");
+    expect(sdk.JBCENTER_SPONSORED_CHAIN_IDS).toContain(8453);
+    expect(sdk.isSponsorable).toBeTypeOf("function");
+    expect(sdk.decodeDeploymentCall).toBeTypeOf("function");
+    expect(sdk.mergeSearch).toBeTypeOf("function");
+    expect(sdk.intentRow).toBeTypeOf("function");
+    expect(sdk.intentPath).toBeTypeOf("function");
+    expect(sdk.deployedChains).toBeTypeOf("function");
+    expect(sdk.isFullyDeployed).toBeTypeOf("function");
+    expect(sdk.ensureDeployed).toBeTypeOf("function");
+    expect(sdk.EnsureDeployedError).toBeTypeOf("function");
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
     expect(v6.buildAutoIssueTx).toBeTypeOf("function");
     expect(v6.quoteDirectPaySwap).toBeTypeOf("function");

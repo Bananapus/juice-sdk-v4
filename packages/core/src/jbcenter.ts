@@ -74,6 +74,27 @@ export type JBCenterDeploymentCall = {
   data: Hex;
 };
 
+export type { JBCenterDecodedLaunch } from "./jbcenter/decode.js";
+export { decodeDeploymentCall } from "./jbcenter/decode.js";
+
+export type { JBCenterIntentRow } from "./jbcenter/merge.js";
+export {
+  deployedChains,
+  intentPath,
+  intentRow,
+  isFullyDeployed,
+  mergeSearch,
+} from "./jbcenter/merge.js";
+
+export type {
+  EnsureDeployedOptions,
+  EnsureDeployedStep,
+} from "./jbcenter/ensureDeployed.js";
+export {
+  EnsureDeployedError,
+  ensureDeployed,
+} from "./jbcenter/ensureDeployed.js";
+
 export type JBCenterContractCall<
   TAbi extends Abi = Abi,
   TFunctionName extends ContractFunctionName<
@@ -147,6 +168,16 @@ export type JBCenterDeployment = {
 
 export type JBCenterDeploymentInput = Omit<JBCenterDeployment, "createdAt">;
 
+export type JBCenterIntentDeploy = {
+  chainId: number;
+  status: "queued" | "sent" | "confirmed" | "failed";
+  transactionHash: Hex | null;
+  bundleUuid: string | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type JBCenterIntent<
   TJb extends JBCenterJsonObject = JBCenterJsonObject,
 > = JBCenterIntentMetadata & {
@@ -158,7 +189,19 @@ export type JBCenterIntent<
   signature: Hex;
   createdAt: string;
   deployments: JBCenterDeployment[];
+  deploys: JBCenterIntentDeploy[];
 };
+
+export const JBCENTER_SPONSORED_CHAIN_IDS = Object.freeze([
+  10, 8453, 42161, 11155111, 11155420, 84532, 421614,
+]);
+
+export function isSponsorable(chainIds: readonly number[]): boolean {
+  return (
+    chainIds.length > 0 &&
+    chainIds.every((id) => JBCENTER_SPONSORED_CHAIN_IDS.includes(id))
+  );
+}
 
 export type JBCenterSearchItem = JBCenterIntentMetadata & {
   source: "jbcenter";
@@ -319,6 +362,7 @@ function isEnvelope(value: unknown): value is JBCenterIntentEnvelope {
     typeof value.format !== "string" ||
     typeof value.deploymentVersion !== "string" ||
     !isNumberArray(value.chainIds) ||
+    value.chainIds.length === 0 ||
     new Set(value.chainIds).size !== value.chainIds.length ||
     !record(value.jb)
   ) {
@@ -358,8 +402,50 @@ function isDeployment(value: unknown): value is JBCenterDeployment {
     Number.isSafeInteger(value.chainId) &&
     Number(value.chainId) > 0 &&
     typeof value.projectId === "string" &&
+    /^[0-9]+$/u.test(value.projectId) &&
     isHash(value.transactionHash) &&
     typeof value.createdAt === "string"
+  );
+}
+
+const JBCENTER_DEPLOY_STATUSES = [
+  "queued",
+  "sent",
+  "confirmed",
+  "failed",
+] as const;
+
+function isIntentDeploy(value: unknown): value is JBCenterIntentDeploy {
+  return (
+    record(value) &&
+    Number.isSafeInteger(value.chainId) &&
+    Number(value.chainId) > 0 &&
+    typeof value.status === "string" &&
+    (JBCENTER_DEPLOY_STATUSES as readonly string[]).includes(value.status) &&
+    (value.transactionHash === null || isHash(value.transactionHash)) &&
+    (value.bundleUuid === null || typeof value.bundleUuid === "string") &&
+    (value.error === null || typeof value.error === "string") &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string"
+  );
+}
+
+function isDeployResponse(
+  value: unknown,
+): value is { deploys: JBCenterIntentDeploy[] } {
+  return (
+    record(value) &&
+    Array.isArray(value.deploys) &&
+    value.deploys.every(isIntentDeploy)
+  );
+}
+
+function isUuid(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
+      value,
+    )
   );
 }
 
@@ -367,7 +453,7 @@ function isIntent(value: unknown): value is JBCenterIntent {
   return (
     record(value) &&
     isMetadata(value) &&
-    typeof value.id === "string" &&
+    isUuid(value.id) &&
     (value.status === "undeployed" || value.status === "deployed") &&
     isHash(value.contentHash) &&
     isEnvelope(value.envelope) &&
@@ -375,7 +461,9 @@ function isIntent(value: unknown): value is JBCenterIntent {
     isSignature(value.signature) &&
     typeof value.createdAt === "string" &&
     Array.isArray(value.deployments) &&
-    value.deployments.every(isDeployment)
+    value.deployments.every(isDeployment) &&
+    Array.isArray(value.deploys) &&
+    value.deploys.every(isIntentDeploy)
   );
 }
 
@@ -590,6 +678,18 @@ export class JBCenterClient {
         ...options,
         timeoutMs: options?.timeoutMs ?? JBCENTER_DEPLOYMENT_TIMEOUT_MS,
       },
+    );
+  }
+
+  requestDeploy(
+    intentId: string,
+    options?: JBCenterRequestOptions,
+  ): Promise<{ deploys: JBCenterIntentDeploy[] }> {
+    return this.fetchJson(
+      `v1/intents/${encodeURIComponent(intentId)}/deploy`,
+      { method: "POST" },
+      isDeployResponse,
+      options,
     );
   }
 
