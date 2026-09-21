@@ -74,6 +74,9 @@ export type JBCenterDeploymentCall = {
   data: Hex;
 };
 
+export type { JBCenterDecodedLaunch } from "./jbcenter/decode.js";
+export { decodeDeploymentCall } from "./jbcenter/decode.js";
+
 export type JBCenterContractCall<
   TAbi extends Abi = Abi,
   TFunctionName extends ContractFunctionName<
