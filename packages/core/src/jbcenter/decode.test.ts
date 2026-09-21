@@ -1,4 +1,10 @@
-import { encodeFunctionData, parseEther, zeroAddress, zeroHash } from "viem";
+import {
+  encodeFunctionData,
+  isAddressEqual,
+  parseEther,
+  zeroAddress,
+  zeroHash,
+} from "viem";
 import { describe, expect, test } from "vitest";
 import {
   jb721TiersHookProjectDeployerAbi,
@@ -128,13 +134,15 @@ describe("decodeDeploymentCall", () => {
   });
 
   test("decodes an omnichain launch without a 721 config", () => {
+    const omnichainRuleset = ruleset();
+    const omnichainTerminals = terminals();
     const tx = buildOmnichainLaunchProjectTx({
       chainId: CHAIN_ID,
       chainIds: [CHAIN_ID],
       owner: OWNER,
       projectUri: "ipfs://omni",
-      rulesetConfigurations: [ruleset()],
-      terminalConfigurations: terminals(),
+      rulesetConfigurations: [omnichainRuleset],
+      terminalConfigurations: omnichainTerminals,
       memo: "omni",
       creationFee: 1n,
       salt: SALT,
@@ -147,16 +155,28 @@ describe("decodeDeploymentCall", () => {
       memo: "omni",
       has721: false,
     });
+    if (decoded.flavor !== "omnichain") throw new Error("expected omnichain");
+    expect(decoded.rulesetConfigurations[0].weight).toBe(
+      omnichainRuleset.weight,
+    );
+    expect(
+      isAddressEqual(
+        decoded.terminalConfigurations[0].terminal,
+        omnichainTerminals[0].terminal,
+      ),
+    ).toBe(true);
   });
 
   test("decodes an omnichain launch with a 721 config", () => {
+    const omnichainRuleset = ruleset();
+    const omnichainTerminals = terminals();
     const tx = buildOmnichainLaunchProjectTx({
       chainId: CHAIN_ID,
       chainIds: [CHAIN_ID],
       owner: OWNER,
       projectUri: "ipfs://omni-721",
-      rulesetConfigurations: [ruleset()],
-      terminalConfigurations: terminals(),
+      rulesetConfigurations: [omnichainRuleset],
+      terminalConfigurations: omnichainTerminals,
       memo: "omni-721",
       creationFee: 1n,
       salt: SALT,
@@ -170,6 +190,16 @@ describe("decodeDeploymentCall", () => {
       memo: "omni-721",
       has721: true,
     });
+    if (decoded.flavor !== "omnichain") throw new Error("expected omnichain");
+    expect(decoded.rulesetConfigurations[0].weight).toBe(
+      omnichainRuleset.weight,
+    );
+    expect(
+      isAddressEqual(
+        decoded.terminalConfigurations[0].terminal,
+        omnichainTerminals[0].terminal,
+      ),
+    ).toBe(true);
   });
 
   test("decodes a revnet deploy", () => {
@@ -194,6 +224,7 @@ describe("decodeDeploymentCall", () => {
 
   test("decodes a 721 project deployer launch", () => {
     const controller = v6Address("JBController", CHAIN_ID);
+    const tiersRuleset = ruleset();
     const data = encodeFunctionData({
       abi: jb721TiersHookProjectDeployerAbi,
       functionName: "launchProjectFor",
@@ -202,7 +233,7 @@ describe("decodeDeploymentCall", () => {
         DEPLOY_721_CONFIG.deployTiersHookConfig,
         {
           projectUri: "ipfs://tiers",
-          rulesetConfigurations: [ruleset()],
+          rulesetConfigurations: [tiersRuleset],
           terminalConfigurations: terminals(),
           memo: "tiers",
         },
@@ -222,6 +253,13 @@ describe("decodeDeploymentCall", () => {
       memo: "tiers",
       salt: SALT,
     });
+    if (decoded.flavor !== "project-721") {
+      throw new Error("expected project-721");
+    }
+    expect(decoded.rulesetConfigurations[0].weight).toBe(tiersRuleset.weight);
+    expect(decoded.rulesetConfigurations[0].metadata.reservedPercent).toBe(
+      tiersRuleset.metadata.reservedPercent,
+    );
   });
 
   test("unknown target yields unknown", () => {

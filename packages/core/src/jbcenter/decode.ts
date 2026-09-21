@@ -112,6 +112,9 @@ function decodeProject721Launch(
       flavor: "project-721",
       owner,
       projectUri: launchProjectConfig.projectUri,
+      // This deployer's ruleset metadata always turns the pay data hook on and
+      // points it at the hook it deploys, so `dataHook`/`useDataHookForPay`
+      // aren't inputs here — they read as `undefined` on this flavor's shell.
       rulesetConfigurations:
         launchProjectConfig.rulesetConfigurations as unknown as readonly JBRulesetConfig[],
       terminalConfigurations: launchProjectConfig.terminalConfigurations,
