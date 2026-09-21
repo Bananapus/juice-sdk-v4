@@ -1,5 +1,11 @@
 # @bananapus/nana-sdk-connect
 
+## 0.5.1
+
+### Patch Changes
+
+- 408ad68: The framed Center sign-in delegates `publickey-credentials-create` to the frame as well, so a new user can sign up inside it.
+
 ## 0.5.0
 
 ### Minor Changes
