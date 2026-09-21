@@ -1,4 +1,8 @@
 import type { Hex } from "viem";
+// `jbcenter.ts` re-exports this module, so the two form an import cycle. Keep
+// every value either side takes from the other inside a function body: a
+// top-level read of `JBCenterRequestError` or `isSponsorable` would resolve
+// before `jbcenter.ts` finishes evaluating under CJS.
 import {
   JBCenterRequestError,
   isSponsorable,
@@ -13,7 +17,7 @@ import { deployedChains, isFullyDeployed } from "./merge.js";
 
 const DEFAULT_POLL_MS = 4_000;
 const DEFAULT_TIMEOUT_MS = 600_000;
-const RETRYABLE_STATUSES = new Set([400, 429, 503]);
+const SELF_PAID_FALLBACK_STATUSES = new Set([400, 429, 503]);
 
 export type EnsureDeployedStep = {
   chainId: number;
@@ -101,8 +105,8 @@ async function pollUntilDeployed(
   onStep: EnsureDeployedOptions["onStep"],
 ): Promise<Record<number, string>> {
   const seen = new Map<number, string>();
+  const startedAt = Date.now();
   let current = seed;
-  let elapsedMs = 0;
 
   while (true) {
     checkAborted(signal);
@@ -112,12 +116,11 @@ async function pollUntilDeployed(
       return deployedChains(current);
     }
 
-    if (elapsedMs >= timeoutMs) {
+    if (Date.now() - startedAt >= timeoutMs) {
       throw new EnsureDeployedError("JB Center deploy polling timed out");
     }
 
     await sleep(pollMs, signal);
-    elapsedMs += pollMs;
     current = await client.getIntent(current.id, { signal });
   }
 }
@@ -162,6 +165,15 @@ async function runSelfPaid(
     returnedChainIds.add(deployment.chainId);
   }
 
+  for (const chainId of remainingChainIds) {
+    if (!returnedChainIds.has(chainId)) {
+      throw new EnsureDeployedError(
+        `Self-paid deploy left chain ${chainId} undeployed`,
+        chainId,
+      );
+    }
+  }
+
   const result: Record<number, string> = { ...deployed };
 
   for (const deployment of deployments) {
@@ -179,6 +191,34 @@ async function runSelfPaid(
 }
 
 /**
+ * The sender an intent already has, or `undefined` when nothing has started
+ * it yet. Every chain in an intent belongs to one sender, so this decides the
+ * route before any new request goes out.
+ */
+function existingSender(
+  options: EnsureDeployedOptions,
+  intent: JBCenterIntent<JBCenterJsonObject>,
+  pollMs: number,
+  timeoutMs: number,
+): Promise<Record<number, string>> | undefined {
+  const { client, onStep, selfPaid, signal } = options;
+
+  if (isFullyDeployed(intent)) {
+    return Promise.resolve(deployedChains(intent));
+  }
+
+  if (intent.deploys.length > 0) {
+    return pollUntilDeployed(client, intent, pollMs, timeoutMs, signal, onStep);
+  }
+
+  if (intent.deployments.length > 0) {
+    return runSelfPaid(client, intent, selfPaid, onStep, signal);
+  }
+
+  return undefined;
+}
+
+/**
  * The pre-step every webclient runs before the first on-chain write against
  * an undeployed intent: sponsor the deploy through JB Center when eligible
  * and poll until every chain lands, or fall back to the caller's own launch
@@ -191,17 +231,8 @@ export async function ensureDeployed(
   const pollMs = options.pollMs ?? DEFAULT_POLL_MS;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-  if (isFullyDeployed(intent)) {
-    return deployedChains(intent);
-  }
-
-  if (intent.deploys.length > 0) {
-    return pollUntilDeployed(client, intent, pollMs, timeoutMs, signal, onStep);
-  }
-
-  if (intent.deployments.length > 0) {
-    return runSelfPaid(client, intent, selfPaid, onStep, signal);
-  }
+  const started = existingSender(options, intent, pollMs, timeoutMs);
+  if (started) return started;
 
   if (!isSponsorable(intent.envelope.chainIds)) {
     return runSelfPaid(client, intent, selfPaid, onStep, signal);
@@ -214,9 +245,16 @@ export async function ensureDeployed(
   } catch (error) {
     if (
       error instanceof JBCenterRequestError &&
-      RETRYABLE_STATUSES.has(error.status)
+      SELF_PAID_FALLBACK_STATUSES.has(error.status)
     ) {
-      return runSelfPaid(client, intent, selfPaid, onStep, signal);
+      // The refusal may mean the sponsor already took this intent, so read the
+      // intent back and follow whatever sender it now has instead of adding a
+      // second one.
+      const fresh = await client.getIntent(intent.id, { signal });
+      return (
+        existingSender(options, fresh, pollMs, timeoutMs) ??
+        runSelfPaid(client, fresh, selfPaid, onStep, signal)
+      );
     }
     throw error;
   }

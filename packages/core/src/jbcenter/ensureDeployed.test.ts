@@ -225,6 +225,7 @@ describe("ensureDeployed", () => {
           { status: 429 },
         ),
       )
+      .mockResolvedValueOnce(jsonResponse(intent([8453, 10])))
       .mockResolvedValueOnce(
         jsonResponse({
           chainId: 8453,
@@ -254,8 +255,9 @@ describe("ensureDeployed", () => {
     ).resolves.toEqual({ 8453: "55", 10: "56" });
 
     expect(selfPaid).toHaveBeenCalledWith([call(8453), call(10)]);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(fetchMock.mock.calls[1][0]).toBe(
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock.mock.calls[1][0]).toBe(intentUrl());
+    expect(fetchMock.mock.calls[2][0]).toBe(
       `https://juicebox.center/v1/intents/${INTENT_ID}/deployments`,
     );
     expect(onStep.mock.calls.map((args) => args[0])).toEqual([
@@ -451,12 +453,74 @@ describe("ensureDeployed", () => {
   test("throws EnsureDeployedError when the sponsor is rate limited and no self-paid fallback is given", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(jsonResponse({}, { status: 503 }));
+      .mockResolvedValueOnce(jsonResponse({}, { status: 503 }))
+      .mockResolvedValueOnce(jsonResponse(intent([8453])));
     const client = createJBCenterClient({ fetch: fetchMock });
 
     await expect(
       ensureDeployed({ client, intent: intent([8453]) }),
     ).rejects.toMatchObject({ name: "EnsureDeployedError" });
+  });
+
+  test("re-reads the intent before self-paying a refused sponsor request and leaves the sponsor's chains alone", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, { status: 400 }))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          intent([8453, 10], {
+            deployments: [
+              {
+                chainId: 8453,
+                projectId: "55",
+                transactionHash: TX_HASH_1,
+                createdAt: "2026-09-21T00:00:00.000Z",
+              },
+            ],
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          chainId: 10,
+          projectId: "56",
+          transactionHash: TX_HASH_2,
+          createdAt: "2026-09-21T00:00:00.000Z",
+        }),
+      );
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const selfPaid = vi
+      .fn()
+      .mockResolvedValue([
+        { chainId: 10, projectId: "56", transactionHash: TX_HASH_2 },
+      ]);
+
+    await expect(
+      ensureDeployed({ client, intent: intent([8453, 10]), selfPaid }),
+    ).resolves.toEqual({ 8453: "55", 10: "56" });
+
+    expect(selfPaid).toHaveBeenCalledWith([call(10)]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0][0]).toBe(deployUrl());
+    expect(fetchMock.mock.calls[1][0]).toBe(intentUrl());
+    expect(fetchMock.mock.calls[2][0]).toBe(
+      `https://juicebox.center/v1/intents/${INTENT_ID}/deployments`,
+    );
+  });
+
+  test("rejects a self-paid result that skips a remaining chain, before recording anything", async () => {
+    const fetchMock = vi.fn();
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const selfPaid = vi
+      .fn()
+      .mockResolvedValue([
+        { chainId: 1, projectId: "55", transactionHash: TX_HASH_1 },
+      ]);
+
+    await expect(
+      ensureDeployed({ client, intent: intent([1, 137]), selfPaid }),
+    ).rejects.toMatchObject({ name: "EnsureDeployedError", chainId: 137 });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test("propagates a non-retryable requestDeploy failure without self-paying", async () => {

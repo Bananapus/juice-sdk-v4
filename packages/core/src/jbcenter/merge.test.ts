@@ -75,8 +75,8 @@ describe("merge search results and intent helpers", () => {
     ];
     expect(
       mergeSearch(rows, items).map((r) =>
-        "undeployed" in r ? r.intentId : r.id
-      )
+        "undeployed" in r ? r.intentId : r.id,
+      ),
     ).toEqual(["b", "d", "a"]);
     expect(mergeSearch(rows, items)[1]).toMatchObject({
       undeployed: true,
@@ -84,8 +84,16 @@ describe("merge search results and intent helpers", () => {
     });
   });
 
+  test("mergeSearch keeps caller rows identical, fields and all", () => {
+    const rows = [{ id: "a", createdAt: 100, extra: { nested: true } }];
+    const merged = mergeSearch(rows, [searchItem()]);
+
+    expect(merged[0]).toBe(rows[0]);
+  });
+
   test("intentPath and deployedChains", () => {
     expect(intentPath("x")).toBe("/intent/x");
+    expect(intentPath("a/b?c#d")).toBe("/intent/a%2Fb%3Fc%23d");
     expect(
       deployedChains({
         ...intent(),
@@ -97,7 +105,7 @@ describe("merge search results and intent helpers", () => {
             createdAt: "",
           },
         ],
-      })
+      }),
     ).toEqual({ 8453: "12" });
     expect(
       isFullyDeployed({
@@ -114,7 +122,7 @@ describe("merge search results and intent helpers", () => {
             createdAt: "",
           },
         ],
-      })
+      }),
     ).toBe(false);
   });
 
@@ -136,6 +144,22 @@ describe("merge search results and intent helpers", () => {
     });
   });
 
+  test("intentRow falls back to 0 for an unparsable createdAt", () => {
+    expect(
+      intentRow({ ...searchItem(), createdAt: "not a date" }),
+    ).toMatchObject({ createdAt: 0 });
+  });
+
+  test("isFullyDeployed reads an empty chainIds envelope as deployed, which is why the intent validator rejects one", () => {
+    expect(
+      isFullyDeployed({
+        ...intent(),
+        envelope: { ...intent().envelope, chainIds: [], deploymentCalls: [] },
+        deployments: [],
+      }),
+    ).toBe(true);
+  });
+
   test("isFullyDeployed returns true when all chainIds are deployed", () => {
     expect(
       isFullyDeployed({
@@ -152,7 +176,7 @@ describe("merge search results and intent helpers", () => {
             createdAt: "",
           },
         ],
-      })
+      }),
     ).toBe(true);
   });
 
@@ -167,8 +191,8 @@ describe("merge search results and intent helpers", () => {
     ];
     expect(
       mergeSearch(rows, items).map((r) =>
-        "undeployed" in r ? r.intentId : r.id
-      )
+        "undeployed" in r ? r.intentId : r.id,
+      ),
     ).toEqual(["a", "b", "c", "d"]);
   });
 });

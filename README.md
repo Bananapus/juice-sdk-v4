@@ -89,15 +89,20 @@ the sponsor path:
 ```ts
 import { ensureDeployed } from "@bananapus/nana-sdk-core/jbcenter";
 
-const deployedChainIds = await ensureDeployed({
+const projectIdByChainId = await ensureDeployed({
   client: center,
   intent,
   // Runs the app's own launch pipeline for every chain JB Center didn't
   // sponsor, then reports each result back to Center.
-  selfPaid: (calls) => Promise.all(calls.map(runOwnLaunchPipeline)),
+  selfPaid: (calls) =>
+    Promise.all(calls.map((call) => runOwnLaunchPipeline(call))),
   onStep: (step) => console.log(step.chainId, step.status),
 });
 ```
+
+Finishing another wallet's partially self-paid intent produces different
+sucker, ERC-20, and 721-hook addresses and breaks cross-chain linking, so only
+the wallet that sent the first chain should resume a self-paid intent.
 
 Render an intent's frozen calldata without re-decoding it yourself:
 

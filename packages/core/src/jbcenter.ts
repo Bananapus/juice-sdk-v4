@@ -362,6 +362,7 @@ function isEnvelope(value: unknown): value is JBCenterIntentEnvelope {
     typeof value.format !== "string" ||
     typeof value.deploymentVersion !== "string" ||
     !isNumberArray(value.chainIds) ||
+    value.chainIds.length === 0 ||
     new Set(value.chainIds).size !== value.chainIds.length ||
     !record(value.jb)
   ) {
@@ -401,6 +402,7 @@ function isDeployment(value: unknown): value is JBCenterDeployment {
     Number.isSafeInteger(value.chainId) &&
     Number(value.chainId) > 0 &&
     typeof value.projectId === "string" &&
+    /^[0-9]+$/u.test(value.projectId) &&
     isHash(value.transactionHash) &&
     typeof value.createdAt === "string"
   );
@@ -438,11 +440,20 @@ function isDeployResponse(
   );
 }
 
+function isUuid(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
+      value,
+    )
+  );
+}
+
 function isIntent(value: unknown): value is JBCenterIntent {
   return (
     record(value) &&
     isMetadata(value) &&
-    typeof value.id === "string" &&
+    isUuid(value.id) &&
     (value.status === "undeployed" || value.status === "deployed") &&
     isHash(value.contentHash) &&
     isEnvelope(value.envelope) &&

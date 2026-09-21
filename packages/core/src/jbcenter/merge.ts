@@ -17,6 +17,8 @@ export type JBCenterIntentRow = {
 };
 
 export function intentRow(item: JBCenterSearchItem): JBCenterIntentRow {
+  const createdAt = Date.parse(item.createdAt);
+
   return {
     undeployed: true,
     intentId: item.intentId,
@@ -25,45 +27,35 @@ export function intentRow(item: JBCenterSearchItem): JBCenterIntentRow {
     logoUri: item.logoUri,
     owner: item.owner,
     chainIds: item.chainIds,
-    createdAt: Math.floor(Date.parse(item.createdAt) / 1000),
+    createdAt: Number.isNaN(createdAt) ? 0 : Math.floor(createdAt / 1000),
   };
 }
 
+/** Deployed rows win ties so a list never reorders once an intent lands. */
 export function mergeSearch<T extends { createdAt: number }>(
   rows: readonly T[],
   items: readonly JBCenterSearchItem[],
 ): (T | JBCenterIntentRow)[] {
-  const convertedItems = items.map(intentRow);
+  type Entry = { value: T | JBCenterIntentRow; isRow: boolean };
 
-  type WithSource = (T | JBCenterIntentRow) & { _isRow?: boolean };
+  const entries: Entry[] = [
+    ...rows.map((value): Entry => ({ value, isRow: true })),
+    ...items.map((item): Entry => ({ value: intentRow(item), isRow: false })),
+  ];
 
-  const all: WithSource[] = [];
-
-  for (const row of rows) {
-    (all as WithSource[]).push({ ...row, _isRow: true } as WithSource);
-  }
-
-  for (const item of convertedItems) {
-    (all as WithSource[]).push(item as WithSource);
-  }
-
-  all.sort((a, b) => {
-    if (a.createdAt !== b.createdAt) {
-      return b.createdAt - a.createdAt;
+  entries.sort((a, b) => {
+    if (a.value.createdAt !== b.value.createdAt) {
+      return b.value.createdAt - a.value.createdAt;
     }
-    if (a._isRow && !b._isRow) return -1;
-    if (!a._isRow && b._isRow) return 1;
+    if (a.isRow !== b.isRow) return a.isRow ? -1 : 1;
     return 0;
   });
 
-  return all.map((item) => {
-    const { _isRow, ...rest } = item;
-    return rest as T | JBCenterIntentRow;
-  });
+  return entries.map((entry) => entry.value);
 }
 
 export function intentPath(intentId: string): string {
-  return `/intent/${intentId}`;
+  return `/intent/${encodeURIComponent(intentId)}`;
 }
 
 export function deployedChains(

@@ -217,6 +217,54 @@ describe("JB Center client", () => {
     });
   });
 
+  test("rejects an intent whose envelope names no chains", async () => {
+    const empty = {
+      ...intent(),
+      envelope: { ...envelope, chainIds: [], deploymentCalls: [] },
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(empty));
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.getIntent(empty.id)).rejects.toMatchObject({
+      status: 502,
+      message: "JB Center returned an invalid response",
+    });
+  });
+
+  test("rejects an intent id that is not a UUID", async () => {
+    const renamed = { ...intent(), id: "../../etc/passwd" };
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(renamed));
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.getIntent(renamed.id)).rejects.toMatchObject({
+      status: 502,
+      message: "JB Center returned an invalid response",
+    });
+  });
+
+  test("rejects a deployment whose projectId is not a decimal number", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        chainId: 8453,
+        projectId: "0x2a",
+        transactionHash: hash,
+        createdAt: "2026-09-21T00:00:00.000Z",
+      }),
+    );
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(
+      client.recordDeployment(intent().id, {
+        chainId: 8453,
+        projectId: "42",
+        transactionHash: hash,
+      }),
+    ).rejects.toMatchObject({
+      status: 502,
+      message: "JB Center returned an invalid response",
+    });
+  });
+
   test("requestDeploy returns the queued rows", async () => {
     const deploys = [
       {

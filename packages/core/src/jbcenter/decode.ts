@@ -68,9 +68,9 @@ function addressFor(contract: V6Contract, chainId: number): Address | null {
 function decodeProjectLaunch(
   call: JBCenterDeploymentCall,
 ): JBCenterDecodedLaunch | null {
-  const address = addressFor("JBController", call.chainId);
-  if (!address || !isAddressEqual(address, call.to)) return null;
   try {
+    const address = addressFor("JBController", call.chainId);
+    if (!address || !isAddressEqual(address, call.to)) return null;
     const decoded = decodeFunctionData({
       abi: jbControllerAbi,
       data: call.data,
@@ -99,9 +99,9 @@ function decodeProjectLaunch(
 function decodeProject721Launch(
   call: JBCenterDeploymentCall,
 ): JBCenterDecodedLaunch | null {
-  const address = addressFor("JB721TiersHookProjectDeployer", call.chainId);
-  if (!address || !isAddressEqual(address, call.to)) return null;
   try {
+    const address = addressFor("JB721TiersHookProjectDeployer", call.chainId);
+    if (!address || !isAddressEqual(address, call.to)) return null;
     const decoded = decodeFunctionData({
       abi: jb721TiersHookProjectDeployerAbi,
       data: call.data,
@@ -129,9 +129,9 @@ function decodeProject721Launch(
 function decodeOmnichainLaunch(
   call: JBCenterDeploymentCall,
 ): JBCenterDecodedLaunch | null {
-  const address = addressFor("JBOmnichainDeployer", call.chainId);
-  if (!address || !isAddressEqual(address, call.to)) return null;
   try {
+    const address = addressFor("JBOmnichainDeployer", call.chainId);
+    if (!address || !isAddressEqual(address, call.to)) return null;
     const decoded = decodeFunctionData({
       abi: jbOmnichainDeployerAbi,
       data: call.data,
@@ -181,9 +181,9 @@ function decodeOmnichainLaunch(
 function decodeRevnetDeploy(
   call: JBCenterDeploymentCall,
 ): JBCenterDecodedLaunch | null {
-  const address = addressFor("REVDeployer", call.chainId);
-  if (!address || !isAddressEqual(address, call.to)) return null;
   try {
+    const address = addressFor("REVDeployer", call.chainId);
+    if (!address || !isAddressEqual(address, call.to)) return null;
     const decoded = decodeFunctionData({
       abi: revDeployerAbi,
       data: call.data,

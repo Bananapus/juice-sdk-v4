@@ -14,9 +14,11 @@ const budgets = {
     // CJS formats, plus the router gateway, ratio feed, and preserved router/
     // buyback ABI generations required by projects that have not migrated.
     // The /safe entry point adds eight ESM/CJS JS/declaration/map artifacts.
+    // The JB Center intent decoder, merger, and deploy pre-step add
+    // twenty-four more.
     packed: 900_000,
     unpacked: 18_750_000,
-    entries: 434,
+    entries: 460,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
