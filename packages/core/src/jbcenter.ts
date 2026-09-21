@@ -86,6 +86,15 @@ export {
   mergeSearch,
 } from "./jbcenter/merge.js";
 
+export type {
+  EnsureDeployedOptions,
+  EnsureDeployedStep,
+} from "./jbcenter/ensureDeployed.js";
+export {
+  EnsureDeployedError,
+  ensureDeployed,
+} from "./jbcenter/ensureDeployed.js";
+
 export type JBCenterContractCall<
   TAbi extends Abi = Abi,
   TFunctionName extends ContractFunctionName<

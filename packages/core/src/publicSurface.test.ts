@@ -33,6 +33,8 @@ describe("published core SDK surfaces", () => {
     expect(sdk.intentPath).toBeTypeOf("function");
     expect(sdk.deployedChains).toBeTypeOf("function");
     expect(sdk.isFullyDeployed).toBeTypeOf("function");
+    expect(sdk.ensureDeployed).toBeTypeOf("function");
+    expect(sdk.EnsureDeployedError).toBeTypeOf("function");
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
     expect(v6.buildAutoIssueTx).toBeTypeOf("function");
     expect(v6.quoteDirectPaySwap).toBeTypeOf("function");
