@@ -173,6 +173,36 @@ describe("JB Center client", () => {
     ]);
   });
 
+  test("filters search by owner and publisher", async () => {
+    const page = { items: [], totalCount: 0, nextCursor: null };
+    // A fresh Response per call: Response bodies are single-use streams, and
+    // this test drives three sequential fetches through the same mock.
+    const fetchMock = vi.fn().mockImplementation(() => jsonResponse(page));
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(
+      client.searchIntents({ owner: address, publisher: address }),
+    ).resolves.toEqual(page);
+    await expect(
+      client.searchIntents({
+        query: "public goods",
+        limit: 20,
+        cursor: "40",
+        owner: address,
+        publisher: address,
+      }),
+    ).resolves.toEqual(page);
+    await expect(client.searchIntents({ owner: address })).resolves.toEqual(
+      page,
+    );
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      `https://juicebox.center/v1/search?owner=${address}&publisher=${address}`,
+      `https://juicebox.center/v1/search?q=public+goods&limit=20&cursor=40&owner=${address}&publisher=${address}`,
+      `https://juicebox.center/v1/search?owner=${address}`,
+    ]);
+  });
+
   test("freezes typed viem contract requests into signed deployment calls", () => {
     const abi = [
       {

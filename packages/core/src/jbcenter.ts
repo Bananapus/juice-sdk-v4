@@ -225,6 +225,10 @@ export type JBCenterSearchParams = {
   query?: string;
   limit?: number;
   cursor?: string;
+  /** The intent's `jb.owner`, matched without regard to checksum casing. */
+  owner?: Address;
+  /** The address that signed the intent, matched the same way. */
+  publisher?: Address;
 };
 
 export type JBCenterPin = {
@@ -661,6 +665,9 @@ export class JBCenterClient {
     if (params.query !== undefined) query.set("q", params.query);
     if (params.limit !== undefined) query.set("limit", String(params.limit));
     if (params.cursor !== undefined) query.set("cursor", params.cursor);
+    if (params.owner !== undefined) query.set("owner", params.owner);
+    if (params.publisher !== undefined)
+      query.set("publisher", params.publisher);
     const suffix = query.size ? `?${query}` : "";
     return this.fetchJson(`v1/search${suffix}`, {}, isSearchPage, options);
   }
