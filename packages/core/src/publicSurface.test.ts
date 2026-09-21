@@ -36,6 +36,10 @@ describe("published core SDK surfaces", () => {
     expect(sdk.isFullyDeployed).toBeTypeOf("function");
     expect(sdk.ensureDeployed).toBeTypeOf("function");
     expect(sdk.EnsureDeployedError).toBeTypeOf("function");
+    expect(sdk.publishSignedIntent).toBeTypeOf("function");
+    expect(sdk.JBCenterIntentMismatchError).toBeTypeOf("function");
+    expect(sdk.describeCenterRefusal).toBeTypeOf("function");
+    expect(sdk.describeCenterRefusal(new Error("boom"))).toBeNull();
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
     expect(v6.buildAutoIssueTx).toBeTypeOf("function");
     expect(v6.quoteDirectPaySwap).toBeTypeOf("function");

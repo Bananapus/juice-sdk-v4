@@ -1,6 +1,7 @@
 import {
   decodeFunctionData,
   isAddressEqual,
+  parseAbi,
   slice,
   type Address,
   type Hex,
@@ -53,6 +54,17 @@ export type JBCenterDecodedLaunch =
       stages: REVConfig["stageConfigurations"];
       description: REVConfig["description"];
       accountingContexts: readonly JBAccountingContext[];
+    }
+  | {
+      flavor: "homerun-fund";
+      owner: Address;
+      projectUri: string;
+      tokenName: string;
+      ticker: string;
+      to: Address;
+      mustStartAtOrAfter: number;
+      salt: Hex;
+      peerSuckerDeployers: readonly Address[];
     }
   | { flavor: "unknown"; to: Address; selector: Hex };
 
@@ -203,11 +215,67 @@ function decodeRevnetDeploy(
   }
 }
 
+/** Source: HomerunDeployer.sol. Carried here because Homerun deploys its own
+ * per-chain deployer, which the V6 address registry does not name. */
+const homerunLaunchFundAbi = parseAbi([
+  "function launchFundFor(address owner, string projectUri, string name, string ticker, uint48 mustStartAtOrAfter, bytes32 salt, address[] peerSuckerDeployers) payable returns (uint256 projectId, address token)",
+]);
+
+/** HomerunDeployer's address on each chain it is deployed to: one salt across
+ * the mainnets, another across the testnets. Source: Homerun's
+ * `deployments/<chain>/HomerunDeployer.json`. */
+const HOMERUN_DEPLOYER_ADDRESSES: Readonly<Record<number, Address>> = {
+  1: "0xac9250654ea223513ffee25fdb647dc016873905",
+  10: "0xac9250654ea223513ffee25fdb647dc016873905",
+  8453: "0xac9250654ea223513ffee25fdb647dc016873905",
+  42161: "0xac9250654ea223513ffee25fdb647dc016873905",
+  11155111: "0xe944fe96765450877f95cc36aa36ec72b4388721",
+  11155420: "0xe944fe96765450877f95cc36aa36ec72b4388721",
+  84532: "0xe944fe96765450877f95cc36aa36ec72b4388721",
+  421614: "0xe944fe96765450877f95cc36aa36ec72b4388721",
+};
+
+function decodeHomerunFundLaunch(
+  call: JBCenterDeploymentCall,
+): JBCenterDecodedLaunch | null {
+  try {
+    const address = HOMERUN_DEPLOYER_ADDRESSES[call.chainId];
+    if (!address || !isAddressEqual(address, call.to)) return null;
+    const decoded = decodeFunctionData({
+      abi: homerunLaunchFundAbi,
+      data: call.data,
+    });
+    const [
+      owner,
+      projectUri,
+      tokenName,
+      ticker,
+      mustStartAtOrAfter,
+      salt,
+      peerSuckerDeployers,
+    ] = decoded.args;
+    return {
+      flavor: "homerun-fund",
+      owner,
+      projectUri,
+      tokenName,
+      ticker,
+      to: call.to,
+      mustStartAtOrAfter,
+      salt,
+      peerSuckerDeployers,
+    };
+  } catch {
+    return null;
+  }
+}
+
 const DECODERS = [
   decodeProjectLaunch,
   decodeProject721Launch,
   decodeOmnichainLaunch,
   decodeRevnetDeploy,
+  decodeHomerunFundLaunch,
 ];
 
 /**
