@@ -1,5 +1,11 @@
 # @bananapus/nana-sdk-connect
 
+## 0.5.4
+
+### Patch Changes
+
+- e062e82: The framed Center sign-in keeps a rule above and below, edge to edge, so the page's own inset reads as a panel. The theme the modal answers size reports with now carries `inset`, the dialog's padding, so the page inside can set its content on the modal's own left edge and keep its mark in the margin.
+
 ## 0.5.3
 
 ### Patch Changes
