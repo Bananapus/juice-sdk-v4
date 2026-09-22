@@ -10,6 +10,8 @@ import {
   createJBCenterDeploymentCall,
   createJBCenterRpcProvider,
   isSponsorable,
+  sponsorableChains,
+  unsponsoredChains,
 } from "./jbcenter.js";
 import {
   SAFE_CREATE_ABI,
@@ -769,5 +771,153 @@ describe("JB Center client", () => {
       "maxResponseBytes",
     );
     expect(() => createJBCenterClient({ timeoutMs: 0 })).toThrow("timeoutMs");
+  });
+
+  test("splits a chain list into the sponsored and the unsponsored", () => {
+    expect(sponsorableChains([1, 8453, 10, 137])).toEqual([8453, 10]);
+    expect(unsponsoredChains([1, 8453, 10, 137])).toEqual([1, 137]);
+    expect(sponsorableChains([])).toEqual([]);
+    expect(unsponsoredChains([])).toEqual([]);
+    // The order given is the order returned, so a deploy body reads like the
+    // intent it came from.
+    expect(sponsorableChains([42161, 8453])).toEqual([42161, 8453]);
+  });
+
+  test("requestDeploy sends no body when it asks for every chain", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ deploys: [] }, { status: 202 }));
+
+    await createJBCenterClient({ fetch: fetchMock }).requestDeploy(intent().id);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.method).toBe("POST");
+    expect(init.body).toBeUndefined();
+  });
+
+  test("requestDeploy names a subset of chains in its body", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ deploys: [] }, { status: 202 }));
+
+    await createJBCenterClient({ fetch: fetchMock }).requestDeploy(
+      intent().id,
+      { chainIds: [8453, 10] },
+    );
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      `https://juicebox.center/v1/intents/${intent().id}/deploy`,
+    );
+    expect(init.body).toBe(JSON.stringify({ chainIds: [8453, 10] }));
+    expect(new Headers(init.headers).get("Content-Type")).toBe(
+      "application/json",
+    );
+  });
+
+  test("requestDeploy treats an empty chain list as every chain", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ deploys: [] }, { status: 202 }));
+
+    await createJBCenterClient({ fetch: fetchMock }).requestDeploy(
+      intent().id,
+      { chainIds: [] },
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.body).toBeUndefined();
+  });
+
+  const forwarder = `0x${"78".repeat(20)}` as const;
+
+  function relayBody(overrides: Record<string, unknown> = {}) {
+    return {
+      chainId: 1,
+      to: forwarder,
+      data: "0xabcdef01",
+      value: "1000000000000000",
+      gas: "2500000",
+      deadline: 1_790_000_000,
+      setup: [],
+      ...overrides,
+    };
+  }
+
+  test("requestRelay parses the signed forward request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(
+        relayBody({
+          setup: [{ to: address, data: "0x12345678", value: "0" }],
+        }),
+      ),
+    );
+
+    await expect(
+      createJBCenterClient({ fetch: fetchMock }).requestRelay(intent().id, 1),
+    ).resolves.toEqual({
+      chainId: 1,
+      to: forwarder,
+      data: "0xabcdef01",
+      value: 1_000_000_000_000_000n,
+      gas: 2_500_000n,
+      deadline: 1_790_000_000,
+      setup: [{ to: address, data: "0x12345678", value: 0n }],
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`https://juicebox.center/v1/intents/${intent().id}/relay`);
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe(JSON.stringify({ chainId: 1 }));
+  });
+
+  test("requestRelay refuses a chain id that is not a positive integer", async () => {
+    const fetchMock = vi.fn();
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.requestRelay(intent().id, 0)).rejects.toBeInstanceOf(
+      TypeError,
+    );
+    await expect(client.requestRelay(intent().id, 1.5)).rejects.toBeInstanceOf(
+      TypeError,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test.each<[string, Record<string, unknown>]>([
+    ["another chain", { chainId: 10 }],
+    ["no target", { to: "not-an-address" }],
+    ["calldata shorter than a selector", { data: "0x1234" }],
+    ["a value that is not decimal", { value: "0x10" }],
+    ["a signed value", { value: "-1" }],
+    ["a padded value", { value: "0100" }],
+    ["no gas", { gas: "0" }],
+    ["a fractional deadline", { deadline: 1.5 }],
+    ["a deadline of zero", { deadline: 0 }],
+    ["setup that is not an array", { setup: {} }],
+    ["no setup at all", { setup: undefined }],
+    [
+      "a setup call with no target",
+      { setup: [{ data: "0x12345678", value: "0" }] },
+    ],
+    [
+      "a setup call with a bad value",
+      { setup: [{ to: address, data: "0x12345678", value: "zero" }] },
+    ],
+    [
+      "a setup call that asks for value",
+      { setup: [{ to: address, data: "0x12345678", value: "1" }] },
+    ],
+  ])("requestRelay rejects a response with %s", async (_label, overrides) => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(relayBody(overrides)));
+
+    await expect(
+      createJBCenterClient({ fetch: fetchMock }).requestRelay(intent().id, 1),
+    ).rejects.toMatchObject({
+      status: 502,
+      message: "JB Center returned an invalid response",
+    });
   });
 });

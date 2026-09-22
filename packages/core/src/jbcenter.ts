@@ -186,9 +186,43 @@ export type JBCenterDeployment = {
   projectId: string;
   transactionHash: Hex;
   createdAt: string;
+  /**
+   * Whether the launch reached the chain through JB Center's forwarder, so its
+   * sender was Center's sponsor. Absent means a wallet sent it directly.
+   */
+  forwarded?: boolean;
 };
 
-export type JBCenterDeploymentInput = Omit<JBCenterDeployment, "createdAt">;
+export type JBCenterDeploymentInput = Omit<
+  JBCenterDeployment,
+  "createdAt" | "forwarded"
+>;
+
+/** One call a relay request asks the sender to make before the launch. */
+export type JBCenterRelayCall = {
+  to: Address;
+  data: Hex;
+  value: bigint;
+};
+
+/**
+ * The forward request JB Center's sponsor signed for a chain it does not
+ * sponsor. The forwarder reports the sponsor as the sender, so a chain
+ * deployed this way keeps the token and sucker addresses every sponsored
+ * chain in the intent gets; whoever sends it supplies only gas and the
+ * creation fee. `setup` runs first, from the same wallet, in order.
+ */
+export type JBCenterRelayRequest = {
+  chainId: number;
+  to: Address;
+  data: Hex;
+  /** Wei the forwarder requires with the call: the chain's creation fee. */
+  value: bigint;
+  gas: bigint;
+  /** Unix seconds after which the forwarder refuses the request. */
+  deadline: number;
+  setup: JBCenterRelayCall[];
+};
 
 export type JBCenterIntentDeploy = {
   chainId: number;
@@ -218,11 +252,19 @@ export const JBCENTER_SPONSORED_CHAIN_IDS = Object.freeze([
   10, 8453, 42161, 11155111, 11155420, 84532, 421614,
 ]);
 
+/** The chains in the list JB Center's sponsor covers, in the order given. */
+export function sponsorableChains(chainIds: readonly number[]): number[] {
+  return chainIds.filter((id) => JBCENTER_SPONSORED_CHAIN_IDS.includes(id));
+}
+
+/** The chains in the list JB Center's sponsor does not cover. */
+export function unsponsoredChains(chainIds: readonly number[]): number[] {
+  return chainIds.filter((id) => !JBCENTER_SPONSORED_CHAIN_IDS.includes(id));
+}
+
+/** Whether JB Center's sponsor covers every chain in a non-empty list. */
 export function isSponsorable(chainIds: readonly number[]): boolean {
-  return (
-    chainIds.length > 0 &&
-    chainIds.every((id) => JBCENTER_SPONSORED_CHAIN_IDS.includes(id))
-  );
+  return chainIds.length > 0 && unsponsoredChains(chainIds).length === 0;
 }
 
 export type JBCenterSearchItem = JBCenterIntentMetadata & {
@@ -371,15 +413,59 @@ function isNumberArray(value: unknown): value is number[] {
   );
 }
 
+function isCalldata(value: unknown): value is Hex {
+  return typeof value === "string" && /^0x(?:[0-9a-f]{2}){4,}$/iu.test(value);
+}
+
+function isDecimalString(value: unknown): value is string {
+  return typeof value === "string" && /^(?:0|[1-9][0-9]*)$/u.test(value);
+}
+
 function isDeploymentCall(value: unknown): value is JBCenterDeploymentCall {
   return (
     record(value) &&
     Number.isSafeInteger(value.chainId) &&
     Number(value.chainId) > 0 &&
     isAddress(value.to) &&
-    typeof value.data === "string" &&
-    /^0x(?:[0-9a-f]{2}){4,}$/iu.test(value.data)
+    isCalldata(value.data)
   );
+}
+
+type RelayCallJson = { to: Address; data: Hex; value: string };
+
+type RelayRequestJson = Omit<
+  JBCenterRelayRequest,
+  "value" | "gas" | "setup"
+> & {
+  value: string;
+  gas: string;
+  setup: RelayCallJson[];
+};
+
+/** Setup calls carry no value of their own; only the forwarder call does. */
+function isRelayCall(value: unknown): value is RelayCallJson {
+  return (
+    record(value) &&
+    isAddress(value.to) &&
+    isCalldata(value.data) &&
+    value.value === "0"
+  );
+}
+
+/** Wei and gas cross the wire as decimal strings, so no precision is lost. */
+function relayRequest(chainId: number): Validator<RelayRequestJson> {
+  return (value: unknown): value is RelayRequestJson =>
+    record(value) &&
+    value.chainId === chainId &&
+    isAddress(value.to) &&
+    isCalldata(value.data) &&
+    isDecimalString(value.value) &&
+    isDecimalString(value.gas) &&
+    value.gas !== "0" &&
+    Number.isSafeInteger(value.deadline) &&
+    Number(value.deadline) > 0 &&
+    Array.isArray(value.setup) &&
+    value.setup.every(isRelayCall);
 }
 
 function isEnvelope(value: unknown): value is JBCenterIntentEnvelope {
@@ -431,7 +517,8 @@ function isDeployment(value: unknown): value is JBCenterDeployment {
     typeof value.projectId === "string" &&
     /^[0-9]+$/u.test(value.projectId) &&
     isHash(value.transactionHash) &&
-    typeof value.createdAt === "string"
+    typeof value.createdAt === "string" &&
+    (value.forwarded === undefined || typeof value.forwarded === "boolean")
   );
 }
 
@@ -711,16 +798,62 @@ export class JBCenterClient {
     );
   }
 
+  /**
+   * Asks JB Center's sponsor to deploy the intent. `chainIds` narrows the
+   * request to those chains; omitted or empty, it means every sponsored chain
+   * that has no deployment yet. Chains already queued or sent come back as
+   * they are.
+   */
   requestDeploy(
     intentId: string,
-    options?: JBCenterRequestOptions,
+    options?: JBCenterRequestOptions & { chainIds?: readonly number[] },
   ): Promise<{ deploys: JBCenterIntentDeploy[] }> {
     return this.fetchJson(
       `v1/intents/${encodeURIComponent(intentId)}/deploy`,
-      { method: "POST" },
+      options?.chainIds?.length
+        ? {
+            method: "POST",
+            body: JSON.stringify({ chainIds: options.chainIds }),
+          }
+        : { method: "POST" },
       isDeployResponse,
       options,
     );
+  }
+
+  /**
+   * The forward request JB Center's sponsor signed for one chain it does not
+   * sponsor. Nothing is stored and nothing is paid until someone sends it.
+   * Two callers who ask for the same chain get the same forwarder nonce, so
+   * the second transaction reverts and the caller asks again.
+   */
+  async requestRelay(
+    intentId: string,
+    chainId: number,
+    options?: JBCenterRequestOptions,
+  ): Promise<JBCenterRelayRequest> {
+    if (!Number.isSafeInteger(chainId) || chainId <= 0) {
+      throw new TypeError("chainId must be a positive safe integer");
+    }
+    const body = await this.fetchJson(
+      `v1/intents/${encodeURIComponent(intentId)}/relay`,
+      { method: "POST", body: JSON.stringify({ chainId }) },
+      relayRequest(chainId),
+      options,
+    );
+    return {
+      chainId: body.chainId,
+      to: body.to,
+      data: body.data,
+      value: BigInt(body.value),
+      gas: BigInt(body.gas),
+      deadline: body.deadline,
+      setup: body.setup.map((call) => ({
+        to: call.to,
+        data: call.data,
+        value: BigInt(call.value),
+      })),
+    };
   }
 
   pinJson(
