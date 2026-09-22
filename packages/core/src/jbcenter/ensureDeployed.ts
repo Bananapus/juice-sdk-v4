@@ -6,14 +6,17 @@ import type { Hex } from "viem";
 import {
   JBCenterRequestError,
   isSponsorable,
+  sponsorableChains,
+  unsponsoredChains,
   type JBCenterClient,
   type JBCenterDeploymentCall,
   type JBCenterDeploymentInput,
   type JBCenterIntent,
   type JBCenterIntentDeploy,
   type JBCenterJsonObject,
+  type JBCenterRelayRequest,
 } from "../jbcenter.js";
-import { deployedChains, isFullyDeployed } from "./merge.js";
+import { deployedChains } from "./merge.js";
 
 const DEFAULT_POLL_MS = 4_000;
 const DEFAULT_TIMEOUT_MS = 600_000;
@@ -21,14 +24,41 @@ const SELF_PAID_FALLBACK_STATUSES = new Set([400, 429, 503]);
 
 export type EnsureDeployedStep = {
   chainId: number;
-  status: "queued" | "sent" | "confirmed" | "failed" | "self-paid";
+  status:
+    | "queued"
+    | "sent"
+    | "confirmed"
+    | "failed"
+    | "self-paid"
+    | "relay-paid";
   transactionHash?: Hex;
 };
 
 export type EnsureDeployedOptions = {
   client: JBCenterClient;
   intent: JBCenterIntent<JBCenterJsonObject>;
-  /** Runs the client's own launch pipeline for every remaining chain. */
+  /**
+   * The chains this run covers, each one of the intent's own. Omitted, the
+   * run is every chain in the intent.
+   */
+  chainIds?: readonly number[];
+  /**
+   * Sends the forward request JB Center signed for a chain it does not
+   * sponsor, and returns the deployment that transaction produced. The
+   * request's `setup` calls go first, from the same wallet, in order. The
+   * forwarder keeps Center's sponsor as the sender, so a chain paid for this
+   * way pairs with every sponsored chain in the intent.
+   */
+  relayPaid?: (
+    request: JBCenterRelayRequest,
+  ) => Promise<JBCenterDeploymentInput>;
+  /**
+   * Runs the client's own launch pipeline for every remaining chain in the
+   * run. The caller's wallet is then the sender, which a deployer that scopes
+   * its token and sucker salt to the sender turns into a different token and
+   * sucker address per chain; `relayPaid` keeps Center's sponsor as the
+   * sender instead.
+   */
   selfPaid?: (
     calls: JBCenterDeploymentCall[],
   ) => Promise<JBCenterDeploymentInput[]>;
@@ -68,6 +98,43 @@ function sleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
   });
 }
 
+/**
+ * The chains this run covers, in the intent's own order. Naming a chain the
+ * intent does not carry is a caller mistake, not a deploy failure.
+ */
+function runChains(
+  intent: JBCenterIntent<JBCenterJsonObject>,
+  chainIds: readonly number[] | undefined,
+): number[] {
+  if (!chainIds) return [...intent.envelope.chainIds];
+
+  const requested = new Set(chainIds);
+  for (const chainId of requested) {
+    if (!intent.envelope.chainIds.includes(chainId)) {
+      throw new EnsureDeployedError(
+        `Chain ${chainId} is not part of this intent`,
+        chainId,
+      );
+    }
+  }
+
+  const run = intent.envelope.chainIds.filter((id) => requested.has(id));
+  if (run.length === 0) {
+    throw new EnsureDeployedError("ensureDeployed was given no chains to run");
+  }
+
+  return run;
+}
+
+function isRunDeployed(
+  intent: JBCenterIntent<JBCenterJsonObject>,
+  run: readonly number[],
+): boolean {
+  const deployed = deployedChains(intent);
+
+  return run.every((chainId) => chainId in deployed);
+}
+
 function reportSteps(
   deploys: readonly JBCenterIntentDeploy[],
   seen: Map<number, string>,
@@ -99,6 +166,7 @@ function reportSteps(
 async function pollUntilDeployed(
   client: JBCenterClient,
   seed: JBCenterIntent<JBCenterJsonObject>,
+  run: readonly number[],
   pollMs: number,
   timeoutMs: number,
   signal: AbortSignal | undefined,
@@ -112,7 +180,7 @@ async function pollUntilDeployed(
     checkAborted(signal);
     reportSteps(current.deploys, seen, onStep);
 
-    if (isFullyDeployed(current)) {
+    if (isRunDeployed(current, run)) {
       return deployedChains(current);
     }
 
@@ -128,6 +196,7 @@ async function pollUntilDeployed(
 async function runSelfPaid(
   client: JBCenterClient,
   intent: JBCenterIntent<JBCenterJsonObject>,
+  run: readonly number[],
   selfPaid: EnsureDeployedOptions["selfPaid"],
   onStep: EnsureDeployedOptions["onStep"],
   signal: AbortSignal | undefined,
@@ -142,7 +211,7 @@ async function runSelfPaid(
 
   const deployed = deployedChains(intent);
   const remainingCalls = intent.envelope.deploymentCalls.filter(
-    (call) => !(call.chainId in deployed),
+    (call) => run.includes(call.chainId) && !(call.chainId in deployed),
   );
 
   const deployments = await selfPaid(remainingCalls);
@@ -198,50 +267,137 @@ async function runSelfPaid(
 function existingSender(
   options: EnsureDeployedOptions,
   intent: JBCenterIntent<JBCenterJsonObject>,
+  run: readonly number[],
   pollMs: number,
   timeoutMs: number,
 ): Promise<Record<number, string>> | undefined {
   const { client, onStep, selfPaid, signal } = options;
 
-  if (isFullyDeployed(intent)) {
+  if (isRunDeployed(intent, run)) {
     return Promise.resolve(deployedChains(intent));
   }
 
   if (intent.deploys.length > 0) {
-    return pollUntilDeployed(client, intent, pollMs, timeoutMs, signal, onStep);
+    return pollUntilDeployed(
+      client,
+      intent,
+      run,
+      pollMs,
+      timeoutMs,
+      signal,
+      onStep,
+    );
   }
 
   if (intent.deployments.length > 0) {
-    return runSelfPaid(client, intent, selfPaid, onStep, signal);
+    return runSelfPaid(client, intent, run, selfPaid, onStep, signal);
   }
 
   return undefined;
 }
 
 /**
+ * Center's lane for the chains it sponsors and the caller's own sender for
+ * the chains it does not, in one run. The sponsored chains are queued first,
+ * in one request, so Center works while the visitor is still signing.
+ */
+async function runRelayPaid(
+  options: EnsureDeployedOptions,
+  relayPaid: NonNullable<EnsureDeployedOptions["relayPaid"]>,
+  run: readonly number[],
+  pollMs: number,
+  timeoutMs: number,
+): Promise<Record<number, string>> {
+  const { client, intent, onStep, signal } = options;
+
+  checkAborted(signal);
+
+  const result = deployedChains(intent);
+  const remaining = run.filter((chainId) => !(chainId in result));
+  const sponsored = sponsorableChains(remaining);
+
+  let deploys: JBCenterIntentDeploy[] = [];
+  if (sponsored.length > 0) {
+    ({ deploys } = await client.requestDeploy(intent.id, {
+      chainIds: sponsored,
+      signal,
+    }));
+  }
+
+  for (const chainId of unsponsoredChains(remaining)) {
+    checkAborted(signal);
+    const request = await client.requestRelay(intent.id, chainId, { signal });
+    const deployment = await relayPaid(request);
+    if (deployment.chainId !== chainId) {
+      throw new EnsureDeployedError(
+        `Relay-paid deploy returned chain ${deployment.chainId} for chain ${chainId}`,
+        chainId,
+      );
+    }
+    await client.recordDeployment(intent.id, deployment, { signal });
+    result[chainId] = deployment.projectId;
+    onStep?.({
+      chainId,
+      status: "relay-paid",
+      transactionHash: deployment.transactionHash,
+    });
+  }
+
+  if (sponsored.length === 0) return result;
+
+  return {
+    ...result,
+    ...(await pollUntilDeployed(
+      client,
+      { ...intent, deploys },
+      remaining,
+      pollMs,
+      timeoutMs,
+      signal,
+      onStep,
+    )),
+  };
+}
+
+/**
  * The pre-step every webclient runs before the first on-chain write against
- * an undeployed intent: sponsor the deploy through JB Center when eligible
- * and poll until every chain lands, or fall back to the caller's own launch
- * pipeline when JB Center can't or won't sponsor it.
+ * an undeployed intent: sponsor the deploy through JB Center for the chains
+ * it covers, hand the rest to the caller's own sender, and poll until the
+ * run's chains land. `chainIds` narrows the run to part of the intent.
  */
 export async function ensureDeployed(
   options: EnsureDeployedOptions,
 ): Promise<Record<number, string>> {
-  const { client, intent, onStep, selfPaid, signal } = options;
+  const { client, intent, onStep, relayPaid, selfPaid, signal } = options;
   const pollMs = options.pollMs ?? DEFAULT_POLL_MS;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-  const started = existingSender(options, intent, pollMs, timeoutMs);
+  if (relayPaid && selfPaid) {
+    throw new EnsureDeployedError(
+      "ensureDeployed takes relayPaid or selfPaid, never both",
+    );
+  }
+
+  const run = runChains(intent, options.chainIds);
+
+  if (relayPaid) {
+    return runRelayPaid(options, relayPaid, run, pollMs, timeoutMs);
+  }
+
+  const started = existingSender(options, intent, run, pollMs, timeoutMs);
   if (started) return started;
 
-  if (!isSponsorable(intent.envelope.chainIds)) {
-    return runSelfPaid(client, intent, selfPaid, onStep, signal);
+  if (!isSponsorable(run)) {
+    return runSelfPaid(client, intent, run, selfPaid, onStep, signal);
   }
 
   let deploys: JBCenterIntentDeploy[];
   try {
     checkAborted(signal);
-    ({ deploys } = await client.requestDeploy(intent.id, { signal }));
+    ({ deploys } = await client.requestDeploy(intent.id, {
+      chainIds: options.chainIds ? run : undefined,
+      signal,
+    }));
   } catch (error) {
     if (
       error instanceof JBCenterRequestError &&
@@ -252,8 +408,8 @@ export async function ensureDeployed(
       // second one.
       const fresh = await client.getIntent(intent.id, { signal });
       return (
-        existingSender(options, fresh, pollMs, timeoutMs) ??
-        runSelfPaid(client, fresh, selfPaid, onStep, signal)
+        existingSender(options, fresh, run, pollMs, timeoutMs) ??
+        runSelfPaid(client, fresh, run, selfPaid, onStep, signal)
       );
     }
     throw error;
@@ -262,6 +418,7 @@ export async function ensureDeployed(
   return pollUntilDeployed(
     client,
     { ...intent, deploys },
+    run,
     pollMs,
     timeoutMs,
     signal,
