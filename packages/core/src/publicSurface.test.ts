@@ -29,6 +29,8 @@ describe("published core SDK surfaces", () => {
     expect(sdk.JBCENTER_RPC_METHODS).toContain("eth_chainId");
     expect(sdk.JBCENTER_SPONSORED_CHAIN_IDS).toContain(8453);
     expect(sdk.isSponsorable).toBeTypeOf("function");
+    expect(sdk.sponsorableChains).toBeTypeOf("function");
+    expect(sdk.unsponsoredChains).toBeTypeOf("function");
     expect(sdk.decodeDeploymentCall).toBeTypeOf("function");
     expect(sdk.intentCalls).toBeTypeOf("function");
     expect(sdk.mergeSearch).toBeTypeOf("function");

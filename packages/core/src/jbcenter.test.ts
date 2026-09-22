@@ -10,6 +10,8 @@ import {
   createJBCenterDeploymentCall,
   createJBCenterRpcProvider,
   isSponsorable,
+  sponsorableChains,
+  unsponsoredChains,
 } from "./jbcenter.js";
 import {
   SAFE_CREATE_ABI,
@@ -769,5 +771,47 @@ describe("JB Center client", () => {
       "maxResponseBytes",
     );
     expect(() => createJBCenterClient({ timeoutMs: 0 })).toThrow("timeoutMs");
+  });
+
+  test("splits a chain list into the sponsored and the unsponsored", () => {
+    expect(sponsorableChains([1, 8453, 10, 137])).toEqual([8453, 10]);
+    expect(unsponsoredChains([1, 8453, 10, 137])).toEqual([1, 137]);
+    expect(sponsorableChains([])).toEqual([]);
+    expect(unsponsoredChains([])).toEqual([]);
+    // The order given is the order returned, so a deploy body reads like the
+    // intent it came from.
+    expect(sponsorableChains([42161, 8453])).toEqual([42161, 8453]);
+  });
+
+  test("requestDeploy sends no body when it asks for every chain", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ deploys: [] }, { status: 202 }));
+
+    await createJBCenterClient({ fetch: fetchMock }).requestDeploy(intent().id);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.method).toBe("POST");
+    expect(init.body).toBeUndefined();
+  });
+
+  test("requestDeploy names a subset of chains in its body", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ deploys: [] }, { status: 202 }));
+
+    await createJBCenterClient({ fetch: fetchMock }).requestDeploy(
+      intent().id,
+      { chainIds: [8453, 10] },
+    );
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      `https://juicebox.center/v1/intents/${intent().id}/deploy`,
+    );
+    expect(init.body).toBe(JSON.stringify({ chainIds: [8453, 10] }));
+    expect(new Headers(init.headers).get("Content-Type")).toBe(
+      "application/json",
+    );
   });
 });

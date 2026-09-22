@@ -218,11 +218,19 @@ export const JBCENTER_SPONSORED_CHAIN_IDS = Object.freeze([
   10, 8453, 42161, 11155111, 11155420, 84532, 421614,
 ]);
 
+/** The chains in the list JB Center's sponsor covers, in the order given. */
+export function sponsorableChains(chainIds: readonly number[]): number[] {
+  return chainIds.filter((id) => JBCENTER_SPONSORED_CHAIN_IDS.includes(id));
+}
+
+/** The chains in the list JB Center's sponsor does not cover. */
+export function unsponsoredChains(chainIds: readonly number[]): number[] {
+  return chainIds.filter((id) => !JBCENTER_SPONSORED_CHAIN_IDS.includes(id));
+}
+
+/** Whether JB Center's sponsor covers every chain in a non-empty list. */
 export function isSponsorable(chainIds: readonly number[]): boolean {
-  return (
-    chainIds.length > 0 &&
-    chainIds.every((id) => JBCENTER_SPONSORED_CHAIN_IDS.includes(id))
-  );
+  return chainIds.length > 0 && unsponsoredChains(chainIds).length === 0;
 }
 
 export type JBCenterSearchItem = JBCenterIntentMetadata & {
@@ -711,13 +719,23 @@ export class JBCenterClient {
     );
   }
 
+  /**
+   * Asks JB Center's sponsor to deploy the intent. `chainIds` narrows the
+   * request to those chains; omitted, it means every sponsored chain that has
+   * no deployment yet. Chains already queued or sent come back as they are.
+   */
   requestDeploy(
     intentId: string,
-    options?: JBCenterRequestOptions,
+    options?: JBCenterRequestOptions & { chainIds?: readonly number[] },
   ): Promise<{ deploys: JBCenterIntentDeploy[] }> {
     return this.fetchJson(
       `v1/intents/${encodeURIComponent(intentId)}/deploy`,
-      { method: "POST" },
+      options?.chainIds
+        ? {
+            method: "POST",
+            body: JSON.stringify({ chainIds: options.chainIds }),
+          }
+        : { method: "POST" },
       isDeployResponse,
       options,
     );
