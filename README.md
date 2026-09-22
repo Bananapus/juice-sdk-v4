@@ -76,12 +76,14 @@ const publicClient = createPublicClient({
 A published intent (`publishSignedIntent`, above) is firm: JB Center exposes no edit
 or withdraw endpoint, so the signed envelope is final the moment it publishes.
 
-Every chain in an intent is deployed by exactly one sender - either JB Center's
-sponsor or the app's own wallet - never a mix of the two across the same
-intent. `ensureDeployed` picks the sender and polls to completion, falling
-back to `selfPaid` when the intent isn't sponsorable or the sponsor can't take
-it; apps never call `requestDeploy` directly, `ensureDeployed` does that on
-the sponsor path:
+Every chain in an intent is launched by exactly one sender - JB Center's
+sponsor - so the tokens, suckers and 721 hooks a deployer scopes to its caller
+land on the same addresses across chains. Who pays for the gas is a separate
+question. `ensureDeployed` runs one intent's chains and picks the payer per
+chain: JB Center pays for the chains it sponsors, and `relayPaid` sends the
+forward request Center signed for the chains it does not, from the visitor's
+own wallet, with Center's sponsor still the sender the launch sees. Apps never
+call `requestDeploy` or `requestRelay` directly; `ensureDeployed` does.
 
 ```ts
 import { ensureDeployed } from "@bananapus/nana-sdk-core/jbcenter";
@@ -89,17 +91,50 @@ import { ensureDeployed } from "@bananapus/nana-sdk-core/jbcenter";
 const projectIdByChainId = await ensureDeployed({
   client: center,
   intent,
-  // Runs the app's own launch pipeline for every chain JB Center didn't
-  // sponsor, then reports each result back to Center.
-  selfPaid: (calls) =>
-    Promise.all(calls.map((call) => runOwnLaunchPipeline(call))),
+  // Only these chains this time; the rest stay undeployed for a later run.
+  chainIds: [8453, 1],
+  // Sends the chains JB Center does not sponsor. The setup calls go first,
+  // from the same wallet, then the forwarder call with its value and gas.
+  relayPaid: async (request) => {
+    for (const call of request.setup) await sendFromWallet(call);
+    const transactionHash = await sendFromWallet(request);
+    return { chainId: request.chainId, ...(await readLaunch(transactionHash)) };
+  },
   onStep: (step) => console.log(step.chainId, step.status),
 });
 ```
 
+`sponsorableChains` and `unsponsoredChains` split a chain list the way this run
+does, so a UI can label each chain "free" or price it from the relay request's
+`gas` and `value` before anyone commits. Two visitors who ask for the same
+chain get the same forwarder nonce: the second transaction reverts, and the
+answer is to run `ensureDeployed` again for that chain.
+
+`selfPaid` is the other sender, and it is a different bargain: it runs the
+app's own launch pipeline, which makes the app's wallet the sender. A deployer
+that scopes its token and sucker salt to the sender then produces different
+addresses on that chain, breaking cross-chain pairing, so reach for `relayPaid`
+whenever Center can sign the chain and keep `selfPaid` for launches that do not
+pair.
+
+```ts
+const projectIdByChainId = await ensureDeployed({
+  client: center,
+  intent,
+  // Runs the app's own launch pipeline for every chain in the run, then
+  // reports each result back to Center.
+  selfPaid: (calls) =>
+    Promise.all(calls.map((call) => runOwnLaunchPipeline(call))),
+});
+```
+
+`relayPaid` and `selfPaid` are never both given: one run, one payer per chain.
+
 Finishing another wallet's partially self-paid intent produces different
 sucker, ERC-20, and 721-hook addresses and breaks cross-chain linking, so only
-the wallet that sent the first chain should resume a self-paid intent.
+the wallet that sent the first chain should resume a self-paid intent. A
+relay-paid chain carries no such rule: whoever sends it, the forwarder reports
+Center's sponsor, so anyone can finish the remaining chains of an intent.
 
 Render an intent's frozen calldata without re-decoding it yourself:
 
@@ -207,6 +242,8 @@ The module's helpers, in full:
 | `deployedChains`                 | The chain ids an intent has landed on.                                                             |
 | `isFullyDeployed`                | Whether every chain in the intent has landed.                                                      |
 | `isSponsorable`                  | Whether JB Center's sponsor covers every chain in the list.                                        |
+| `sponsorableChains`              | The chains in a list JB Center's sponsor covers, in the order given.                               |
+| `unsponsoredChains`              | The chains in a list JB Center's sponsor does not cover.                                           |
 | `ensureDeployed`                 | The pre-step before an intent's first on-chain write: one sender per intent, polled to completion. |
 | `EnsureDeployedError`            | Thrown by `ensureDeployed` when a chain cannot be finished; carries the `chainId`.                 |
 | `describeCenterRefusal`          | The fixed sentence for a sponsorship refusal, or `null` when the failure is something else.        |
