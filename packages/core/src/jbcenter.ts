@@ -81,6 +81,12 @@ export type JBCenterDeploymentCall = {
 export type { JBCenterDecodedLaunch } from "./jbcenter/decode.js";
 export { decodeDeploymentCall } from "./jbcenter/decode.js";
 
+export type {
+  JBCenterChainCalls,
+  JBCenterDecodedCall,
+} from "./jbcenter/setupCalls.js";
+export { intentCalls } from "./jbcenter/setupCalls.js";
+
 export type { JBCenterIntentRow } from "./jbcenter/merge.js";
 export {
   deployedChains,

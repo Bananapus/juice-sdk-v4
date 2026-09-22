@@ -115,6 +115,35 @@ if (launch.flavor === "homerun-fund") {
 }
 ```
 
+A chain in an intent can carry more than one call. The last call for a chain is
+its launch; every call before it is a setup call that creates a Safe through
+the canonical Safe 1.4.1 proxy factory, so a project can be owned by a multisig
+that does not exist yet — Safe addresses depend only on the factory, singleton,
+initializer and salt nonce, so the creation and the launch can land in either
+order. A chain carries at most four calls. `intentCalls` applies that rule once,
+for every chain:
+
+```ts
+import { intentCalls } from "@bananapus/nana-sdk-core/jbcenter";
+
+for (const [chainId, { setup, launch }] of intentCalls(intent)) {
+  for (const call of setup) {
+    if (call.decoded.flavor === "safe-create") {
+      // call.decoded.address, .owners, .threshold, .saltNonce
+    }
+  }
+  // launch.decoded is the project, 721, omnichain, revnet or FUND launch.
+}
+```
+
+A setup call reads back as `safe-create` only when it is a canonical
+`createProxyWithNonce` to the canonical factory for the canonical singleton and
+fallback handler, with 1 to 20 unique nonzero owners, a threshold inside the
+owner count, and no setup hook or payment. Anything else makes the whole
+envelope unreadable, so a client never renders a setup call it cannot name.
+`ensureDeployed`'s `selfPaid` callback receives every remaining call, setup
+calls included, in the order the intent carries them.
+
 List views merge deployed projects and undeployed intents by creation time
 with `mergeSearch`:
 
@@ -171,6 +200,7 @@ The module's helpers, in full:
 | `publishSignedIntent`            | Prepares, checks JB Center's envelope and message, signs with the caller's signer, publishes.      |
 | `JBCenterIntentMismatchError`    | Thrown by `publishSignedIntent` before signing; `reason` is `"envelope"` or `"message"`.           |
 | `decodeDeploymentCall`           | Reads a frozen call back as a project, 721, omnichain, revnet, or Homerun FUND launch.             |
+| `intentCalls`                    | An intent's calls per chain, decoded: the setup calls before it, then the launch.                  |
 | `mergeSearch`                    | Interleaves undeployed intent rows into a list of deployed project rows by creation time.          |
 | `intentRow`                      | Turns one search item into the row `mergeSearch` merges.                                           |
 | `intentPath`                     | The `/intent/<id>` route for an undeployed intent.                                                 |
@@ -253,6 +283,10 @@ resolution rejects differing creation bytecode across the supplied clients. Keep
 the plan stable when resuming a launch. Preflight and receipt verification check
 the deployed Safe runtime and owner policy; verification errors must prevent an
 app from reporting success.
+
+`SAFE_PROXY_CREATION_CODE` pins those proxy creation bytes, so an address can be
+predicted from a signed call with no chain read; anything about to be deployed
+still reads the factory on each chain.
 
 `bundleSafeLaunch` uses Multicall3 `CALL`, so the launch contract sees Multicall3
 as `msg.sender`. Use a sender-independent launch or a forwarded call that already

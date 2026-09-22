@@ -9,6 +9,7 @@ describe("published core SDK surfaces", () => {
     expect(safe.buildSafeDeploymentTx).toBeTypeOf("function");
     expect(safe.bundleSafeLaunch).toBeTypeOf("function");
     expect(safe.verifySafeDeployments).toBeTypeOf("function");
+    expect(safe.SAFE_PROXY_CREATION_CODE).toMatch(/^0x(?:[\da-f]{2}){486}$/u);
   });
 
   test("exports the framework-free utility and V6 transaction boundaries", () => {
@@ -29,6 +30,7 @@ describe("published core SDK surfaces", () => {
     expect(sdk.JBCENTER_SPONSORED_CHAIN_IDS).toContain(8453);
     expect(sdk.isSponsorable).toBeTypeOf("function");
     expect(sdk.decodeDeploymentCall).toBeTypeOf("function");
+    expect(sdk.intentCalls).toBeTypeOf("function");
     expect(sdk.mergeSearch).toBeTypeOf("function");
     expect(sdk.intentRow).toBeTypeOf("function");
     expect(sdk.intentPath).toBeTypeOf("function");

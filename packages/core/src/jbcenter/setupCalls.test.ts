@@ -3,11 +3,16 @@ import { describe, expect, test } from "vitest";
 import {
   SAFE_CREATE_ABI,
   SAFE_FACTORY,
+  SAFE_FALLBACK,
   SAFE_SINGLETON,
   buildSafeInitializer,
 } from "../safe.js";
 import type { JBCenterDeploymentCall } from "../jbcenter.js";
-import { groupDeploymentCalls, isValidDeploymentCalls } from "./setupCalls.js";
+import {
+  groupDeploymentCalls,
+  intentCalls,
+  isValidDeploymentCalls,
+} from "./setupCalls.js";
 
 const OWNERS: readonly Address[] = [
   "0x0000000000000000000000000000000000000002",
@@ -139,5 +144,66 @@ describe("isValidDeploymentCalls", () => {
 
   test("accepts no calls at all, which the envelope check refuses on its own", () => {
     expect(isValidDeploymentCalls([])).toBe(true);
+  });
+});
+
+function intentWith(calls: JBCenterDeploymentCall[]) {
+  return {
+    id: "31b158fc-6ac5-4a4d-9039-882b7eb0ef4b",
+    status: "undeployed" as const,
+    contentHash: `0x${"12".repeat(32)}` as const,
+    envelope: {
+      format: "juicebox.money/v1",
+      deploymentVersion: "6",
+      chainIds: [...new Set(calls.map((call) => call.chainId))],
+      deploymentCalls: calls,
+      jb: {},
+    },
+    publisher: "0x0000000000000000000000000000000000000002" as const,
+    signature: `0x${"34".repeat(65)}` as const,
+    createdAt: "2026-09-22T00:00:00.000Z",
+    deployments: [],
+    deploys: [],
+    name: "Example",
+    description: null,
+    tagline: null,
+    tags: [],
+    logoUri: null,
+    owner: null,
+  };
+}
+
+describe("intentCalls", () => {
+  test("separates each chain's setup calls from its launch", () => {
+    const setup = setupCall(8453, 42n);
+    const launch = launchCall(8453);
+    const result = intentCalls(intentWith([setup, launch, launchCall(10)]));
+
+    expect([...result.keys()]).toEqual([8453, 10]);
+    expect(result.get(8453)?.setup).toEqual([
+      {
+        ...setup,
+        decoded: {
+          flavor: "safe-create",
+          to: SAFE_FACTORY,
+          singleton: SAFE_SINGLETON,
+          saltNonce: `0x${(42).toString(16).padStart(64, "0")}`,
+          owners: [...OWNERS],
+          threshold: 2,
+          fallbackHandler: SAFE_FALLBACK,
+          address: "0x53a62fb237E097DEa3714015Bced94790fE5c3BB",
+        },
+      },
+    ]);
+    expect(result.get(8453)?.launch).toEqual({
+      ...launch,
+      decoded: { flavor: "unknown", to: LAUNCH_TARGET, selector: "0x12345678" },
+    });
+    expect(result.get(10)?.setup).toEqual([]);
+    expect(result.get(10)?.launch.chainId).toBe(10);
+  });
+
+  test("is empty for an intent with no calls", () => {
+    expect(intentCalls(intentWith([])).size).toBe(0);
   });
 });
