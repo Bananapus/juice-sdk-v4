@@ -15,4 +15,7 @@ request, hands it to `relayPaid`, records the deployment it returns, and polls
 with the sponsored chains. The forwarder keeps Center's sponsor as the sender,
 so relay-paid chains pair with sponsored ones. `selfPaid` is unchanged and is
 now documented as the option that breaks that pairing for a deployer whose
-salt is scoped to the sender. This package still sends no transaction.
+salt is scoped to the sender. `JBCenterDeployment` gains `forwarded`, which
+says whether Center's forwarder carried that launch; `ensureDeployed` reads it
+to decide whether the sponsor may still take the run's remaining chains. This
+package still sends no transaction.

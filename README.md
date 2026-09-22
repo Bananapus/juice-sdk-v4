@@ -134,7 +134,9 @@ Finishing another wallet's partially self-paid intent produces different
 sucker, ERC-20, and 721-hook addresses and breaks cross-chain linking, so only
 the wallet that sent the first chain should resume a self-paid intent. A
 relay-paid chain carries no such rule: whoever sends it, the forwarder reports
-Center's sponsor, so anyone can finish the remaining chains of an intent.
+Center's sponsor, so anyone can finish the remaining chains of an intent whose
+deployments were all sent through Center. Each recorded deployment says which
+it was in `forwarded`, and `ensureDeployed` reads it to pick the run's sender.
 
 Render an intent's frozen calldata without re-decoding it yourself:
 

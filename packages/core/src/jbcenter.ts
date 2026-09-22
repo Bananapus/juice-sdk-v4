@@ -186,9 +186,17 @@ export type JBCenterDeployment = {
   projectId: string;
   transactionHash: Hex;
   createdAt: string;
+  /**
+   * Whether the launch reached the chain through JB Center's forwarder, so its
+   * sender was Center's sponsor. Absent means a wallet sent it directly.
+   */
+  forwarded?: boolean;
 };
 
-export type JBCenterDeploymentInput = Omit<JBCenterDeployment, "createdAt">;
+export type JBCenterDeploymentInput = Omit<
+  JBCenterDeployment,
+  "createdAt" | "forwarded"
+>;
 
 /** One call a relay request asks the sender to make before the launch. */
 export type JBCenterRelayCall = {
@@ -434,12 +442,13 @@ type RelayRequestJson = Omit<
   setup: RelayCallJson[];
 };
 
+/** Setup calls carry no value of their own; only the forwarder call does. */
 function isRelayCall(value: unknown): value is RelayCallJson {
   return (
     record(value) &&
     isAddress(value.to) &&
     isCalldata(value.data) &&
-    isDecimalString(value.value)
+    value.value === "0"
   );
 }
 
@@ -508,7 +517,8 @@ function isDeployment(value: unknown): value is JBCenterDeployment {
     typeof value.projectId === "string" &&
     /^[0-9]+$/u.test(value.projectId) &&
     isHash(value.transactionHash) &&
-    typeof value.createdAt === "string"
+    typeof value.createdAt === "string" &&
+    (value.forwarded === undefined || typeof value.forwarded === "boolean")
   );
 }
 
@@ -790,8 +800,9 @@ export class JBCenterClient {
 
   /**
    * Asks JB Center's sponsor to deploy the intent. `chainIds` narrows the
-   * request to those chains; omitted, it means every sponsored chain that has
-   * no deployment yet. Chains already queued or sent come back as they are.
+   * request to those chains; omitted or empty, it means every sponsored chain
+   * that has no deployment yet. Chains already queued or sent come back as
+   * they are.
    */
   requestDeploy(
     intentId: string,
@@ -799,7 +810,7 @@ export class JBCenterClient {
   ): Promise<{ deploys: JBCenterIntentDeploy[] }> {
     return this.fetchJson(
       `v1/intents/${encodeURIComponent(intentId)}/deploy`,
-      options?.chainIds
+      options?.chainIds?.length
         ? {
             method: "POST",
             body: JSON.stringify({ chainIds: options.chainIds }),

@@ -260,16 +260,24 @@ async function runSelfPaid(
 }
 
 /**
- * The sender an intent already has, or `undefined` when nothing has started
- * it yet. Every chain in an intent belongs to one sender, so this decides the
- * route before any new request goes out.
+ * Whether a wallet sent one of the chains an intent has already landed. Every
+ * chain in an intent belongs to one sender, and a deployment JB Center's
+ * forwarder did not carry was sent by the caller's own wallet.
+ */
+function walletSent(intent: JBCenterIntent<JBCenterJsonObject>): boolean {
+  return intent.deployments.some((deployment) => deployment.forwarded !== true);
+}
+
+/**
+ * The sender an intent already has, or `undefined` when JB Center's sponsor is
+ * still free to take the run. A deployment a wallet sent pins the intent to
+ * `selfPaid`; deployments the forwarder carried leave the sponsor path open,
+ * because every one of them reports Center's sponsor as the sender.
  */
 function existingSender(
   options: EnsureDeployedOptions,
   intent: JBCenterIntent<JBCenterJsonObject>,
   run: readonly number[],
-  pollMs: number,
-  timeoutMs: number,
 ): Promise<Record<number, string>> | undefined {
   const { client, onStep, selfPaid, signal } = options;
 
@@ -277,19 +285,7 @@ function existingSender(
     return Promise.resolve(deployedChains(intent));
   }
 
-  if (intent.deploys.length > 0) {
-    return pollUntilDeployed(
-      client,
-      intent,
-      run,
-      pollMs,
-      timeoutMs,
-      signal,
-      onStep,
-    );
-  }
-
-  if (intent.deployments.length > 0) {
+  if (walletSent(intent)) {
     return runSelfPaid(client, intent, run, selfPaid, onStep, signal);
   }
 
@@ -380,22 +376,25 @@ export async function ensureDeployed(
 
   const run = runChains(intent, options.chainIds);
 
+  const started = existingSender(options, intent, run);
+  if (started) return started;
+
   if (relayPaid) {
     return runRelayPaid(options, relayPaid, run, pollMs, timeoutMs);
   }
-
-  const started = existingSender(options, intent, run, pollMs, timeoutMs);
-  if (started) return started;
 
   if (!isSponsorable(run)) {
     return runSelfPaid(client, intent, run, selfPaid, onStep, signal);
   }
 
+  const deployed = deployedChains(intent);
+  const pending = run.filter((chainId) => !(chainId in deployed));
+
   let deploys: JBCenterIntentDeploy[];
   try {
     checkAborted(signal);
     ({ deploys } = await client.requestDeploy(intent.id, {
-      chainIds: options.chainIds ? run : undefined,
+      chainIds: pending,
       signal,
     }));
   } catch (error) {
@@ -407,10 +406,20 @@ export async function ensureDeployed(
       // intent back and follow whatever sender it now has instead of adding a
       // second one.
       const fresh = await client.getIntent(intent.id, { signal });
-      return (
-        existingSender(options, fresh, run, pollMs, timeoutMs) ??
-        runSelfPaid(client, fresh, run, selfPaid, onStep, signal)
-      );
+      const resumed = existingSender(options, fresh, run);
+      if (resumed) return resumed;
+      if (fresh.deploys.length > 0) {
+        return pollUntilDeployed(
+          client,
+          fresh,
+          run,
+          pollMs,
+          timeoutMs,
+          signal,
+          onStep,
+        );
+      }
+      return runSelfPaid(client, fresh, run, selfPaid, onStep, signal);
     }
     throw error;
   }

@@ -814,6 +814,21 @@ describe("JB Center client", () => {
       "application/json",
     );
   });
+
+  test("requestDeploy treats an empty chain list as every chain", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ deploys: [] }, { status: 202 }));
+
+    await createJBCenterClient({ fetch: fetchMock }).requestDeploy(
+      intent().id,
+      { chainIds: [] },
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.body).toBeUndefined();
+  });
+
   const forwarder = `0x${"78".repeat(20)}` as const;
 
   function relayBody(overrides: Record<string, unknown> = {}) {
@@ -888,6 +903,10 @@ describe("JB Center client", () => {
     [
       "a setup call with a bad value",
       { setup: [{ to: address, data: "0x12345678", value: "zero" }] },
+    ],
+    [
+      "a setup call that asks for value",
+      { setup: [{ to: address, data: "0x12345678", value: "1" }] },
     ],
   ])("requestRelay rejects a response with %s", async (_label, overrides) => {
     const fetchMock = vi

@@ -333,22 +333,28 @@ describe("ensureDeployed", () => {
     expect(selfPaid).not.toHaveBeenCalled();
   });
 
-  test("never mixes senders: existing deploy rows poll without calling requestDeploy", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(
-      jsonResponse(
-        intent([8453], {
-          deploys: [deploy(8453, "confirmed", TX_HASH_1)],
-          deployments: [
-            {
-              chainId: 8453,
-              projectId: "55",
-              transactionHash: TX_HASH_1,
-              createdAt: "",
-            },
-          ],
-        }),
-      ),
-    );
+  test("deploy rows alone leave the sponsor free to take the run's chains", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ deploys: [deploy(8453, "sent")] }, { status: 202 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          intent([8453], {
+            deploys: [deploy(8453, "confirmed", TX_HASH_1)],
+            deployments: [
+              {
+                chainId: 8453,
+                projectId: "55",
+                transactionHash: TX_HASH_1,
+                createdAt: "",
+                forwarded: true,
+              },
+            ],
+          }),
+        ),
+      );
     const client = createJBCenterClient({ fetch: fetchMock });
     const seeded = intent([8453], { deploys: [deploy(8453, "sent")] });
 
@@ -356,8 +362,13 @@ describe("ensureDeployed", () => {
     await vi.advanceTimersByTimeAsync(4_000);
 
     await expect(promise).resolves.toEqual({ 8453: "55" });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe(intentUrl());
+    expect(fetchMock.mock.calls.map((args) => args[0])).toEqual([
+      deployUrl(),
+      intentUrl(),
+    ]);
+    expect(
+      JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string),
+    ).toEqual({ chainIds: [8453] });
   });
 
   test("never mixes senders: partial deployments with no deploy rows always self-pay the remainder", async () => {
@@ -800,6 +811,7 @@ describe("ensureDeployed", () => {
           projectId: "9",
           transactionHash: TX_HASH_2,
           createdAt: "",
+          forwarded: true,
         },
       ],
     });
@@ -897,5 +909,199 @@ describe("ensureDeployed", () => {
     ).resolves.toEqual({ 1: "7" });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(relayPaid).not.toHaveBeenCalled();
+  });
+  test("asks Center for a later chain although an earlier one holds a deploy row", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ deploys: [deploy(42161, "queued")] }, { status: 202 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          intent([8453, 42161], {
+            deploys: [
+              deploy(8453, "confirmed", TX_HASH_1),
+              deploy(42161, "confirmed", TX_HASH_2),
+            ],
+            deployments: [
+              {
+                chainId: 8453,
+                projectId: "55",
+                transactionHash: TX_HASH_1,
+                createdAt: "",
+                forwarded: true,
+              },
+              {
+                chainId: 42161,
+                projectId: "56",
+                transactionHash: TX_HASH_2,
+                createdAt: "",
+                forwarded: true,
+              },
+            ],
+          }),
+        ),
+      );
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const seeded = intent([8453, 42161], {
+      deploys: [deploy(8453, "confirmed", TX_HASH_1)],
+      deployments: [
+        {
+          chainId: 8453,
+          projectId: "55",
+          transactionHash: TX_HASH_1,
+          createdAt: "",
+          forwarded: true,
+        },
+      ],
+    });
+
+    const promise = ensureDeployed({
+      client,
+      intent: seeded,
+      chainIds: [42161],
+    });
+
+    await vi.advanceTimersByTimeAsync(4_000);
+
+    await expect(promise).resolves.toEqual({ 8453: "55", 42161: "56" });
+    expect(fetchMock.mock.calls.map((args) => args[0])).toEqual([
+      deployUrl(),
+      intentUrl(),
+    ]);
+    expect(
+      JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string),
+    ).toEqual({ chainIds: [42161] });
+  });
+
+  test("a relay-paid chain leaves the sponsor free to take the rest", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ deploys: [deploy(8453, "queued")] }, { status: 202 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          intent([1, 8453], {
+            deploys: [deploy(8453, "confirmed", TX_HASH_2)],
+            deployments: [
+              {
+                chainId: 1,
+                projectId: "7",
+                transactionHash: TX_HASH_1,
+                createdAt: "",
+                forwarded: true,
+              },
+              {
+                chainId: 8453,
+                projectId: "55",
+                transactionHash: TX_HASH_2,
+                createdAt: "",
+                forwarded: true,
+              },
+            ],
+          }),
+        ),
+      );
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const seeded = intent([1, 8453], {
+      deployments: [
+        {
+          chainId: 1,
+          projectId: "7",
+          transactionHash: TX_HASH_1,
+          createdAt: "",
+          forwarded: true,
+        },
+      ],
+    });
+
+    const promise = ensureDeployed({
+      client,
+      intent: seeded,
+      chainIds: [8453],
+    });
+
+    await vi.advanceTimersByTimeAsync(4_000);
+
+    await expect(promise).resolves.toEqual({ 1: "7", 8453: "55" });
+    expect(
+      JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string),
+    ).toEqual({ chainIds: [8453] });
+  });
+
+  test("a wallet-sent deployment keeps the sponsor out of the intent", async () => {
+    const fetchMock = vi.fn();
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    function seeded(forwarded?: boolean) {
+      return intent([1, 8453], {
+        deployments: [
+          {
+            chainId: 1,
+            projectId: "7",
+            transactionHash: TX_HASH_1,
+            createdAt: "",
+            forwarded,
+          },
+        ],
+      });
+    }
+
+    await expect(
+      ensureDeployed({ client, intent: seeded(false), chainIds: [8453] }),
+    ).rejects.toMatchObject({
+      name: "EnsureDeployedError",
+      message: expect.stringContaining("no self-paid fallback was provided"),
+    });
+    await expect(
+      ensureDeployed({ client, intent: seeded(), chainIds: [8453] }),
+    ).rejects.toMatchObject({
+      name: "EnsureDeployedError",
+      message: expect.stringContaining("no self-paid fallback was provided"),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  test("polls the sponsor's own rows when it refuses a second request", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, { status: 429 }))
+      .mockResolvedValueOnce(
+        jsonResponse(intent([8453], { deploys: [deploy(8453, "sent")] })),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          intent([8453], {
+            deploys: [deploy(8453, "confirmed", TX_HASH_1)],
+            deployments: [
+              {
+                chainId: 8453,
+                projectId: "55",
+                transactionHash: TX_HASH_1,
+                createdAt: "",
+                forwarded: true,
+              },
+            ],
+          }),
+        ),
+      );
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const selfPaid = vi.fn();
+
+    const promise = ensureDeployed({
+      client,
+      intent: intent([8453]),
+      selfPaid,
+    });
+
+    await vi.advanceTimersByTimeAsync(4_000);
+
+    await expect(promise).resolves.toEqual({ 8453: "55" });
+    expect(selfPaid).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.map((args) => args[0])).toEqual([
+      deployUrl(),
+      intentUrl(),
+      intentUrl(),
+    ]);
   });
 });
