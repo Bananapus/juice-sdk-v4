@@ -31,7 +31,7 @@
     },
     {
       "file": "packages/core/src/safe.ts",
-      "line": 254,
+      "line": 264,
       "api": "request",
       "boundary": "Read only eth_call on a PublicClient with explicit Safe selectors, gas and response bounds, and the reviewed receipt block. Never sign, send, or follow OffchainLookup URLs.",
       "test": "packages/core/src/safe-reads.test.ts"

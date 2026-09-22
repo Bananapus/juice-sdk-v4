@@ -6,6 +6,10 @@ import {
   type ContractFunctionParameters,
   type Hex,
 } from "viem";
+import {
+  groupDeploymentCalls,
+  isValidDeploymentCalls,
+} from "./jbcenter/setupCalls.js";
 
 export const JBCENTER_DEFAULT_URL = "https://juicebox.center";
 export const JBCENTER_REQUEST_TIMEOUT_MS = 15_000;
@@ -76,6 +80,12 @@ export type JBCenterDeploymentCall = {
 
 export type { JBCenterDecodedLaunch } from "./jbcenter/decode.js";
 export { decodeDeploymentCall } from "./jbcenter/decode.js";
+
+export type {
+  JBCenterChainCalls,
+  JBCenterDecodedCall,
+} from "./jbcenter/setupCalls.js";
+export { intentCalls } from "./jbcenter/setupCalls.js";
 
 export type { JBCenterIntentRow } from "./jbcenter/merge.js";
 export {
@@ -386,17 +396,18 @@ function isEnvelope(value: unknown): value is JBCenterIntentEnvelope {
   }
   if (
     !Array.isArray(value.deploymentCalls) ||
-    !value.deploymentCalls.every(isDeploymentCall) ||
-    value.deploymentCalls.length !== value.chainIds.length
+    !value.deploymentCalls.every(isDeploymentCall)
   ) {
     return false;
   }
+  const calls: JBCenterDeploymentCall[] = value.deploymentCalls;
+  if (!isValidDeploymentCalls(calls)) return false;
   const chains = [...value.chainIds].sort((a, b) => a - b);
-  const callChains = value.deploymentCalls
-    .map(({ chainId }) => chainId)
-    .sort((a, b) => a - b);
+  const callChains = [...groupDeploymentCalls(calls).keys()].sort(
+    (a, b) => a - b,
+  );
   return (
-    new Set(callChains).size === callChains.length &&
+    callChains.length === chains.length &&
     chains.every((chainId, index) => callChains[index] === chainId)
   );
 }

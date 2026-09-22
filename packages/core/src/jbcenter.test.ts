@@ -11,6 +11,12 @@ import {
   createJBCenterRpcProvider,
   isSponsorable,
 } from "./jbcenter.js";
+import {
+  SAFE_CREATE_ABI,
+  SAFE_FACTORY,
+  SAFE_SINGLETON,
+  buildSafeInitializer,
+} from "./safe.js";
 
 const hash = `0x${"12".repeat(32)}` as const;
 const signature = `0x${"34".repeat(65)}` as const;
@@ -256,6 +262,102 @@ describe("JB Center client", () => {
     const client = createJBCenterClient({ fetch: fetchMock });
 
     await expect(client.getIntent(empty.id)).rejects.toMatchObject({
+      status: 502,
+      message: "JB Center returned an invalid response",
+    });
+  });
+
+  const setupData = encodeFunctionData({
+    abi: SAFE_CREATE_ABI,
+    functionName: "createProxyWithNonce",
+    args: [
+      SAFE_SINGLETON,
+      buildSafeInitializer({
+        owners: ["0x0000000000000000000000000000000000000002"],
+        threshold: 1,
+      }),
+      7n,
+    ],
+  });
+
+  test("accepts an intent whose chain sets up Safes before it launches", async () => {
+    const withSetup = {
+      ...intent(),
+      envelope: {
+        ...envelope,
+        deploymentCalls: [
+          { chainId: 1, to: SAFE_FACTORY, data: setupData },
+          ...envelope.deploymentCalls,
+        ],
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(withSetup));
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.getIntent(withSetup.id)).resolves.toMatchObject({
+      envelope: { deploymentCalls: withSetup.envelope.deploymentCalls },
+    });
+  });
+
+  test("rejects a setup call that is not a canonical Safe creation", async () => {
+    const wrongTarget = {
+      ...intent(),
+      envelope: {
+        ...envelope,
+        deploymentCalls: [
+          { chainId: 1, to: address, data: setupData },
+          ...envelope.deploymentCalls,
+        ],
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(wrongTarget));
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.getIntent(wrongTarget.id)).rejects.toMatchObject({
+      status: 502,
+      message: "JB Center returned an invalid response",
+    });
+  });
+
+  test("rejects a chain carrying five calls", async () => {
+    const tooMany = {
+      ...intent(),
+      envelope: {
+        ...envelope,
+        deploymentCalls: [
+          { chainId: 1, to: SAFE_FACTORY, data: setupData },
+          { chainId: 1, to: SAFE_FACTORY, data: setupData },
+          { chainId: 1, to: SAFE_FACTORY, data: setupData },
+          { chainId: 1, to: SAFE_FACTORY, data: setupData },
+          ...envelope.deploymentCalls,
+        ],
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(tooMany));
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.getIntent(tooMany.id)).rejects.toMatchObject({
+      status: 502,
+      message: "JB Center returned an invalid response",
+    });
+  });
+
+  test("rejects a chain with no call of its own", async () => {
+    const missing = {
+      ...intent(),
+      envelope: {
+        ...envelope,
+        chainIds: [1, 10],
+        deploymentCalls: [
+          { chainId: 1, to: SAFE_FACTORY, data: setupData },
+          ...envelope.deploymentCalls,
+        ],
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(missing));
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.getIntent(missing.id)).rejects.toMatchObject({
       status: 502,
       message: "JB Center returned an invalid response",
     });

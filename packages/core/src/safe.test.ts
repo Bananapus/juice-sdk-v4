@@ -18,6 +18,7 @@ import {
   SAFE_CREATE_ABI,
   SAFE_FACTORY,
   SAFE_FALLBACK,
+  SAFE_PROXY_CREATION_CODE,
   SAFE_SINGLETON,
   buildSafeDeploymentCalls,
   buildSafeDeploymentTx,
@@ -426,5 +427,33 @@ describe("Safe launch simulation", () => {
         encodeResults([{ success: true, returnData }, successfulLaunch]),
       ),
     ).rejects.toThrow();
+  });
+});
+
+describe("SAFE_PROXY_CREATION_CODE", () => {
+  test("is the canonical SafeProxyFactory 1.4.1 creation code", () => {
+    // `cast call 0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67 \
+    //   "proxyCreationCode()(bytes)" --rpc-url https://mainnet.base.org`
+    expect(SAFE_PROXY_CREATION_CODE).toMatch(/^0x(?:[\da-f]{2}){486}$/u);
+    expect(keccak256(SAFE_PROXY_CREATION_CODE)).toBe(
+      "0x1856e0ee08399d74e0ea0b03adca210aeade6f748969ac023cdcb4dd62dcaf5f",
+    );
+  });
+
+  test("predicts the address the canonical factory itself returns", () => {
+    // Ground truth from an `eth_call` of
+    // `createProxyWithNonce(SAFE_SINGLETON, setup([0x..02, 0x..03], 2, 0, 0x,
+    // SAFE_FALLBACK, 0, 0, 0), 42)` against the factory on Base.
+    expect(
+      predictSafeAddress({
+        owners: [
+          "0x0000000000000000000000000000000000000002",
+          "0x0000000000000000000000000000000000000003",
+        ],
+        threshold: 2,
+        saltNonce: toHex(42n, { size: 32 }),
+        proxyCreationCode: SAFE_PROXY_CREATION_CODE,
+      }),
+    ).toBe("0x53a62fb237E097DEa3714015Bced94790fE5c3BB");
   });
 });

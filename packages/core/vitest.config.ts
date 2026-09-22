@@ -51,6 +51,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/jbcenter/setupCalls.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/jbcenter/refusal.ts": {
           statements: 100,
           branches: 100,

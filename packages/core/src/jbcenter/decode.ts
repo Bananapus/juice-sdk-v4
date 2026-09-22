@@ -1,8 +1,11 @@
 import {
   decodeFunctionData,
+  encodeFunctionData,
   isAddressEqual,
   parseAbi,
   slice,
+  toHex,
+  zeroAddress,
   type Address,
   type Hex,
 } from "viem";
@@ -19,6 +22,15 @@ import type { JBRulesetConfig } from "../v6/rulesets.js";
 import type { JBAccountingContext } from "../v6/terminals.js";
 import { v6Address, type V6Contract } from "../v6/types.js";
 import type { JBCenterDeploymentCall } from "../jbcenter.js";
+import {
+  SAFE_CREATE_ABI,
+  SAFE_FACTORY,
+  SAFE_FALLBACK,
+  SAFE_PROXY_CREATION_CODE,
+  SAFE_SINGLETON,
+  buildSafeInitializer,
+  predictSafeAddress,
+} from "../safe.js";
 
 export type JBCenterDecodedLaunch =
   | {
@@ -65,6 +77,16 @@ export type JBCenterDecodedLaunch =
       mustStartAtOrAfter: number;
       salt: Hex;
       peerSuckerDeployers: readonly Address[];
+    }
+  | {
+      flavor: "safe-create";
+      to: Address;
+      singleton: Address;
+      saltNonce: Hex;
+      owners: readonly Address[];
+      threshold: number;
+      fallbackHandler: Address;
+      address: Address;
     }
   | { flavor: "unknown"; to: Address; selector: Hex };
 
@@ -270,7 +292,94 @@ function decodeHomerunFundLaunch(
   }
 }
 
+/** JB Center's ceiling on the owners one intent's Safe may carry. */
+const MAX_INTENT_SAFE_OWNERS = 20;
+
+/**
+ * A setup call: `createProxyWithNonce` to the canonical Safe factory, for the
+ * canonical singleton and fallback handler, with no delegatecall hook and no
+ * setup payment. The address is the one the factory would compute, derived
+ * from the pinned proxy creation code, so nothing here reaches a chain.
+ */
+function decodeSafeCreate(
+  call: JBCenterDeploymentCall,
+): JBCenterDecodedLaunch | null {
+  try {
+    if (!isAddressEqual(SAFE_FACTORY, call.to)) return null;
+    const create = decodeFunctionData({
+      abi: SAFE_CREATE_ABI,
+      data: call.data,
+    });
+    if (create.functionName !== "createProxyWithNonce") return null;
+    const [singleton, initializer, nonce] = create.args;
+    if (!isAddressEqual(singleton, SAFE_SINGLETON)) return null;
+    const setup = decodeFunctionData({
+      abi: SAFE_CREATE_ABI,
+      data: initializer,
+    });
+    if (setup.functionName !== "setup") return null;
+    const [
+      owners,
+      threshold,
+      to,
+      data,
+      fallbackHandler,
+      paymentToken,
+      payment,
+      paymentReceiver,
+    ] = setup.args;
+    if (
+      owners.length < 1 ||
+      owners.length > MAX_INTENT_SAFE_OWNERS ||
+      owners.some((owner) => BigInt(owner) === 0n) ||
+      new Set(owners.map((owner) => owner.toLowerCase())).size !==
+        owners.length ||
+      threshold < 1n ||
+      threshold > BigInt(owners.length) ||
+      !isAddressEqual(to, zeroAddress) ||
+      data !== "0x" ||
+      !isAddressEqual(fallbackHandler, SAFE_FALLBACK) ||
+      !isAddressEqual(paymentToken, zeroAddress) ||
+      payment !== 0n ||
+      !isAddressEqual(paymentReceiver, zeroAddress)
+    ) {
+      return null;
+    }
+    const plan = {
+      owners: [...owners],
+      threshold: Number(threshold),
+      saltNonce: toHex(nonce, { size: 32 }),
+      proxyCreationCode: SAFE_PROXY_CREATION_CODE,
+    };
+    // Only the canonical encoding predicts the address the factory computes,
+    // so the call has to be exactly what this plan re-encodes to. This also
+    // refuses the sentinel owner, which `buildSafeInitializer` rejects.
+    if (
+      encodeFunctionData({
+        abi: SAFE_CREATE_ABI,
+        functionName: "createProxyWithNonce",
+        args: [SAFE_SINGLETON, buildSafeInitializer(plan), nonce],
+      }).toLowerCase() !== call.data.toLowerCase()
+    ) {
+      return null;
+    }
+    return {
+      flavor: "safe-create",
+      to: call.to,
+      singleton,
+      saltNonce: plan.saltNonce,
+      owners: plan.owners,
+      threshold: plan.threshold,
+      fallbackHandler,
+      address: predictSafeAddress(plan),
+    };
+  } catch {
+    return null;
+  }
+}
+
 const DECODERS = [
+  decodeSafeCreate,
   decodeProjectLaunch,
   decodeProject721Launch,
   decodeOmnichainLaunch,

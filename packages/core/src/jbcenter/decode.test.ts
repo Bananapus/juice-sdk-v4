@@ -1,8 +1,10 @@
 import {
+  concatHex,
   encodeFunctionData,
   isAddressEqual,
   parseAbi,
   parseEther,
+  toHex,
   zeroAddress,
   zeroHash,
 } from "viem";
@@ -31,6 +33,13 @@ import {
 import { v6Address } from "../v6/types.js";
 import { createJBCenterDeploymentCall } from "../jbcenter.js";
 import { decodeDeploymentCall } from "./decode.js";
+import {
+  SAFE_CREATE_ABI,
+  SAFE_FACTORY,
+  SAFE_FALLBACK,
+  SAFE_SINGLETON,
+} from "../safe.js";
+import type { Address, Hex } from "viem";
 
 const CHAIN_ID = 8453;
 const OWNER = "0x000000000000000000000000000000000000dEaD" as const;
@@ -480,5 +489,179 @@ describe("decodeDeploymentCall", () => {
       salt: zeroHash,
       peerSuckerDeployers: [],
     });
+  });
+});
+
+const SAFE_OWNERS: readonly Address[] = [
+  "0x0000000000000000000000000000000000000002",
+  "0x0000000000000000000000000000000000000003",
+];
+
+type SetupArgs = {
+  owners: readonly Address[];
+  threshold: bigint;
+  to: Address;
+  data: Hex;
+  fallbackHandler: Address;
+  paymentToken: Address;
+  payment: bigint;
+  paymentReceiver: Address;
+};
+
+const SETUP: SetupArgs = {
+  owners: SAFE_OWNERS,
+  threshold: 2n,
+  to: zeroAddress,
+  data: "0x",
+  fallbackHandler: SAFE_FALLBACK,
+  paymentToken: zeroAddress,
+  payment: 0n,
+  paymentReceiver: zeroAddress,
+};
+
+function initializer(overrides: Partial<SetupArgs> = {}): Hex {
+  const args = { ...SETUP, ...overrides };
+  return encodeFunctionData({
+    abi: SAFE_CREATE_ABI,
+    functionName: "setup",
+    args: [
+      args.owners,
+      args.threshold,
+      args.to,
+      args.data,
+      args.fallbackHandler,
+      args.paymentToken,
+      args.payment,
+      args.paymentReceiver,
+    ],
+  });
+}
+
+function safeCreateCall(
+  overrides: Partial<SetupArgs> = {},
+  singleton: Address = SAFE_SINGLETON,
+  saltNonce = 42n,
+) {
+  return {
+    chainId: CHAIN_ID,
+    to: SAFE_FACTORY,
+    data: encodeFunctionData({
+      abi: SAFE_CREATE_ABI,
+      functionName: "createProxyWithNonce",
+      args: [singleton, initializer(overrides), saltNonce],
+    }),
+  };
+}
+
+describe("decodeDeploymentCall, safe-create", () => {
+  test("reads a canonical factory call back as the Safe it creates", () => {
+    expect(decodeDeploymentCall(safeCreateCall())).toEqual({
+      flavor: "safe-create",
+      to: SAFE_FACTORY,
+      singleton: SAFE_SINGLETON,
+      saltNonce: toHex(42n, { size: 32 }),
+      owners: [...SAFE_OWNERS],
+      threshold: 2,
+      fallbackHandler: SAFE_FALLBACK,
+      // The address the canonical factory itself returns for this plan.
+      address: "0x53a62fb237E097DEa3714015Bced94790fE5c3BB",
+    });
+  });
+
+  test("accepts one owner and twenty owners", () => {
+    const one = decodeDeploymentCall(
+      safeCreateCall({ owners: [SAFE_OWNERS[0]], threshold: 1n }),
+    );
+    expect(one.flavor).toBe("safe-create");
+
+    const twenty = Array.from(
+      { length: 20 },
+      (_, index) =>
+        `0x${(index + 2).toString(16).padStart(40, "0")}` as Address,
+    );
+    const many = decodeDeploymentCall(
+      safeCreateCall({ owners: twenty, threshold: 20n }),
+    );
+    expect(many.flavor).toBe("safe-create");
+  });
+
+  const twentyOne = Array.from(
+    { length: 21 },
+    (_, index) => `0x${(index + 2).toString(16).padStart(40, "0")}` as Address,
+  );
+
+  test.each<[string, Partial<SetupArgs>]>([
+    ["no owners", { owners: [], threshold: 0n }],
+    ["twenty-one owners", { owners: twentyOne, threshold: 1n }],
+    ["a repeated owner", { owners: [SAFE_OWNERS[0], SAFE_OWNERS[0]] }],
+    ["a zero owner", { owners: [zeroAddress, SAFE_OWNERS[0]] }],
+    [
+      "the sentinel owner",
+      {
+        owners: ["0x0000000000000000000000000000000000000001", SAFE_OWNERS[0]],
+      },
+    ],
+    ["a zero threshold", { threshold: 0n }],
+    ["a threshold above the owner count", { threshold: 3n }],
+    ["a setup delegatecall target", { to: SAFE_OWNERS[0] }],
+    ["setup delegatecall data", { data: "0xdeadbeef" }],
+    ["another fallback handler", { fallbackHandler: SAFE_OWNERS[0] }],
+    ["a setup payment token", { paymentToken: SAFE_OWNERS[0] }],
+    ["a setup payment", { payment: 1n }],
+    ["a setup payment receiver", { paymentReceiver: SAFE_OWNERS[0] }],
+  ])("refuses an initializer with %s", (_label, overrides) => {
+    expect(decodeDeploymentCall(safeCreateCall(overrides)).flavor).toBe(
+      "unknown",
+    );
+  });
+
+  test("refuses another singleton, another target, and another selector", () => {
+    expect(
+      decodeDeploymentCall(safeCreateCall({}, SAFE_OWNERS[0])).flavor,
+    ).toBe("unknown");
+    expect(
+      decodeDeploymentCall({ ...safeCreateCall(), to: SAFE_OWNERS[0] }).flavor,
+    ).toBe("unknown");
+    expect(
+      decodeDeploymentCall({
+        chainId: CHAIN_ID,
+        to: SAFE_FACTORY,
+        data: encodeFunctionData({
+          abi: SAFE_CREATE_ABI,
+          functionName: "proxyCreationCode",
+        }),
+      }).flavor,
+    ).toBe("unknown");
+  });
+
+  test("refuses an initializer that is not a setup call", () => {
+    expect(
+      decodeDeploymentCall({
+        chainId: CHAIN_ID,
+        to: SAFE_FACTORY,
+        data: encodeFunctionData({
+          abi: SAFE_CREATE_ABI,
+          functionName: "createProxyWithNonce",
+          args: [
+            SAFE_SINGLETON,
+            encodeFunctionData({
+              abi: SAFE_CREATE_ABI,
+              functionName: "proxyCreationCode",
+            }),
+            42n,
+          ],
+        }),
+      }).flavor,
+    ).toBe("unknown");
+  });
+
+  test("refuses calldata that is not the canonical encoding", () => {
+    const call = safeCreateCall();
+    expect(
+      decodeDeploymentCall({
+        ...call,
+        data: concatHex([call.data, toHex(0n, { size: 32 })]),
+      }).flavor,
+    ).toBe("unknown");
   });
 });

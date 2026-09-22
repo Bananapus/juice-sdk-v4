@@ -16,9 +16,11 @@ const budgets = {
     // The /safe entry point adds eight ESM/CJS JS/declaration/map artifacts.
     // The JB Center intent decoder, merger, and deploy pre-step add
     // twenty-four more, and its guarded publish and refusal wording sixteen.
+    // The intent setup-call grouping adds eight more, and the pinned Safe
+    // proxy creation code adds about two kilobytes to four of them.
     packed: 940_000,
     unpacked: 18_900_000,
-    entries: 480,
+    entries: 488,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
