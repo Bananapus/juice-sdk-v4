@@ -132,7 +132,7 @@ for (const [chainId, { setup, launch }] of intentCalls(intent)) {
       // call.decoded.address, .owners, .threshold, .saltNonce
     }
   }
-  // launch.decoded is the project, 721, omnichain, revnet or FUND launch.
+  // launch.decoded is whatever the chain's last call decodes to, usually a launch.
 }
 ```
 
