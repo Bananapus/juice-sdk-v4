@@ -20,3 +20,4 @@ export * from "./uniswapV4Fees.js";
 export * from "./permissions.js";
 export * from "./suckers.js";
 export * from "./loans.js";
+export * from "./sticky.js";

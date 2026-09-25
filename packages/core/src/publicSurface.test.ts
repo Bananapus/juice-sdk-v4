@@ -58,5 +58,7 @@ describe("published core SDK surfaces", () => {
     expect(v6.probeFeedReachability).toBeTypeOf("function");
     expect(v6.REV_METADATA_ALLOW_SUCKER_DEPLOYMENT).toBe(1 << 2);
     expect(v6.REVLOANS_BURN_PERMISSION_ID).toBe(11);
+    expect(v6.isStickySplit).toBeTypeOf("function");
+    expect(v6.describeStickySplit).toBeTypeOf("function");
   });
 });
