@@ -66152,6 +66152,13 @@ export const stickyAutoStickAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'enabled', internalType: 'bool', type: 'bool' },
@@ -66190,6 +66197,13 @@ export const stickyAutoStickAbi = [
       { name: 'stickyTokenCount', internalType: 'uint256', type: 'uint256' },
     ],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -66504,6 +66518,13 @@ export const stickyDeployerAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [
       { name: '', internalType: 'address', type: 'address' },
       { name: 'from', internalType: 'address', type: 'address' },
@@ -66558,6 +66579,13 @@ export const stickyDeployerAbi = [
     outputs: [
       { name: '', internalType: 'contract IERC20Metadata', type: 'address' },
     ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
@@ -66951,6 +66979,13 @@ export const stickyDistributorAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [{ name: 'groupId', internalType: 'uint256', type: 'uint256' }],
     name: 'isValidGroupId',
     outputs: [{ name: 'isValid', internalType: 'bool', type: 'bool' }],
@@ -67147,6 +67182,13 @@ export const stickyDistributorAbi = [
     ],
     name: 'totalVestingAmountOf',
     outputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
@@ -67776,6 +67818,7 @@ export const stickyHookAbi = [
         type: 'address',
       },
       { name: 'deployer', internalType: 'address', type: 'address' },
+      { name: 'trustedForwarder', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
   },
@@ -68082,6 +68125,13 @@ export const stickyHookAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'forwarder', internalType: 'address', type: 'address' }],
+    name: 'isTrustedForwarder',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'holder', internalType: 'address', type: 'address' },
@@ -68285,6 +68335,13 @@ export const stickyHookAbi = [
         ],
       },
     ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trustedForwarder',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
@@ -69780,54 +69837,54 @@ export const stickyRewardReceiverFactoryAbi = [
       "11155420": "0xb853758a70a6b4216c09f1d071ea2344aba0a34f"
     },
     "StickyDeployer": {
-      "1": "0x2d31dd23aeeb021669e18070a46af34d856b2e29",
-      "10": "0x2d31dd23aeeb021669e18070a46af34d856b2e29",
-      "8453": "0x2d31dd23aeeb021669e18070a46af34d856b2e29",
-      "42161": "0x2d31dd23aeeb021669e18070a46af34d856b2e29",
-      "84532": "0x2d31dd23aeeb021669e18070a46af34d856b2e29",
-      "421614": "0x2d31dd23aeeb021669e18070a46af34d856b2e29",
-      "11155111": "0x2d31dd23aeeb021669e18070a46af34d856b2e29",
-      "11155420": "0x2d31dd23aeeb021669e18070a46af34d856b2e29"
+      "1": "0xda38ec48b5b1d186b02ba99f297e95153bee33a9",
+      "10": "0xda38ec48b5b1d186b02ba99f297e95153bee33a9",
+      "8453": "0xda38ec48b5b1d186b02ba99f297e95153bee33a9",
+      "42161": "0xda38ec48b5b1d186b02ba99f297e95153bee33a9",
+      "84532": "0xda38ec48b5b1d186b02ba99f297e95153bee33a9",
+      "421614": "0xda38ec48b5b1d186b02ba99f297e95153bee33a9",
+      "11155111": "0xda38ec48b5b1d186b02ba99f297e95153bee33a9",
+      "11155420": "0xda38ec48b5b1d186b02ba99f297e95153bee33a9"
     },
     "StickyHook": {
-      "1": "0x965444ab0bea878cdd3fc12b86a0762350de70e6",
-      "10": "0x965444ab0bea878cdd3fc12b86a0762350de70e6",
-      "8453": "0x965444ab0bea878cdd3fc12b86a0762350de70e6",
-      "42161": "0x965444ab0bea878cdd3fc12b86a0762350de70e6",
-      "84532": "0x965444ab0bea878cdd3fc12b86a0762350de70e6",
-      "421614": "0x965444ab0bea878cdd3fc12b86a0762350de70e6",
-      "11155111": "0x965444ab0bea878cdd3fc12b86a0762350de70e6",
-      "11155420": "0x965444ab0bea878cdd3fc12b86a0762350de70e6"
+      "1": "0xa8dcd735031cf96c4213d9a3f66a1dffdcdba693",
+      "10": "0xa8dcd735031cf96c4213d9a3f66a1dffdcdba693",
+      "8453": "0xa8dcd735031cf96c4213d9a3f66a1dffdcdba693",
+      "42161": "0xa8dcd735031cf96c4213d9a3f66a1dffdcdba693",
+      "84532": "0xa8dcd735031cf96c4213d9a3f66a1dffdcdba693",
+      "421614": "0xa8dcd735031cf96c4213d9a3f66a1dffdcdba693",
+      "11155111": "0xa8dcd735031cf96c4213d9a3f66a1dffdcdba693",
+      "11155420": "0xa8dcd735031cf96c4213d9a3f66a1dffdcdba693"
     },
     "StickyDistributor": {
-      "1": "0x9862b5aad5a139271be57fc82fced9146add0d0f",
-      "10": "0x9862b5aad5a139271be57fc82fced9146add0d0f",
-      "8453": "0x9862b5aad5a139271be57fc82fced9146add0d0f",
-      "42161": "0x9862b5aad5a139271be57fc82fced9146add0d0f",
-      "84532": "0x9862b5aad5a139271be57fc82fced9146add0d0f",
-      "421614": "0x9862b5aad5a139271be57fc82fced9146add0d0f",
-      "11155111": "0x9862b5aad5a139271be57fc82fced9146add0d0f",
-      "11155420": "0x9862b5aad5a139271be57fc82fced9146add0d0f"
+      "1": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8",
+      "10": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8",
+      "8453": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8",
+      "42161": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8",
+      "84532": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8",
+      "421614": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8",
+      "11155111": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8",
+      "11155420": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8"
     },
     "StickyRewardReceiverFactory": {
-      "1": "0x56c0bffc3fe135719c22541b11c15157142fade0",
-      "10": "0x56c0bffc3fe135719c22541b11c15157142fade0",
-      "8453": "0x56c0bffc3fe135719c22541b11c15157142fade0",
-      "42161": "0x56c0bffc3fe135719c22541b11c15157142fade0",
-      "84532": "0x56c0bffc3fe135719c22541b11c15157142fade0",
-      "421614": "0x56c0bffc3fe135719c22541b11c15157142fade0",
-      "11155111": "0x56c0bffc3fe135719c22541b11c15157142fade0",
-      "11155420": "0x56c0bffc3fe135719c22541b11c15157142fade0"
+      "1": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
+      "10": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
+      "8453": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
+      "42161": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
+      "84532": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
+      "421614": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
+      "11155111": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
+      "11155420": "0xf65743b76c062762d19eecb4ab5c7a943e128720"
     },
     "StickyAutoStick": {
-      "1": "0xc6f0b98534d6a3884a823c8717c9312d2a7782e5",
-      "10": "0xc6f0b98534d6a3884a823c8717c9312d2a7782e5",
-      "8453": "0xc6f0b98534d6a3884a823c8717c9312d2a7782e5",
-      "42161": "0xc6f0b98534d6a3884a823c8717c9312d2a7782e5",
-      "84532": "0xc6f0b98534d6a3884a823c8717c9312d2a7782e5",
-      "421614": "0xc6f0b98534d6a3884a823c8717c9312d2a7782e5",
-      "11155111": "0xc6f0b98534d6a3884a823c8717c9312d2a7782e5",
-      "11155420": "0xc6f0b98534d6a3884a823c8717c9312d2a7782e5"
+      "1": "0x9b091e21d25c424de67751f4b6ae8494351218c5",
+      "10": "0x9b091e21d25c424de67751f4b6ae8494351218c5",
+      "8453": "0x9b091e21d25c424de67751f4b6ae8494351218c5",
+      "42161": "0x9b091e21d25c424de67751f4b6ae8494351218c5",
+      "84532": "0x9b091e21d25c424de67751f4b6ae8494351218c5",
+      "421614": "0x9b091e21d25c424de67751f4b6ae8494351218c5",
+      "11155111": "0x9b091e21d25c424de67751f4b6ae8494351218c5",
+      "11155420": "0x9b091e21d25c424de67751f4b6ae8494351218c5"
     },
     "REVDeployer": {
       "1": "0xb552eb94284f94b833837d4b2cbb237128415d4e",

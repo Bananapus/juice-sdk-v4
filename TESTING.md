@@ -2,7 +2,7 @@
 
 The SDK is the shared contract boundary for the frontends. Pull requests therefore run the same checks consumers rely on:
 
-- `npm run protocol:check` validates every exported V6 address and normalized public ABI against an independently reviewed deployment fixture. CI and release additionally compare that fixture with an exact sparse checkout of `Bananapus/deploy-all-v6` commit `a6ab40c5806b52ff4cb21f9eaefe275e621796f9`, which records the executed production rollout, and of `mejango/sticky` commit `99e3a4f0731a0b17fcf17bcb45a348cbe17347c5` for the five Sticky contracts deploy-all-v6 does not carry.
+- `npm run protocol:check` validates every exported V6 address and normalized public ABI against an independently reviewed deployment fixture. CI and release additionally compare that fixture with an exact sparse checkout of `Bananapus/deploy-all-v6` commit `a6ab40c5806b52ff4cb21f9eaefe275e621796f9`, which records the executed production rollout, and of `mejango/sticky` commit `bb5780307cce47c841d162da0577e93f31fbdb1e` for the five Sticky contracts deploy-all-v6 does not carry.
 - `npm run wallet:check` rejects a production wallet sign/send API unless its exact source site and focused test are reviewed in `test/wallet-boundaries.json`.
 - `npm run deps:check` requires the dependency graph shipped to SDK consumers
   to be internally valid. Historical contract-generation packages remain
