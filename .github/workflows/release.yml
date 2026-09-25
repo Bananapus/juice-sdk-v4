@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: mejango/sticky
-          ref: 99e3a4f0731a0b17fcf17bcb45a348cbe17347c5
+          ref: bb5780307cce47c841d162da0577e93f31fbdb1e
           path: .contract-source/sticky
           sparse-checkout: deployments
           sparse-checkout-cone-mode: true

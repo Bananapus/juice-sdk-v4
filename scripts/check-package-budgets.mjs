@@ -19,9 +19,10 @@ const budgets = {
     // The intent setup-call grouping adds eight more, and the pinned Safe
     // proxy creation code adds about two kilobytes to four of them. The five
     // Sticky ABIs and addresses raise the unpacked budget, and the Sticky
-    // split helpers add two entries and about ten kilobytes.
+    // split helpers add two entries and about ten kilobytes. The Sticky
+    // forwarder functions add about four kilobytes.
     packed: 940_000,
-    unpacked: 19_020_000,
+    unpacked: 19_030_000,
     entries: 490,
   },
   "@bananapus/nana-sdk-react": {

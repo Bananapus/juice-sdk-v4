@@ -6,7 +6,7 @@
   },
   "extensions": {
     "mejango/sticky": {
-      "commit": "99e3a4f0731a0b17fcf17bcb45a348cbe17347c5",
+      "commit": "bb5780307cce47c841d162da0577e93f31fbdb1e",
       "contracts": [
         "StickyDeployer",
         "StickyHook",
@@ -156,24 +156,24 @@
       "abiSha256": "b6ade0d07cae6b6a04e6dd4da5408aa9b3e6ad8a967667cda1792ebe96fa4ba0"
     },
     "StickyDeployer": {
-      "address": "0x2d31dd23aeeb021669e18070a46af34d856b2e29",
-      "abiSha256": "dd7dc1be44942045cfc8d557d1688eb2fa3df12779d78817e6af9874b189fbb2"
+      "address": "0xda38ec48b5b1d186b02ba99f297e95153bee33a9",
+      "abiSha256": "ef52e05a473f89240da21fd9b6b8a779cd3b65b0a7443f20f1165ded459406e9"
     },
     "StickyHook": {
-      "address": "0x965444ab0bea878cdd3fc12b86a0762350de70e6",
-      "abiSha256": "e9261008a37f8dd8edba662a2d25266a143dc5678d2cf26f72af2c70ca7b3de5"
+      "address": "0xa8dcd735031cf96c4213d9a3f66a1dffdcdba693",
+      "abiSha256": "4303ed3929ee3ede1e521b7c0652c7a1815430c74ef4b56da8f436752c1abaf5"
     },
     "StickyDistributor": {
-      "address": "0x9862b5aad5a139271be57fc82fced9146add0d0f",
-      "abiSha256": "71ae0afb2ecbdca9c4709097839b4db04fbdc6cf949fa7500760d585a13e15a7"
+      "address": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8",
+      "abiSha256": "2bb86c314be7eff19b5cb7acfaeccf8a3d2258f8a28e262c98b1bc4ad08bf054"
     },
     "StickyRewardReceiverFactory": {
-      "address": "0x56c0bffc3fe135719c22541b11c15157142fade0",
+      "address": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
       "abiSha256": "06b757b5f8f4e129bfbd7c64d8663f3c6fb4b17a508e9d8b0a7c98f2d9c8b98e"
     },
     "StickyAutoStick": {
-      "address": "0xc6f0b98534d6a3884a823c8717c9312d2a7782e5",
-      "abiSha256": "7974695dfa3402c00e9c87d3b55f080abd552823df824b60eb6801d450371d9e"
+      "address": "0x9b091e21d25c424de67751f4b6ae8494351218c5",
+      "abiSha256": "59fd0f970e7e28a90b36c43354eff55999ce1250747b218b82d9f0a5a6b6940f"
     },
     "REVDeployer": {
       "address": "0xb552eb94284f94b833837d4b2cbb237128415d4e",
