@@ -700,6 +700,7 @@ Modules:
 - `omnichain` — multi-chain launches and ruleset queues via JBOmnichainDeployer
 - `rulesets` — queue + read rulesets
 - `splits` — split groups and exact-remainder percent math
+- `sticky` — Sticky split group IDs: encode, decode, validate, describe
 - `revnets` — REVDeployer + REVOwner actions
 - `terminals` — payment terminal and effective router path resolution, accounting contexts
 - `pay` — pay builders and previews
