@@ -4,6 +4,18 @@
     "repository": "Bananapus/deploy-all-v6",
     "commit": "a6ab40c5806b52ff4cb21f9eaefe275e621796f9"
   },
+  "extensions": {
+    "mejango/sticky": {
+      "commit": "99e3a4f0731a0b17fcf17bcb45a348cbe17347c5",
+      "contracts": [
+        "StickyDeployer",
+        "StickyHook",
+        "StickyDistributor",
+        "StickyRewardReceiverFactory",
+        "StickyAutoStick"
+      ]
+    }
+  },
   "chains": {
     "1": "ethereum",
     "10": "optimism",
@@ -142,6 +154,26 @@
     "JBOmnichainDeployer": {
       "address": "0xb853758a70a6b4216c09f1d071ea2344aba0a34f",
       "abiSha256": "b6ade0d07cae6b6a04e6dd4da5408aa9b3e6ad8a967667cda1792ebe96fa4ba0"
+    },
+    "StickyDeployer": {
+      "address": "0x2d31dd23aeeb021669e18070a46af34d856b2e29",
+      "abiSha256": "dd7dc1be44942045cfc8d557d1688eb2fa3df12779d78817e6af9874b189fbb2"
+    },
+    "StickyHook": {
+      "address": "0x965444ab0bea878cdd3fc12b86a0762350de70e6",
+      "abiSha256": "e9261008a37f8dd8edba662a2d25266a143dc5678d2cf26f72af2c70ca7b3de5"
+    },
+    "StickyDistributor": {
+      "address": "0x9862b5aad5a139271be57fc82fced9146add0d0f",
+      "abiSha256": "71ae0afb2ecbdca9c4709097839b4db04fbdc6cf949fa7500760d585a13e15a7"
+    },
+    "StickyRewardReceiverFactory": {
+      "address": "0x56c0bffc3fe135719c22541b11c15157142fade0",
+      "abiSha256": "06b757b5f8f4e129bfbd7c64d8663f3c6fb4b17a508e9d8b0a7c98f2d9c8b98e"
+    },
+    "StickyAutoStick": {
+      "address": "0xc6f0b98534d6a3884a823c8717c9312d2a7782e5",
+      "abiSha256": "7974695dfa3402c00e9c87d3b55f080abd552823df824b60eb6801d450371d9e"
     },
     "REVDeployer": {
       "address": "0xb552eb94284f94b833837d4b2cbb237128415d4e",

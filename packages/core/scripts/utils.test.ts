@@ -6,9 +6,11 @@ import {
   JBCoreContracts,
   JBBuybackHookContracts,
   JBRouterTerminalContracts,
+  StickyContracts,
 } from "../src/contracts.js";
 import {
   deploymentFilePath,
+  getAllContractNames,
   getContractAddress,
   getHistoricalContract,
   isMissingDeployment,
@@ -183,5 +185,40 @@ describe("rollout receipt evidence", () => {
         11155111,
       ),
     ).toBe(address);
+  });
+});
+
+describe("Sticky deployment source", () => {
+  test("reads Sticky from its own checkout, never from deploy-all-v6", async () => {
+    artifact("base", "StickyDeployer");
+    const sticky = mkdtempSync(join(tmpdir(), "sdk-sticky-"));
+    try {
+      mkdirSync(join(sticky, "deployments", "base"), { recursive: true });
+      const stickyAddress = "0x2d31dd23aeeb021669e18070a46af34d856b2e29";
+      writeFileSync(
+        join(sticky, "deployments", "base", "StickyDeployer.json"),
+        JSON.stringify({ address: stickyAddress, abi: [] }),
+      );
+      vi.stubEnv("STICKY_DEPLOYMENTS_DIR", sticky);
+      expect(
+        await getContractAddress(StickyContracts.StickyDeployer, 6, 8453),
+      ).toBe(stickyAddress);
+      expect(
+        deploymentFilePath(
+          "@bananapus/sticky-v6/deployments/base/StickyDeployer.json",
+        ),
+      ).toBe(join(sticky, "deployments/base/StickyDeployer.json"));
+    } finally {
+      rmSync(sticky, { recursive: true, force: true });
+    }
+  });
+  test("has no v4 or v5 deployment", () => {
+    for (const version of [4, 5] as const)
+      expect(getAllContractNames(version)).not.toContain(
+        StickyContracts.StickyDeployer,
+      );
+    expect(getAllContractNames(6)).toEqual(
+      expect.arrayContaining(Object.values(StickyContracts)),
+    );
   });
 });

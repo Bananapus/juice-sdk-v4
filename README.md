@@ -147,9 +147,6 @@ const launch = decodeDeploymentCall(deploymentCall);
 if (launch.flavor === "revnet") {
   // launch.stages, launch.description, launch.accountingContexts
 }
-if (launch.flavor === "homerun-fund") {
-  // launch.tokenName, launch.ticker, launch.mustStartAtOrAfter, launch.salt
-}
 ```
 
 A chain in an intent can carry more than one call. The last call for a chain is
@@ -236,7 +233,7 @@ The module's helpers, in full:
 | `createJBCenterDeploymentCall`   | Freezes a typed viem request into the `{ chainId, to, data }` call an intent signs.                |
 | `publishSignedIntent`            | Prepares, checks JB Center's envelope and message, signs with the caller's signer, publishes.      |
 | `JBCenterIntentMismatchError`    | Thrown by `publishSignedIntent` before signing; `reason` is `"envelope"` or `"message"`.           |
-| `decodeDeploymentCall`           | Reads a frozen call back as a project, 721, omnichain, revnet, or Homerun FUND launch.             |
+| `decodeDeploymentCall`           | Reads a frozen call back as a project, 721, omnichain, or revnet launch, or a Safe creation.       |
 | `intentCalls`                    | An intent's calls per chain, decoded: the setup calls before it, then the launch.                  |
 | `mergeSearch`                    | Interleaves undeployed intent rows into a list of deployed project rows by creation time.          |
 | `intentRow`                      | Turns one search item into the row `mergeSearch` merges.                                           |
@@ -513,6 +510,11 @@ and the registry's project-specific hook selection.
 Generation reads `PROTOCOL_DEPLOYMENTS_DIR` when set, otherwise each sibling
 repository's flat `deployments/<chain>/` tree, then a pinned
 `.contract-source/deploy-all-v6` checkout, then npm artifacts when no local tree exists.
+Sticky (`StickyDeployer`, `StickyHook`, `StickyDistributor`,
+`StickyRewardReceiverFactory`, `StickyAutoStick`) is not in deploy-all-v6 and
+has no npm artifacts: generation reads `STICKY_DEPLOYMENTS_DIR` when set,
+otherwise a `mejango/sticky` checkout at `../extensions/sticky`, then a pinned
+`.contract-source/sticky` checkout, and fails when none exists.
 Missing records in a selected tree stay absent; malformed records fail the
 build. Hook, router, gateway and ratio-feed artifacts (including retained
 generations) must identify the expected contract and chain and contain a successful
@@ -520,9 +522,10 @@ mined receipt with transaction and block hashes. CI pins the deployment source i
 an executed rollout, regenerate and review the source pin and fixture together:
 
 ```sh
-PROTOCOL_DEPLOYMENTS_DIR=../deploy-all-v6 npm run generate --workspace @bananapus/nana-sdk-core
-PROTOCOL_DEPLOYMENTS_DIR=../deploy-all-v6 node --import tsx scripts/check-v6-protocol.ts --update-fixture
-PROTOCOL_DEPLOYMENTS_DIR=../deploy-all-v6 npm run protocol:check
+export PROTOCOL_DEPLOYMENTS_DIR=../deploy-all-v6 STICKY_DEPLOYMENTS_DIR=../extensions/sticky
+npm run generate --workspace @bananapus/nana-sdk-core
+node --import tsx scripts/check-v6-protocol.ts --update-fixture
+npm run protocol:check
 ```
 
 `buildBuybackPayMetadata` emits the three-word quote for hook 1.4.0 under the

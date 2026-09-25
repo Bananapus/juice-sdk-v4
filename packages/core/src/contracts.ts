@@ -68,6 +68,14 @@ export enum JBOmnichainDeployerContracts {
   JBOmnichainDeployer4_1 = "JBOmnichainDeployer4_1",
 }
 
+export enum StickyContracts {
+  StickyDeployer = "StickyDeployer",
+  StickyHook = "StickyHook",
+  StickyDistributor = "StickyDistributor",
+  StickyRewardReceiverFactory = "StickyRewardReceiverFactory",
+  StickyAutoStick = "StickyAutoStick",
+}
+
 export enum RevnetCoreContracts {
   REVDeployer = "REVDeployer",
   REVLoans = "REVLoans",
@@ -85,6 +93,7 @@ export type Contract =
   | JBRouterTerminalContracts
   | JBUniswapV4LPSplitHookContracts
   | JBOmnichainDeployerContracts
+  | StickyContracts
   | RevnetCoreContracts;
 
 export const SUPPORTED_CHAINS = {
