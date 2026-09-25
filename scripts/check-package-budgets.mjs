@@ -17,9 +17,10 @@ const budgets = {
     // The JB Center intent decoder, merger, and deploy pre-step add
     // twenty-four more, and its guarded publish and refusal wording sixteen.
     // The intent setup-call grouping adds eight more, and the pinned Safe
-    // proxy creation code adds about two kilobytes to four of them.
+    // proxy creation code adds about two kilobytes to four of them. The five
+    // Sticky ABIs and addresses raise the unpacked budget.
     packed: 940_000,
-    unpacked: 18_900_000,
+    unpacked: 19_000_000,
     entries: 488,
   },
   "@bananapus/nana-sdk-react": {

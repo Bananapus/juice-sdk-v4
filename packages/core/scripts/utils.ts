@@ -99,6 +99,7 @@ import { JBBuybackHookContracts } from "../src/contracts.js";
 import { JBRouterTerminalContracts } from "../src/contracts.js";
 import { JBOmnichainDeployerContracts } from "../src/contracts.js";
 import { JBUniswapV4LPSplitHookContracts } from "../src/contracts.js";
+import { StickyContracts } from "../src/contracts.js";
 
 /**
  * The v6 ERC2771Forwarder. It isn't included in the `@bananapus/core-v6` deployment files,
@@ -301,6 +302,27 @@ export function deploymentFilePath(path: string) {
   );
   if (match) {
     const [, scope, packageName, relative] = match;
+    // Sticky ships from its own repository, not deploy-all-v6: a checkout
+    // beside the SDK under extensions/, or CI's pinned mejango/sticky checkout.
+    if (packageName === "sticky") {
+      const configuredSticky = process.env.STICKY_DEPLOYMENTS_DIR;
+      const root = configuredSticky
+        ? resolve(sdkRoot, configuredSticky)
+        : [
+            resolve(siblingRoot, "extensions/sticky"),
+            resolve(sdkRoot, ".contract-source/sticky"),
+          ].find((candidate) => existsSync(resolve(candidate, "deployments")));
+      if (!root)
+        throw new Error(
+          "No Sticky deployments: check out mejango/sticky at ../extensions/sticky or set STICKY_DEPLOYMENTS_DIR.",
+        );
+      return resolve(
+        existsSync(resolve(root, "deployments"))
+          ? resolve(root, "deployments")
+          : root,
+        relative,
+      );
+    }
     const configured = process.env.PROTOCOL_DEPLOYMENTS_DIR;
     const checkedOut = resolve(sdkRoot, ".contract-source/deploy-all-v6");
     const repository =
@@ -394,6 +416,11 @@ const PACKAGES: { contracts: Contract[]; path: Path }[] = [
     path: "@bananapus/omnichain-deployers/deployments/nana-omnichain-deployers",
   },
   {
+    // v6-only, and not part of deploy-all-v6; see deploymentFilePath.
+    contracts: Object.values(StickyContracts) as Contract[],
+    path: "@bananapus/sticky/deployments/sticky",
+  },
+  {
     contracts: Object.values(RevnetCoreContracts) as Contract[],
     path: "@rev-net/core/deployments/revnet-core",
   },
@@ -436,6 +463,9 @@ export function getAllContractNames(version: JBVersion) {
       )
         return false;
       if (contract === JBUniswapV4LPSplitHookContracts.JBP6FeeLPSplitHook)
+        return false;
+      // Sticky only ships a v6 deployment.
+      if ((Object.values(StickyContracts) as Contract[]).includes(contract))
         return false;
     }
 

@@ -42,6 +42,7 @@ type HistoryFixture = {
 type ProtocolFixture = {
   format: string;
   source: { commit: string; repository: string };
+  extensions: Record<string, { commit: string; contracts: string[] }>;
   chains: Record<string, string>;
   contracts: Record<string, ContractFixture>;
   overrides: Record<string, Record<string, string | null>>;
@@ -140,12 +141,22 @@ const ABI_EXPORT_NAMES: Record<string, string> = {
   JBUniswapV4LPSplitHookDeployer: "jbUniswapV4LpSplitHookDeployerAbi",
 };
 
+/**
+ * Contracts that deploy-all-v6 does not carry are pinned to their own
+ * repository's commit, read from the checkout its variable names.
+ */
+const EXTENSION_DEPLOYMENTS_ENV: Record<string, string> = {
+  "mejango/sticky": "STICKY_DEPLOYMENTS_DIR",
+};
+
 function abiExportName(contractName: string) {
   const override = ABI_EXPORT_NAMES[contractName];
   if (override) return override;
   if (contractName.startsWith("JB")) return `jb${contractName.slice(2)}Abi`;
   if (contractName.startsWith("REV")) return `rev${contractName.slice(3)}Abi`;
   if (contractName.startsWith("ERC")) return `erc${contractName.slice(3)}Abi`;
+  if (contractName.startsWith("Sticky"))
+    return `sticky${contractName.slice(6)}Abi`;
   throw new Error(`No generated ABI naming rule for ${contractName}`);
 }
 
@@ -161,17 +172,47 @@ function readDeployment(path: string) {
   return deployment;
 }
 
-function checkedDeploymentsRoot() {
+function headOf(root: string) {
+  return execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  }).trim();
+}
+
+function extensionOf(contractName: string) {
+  return Object.entries(fixture.extensions).find(([, extension]) =>
+    extension.contracts.includes(contractName),
+  )?.[0];
+}
+
+function extensionRoot(repository: string) {
+  const variable = EXTENSION_DEPLOYMENTS_ENV[repository];
+  invariant(variable, `No deployments variable for ${repository}`);
+  const configured = process.env[variable];
+  invariant(configured, `Set ${variable} to the ${repository} checkout.`);
+  return resolve(configured);
+}
+
+/** The pinned checkout holding `contractName`'s artifacts: deploy-all-v6, or its own repository. */
+function checkedDeploymentsRoot(contractName?: string) {
+  const repository = contractName && extensionOf(contractName);
+  if (repository) {
+    const root = extensionRoot(repository);
+    const commit = headOf(root);
+    const expected = fixture.extensions[repository].commit;
+    invariant(
+      commit === expected,
+      `${repository} is at ${commit}; fixture requires ${expected}`,
+    );
+    return root;
+  }
   const configured = process.env.PROTOCOL_DEPLOYMENTS_DIR;
   invariant(
     configured,
     "Set PROTOCOL_DEPLOYMENTS_DIR to the pinned deploy-all-v6 checkout.",
   );
   const root = resolve(configured);
-  const commit = execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd: root,
-    encoding: "utf8",
-  }).trim();
+  const commit = headOf(root);
   invariant(
     commit === fixture.source.commit,
     `deploy-all-v6 is at ${commit}; fixture requires ${fixture.source.commit}`,
@@ -199,19 +240,20 @@ if (process.argv.includes("--update-fixture")) {
     "Set PROTOCOL_DEPLOYMENTS_DIR to the executed deploy-all-v6 checkout.",
   );
   const root = resolve(process.env.PROTOCOL_DEPLOYMENTS_DIR);
-  fixture.source.commit = execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd: root,
-    encoding: "utf8",
-  }).trim();
+  fixture.source.commit = headOf(root);
+  for (const [repository, extension] of Object.entries(fixture.extensions))
+    extension.commit = headOf(extensionRoot(repository));
   fixture.format = "juice-sdk-v6-deployments-2";
   fixture.contracts = {};
   fixture.overrides = {};
   fixture.abiOverrides = {};
   fixture.history = {};
   for (const name of Object.keys(sdkAddressBook["6"])) {
+    const repository = extensionOf(name);
+    const source = repository ? extensionRoot(repository) : root;
     const artifacts = Object.fromEntries(
       Object.entries(fixture.chains).flatMap(([chainId, alias]) => {
-        const path = join(root, "deployments", alias, `${name}.json`);
+        const path = join(source, "deployments", alias, `${name}.json`);
         return existsSync(path) ? [[chainId, readDeployment(path)]] : [];
       }),
     );
@@ -307,22 +349,37 @@ assertExactKeys(
   "v6 contracts",
 );
 invariant(
-  contractNames.length === 35,
-  `Expected 35 v6 contracts; got ${contractNames.length}`,
+  contractNames.length === 40,
+  `Expected 40 v6 contracts; got ${contractNames.length}`,
 );
+for (const [repository, extension] of Object.entries(fixture.extensions)) {
+  invariant(
+    Object.hasOwn(EXTENSION_DEPLOYMENTS_ENV, repository),
+    `Unexpected extension source repository ${repository}`,
+  );
+  invariant(
+    /^[0-9a-f]{40}$/.test(extension.commit),
+    `Pin a full reviewed ${repository} commit.`,
+  );
+  for (const name of extension.contracts)
+    invariant(
+      Object.hasOwn(fixture.contracts, name),
+      `${repository} lists unknown contract ${name}`,
+    );
+}
 invariant(
   chainIds.length === 8,
   `Expected 8 v6 chains; got ${chainIds.length}`,
 );
 
 if (process.argv.includes("--print-abi-digests")) {
-  const root = checkedDeploymentsRoot();
   const aliases = [
     fixture.chains["11155111"],
     ...Object.values(fixture.chains),
   ];
   const digests = Object.fromEntries(
     contractNames.map((contractName) => {
+      const root = checkedDeploymentsRoot(contractName);
       const artifact = readDeployment(
         aliases
           .map((alias) =>
@@ -588,6 +645,9 @@ if (!deploymentsRoot) {
 }
 
 const root = checkedDeploymentsRoot();
+const contractRoots = Object.fromEntries(
+  contractNames.map((name) => [name, checkedDeploymentsRoot(name)]),
+);
 let contractArtifacts = 0;
 let artifactAbiChecks = 0;
 for (const [chainId, alias] of Object.entries(fixture.chains)) {
@@ -599,7 +659,7 @@ for (const [chainId, alias] of Object.entries(fixture.chains)) {
       ? override[contractName]
       : expectedContract.address;
     const artifactPath = join(
-      root,
+      contractRoots[contractName],
       "deployments",
       alias,
       `${contractName}.json`,
@@ -691,5 +751,9 @@ invariant(
   `Expected 36 sucker artifact checks; got ${suckerArtifacts}`,
 );
 process.stdout.write(
-  `Verified ${addressSlots} contract deployment slots (${contractArtifacts} artifacts, ${explicitAbsences} absences), ${generatedAbiCount} generated ABI surfaces plus retained historical generations against ${artifactAbiChecks} chain artifacts, and 36 directional sucker artifacts at deploy-all-v6 ${fixture.source.commit}.\n`,
+  `Verified ${addressSlots} contract deployment slots (${contractArtifacts} artifacts, ${explicitAbsences} absences), ${generatedAbiCount} generated ABI surfaces plus retained historical generations against ${artifactAbiChecks} chain artifacts, and 36 directional sucker artifacts at deploy-all-v6 ${fixture.source.commit}${Object.entries(
+    fixture.extensions,
+  )
+    .map(([repository, { commit }]) => ` and ${repository} ${commit}`)
+    .join("")}.\n`,
 );

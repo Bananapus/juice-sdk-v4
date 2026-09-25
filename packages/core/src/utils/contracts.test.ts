@@ -2,7 +2,11 @@ import { zeroAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
-import { JBCoreContracts } from "../contracts.js";
+import {
+  JBCoreContracts,
+  StickyContracts,
+  SUPPORTED_CHAINS,
+} from "../contracts.js";
 import { jbContractAddress } from "../generated/juicebox.js";
 import type { JBChainId } from "../types.js";
 import {
@@ -42,6 +46,36 @@ describe("contract helpers", () => {
     expect(getJBContractAddress(JBCoreContracts.JBController, 6, 1)).toBe(
       jbContractAddress["6"].JBController["1"],
     );
+  });
+
+  test.each([
+    [
+      StickyContracts.StickyDeployer,
+      "0x2D31Dd23AEEB021669e18070a46Af34D856b2E29",
+    ],
+    [StickyContracts.StickyHook, "0x965444ab0BeA878cDD3fc12b86A0762350de70E6"],
+    [
+      StickyContracts.StickyDistributor,
+      "0x9862B5aad5a139271BE57Fc82fCEd9146ADd0D0f",
+    ],
+    [
+      StickyContracts.StickyRewardReceiverFactory,
+      "0x56C0BffC3fe135719C22541B11C15157142fAde0",
+    ],
+    [
+      StickyContracts.StickyAutoStick,
+      "0xc6f0B98534d6a3884A823C8717C9312d2a7782E5",
+    ],
+  ])("registers %s at %s on every supported chain", (contract, address) => {
+    const chainIds = Object.keys(SUPPORTED_CHAINS);
+    expect(Object.keys(jbContractAddress["6"][contract]).sort()).toEqual(
+      chainIds.sort(),
+    );
+    for (const chainId of chainIds.map(Number) as JBChainId[]) {
+      expect(getJBContractAddress(contract, 6, chainId)).toBe(
+        address.toLowerCase(),
+      );
+    }
   });
 
   test("fails clearly when a generated deployment is missing", () => {
