@@ -194,7 +194,7 @@ describe("Sticky deployment source", () => {
     const sticky = mkdtempSync(join(tmpdir(), "sdk-sticky-"));
     try {
       mkdirSync(join(sticky, "deployments", "base"), { recursive: true });
-      const stickyAddress = "0x2d31dd23aeeb021669e18070a46af34d856b2e29";
+      const stickyAddress = "0xda38ec48b5b1d186b02ba99f297e95153bee33a9";
       writeFileSync(
         join(sticky, "deployments", "base", "StickyDeployer.json"),
         JSON.stringify({ address: stickyAddress, abi: [] }),
