@@ -1,7 +1,7 @@
 {
   "description": "Reviewed Prettier debt. A content change must format the file or explicitly review a new baseline.",
   "baselines": {
-    "packages/core/src/generated/juicebox.ts": "76b9208a8e30d3d579aa1a6d7ca25e2030f5e6f2f98e271d628000cdf4e8694d",
+    "packages/core/src/generated/juicebox.ts": "4924455e698a55f23e89afe73d6ae394f7b996245eb35e53073648ecbb92148a",
     "packages/core/src/utils/data.test.ts": "52351beb5598aaa08bd81c1e034ca8746aba34ceaa9df030abd0cdc940ab30ad",
     "packages/core/src/utils/deploy.test.ts": "c21f4d32330465ca934520db491c4408c2fba7cd17e0bf64a233377f4df4a682",
     "packages/core/src/utils/deploy.ts": "0f48cbb24fa9e0c063d67a869307faeec2c68ddd1fd47811eccf69d58f088551",

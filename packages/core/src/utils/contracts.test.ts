@@ -60,7 +60,7 @@ describe("contract helpers", () => {
     ],
     [
       StickyContracts.StickyRewardReceiverFactory,
-      "0xF65743b76C062762D19eecb4Ab5C7a943e128720",
+      "0x41AEC7AacEa4759F2c8AaBD68D4a4C1574A6A737",
     ],
     [
       StickyContracts.StickyAutoStick,
