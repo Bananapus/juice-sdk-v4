@@ -1,6 +1,6 @@
 {
   "name": "@bananapus/nana-sdk-core",
-  "version": "2.12.1",
+  "version": "2.12.2",
   "type": "module",
   "sideEffects": false,
   "repository": {
