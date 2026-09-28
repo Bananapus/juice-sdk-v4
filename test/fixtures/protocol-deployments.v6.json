@@ -6,7 +6,7 @@
   },
   "extensions": {
     "mejango/sticky": {
-      "commit": "bb5780307cce47c841d162da0577e93f31fbdb1e",
+      "commit": "b3835db805786e680f5cc27e700d7be660fdba1f",
       "contracts": [
         "StickyDeployer",
         "StickyHook",
@@ -168,8 +168,8 @@
       "abiSha256": "2bb86c314be7eff19b5cb7acfaeccf8a3d2258f8a28e262c98b1bc4ad08bf054"
     },
     "StickyRewardReceiverFactory": {
-      "address": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
-      "abiSha256": "06b757b5f8f4e129bfbd7c64d8663f3c6fb4b17a508e9d8b0a7c98f2d9c8b98e"
+      "address": "0x41aec7aacea4759f2c8aabd68d4a4c1574a6a737",
+      "abiSha256": "e4e01d8cea570a163dc84f484bd803c46fe0ec0ceb7103f5013c2f630a42b461"
     },
     "StickyAutoStick": {
       "address": "0x9b091e21d25c424de67751f4b6ae8494351218c5",

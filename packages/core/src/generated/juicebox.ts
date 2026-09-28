@@ -68707,8 +68707,8 @@ export const stickyRewardReceiverFactoryAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'distributor',
-        internalType: 'contract IStickyDistributor',
+        name: 'receiver',
+        internalType: 'contract StickyRewardReceiver',
         type: 'address',
       },
     ],
@@ -68722,6 +68722,19 @@ export const stickyRewardReceiverFactoryAbi = [
       {
         name: '',
         internalType: 'contract IStickyDistributor',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'RECEIVER',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract StickyRewardReceiver',
         type: 'address',
       },
     ],
@@ -68836,10 +68849,24 @@ export const stickyRewardReceiverFactoryAbi = [
     ],
     name: 'Settle',
   },
+  { type: 'error', inputs: [], name: 'FailedDeployment' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientBalance',
+  },
   {
     type: 'error',
     inputs: [{ name: 'groupId', internalType: 'uint256', type: 'uint256' }],
     name: 'StickyRewardReceiverFactory_InvalidGroupId',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'stickyToken', internalType: 'address', type: 'address' }],
+    name: 'StickyRewardReceiverFactory_InvalidStickyToken',
   },
 ] as const
 
@@ -69867,14 +69894,14 @@ export const stickyRewardReceiverFactoryAbi = [
       "11155420": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8"
     },
     "StickyRewardReceiverFactory": {
-      "1": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
-      "10": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
-      "8453": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
-      "42161": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
-      "84532": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
-      "421614": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
-      "11155111": "0xf65743b76c062762d19eecb4ab5c7a943e128720",
-      "11155420": "0xf65743b76c062762d19eecb4ab5c7a943e128720"
+      "1": "0x41aec7aacea4759f2c8aabd68d4a4c1574a6a737",
+      "10": "0x41aec7aacea4759f2c8aabd68d4a4c1574a6a737",
+      "8453": "0x41aec7aacea4759f2c8aabd68d4a4c1574a6a737",
+      "42161": "0x41aec7aacea4759f2c8aabd68d4a4c1574a6a737",
+      "84532": "0x41aec7aacea4759f2c8aabd68d4a4c1574a6a737",
+      "421614": "0x41aec7aacea4759f2c8aabd68d4a4c1574a6a737",
+      "11155111": "0x41aec7aacea4759f2c8aabd68d4a4c1574a6a737",
+      "11155420": "0x41aec7aacea4759f2c8aabd68d4a4c1574a6a737"
     },
     "StickyAutoStick": {
       "1": "0x9b091e21d25c424de67751f4b6ae8494351218c5",
