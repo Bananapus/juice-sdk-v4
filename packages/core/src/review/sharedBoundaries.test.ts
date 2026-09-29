@@ -9,8 +9,10 @@ import {
   registerTransactionReviewHandler,
   requireContractTransactionReview,
   requireFundingChainSelection,
+  fundingChainLabel,
   requireTransactionReview,
   requestContractTransactionReview,
+  TransactionReviewCancelledError,
   transactionReviewJson,
 } from "./transactionReview.js";
 
@@ -243,5 +245,109 @@ describe("app guard", () => {
       }),
     ).rejects.toThrow("viewing another account");
     expect(review).not.toHaveBeenCalled();
+  });
+});
+
+describe("signed gas in review", () => {
+  const call = {
+    chainId: 10,
+    address: TARGET,
+    abi,
+    functionName: "pay" as const,
+    args: [1n, 2n] as const,
+    account: ALICE,
+  };
+
+  it("shows the gas a signature commits to, and only then", () => {
+    const json = (fields: { gas?: bigint; safeTxGas?: bigint }) =>
+      JSON.parse(
+        transactionReviewJson({
+          calls: [{ chainId: 10, to: TARGET, data: "0x", ...fields }],
+        }),
+      );
+    expect(json({})).not.toHaveProperty("gas");
+    expect(json({})).not.toHaveProperty("safeTxGas");
+    expect(json({ gas: 21_000n, safeTxGas: 0n })).toMatchObject({
+      gas: "0x5208",
+      safeTxGas: "0x0",
+    });
+  });
+
+  it("refuses to send when the reviewed gas or safeTxGas changes after approval", async () => {
+    const unregister = registerTransactionReviewHandler(async () => true);
+    try {
+      const gas = { ...call, gas: 100_000n, safeTxGas: 0n };
+      const approve = requestContractTransactionReview(gas);
+      gas.gas = 200_000n;
+      await expect(approve).rejects.toThrow("changed after review");
+      const safe = { ...call, safeTxGas: 0n };
+      const approveSafe = requestContractTransactionReview(safe);
+      safe.safeTxGas = 50_000n;
+      await expect(approveSafe).rejects.toThrow("changed after review");
+      await expect(
+        requestContractTransactionReview({ ...call, gas: 1n, safeTxGas: 0n }),
+      ).resolves.toBe(true);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("raises one cancellation error apps can tell from failures", async () => {
+    const unregister = registerTransactionReviewHandler(async () => false);
+    const unregisterChooser = registerFundingChainSelectionHandler(
+      async () => null,
+    );
+    try {
+      await expect(
+        requireContractTransactionReview(call),
+      ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
+      await expect(
+        requireFundingChainSelection([{ chainId: 10, label: "OP Mainnet" }]),
+      ).rejects.toMatchObject({
+        name: "TransactionReviewCancelledError",
+        message: "Funding chain selection cancelled. Nothing was sent.",
+      });
+    } finally {
+      unregisterChooser();
+      unregister();
+    }
+  });
+});
+
+describe("funding chain preselection and labels", () => {
+  const options = [
+    { chainId: 10, label: "OP Mainnet (0.001 ETH)" },
+    { chainId: 8453, label: "Base (0.002 ETH)" },
+  ];
+
+  it("preselects the connected chain when quoted, a lone quote, or nothing", async () => {
+    const choose = vi.fn(
+      async (_: readonly unknown[], initial: number | null) => initial ?? 10,
+    );
+    const unregister = registerFundingChainSelectionHandler(choose);
+    try {
+      await requireFundingChainSelection(options, 8453);
+      await requireFundingChainSelection(options, 1);
+      await requireFundingChainSelection([options[0]]);
+      await requireFundingChainSelection(options);
+      expect(choose.mock.calls.map(([, initial]) => initial)).toEqual([
+        8453,
+        null,
+        10,
+        null,
+      ]);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("names the chain and the quoted fee, marking rounded amounts", () => {
+    expect(fundingChainLabel("Base", 123_456_789_000_000n)).toBe(
+      "Base (~0.000123 ETH)",
+    );
+    expect(fundingChainLabel("OP Mainnet", 120_000_000_000_000n)).toBe(
+      "OP Mainnet (0.00012 ETH)",
+    );
+    expect(fundingChainLabel("Ethereum", 0n)).toBe("Ethereum (0 ETH)");
   });
 });
