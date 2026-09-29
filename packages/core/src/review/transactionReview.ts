@@ -1,23 +1,15 @@
 "use client";
 
 import { encodeFunctionData, type Abi, type Address, type Hex } from "viem";
-import { JB_CHAINS } from "../constants.js";
-import type { JBChainId } from "../types.js";
 
-/** How review prompts name a chain and link its explorer. Apps pass their own to keep their wording. */
+/**
+ * How review prompts name a chain and link its explorer. Apps pass their own
+ * chain display, which also keeps a chain table out of the review bundle.
+ */
 export type TransactionReviewDisplay = {
-  chainName?: (chainId: number) => string;
-  explorerOrigin?: (chainId: number) => string | null;
+  chainName: (chainId: number) => string;
+  explorerOrigin: (chainId: number) => string | null;
 };
-
-function defaultChainName(chainId: number): string {
-  return JB_CHAINS[chainId as JBChainId]?.name ?? `Chain ${chainId}`;
-}
-
-function defaultExplorerOrigin(chainId: number): string | null {
-  const hostname = JB_CHAINS[chainId as JBChainId]?.etherscanHostname;
-  return hostname ? `https://${hostname}` : null;
-}
 
 export type TransactionReviewCall = {
   chainId: number;
@@ -272,10 +264,8 @@ const ETHERSCAN_SKILL_LINE =
  */
 export function buildTransactionDebugPrompt(
   calls: { chainId: number; txHash: string }[],
-  display: TransactionReviewDisplay = {},
+  { chainName: displayChainName, explorerOrigin }: TransactionReviewDisplay,
 ): string {
-  const explorerOrigin = display.explorerOrigin ?? defaultExplorerOrigin;
-  const displayChainName = display.chainName ?? defaultChainName;
   const lines = [
     "A Juicebox V6 transaction (the nana V6 / revnet V6 protocol release, not an older Juicebox version) was mined. Explain what happened in it and whether it did what a Juicebox user would expect.",
     "",
@@ -299,9 +289,8 @@ export function buildTransactionDebugPrompt(
 
 export function buildTransactionReviewPrompt(
   request: TransactionReviewRequest,
-  display: TransactionReviewDisplay = {},
+  { explorerOrigin }: Pick<TransactionReviewDisplay, "explorerOrigin">,
 ): string {
-  const explorerOrigin = display.explorerOrigin ?? defaultExplorerOrigin;
   const lines: string[] = [
     "I'm about to authorize a blockchain transaction in the Juicebox V6 app (the nana V6 / revnet V6 protocol release, not an older Juicebox version). Act as a careful security reviewer. Independently verify the payload against the deployed contracts and V6 source, confirm it matches my intent, and give a go/no-go. Assume the UI could be spoofed; trust the onchain call and verified V6 source over the page.",
     "",

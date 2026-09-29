@@ -7,7 +7,7 @@ import {
   safeServiceBase,
   swapDeadline,
   waitForSafeExecutionHash,
-} from "./safe.js";
+} from "./safeService.js";
 
 const SAFE = "0x1111111111111111111111111111111111111111" as const;
 const PROPOSAL = `0x${"ab".repeat(32)}` as const;

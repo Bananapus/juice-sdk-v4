@@ -145,6 +145,12 @@ describe("raw review", () => {
 });
 
 describe("review prompts", () => {
+  const display = {
+    chainName: (chainId: number) =>
+      chainId === 10 ? "OP Mainnet" : `Chain ${chainId}`,
+    explorerOrigin: (chainId: number) =>
+      chainId === 10 ? "https://optimistic.etherscan.io" : null,
+  };
   const request = {
     calls: [
       { chainId: 10, to: TARGET, data: "0x" as const },
@@ -152,8 +158,8 @@ describe("review prompts", () => {
     ],
   };
 
-  it("names chains and explorers from the SDK by default and from the app when given", () => {
-    const standard = buildTransactionReviewPrompt(request);
+  it("names chains and explorers with the app's display", () => {
+    const standard = buildTransactionReviewPrompt(request, display);
     expect(standard).toContain(
       `- Transaction 1 onchain: https://optimistic.etherscan.io/address/${TARGET}`,
     );
@@ -168,10 +174,13 @@ describe("review prompts", () => {
       `- Target onchain: https://explorer.example/address/${TARGET}`,
     );
 
-    const debug = buildTransactionDebugPrompt([
-      { chainId: 10, txHash: "0xabc" },
-      { chainId: 999, txHash: "0xdef" },
-    ]);
+    const debug = buildTransactionDebugPrompt(
+      [
+        { chainId: 10, txHash: "0xabc" },
+        { chainId: 999, txHash: "0xdef" },
+      ],
+      display,
+    );
     expect(debug).toContain(
       "- OP Mainnet (chain 10): https://optimistic.etherscan.io/tx/0xabc",
     );
@@ -185,7 +194,7 @@ describe("review prompts", () => {
 
   it("asks for an audit of the page in a browser", () => {
     vi.stubGlobal("window", { location: { href: "https://app.example/p/1" } });
-    expect(buildTransactionReviewPrompt(request)).toContain(
+    expect(buildTransactionReviewPrompt(request, display)).toContain(
       "- Page: https://app.example/p/1",
     );
   });

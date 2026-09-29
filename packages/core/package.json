@@ -41,6 +41,11 @@
       "import": "./dist/esm/safe.js",
       "require": "./dist/cjs/safe.js"
     },
+    "./safe-service": {
+      "types": "./dist/esm/safeService.d.ts",
+      "import": "./dist/esm/safeService.js",
+      "require": "./dist/cjs/safeService.js"
+    },
     "./review": {
       "types": "./dist/esm/review/index.d.ts",
       "import": "./dist/esm/review/index.js",

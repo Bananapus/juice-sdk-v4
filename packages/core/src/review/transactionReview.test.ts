@@ -27,6 +27,16 @@ afterEach(() => {
   unregister = undefined;
 });
 
+const EXPLORERS: Record<number, string> = {
+  1: "https://etherscan.io",
+  10: "https://optimistic.etherscan.io",
+  8453: "https://basescan.org",
+};
+const display = {
+  chainName: (chainId: number) => `Chain ${chainId}`,
+  explorerOrigin: (chainId: number) => EXPLORERS[chainId] ?? null,
+};
+
 describe("mandatory transaction review boundary", () => {
   it("refuses calls when the review UI is unavailable", async () => {
     await expect(
@@ -159,7 +169,7 @@ describe("review serialization", () => {
   });
 
   it("builds a v6-specific audit prompt containing every onchain target", () => {
-    const prompt = buildTransactionReviewPrompt(request);
+    const prompt = buildTransactionReviewPrompt(request, display);
 
     expect(prompt).toContain("nana V6 / revnet V6");
     expect(prompt).toContain(`https://etherscan.io/address/${TARGET}`);
@@ -174,10 +184,13 @@ import { buildTransactionDebugPrompt as buildDebugPrompt } from "./transactionRe
 
 describe("buildTransactionDebugPrompt", () => {
   it("links each tx on its own explorer and points at the Etherscan debugger skill", () => {
-    const prompt = buildDebugPrompt([
-      { chainId: 1, txHash: "0xabc" },
-      { chainId: 8453, txHash: "0xdef" },
-    ]);
+    const prompt = buildDebugPrompt(
+      [
+        { chainId: 1, txHash: "0xabc" },
+        { chainId: 8453, txHash: "0xdef" },
+      ],
+      display,
+    );
     expect(prompt).toContain("https://etherscan.io/tx/0xabc");
     expect(prompt).toContain("https://basescan.org/tx/0xdef");
     expect(prompt).toContain("etherscan-transaction-debugger");

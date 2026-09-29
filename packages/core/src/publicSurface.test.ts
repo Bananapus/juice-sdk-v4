@@ -3,6 +3,7 @@ import * as sdk from "./index.js";
 import * as bendystrawOperations from "./bendystrawOperations.js";
 import * as review from "./review/index.js";
 import * as safe from "./safe.js";
+import * as safeService from "./safeService.js";
 import * as feeBuyback from "./v6/feeBuyback.js";
 import * as v6 from "./v6/index.js";
 
@@ -12,8 +13,8 @@ describe("published core SDK surfaces", () => {
     expect(safe.buildSafeDeploymentTx).toBeTypeOf("function");
     expect(safe.bundleSafeLaunch).toBeTypeOf("function");
     expect(safe.verifySafeDeployments).toBeTypeOf("function");
-    expect(safe.waitForSafeExecutionHash).toBeTypeOf("function");
-    expect(safe.safeServiceBase(8453)).toBe(
+    expect(safeService.waitForSafeExecutionHash).toBeTypeOf("function");
+    expect(safeService.safeServiceBase(8453)).toBe(
       "https://api.safe.global/tx-service/base",
     );
     expect(safe.SAFE_PROXY_CREATION_CODE).toMatch(/^0x(?:[\da-f]{2}){486}$/u);

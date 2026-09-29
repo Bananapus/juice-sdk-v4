@@ -9,10 +9,9 @@ here:
 
 - `@bananapus/nana-sdk-core/review`: the transaction review queue
   (`requireContractTransactionReview` and its handlers),
-  `submitReviewedContractWrite`, and `gasWithHeadroom` / `gasWithinCap`. Review
-  prompts name chains and explorers from `JB_CHAINS` unless the caller passes
-  its own.
-- `@bananapus/nana-sdk-core/safe`: `SAFE_PREFIX`, `SAFE_SERVICE_PREFIX`,
+  `submitReviewedContractWrite`, and `gasWithHeadroom` / `gasWithinCap`. The
+  review prompts take the app's own chain names and explorer links.
+- `@bananapus/nana-sdk-core/safe-service`: `SAFE_PREFIX`, `SAFE_SERVICE_PREFIX`,
   `safeServiceBase`, `safeQueueUrl`, `swapDeadline`, `SAFE_NONCE_GUIDANCE` and
   `waitForSafeExecutionHash`, which turns a Safe proposal into its mined
   transaction hash.
