@@ -575,3 +575,77 @@ export async function requestBendystraw<
     await delay(retryDelaysMs[attempt]);
   }
 }
+
+/** The index row fields {@link resolveProjectDeployments} reads. */
+export type BendystrawDeploymentRow = {
+  chainId: number;
+  projectId: number;
+  version: number;
+  suckerGroupId?: string | null;
+};
+
+/**
+ * Turn a sucker-group response into verified per-chain deployments for the
+ * exact project route which loaded it. A linked project may have a different
+ * project ID on every chain. Conflicting rows are therefore never repaired by
+ * copying the home ID: the route chain fails closed to home-only, while an
+ * ambiguous remote chain is omitted.
+ */
+export function resolveProjectDeployments<T extends BendystrawDeploymentRow>(
+  home: T,
+  members: readonly T[],
+): T[] {
+  const homeOnly = [home];
+  if (!home.suckerGroupId) return homeOnly;
+
+  const isUsable = (member: T) =>
+    member.version === 6 &&
+    Number.isSafeInteger(member.chainId) &&
+    member.chainId > 0 &&
+    Number.isSafeInteger(member.projectId) &&
+    member.projectId > 0;
+
+  // A group which identifies another project on the route's own chain cannot
+  // authorize any remote identity for this route.
+  if (
+    members.some(
+      (member) =>
+        isUsable(member) &&
+        member.chainId === home.chainId &&
+        member.projectId !== home.projectId,
+    )
+  ) {
+    return homeOnly;
+  }
+
+  const reportedIdByChain = new Map<number, number>();
+  const conflictedChains = new Set<number>();
+  for (const member of members) {
+    if (!isUsable(member) || member.chainId === home.chainId) continue;
+    const reported = reportedIdByChain.get(member.chainId);
+    if (reported !== undefined && reported !== member.projectId) {
+      conflictedChains.add(member.chainId);
+    } else if (reported === undefined) {
+      reportedIdByChain.set(member.chainId, member.projectId);
+    }
+  }
+
+  const byChain = new Map<number, T>([[home.chainId, home]]);
+
+  for (const member of members) {
+    if (
+      !isUsable(member) ||
+      member.suckerGroupId !== home.suckerGroupId ||
+      conflictedChains.has(member.chainId)
+    ) {
+      continue;
+    }
+    if (member.chainId === home.chainId) continue;
+
+    const existing = byChain.get(member.chainId);
+    if (existing && existing.projectId !== member.projectId) continue;
+    if (!existing) byChain.set(member.chainId, member);
+  }
+
+  return [...byChain.values()].sort((a, b) => a.chainId - b.chainId);
+}

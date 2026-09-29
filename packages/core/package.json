@@ -41,6 +41,16 @@
       "import": "./dist/esm/safe.js",
       "require": "./dist/cjs/safe.js"
     },
+    "./review": {
+      "types": "./dist/esm/review/index.d.ts",
+      "import": "./dist/esm/review/index.js",
+      "require": "./dist/cjs/review/index.js"
+    },
+    "./bendystraw-operations": {
+      "types": "./dist/esm/bendystrawOperations.d.ts",
+      "import": "./dist/esm/bendystrawOperations.js",
+      "require": "./dist/cjs/bendystrawOperations.js"
+    },
     "./v6": {
       "types": "./dist/esm/v6/index.d.ts",
       "import": "./dist/esm/v6/index.js",
@@ -65,6 +75,11 @@
       "types": "./dist/esm/v6/loanMath.d.ts",
       "import": "./dist/esm/v6/loanMath.js",
       "require": "./dist/cjs/v6/loanMath.js"
+    },
+    "./v6/fee-buyback": {
+      "types": "./dist/esm/v6/feeBuyback.d.ts",
+      "import": "./dist/esm/v6/feeBuyback.js",
+      "require": "./dist/cjs/v6/feeBuyback.js"
     },
     "./v6/cash-out": {
       "types": "./dist/esm/v6/cashOut.d.ts",
@@ -92,6 +107,14 @@
   "dependencies": {
     "bs58": "^5.0.0",
     "fpnum": "^1.0.0"
+  },
+  "peerDependencies": {
+    "graphql": "^16.0.0 || ^17.0.0"
+  },
+  "peerDependenciesMeta": {
+    "graphql": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@bananapus/721-hook": "^1.0.0",
@@ -121,6 +144,7 @@
     "@rev-net/core-v6": "^1.1.0",
     "@wagmi/cli": "^2.10.0",
     "@vitest/coverage-v8": "^3.2.6",
+    "graphql": "^17.0.2",
     "tsx": "^4.20.5",
     "typescript": "^5.4.5",
     "viem": "^2.12.0",

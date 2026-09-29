@@ -20,10 +20,13 @@ const budgets = {
     // proxy creation code adds about two kilobytes to four of them. The five
     // Sticky ABIs and addresses raise the unpacked budget, and the Sticky
     // split helpers add two entries and about ten kilobytes. Sticky's ERC-2771
-    // trusted-forwarder views add about four kilobytes unpacked.
-    packed: 940_000,
-    unpacked: 19_030_000,
-    entries: 490,
+    // trusted-forwarder views add about four kilobytes unpacked. The shared
+    // web-client runtime (/review, the Safe service helpers,
+    // /bendystraw-operations and /v6/fee-buyback) adds seven source files,
+    // fifty-six artifacts and about two hundred kilobytes unpacked.
+    packed: 975_000,
+    unpacked: 19_250_000,
+    entries: 546,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
