@@ -1,6 +1,12 @@
 "use client";
 
-import { encodeFunctionData, type Abi, type Address, type Hex } from "viem";
+import {
+  encodeFunctionData,
+  formatEther,
+  type Abi,
+  type Address,
+  type Hex,
+} from "viem";
 
 /**
  * How review prompts name a chain and link its explorer. Apps pass their own
@@ -16,6 +22,10 @@ export type TransactionReviewCall = {
   to: Address;
   data: Hex;
   value?: bigint;
+  /** The gas limit the wallet or forwarder signs, when it is fixed before review. */
+  gas?: bigint;
+  /** A Safe proposal's signed `safeTxGas`. At 0 the Safe transaction reverts if this call fails. */
+  safeTxGas?: bigint;
   from?: Address;
   abi?: Abi;
   functionName?: string;
@@ -46,6 +56,8 @@ export type ContractTransactionReviewCall = {
   functionName: string;
   args?: readonly unknown[];
   value?: bigint;
+  gas?: bigint;
+  safeTxGas?: bigint;
   account?: Address;
 };
 
@@ -63,15 +75,37 @@ type TransactionReviewHandler = (
 
 const transactionReviewHandlers: TransactionReviewHandler[] = [];
 
+/** The person closed a review or a funding-chain choice. Nothing was sent; apps need not show an error. */
+export class TransactionReviewCancelledError extends Error {
+  constructor(message = "Review closed. Nothing was sent.") {
+    super(message);
+    this.name = "TransactionReviewCancelledError";
+  }
+}
+
 export type FundingChainOption = {
   chainId: number;
-  /** The chain name and quoted funding cost shown to the user. */
+  /** The chain and its quoted cost, from {@link fundingChainLabel}. */
   label: string;
 };
 
 type FundingChainSelectionHandler = (
   options: readonly FundingChainOption[],
+  /** The option to preselect, or null when the person must pick one of several. */
+  initialChainId: number | null,
 ) => Promise<number | null>;
+
+/** "Base (~0.000123 ETH)": a chain and the relay fee quoted on it. */
+export function fundingChainLabel(
+  chainName: string,
+  amountWei: bigint,
+): string {
+  const exact = formatEther(amountWei);
+  const shown = new Intl.NumberFormat("en-US", {
+    maximumSignificantDigits: 3,
+  }).format(Number(exact));
+  return `${chainName} (${shown === exact ? "" : "~"}${shown} ETH)`;
+}
 
 const fundingChainSelectionHandlers: FundingChainSelectionHandler[] = [];
 
@@ -85,9 +119,14 @@ export function registerFundingChainSelectionHandler(
   };
 }
 
-/** Funding always requires an explicit choice, even with one quoted option. */
+/**
+ * Asks where to pay a relay fee. The connected chain is preselected when it is
+ * quoted, and so is a lone quote; otherwise the person picks. The exact payment
+ * still gets its own review.
+ */
 export async function requireFundingChainSelection(
   options: readonly FundingChainOption[],
+  preferredChainId?: number,
 ): Promise<number> {
   const snapshot = options.map((option) => ({ ...option }));
   const chainIds = new Set(snapshot.map((option) => option.chainId));
@@ -112,9 +151,17 @@ export async function requireFundingChainSelection(
       "Funding chain selection is unavailable. Reload the page before continuing.",
     );
   }
-  const selected = await handler(snapshot);
+  const initialChainId =
+    preferredChainId !== undefined && chainIds.has(preferredChainId)
+      ? preferredChainId
+      : snapshot.length === 1
+        ? snapshot[0].chainId
+        : null;
+  const selected = await handler(snapshot, initialChainId);
   if (selected === null) {
-    throw new Error("Funding chain selection cancelled. Nothing was sent.");
+    throw new TransactionReviewCancelledError(
+      "Funding chain selection cancelled. Nothing was sent.",
+    );
   }
   if (!chainIds.has(selected)) {
     throw new Error(
@@ -170,6 +217,8 @@ function contractCallForReview(
     to: call.address,
     data,
     value: call.value,
+    gas: call.gas,
+    safeTxGas: call.safeTxGas,
     from: call.account,
     abi: call.abi,
     functionName: call.functionName,
@@ -195,6 +244,8 @@ export function requestContractTransactionReview(
       current.chainId !== reviewed.chainId ||
       current.to.toLowerCase() !== reviewed.to.toLowerCase() ||
       (current.value ?? 0n) !== (reviewed.value ?? 0n) ||
+      current.gas !== reviewed.gas ||
+      current.safeTxGas !== reviewed.safeTxGas ||
       current.data !== reviewed.data
     ) {
       throw new Error(
@@ -203,13 +254,6 @@ export function requestContractTransactionReview(
     }
     return true;
   });
-}
-
-class TransactionReviewCancelledError extends Error {
-  constructor() {
-    super("Review closed. Nothing was sent.");
-    this.name = "TransactionReviewCancelledError";
-  }
 }
 
 export async function requireTransactionReview(
@@ -237,6 +281,10 @@ export function transactionReviewJson(
     from: call.from,
     to: call.to,
     value: `0x${(call.value ?? 0n).toString(16)}`,
+    ...(call.gas === undefined ? {} : { gas: `0x${call.gas.toString(16)}` }),
+    ...(call.safeTxGas === undefined
+      ? {}
+      : { safeTxGas: `0x${call.safeTxGas.toString(16)}` }),
     data: call.data,
   }));
   const calls = transactions.length === 1 ? transactions[0] : { transactions };
@@ -292,7 +340,7 @@ export function buildTransactionReviewPrompt(
   { explorerOrigin }: Pick<TransactionReviewDisplay, "explorerOrigin">,
 ): string {
   const lines: string[] = [
-    "I'm about to authorize a blockchain transaction in the Juicebox V6 app (the nana V6 / revnet V6 protocol release, not an older Juicebox version). Act as a careful security reviewer. Independently verify the payload against the deployed contracts and V6 source, confirm it matches my intent, and give a go/no-go. Assume the UI could be spoofed; trust the onchain call and verified V6 source over the page.",
+    "I'm about to authorize a blockchain action in a Juicebox V6 app (the nana V6 / revnet V6 protocol release, not an older Juicebox version). Act as a careful security reviewer. Independently verify the payload against the deployed contracts and V6 source, confirm it matches my intent, and give a go/no-go. Assume the UI could be spoofed; trust the onchain call and verified V6 source over the page.",
     "",
     "Exact app-controlled transaction payload:",
     "```json",
@@ -335,7 +383,7 @@ export function buildTransactionReviewPrompt(
     "1. Decode the calldata selector and every argument. Explain in plain English what state, permissions, ownership, tokens, or funds can change.",
   );
   lines.push(
-    "2. Verify the chain ID, `to` address, native `value`, and calldata exactly. Flag any unexpected non-zero value or unknown target.",
+    "2. Verify the chain ID, `to` address, native `value`, calldata, and any `gas` or `safeTxGas` exactly. Flag any unexpected non-zero value or unknown target.",
   );
   lines.push(
     "3. Identify every beneficiary, recipient, spender, operator, owner, hook, terminal, and permission-bearing address in the decoded arguments.",
@@ -345,6 +393,9 @@ export function buildTransactionReviewPrompt(
   );
   lines.push(
     "5. For multiple chains, confirm the intended change is consistent and that no extra chain or call was added.",
+  );
+  lines.push(
+    "6. For a Relayr or Safe authorization, separate what I sign now from the later onchain execution. A Safe `safeTxGas` of 0 makes the Safe transaction revert if the call fails; a nonzero value lets it execute and record the failure.",
   );
   lines.push("");
   lines.push(
