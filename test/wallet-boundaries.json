@@ -35,6 +35,13 @@
       "api": "request",
       "boundary": "Read only eth_call on a PublicClient with explicit Safe selectors, gas and response bounds, and the reviewed receipt block. Never sign, send, or follow OffchainLookup URLs.",
       "test": "packages/core/src/safe-reads.test.ts"
+    },
+    {
+      "file": "packages/core/src/v6/feeBuyback.ts",
+      "line": 209,
+      "api": "request",
+      "boundary": "Read only eth_blockNumber and an eth_simulateV1 of the reviewed call pinned to that block, bounded by an 8 second timeout. Never sign or send; the result only labels the fee route.",
+      "test": "packages/core/src/v6/feeBuyback.test.ts"
     }
   ]
 }

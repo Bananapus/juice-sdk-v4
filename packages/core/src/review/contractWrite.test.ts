@@ -1,0 +1,244 @@
+import { BaseError, UserRejectedRequestError, type Address } from "viem";
+import { describe, expect, it, vi } from "vitest";
+import { submitReviewedContractWrite } from "./contractWrite.js";
+
+const ALICE = "0x1111111111111111111111111111111111111111" as Address;
+const BOB = "0x2222222222222222222222222222222222222222" as Address;
+
+function harness() {
+  const events: string[] = [];
+  const request = { chainId: 10, calldata: "reviewed" };
+  const simulated = { calldata: "simulated", gas: 123n };
+  let current: Address | undefined = ALICE;
+
+  return {
+    events,
+    request,
+    simulated,
+    setCurrent: (account: Address | undefined) => {
+      current = account;
+    },
+    options: {
+      request,
+      expectedAccount: ALICE,
+      review: vi.fn(async (reviewed) => {
+        events.push("review");
+        expect(reviewed).toBe(request);
+      }),
+      switchChain: vi.fn(async (chainId) => {
+        events.push(`switch:${chainId}`);
+      }),
+      currentAccount: vi.fn(() => current),
+      reverify: vi.fn(async (reviewed) => {
+        events.push("reverify");
+        expect(reviewed).toBe(request);
+      }),
+      simulate: vi.fn(async (reviewed) => {
+        events.push("simulate");
+        expect(reviewed).toBe(request);
+        return simulated;
+      }),
+      write: vi.fn(async (prepared) => {
+        events.push("write");
+        expect(prepared).toBe(simulated);
+        return "0xhash";
+      }),
+      onPhase: vi.fn((phase) => events.push(`phase:${phase}`)),
+    },
+  };
+}
+
+describe("reviewed direct-write boundary", () => {
+  it("reviews, switches, checks, simulates, rechecks, then signs exactly once", async () => {
+    const run = harness();
+
+    await expect(submitReviewedContractWrite(run.options)).resolves.toBe(
+      "0xhash",
+    );
+    expect(run.events).toEqual([
+      "phase:review",
+      "review",
+      "phase:simulating",
+      "switch:10",
+      "reverify",
+      "simulate",
+      "phase:signing",
+      "write",
+    ]);
+    expect(run.options.currentAccount).toHaveBeenCalledTimes(3);
+    expect(run.options.write).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed before simulation when reviewed state changes", async () => {
+    const run = harness();
+    run.options.reverify.mockRejectedValueOnce(
+      new Error("The project controller changed. Review again."),
+    );
+
+    await expect(submitReviewedContractWrite(run.options)).rejects.toThrow(
+      "controller changed",
+    );
+    expect(run.options.simulate).not.toHaveBeenCalled();
+    expect(run.options.write).not.toHaveBeenCalled();
+  });
+
+  it("does nothing irreversible when review fails", async () => {
+    const run = harness();
+    run.options.review.mockRejectedValueOnce(new Error("Review closed."));
+
+    await expect(submitReviewedContractWrite(run.options)).rejects.toThrow(
+      "Review closed.",
+    );
+    expect(run.options.switchChain).not.toHaveBeenCalled();
+    expect(run.options.simulate).not.toHaveBeenCalled();
+    expect(run.options.write).not.toHaveBeenCalled();
+  });
+
+  it("fails closed if the account changes during the chain switch", async () => {
+    const run = harness();
+    run.options.switchChain.mockImplementationOnce(async () => {
+      run.setCurrent(BOB);
+    });
+
+    await expect(submitReviewedContractWrite(run.options)).rejects.toThrow(
+      /account changed/i,
+    );
+    expect(run.options.simulate).not.toHaveBeenCalled();
+    expect(run.options.write).not.toHaveBeenCalled();
+  });
+
+  it("never signs when the account changes while simulation is running", async () => {
+    const run = harness();
+    run.options.simulate.mockImplementationOnce(async () => {
+      run.setCurrent(undefined);
+      return run.simulated;
+    });
+
+    await expect(submitReviewedContractWrite(run.options)).rejects.toThrow(
+      /account changed/i,
+    );
+    expect(run.options.write).not.toHaveBeenCalled();
+  });
+
+  it("requires an expected connected account before opening review", async () => {
+    const run = harness();
+
+    await expect(
+      submitReviewedContractWrite({
+        ...run.options,
+        expectedAccount: undefined,
+      }),
+    ).rejects.toThrow("Connect a wallet first.");
+    expect(run.options.review).not.toHaveBeenCalled();
+  });
+
+  it("awaits durable intent after simulation and before signing, then checks identity again", async () => {
+    const run = harness();
+    const beforeWrite = vi.fn(async () => {
+      expect(run.options.simulate).toHaveBeenCalledOnce();
+      expect(run.options.write).not.toHaveBeenCalled();
+      await Promise.resolve();
+      run.events.push("persist");
+    });
+    await submitReviewedContractWrite({ ...run.options, beforeWrite });
+    expect(run.events.slice(-4)).toEqual([
+      "simulate",
+      "persist",
+      "phase:signing",
+      "write",
+    ]);
+    expect(run.options.currentAccount).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not mark an attempt when review is cancelled or simulation fails", async () => {
+    for (const gate of ["review", "simulate"] as const) {
+      const run = harness();
+      const beforeWrite = vi.fn();
+      run.options[gate].mockRejectedValueOnce(new Error(`${gate} failed`));
+      await expect(
+        submitReviewedContractWrite({ ...run.options, beforeWrite }),
+      ).rejects.toThrow(`${gate} failed`);
+      expect(beforeWrite).not.toHaveBeenCalled();
+      expect(run.options.write).not.toHaveBeenCalled();
+    }
+  });
+
+  it("blocks the wallet write if persistence fails", async () => {
+    const run = harness();
+    await expect(
+      submitReviewedContractWrite({
+        ...run.options,
+        beforeWrite: () => {
+          throw new Error("Recovery storage unavailable");
+        },
+      }),
+    ).rejects.toThrow("Recovery storage unavailable");
+    expect(run.options.write).not.toHaveBeenCalled();
+    expect(run.events).not.toContain("phase:signing");
+  });
+
+  it("blocks the wallet write if identity changes during asynchronous persistence", async () => {
+    const run = harness();
+    const onBeforeWriteAborted = vi.fn();
+    await expect(
+      submitReviewedContractWrite({
+        ...run.options,
+        beforeWrite: async () => {
+          await Promise.resolve();
+          run.setCurrent(BOB);
+        },
+        onBeforeWriteAborted,
+      }),
+    ).rejects.toThrow(/account changed/i);
+    expect(run.options.write).not.toHaveBeenCalled();
+    expect(onBeforeWriteAborted).toHaveBeenCalledOnce();
+  });
+
+  it("never invokes pre-wallet cleanup after a write starts or when persistence was not completed", async () => {
+    for (const gate of ["beforeWrite", "write"] as const) {
+      const run = harness();
+      const onBeforeWriteAborted = vi.fn();
+      const beforeWrite = vi.fn(async () => {});
+      const error = new Error("Ambiguous transport error");
+      if (gate === "beforeWrite") beforeWrite.mockRejectedValueOnce(error);
+      else run.options.write.mockRejectedValueOnce(error);
+      await expect(
+        submitReviewedContractWrite({
+          ...run.options,
+          beforeWrite,
+          onBeforeWriteAborted,
+        }),
+      ).rejects.toBe(error);
+      expect(onBeforeWriteAborted).not.toHaveBeenCalled();
+    }
+  });
+
+  it("allows intent cleanup only for a typed wallet rejection from the write", async () => {
+    const run = harness();
+    const rejected = new BaseError("Wallet write rejected", {
+      cause: new UserRejectedRequestError(new Error("Rejected in wallet")),
+    });
+    const onWriteRejected = vi.fn();
+    run.options.write.mockRejectedValueOnce(rejected);
+    await expect(
+      submitReviewedContractWrite({ ...run.options, onWriteRejected }),
+    ).rejects.toBe(rejected);
+    expect(onWriteRejected).toHaveBeenCalledOnce();
+  });
+
+  it("preserves an unknown attempt after ambiguous transport failure or an earlier rejection", async () => {
+    for (const gate of ["review", "simulate", "write"] as const) {
+      const run = harness();
+      const onWriteRejected = vi.fn();
+      const error =
+        gate === "write"
+          ? new Error("RPC disconnected after send")
+          : new UserRejectedRequestError(new Error("Rejected earlier"));
+      run.options[gate].mockRejectedValueOnce(error);
+      await expect(
+        submitReviewedContractWrite({ ...run.options, onWriteRejected }),
+      ).rejects.toBe(error);
+      expect(onWriteRejected).not.toHaveBeenCalled();
+    }
+  });
+});

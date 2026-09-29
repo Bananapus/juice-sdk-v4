@@ -69,6 +69,44 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/review/contractWrite.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/gas.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/transactionReview.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/safeService.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // graphql always parses variableDefinitions to an array, so the `?? []` fallbacks never run.
+        "src/bendystrawOperations.ts": {
+          statements: 100,
+          branches: 98,
+          functions: 100,
+          lines: 100,
+        },
+        // Every fallback fee's group is counted, so `counts.get(group) ?? 0` never falls back.
+        "src/v6/feeBuyback.ts": {
+          statements: 100,
+          branches: 99,
+          functions: 100,
+          lines: 100,
+        },
       },
     },
   },

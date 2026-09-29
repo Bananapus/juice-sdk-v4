@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 import * as sdk from "./index.js";
+import * as bendystrawOperations from "./bendystrawOperations.js";
+import * as review from "./review/index.js";
 import * as safe from "./safe.js";
+import * as safeService from "./safeService.js";
+import * as feeBuyback from "./v6/feeBuyback.js";
 import * as v6 from "./v6/index.js";
 
 describe("published core SDK surfaces", () => {
@@ -9,6 +13,10 @@ describe("published core SDK surfaces", () => {
     expect(safe.buildSafeDeploymentTx).toBeTypeOf("function");
     expect(safe.bundleSafeLaunch).toBeTypeOf("function");
     expect(safe.verifySafeDeployments).toBeTypeOf("function");
+    expect(safeService.waitForSafeExecutionHash).toBeTypeOf("function");
+    expect(safeService.safeServiceBase(8453)).toBe(
+      "https://api.safe.global/tx-service/base",
+    );
     expect(safe.SAFE_PROXY_CREATION_CODE).toMatch(/^0x(?:[\da-f]{2}){486}$/u);
   });
 
@@ -60,5 +68,20 @@ describe("published core SDK surfaces", () => {
     expect(v6.REVLOANS_BURN_PERMISSION_ID).toBe(11);
     expect(v6.isStickySplit).toBeTypeOf("function");
     expect(v6.describeStickySplit).toBeTypeOf("function");
+  });
+
+  test("exports the shared web-client runtime boundaries", () => {
+    expect(review.submitReviewedContractWrite).toBeTypeOf("function");
+    expect(review.requireContractTransactionReview).toBeTypeOf("function");
+    expect(review.gasWithinCap).toBeTypeOf("function");
+    expect(bendystrawOperations.compileBendystrawOperation).toBeTypeOf(
+      "function",
+    );
+    expect(bendystrawOperations.requestPersistedBendystraw).toBeTypeOf(
+      "function",
+    );
+    expect(sdk.resolveProjectDeployments).toBeTypeOf("function");
+    expect(feeBuyback.checkFeeBuyback).toBeTypeOf("function");
+    expect(feeBuyback.createFeeWatch).toBeTypeOf("function");
   });
 });
