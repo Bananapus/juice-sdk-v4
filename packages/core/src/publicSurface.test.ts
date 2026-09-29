@@ -14,6 +14,7 @@ describe("published core SDK surfaces", () => {
     expect(safe.bundleSafeLaunch).toBeTypeOf("function");
     expect(safe.verifySafeDeployments).toBeTypeOf("function");
     expect(safeService.waitForSafeExecutionHash).toBeTypeOf("function");
+    expect(safeService.isSafeWalletPeer("https://app.safe.global")).toBe(true);
     expect(safeService.safeServiceBase(8453)).toBe(
       "https://api.safe.global/tx-service/base",
     );

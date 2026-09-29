@@ -86,6 +86,25 @@ export function safeQueueUrl(chainId: number, safe: Address): string | null {
 const SAFE_EXECUTION_NOT_FOUND_LIMIT = 12;
 
 /**
+ * Whether a WalletConnect peer is Safe{Wallet}. It proposes like the Safe
+ * app: the gas a dapp sends becomes the proposal's safeTxGas, and the reply is
+ * a safeTxHash unless the owner executes at once.
+ */
+export function isSafeWalletPeer(url: string | undefined): boolean {
+  try {
+    return new URL(url ?? "").origin === "https://app.safe.global";
+  } catch {
+    return false;
+  }
+}
+
+function noHostedService(chainId: number): Error {
+  return new Error(
+    `Safe does not host a transaction service on chain ${chainId}, so this proposal cannot be tracked here. Execute it from the Safe app; the action takes effect once it is executed there.`,
+  );
+}
+
+/**
  * Resolve a Safe proposal identifier to its actual onchain execution hash.
  * A safeTxHash is not a transaction hash and must never be receipt-polled.
  *
@@ -93,62 +112,84 @@ const SAFE_EXECUTION_NOT_FOUND_LIMIT = 12;
  * map), NOT `SAFE_PREFIX`: OP Sepolia and Arbitrum Sepolia have Safe app
  * URLs but no hosted transaction service, and polling a nonexistent service
  * left every Safe write there pending forever.
+ *
+ * With the chain's `client`, a hash the chain already knows as a transaction
+ * is returned as the execution: over WalletConnect, Safe{Wallet} answers with
+ * the execution's own hash when the owner executes at once.
  */
 export async function waitForSafeExecutionHash(
   chainId: number,
   safeTxHash: Hex,
-  options: { pollingIntervalMs?: number; signal?: AbortSignal } = {},
+  options: {
+    pollingIntervalMs?: number;
+    signal?: AbortSignal;
+    client?: { getTransaction: (args: { hash: Hex }) => Promise<unknown> };
+  } = {},
 ): Promise<Hex> {
   const base = safeServiceBase(chainId);
-  if (!base) {
-    throw new Error(
-      `Safe does not host a transaction service on chain ${chainId}, so this proposal cannot be tracked here. Execute it from the Safe app; the action takes effect once it is executed there.`,
-    );
-  }
+  const { client } = options;
+  if (!base && !client) throw noHostedService(chainId);
   const interval = options.pollingIntervalMs ?? 5_000;
-  const endpoint = `${base}/api/v1/multisig-transactions/${safeTxHash}/`;
+  const endpoint =
+    base && `${base}/api/v1/multisig-transactions/${safeTxHash}/`;
   let consecutiveNotFound = 0;
 
   for (;;) {
     if (options.signal?.aborted) {
       throw new DOMException("Safe execution wait aborted", "AbortError");
     }
-    try {
-      const response = await fetch(endpoint);
-      if (response.ok) {
-        consecutiveNotFound = 0;
-        const transaction = (await response.json()) as {
-          isExecuted?: boolean;
-          isSuccessful?: boolean | null;
-          transactionHash?: Hex | null;
-        };
-        if (transaction.isExecuted && transaction.isSuccessful === false) {
-          throw new Error(
-            "Safe executed the proposal, but the onchain transaction failed.",
-          );
-        }
-        if (transaction.isExecuted && transaction.transactionHash) {
-          return transaction.transactionHash;
-        }
-      } else if (response.status === 404) {
-        consecutiveNotFound += 1;
-        if (consecutiveNotFound >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
-          throw new Error(
-            "Safe’s transaction service has no record of this proposal. Tracking cannot continue here — check the proposal in the Safe app; if it exists there, it will still take effect once executed.",
-          );
-        }
+    if (
+      client &&
+      (await client.getTransaction({ hash: safeTxHash }).then(
+        () => true,
+        () => false,
+      ))
+    ) {
+      return safeTxHash;
+    }
+    if (!endpoint) {
+      consecutiveNotFound += 1;
+      if (consecutiveNotFound >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
+        throw noHostedService(chainId);
       }
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        /executed the proposal.*failed|no record of this proposal/i.test(
-          error.message,
-        )
-      ) {
-        throw error;
+    } else {
+      try {
+        const response = await fetch(endpoint);
+        if (response.ok) {
+          consecutiveNotFound = 0;
+          const transaction = (await response.json()) as {
+            isExecuted?: boolean;
+            isSuccessful?: boolean | null;
+            transactionHash?: Hex | null;
+          };
+          if (transaction.isExecuted && transaction.isSuccessful === false) {
+            throw new Error(
+              "Safe executed the proposal, but the onchain transaction failed.",
+            );
+          }
+          if (transaction.isExecuted && transaction.transactionHash) {
+            return transaction.transactionHash;
+          }
+        } else if (response.status === 404) {
+          consecutiveNotFound += 1;
+          if (consecutiveNotFound >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
+            throw new Error(
+              "Safe’s transaction service has no record of this proposal. Tracking cannot continue here — check the proposal in the Safe app; if it exists there, it will still take effect once executed.",
+            );
+          }
+        }
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          /executed the proposal.*failed|no record of this proposal/i.test(
+            error.message,
+          )
+        ) {
+          throw error;
+        }
+        // Other service/network failures are transient. Keep the already-created
+        // proposal pending instead of inviting a duplicate submission.
       }
-      // Other service/network failures are transient. Keep the already-created
-      // proposal pending instead of inviting a duplicate submission.
     }
     await new Promise<void>((resolve, reject) => {
       function onAbort() {

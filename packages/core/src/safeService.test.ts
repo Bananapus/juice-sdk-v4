@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  isSafeWalletPeer,
   SAFE_NONCE_GUIDANCE,
   SAFE_PREFIX,
   SAFE_SERVICE_PREFIX,
@@ -172,5 +173,81 @@ describe("Safe transaction service boundaries", () => {
         signal: during.signal,
       }),
     ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("returns a hash the chain already knows as the execution, without the service", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const getTransaction = vi.fn(async () => ({ hash: EXECUTION }));
+    await expect(
+      waitForSafeExecutionHash(8453, EXECUTION, {
+        client: { getTransaction },
+      }),
+    ).resolves.toBe(EXECUTION);
+    expect(getTransaction).toHaveBeenCalledWith({ hash: EXECUTION });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("asks the service when the chain does not know the hash", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        executed({
+          isExecuted: true,
+          isSuccessful: true,
+          transactionHash: EXECUTION,
+        }),
+      ),
+    );
+    await expect(
+      waitForSafeExecutionHash(8453, PROPOSAL, {
+        client: {
+          getTransaction: async () => {
+            throw new Error("Transaction not found");
+          },
+        },
+      }),
+    ).resolves.toBe(EXECUTION);
+  });
+
+  it("tracks an executed hash on a chain without a hosted service, and gives up on a proposal", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    let seen = 0;
+    const later = {
+      getTransaction: async () => {
+        seen += 1;
+        if (seen < 3) throw new Error("Transaction not found");
+        return {};
+      },
+    };
+    await expect(
+      waitForSafeExecutionHash(11155420, EXECUTION, {
+        pollingIntervalMs: 1,
+        client: later,
+      }),
+    ).resolves.toBe(EXECUTION);
+    const never = vi.fn(async () => {
+      throw new Error("Transaction not found");
+    });
+    await expect(
+      waitForSafeExecutionHash(11155420, PROPOSAL, {
+        pollingIntervalMs: 1,
+        client: { getTransaction: never },
+      }),
+    ).rejects.toThrow(/does not host a transaction service/i);
+    expect(never).toHaveBeenCalledTimes(12);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("recognizes Safe{Wallet} as a WalletConnect peer, and only it", () => {
+    expect(isSafeWalletPeer("https://app.safe.global")).toBe(true);
+    expect(isSafeWalletPeer("https://app.safe.global/home")).toBe(true);
+    expect(isSafeWalletPeer("https://www.safepal.com")).toBe(false);
+    expect(isSafeWalletPeer("https://app.safe.global.evil.example")).toBe(
+      false,
+    );
+    expect(isSafeWalletPeer("not a url")).toBe(false);
+    expect(isSafeWalletPeer(undefined)).toBe(false);
   });
 });
