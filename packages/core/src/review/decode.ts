@@ -9,7 +9,9 @@ import {
   zeroAddress,
   type Abi,
   type AbiFunction,
+  type AbiParameter,
   type Address,
+  type DecodeAbiParametersReturnType,
   type Hex,
 } from "viem";
 import { SPLITS_TOTAL_PERCENT, USDC_ADDRESSES } from "../constants.js";
@@ -40,14 +42,33 @@ import type {
   TransactionReviewRequest,
 } from "./transactionReview.js";
 
-// The pure half of the transaction review dialog. Every decoder is strict: it
-// re-encodes what it decoded and compares bytes, or validates the full
-// structure, before claiming an interpretation. It returns null on any
-// mismatch so the raw argument view shows instead. A readable rendering must
-// never paper over bytes it cannot fully account for.
+// The pure half of the transaction review dialog. Every decoder is strict:
+// each ABI encoding it reads must re-encode to the same bytes, and the
+// structure around it (action lists, lookup tables, proofs) must be complete,
+// before it claims an interpretation. It returns null on any mismatch so the
+// raw argument view shows instead. A readable rendering must never paper over
+// bytes it cannot fully account for.
 
 /** A decoded argument: numbered steps of `Label: value` rows. */
 export type PrettyStep = { title: string; rows: [string, string][] };
+
+/**
+ * Decode `data` as `params`, requiring their canonical encoding byte for
+ * byte. Dirty padding, trailing bytes or unusual offsets throw.
+ */
+function decodeExact<const params extends readonly AbiParameter[]>(
+  params: params,
+  data: Hex,
+): DecodeAbiParametersReturnType<params> {
+  const decoded = decodeAbiParameters(params, data);
+  if (
+    encodeAbiParameters(params, decoded as never).toLowerCase() !==
+    data.toLowerCase()
+  ) {
+    throw new Error("Noncanonical ABI encoding.");
+  }
+  return decoded;
+}
 
 // ── Known addresses ──────────────────────────────────────────────────────────
 
@@ -184,24 +205,33 @@ export function nativeValue(value = 0n): string {
 }
 
 /**
- * The ABI function a reviewed call actually invokes: the item named
- * `functionName` whose selector is the calldata's first four bytes, or null.
- * A name alone never matches, so the review cannot show a function the bytes
- * do not call.
+ * The ABI function a reviewed call actually invokes, or null. It is the item
+ * named `functionName` whose selector is the calldata's first four bytes, and
+ * only when `args` encode to exactly that calldata. The dialog renders `args`,
+ * so a name alone, or arguments the bytes don't carry, never match.
  */
 export function functionFromCall(
-  call: Pick<TransactionReviewCall, "abi" | "data" | "functionName">,
+  call: Pick<TransactionReviewCall, "abi" | "args" | "data" | "functionName">,
 ): AbiFunction | null {
   if (!call.abi || !call.functionName) return null;
   const selector = call.data.slice(0, 10).toLowerCase();
-  return (
-    call.abi.find(
-      (item): item is AbiFunction =>
-        item.type === "function" &&
-        item.name === call.functionName &&
-        toFunctionSelector(item) === selector,
-    ) ?? null
+  const item = call.abi.find(
+    (entry): entry is AbiFunction =>
+      entry.type === "function" &&
+      entry.name === call.functionName &&
+      toFunctionSelector(entry) === selector,
   );
+  if (!item) return null;
+  try {
+    const encoded = encodeFunctionData({
+      abi: [item],
+      functionName: item.name,
+      args: call.args ?? [],
+    });
+    return encoded.toLowerCase() === call.data.toLowerCase() ? item : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -289,20 +319,20 @@ const MODIFY_LIQUIDITY = [
   { type: "bytes" },
 ] as const;
 
+/** An action list: `(bytes actions, bytes[] params)`, one param per action byte. */
+const ACTION_PLAN = [{ type: "bytes" }, { type: "bytes[]" }] as const;
+
 /**
  * Decode a Uniswap V4 PositionManager `unlockData` plan into typed steps.
  * It covers the actions the apps build (increase, decrease, mint, burn, take
- * pair, close, sweep) with empty hook data; anything else is null. Amounts stay
- * in raw token units and addresses stay raw, since the dialog shows the exact
- * payload.
+ * pair, close, sweep) with empty hook data and canonical encodings; anything
+ * else is null. Amounts stay in raw token units and addresses stay raw, since
+ * the dialog shows the exact payload.
  */
 export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
   if (typeof value !== "string" || !value.startsWith("0x")) return null;
   try {
-    const [actions, params] = decodeAbiParameters(
-      [{ type: "bytes" }, { type: "bytes[]" }],
-      value as Hex,
-    );
+    const [actions, params] = decodeExact(ACTION_PLAN, value as Hex);
     const codes = actions.slice(2).match(/.{2}/g) ?? [];
     if (!codes.length || codes.length !== params.length) return null;
     const steps: V4PlanStep[] = [];
@@ -311,7 +341,7 @@ export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
       switch (parseInt(byte, 16)) {
         case 0x00: {
           const [tokenId, liquidity, amount0Max, amount1Max, hookData] =
-            decodeAbiParameters(MODIFY_LIQUIDITY, data);
+            decodeExact(MODIFY_LIQUIDITY, data);
           if (hookData !== "0x") return null;
           steps.push({
             action: "INCREASE_LIQUIDITY",
@@ -324,7 +354,7 @@ export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
         case 0x01: {
           // The liquidity word is a uint256 in the PositionManager's decoder.
           const [tokenId, liquidity, amount0Min, amount1Min, hookData] =
-            decodeAbiParameters(MODIFY_LIQUIDITY, data);
+            decodeExact(MODIFY_LIQUIDITY, data);
           if (hookData !== "0x") return null;
           steps.push({
             action: "DECREASE_LIQUIDITY",
@@ -344,7 +374,7 @@ export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
             amount1Max,
             owner,
             hookData,
-          ] = decodeAbiParameters(
+          ] = decodeExact(
             [
               POOL_KEY,
               { type: "int24" },
@@ -375,16 +405,15 @@ export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
           break;
         }
         case 0x03: {
-          const [tokenId, amount0Min, amount1Min, hookData] =
-            decodeAbiParameters(
-              [
-                { type: "uint256" },
-                { type: "uint128" },
-                { type: "uint128" },
-                { type: "bytes" },
-              ],
-              data,
-            );
+          const [tokenId, amount0Min, amount1Min, hookData] = decodeExact(
+            [
+              { type: "uint256" },
+              { type: "uint128" },
+              { type: "uint128" },
+              { type: "bytes" },
+            ],
+            data,
+          );
           if (hookData !== "0x") return null;
           steps.push({
             action: "BURN_POSITION",
@@ -394,7 +423,7 @@ export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
           break;
         }
         case 0x11: {
-          const [currency0, currency1, recipient] = decodeAbiParameters(
+          const [currency0, currency1, recipient] = decodeExact(
             [{ type: "address" }, { type: "address" }, { type: "address" }],
             data,
           );
@@ -402,12 +431,12 @@ export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
           break;
         }
         case 0x12: {
-          const [currency] = decodeAbiParameters([{ type: "address" }], data);
+          const [currency] = decodeExact([{ type: "address" }], data);
           steps.push({ action: "CLOSE_CURRENCY", currency });
           break;
         }
         case 0x14: {
-          const [currency, recipient] = decodeAbiParameters(
+          const [currency, recipient] = decodeExact(
             [{ type: "address" }, { type: "address" }],
             data,
           );
@@ -431,6 +460,8 @@ const UR_MSG_SENDER = "0x0000000000000000000000000000000000000001";
 const UR_ADDRESS_THIS = "0x0000000000000000000000000000000000000002";
 const UR_CONTRACT_BALANCE =
   0x8000000000000000000000000000000000000000000000000000000000000000n;
+const CONTRACT_BALANCE_TEXT =
+  "the router's entire balance from the previous step";
 
 function urRecipient(chainId: number, address: string): string {
   if (address.toLowerCase() === UR_MSG_SENDER) return "you (msg.sender)";
@@ -440,12 +471,42 @@ function urRecipient(chainId: number, address: string): string {
   return addressLabel(chainId, address);
 }
 
-function urAmount(value: bigint): string {
-  if (value === UR_CONTRACT_BALANCE) {
-    return "the router's entire balance from the previous step";
-  }
-  if (value === 0n) return "0 (the open amount from the previous step)";
-  return value.toString();
+/** A V3 swap or wrap amount: the contract-balance sentinel, else the number. */
+function routerAmount(value: bigint): string {
+  return value === UR_CONTRACT_BALANCE
+    ? CONTRACT_BALANCE_TEXT
+    : value.toString();
+}
+
+/** A V4 swap or take amount, where 0 takes the open delta the previous step left. */
+function openDeltaAmount(value: bigint): string {
+  return value === 0n
+    ? "0 (the open amount from the previous step)"
+    : value.toString();
+}
+
+/** A V4 settle amount, which reads both the contract-balance sentinel and 0. */
+function settleAmount(value: bigint): string {
+  return value === UR_CONTRACT_BALANCE
+    ? CONTRACT_BALANCE_TEXT
+    : openDeltaAmount(value);
+}
+
+/** Who pays a router or V4 step. */
+function payer(payerIsUser: boolean): string {
+  return payerIsUser ? "you (via Permit2)" : "the router's balance";
+}
+
+/**
+ * Unix seconds as a UTC time and the raw value, the same in every locale. A
+ * value past the last date JavaScript can show (a max uint48, say) keeps its
+ * raw value and says so.
+ */
+function unixTime(seconds: bigint | number): string {
+  const value = BigInt(seconds);
+  if (value > 8_640_000_000_000n) return `${value} (after year 275760)`;
+  const time = new Date(Number(value) * 1000).toISOString();
+  return `${time.replace(".000Z", " UTC").replace("T", " ")} (${value})`;
 }
 
 /** A packed V3 path: 20-byte token, 3-byte fee, 20-byte token, … */
@@ -463,12 +524,23 @@ function urV3Path(chainId: number, path: string): string | null {
   return parts.join(" ");
 }
 
+/** `SWAP_EXACT_IN_SINGLE`: `(poolKey, zeroForOne, amountIn, amountOutMinimum, hookData)`. */
+const V4_EXACT_IN_SINGLE = [
+  {
+    type: "tuple",
+    components: [
+      POOL_KEY,
+      { type: "bool" },
+      { type: "uint128" },
+      { type: "uint128" },
+      { type: "bytes" },
+    ],
+  },
+] as const;
+
 /** The V4_SWAP command's inner action plan, in the shapes the pay builders emit. */
 function urV4SwapSteps(chainId: number, input: Hex): PrettyStep[] | null {
-  const [actions, params] = decodeAbiParameters(
-    [{ type: "bytes" }, { type: "bytes[]" }],
-    input,
-  );
+  const [actions, params] = decodeExact(ACTION_PLAN, input);
   const codes = actions.slice(2).match(/.{2}/g) ?? [];
   if (!codes.length || codes.length !== params.length) return null;
   const steps: PrettyStep[] = [];
@@ -476,29 +548,17 @@ function urV4SwapSteps(chainId: number, input: Hex): PrettyStep[] | null {
     const data = params[index];
     switch (parseInt(byte, 16)) {
       case 0x06: {
-        const [swap] = decodeAbiParameters(
-          [
-            {
-              type: "tuple",
-              components: [
-                POOL_KEY,
-                { type: "bool" },
-                { type: "uint128" },
-                { type: "uint128" },
-                { type: "bytes" },
-              ],
-            },
-          ],
+        const [[key, zeroForOne, amountIn, minimumOut, hookData]] = decodeExact(
+          V4_EXACT_IN_SINGLE,
           data,
         );
-        const [key, zeroForOne, amountIn, minimumOut, hookData] = swap;
         if (hookData !== "0x") return null;
         steps.push({
           title: "Swap in the project's V4 pool (exact input)",
           rows: [
             ["Sell", currencyLabel(chainId, zeroForOne ? key[0] : key[1])],
             ["Buy", currencyLabel(chainId, zeroForOne ? key[1] : key[0])],
-            ["Amount in", urAmount(amountIn)],
+            ["Amount in", openDeltaAmount(amountIn)],
             ["Minimum out", `${minimumOut} — reverts below this`],
             ["Fee", `${key[2]} (${key[2] / 10_000}%) | tick spacing ${key[3]}`],
             ["Hook", addressLabel(chainId, key[4])],
@@ -507,7 +567,7 @@ function urV4SwapSteps(chainId: number, input: Hex): PrettyStep[] | null {
         break;
       }
       case 0x0b: {
-        const [currency, amount] = decodeAbiParameters(
+        const [currency, amount, payerIsUser] = decodeExact(
           [{ type: "address" }, { type: "uint256" }, { type: "bool" }],
           data,
         );
@@ -515,13 +575,14 @@ function urV4SwapSteps(chainId: number, input: Hex): PrettyStep[] | null {
           title: "Pay the pool",
           rows: [
             ["Currency", currencyLabel(chainId, currency)],
-            ["Amount", urAmount(amount)],
+            ["Amount", settleAmount(amount)],
+            ["Paid by", payer(payerIsUser)],
           ],
         });
         break;
       }
       case 0x0c: {
-        const [currency, maximum] = decodeAbiParameters(
+        const [currency, maximum] = decodeExact(
           [{ type: "address" }, { type: "uint256" }],
           data,
         );
@@ -535,7 +596,7 @@ function urV4SwapSteps(chainId: number, input: Hex): PrettyStep[] | null {
         break;
       }
       case 0x0e: {
-        const [currency, recipient, amount] = decodeAbiParameters(
+        const [currency, recipient, amount] = decodeExact(
           [{ type: "address" }, { type: "address" }, { type: "uint256" }],
           data,
         );
@@ -544,7 +605,7 @@ function urV4SwapSteps(chainId: number, input: Hex): PrettyStep[] | null {
           rows: [
             ["Currency", currencyLabel(chainId, currency)],
             ["Recipient", urRecipient(chainId, recipient)],
-            ["Amount", urAmount(amount)],
+            ["Amount", openDeltaAmount(amount)],
           ],
         });
         break;
@@ -559,7 +620,8 @@ function urV4SwapSteps(chainId: number, input: Hex): PrettyStep[] | null {
 /**
  * Decode a Uniswap Universal Router `execute(commands, inputs, deadline)` into
  * readable steps. It covers the command shapes the pay flow builds (Permit2
- * permit, wrap, V3 hop, unwrap, V4 swap); anything else is null.
+ * permit, wrap, V3 hop, unwrap, V4 swap) in canonical encodings; anything
+ * else is null.
  */
 export function describeUniversalRouterExecute(
   chainId: number,
@@ -583,7 +645,7 @@ export function describeUniversalRouterExecute(
       switch (parseInt(byte, 16)) {
         case 0x00: {
           const [recipient, amountIn, minimumOut, path, payerIsUser] =
-            decodeAbiParameters(
+            decodeExact(
               [
                 { type: "address" },
                 { type: "uint256" },
@@ -599,24 +661,21 @@ export function describeUniversalRouterExecute(
             title: "Swap through a V3 pool (exact input)",
             rows: [
               ["Route", route],
-              ["Amount in", urAmount(amountIn)],
+              ["Amount in", routerAmount(amountIn)],
               [
                 "Minimum out",
                 minimumOut === 0n
                   ? "0 — the final V4 minimum below is the real floor"
                   : minimumOut.toString(),
               ],
-              [
-                "Paid by",
-                payerIsUser ? "you (via Permit2)" : "the router's balance",
-              ],
+              ["Paid by", payer(payerIsUser)],
               ["Recipient", urRecipient(chainId, recipient)],
             ],
           });
           break;
         }
         case 0x0a: {
-          const [permit] = decodeAbiParameters(
+          const [[details, spender, sigDeadline]] = decodeExact(
             [
               {
                 type: "tuple",
@@ -638,45 +697,48 @@ export function describeUniversalRouterExecute(
             ],
             data,
           );
-          const [details, spender, sigDeadline] = permit;
           steps.push({
             title: "Apply your signed Permit2 authorization",
             rows: [
               ["Token", addressLabel(chainId, details[0])],
               ["Amount", details[1].toString()],
               ["Spender", addressLabel(chainId, spender)],
-              ["Expires", new Date(details[2] * 1000).toLocaleString()],
               [
-                "Signature deadline",
-                new Date(Number(sigDeadline) * 1000).toLocaleString(),
+                "Expires",
+                // Permit2 stores an expiration of 0 as the current block's timestamp.
+                details[2] === 0 ? "0 (this block only)" : unixTime(details[2]),
               ],
+              ["Signature deadline", unixTime(sigDeadline)],
             ],
           });
           break;
         }
         case 0x0b: {
-          const [recipient, amount] = decodeAbiParameters(
+          const [recipient, amount] = decodeExact(
             [{ type: "address" }, { type: "uint256" }],
             data,
           );
           steps.push({
             title: "Wrap ETH into WETH",
             rows: [
-              ["Amount", urAmount(amount)],
+              ["Amount", routerAmount(amount)],
               ["Recipient", urRecipient(chainId, recipient)],
             ],
           });
           break;
         }
         case 0x0c: {
-          const [recipient, minimum] = decodeAbiParameters(
+          const [recipient, minimum] = decodeExact(
             [{ type: "address" }, { type: "uint256" }],
             data,
           );
           steps.push({
             title: "Unwrap WETH back to ETH",
             rows: [
-              ["Minimum", urAmount(minimum)],
+              [
+                "Minimum",
+                minimum === 0n ? "0 (no minimum)" : minimum.toString(),
+              ],
               ["Recipient", urRecipient(chainId, recipient)],
             ],
           });
@@ -707,14 +769,11 @@ const bigintJson = (value: unknown) =>
 
 /** Strict decode and byte-exact re-encode, else null. */
 function roundTripDecode<T extends readonly unknown[]>(
-  types: Parameters<typeof decodeAbiParameters>[0],
+  types: readonly AbiParameter[],
   payload: Hex,
 ): T | null {
   try {
-    const decoded = decodeAbiParameters(types, payload);
-    const reencoded = encodeAbiParameters(types, decoded);
-    if (reencoded.toLowerCase() !== payload.toLowerCase()) return null;
-    return decoded as unknown as T;
+    return decodeExact(types, payload) as unknown as T;
   } catch {
     return null;
   }
@@ -748,8 +807,11 @@ function parseHookMetadataEnvelope(
     if (/^0+$/.test(chunk)) break;
     const id = chunk.slice(0, 8);
     const offset = parseInt(chunk.slice(8, 10), 16);
-    // A zero id with a nonzero offset is malformed.
-    if (/^0+$/.test(id)) return null;
+    // A zero id with a nonzero offset is malformed. `getDataFor` returns the
+    // first entry for an id, so a repeated id would show dead data as live.
+    if (/^0+$/.test(id) || entries.some((entry) => entry.id === `0x${id}`)) {
+      return null;
+    }
     entries.push({ id: `0x${id}`, offset });
     cursor += 10;
   }
@@ -1006,8 +1068,11 @@ function safeInnerAbiOf(contract: string): Abi | undefined {
  * these contracts share selectors (`pay` on the terminal and the router
  * gateway, `approve` on JBProjects and any ERC-20), so the ABI comes from the
  * target. A known Juicebox deployment, a retired generation included, is read
- * with its contract's ABI; USDC and unknown targets are read as ERC-20. Any
- * other target, a selector its ABI lacks, or a non-canonical encoding is null.
+ * with its contract's ABI, and USDC as ERC-20. An unknown target is read as
+ * ERC-20 and titled as unrecognized, except for `approve` and `transferFrom`:
+ * ERC-721 shares those selectors with a token ID where ERC-20 has an amount,
+ * so they are null. Any other target, a selector its ABI lacks, or a
+ * non-canonical encoding is null too.
  */
 export function describeSafeInnerCall(
   chainId: number,
@@ -1029,6 +1094,12 @@ export function describeSafeInnerCall(
       : safeInnerAbiOf(target.replace(/ \([^)]*\)$/u, ""));
   if (!abi) return null;
   const selector = data.slice(0, 10).toLowerCase();
+  if (
+    target === null &&
+    (selector === "0x095ea7b3" || selector === "0x23b872dd")
+  ) {
+    return null;
+  }
   const item = abi.find(
     (entry): entry is AbiFunction =>
       entry.type === "function" && toFunctionSelector(entry) === selector,
@@ -1052,7 +1123,10 @@ export function describeSafeInnerCall(
   ]);
   return [
     {
-      title: `Queued call — ${target ?? "ERC-20"}.${item.name}(…)`,
+      title:
+        target === null
+          ? `Queued call — ${item.name}(…) on an unrecognized contract, read as ERC-20`
+          : `Queued call — ${target}.${item.name}(…)`,
       rows: rows.length ? rows : [["Arguments", "none"]],
     },
   ];
@@ -1088,6 +1162,9 @@ const safeToL2SetupAbi = [
     outputs: [],
   },
 ] as const;
+
+/** The canonical SafeToL2Setup deployment, the same address on every chain. */
+const SAFE_TO_L2_SETUP = "0xbd89a1ce4dde368ffab0ec35506eece0b1ffdc54";
 
 /** A Safe proxy `initializer`: owners, threshold, setup hook and any payment. */
 export function describeSafeInitializer(
@@ -1135,18 +1212,22 @@ export function describeSafeInitializer(
     ]);
   } else {
     let hook = `DELEGATECALL to ${to} — data in the raw payload below`;
-    try {
-      const inner = decodeFunctionData({ abi: safeToL2SetupAbi, data });
-      const canonicalInner = encodeFunctionData({
-        abi: safeToL2SetupAbi,
-        functionName: "setupToL2",
-        args: inner.args,
-      });
-      if (canonicalInner.toLowerCase() === data.toLowerCase()) {
-        hook = `SafeToL2Setup.setupToL2(${inner.args[0]}) via ${to}`;
+    // Only the canonical deployment is known to run SafeToL2Setup's code; any
+    // other target could run anything under the same calldata.
+    if (to.toLowerCase() === SAFE_TO_L2_SETUP) {
+      try {
+        const inner = decodeFunctionData({ abi: safeToL2SetupAbi, data });
+        const canonicalInner = encodeFunctionData({
+          abi: safeToL2SetupAbi,
+          functionName: "setupToL2",
+          args: inner.args,
+        });
+        if (canonicalInner.toLowerCase() === data.toLowerCase()) {
+          hook = `SafeToL2Setup.setupToL2(${inner.args[0]}) via ${to}`;
+        }
+      } catch {
+        // Keep the generic delegatecall warning.
       }
-    } catch {
-      // Keep the generic delegatecall warning.
     }
     rows.push(["Setup hook", hook]);
   }
@@ -1265,7 +1346,9 @@ export function describeSplitGroups(
       if (
         typeof split?.percent !== "number" ||
         typeof split.beneficiary !== "string" ||
-        typeof split.projectId !== "bigint"
+        typeof split.projectId !== "bigint" ||
+        (split.lockedUntil !== undefined &&
+          !Number.isSafeInteger(split.lockedUntil))
       ) {
         return null;
       }
@@ -1292,9 +1375,7 @@ export function describeSplitGroups(
         parts.push("prefers add-to-balance");
       }
       if (typeof split.lockedUntil === "number" && split.lockedUntil > 0) {
-        parts.push(
-          `locked until ${new Date(split.lockedUntil * 1000).toLocaleString()}`,
-        );
+        parts.push(`locked until ${unixTime(split.lockedUntil)}`);
       }
       rows.push([
         `Split ${index + 1} — ${splitPercent(split.percent)}`,

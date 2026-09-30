@@ -178,6 +178,7 @@ describe("the reviewed function", () => {
     "function pay(uint256 projectId)",
     "function pay(uint256 projectId, address beneficiary)",
     "function burn(uint256 amount)",
+    "function sync()",
   ]);
   const payOne = encodeFunctionData({
     abi,
@@ -190,32 +191,70 @@ describe("the reviewed function", () => {
     args: [1n, ALICE],
   });
 
-  it("matches the overload whose selector the calldata carries", () => {
-    expect(functionFromCall({ abi, functionName: "pay", data: payOne })).toBe(
-      abi[0],
-    );
-    expect(functionFromCall({ abi, functionName: "pay", data: payTwo })).toBe(
-      abi[1],
-    );
+  it("matches the overload whose selector and arguments the calldata carries", () => {
+    expect(
+      functionFromCall({ abi, functionName: "pay", args: [1n], data: payOne }),
+    ).toBe(abi[0]);
     expect(
       functionFromCall({
         abi,
         functionName: "pay",
+        args: [1n, ALICE],
+        data: payTwo,
+      }),
+    ).toBe(abi[1]);
+    expect(
+      functionFromCall({
+        abi,
+        functionName: "pay",
+        args: [1n, ALICE],
         data: payTwo.toUpperCase().replace("0X", "0x") as Hex,
       }),
     ).toBe(abi[1]);
+    const sync = encodeFunctionData({ abi, functionName: "sync" });
+    expect(functionFromCall({ abi, functionName: "sync", data: sync })).toBe(
+      abi[3],
+    );
   });
 
   it("never matches by name alone", () => {
     // Calldata shorter than a selector, or another function's selector, is not this call.
     expect(
-      functionFromCall({ abi, functionName: "pay", data: "0x" }),
+      functionFromCall({ abi, functionName: "pay", args: [1n], data: "0x" }),
     ).toBeNull();
     expect(
-      functionFromCall({ abi, functionName: "burn", data: payOne }),
+      functionFromCall({ abi, functionName: "burn", args: [1n], data: payOne }),
     ).toBeNull();
-    expect(functionFromCall({ abi, data: payOne })).toBeNull();
-    expect(functionFromCall({ functionName: "pay", data: payOne })).toBeNull();
+    expect(functionFromCall({ abi, args: [1n], data: payOne })).toBeNull();
+    expect(
+      functionFromCall({ functionName: "pay", args: [1n], data: payOne }),
+    ).toBeNull();
+  });
+
+  it("never renders arguments the calldata does not carry", () => {
+    // The dialog shows `args`; a raw review's `data` is what the wallet signs.
+    expect(
+      functionFromCall({ abi, functionName: "pay", args: [2n], data: payOne }),
+    ).toBeNull();
+    expect(
+      functionFromCall({
+        abi,
+        functionName: "pay",
+        args: [1n],
+        data: `${payOne}00`,
+      }),
+    ).toBeNull();
+    expect(
+      functionFromCall({ abi, functionName: "pay", data: payOne }),
+    ).toBeNull();
+    expect(
+      functionFromCall({
+        abi,
+        functionName: "pay",
+        args: ["not a number"],
+        data: payOne,
+      }),
+    ).toBeNull();
   });
 });
 
@@ -395,6 +434,22 @@ describe("Uniswap V4 position plans", () => {
     expect(describeV4UnlockData(plan("0x03", [burn("0x01")]))).toBeNull();
   });
 
+  it("refuses encodings that are not byte for byte canonical", () => {
+    // A dirty zero address decodes as zero; a trailing word decodes as nothing.
+    const dirtyZero = `0x${"ff".repeat(12)}${"00".repeat(20)}` as Hex;
+    const trailing = `${addresses(TOKEN)}${"00".repeat(32)}` as Hex;
+    expect(describeV4UnlockData(plan("0x12", [addresses(TOKEN)]))).toEqual([
+      { action: "CLOSE_CURRENCY", currency: TOKEN },
+    ]);
+    expect(describeV4UnlockData(plan("0x12", [dirtyZero]))).toBeNull();
+    expect(describeV4UnlockData(plan("0x12", [trailing]))).toBeNull();
+    expect(
+      describeV4UnlockData(
+        `${plan("0x12", [addresses(TOKEN)])}${"00".repeat(32)}`,
+      ),
+    ).toBeNull();
+  });
+
   it("refuses unknown actions and malformed plans", () => {
     expect(describeV4UnlockData(plan("0x15", [addresses(TOKEN)]))).toBeNull();
     expect(describeV4UnlockData(plan("0x1212", [addresses(TOKEN)]))).toBeNull();
@@ -565,13 +620,175 @@ describe("Universal Router execute decoding", () => {
       ["Token", `USDC | ${config.bridgeToken}`],
       ["Amount", "25000000"],
       ["Spender", `Uniswap Universal Router | ${getAddress(tx.address)}`],
-      ["Expires", new Date(1_900_000_000 * 1000).toLocaleString()],
-      ["Signature deadline", new Date(1_800_000_000 * 1000).toLocaleString()],
+      ["Expires", "2030-03-17 17:46:40 UTC (1900000000)"],
+      ["Signature deadline", "2027-01-15 08:00:00 UTC (1800000000)"],
     ]);
     expect(rowsOf(steps)).toContain("Paid by=you (via Permit2)");
-    expect(rowsOf(steps)).toContain(
-      "Minimum=0 (the open amount from the previous step)",
+    // UNWRAP_WETH's amount is a minimum, and 0 sets none.
+    expect(rowsOf(steps)).toContain("Minimum=0 (no minimum)");
+  });
+
+  it("shows who pays the pool", () => {
+    const settle = (payerIsUser: boolean) =>
+      encodeAbiParameters(
+        [{ type: "address" }, { type: "uint256" }, { type: "bool" }],
+        [TOKEN, 5n, payerIsUser],
+      );
+    const pay = (payerIsUser: boolean) =>
+      describeUniversalRouterExecute(BASE, [
+        "0x10",
+        [
+          encodeAbiParameters(
+            [{ type: "bytes" }, { type: "bytes[]" }],
+            ["0x0b", [settle(payerIsUser)]],
+          ),
+        ],
+        0n,
+      ]);
+    expect(pay(true)).toEqual([
+      {
+        title: "Pay the pool",
+        rows: [
+          ["Currency", TOKEN],
+          ["Amount", "5"],
+          ["Paid by", "you (via Permit2)"],
+        ],
+      },
+    ]);
+    expect(pay(false)![0].rows).toContainEqual([
+      "Paid by",
+      "the router's balance",
+    ]);
+  });
+
+  it("reads each amount the way its own command does", () => {
+    const BALANCE = 1n << 255n;
+    const v3 = (amountIn: bigint) =>
+      encodeAbiParameters(
+        [
+          { type: "address" },
+          { type: "uint256" },
+          { type: "uint256" },
+          { type: "bytes" },
+          { type: "bool" },
+        ],
+        [
+          ALICE,
+          amountIn,
+          1n,
+          `0x${TOKEN.slice(2)}0001f4${ALICE.slice(2)}`,
+          false,
+        ],
+      );
+    const wrap = (amount: bigint) =>
+      encodeAbiParameters(
+        [{ type: "address" }, { type: "uint256" }],
+        [ALICE, amount],
+      );
+    const rows = (commands: Hex, inputs: Hex[]) =>
+      rowsOf(describeUniversalRouterExecute(BASE, [commands, inputs, 0n]));
+    // Router commands read only the contract-balance sentinel; 0 is 0.
+    expect(rows("0x000b", [v3(0n), wrap(0n)])).toEqual(
+      expect.arrayContaining(["Amount in=0", "Amount=0"]),
     );
+    expect(rows("0x000b", [v3(BALANCE), wrap(BALANCE)])).toEqual(
+      expect.arrayContaining([
+        "Amount in=the router's entire balance from the previous step",
+        "Amount=the router's entire balance from the previous step",
+      ]),
+    );
+    // UNWRAP_WETH's amount is a floor.
+    expect(rows("0x0c", [wrap(7n)])).toContain("Minimum=7");
+    // V4 swaps and takes read 0 as the open delta, but not the sentinel.
+    const swap = encodeAbiParameters(
+      [
+        {
+          type: "tuple",
+          components: [
+            {
+              type: "tuple",
+              components: [
+                { type: "address" },
+                { type: "address" },
+                { type: "uint24" },
+                { type: "int24" },
+                { type: "address" },
+              ],
+            },
+            { type: "bool" },
+            { type: "uint128" },
+            { type: "uint128" },
+            { type: "bytes" },
+          ],
+        },
+      ],
+      [
+        [
+          [zeroAddress, TOKEN, 10_000, 200, HOOK],
+          true,
+          (1n << 128n) - 1n,
+          1n,
+          "0x",
+        ],
+      ],
+    );
+    const take = encodeAbiParameters(
+      [{ type: "address" }, { type: "address" }, { type: "uint256" }],
+      [TOKEN, ALICE, BALANCE],
+    );
+    const v4 = encodeAbiParameters(
+      [{ type: "bytes" }, { type: "bytes[]" }],
+      ["0x060e", [swap, take]],
+    );
+    expect(rows("0x10", [v4])).toEqual(
+      expect.arrayContaining([
+        `Amount in=${(1n << 128n) - 1n}`,
+        `Amount=${BALANCE}`,
+      ]),
+    );
+  });
+
+  it("shows Permit2 times in UTC, whatever their size", () => {
+    const permit = (expiration: number, sigDeadline: bigint) =>
+      encodeAbiParameters(
+        [
+          {
+            type: "tuple",
+            components: [
+              {
+                type: "tuple",
+                components: [
+                  { type: "address" },
+                  { type: "uint160" },
+                  { type: "uint48" },
+                  { type: "uint48" },
+                ],
+              },
+              { type: "address" },
+              { type: "uint256" },
+            ],
+          },
+          { type: "bytes" },
+        ],
+        [[[TOKEN, 5n, expiration, 0], ALICE, sigDeadline], "0x"],
+      );
+    const times = (expiration: number, sigDeadline: bigint) =>
+      rowsOf(
+        describeUniversalRouterExecute(BASE, [
+          "0x0a",
+          [permit(expiration, sigDeadline)],
+          0n,
+        ]),
+      ).slice(3);
+    expect(times(2 ** 48 - 1, 2n ** 256n - 1n)).toEqual([
+      "Expires=281474976710655 (after year 275760)",
+      `Signature deadline=${2n ** 256n - 1n} (after year 275760)`,
+    ]);
+    // Permit2 stores an expiration of 0 as the block's own timestamp.
+    expect(times(0, 1n)).toEqual([
+      "Expires=0 (this block only)",
+      "Signature deadline=1970-01-01 00:00:01 UTC (1)",
+    ]);
   });
 
   it("shows an explicit V3 minimum and a msg.sender recipient", () => {
@@ -642,6 +859,21 @@ describe("Universal Router execute decoding", () => {
     ).toBeNull();
     expect(
       describeUniversalRouterExecute(BASE, ["0x10", ["0xdead"], 0n]),
+    ).toBeNull();
+    // An input with a trailing word is not what the router reads.
+    const wrap = encodeAbiParameters(
+      [{ type: "address" }, { type: "uint256" }],
+      [ALICE, 5n],
+    );
+    expect(
+      describeUniversalRouterExecute(BASE, ["0x0b", [wrap], 0n]),
+    ).not.toBeNull();
+    expect(
+      describeUniversalRouterExecute(BASE, [
+        "0x0b",
+        [`${wrap}${"00".repeat(32)}`],
+        0n,
+      ]),
     ).toBeNull();
     // A V3 path must be token, (fee, token)+.
     const shortPath = encodeAbiParameters(
@@ -847,6 +1079,30 @@ describe("JB hook metadata decoding", () => {
     );
   });
 
+  it("refuses a repeated lookup id, whose later entries the hook never reads", () => {
+    const id = hookMetadataId(HOOK, "pay");
+    const mint = (tierIds: number[]) =>
+      encodeAbiParameters(
+        [{ type: "bool" }, { type: "uint16[]" }],
+        [false, tierIds],
+      );
+    expect(
+      describeJBHookMetadata(
+        "pay",
+        createHookMetadata([id, id], [mint([4]), mint([7, 8])]),
+      ),
+    ).toBeNull();
+    expect(
+      describeJBHookMetadata(
+        "pay",
+        createHookMetadata(
+          [id, hookMetadataId(TARGET, "pay")],
+          [mint([4]), mint([7, 8])],
+        ),
+      ),
+    ).toHaveLength(2);
+  });
+
   it("rejects malformed or truncated envelopes", () => {
     const valid = build721PayMetadata({
       metadataIdTarget: TARGET,
@@ -959,6 +1215,11 @@ describe("Safe inner call decoding", () => {
     functionName: "approve",
     args: [BOB, 5n],
   });
+  const transfer = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "transfer",
+    args: [BOB, 5n],
+  });
 
   it("decodes a queued JB call with its target's ABI", () => {
     const data = encodeFunctionData({
@@ -989,9 +1250,36 @@ describe("Safe inner call decoding", () => {
     const usdc = describeSafeInnerCall(BASE, USDC, approve)!;
     expect(usdc[0].title).toBe("Queued call — USDC.approve(…)");
     expect(rowsOf(usdc)).toEqual([`spender="${BOB}"`, 'amount="5"']);
-    expect(describeSafeInnerCall(BASE, TOKEN, approve)![0].title).toBe(
-      "Queued call — ERC-20.approve(…)",
+  });
+
+  it("never claims a token standard for an unknown target", () => {
+    const erc721 = parseAbi([
+      "function transferFrom(address from, address to, uint256 tokenId)",
+    ]);
+    // An ERC-721 transfer and approval carry the ERC-20 selectors, with a
+    // token ID where ERC-20 has an amount.
+    const nftTransfer = encodeFunctionData({
+      abi: erc721,
+      functionName: "transferFrom",
+      args: [ALICE, BOB, 4_000_000_001n],
+    });
+    expect(describeSafeInnerCall(BASE, TOKEN, nftTransfer)).toBeNull();
+    expect(describeSafeInnerCall(BASE, TOKEN, approve)).toBeNull();
+    // A known ERC-20 reads them as amounts.
+    expect(describeSafeInnerCall(BASE, USDC, nftTransfer)![0].title).toBe(
+      "Queued call — USDC.transferFrom(…)",
     );
+    // Other ERC-20 calls are read as ERC-20, and say so.
+    expect(describeSafeInnerCall(BASE, TOKEN, transfer)).toEqual([
+      {
+        title:
+          "Queued call — transfer(…) on an unrecognized contract, read as ERC-20",
+        rows: [
+          ["recipient", `"${BOB}"`],
+          ["amount", '"5"'],
+        ],
+      },
+    ]);
   });
 
   it("reads a retired generation with its contract's ABI and names the generation", () => {
@@ -1055,17 +1343,22 @@ describe("Safe inner call decoding", () => {
     expect(describeSafeInnerCall(BASE, DIRECTORY, approve)).toBeNull();
     expect(describeSafeInnerCall(BASE, TOKEN, "0xdeadbeef")).toBeNull();
     // Trailing bytes, and arguments cut short.
-    expect(describeSafeInnerCall(BASE, TOKEN, `${approve}00`)).toBeNull();
-    expect(describeSafeInnerCall(BASE, TOKEN, approve.slice(0, 40))).toBeNull();
-    expect(describeSafeInnerCall(BASE, TOKEN, "0x095ea7")).toBeNull();
-    expect(describeSafeInnerCall(BASE, TOKEN, `${approve}0`)).toBeNull();
+    expect(describeSafeInnerCall(BASE, TOKEN, `${transfer}00`)).toBeNull();
+    expect(describeSafeInnerCall(BASE, USDC, `${approve}00`)).toBeNull();
+    expect(
+      describeSafeInnerCall(BASE, TOKEN, transfer.slice(0, 40)),
+    ).toBeNull();
+    expect(describeSafeInnerCall(BASE, TOKEN, "0xa9059c")).toBeNull();
+    expect(describeSafeInnerCall(BASE, TOKEN, `${transfer}0`)).toBeNull();
     expect(describeSafeInnerCall(BASE, TOKEN, 5n)).toBeNull();
-    expect(describeSafeInnerCall(BASE, "0x1234", approve)).toBeNull();
-    expect(describeSafeInnerCall(BASE, undefined, approve)).toBeNull();
+    expect(describeSafeInnerCall(BASE, "0x1234", transfer)).toBeNull();
+    expect(describeSafeInnerCall(BASE, undefined, transfer)).toBeNull();
   });
 });
 
 describe("Safe initializer decoding", () => {
+  const SAFE_TO_L2_SETUP =
+    "0xBD89A1CE4DDe368FFAB0eC35506eEcE0b1fFdc54" as Address;
   const setupAbi = parseAbi([
     "function setup(address[] _owners,uint256 _threshold,address to,bytes data,address fallbackHandler,address paymentToken,uint256 payment,address paymentReceiver)",
     "function setupToL2(address l2Singleton)",
@@ -1108,16 +1401,27 @@ describe("Safe initializer decoding", () => {
       "Setup hook=none",
     ]);
     expect(
-      rowsOf(describeSafeInitializer(1, setup([ALICE], BOB, toL2))),
-    ).toContain(`Setup hook=SafeToL2Setup.setupToL2(${TARGET}) via ${BOB}`);
+      rowsOf(
+        describeSafeInitializer(1, setup([ALICE], SAFE_TO_L2_SETUP, toL2)),
+      ),
+    ).toContain(
+      `Setup hook=SafeToL2Setup.setupToL2(${TARGET}) via ${SAFE_TO_L2_SETUP}`,
+    );
   });
 
   it("warns on any other setup delegatecall and on deployment payments", () => {
-    for (const data of ["0x1234", `${toL2}00`] as const) {
+    // Only the canonical SafeToL2Setup is known to run setupToL2; any other
+    // target could run anything under the same calldata.
+    for (const [to, data] of [
+      [BOB, toL2],
+      [BOB, "0x1234"],
+      [SAFE_TO_L2_SETUP, "0x1234"],
+      [SAFE_TO_L2_SETUP, `${toL2}00`],
+    ] as const) {
       expect(
-        rowsOf(describeSafeInitializer(1, setup([ALICE], BOB, data))),
+        rowsOf(describeSafeInitializer(1, setup([ALICE], to, data))),
       ).toContain(
-        `Setup hook=DELEGATECALL to ${BOB} — data in the raw payload below`,
+        `Setup hook=DELEGATECALL to ${to} — data in the raw payload below`,
       );
     }
     // With no `to`, Safe never runs the setup data.
@@ -1248,11 +1552,21 @@ describe("split group decoding", () => {
       `Group ${1n << 160n}`,
     ]);
     expect(rowsOf([steps[0]])).toEqual([
-      `Split 1 — 50%=${ALICE} | via hook ${HOOK} | prefers add-to-balance | locked until ${new Date(lockedUntil * 1000).toLocaleString()}`,
+      `Split 1 — 50%=${ALICE} | via hook ${HOOK} | prefers add-to-balance | locked until 2030-03-17 17:46:40 UTC (1900000000)`,
       `Split 2 — 50%=JBController | ${CONTROLLER}`,
       "Total=100%",
     ]);
     expect(steps[1].rows).toEqual([["Splits", "none"]]);
+    // A lock past the last calendar date still shows its exact value.
+    expect(
+      rowsOf(
+        describeSplitGroups(BASE, [
+          { groupId: 1n, splits: [{ ...split, lockedUntil: 2 ** 48 - 1 }] },
+        ]),
+      )[0],
+    ).toBe(
+      `Split 1 — 50%=${ALICE} | locked until 281474976710655 (after year 275760)`,
+    );
   });
 
   it("names the holder group a Sticky split pays", () => {
@@ -1306,6 +1620,8 @@ describe("split group decoding", () => {
       [{ groupId: 1n, splits: [{ ...split, percent: 5n }] }],
       [{ groupId: 1n, splits: [{ ...split, beneficiary: 1n }] }],
       [{ groupId: 1n, splits: [{ ...split, projectId: 0 }] }],
+      [{ groupId: 1n, splits: [{ ...split, lockedUntil: 1.5 }] }],
+      [{ groupId: 1n, splits: [{ ...split, lockedUntil: "1" }] }],
     ]) {
       expect(describeSplitGroups(1, value)).toBeNull();
     }
