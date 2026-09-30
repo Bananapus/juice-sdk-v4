@@ -79,6 +79,37 @@ describe("transaction receipt tracking", () => {
     expect(tracked.getTransactionReceipt).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the watcher's error out of a serialized error", async () => {
+    // viem's RPC errors carry the request URL, which can hold an API key.
+    const watcherError = new Error(
+      "HTTP request failed. URL: https://rpc.example/v1/SECRETKEY",
+    );
+    const tracked = client({
+      waitForTransactionReceipt: vi.fn().mockRejectedValue(watcherError),
+      getTransactionReceipt: vi.fn().mockRejectedValue(new Error("down")),
+    });
+    const error = (await waitForTrackedReceipt(tracked, HASH, {
+      attempts: 1,
+      intervalMs: 0,
+    }).catch(
+      (reason: unknown) => reason,
+    )) as TransactionReceiptUnavailableError;
+    expect(error.cause).toBe(watcherError);
+    expect(Object.keys(error)).not.toContain("cause");
+    expect(Object.getOwnPropertyDescriptor(error, "cause")).toMatchObject({
+      enumerable: false,
+      writable: true,
+      configurable: true,
+    });
+    const serialized = JSON.stringify(error);
+    expect(serialized).not.toContain("SECRETKEY");
+    expect(JSON.parse(serialized)).toEqual({
+      name: "TransactionReceiptUnavailableError",
+      hash: HASH,
+      chainId: 8453,
+    });
+  });
+
   it("reads at least once, and says less when the client has no chain", async () => {
     const tracked = client({
       chain: undefined,

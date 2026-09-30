@@ -7,8 +7,12 @@ import type { Hex, PublicClient, TransactionReceipt } from "viem";
  */
 export class TransactionReceiptUnavailableError extends Error {
   readonly name = "TransactionReceiptUnavailableError";
-  /** Why the receipt watcher gave up. */
-  readonly cause: unknown;
+  /**
+   * Why the receipt watcher gave up. Like a native error's cause it is not
+   * enumerable, so serializing this error leaves out the RPC error (and any
+   * key in its URL).
+   */
+  declare readonly cause: unknown;
 
   constructor(
     readonly hash: Hex,
@@ -18,7 +22,12 @@ export class TransactionReceiptUnavailableError extends Error {
     super(
       `Transaction ${hash} was submitted${chainId ? ` on chain ${chainId}` : ""}, but confirmation tracking is temporarily unavailable. Check this transaction and do not submit it again yet.`,
     );
-    this.cause = options.cause;
+    Object.defineProperty(this, "cause", {
+      value: options.cause,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
   }
 }
 

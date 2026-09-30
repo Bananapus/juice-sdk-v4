@@ -345,14 +345,14 @@ export function feeBuybackOptions(
   beneficiary: Address,
 ): Required<FeeOptions> {
   const current = jbContractAddress["6"] as Readonly<
-    Record<string, Readonly<Record<string, string>>>
+    Partial<Record<string, Readonly<Record<string, string>>>>
   >;
   const history = jbContractAddressHistory["6"] as Readonly<
     Record<string, Readonly<Record<string, Readonly<Record<string, string>>>>>
   >;
   const deployed = (contract: string) =>
     [
-      current[contract][chainId],
+      current[contract]?.[chainId],
       ...Object.values(history[contract] ?? {}).map(
         (generation) => generation[chainId],
       ),

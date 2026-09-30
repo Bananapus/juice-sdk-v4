@@ -721,6 +721,32 @@ describe("fee review helpers", () => {
     });
   });
 
+  it("trusts nothing for a contract the address table lacks", async () => {
+    vi.resetModules();
+    vi.doMock("../generated/juicebox.js", () => ({
+      jbContractAddress: {
+        "6": {
+          JBMultiTerminal: { 8453: terminal },
+          JBController: { 8453: controller },
+        },
+      },
+      jbContractAddressHistory: { "6": {} },
+    }));
+    try {
+      const withoutHooks = await import("./feeBuyback.js");
+      expect(withoutHooks.feeBuybackOptions(8453, user)).toEqual({
+        beneficiary: user,
+        trustedHooks: [],
+        terminals: [terminal],
+        controllers: [controller],
+        feePayers: [terminal],
+      });
+    } finally {
+      vi.doUnmock("../generated/juicebox.js");
+      vi.resetModules();
+    }
+  });
+
   it("recognizes a fee routed through the chain's own deployments", async () => {
     const v6 = jbContractAddress["6"] as unknown as Record<
       string,

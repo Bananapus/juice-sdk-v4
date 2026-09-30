@@ -90,15 +90,40 @@ function revertDetail(error: unknown): string {
     : "The call would revert.";
 }
 
-/** The node says `eth_simulateV1` itself is unavailable, not that a call reverted. */
+/**
+ * The node says `eth_simulateV1` itself is unavailable, not that a call
+ * reverted: a method-not-found (-32601) or method-not-supported (-32004) code
+ * anywhere in the error's first eight causes, or a message naming
+ * eth_simulateV1 as unavailable. A revert never qualifies, whatever its reason
+ * says.
+ */
 function simulationUnsupported(error: unknown): boolean {
-  const cause = error as { code?: number; message?: string } | null;
+  const messages: string[] = [];
+  let current = error;
+  for (
+    let depth = 0;
+    depth < 8 && current && typeof current === "object";
+    depth += 1
+  ) {
+    const item = current as {
+      code?: unknown;
+      message?: unknown;
+      details?: unknown;
+      cause?: unknown;
+    };
+    if (item.code === -32601 || item.code === -32004) return true;
+    for (const text of [item.message, item.details]) {
+      if (typeof text === "string") messages.push(text);
+    }
+    current = item.cause;
+  }
+  const text = messages.join("\n");
   return (
-    cause?.code === -32601 ||
-    cause?.code === -32004 ||
-    /not (?:allowed|supported|found|implemented)|unsupported|does not exist/i.test(
-      cause?.message ?? "",
-    )
+    /eth_simulateV1/i.test(text) &&
+    /not (?:allowed|supported|found|implemented|available)|unsupported|does not exist/i.test(
+      text,
+    ) &&
+    !/revert/i.test(text)
   );
 }
 

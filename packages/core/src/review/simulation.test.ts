@@ -1,4 +1,11 @@
-import type { Address, Hex, PublicClient } from "viem";
+import {
+  createPublicClient,
+  custom,
+  type Address,
+  type Hex,
+  type PublicClient,
+} from "viem";
+import { base } from "viem/chains";
 import { describe, expect, it, vi } from "vitest";
 import {
   simulateCallSequence,
@@ -235,8 +242,9 @@ describe("ordered call sequence simulation", () => {
     for (const unsupported of [
       { code: -32601 },
       { code: -32004 },
+      { cause: { cause: { code: -32601 } } },
       new Error("the method eth_simulateV1 does not exist/is not available"),
-      new Error("Method not supported"),
+      { details: "eth_simulateV1 is not supported on this network" },
     ]) {
       const client = sequenceClient(vi.fn().mockRejectedValue(unsupported));
       await expect(simulate(client)).resolves.toBeUndefined();
@@ -255,5 +263,92 @@ describe("ordered call sequence simulation", () => {
     await expect(simulate(failing)).rejects.toThrow(
       "Approve the pool cannot run on Base: execution reverted: no allowance",
     );
+  });
+
+  it("never reads a revert or another node error as eth_simulateV1 being unavailable", async () => {
+    for (const error of [
+      // A reason, even one naming eth_simulateV1, is the call's own revert.
+      new Error("execution reverted: Project not found"),
+      new Error("execution reverted: eth_simulateV1 is not supported"),
+      new Error("Method not supported"),
+      { code: -32603, message: "Internal error" },
+    ]) {
+      const client = sequenceClient(vi.fn().mockRejectedValue(error));
+      await expect(simulate(client)).rejects.toThrow(
+        /^The batch could not be simulated on Base: /,
+      );
+      expect(client.request).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe("call sequence simulation through viem", () => {
+  const calls = [
+    { to: TARGET, data: "0x01" as Hex, label: "First" },
+    { to: TARGET, data: "0x02" as Hex, label: "Second", dependsOnPrior: true },
+  ];
+  /** A real viem client whose node fails eth_simulateV1 with `error`. */
+  function node(error: { code: number; message: string; data?: Hex }) {
+    const methods: string[] = [];
+    const client = createPublicClient({
+      chain: base,
+      transport: custom(
+        {
+          async request({ method }: { method: string }) {
+            methods.push(method);
+            if (method === "eth_simulateV1") {
+              throw Object.assign(new Error(error.message), error);
+            }
+            if (method === "eth_call") return "0x";
+            throw new Error(`Unexpected ${method}`);
+          },
+        },
+        { retryCount: 0 },
+      ),
+    });
+    return { client, methods };
+  }
+
+  it("falls back when the node has no eth_simulateV1", async () => {
+    for (const error of [
+      {
+        code: -32601,
+        message: "the method eth_simulateV1 does not exist/is not available",
+      },
+      { code: -32004, message: "Method not supported" },
+      // Some nodes answer with a generic code and name the method.
+      {
+        code: -32000,
+        message: "the method eth_simulateV1 does not exist/is not available",
+      },
+    ]) {
+      const { client, methods } = node(error);
+      await expect(
+        simulateCallSequence(client, { from: FROM, calls, chainName: "Base" }),
+      ).resolves.toBeUndefined();
+      expect(methods).toEqual(["eth_simulateV1", "eth_call"]);
+    }
+  });
+
+  it("stops on a revert or an internal error instead of skipping dependent calls", async () => {
+    for (const error of [
+      {
+        code: 3,
+        message: "execution reverted: Project not found",
+        data: "0x08c379a0" as Hex,
+      },
+      {
+        code: 3,
+        message: "execution reverted: the method eth_simulateV1 does not exist",
+        data: "0x08c379a0" as Hex,
+      },
+      { code: -32603, message: "Internal error" },
+    ]) {
+      const { client, methods } = node(error);
+      await expect(
+        simulateCallSequence(client, { from: FROM, calls, chainName: "Base" }),
+      ).rejects.toThrow(/^The batch could not be simulated on Base: /);
+      expect(methods).toEqual(["eth_simulateV1"]);
+    }
   });
 });
