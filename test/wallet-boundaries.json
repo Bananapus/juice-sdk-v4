@@ -37,8 +37,15 @@
       "test": "packages/core/src/safe-reads.test.ts"
     },
     {
+      "file": "packages/core/src/review/simulation.ts",
+      "line": 47,
+      "api": "request",
+      "boundary": "Read only a raw eth_call of the reviewed call, bounded by explicit gas and a return data limit, at latest or a caller-given block. Never sign, send, or follow OffchainLookup URLs.",
+      "test": "packages/core/src/review/simulation.test.ts"
+    },
+    {
       "file": "packages/core/src/v6/feeBuyback.ts",
-      "line": 209,
+      "line": 213,
       "api": "request",
       "boundary": "Read only eth_blockNumber and an eth_simulateV1 of the reviewed call pinned to that block, bounded by an 8 second timeout. Never sign or send; the result only labels the fee route.",
       "test": "packages/core/src/v6/feeBuyback.test.ts"

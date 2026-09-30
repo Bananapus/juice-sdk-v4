@@ -1,11 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import { encodeAbiParameters, encodeEventTopics, parseAbi } from "viem";
 import {
+  jbContractAddress,
+  jbContractAddressHistory,
+} from "../generated/juicebox.js";
+import {
   analyzeFeeSimulation,
   checkFeeBuyback,
+  combineFeeResults,
   createFeeWatch,
+  feeBuybackOptions,
   feeMessage,
   feeReceipt,
+  feeReviewConfirmLabel,
+  isFeePayingCall,
+  type Fee,
   type FeeResult,
 } from "./feeBuyback.js";
 const terminal = "0x1111111111111111111111111111111111111111";
@@ -605,5 +614,183 @@ describe("fee buyback edge cases", () => {
     const confirmed = createFeeWatch(async () => once, vi.fn());
     await confirmed.refresh();
     expect(twice.fees).toHaveLength(2);
+  });
+});
+
+describe("fee review helpers", () => {
+  const fee: Fee = {
+    key: "base:6",
+    projectId: 6n,
+    beneficiary: user,
+    received: 9429n * 10n ** 18n,
+    route: "fallback",
+  };
+
+  it("checks only calls that can pay a protocol fee", () => {
+    for (const functionName of [
+      "borrowFrom",
+      "reallocateCollateralFromLoan",
+      "repayLoan",
+      "cashOutTokensOf",
+      "useAllowanceOf",
+      "sendPayoutsOf",
+      "processHeldFeesOf",
+      "pay",
+    ]) {
+      expect(isFeePayingCall({ functionName })).toBe(true);
+    }
+    for (const functionName of ["transfer", "payX", "xpay", "addToBalanceOf"]) {
+      expect(isFeePayingCall({ functionName })).toBe(false);
+    }
+    expect(isFeePayingCall({})).toBe(false);
+  });
+
+  it("shows a batch's worst fee result, keeping each call's fees apart", () => {
+    const ready: FeeResult = {
+      status: "ready",
+      fees: [{ ...fee, route: "swap" }],
+      checkedAt: 1,
+    };
+    const fallback: FeeResult = {
+      status: "fallback",
+      fees: [fee],
+      checkedAt: 2,
+    };
+    expect(combineFeeResults([ready])).toBe(ready);
+    expect(combineFeeResults([ready, fallback])).toEqual({
+      status: "fallback",
+      fees: [
+        { ...fee, route: "swap", key: "0:base:6" },
+        { ...fee, key: "1:base:6" },
+      ],
+      checkedAt: 1,
+    });
+    const none: FeeResult = { status: "none", fees: [] };
+    const unknown: FeeResult = { status: "unknown", fees: [] };
+    expect(combineFeeResults([none, unknown, ready])).toMatchObject({
+      status: "unknown",
+      checkedAt: 1,
+    });
+    // Without check times, the batch has none either.
+    expect(combineFeeResults([none, none])).toEqual({
+      status: "none",
+      fees: [],
+    });
+    expect(combineFeeResults([])).toEqual({ status: "none", fees: [] });
+  });
+
+  it("labels the confirm button by the fee result", () => {
+    const label = (
+      status: FeeResult["status"],
+      { enabled = true, busy = false } = {},
+    ) => feeReviewConfirmLabel({ enabled, busy, status });
+    expect(label("fallback", { enabled: false })).toBeUndefined();
+    expect(label("none")).toBeUndefined();
+    expect(label("none", { busy: true })).toBeUndefined();
+    expect(label("ready", { busy: true })).toBe("Checking fee return…");
+    expect(label("fallback")).toBe("Submit anyway");
+    expect(label("ready")).toBe("Review and submit");
+    expect(label("unknown")).toBe("Submit without estimate");
+  });
+
+  it("trusts every buyback hook generation, the terminal, the controller and the fee payers", () => {
+    const v6 = jbContractAddress["6"] as unknown as Record<
+      string,
+      Record<number, string>
+    >;
+    const hooks = jbContractAddressHistory["6"].JBBuybackHook;
+    expect(feeBuybackOptions(8453, user)).toEqual({
+      beneficiary: user,
+      trustedHooks: [
+        v6.JBBuybackHook[8453],
+        hooks.previous[8453],
+        hooks.v1[8453],
+      ],
+      terminals: [v6.JBMultiTerminal[8453]],
+      controllers: [v6.JBController[8453]],
+      feePayers: [v6.JBMultiTerminal[8453], v6.REVLoans[8453]],
+    });
+    // OP Sepolia has no buyback hook, so its fee return cannot be checked.
+    expect(feeBuybackOptions(11155420, user).trustedHooks).toEqual([]);
+    expect(feeBuybackOptions(999, user)).toEqual({
+      beneficiary: user,
+      trustedHooks: [],
+      terminals: [],
+      controllers: [],
+      feePayers: [],
+    });
+  });
+
+  it("trusts nothing for a contract the address table lacks", async () => {
+    vi.resetModules();
+    vi.doMock("../generated/juicebox.js", () => ({
+      jbContractAddress: {
+        "6": {
+          JBMultiTerminal: { 8453: terminal },
+          JBController: { 8453: controller },
+        },
+      },
+      jbContractAddressHistory: { "6": {} },
+    }));
+    try {
+      const withoutHooks = await import("./feeBuyback.js");
+      expect(withoutHooks.feeBuybackOptions(8453, user)).toEqual({
+        beneficiary: user,
+        trustedHooks: [],
+        terminals: [terminal],
+        controllers: [controller],
+        feePayers: [terminal],
+      });
+    } finally {
+      vi.doUnmock("../generated/juicebox.js");
+      vi.resetModules();
+    }
+  });
+
+  it("recognizes a fee routed through the chain's own deployments", async () => {
+    const v6 = jbContractAddress["6"] as unknown as Record<
+      string,
+      Record<number, string>
+    >;
+    // The fixture's fee, emitted by Base's terminal, controller and REVLoans
+    // and by the previous buyback hook generation.
+    const deployed: Record<string, string> = {
+      [terminal]: v6.JBMultiTerminal[8453],
+      [hook]: jbContractAddressHistory["6"].JBBuybackHook.previous[8453],
+      [controller]: v6.JBController[8453],
+      [loans]: v6.REVLoans[8453],
+    };
+    const readdress = <T extends string>(text: T) =>
+      Object.entries(deployed).reduce(
+        (out, [fixture, address]) =>
+          out.replaceAll(fixture.slice(2), address.slice(2).toLowerCase()),
+        text as string,
+      ) as T;
+    const onBase = simulation().map((block) => ({
+      calls: block.calls.map((call) => ({
+        ...call,
+        logs: call.logs.map((log) => ({
+          address: readdress(log.address),
+          topics: (log.topics as `0x${string}`[]).map(readdress),
+          data: readdress(log.data),
+        })),
+      })),
+    }));
+    expect(
+      analyzeFeeSimulation(onBase, feeBuybackOptions(8453, user)),
+    ).toMatchObject({ status: "fallback", fees: [{ route: "fallback" }] });
+    expect(
+      analyzeFeeSimulation(simulation(), feeBuybackOptions(8453, user)).status,
+    ).toBe("none");
+    // A chain without a buyback hook never simulates.
+    const request = vi.fn();
+    await expect(
+      checkFeeBuyback(
+        { request },
+        { from: user, to: terminal, data: "0x" },
+        feeBuybackOptions(11155420, user),
+      ),
+    ).resolves.toEqual({ status: "unknown", fees: [] });
+    expect(request).not.toHaveBeenCalled();
   });
 });

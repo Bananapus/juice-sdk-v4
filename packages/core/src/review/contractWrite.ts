@@ -1,6 +1,29 @@
-import { BaseError, UserRejectedRequestError, type Address } from "viem";
+import type { Address } from "viem";
 
 export type ReviewedWritePhase = "review" | "simulating" | "signing";
+
+/**
+ * Whether a wallet error proves that nothing was broadcast. Only an explicit
+ * rejection does: EIP-1193 code 4001, or viem's `UserRejectedRequestError`,
+ * anywhere in the first eight links of the error's `cause` chain. A timeout or
+ * any other failure may still have sent the transaction, so it returns false
+ * and the caller keeps its recovery lock.
+ */
+export function isDefiniteWalletRejection(error: unknown): boolean {
+  let current = error;
+  for (
+    let depth = 0;
+    depth < 8 && current && typeof current === "object";
+    depth += 1
+  ) {
+    const item = current as { code?: unknown; name?: unknown; cause?: unknown };
+    if (item.code === 4001 || item.name === "UserRejectedRequestError") {
+      return true;
+    }
+    current = item.cause;
+  }
+  return false;
+}
 
 export type ReviewedContractWriteOptions<
   TRequest extends { chainId: number },
@@ -94,13 +117,7 @@ export async function submitReviewedContractWrite<
   } catch (error) {
     // The same-looking error from review/simulation never reaches this catch.
     // An RPC timeout or ambiguous submission must preserve the recovery lock.
-    const rejected =
-      error instanceof UserRejectedRequestError ||
-      (error instanceof BaseError &&
-        error.walk(
-          (cause) => cause instanceof UserRejectedRequestError,
-        ) instanceof UserRejectedRequestError);
-    if (rejected) await onWriteRejected?.();
+    if (isDefiniteWalletRejection(error)) await onWriteRejected?.();
     throw error;
   }
 }

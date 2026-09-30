@@ -1,6 +1,9 @@
 import { BaseError, UserRejectedRequestError, type Address } from "viem";
 import { describe, expect, it, vi } from "vitest";
-import { submitReviewedContractWrite } from "./contractWrite.js";
+import {
+  isDefiniteWalletRejection,
+  submitReviewedContractWrite,
+} from "./contractWrite.js";
 
 const ALICE = "0x1111111111111111111111111111111111111111" as Address;
 const BOB = "0x2222222222222222222222222222222222222222" as Address;
@@ -240,5 +243,57 @@ describe("reviewed direct-write boundary", () => {
       ).rejects.toBe(error);
       expect(onWriteRejected).not.toHaveBeenCalled();
     }
+  });
+});
+
+describe("definite wallet rejections", () => {
+  it("recognizes an explicit rejection anywhere in the first eight causes", () => {
+    const rejection = new UserRejectedRequestError(new Error("Rejected"));
+    expect(isDefiniteWalletRejection(rejection)).toBe(true);
+    expect(
+      isDefiniteWalletRejection(
+        new BaseError("Write failed", { cause: rejection }),
+      ),
+    ).toBe(true);
+    // A raw EIP-1193 provider error, and one carried across a module boundary by name.
+    expect(isDefiniteWalletRejection({ code: 4001 })).toBe(true);
+    expect(
+      isDefiniteWalletRejection({ name: "UserRejectedRequestError" }),
+    ).toBe(true);
+    let chain: unknown = { code: 4001 };
+    for (let depth = 0; depth < 7; depth += 1) chain = { cause: chain };
+    expect(isDefiniteWalletRejection(chain)).toBe(true);
+    expect(isDefiniteWalletRejection({ cause: chain })).toBe(false);
+  });
+
+  it("treats every other failure as a possible broadcast", () => {
+    for (const error of [
+      undefined,
+      null,
+      "User rejected",
+      4001,
+      new Error("User rejected the request."),
+      { code: "4001" },
+      { code: 4100 },
+      { code: -32603, cause: { message: "timeout" } },
+    ]) {
+      expect(isDefiniteWalletRejection(error)).toBe(false);
+    }
+    const loop: { cause?: unknown } = {};
+    loop.cause = loop;
+    expect(isDefiniteWalletRejection(loop)).toBe(false);
+  });
+
+  it("clears persisted intent for a raw provider rejection from the write", async () => {
+    const run = harness();
+    const onWriteRejected = vi.fn();
+    const rejected = Object.assign(new Error("User rejected the request."), {
+      code: 4001,
+    });
+    run.options.write.mockRejectedValueOnce(rejected);
+    await expect(
+      submitReviewedContractWrite({ ...run.options, onWriteRejected }),
+    ).rejects.toBe(rejected);
+    expect(onWriteRejected).toHaveBeenCalledOnce();
   });
 });

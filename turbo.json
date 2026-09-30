@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalEnv": ["PROTOCOL_DEPLOYMENTS_DIR"],
+  "globalEnv": ["PROTOCOL_DEPLOYMENTS_DIR", "STICKY_DEPLOYMENTS_DIR"],
   "tasks": {
     "build": {
       "cache": false,

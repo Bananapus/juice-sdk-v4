@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import * as sdk from "./index.js";
 import * as bendystrawOperations from "./bendystrawOperations.js";
+import * as reviewDecode from "./review/decode.js";
 import * as review from "./review/index.js";
 import * as safe from "./safe.js";
 import * as safeService from "./safeService.js";
@@ -84,5 +85,39 @@ describe("published core SDK surfaces", () => {
     expect(sdk.resolveProjectDeployments).toBeTypeOf("function");
     expect(feeBuyback.checkFeeBuyback).toBeTypeOf("function");
     expect(feeBuyback.createFeeWatch).toBeTypeOf("function");
+    expect(review.isDefiniteWalletRejection).toBeTypeOf("function");
+    expect(review.waitForTrackedReceipt).toBeTypeOf("function");
+    expect(review.TransactionReceiptUnavailableError).toBeTypeOf("function");
+    expect(review.isTransactionReceiptUnavailableError).toBeTypeOf("function");
+    expect(review.simulateStateChangingTransaction).toBeTypeOf("function");
+    expect(review.simulateCallSequence).toBeTypeOf("function");
+    expect(review.TRANSACTION_SIMULATION_GAS).toBe(10_000_000n);
+    expect(review.TRANSACTION_SIMULATION_MAX_RETURN_BYTES).toBe(4_096);
+    expect(feeBuyback.isFeePayingCall).toBeTypeOf("function");
+    expect(feeBuyback.combineFeeResults).toBeTypeOf("function");
+    expect(feeBuyback.feeReviewConfirmLabel).toBeTypeOf("function");
+    expect(feeBuyback.feeBuybackOptions).toBeTypeOf("function");
+  });
+
+  test("keeps the review decoders on their own lazily loaded entry point", () => {
+    expect(Object.keys(reviewDecode).sort()).toEqual([
+      "describeJBHookMetadata",
+      "describePermissionsData",
+      "describeSafeInitializer",
+      "describeSafeInnerCall",
+      "describeSplitGroups",
+      "describeSuckerClaim",
+      "describeUniversalRouterExecute",
+      "describeV4UnlockData",
+      "functionFromCall",
+      "knownAddressName",
+      "namedValue",
+      "nativeValue",
+      "readableValue",
+      "reviewDescription",
+    ]);
+    for (const name of Object.keys(reviewDecode)) {
+      expect(review).not.toHaveProperty(name);
+    }
   });
 });
