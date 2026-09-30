@@ -1,12 +1,23 @@
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import {
   createPublicClient,
   custom,
+  http,
   type Address,
   type Hex,
   type PublicClient,
 } from "viem";
 import { base } from "viem/chains";
-import { describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import {
   simulateCallSequence,
   simulateStateChangingTransaction,
@@ -244,7 +255,14 @@ describe("ordered call sequence simulation", () => {
       { code: -32004 },
       { cause: { cause: { code: -32601 } } },
       new Error("the method eth_simulateV1 does not exist/is not available"),
+      new Error("Method not supported"),
       { details: "eth_simulateV1 is not supported on this network" },
+      // A viem error is read by its details, never its message.
+      {
+        shortMessage: "RPC Request failed.",
+        message: "RPC Request failed. Details: header not found",
+        details: "Unsupported method: eth_simulateV1",
+      },
     ]) {
       const client = sequenceClient(vi.fn().mockRejectedValue(unsupported));
       await expect(simulate(client)).resolves.toBeUndefined();
@@ -270,8 +288,19 @@ describe("ordered call sequence simulation", () => {
       // A reason, even one naming eth_simulateV1, is the call's own revert.
       new Error("execution reverted: Project not found"),
       new Error("execution reverted: eth_simulateV1 is not supported"),
-      new Error("Method not supported"),
+      new Error("header not found"),
       { code: -32603, message: "Internal error" },
+      // viem's message quotes the request body, which names the method.
+      {
+        shortMessage: "RPC Request failed.",
+        message:
+          'RPC Request failed. Request body: {"method":"eth_simulateV1"} Details: header not found',
+        details: "header not found",
+      },
+      {
+        shortMessage: "Missing or invalid parameters.",
+        message: "method not found",
+      },
     ]) {
       const client = sequenceClient(vi.fn().mockRejectedValue(error));
       await expect(simulate(client)).rejects.toThrow(
@@ -348,6 +377,114 @@ describe("call sequence simulation through viem", () => {
       await expect(
         simulateCallSequence(client, { from: FROM, calls, chainName: "Base" }),
       ).rejects.toThrow(/^The batch could not be simulated on Base: /);
+      expect(methods).toEqual(["eth_simulateV1"]);
+    }
+  });
+});
+
+// The network guard stubs fetch before every test; this is the real one.
+const loopbackFetch = globalThis.fetch;
+
+describe("call sequence simulation over viem's HTTP transport", () => {
+  const calls = [
+    { to: TARGET, data: "0x01" as Hex, label: "First" },
+    { to: TARGET, data: "0x02" as Hex, label: "Second", dependsOnPrior: true },
+  ];
+  let server: Server;
+  let url: string;
+  let simulateError: { code: number; message: string; data?: Hex };
+  let methods: string[];
+
+  beforeAll(async () => {
+    // A local JSON-RPC node: eth_simulateV1 fails with `simulateError`,
+    // eth_call succeeds.
+    server = createServer((request, response) => {
+      let body = "";
+      request.on("data", (chunk) => (body += chunk));
+      request.on("end", () => {
+        const answer = ({ id, method }: { id: number; method: string }) => {
+          methods.push(method);
+          return method === "eth_simulateV1"
+            ? { jsonrpc: "2.0", id, error: simulateError }
+            : { jsonrpc: "2.0", id, result: "0x" };
+        };
+        const message = JSON.parse(body);
+        response.setHeader("content-type", "application/json");
+        response.end(
+          JSON.stringify(
+            Array.isArray(message) ? message.map(answer) : answer(message),
+          ),
+        );
+      });
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  afterAll(async () => {
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  beforeEach(() => {
+    methods = [];
+    // Only this suite's loopback node may answer.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string | URL | Request, init?: RequestInit) =>
+        String(input) === url
+          ? loopbackFetch(input, init)
+          : Promise.reject(new Error(`Unexpected fetch: ${String(input)}`)),
+      ),
+    );
+  });
+
+  const simulate = () =>
+    simulateCallSequence(
+      createPublicClient({
+        chain: base,
+        transport: http(url, { retryCount: 0 }),
+      }),
+      { from: FROM, calls, chainName: "Base" },
+    );
+
+  it("falls back when the node reports the method missing", async () => {
+    for (const error of [
+      {
+        code: -32601,
+        message: "the method eth_simulateV1 does not exist/is not available",
+      },
+      { code: -32000, message: "method not found" },
+      { code: -32004, message: "Method not supported" },
+      {
+        code: -32600,
+        message: "Unsupported method: eth_simulateV1. See available methods.",
+      },
+    ]) {
+      simulateError = error;
+      methods = [];
+      await expect(simulate()).resolves.toBeUndefined();
+      expect(methods).toEqual(["eth_simulateV1", "eth_call"]);
+    }
+  });
+
+  it("fails closed on a lagging node, bad parameters or a revert", async () => {
+    for (const error of [
+      { code: -32000, message: "header not found" },
+      { code: -32000, message: "resource not found" },
+      { code: -32602, message: "field not allowed: validation" },
+      {
+        code: 3,
+        message: "execution reverted: Project not found",
+        data: "0x08c379a0" as Hex,
+      },
+    ]) {
+      simulateError = error;
+      methods = [];
+      await expect(simulate()).rejects.toThrow(
+        /^The batch could not be simulated on Base: /,
+      );
       expect(methods).toEqual(["eth_simulateV1"]);
     }
   });

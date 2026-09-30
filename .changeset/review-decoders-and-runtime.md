@@ -47,7 +47,8 @@ stricter checks where the copies differed:
   a raw `eth_call` that never follows CCIP-read, with gas and return data
   bounds and an optional block; `simulateCallSequence`, an ordered
   `eth_simulateV1` that falls back to one call at a time only when the node
-  reports the method missing, never on a revert; and
+  reports the method missing (-32601, -32004, or its own error text saying
+  so); a revert, a lagging node or bad parameters stop the simulation; and
   `isDefiniteWalletRejection`. `submitReviewedContractWrite` uses it too, so a
   raw EIP-1193 rejection (code 4001) from the wallet now clears the caller's
   persisted intent.

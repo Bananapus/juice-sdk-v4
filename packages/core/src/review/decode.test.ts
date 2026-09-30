@@ -231,6 +231,86 @@ describe("the reviewed function", () => {
     ).toBeNull();
   });
 
+  it("matches nested tuples, tuple arrays and dynamic types", () => {
+    // JBController.setSplitGroupsOf: a tuple[] whose tuples hold a tuple[].
+    const splitGroups = [
+      {
+        groupId: 1n,
+        splits: [
+          {
+            percent: 500_000_000,
+            projectId: 3n,
+            beneficiary: ALICE,
+            preferAddToBalance: false,
+            lockedUntil: 1_900_000_000,
+            hook: zeroAddress,
+          },
+          {
+            percent: 250_000_000,
+            projectId: 0n,
+            beneficiary: BOB,
+            preferAddToBalance: true,
+            lockedUntil: 0,
+            hook: HOOK,
+          },
+        ],
+      },
+      { groupId: BigInt(USDC), splits: [] },
+    ];
+    const setSplits = encodeFunctionData({
+      abi: jbControllerAbi,
+      functionName: "setSplitGroupsOf",
+      args: [4n, 7n, splitGroups],
+    });
+    expect(
+      functionFromCall({
+        abi: jbControllerAbi,
+        functionName: "setSplitGroupsOf",
+        args: [4n, 7n, splitGroups],
+        data: setSplits,
+      })?.name,
+    ).toBe("setSplitGroupsOf");
+    // The same groups as positional arrays encode to the same bytes.
+    expect(
+      functionFromCall({
+        abi: jbControllerAbi,
+        functionName: "setSplitGroupsOf",
+        args: [
+          4n,
+          7n,
+          splitGroups.map(({ groupId, splits }) => [
+            groupId,
+            splits.map((split) => Object.values(split)),
+          ]),
+        ],
+        data: setSplits,
+      })?.name,
+    ).toBe("setSplitGroupsOf");
+    // A string and bytes of odd sizes, a negative int24 and nested arrays.
+    const dynamic = parseAbi([
+      "function f(string memo, bytes metadata, int24 tick, uint8[] ids, bytes[] parts, (address to, bytes data)[] calls)",
+    ]);
+    const args = [
+      "memo ✓ unicode",
+      `0x${"ab".repeat(33)}`,
+      -69_200,
+      [1, 2, 3],
+      ["0x", "0x01", `0x${"ff".repeat(40)}`],
+      [
+        { to: ALICE, data: "0x1234" },
+        { to: BOB, data: "0x" },
+      ],
+    ] as const;
+    expect(
+      functionFromCall({
+        abi: dynamic,
+        functionName: "f",
+        args,
+        data: encodeFunctionData({ abi: dynamic, functionName: "f", args }),
+      }),
+    ).toBe(dynamic[0]);
+  });
+
   it("never renders arguments the calldata does not carry", () => {
     // The dialog shows `args`; a raw review's `data` is what the wallet signs.
     expect(

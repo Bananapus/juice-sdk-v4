@@ -90,15 +90,28 @@ function revertDetail(error: unknown): string {
     : "The call would revert.";
 }
 
+/** Node text saying the method itself is missing: "method not found", "Unsupported method: eth_simulateV1". */
+function namesMissingMethod(text: string): boolean {
+  return (
+    /\bmethod\b|eth_simulateV1/i.test(text) &&
+    /not (?:found|supported|available|allowed|implemented)|does not exist|unsupported/i.test(
+      text,
+    ) &&
+    !/revert/i.test(text)
+  );
+}
+
 /**
  * The node says `eth_simulateV1` itself is unavailable, not that a call
- * reverted: a method-not-found (-32601) or method-not-supported (-32004) code
- * anywhere in the error's first eight causes, or a message naming
- * eth_simulateV1 as unavailable. A revert never qualifies, whatever its reason
- * says.
+ * reverted or the node failed: a method-not-found (-32601) or
+ * method-not-supported (-32004) code anywhere in the error's first eight
+ * causes, or the node's own text saying the method is missing. That text is a
+ * viem error's `details`; its `message` quotes the request body, which always
+ * names eth_simulateV1, so only an error from outside viem is read by its
+ * `message`. A revert, a missing block ("header not found") or bad parameters
+ * never qualify.
  */
 function simulationUnsupported(error: unknown): boolean {
-  const messages: string[] = [];
   let current = error;
   for (
     let depth = 0;
@@ -107,24 +120,22 @@ function simulationUnsupported(error: unknown): boolean {
   ) {
     const item = current as {
       code?: unknown;
-      message?: unknown;
       details?: unknown;
+      message?: unknown;
+      shortMessage?: unknown;
       cause?: unknown;
     };
     if (item.code === -32601 || item.code === -32004) return true;
-    for (const text of [item.message, item.details]) {
-      if (typeof text === "string") messages.push(text);
-    }
+    const text =
+      typeof item.details === "string"
+        ? item.details
+        : typeof item.shortMessage === "string"
+          ? undefined
+          : item.message;
+    if (typeof text === "string" && namesMissingMethod(text)) return true;
     current = item.cause;
   }
-  const text = messages.join("\n");
-  return (
-    /eth_simulateV1/i.test(text) &&
-    /not (?:allowed|supported|found|implemented|available)|unsupported|does not exist/i.test(
-      text,
-    ) &&
-    !/revert/i.test(text)
-  );
+  return false;
 }
 
 /**
