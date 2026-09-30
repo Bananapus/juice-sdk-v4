@@ -109,11 +109,15 @@ regeneration and protocol parity gate it directly.
 `scripts/check-wallet-boundaries.mjs` parses all production TypeScript and TSX
 in both packages. It inventories wagmi/viem hooks and raw signing, transaction,
 contract-write, batched-call, wallet-client, and wallet `request` calls. The
-current surface contains four reviewed wallet sites: hook creation and execution
-for Relayr EIP-712 signing, and hook creation and execution for Relayr transaction
-submission. A fifth reviewed site is the Safe verifier’s read-only, gas- and
-response-bounded `eth_call`; its tests bind the RPC method and historical block
-and reject OffchainLookup without fetching a contract-selected URL. A new or moved site fails with an unreviewed residual until
+current surface contains seven reviewed sites. Four are wallet sites: hook
+creation and execution for Relayr EIP-712 signing, and hook creation and
+execution for Relayr transaction submission. Three are read-only RPC requests:
+the Safe verifier’s gas- and response-bounded `eth_call`, whose tests bind the
+RPC method and historical block and reject OffchainLookup without fetching a
+contract-selected URL; the review preflight’s raw `eth_call`
+(`simulateStateChangingTransaction`), bounded by explicit gas and a return data
+limit and tested the same way; and the fee buyback check’s `eth_blockNumber`
+and pinned `eth_simulateV1`. A new or moved site fails with an unreviewed residual until
 `test/wallet-boundaries.json` names its safety boundary and an existing focused
 test. Stale inventory rows fail too, so the inventory cannot silently become a
 historical allowlist.

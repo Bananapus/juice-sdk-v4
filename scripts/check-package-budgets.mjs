@@ -23,10 +23,13 @@ const budgets = {
     // trusted-forwarder views add about four kilobytes unpacked. The shared
     // web-client runtime (/review, the Safe service helpers,
     // /bendystraw-operations and /v6/fee-buyback) adds seven source files,
-    // fifty-six artifacts and about two hundred kilobytes unpacked.
-    packed: 975_000,
-    unpacked: 19_250_000,
-    entries: 546,
+    // fifty-six artifacts and about two hundred kilobytes unpacked. The review
+    // decoders on their own /review/decode entry point, the receipt fallback
+    // and the raw preflight add three source files, twenty-four artifacts,
+    // about 224 kilobytes unpacked and 44 kilobytes packed.
+    packed: 1_020_000,
+    unpacked: 19_480_000,
+    entries: 570,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

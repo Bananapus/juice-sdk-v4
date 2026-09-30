@@ -6,6 +6,10 @@ import {
   type Address,
   type Hex,
 } from "viem";
+import {
+  jbContractAddress,
+  jbContractAddressHistory,
+} from "../generated/juicebox.js";
 
 // Shared by every Juicebox client. Simulation results are
 // advisory estimates only; the existing transaction simulation/authorization remains mandatory.
@@ -270,6 +274,97 @@ export function feeReceipt(fee: Fee): string {
     ? ` to ${fee.beneficiary.slice(0, 6)}…${fee.beneficiary.slice(-4)}`
     : "";
   return `~${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${fraction ? "." + fraction.slice(0, 4) : ""} project #${fee.projectId} tokens${recipient}`;
+}
+
+/** Whether a reviewed call can pay a protocol fee, so its fee return is worth checking. */
+export function isFeePayingCall(call: { functionName?: string }): boolean {
+  return /^(?:borrowFrom|reallocateCollateralFromLoan|repayLoan|cashOutTokensOf|useAllowanceOf|sendPayoutsOf|processHeldFeesOf|pay)$/.test(
+    call.functionName ?? "",
+  );
+}
+
+const severity: Record<FeeResult["status"], number> = {
+  none: 0,
+  ready: 1,
+  unknown: 2,
+  fallback: 3,
+};
+
+/**
+ * One result for a batch's fee-paying calls: the worst status, every fee keyed
+ * by its call's index, and the oldest check time.
+ */
+export function combineFeeResults(results: readonly FeeResult[]): FeeResult {
+  if (results.length === 1) return results[0];
+  const checkedAt = Math.min(
+    ...results.map((result) => result.checkedAt ?? Infinity),
+  );
+  return {
+    status: results.reduce<FeeResult["status"]>(
+      (worst, result) =>
+        severity[result.status] > severity[worst] ? result.status : worst,
+      "none",
+    ),
+    fees: results.flatMap((result, index) =>
+      result.fees.map((fee) => ({ ...fee, key: `${index}:${fee.key}` })),
+    ),
+    ...(Number.isFinite(checkedAt) ? { checkedAt } : {}),
+  };
+}
+
+/**
+ * The review's confirm label while a fee return shows, or undefined to keep
+ * the review's own label.
+ */
+export function feeReviewConfirmLabel({
+  enabled,
+  busy,
+  status,
+}: {
+  /** Whether the review holds a fee-paying call ({@link isFeePayingCall}). */
+  enabled: boolean;
+  /** Whether a fee check is running. */
+  busy: boolean;
+  status: FeeResult["status"];
+}): string | undefined {
+  if (!enabled || status === "none") return undefined;
+  if (busy) return "Checking fee return…";
+  if (status === "fallback") return "Submit anyway";
+  if (status === "ready") return "Review and submit";
+  return "Submit without estimate";
+}
+
+/**
+ * The contracts {@link checkFeeBuyback} trusts on `chainId`: every buyback hook
+ * generation, the terminal and controller, and the terminal and REVLoans as
+ * fee payers. A chain without deployments trusts nothing, so its check reads
+ * as unknown.
+ */
+export function feeBuybackOptions(
+  chainId: number,
+  beneficiary: Address,
+): Required<FeeOptions> {
+  const current = jbContractAddress["6"] as Readonly<
+    Record<string, Readonly<Record<string, string>>>
+  >;
+  const history = jbContractAddressHistory["6"] as Readonly<
+    Record<string, Readonly<Record<string, Readonly<Record<string, string>>>>>
+  >;
+  const deployed = (contract: string) =>
+    [
+      current[contract][chainId],
+      ...Object.values(history[contract] ?? {}).map(
+        (generation) => generation[chainId],
+      ),
+    ].filter((address): address is string => !!address);
+  const terminals = deployed("JBMultiTerminal");
+  return {
+    beneficiary,
+    trustedHooks: deployed("JBBuybackHook"),
+    terminals,
+    controllers: deployed("JBController"),
+    feePayers: [...terminals, ...deployed("REVLoans")],
+  };
 }
 
 /** One review owns one watcher. It never sends, and stale/closed reviews cannot approve. */
