@@ -138,6 +138,26 @@ export const MULTI_SEND_ABI = [
 export const SAFE_PROXY_CREATION_CODE: Hex =
   "0x608060405234801561001057600080fd5b506040516101e63803806101e68339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260228152602001806101c46022913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060ab806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea264697066735822122003d1488ee65e08fa41e58e888a9865554c535f2c77126a82cb4c0f917f31441364736f6c63430007060033496e76616c69642073696e676c65746f6e20616464726573732070726f7669646564";
 
+/**
+ * `GnosisSafeProxyFactory.proxyCreationCode()` of both recognized 1.3.0
+ * factories (canonical and EIP-155), which are byte-identical. With
+ * {@link SAFE_PROXY_CREATION_CODE} it lets a creation record be checked
+ * against its address from calldata alone.
+ */
+const SAFE_130_PROXY_CREATION_CODE: Hex =
+  "0x608060405234801561001057600080fd5b506040516101e63803806101e68339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260228152602001806101c46022913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060ab806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea2646970667358221220d1429297349653a4918076d650332de1a1068c5f3e07c5c82360c277770b955264736f6c63430007060033496e76616c69642073696e676c65746f6e20616464726573732070726f7669646564";
+
+/** The proxy creation code `factory` deploys, or null for an unrecognized factory. */
+function proxyCreationCodeOf(factory: Address): Hex | null {
+  const release = RECOGNIZED_SAFE_RELEASES.find(({ factories }) =>
+    factories.some((candidate) => isAddressEqual(candidate, factory)),
+  );
+  if (!release) return null;
+  return release.version === "1.4.1"
+    ? SAFE_PROXY_CREATION_CODE
+    : SAFE_130_PROXY_CREATION_CODE;
+}
+
 const contracts = [
   [
     SAFE_FACTORY,
@@ -1264,11 +1284,17 @@ function isEoaIdentity(identity: AuthorityIdentity): boolean {
 }
 
 /**
- * Whether one authority controls an address the same way on two chains: an
- * EOA (plain or delegated, the key is the same) on both, or plain Safes with
- * the same owners, threshold, proxy, release, fallback handler and code. Paired
- * Ethereum and SafeL2 singletons are one release; a shared singleton address
- * must also share its code.
+ * Whether one authority shows the same policy on two chains: an EOA (plain or
+ * delegated, the key is the same) on both, or plain Safes with the same owners,
+ * threshold, proxy, release, fallback handler and code. Paired Ethereum and
+ * SafeL2 singletons are one release; a shared singleton address must also
+ * share its code.
+ *
+ * For Safes this is the visible policy, not proof of control. A setup hook can
+ * plant an owner or module no getter shows, and a Safe made with CREATE can be
+ * claimed at the same address on another chain. Pair it with
+ * {@link proveSafeCreation}, as {@link readMatchingAuthorityIdentities} and
+ * {@link readCrossChainHandleAuthority} do.
  */
 export function authorityIdentitiesMatch(
   source: AuthorityIdentity,
@@ -1295,23 +1321,33 @@ export function authorityIdentitiesMatch(
   );
 }
 
-/** Both chains' identities and whether they match, or null when either is unknown. */
+/**
+ * Both chains' identities and whether one authority controls `authority` on
+ * both, or null when either is unknown. EOAs match on their key. Safes match
+ * only on the same visible policy ({@link authorityIdentitiesMatch}) and a
+ * `creation` that proves how the Safe was made ({@link proveSafeCreation});
+ * without one, `matches` is false and `creationUnproven` is true.
+ */
 export async function readMatchingAuthorityIdentities({
   sourceClient,
   destinationClient,
   authority,
   sourceBlockNumber,
   destinationBlockNumber,
+  creation,
 }: {
   sourceClient: AuthorityClient;
   destinationClient: AuthorityClient;
   authority: Address;
   sourceBlockNumber?: bigint;
   destinationBlockNumber?: bigint;
+  /** The Safe's creation record, from `fetchSafeCreation` on the chain where it was made. */
+  creation?: SafeCreation | null;
 }): Promise<{
   source: AuthorityIdentity;
   destination: AuthorityIdentity;
   matches: boolean;
+  creationUnproven: boolean;
 } | null> {
   const [source, destination] = await Promise.all([
     readAuthorityIdentity(sourceClient, authority, {
@@ -1322,10 +1358,16 @@ export async function readMatchingAuthorityIdentities({
     }),
   ]);
   if (!source || !destination) return null;
+  const visible = authorityIdentitiesMatch(source, destination);
+  const creationUnproven =
+    visible &&
+    source.kind === "safe" &&
+    !(creation && proveSafeCreation(creation, authority).valid);
   return {
     source,
     destination,
-    matches: authorityIdentitiesMatch(source, destination),
+    matches: visible && !creationUnproven,
+    creationUnproven,
   };
 }
 
@@ -1337,6 +1379,7 @@ export type CrossChainHandleAuthorityStatus =
   | "source-contract"
   | "mainnet-contract"
   | "authority-mismatch"
+  | "unproven-creation"
   | "unsafe-safe-policy"
   | "contract-owner"
   | "unknown";
@@ -1383,9 +1426,11 @@ async function addressesAreEoas(
  * Whether `authority`, the live owner or operator of a project on
  * `sourceChainId`, may publish its Ethereum handle. On Ethereum it may. From
  * another chain it must be the same EOA on Ethereum, or a plain Safe there with
- * the same policy. A source Safe not yet deployed on Ethereum is
- * `missing-mainnet-safe`, which a same-address deployment can fix; every other
- * doubt is denied, an unreadable chain as `unknown`.
+ * the same policy whose `creation` proves how it was made
+ * ({@link proveSafeCreation}); without that proof it is `unproven-creation`.
+ * A source Safe not yet deployed on Ethereum is `missing-mainnet-safe`, which a
+ * same-address deployment can fix; every other doubt is denied, an unreadable
+ * chain as `unknown`.
  */
 export async function readCrossChainHandleAuthority({
   sourceChainId,
@@ -1394,6 +1439,7 @@ export async function readCrossChainHandleAuthority({
   authority,
   sourceBlockNumber,
   mainnetBlockNumber,
+  creation,
 }: {
   sourceChainId: number;
   sourceClient: AuthorityClient;
@@ -1401,6 +1447,8 @@ export async function readCrossChainHandleAuthority({
   authority: Address;
   sourceBlockNumber?: bigint;
   mainnetBlockNumber?: bigint;
+  /** The Safe's creation record, from `fetchSafeCreation` on `sourceChainId`. */
+  creation?: SafeCreation | null;
 }): Promise<CrossChainHandleAuthority> {
   if (sourceChainId === 1) return handleVerdict("valid-local", null, null);
   if (!mainnetClient) return handleVerdict("unknown", null, null);
@@ -1442,10 +1490,13 @@ export async function readCrossChainHandleAuthority({
   if (!isDeployableSafeAuthority(mainnet)) {
     return verdict("unsafe-safe-policy");
   }
+  if (!authorityIdentitiesMatch(source, mainnet)) {
+    return verdict("authority-mismatch");
+  }
   return verdict(
-    authorityIdentitiesMatch(source, mainnet)
+    creation && proveSafeCreation(creation, authority).valid
       ? "valid-safe"
-      : "authority-mismatch",
+      : "unproven-creation",
   );
 }
 
@@ -1620,6 +1671,83 @@ export function validateSafeCreationForCurrentPolicy(
     valid: true,
     owners: owners.map((owner) => getAddress(owner)),
     threshold: Number(thresholdRaw),
+    fallbackHandler: getAddress(fallbackHandler),
+  };
+}
+
+export type SafeCreationProof =
+  | {
+      valid: true;
+      /** The policy the Safe was created with, which its owners may since have changed. */
+      owners: Address[];
+      threshold: number;
+      fallbackHandler: Address;
+    }
+  | {
+      valid: false;
+      reason:
+        | "malformed-creation"
+        | "unrecognized-deployment"
+        | "malformed-initializer"
+        | "unsafe-initializer"
+        | "address-mismatch";
+    };
+
+/**
+ * Whether `creation` is how `safe` was created, so that no one but its owners
+ * can hold the same address on another chain:
+ *
+ * - a recognized release's factory and singleton;
+ * - the exact canonical `setup`, with no delegatecall hook but the exact
+ *   SafeToL2Setup call and no payment, so it planted no owner or module that
+ *   `getOwners` or `getModulesPaginated` cannot show;
+ * - its CREATE2 address (the factory, keccak256(keccak256(initializer) ‖
+ *   saltNonce), and the release's proxy creation code with the singleton) is
+ *   `safe`.
+ *
+ * The address then pins those inputs on every chain where the factory has its
+ * canonical code. A Safe made with CREATE (1.3.0's `createProxy`) has no such
+ * proof: its address depends only on the factory's nonce, which anyone can take
+ * on another chain. Read `creation` with `fetchSafeCreation` from the chain
+ * where the Safe was made.
+ */
+export function proveSafeCreation(
+  creation: SafeCreation,
+  safe: Address,
+): SafeCreationProof {
+  const refuse = (
+    reason: Extract<SafeCreationProof, { valid: false }>["reason"],
+  ): SafeCreationProof => ({ valid: false, reason });
+  if (typeof safe !== "string" || !isAddress(safe)) {
+    return refuse("malformed-creation");
+  }
+  const shape = safeCreationShapeRefusal(creation);
+  if (shape) return refuse(shape);
+  const args = canonicalSafeSetupArgs(creation.initializer);
+  if (!args) return refuse("malformed-initializer");
+  if (!safeSetupIsInert(args, creation.singleton)) {
+    return refuse("unsafe-initializer");
+  }
+  const created = getContractAddress({
+    opcode: "CREATE2",
+    from: getAddress(creation.factory),
+    salt: keccak256(
+      encodePacked(
+        ["bytes32", "uint256"],
+        [keccak256(creation.initializer), creation.saltNonce],
+      ),
+    ),
+    bytecode: concatHex([
+      proxyCreationCodeOf(creation.factory)!,
+      toHex(BigInt(creation.singleton), { size: 32 }),
+    ]),
+  });
+  if (!isAddressEqual(created, safe)) return refuse("address-mismatch");
+  const [owners, threshold, , , fallbackHandler] = args;
+  return {
+    valid: true,
+    owners: owners.map((owner) => getAddress(owner)),
+    threshold: Number(threshold),
     fallbackHandler: getAddress(fallbackHandler),
   };
 }

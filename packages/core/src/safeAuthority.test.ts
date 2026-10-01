@@ -27,6 +27,7 @@ import {
   vi,
 } from "vitest";
 import fixture from "../../../test/fixtures/safe-1.4.1.json" with { type: "json" };
+import creations from "../../../test/fixtures/safe-creations.json" with { type: "json" };
 import {
   MAX_SAFE_OWNERS,
   RECOGNIZED_SAFE_RELEASES,
@@ -43,6 +44,8 @@ import {
   safeSingletonsAreEquivalent,
   type AuthorityIdentity,
   type SafeAuthorityIdentity,
+  proveSafeCreation,
+  type SafeCreation,
 } from "./safe.js";
 
 const READS = parseAbi([
@@ -56,6 +59,17 @@ const READS = parseAbi([
 ]);
 
 const AUTHORITY = "0x1111111111111111111111111111111111111111" as Address;
+/** A real Ethereum Safe 1.3.0 and its creation record, which re-derives to its address. */
+const creationOf = (record: (typeof creations)["safe130Inert"]): SafeCreation => ({
+  factory: record.factory as Address,
+  singleton: record.singleton as Address,
+  initializer: record.initializer as Hex,
+  saltNonce: BigInt(record.saltNonce),
+});
+const PROVEN = {
+  address: creations.safe130Inert.address as Address,
+  creation: creationOf(creations.safe130Inert),
+};
 const ALICE = "0x2222222222222222222222222222222222222222" as Address;
 const BOB = "0x3333333333333333333333333333333333333333" as Address;
 const FALLBACK = getAddress("0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4");
@@ -83,6 +97,7 @@ const SAFE_1_4_PROXY = fixture.contracts.proxy.runtime as Hex;
 const word = (address: Address) => padHex(address, { size: 32 });
 
 type SafeClientOptions = {
+  safe?: Address;
   owners?: Address[];
   threshold?: bigint;
   modules?: Address[];
@@ -101,8 +116,9 @@ type SafeClientOptions = {
   rejectCodeFor?: Address;
 };
 
-/** A node holding one Safe at AUTHORITY; every read answers like the real contracts. */
+/** A node holding one Safe at `safe` (AUTHORITY by default); every read answers like the real contracts. */
 function safeClient({
+  safe = AUTHORITY,
   owners = [ALICE, BOB],
   threshold = 2n,
   modules = [],
@@ -134,7 +150,7 @@ function safeClient({
     if (rejectCodeFor && key === rejectCodeFor.toLowerCase()) {
       throw new Error("RPC unavailable");
     }
-    if (key === AUTHORITY.toLowerCase()) return proxyCode;
+    if (key === safe.toLowerCase()) return proxyCode;
     if (key === singleton.toLowerCase()) return singletonCode;
     if (
       key === fallbackHandler.toLowerCase() &&
@@ -713,13 +729,25 @@ describe("authority matching across chains", () => {
   it("reads both chains, and returns null rather than a mismatch when one cannot be read", async () => {
     await expect(
       readMatchingAuthorityIdentities({
-        sourceClient: safeClient(),
-        destinationClient: safeClient({ owners: [BOB, ALICE] }),
-        authority: AUTHORITY,
+        sourceClient: safeClient({ safe: PROVEN.address }),
+        destinationClient: safeClient({ safe: PROVEN.address, owners: [BOB, ALICE] }),
+        authority: PROVEN.address,
         sourceBlockNumber: 1n,
         destinationBlockNumber: 2n,
+        creation: PROVEN.creation,
       }),
-    ).resolves.toMatchObject({ matches: true });
+    ).resolves.toMatchObject({ matches: true, creationUnproven: false });
+    // The same visible policy without a creation proof is not control.
+    for (const creation of [undefined, null, PROVEN.creation]) {
+      await expect(
+        readMatchingAuthorityIdentities({
+          sourceClient: safeClient(),
+          destinationClient: safeClient({ owners: [BOB, ALICE] }),
+          authority: AUTHORITY,
+          creation,
+        }),
+      ).resolves.toMatchObject({ matches: false, creationUnproven: true });
+    }
     for (const destinationClient of [
       safeClient({ owners: [ALICE], threshold: 1n }),
       safeClient({ modules: [MODULE] }),
@@ -757,6 +785,7 @@ describe("authority matching across chains", () => {
       source: { kind: "eoa" },
       destination: { kind: "delegated-eoa", delegation: DELEGATION },
       matches: true,
+      creationUnproven: false,
     });
   });
 
@@ -830,13 +859,16 @@ describe("cross-chain handle authority", () => {
     sourceClient: PublicClient,
     mainnetClient?: PublicClient,
     sourceChainId = 8453,
+    { authority = AUTHORITY, creation }: { authority?: Address; creation?: SafeCreation | null } = {},
   ) =>
     readCrossChainHandleAuthority({
       sourceChainId,
       sourceClient,
       mainnetClient,
-      authority: AUTHORITY,
+      authority,
+      creation,
     });
+  const proven = { authority: PROVEN.address, creation: PROVEN.creation };
 
   it("leaves a live Ethereum authority local, whatever kind it is", async () => {
     for (const client of [eoaClient(), safeClient(), eoaClient([AUTHORITY])]) {
@@ -862,16 +894,31 @@ describe("cross-chain handle authority", () => {
         verdict(eoaClient([], sourceCode), eoaClient([], mainnetCode)),
       ).resolves.toMatchObject({ status: "valid-eoa", allowed: true });
     }
-    await expect(verdict(safeClient(), safeClient())).resolves.toMatchObject({
-      status: "valid-safe",
-      allowed: true,
-    });
+    const at = { safe: PROVEN.address };
+    await expect(
+      verdict(safeClient(at), safeClient(at), 8453, proven),
+    ).resolves.toMatchObject({ status: "valid-safe", allowed: true });
     await expect(
       verdict(
-        safeClient({ ownerCodes: { [ALICE.toLowerCase()]: EIP_7702_CODE } }),
-        safeClient({ ownerCodes: { [BOB.toLowerCase()]: EIP_7702_CODE } }),
+        safeClient({ ...at, ownerCodes: { [ALICE.toLowerCase()]: EIP_7702_CODE } }),
+        safeClient({ ...at, ownerCodes: { [BOB.toLowerCase()]: EIP_7702_CODE } }),
+        8453,
+        proven,
       ),
     ).resolves.toMatchObject({ status: "valid-safe", allowed: true });
+    // Matching Safes whose creation is missing or does not prove the address
+    // could be a third party's claim on the address: never trusted.
+    for (const options of [
+      {},
+      { creation: null },
+      { creation: PROVEN.creation },
+      { authority: PROVEN.address, creation: creationOf(creations.safe130Hooked) },
+    ]) {
+      const safe = options.authority ?? AUTHORITY;
+      await expect(
+        verdict(safeClient({ safe }), safeClient({ safe }), 8453, options),
+      ).resolves.toMatchObject({ status: "unproven-creation", allowed: false });
+    }
   });
 
   it("names a deployable missing Ethereum Safe apart from every refusal", async () => {
@@ -1062,6 +1109,71 @@ describe("authority identity over viem's HTTP transport", () => {
       await expect(
         readAuthorityIdentity(client(), AUTHORITY),
       ).resolves.toBeNull();
+    }
+  });
+});
+
+describe("Safe creation proof", () => {
+  it("proves real Safes from their creation records, in both releases", () => {
+    for (const record of [creations.safe130Inert, creations.safe141Inert]) {
+      expect(
+        proveSafeCreation(creationOf(record), record.address as Address),
+      ).toMatchObject({ valid: true });
+    }
+    expect(proveSafeCreation(PROVEN.creation, PROVEN.address)).toEqual({
+      valid: true,
+      owners: [
+        getAddress("0x8bE0c31612c22f94fE53f1Fe9BB726Dd196E9579"),
+        getAddress("0xe908c2D5613d24D49E376f19715c795DB8E04f81"),
+      ],
+      threshold: 1,
+      fallbackHandler: getAddress("0x017062a1dE2FE6b99BE3d9d37841FeD19F573804"),
+    });
+  });
+
+  it("refuses a setup hook, another address, and what is not a recognized creation", () => {
+    // A real Safe whose setup ran a MultiSend delegatecall: it could have planted
+    // an owner or module that no getter shows.
+    expect(
+      proveSafeCreation(
+        creationOf(creations.safe130Hooked),
+        creations.safe130Hooked.address as Address,
+      ),
+    ).toEqual({ valid: false, reason: "unsafe-initializer" });
+    for (const [creation, safe] of [
+      [{ ...PROVEN.creation, saltNonce: PROVEN.creation.saltNonce + 1n }, PROVEN.address],
+      [PROVEN.creation, AUTHORITY],
+    ] as const) {
+      expect(proveSafeCreation(creation, safe)).toEqual({
+        valid: false,
+        reason: "address-mismatch",
+      });
+    }
+    expect(
+      proveSafeCreation(
+        {
+          ...PROVEN.creation,
+          factory: "0x76E2cFc1F5Fa8F6a5b3fC4c8F4788F0116861F9B",
+          singleton: "0x34CfAC646f301356fAa8B21e94227e3583Fe3F5F",
+        },
+        PROVEN.address,
+      ),
+    ).toEqual({ valid: false, reason: "unrecognized-deployment" });
+    expect(
+      proveSafeCreation(
+        { ...PROVEN.creation, initializer: `${PROVEN.creation.initializer}00` as Hex },
+        PROVEN.address,
+      ),
+    ).toEqual({ valid: false, reason: "malformed-initializer" });
+    for (const [creation, safe] of [
+      [{ ...PROVEN.creation, saltNonce: 1 as unknown as bigint }, PROVEN.address],
+      [null as unknown as SafeCreation, PROVEN.address],
+      [PROVEN.creation, "0x12" as Address],
+    ] as const) {
+      expect(proveSafeCreation(creation, safe)).toEqual({
+        valid: false,
+        reason: "malformed-creation",
+      });
     }
   });
 });
