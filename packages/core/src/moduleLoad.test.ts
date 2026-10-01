@@ -12,6 +12,7 @@ const MODULES = [
   "src/safe.ts",
   "src/safeService.ts",
   "src/review/decode.ts",
+  "src/untrusted.ts",
   ...readdirSync("src/generated/abi").map(
     (file) => `src/generated/abi/${file}`,
   ),
@@ -111,7 +112,7 @@ function moduleWork(file: string, text = readFileSync(file, "utf8")): string[] {
 }
 
 describe("module load", () => {
-  test("the Safe, Safe service, review decoder and its ABI modules run nothing when imported", () => {
+  test("the Safe, Safe service, review decoder, its ABI modules and the untrusted-input readers run nothing when imported", () => {
     for (const file of MODULES) expect(moduleWork(file)).toEqual([]);
   });
 
