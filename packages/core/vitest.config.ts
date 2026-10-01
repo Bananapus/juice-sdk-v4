@@ -81,6 +81,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/review/relayr.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/review/receipt.ts": {
           statements: 100,
           branches: 100,

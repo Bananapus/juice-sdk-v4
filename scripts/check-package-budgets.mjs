@@ -26,10 +26,13 @@ const budgets = {
     // fifty-six artifacts and about two hundred kilobytes unpacked. The review
     // decoders on their own /review/decode entry point, the receipt fallback
     // and the raw preflight add three source files, twenty-four artifacts,
-    // about 237 kilobytes unpacked and 48 kilobytes packed.
-    packed: 1_020_000,
-    unpacked: 19_495_000,
-    entries: 570,
+    // about 237 kilobytes unpacked and 48 kilobytes packed. The Relayr quote
+    // binding, payment checks and payment and destination proofs on their own
+    // /review/relayr entry point add one source file, eight artifacts, about
+    // 179 kilobytes unpacked and 31 kilobytes packed.
+    packed: 1_050_000,
+    unpacked: 19_666_000,
+    entries: 578,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
