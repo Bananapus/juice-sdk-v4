@@ -100,6 +100,8 @@ const NO_PROOF =
   "This saved Relayr bundle lacks exact destination proof. Keep it pending and verify the original transactions; do not pay again.";
 const NOT_IDENTIFIED =
   "Relayr has not identified every exact destination transaction. Keep checking the original bundle; do not pay again.";
+const EXPIRED =
+  "This Relayr quote expired. Review the action again for a new quote.";
 const UNKNOWN_PAYMENT =
   "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.";
 
@@ -573,6 +575,16 @@ function deadlineSeconds(value: unknown): number | null {
     : null;
 }
 
+/** The deadline word of payment calldata. */
+function calldataDeadline(calldata: string): bigint {
+  return BigInt(`0x${calldata.slice(74)}`);
+}
+
+/** A quote is dead once its deadline is 15 seconds away or less. */
+function quoteExpired(deadline: bigint, nowSeconds: number): boolean {
+  return deadline <= BigInt(Math.floor(nowSeconds)) + 15n;
+}
+
 /** Payment calldata: the selector, the bundle UUID as a right-padded bytes16 word, and a uint40 deadline word. */
 function paymentCalldataFor(calldata: unknown, bundleUuid: string): boolean {
   return (
@@ -581,7 +593,7 @@ function paymentCalldataFor(calldata: unknown, bundleUuid: string): boolean {
     calldata.slice(0, 10).toLowerCase() === RELAYR_PAYMENT_SELECTOR &&
     calldata.slice(10, 74).toLowerCase() ===
       `${bundleUuid.replaceAll("-", "")}${"0".repeat(32)}` &&
-    BigInt(`0x${calldata.slice(74)}`) <= 0xffffffffffn
+    calldataDeadline(calldata) <= 0xffffffffffn
   );
 }
 
@@ -637,7 +649,7 @@ export function relayrPaymentDetails(
   ) {
     throw new Error("Relayr payment calldata does not match this bundle.");
   }
-  const deadline = BigInt(`0x${calldata.slice(74)}`);
+  const deadline = calldataDeadline(calldata);
   if (deadline > 0xffffffffffn) {
     throw new Error("Relayr returned an invalid payment deadline.");
   }
@@ -647,11 +659,7 @@ export function relayrPaymentDetails(
       "Relayr payment calldata does not match the quote deadline.",
     );
   }
-  if (deadline <= BigInt(Math.floor(nowSeconds)) + 15n) {
-    throw new Error(
-      "This Relayr quote expired. Review the action again for a new quote.",
-    );
-  }
+  if (quoteExpired(deadline, nowSeconds)) throw new Error(EXPIRED);
   return {
     chainId,
     target: RELAYR_PAYMENT_ADDRESS,
@@ -786,11 +794,15 @@ export async function simulateRelayrPayment(
   }
 }
 
+/** A status label as Relayr's states are compared: trimmed, in any case. */
+function stateLabel(state: unknown): string {
+  return typeof state === "string" ? state.trim().toLowerCase() : "";
+}
+
 /** Success is `success` or `completed`, in any case. */
 export function relayrStateIsSuccess(state?: string): boolean {
-  const normalized =
-    typeof state === "string" ? state.trim().toLowerCase() : "";
-  return normalized === "success" || normalized === "completed";
+  const label = stateLabel(state);
+  return label === "success" || label === "completed";
 }
 
 /**
@@ -798,7 +810,7 @@ export function relayrStateIsSuccess(state?: string): boolean {
  * final; receipts stay the proof either way.
  */
 export function relayrStateIsFailed(state?: string): boolean {
-  return typeof state === "string" && state.trim().toLowerCase() === "failed";
+  return stateLabel(state) === "failed";
 }
 
 /** Counts by Relayr's labels, with rows it has not reported yet counted as pending. */
@@ -975,6 +987,32 @@ type ReviewedPayment = Pick<
   "chainId" | "target" | "calldata" | "bundleUuid"
 > & { amount: bigint | string };
 
+/** A reviewed payment's parts, or null unless it is an authenticated Relayr payment. */
+function readReviewedPayment(payment: ReviewedPayment): {
+  chainId: number;
+  amount: bigint;
+  bundleUuid: string;
+  calldata: Hex;
+} | null {
+  const bundleUuid = uuidOf(payment?.bundleUuid);
+  const amount = uint256(payment?.amount);
+  if (
+    !relayrSupportsChain(payment?.chainId) ||
+    !sameAddress(payment.target, RELAYR_PAYMENT_ADDRESS) ||
+    amount === null ||
+    bundleUuid === null ||
+    !paymentCalldataFor(payment.calldata, bundleUuid)
+  ) {
+    return null;
+  }
+  return {
+    chainId: payment.chainId,
+    amount,
+    bundleUuid,
+    calldata: payment.calldata,
+  };
+}
+
 /**
  * Prove a Relayr payment from the chain: the transaction at `hash` is exactly
  * `payment` sent by `from` (chain, payment contract, calldata, value),
@@ -996,17 +1034,12 @@ export async function verifyRelayrPayment(
     payment,
   }: { hash: Hex; from: Address; payment: ReviewedPayment },
 ): Promise<TransactionReceipt> {
-  const uuid = uuidOf(payment?.bundleUuid);
-  const amount = uint256(payment?.amount);
+  const reviewed = readReviewedPayment(payment);
   if (
     typeof hash !== "string" ||
     !TRANSACTION_HASH.test(hash) ||
     !isAddressLike(from) ||
-    !relayrSupportsChain(payment?.chainId) ||
-    !sameAddress(payment.target, RELAYR_PAYMENT_ADDRESS) ||
-    amount === null ||
-    uuid === null ||
-    !paymentCalldataFor(payment.calldata, uuid)
+    !reviewed
   ) {
     throw new Error(
       "Only an authenticated Relayr payment with its transaction hash can be verified.",
@@ -1016,14 +1049,14 @@ export async function verifyRelayrPayment(
     client,
     {
       hash,
-      chainId: payment.chainId,
+      chainId: reviewed.chainId,
       from,
       to: RELAYR_PAYMENT_ADDRESS,
-      data: payment.calldata,
-      value: amount,
+      data: reviewed.calldata,
+      value: reviewed.amount,
     },
     {
-      unavailable: `Could not read Relayr payment ${hash} on chain ${payment.chainId}. Do not pay again; check it later.`,
+      unavailable: `Could not read Relayr payment ${hash} on chain ${reviewed.chainId}. Do not pay again; check it later.`,
       mismatch:
         "The funding transaction does not match the reviewed Relayr payment. Do not pay again; inspect the wallet's activity and the saved bundle.",
       notCanonical:
@@ -1034,7 +1067,7 @@ export async function verifyRelayrPayment(
     throw new RelayrPaymentRevertedError(
       "The Relayr funding transaction reverted onchain.",
       hash,
-      payment.chainId,
+      reviewed.chainId,
     );
   }
   return receipt;
@@ -1064,7 +1097,7 @@ export async function requireRelayrPaymentRetry(
     if (!(error instanceof RelayrPaymentRevertedError)) throw error;
     const { payment_received } = await readBundle(
       fetchBundle,
-      uuidOf(input.payment.bundleUuid)!,
+      readReviewedPayment(input.payment)!.bundleUuid,
       UNKNOWN_PAYMENT,
     );
     if (payment_received === false) return;
