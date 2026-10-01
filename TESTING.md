@@ -17,7 +17,7 @@ The SDK is the shared contract boundary for the frontends. Pull requests therefo
   conflating them with consumer runtime exposure.
 - `npm run test:coverage` runs framework-free V6 builder/read/math tests plus React metadata, cash-out, Bendystraw query-boundary, and Relayr signing/quote/payment/polling tests, producing per-package coverage reports.
 - `npm run build` regenerates contract bindings and builds the published ESM, CommonJS, declaration, and React outputs.
-- `npm run check:generated` fails if the locked contract packages regenerate a different committed binding.
+- `npm run check:generated` fails if the locked contract packages regenerate a different committed binding, including a binding file that is not committed. The ABIs the review decoder reads are generated into modules of their own under `packages/core/src/generated/abi/`, so a page that imports other ABIs does not load them. `scripts/splitAbiModules.test.ts` fails if the decoder reads a generated ABI from anywhere else, and `src/moduleLoad.test.ts` fails if `safe.ts`, `safeService.ts`, the decoder or those ABI modules run anything when imported.
 - `npm run check:gql` regenerates React query types from the committed Bendystraw schema and rejects any diff; refreshing that derivative schema from the live service remains an explicit reviewed maintainer action.
 - `npm run check:package` dry-runs both npm tarballs, rejects compiled tests/build caches, and caps packed size, unpacked size, and file count so generated growth is visible before it reaches every frontend consumer.
 - `npm run check` runs protocol parity, the wallet and formatting-debt inventories, deterministic type/coverage checks, both builds, package budgets, and generated-binding checks from a locked install. Run `npm run audit:prod` separately because advisory data is registry-backed and changes independently of the lockfile.
@@ -112,9 +112,12 @@ contract-write, batched-call, wallet-client, and wallet `request` calls. The
 current surface contains seven reviewed sites. Four are wallet sites: hook
 creation and execution for Relayr EIP-712 signing, and hook creation and
 execution for Relayr transaction submission. Three are read-only RPC requests:
-the Safe verifier’s gas- and response-bounded `eth_call`, whose tests bind the
-RPC method and historical block and reject OffchainLookup without fetching a
-contract-selected URL; the review preflight’s raw `eth_call`
+the Safe reads’ gas- and response-bounded `eth_call` (deployment verification,
+and the authority identity, nonce and approval reads), whose tests bind the RPC
+method and historical block, reject OffchainLookup without fetching a
+contract-selected URL, and run the identity read over viem’s `http()`
+transport against a local JSON-RPC server, where a revert or a -32603 stays
+unknown rather than reading as a contract; the review preflight’s raw `eth_call`
 (`simulateStateChangingTransaction`), bounded by explicit gas and a return data
 limit and tested the same way; and the fee buyback check’s `eth_blockNumber`
 and pinned `eth_simulateV1`. The Relayr payment simulation in `/review/relayr`

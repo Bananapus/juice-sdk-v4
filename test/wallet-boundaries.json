@@ -31,9 +31,9 @@
     },
     {
       "file": "packages/core/src/safe.ts",
-      "line": 264,
+      "line": 505,
       "api": "request",
-      "boundary": "Read only eth_call on a PublicClient with explicit Safe selectors, gas and response bounds, and the reviewed receipt block. Never sign, send, or follow OffchainLookup URLs.",
+      "boundary": "Read only eth_call on a PublicClient with explicit Safe selectors, gas and response bounds, at latest or a caller-given block (the reviewed receipt block when verifying). Serves Safe deployment verification and the authority identity, nonce and approval reads. Never sign, send, or follow OffchainLookup URLs.",
       "test": "packages/core/src/safe-reads.test.ts"
     },
     {

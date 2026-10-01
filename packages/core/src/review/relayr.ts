@@ -12,6 +12,7 @@ import {
   erc2771ForwarderAbi,
   jbContractAddress,
 } from "../generated/juicebox.js";
+import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import { simulateStateChangingTransaction } from "./simulation.js";
 
 // Relayr runs a bundle of transactions on several chains for one prepaid
@@ -81,12 +82,10 @@ export const FORWARD_REQUEST_TYPES = {
 
 const MAINNETS: readonly number[] = [1, 10, 8453, 42161];
 const TESTNETS: readonly number[] = [11155111, 11155420, 84532, 421614];
-const MAX_UINT256 = (1n << 256n) - 1n;
 const PAYMENT_CODE_MAX_BYTES = 2_048;
 const BUNDLE_READ_TIMEOUT_MS = 15_000;
 const HTTP_DETAIL_CHARACTERS = 240;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
-const TRANSACTION_HASH = /^0x[0-9a-f]{64}$/iu;
 // RFC 3339 with an explicit offset. A time without one is read in the
 // machine's timezone, which would make the same quote pass or fail by place.
 const DEADLINE_TIME =
@@ -274,25 +273,6 @@ function isAddressLike(value: unknown): value is Address {
 
 function sameAddress(value: unknown, address: string): boolean {
   return isAddressLike(value) && value.toLowerCase() === address.toLowerCase();
-}
-
-function isHexBytes(value: unknown): value is Hex {
-  return typeof value === "string" && /^0x(?:[0-9a-f]{2})*$/iu.test(value);
-}
-
-/** A uint256 given as decimal or 0x-hex digits, a safe integer or a bigint. */
-function uint256(value: unknown): bigint | null {
-  let parsed: bigint;
-  if (typeof value === "bigint") parsed = value;
-  else if (typeof value === "number" && Number.isSafeInteger(value)) {
-    parsed = BigInt(value);
-  } else if (
-    typeof value === "string" &&
-    /^(?:0x[0-9a-f]+|\d+)$/iu.test(value)
-  ) {
-    parsed = BigInt(value);
-  } else return null;
-  return parsed >= 0n && parsed <= MAX_UINT256 ? parsed : null;
 }
 
 function uuidOf(value: unknown): string | null {
@@ -848,7 +828,7 @@ export function relayrDestinationHash(
 ): Hex | null {
   const data = record?.status?.data;
   const hash = data?.hash ?? data?.transaction?.hash;
-  return typeof hash === "string" && TRANSACTION_HASH.test(hash) ? hash : null;
+  return typeof hash === "string" && isBytes32(hash) ? hash : null;
 }
 
 /** A record's destination chain. Relayr's status nests it under `request`. */
@@ -967,7 +947,7 @@ async function proveTransaction(
   if (
     !sameAddress(receipt.to, expected.to) ||
     typeof receipt.blockHash !== "string" ||
-    !TRANSACTION_HASH.test(receipt.blockHash) ||
+    !isBytes32(receipt.blockHash) ||
     transaction.blockHash?.toLowerCase() !== receipt.blockHash.toLowerCase() ||
     typeof receipt.blockNumber !== "bigint" ||
     transaction.blockNumber !== receipt.blockNumber ||
@@ -1048,7 +1028,7 @@ export async function verifyRelayrPayment(
   const reviewed = readReviewedPayment(payment);
   if (
     typeof hash !== "string" ||
-    !TRANSACTION_HASH.test(hash) ||
+    !isBytes32(hash) ||
     !isAddressLike(from) ||
     !reviewed
   ) {
@@ -1189,7 +1169,7 @@ export async function verifyRelayrDestination(
   { entry, hash }: { entry: RelayrEntry; hash: Hex },
 ): Promise<TransactionReceipt> {
   const read = readEntry(entry);
-  if (!read || typeof hash !== "string" || !TRANSACTION_HASH.test(hash)) {
+  if (!read || typeof hash !== "string" || !isBytes32(hash)) {
     throw new Error(NO_PROOF);
   }
   const receipt = await proveTransaction(

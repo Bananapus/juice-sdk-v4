@@ -139,6 +139,23 @@ describe("Safe transaction service boundaries", () => {
     );
   });
 
+  it("refuses a malformed proposal hash, and a malformed execution hash from the service", async () => {
+    await expect(
+      waitForSafeExecutionHash(8453, "0x1234" as typeof PROPOSAL),
+    ).rejects.toThrow("Invalid Safe proposal hash: 0x1234.");
+    for (const transactionHash of ["0x1234", `0x${"zz".repeat(32)}`, 7]) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          executed({ isExecuted: true, isSuccessful: true, transactionHash }),
+        ),
+      );
+      await expect(waitForSafeExecutionHash(8453, PROPOSAL)).rejects.toThrow(
+        `reported ${PROPOSAL} executed in a malformed transaction hash: ${transactionHash}.`,
+      );
+    }
+  });
+
   it("stops when aborted before, during or between polls", async () => {
     vi.stubGlobal(
       "fetch",

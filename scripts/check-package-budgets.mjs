@@ -29,10 +29,23 @@ const budgets = {
     // about 237 kilobytes unpacked and 48 kilobytes packed. The Relayr quote
     // binding, payment checks and payment and destination proofs on their own
     // /review/relayr entry point add one source file, eight artifacts, about
-    // 179 kilobytes unpacked and 31 kilobytes packed.
-    packed: 1_050_000,
-    unpacked: 19_666_000,
-    entries: 578,
+    // 179 kilobytes unpacked and 31 kilobytes packed. The decoder's eleven
+    // generated ABIs, each in a module of its own so a page loads only the
+    // ABIs it uses, add eleven source files, eighty-eight artifacts, about 36
+    // kilobytes unpacked and 22 kilobytes packed. The Safe authority, queue
+    // and execution checks on /safe and /safe-service, the distribution
+    // verifiers on /v6 and the shared untrusted-input readers add two source
+    // files, sixteen artifacts, about 377 kilobytes unpacked and 72 kilobytes
+    // packed (measured 1,139,349 B packed, 20,075,303 B unpacked, 682 files).
+    // Loading the decoder and the distribution checks without running
+    // anything splits two modules into sixteen more artifacts, and the
+    // creation proof with the pinned 1.3.0 proxy creation code, the contract
+    // signature encoding and the refund and row checks add about 48 kilobytes
+    // unpacked and 14 kilobytes packed (measured 1,153,389 B packed,
+    // 20,123,016 B unpacked, 698 files).
+    packed: 1_157_000,
+    unpacked: 20_128_000,
+    entries: 698,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

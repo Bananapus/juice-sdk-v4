@@ -73,14 +73,7 @@ export const MAX_PAYOUT_LIMIT = BigInt(
   "26959946667150639794667015087019630673637144422540572481103610249215",
 );
 
-/**
- * The 100% representation for a ruleset's Splits.
- *
- * The sum of all Splits should total this value.
- *
- * @link JBConstants.sol
- */
-export const SPLITS_TOTAL_PERCENT = 1_000_000_000;
+export { SPLITS_TOTAL_PERCENT, USDC_ADDRESSES } from "./pureConstants.js";
 
 /**
  * The number of decimals that the internal JB Token has.
@@ -369,18 +362,4 @@ export const CCIP_SUCKER_DEPLOYER_ADDRESSES: Record<5 | 6, SuckerDeployerMap> =
  */
 export const NATIVE_SUCKER_DEPLOYER_ADDRESSES: Record<6, SuckerDeployerMap> = {
   6: jbNativeSuckerDeployerAddress[6] as SuckerDeployerMap,
-};
-
-/**
- * USDC contract addresses on supported chains.
- */
-export const USDC_ADDRESSES: Record<JBChainId, Address> = {
-  [sepolia.id]: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-  [mainnet.id]: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-  [optimismSepolia.id]: "0x5fd84259d66Cd46123540766Be93DFE6D43130D7",
-  [optimism.id]: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
-  [baseSepolia.id]: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-  [base.id]: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-  [arbitrumSepolia.id]: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
-  [arbitrum.id]: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
 };

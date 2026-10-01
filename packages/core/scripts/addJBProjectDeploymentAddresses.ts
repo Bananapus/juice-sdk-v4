@@ -6,6 +6,7 @@ import {
 } from "../src/contracts.js";
 import fs from "fs";
 import { aliasRouterAbis } from "./aliasRouterAbis.js";
+import { REVIEW_DECODER_ABIS, splitAbiModules } from "./splitAbiModules.js";
 import {
   getAllContractNames,
   getHistoricalContract,
@@ -177,8 +178,15 @@ async function buildDefaultAddressContent() {
 async function addDefaultAddresses() {
   const filePath = "src/generated/juicebox.ts";
   const content = await buildDefaultAddressContent();
-  const bindings = aliasRouterAbis(fs.readFileSync(filePath, "utf8"));
-  fs.writeFileSync(filePath, bindings + content);
+  const bindings = splitAbiModules(
+    aliasRouterAbis(fs.readFileSync(filePath, "utf8")),
+    REVIEW_DECODER_ABIS,
+  );
+  fs.mkdirSync("src/generated/abi", { recursive: true });
+  for (const [name, module] of Object.entries(bindings.modules)) {
+    fs.writeFileSync(`src/generated/abi/${name}.ts`, module);
+  }
+  fs.writeFileSync(filePath, bindings.source + content);
 }
 
 addDefaultAddresses();

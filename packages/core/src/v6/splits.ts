@@ -1,7 +1,7 @@
 import { Address, ContractFunctionArgs, zeroAddress } from "viem";
-import { SPLITS_TOTAL_PERCENT } from "../constants.js";
+import { SPLITS_TOTAL_PERCENT } from "../pureConstants.js";
 import { jbControllerAbi } from "../generated/juicebox.js";
-import { JBChainId } from "../types.js";
+import type { JBChainId } from "../types.js";
 import { v6Address } from "./types.js";
 
 type SetSplitGroupsArgs = ContractFunctionArgs<

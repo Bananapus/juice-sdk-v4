@@ -1,6 +1,6 @@
 import { Address } from "viem";
 import { jbContractAddress } from "../generated/juicebox.js";
-import { JBChainId } from "../types.js";
+import type { JBChainId } from "../types.js";
 
 /**
  * The contracts deployed for Juicebox v6.
