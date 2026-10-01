@@ -32,10 +32,14 @@ const budgets = {
     // 179 kilobytes unpacked and 31 kilobytes packed. The decoder's eleven
     // generated ABIs, each in a module of its own so a page loads only the
     // ABIs it uses, add eleven source files, eighty-eight artifacts, about 36
-    // kilobytes unpacked and 22 kilobytes packed.
-    packed: 1_075_000,
-    unpacked: 19_705_000,
-    entries: 666,
+    // kilobytes unpacked and 22 kilobytes packed. The Safe authority, queue
+    // and execution checks on /safe and /safe-service, the distribution
+    // verifiers on /v6 and the shared untrusted-input readers add two source
+    // files, sixteen artifacts, about 377 kilobytes unpacked and 72 kilobytes
+    // packed (measured 1,139,349 B packed, 20,075,303 B unpacked, 682 files).
+    packed: 1_143_000,
+    unpacked: 20_080_000,
+    entries: 682,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

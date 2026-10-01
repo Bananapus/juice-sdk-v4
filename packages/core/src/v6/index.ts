@@ -5,6 +5,7 @@ export * from "./launch.js";
 export * from "./omnichain.js";
 export * from "./rulesets.js";
 export * from "./splits.js";
+export * from "./distributions.js";
 export * from "./revnets.js";
 export * from "./terminals.js";
 export * from "./pay.js";

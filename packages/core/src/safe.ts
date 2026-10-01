@@ -1,7 +1,9 @@
 import {
   concatHex,
+  decodeAbiParameters,
   decodeFunctionData,
   decodeFunctionResult,
+  encodeAbiParameters,
   encodeFunctionData,
   encodeFunctionResult,
   encodePacked,
@@ -10,12 +12,15 @@ import {
   isAddress,
   isAddressEqual,
   keccak256,
+  size,
   toHex,
   zeroAddress,
   type Address,
   type Hex,
   type PublicClient,
 } from "viem";
+import { simulateStateChangingTransaction } from "./review/simulation.js";
+import { isHexBytes, uint256 } from "./untrusted.js";
 
 // This module runs nothing when it loads: every value below is a literal, so
 // importing one export does not pull in the rest. Checksummed addresses are
@@ -28,6 +33,8 @@ export const SAFE_FACTORY: Address =
   "0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67";
 export const SAFE_SINGLETON: Address =
   "0x41675C099F32341bf84BFc5382aF534df5C7461a";
+/** The 1.4.1 SafeL2 singleton, which SafeToL2Setup installs off Ethereum. */
+const SAFE_L2_SINGLETON: Address = "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762";
 export const SAFE_FALLBACK: Address =
   "0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99";
 export const MULTICALL3: Address = "0xcA11bde05977b3631167028862bE2a173976CA11";
@@ -41,6 +48,85 @@ export const MAX_SAFE_OWNERS = 50;
  */
 export const SAFE_TO_L2_SETUP_ADDRESS: Address =
   "0xBD89A1CE4DDe368FFAB0eC35506eEcE0b1fFdc54";
+
+/** keccak256 of SafeToL2Setup's runtime, the same on every canonical chain. */
+export const SAFE_TO_L2_SETUP_CODE_HASH: Hex =
+  "0x2f25df28caf984366ee584e13241707e85dcd5a6ea0c14267928dafc1fd6274b";
+
+/**
+ * Safe's vanity `paymentReceiver` marker. Inert, because a replayable
+ * initializer must still set a zero `payment`.
+ */
+export const SAFE_CANONICAL_PAYMENT_RECEIVER: Address =
+  "0x5afe7A11E7000000000000000000000000000000";
+
+/**
+ * The official Safe releases an authority may run, from
+ * safe-global/safe-deployments: each singleton (Safe and SafeL2, canonical and
+ * EIP-155 deployments) and proxy factory. An address is pinned to its code by
+ * its deterministic deployment, so the list is a code allow-list. A contract
+ * that only implements the owner API is never a Safe.
+ */
+export const RECOGNIZED_SAFE_RELEASES = [
+  {
+    version: "1.3.0",
+    singletons: [
+      "0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552",
+      "0x69f4D1788e39c87893C980c06EdF4b7f686e2938",
+      "0x3E5c63644E683549055b9Be8653de26E0B4CD36E",
+      "0xfb1bffC9d739B8D520DaF37dF666da4C687191EA",
+    ],
+    factories: [
+      "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
+      "0xC22834581EbC8527d974F8a1c97E1bEA4EF910BC",
+    ],
+  },
+  {
+    version: "1.4.1",
+    singletons: [SAFE_SINGLETON, SAFE_L2_SINGLETON],
+    factories: [SAFE_FACTORY],
+  },
+] as const satisfies readonly {
+  version: string;
+  singletons: readonly Address[];
+  factories: readonly Address[];
+}[];
+
+export type RecognizedSafeVersion =
+  (typeof RECOGNIZED_SAFE_RELEASES)[number]["version"];
+
+/**
+ * keccak256 of the proxy runtime each recognized factory deploys
+ * (`proxyCreationCode()` of 1.3.0 and 1.4.1).
+ */
+const PROXY_CODE_HASH =
+  "0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c";
+const RECOGNIZED_SAFE_PROXY_CODE_HASHES = [
+  "0xb89c1b3bdf2cf8827818646bce9a8f6e372885f8c55e5c07acbd307cb133b000",
+  PROXY_CODE_HASH,
+] as const;
+
+/** Each release's Ethereum singleton and the SafeL2 singleton SafeToL2Setup installs elsewhere. */
+export const SAFE_L1_L2_SINGLETON_PAIRS = [
+  [SAFE_SINGLETON, SAFE_L2_SINGLETON],
+] as const satisfies readonly (readonly [Address, Address])[];
+
+/**
+ * Safe's MultiSendCallOnly 1.3.0, the same address on every supported chain. A
+ * Safe DELEGATECALLs it to run several calls as one transaction.
+ */
+export const MULTI_SEND_CALL_ONLY: Address =
+  "0x40A2aCCbd92BCA938b02010E17A5b8929b49130D";
+
+export const MULTI_SEND_ABI = [
+  {
+    name: "multiSend",
+    type: "function",
+    stateMutability: "payable",
+    inputs: [{ type: "bytes", name: "transactions" }],
+    outputs: [],
+  },
+] as const;
 
 /**
  * `SafeProxyFactory.proxyCreationCode()` at {@link SAFE_FACTORY}: the same
@@ -66,8 +152,6 @@ const contracts = [
     "0x7c6007a5d711cea8dfd5d91f5940ec29c7f200fe511eb1fc1397b367af3c42f9",
   ],
 ] as const;
-const PROXY_CODE_HASH =
-  "0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c";
 const SENTINEL = "0x0000000000000000000000000000000000000001" as const;
 const SINGLETON_SLOT =
   "0x0000000000000000000000000000000000000000000000000000000000000000" as const;
@@ -195,6 +279,23 @@ const READ_ABI = [
       { type: "uint256", name: "pageSize" },
     ],
     outputs: [{ type: "address[]" }, { type: "address" }],
+  },
+  {
+    name: "nonce",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "approvedHashes",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { type: "address", name: "owner" },
+      { type: "bytes32", name: "hash" },
+    ],
+    outputs: [{ type: "uint256" }],
   },
 ] as const;
 
@@ -367,14 +468,19 @@ export async function resolveSafeAddress(
   return { address: plan.address, plan };
 }
 
+/**
+ * One raw `eth_call` into a Safe, bounded by `gas` and `maxBytes` of return
+ * data: the result, or null when the node answered with anything but whole
+ * hex bytes within the bound. An RPC failure throws.
+ */
 async function boundedCall(
-  client: PublicClient,
+  client: Pick<PublicClient, "request">,
   address: Address,
   data: Hex,
   gas: bigint,
   maxBytes: number,
   blockNumber?: bigint,
-): Promise<Hex> {
+): Promise<Hex | null> {
   // Raw RPC cannot follow a contract-selected CCIP/OffchainLookup URL.
   const result = await client.request({
     method: "eth_call",
@@ -383,14 +489,11 @@ async function boundedCall(
       blockNumber === undefined ? "latest" : toHex(blockNumber),
     ],
   });
-  if (
-    typeof result !== "string" ||
-    !/^0x(?:[\da-f]{2})*$/i.test(result) ||
-    result.length > 2 + maxBytes * 2
-  ) {
-    throw new Error("Invalid or oversized Safe policy response.");
-  }
-  return result;
+  return typeof result === "string" &&
+    /^0x(?:[\da-f]{2})*$/i.test(result) &&
+    result.length <= 2 + maxBytes * 2
+    ? (result as Hex)
+    : null;
 }
 
 /**
@@ -434,8 +537,20 @@ export async function verifySafeDeployments(
       if (!codeMatches(await client.getCode({ address, blockNumber }), hash))
         throw mismatch();
     }
-    const call = (data: Hex, maxBytes: number, gas = 100_000n) =>
-      boundedCall(client, plan.address, data, gas, maxBytes, blockNumber);
+    const call = async (data: Hex, maxBytes: number, gas = 100_000n) => {
+      const result = await boundedCall(
+        client,
+        plan.address,
+        data,
+        gas,
+        maxBytes,
+        blockNumber,
+      );
+      if (result === null) {
+        throw new Error("Invalid or oversized Safe policy response.");
+      }
+      return result;
+    };
     const [
       masterCopy,
       version,
@@ -671,4 +786,1140 @@ export async function verifySafeLaunchSimulation(
       await verifySafeDeployments(client, [plan]);
     }
   }
+}
+
+// ── Authority identity ───────────────────────────────────────────────────────
+
+/** A recognized Safe and its live policy. */
+export type SafeAuthorityIdentity = {
+  kind: "safe";
+  owners: Address[];
+  threshold: number;
+  /** Every owner is a plain or exactly EIP-7702-delegated EOA on this chain. */
+  ownersAreEoas: boolean;
+  hasModules: boolean;
+  /** The enabled modules, or null when there are more than one page of them. */
+  modules: Address[] | null;
+  proxyCodeHash: Hex;
+  singleton: Address;
+  singletonCodeHash: Hex;
+  version: RecognizedSafeVersion;
+  guard: Address;
+  fallbackHandler: Address;
+  fallbackHandlerCodeHash: Hex | null;
+};
+
+/**
+ * Who controls an address. An EIP-7702-delegated EOA is its own kind, so a
+ * check for a plain `eoa` never admits one by accident; it is never a Safe.
+ */
+export type AuthorityIdentity =
+  | { kind: "eoa" }
+  | { kind: "delegated-eoa"; delegation: Address }
+  | { kind: "contract" }
+  | SafeAuthorityIdentity;
+
+/** Pin every read to one block, a receipt's say. */
+export type AuthorityReadOptions = { blockNumber?: bigint };
+
+type CodeClient = Pick<PublicClient, "getCode">;
+type AuthorityClient = Pick<
+  PublicClient,
+  "getCode" | "getStorageAt" | "request"
+>;
+
+/** Gas each bounded Safe read may use: a word, the owner list, a module page. */
+const SAFE_SCALAR_READ_GAS = 100_000n;
+const SAFE_OWNERS_READ_GAS = 400_000n;
+const SAFE_MODULES_READ_GAS = 500_000n;
+const SAFE_MODULE_PAGE = 64;
+/** A `createProxyWithNonce` preflight's gas: a proxy, its setup and any hook. */
+const SAFE_DEPLOY_SIMULATION_GAS = 3_000_000n;
+
+function invalidArgument(name: string, value: unknown): Error {
+  return new Error(`Invalid ${name}: ${String(value)}.`);
+}
+
+/** The checksummed address, or a refusal naming `name`. */
+function requireAddress(value: unknown, name: string): Address {
+  if (typeof value !== "string" || !isAddress(value)) {
+    throw invalidArgument(name, value);
+  }
+  return getAddress(value);
+}
+
+/** Byte-aligned code as eth_getCode returns it, with a lowercase 0x. */
+function isRuntimeCode(code: unknown): code is Hex {
+  return typeof code === "string" && /^0x(?:[\da-fA-F]{2})*$/.test(code);
+}
+
+/** The delegate of an exact 23-byte EIP-7702 designator, `0xef0100 ‖ address`. */
+function eip7702Delegation(code: unknown): Address | null {
+  return typeof code === "string" && /^0x[eE][fF]0100[\da-fA-F]{40}$/.test(code)
+    ? getAddress(`0x${code.slice(8).toLowerCase()}`)
+    : null;
+}
+
+/**
+ * Whether `code` is exactly an EIP-7702 delegation designator. A contract that
+ * only starts with the prefix is not, and stays a contract.
+ */
+export function isEip7702DelegatedEoaRuntime(code: unknown): code is Hex {
+  return eip7702Delegation(code) !== null;
+}
+
+/** No code, or an exact EIP-7702 designator: the account's key still signs. */
+function isEoaRuntime(code: unknown): boolean {
+  return (
+    code === undefined || code === "0x" || isEip7702DelegatedEoaRuntime(code)
+  );
+}
+
+/** The address in a 32-byte word whose upper 12 bytes are zero. */
+function wordAddress(word: unknown): Address | null {
+  return typeof word === "string" && /^0x0{24}[\da-fA-F]{40}$/.test(word)
+    ? getAddress(`0x${word.slice(26).toLowerCase()}`)
+    : null;
+}
+
+function safeReleaseOf(singleton: Address) {
+  return RECOGNIZED_SAFE_RELEASES.find((release) =>
+    release.singletons.some((candidate) =>
+      isAddressEqual(candidate, singleton),
+    ),
+  );
+}
+
+/** Whether `factory` and `singleton` are one recognized Safe release. */
+export function isRecognizedSafeDeployment(
+  factory: Address,
+  singleton: Address,
+): boolean {
+  return (
+    isAddress(factory) &&
+    isAddress(singleton) &&
+    !!safeReleaseOf(singleton)?.factories.some((candidate) =>
+      isAddressEqual(candidate, factory),
+    )
+  );
+}
+
+/**
+ * Whether two singletons are one recognized release: the same address, or an
+ * Ethereum singleton and the SafeL2 singleton SafeToL2Setup pairs it with.
+ */
+export function safeSingletonsAreEquivalent(
+  left: Address,
+  right: Address,
+): boolean {
+  if (isAddressEqual(left, right)) return true;
+  return SAFE_L1_L2_SINGLETON_PAIRS.some(
+    ([l1, l2]) =>
+      (isAddressEqual(l1, left) && isAddressEqual(l2, right)) ||
+      (isAddressEqual(l1, right) && isAddressEqual(l2, left)),
+  );
+}
+
+/** One exact 32-byte word from a bounded read, or null. */
+async function readSafeWord(
+  client: Pick<PublicClient, "request">,
+  safe: Address,
+  data: Hex,
+  blockNumber?: bigint,
+): Promise<bigint | null> {
+  const result = await boundedCall(
+    client,
+    safe,
+    data,
+    SAFE_SCALAR_READ_GAS,
+    32,
+    blockNumber,
+  );
+  return result?.length === 66 ? BigInt(result) : null;
+}
+
+/**
+ * A Safe's nonce through one raw, gas- and return-bounded `eth_call`: null
+ * when the answer is not exactly one word. An RPC failure throws.
+ */
+export function readBoundedSafeNonce(
+  client: Pick<PublicClient, "request">,
+  safe: Address,
+  { blockNumber }: AuthorityReadOptions = {},
+): Promise<bigint | null> {
+  return readSafeWord(
+    client,
+    requireAddress(safe, "Safe address"),
+    encodeFunctionData({ abi: READ_ABI, functionName: "nonce" }),
+    blockNumber,
+  );
+}
+
+/**
+ * `approvedHashes(owner, hash)` through one raw, bounded `eth_call`: nonzero
+ * when `owner` approved the Safe transaction hash onchain. Null when the answer
+ * is not exactly one word. An RPC failure throws.
+ */
+export function readBoundedSafeApprovedHash(
+  client: Pick<PublicClient, "request">,
+  safe: Address,
+  owner: Address,
+  hash: Hex,
+  { blockNumber }: AuthorityReadOptions = {},
+): Promise<bigint | null> {
+  if (typeof hash !== "string" || !/^0x[\da-fA-F]{64}$/.test(hash)) {
+    throw invalidArgument("Safe transaction hash", hash);
+  }
+  return readSafeWord(
+    client,
+    requireAddress(safe, "Safe address"),
+    encodeFunctionData({
+      abi: READ_ABI,
+      functionName: "approvedHashes",
+      args: [requireAddress(owner, "Safe owner"), hash],
+    }),
+    blockNumber,
+  );
+}
+
+/**
+ * `getOwners()`, bounded before anything is decoded: a crafted proxy's owner
+ * list could otherwise make the reader allocate without limit. Null unless the
+ * answer is exactly one canonical array of 1 to MAX_SAFE_OWNERS clean words.
+ */
+async function readSafeOwners(
+  client: Pick<PublicClient, "request">,
+  safe: Address,
+  blockNumber?: bigint,
+): Promise<Address[] | null> {
+  const result = await boundedCall(
+    client,
+    safe,
+    encodeFunctionData({ abi: READ_ABI, functionName: "getOwners" }),
+    SAFE_OWNERS_READ_GAS,
+    64 + MAX_SAFE_OWNERS * 32,
+    blockNumber,
+  );
+  if (!result || result.length < 130 || BigInt(result.slice(0, 66)) !== 32n) {
+    return null;
+  }
+  // The byte bound above already caps the count at MAX_SAFE_OWNERS.
+  const count = BigInt(`0x${result.slice(66, 130)}`);
+  if (count < 1n || result.length !== 130 + Number(count) * 64) return null;
+  const owners: Address[] = [];
+  for (let index = 0; index < Number(count); index += 1) {
+    const owner = wordAddress(
+      `0x${result.slice(130 + index * 64, 194 + index * 64)}`,
+    );
+    if (!owner) return null;
+    owners.push(owner);
+  }
+  return owners;
+}
+
+/** The first page of enabled modules, or null for anything but a canonical answer. */
+async function readSafeModulePage(
+  client: Pick<PublicClient, "request">,
+  safe: Address,
+  blockNumber?: bigint,
+): Promise<{ modules: Address[]; next: Address } | null> {
+  const result = await boundedCall(
+    client,
+    safe,
+    encodeFunctionData({
+      abi: READ_ABI,
+      functionName: "getModulesPaginated",
+      args: [SENTINEL, BigInt(SAFE_MODULE_PAGE)],
+    }),
+    SAFE_MODULES_READ_GAS,
+    96 + SAFE_MODULE_PAGE * 32,
+    blockNumber,
+  );
+  if (!result || result.length < 194 || BigInt(result.slice(0, 66)) !== 64n) {
+    return null;
+  }
+  const next = wordAddress(`0x${result.slice(66, 130)}`);
+  const count = BigInt(`0x${result.slice(130, 194)}`);
+  // The byte bound above already caps the count at one page.
+  if (!next || result.length !== 194 + Number(count) * 64) return null;
+  const modules: Address[] = [];
+  for (let index = 0; index < Number(count); index += 1) {
+    const module = wordAddress(
+      `0x${result.slice(194 + index * 64, 258 + index * 64)}`,
+    );
+    if (!module || isAddressEqual(module, zeroAddress)) return null;
+    modules.push(module);
+  }
+  return { modules, next };
+}
+
+/** `VERSION()`, only when the answer is the canonical encoding of a string of at most 32 bytes. */
+async function readSafeVersion(
+  client: Pick<PublicClient, "request">,
+  safe: Address,
+  blockNumber?: bigint,
+): Promise<string | null> {
+  const result = await boundedCall(
+    client,
+    safe,
+    encodeFunctionData({ abi: READ_ABI, functionName: "VERSION" }),
+    SAFE_SCALAR_READ_GAS,
+    96,
+    blockNumber,
+  );
+  if (!result) return null;
+  try {
+    const [version] = decodeAbiParameters([{ type: "string" }], result);
+    return encodeAbiParameters([{ type: "string" }], [version]) ===
+      result.toLowerCase()
+      ? version
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Who controls `authority`, from live chain state alone:
+ *
+ * - no code is an `eoa`; an exact EIP-7702 designator a `delegated-eoa`;
+ * - a `safe` is a recognized proxy runtime whose slot zero names a recognized
+ *   singleton with code, agreeing with `masterCopy()`, reporting that
+ *   release's exact version, with a well-formed policy: 1 to 50 unique nonzero
+ *   owners, a threshold within them, clean guard and fallback handler slots,
+ *   and a fallback handler that is contract code (not a delegated EOA);
+ * - anything else, or any malformed answer, is a `contract`.
+ *
+ * Nothing calls through the proxy before its singleton is known, and every
+ * such call is a raw, gas- and return-bounded `eth_call`, so a contract cannot
+ * pick a URL to fetch. An RPC failure is null (unknown), never an EOA or Safe.
+ */
+export async function readAuthorityIdentity(
+  client: AuthorityClient,
+  authority: Address,
+  { blockNumber }: AuthorityReadOptions = {},
+): Promise<AuthorityIdentity | null> {
+  const address = requireAddress(authority, "authority address");
+  let code: unknown;
+  try {
+    code = await client.getCode({ address, blockNumber });
+  } catch {
+    return null;
+  }
+  if (code === undefined || code === "0x") return { kind: "eoa" };
+  if (!isRuntimeCode(code)) return { kind: "contract" };
+  const delegation = eip7702Delegation(code);
+  if (delegation) return { kind: "delegated-eoa", delegation };
+  const proxyCodeHash = keccak256(code);
+  if (
+    !RECOGNIZED_SAFE_PROXY_CODE_HASHES.some((hash) => hash === proxyCodeHash)
+  ) {
+    return { kind: "contract" };
+  }
+  try {
+    const singleton = wordAddress(
+      await client.getStorageAt({ address, slot: SINGLETON_SLOT, blockNumber }),
+    );
+    const release = singleton && safeReleaseOf(singleton);
+    if (!singleton || !release) return { kind: "contract" };
+    const singletonCode = await client.getCode({
+      address: singleton,
+      blockNumber,
+    });
+    if (!isRuntimeCode(singletonCode) || singletonCode === "0x") {
+      return { kind: "contract" };
+    }
+    const masterCopy = await boundedCall(
+      client,
+      address,
+      encodeFunctionData({ abi: READ_ABI, functionName: "masterCopy" }),
+      SAFE_SCALAR_READ_GAS,
+      32,
+      blockNumber,
+    );
+    const reported = wordAddress(masterCopy);
+    if (!reported || !isAddressEqual(reported, singleton)) {
+      return { kind: "contract" };
+    }
+    const [threshold, owners, modulePage, version, guardWord, fallbackWord] =
+      await Promise.all([
+        readSafeWord(
+          client,
+          address,
+          encodeFunctionData({ abi: READ_ABI, functionName: "getThreshold" }),
+          blockNumber,
+        ),
+        readSafeOwners(client, address, blockNumber),
+        readSafeModulePage(client, address, blockNumber),
+        readSafeVersion(client, address, blockNumber),
+        client.getStorageAt({ address, slot: GUARD_SLOT, blockNumber }),
+        client.getStorageAt({ address, slot: FALLBACK_SLOT, blockNumber }),
+      ]);
+    const guard = wordAddress(guardWord);
+    const fallbackHandler = wordAddress(fallbackWord);
+    if (
+      !owners ||
+      !ownerSet(owners) ||
+      threshold === null ||
+      threshold < 1n ||
+      threshold > BigInt(owners.length) ||
+      !modulePage ||
+      version !== release.version ||
+      !guard ||
+      !fallbackHandler
+    ) {
+      return { kind: "contract" };
+    }
+    const hasFallback = !isAddressEqual(fallbackHandler, zeroAddress);
+    const codes = await Promise.all(
+      [...owners, ...(hasFallback ? [fallbackHandler] : [])].map((target) =>
+        client.getCode({ address: target, blockNumber }),
+      ),
+    );
+    const fallbackCode = hasFallback ? codes[owners.length] : undefined;
+    if (
+      hasFallback &&
+      (!isRuntimeCode(fallbackCode) ||
+        fallbackCode === "0x" ||
+        isEip7702DelegatedEoaRuntime(fallbackCode))
+    ) {
+      // A fallback handler runs as code. A delegated EOA's runtime follows its
+      // delegate, which can differ by chain behind the same 23-byte marker.
+      return { kind: "contract" };
+    }
+    const { modules, next } = modulePage;
+    const lastPage = isAddressEqual(next, SENTINEL);
+    return {
+      kind: "safe",
+      owners,
+      threshold: Number(threshold),
+      ownersAreEoas: codes.slice(0, owners.length).every(isEoaRuntime),
+      hasModules: modules.length > 0 || !lastPage,
+      modules: lastPage ? modules : null,
+      proxyCodeHash,
+      singleton,
+      singletonCodeHash: keccak256(singletonCode),
+      version: release.version,
+      guard,
+      fallbackHandler,
+      fallbackHandlerCodeHash: fallbackCode ? keccak256(fallbackCode) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Sorted lowercase owners: 1 to MAX_SAFE_OWNERS unique, valid, nonzero addresses. */
+function ownerSet(owners: readonly unknown[]): string[] | null {
+  if (
+    !Array.isArray(owners) ||
+    owners.length < 1 ||
+    owners.length > MAX_SAFE_OWNERS
+  ) {
+    return null;
+  }
+  const normalized: string[] = [];
+  for (const owner of owners) {
+    if (
+      typeof owner !== "string" ||
+      !isAddress(owner) ||
+      isAddressEqual(owner, zeroAddress)
+    ) {
+      return null;
+    }
+    normalized.push(owner.toLowerCase());
+  }
+  const unique = [...new Set(normalized)].sort();
+  return unique.length === normalized.length ? unique : null;
+}
+
+function sameOwners(left: readonly unknown[], right: readonly unknown[]) {
+  const leftSet = ownerSet(left);
+  const rightSet = ownerSet(right);
+  return (
+    !!leftSet &&
+    !!rightSet &&
+    leftSet.length === rightSet.length &&
+    leftSet.every((owner, index) => owner === rightSet[index])
+  );
+}
+
+/**
+ * The plain Safe policy a cross-chain claim or a same-address replay can
+ * stand on: EOA owners, no modules, no guard.
+ */
+export function isDeployableSafeAuthority(
+  identity: AuthorityIdentity,
+): identity is SafeAuthorityIdentity {
+  return (
+    identity.kind === "safe" &&
+    identity.ownersAreEoas &&
+    !identity.hasModules &&
+    isAddressEqual(identity.guard, zeroAddress)
+  );
+}
+
+function isEoaIdentity(identity: AuthorityIdentity): boolean {
+  return identity.kind === "eoa" || identity.kind === "delegated-eoa";
+}
+
+/**
+ * Whether one authority controls an address the same way on two chains: an
+ * EOA (plain or delegated, the key is the same) on both, or plain Safes with
+ * the same owners, threshold, proxy, release, fallback handler and code. Paired
+ * Ethereum and SafeL2 singletons are one release; a shared singleton address
+ * must also share its code.
+ */
+export function authorityIdentitiesMatch(
+  source: AuthorityIdentity,
+  destination: AuthorityIdentity,
+): boolean {
+  if (isEoaIdentity(source) || isEoaIdentity(destination)) {
+    return isEoaIdentity(source) && isEoaIdentity(destination);
+  }
+  return (
+    isDeployableSafeAuthority(source) &&
+    isDeployableSafeAuthority(destination) &&
+    sameOwners(source.owners, destination.owners) &&
+    source.threshold === destination.threshold &&
+    source.proxyCodeHash.toLowerCase() ===
+      destination.proxyCodeHash.toLowerCase() &&
+    safeSingletonsAreEquivalent(source.singleton, destination.singleton) &&
+    (!isAddressEqual(source.singleton, destination.singleton) ||
+      source.singletonCodeHash.toLowerCase() ===
+        destination.singletonCodeHash.toLowerCase()) &&
+    source.version === destination.version &&
+    isAddressEqual(source.fallbackHandler, destination.fallbackHandler) &&
+    source.fallbackHandlerCodeHash?.toLowerCase() ===
+      destination.fallbackHandlerCodeHash?.toLowerCase()
+  );
+}
+
+/** Both chains' identities and whether they match, or null when either is unknown. */
+export async function readMatchingAuthorityIdentities({
+  sourceClient,
+  destinationClient,
+  authority,
+  sourceBlockNumber,
+  destinationBlockNumber,
+}: {
+  sourceClient: AuthorityClient;
+  destinationClient: AuthorityClient;
+  authority: Address;
+  sourceBlockNumber?: bigint;
+  destinationBlockNumber?: bigint;
+}): Promise<{
+  source: AuthorityIdentity;
+  destination: AuthorityIdentity;
+  matches: boolean;
+} | null> {
+  const [source, destination] = await Promise.all([
+    readAuthorityIdentity(sourceClient, authority, {
+      blockNumber: sourceBlockNumber,
+    }),
+    readAuthorityIdentity(destinationClient, authority, {
+      blockNumber: destinationBlockNumber,
+    }),
+  ]);
+  if (!source || !destination) return null;
+  return {
+    source,
+    destination,
+    matches: authorityIdentitiesMatch(source, destination),
+  };
+}
+
+export type CrossChainHandleAuthorityStatus =
+  | "valid-local"
+  | "valid-eoa"
+  | "valid-safe"
+  | "missing-mainnet-safe"
+  | "source-contract"
+  | "mainnet-contract"
+  | "authority-mismatch"
+  | "unsafe-safe-policy"
+  | "contract-owner"
+  | "unknown";
+
+export type CrossChainHandleAuthority = {
+  status: CrossChainHandleAuthorityStatus;
+  allowed: boolean;
+  source: AuthorityIdentity | null;
+  mainnet: AuthorityIdentity | null;
+};
+
+function handleVerdict(
+  status: CrossChainHandleAuthorityStatus,
+  source: AuthorityIdentity | null,
+  mainnet: AuthorityIdentity | null,
+): CrossChainHandleAuthority {
+  return {
+    status,
+    allowed:
+      status === "valid-local" ||
+      status === "valid-eoa" ||
+      status === "valid-safe",
+    source,
+    mainnet,
+  };
+}
+
+async function addressesAreEoas(
+  client: CodeClient,
+  addresses: readonly Address[],
+  blockNumber?: bigint,
+): Promise<boolean | null> {
+  try {
+    const codes = await Promise.all(
+      addresses.map((address) => client.getCode({ address, blockNumber })),
+    );
+    return codes.every(isEoaRuntime);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether `authority`, the live owner or operator of a project on
+ * `sourceChainId`, may publish its Ethereum handle. On Ethereum it may. From
+ * another chain it must be the same EOA on Ethereum, or a plain Safe there with
+ * the same policy. A source Safe not yet deployed on Ethereum is
+ * `missing-mainnet-safe`, which a same-address deployment can fix; every other
+ * doubt is denied, an unreadable chain as `unknown`.
+ */
+export async function readCrossChainHandleAuthority({
+  sourceChainId,
+  sourceClient,
+  mainnetClient,
+  authority,
+  sourceBlockNumber,
+  mainnetBlockNumber,
+}: {
+  sourceChainId: number;
+  sourceClient: AuthorityClient;
+  mainnetClient?: AuthorityClient;
+  authority: Address;
+  sourceBlockNumber?: bigint;
+  mainnetBlockNumber?: bigint;
+}): Promise<CrossChainHandleAuthority> {
+  if (sourceChainId === 1) return handleVerdict("valid-local", null, null);
+  if (!mainnetClient) return handleVerdict("unknown", null, null);
+  const [source, mainnet] = await Promise.all([
+    readAuthorityIdentity(sourceClient, authority, {
+      blockNumber: sourceBlockNumber,
+    }),
+    readAuthorityIdentity(mainnetClient, authority, {
+      blockNumber: mainnetBlockNumber,
+    }),
+  ]);
+  const verdict = (status: CrossChainHandleAuthorityStatus) =>
+    handleVerdict(status, source, mainnet);
+  if (!source || !mainnet) return verdict("unknown");
+  if (source.kind === "contract") return verdict("source-contract");
+  if (source.kind !== "safe") {
+    if (isEoaIdentity(mainnet)) return verdict("valid-eoa");
+    return verdict(
+      mainnet.kind === "contract" ? "mainnet-contract" : "authority-mismatch",
+    );
+  }
+  if (!source.ownersAreEoas) return verdict("contract-owner");
+  if (!isDeployableSafeAuthority(source)) return verdict("unsafe-safe-policy");
+  if (mainnet.kind === "delegated-eoa") {
+    // The designator occupies the address, so no Safe can be deployed there.
+    return verdict("authority-mismatch");
+  }
+  if (mainnet.kind === "eoa") {
+    const ownersAreEoas = await addressesAreEoas(
+      mainnetClient,
+      source.owners,
+      mainnetBlockNumber,
+    );
+    if (ownersAreEoas === null) return verdict("unknown");
+    return verdict(ownersAreEoas ? "missing-mainnet-safe" : "contract-owner");
+  }
+  if (mainnet.kind === "contract") return verdict("mainnet-contract");
+  if (!mainnet.ownersAreEoas) return verdict("contract-owner");
+  if (!isDeployableSafeAuthority(mainnet)) {
+    return verdict("unsafe-safe-policy");
+  }
+  return verdict(
+    authorityIdentitiesMatch(source, mainnet)
+      ? "valid-safe"
+      : "authority-mismatch",
+  );
+}
+
+// ── Same-address Safe deployment ─────────────────────────────────────────────
+
+/** A Safe's original CREATE2 inputs, as its transaction service records them. */
+export type SafeCreation = {
+  factory: Address;
+  singleton: Address;
+  initializer: Hex;
+  saltNonce: bigint;
+};
+
+export type SafeCreationValidation =
+  | {
+      valid: true;
+      owners: Address[];
+      threshold: number;
+      fallbackHandler: Address;
+    }
+  | {
+      valid: false;
+      reason:
+        | "malformed-creation"
+        | "unrecognized-deployment"
+        | "unsafe-current-policy"
+        | "malformed-initializer"
+        | "initializer-policy-mismatch"
+        | "unsafe-initializer";
+    };
+
+/** The exact `setupToL2(l2Singleton)` naming `singleton`'s SafeL2 pair. */
+function isExactSetupToL2Call(data: Hex, singleton: Address): boolean {
+  const pair = SAFE_L1_L2_SINGLETON_PAIRS.find(([l1]) =>
+    isAddressEqual(l1, singleton),
+  );
+  return (
+    !!pair &&
+    data.toLowerCase() ===
+      encodeFunctionData({
+        abi: SAFE_TO_L2_SETUP_ABI,
+        functionName: "setupToL2",
+        args: [pair[1]],
+      }).toLowerCase()
+  );
+}
+
+/**
+ * Whether replaying `creation` reproduces `current`, the Safe's live policy,
+ * and nothing else: a recognized factory and singleton of its release, a
+ * canonical `setup` with today's owners, threshold and fallback handler, no
+ * setup payment, and no delegatecall hook but the exact SafeToL2Setup call.
+ * The live Safe must be plain (EOA owners, no modules, no guard).
+ */
+export function validateSafeCreationForCurrentPolicy(
+  creation: SafeCreation,
+  current: SafeAuthorityIdentity,
+): SafeCreationValidation {
+  const refuse = (
+    reason: Extract<SafeCreationValidation, { valid: false }>["reason"],
+  ): SafeCreationValidation => ({ valid: false, reason });
+  if (
+    !creation ||
+    typeof creation.factory !== "string" ||
+    typeof creation.singleton !== "string" ||
+    !isAddress(creation.factory) ||
+    !isAddress(creation.singleton) ||
+    !isHexBytes(creation.initializer) ||
+    uint256(creation.saltNonce) === null ||
+    typeof creation.saltNonce !== "bigint"
+  ) {
+    return refuse("malformed-creation");
+  }
+  if (!isRecognizedSafeDeployment(creation.factory, creation.singleton)) {
+    return refuse("unrecognized-deployment");
+  }
+  if (
+    !isDeployableSafeAuthority(current) ||
+    !RECOGNIZED_SAFE_PROXY_CODE_HASHES.some(
+      (hash) => hash === current.proxyCodeHash.toLowerCase(),
+    ) ||
+    safeReleaseOf(current.singleton)?.version !== current.version ||
+    (isAddressEqual(current.fallbackHandler, zeroAddress)
+      ? current.fallbackHandlerCodeHash !== null
+      : current.fallbackHandlerCodeHash === null)
+  ) {
+    return refuse("unsafe-current-policy");
+  }
+  if (!safeSingletonsAreEquivalent(creation.singleton, current.singleton)) {
+    return refuse("initializer-policy-mismatch");
+  }
+  let args: readonly [
+    readonly Address[],
+    bigint,
+    Address,
+    Hex,
+    Address,
+    Address,
+    bigint,
+    Address,
+  ];
+  try {
+    const decoded = decodeFunctionData({
+      abi: SAFE_SETUP_ABI,
+      data: creation.initializer,
+    });
+    args = decoded.args;
+    // A noncanonical encoding, trailing bytes included, could hide a policy.
+    if (
+      encodeFunctionData({
+        abi: SAFE_SETUP_ABI,
+        functionName: "setup",
+        args,
+      }).toLowerCase() !== creation.initializer.toLowerCase()
+    ) {
+      return refuse("malformed-initializer");
+    }
+  } catch {
+    return refuse("malformed-initializer");
+  }
+  const [
+    owners,
+    thresholdRaw,
+    to,
+    data,
+    fallbackHandler,
+    paymentToken,
+    payment,
+    paymentReceiver,
+  ] = args;
+  if (
+    !ownerSet(owners) ||
+    thresholdRaw < 1n ||
+    thresholdRaw > BigInt(owners.length)
+  ) {
+    return refuse("malformed-initializer");
+  }
+  if (
+    thresholdRaw !== BigInt(current.threshold) ||
+    !sameOwners(owners, current.owners) ||
+    !isAddressEqual(fallbackHandler, current.fallbackHandler)
+  ) {
+    return refuse("initializer-policy-mismatch");
+  }
+  const hook = isAddressEqual(to, SAFE_TO_L2_SETUP_ADDRESS)
+    ? isExactSetupToL2Call(data, creation.singleton)
+    : isAddressEqual(to, zeroAddress) && data === "0x";
+  if (
+    !hook ||
+    !isAddressEqual(paymentToken, zeroAddress) ||
+    payment !== 0n ||
+    !(
+      isAddressEqual(paymentReceiver, zeroAddress) ||
+      isAddressEqual(paymentReceiver, SAFE_CANONICAL_PAYMENT_RECEIVER)
+    )
+  ) {
+    return refuse("unsafe-initializer");
+  }
+  return {
+    valid: true,
+    owners: owners.map((owner) => getAddress(owner)),
+    threshold: Number(thresholdRaw),
+    fallbackHandler: getAddress(fallbackHandler),
+  };
+}
+
+export type SafeProxyFactoryCall = {
+  target: Address;
+  data: Hex;
+  abi: typeof SAFE_CREATE_ABI;
+  functionName: "createProxyWithNonce";
+  args: readonly [Address, Hex, bigint];
+};
+
+/** The exact factory call that reproduces a Safe's CREATE2 address. */
+export function buildSafeProxyFactoryCall(
+  creation: SafeCreation,
+): SafeProxyFactoryCall {
+  if (!isRecognizedSafeDeployment(creation.factory, creation.singleton)) {
+    throw new Error(
+      `Factory ${String(creation.factory)} and singleton ${String(creation.singleton)} are not one recognized Safe release.`,
+    );
+  }
+  const args = [
+    getAddress(creation.singleton),
+    creation.initializer,
+    creation.saltNonce,
+  ] as const;
+  return {
+    target: getAddress(creation.factory),
+    abi: SAFE_CREATE_ABI,
+    functionName: "createProxyWithNonce",
+    args,
+    data: encodeFunctionData({
+      abi: SAFE_CREATE_ABI,
+      functionName: "createProxyWithNonce",
+      args,
+    }),
+  };
+}
+
+export type SafeSameAddressDeploymentRefusal =
+  | Extract<SafeCreationValidation, { valid: false }>["reason"]
+  | "rpc-error"
+  | "not-a-safe"
+  | "address-occupied"
+  | "factory-unavailable"
+  | "factory-mismatch"
+  | "singleton-unavailable"
+  | "singleton-mismatch"
+  | "setup-library-mismatch"
+  | "contract-owner"
+  | "fallback-handler-unavailable"
+  | "delegated-fallback-handler"
+  | "fallback-handler-mismatch"
+  | "simulation-failed"
+  | "unexpected-address";
+
+export type SafeSameAddressDeployment =
+  | {
+      valid: true;
+      call: SafeProxyFactoryCall;
+      /** The live source Safe the deployment reproduces. */
+      source: SafeAuthorityIdentity;
+    }
+  | { valid: false; reason: SafeSameAddressDeploymentRefusal };
+
+/**
+ * Prove, before anything is signed, that deploying `creation` on the
+ * destination chain puts the source Safe's live policy at `safe`:
+ *
+ * - the source Safe is plain and `creation` reproduces it exactly
+ *   ({@link validateSafeCreationForCurrentPolicy});
+ * - `safe` has no code on the destination, an EIP-7702 designator included;
+ * - the factory and singleton there have the source chain's code, the
+ *   singleton the source Safe's own when it is the same address, and a
+ *   SafeToL2Setup hook the canonical library code;
+ * - every owner is an EOA there, and a fallback handler is the same contract
+ *   code, not a delegated EOA;
+ * - a raw, bounded `eth_call` of the factory call returns `safe`.
+ *
+ * Re-run it before the wallet signs, and read both chains' identities again
+ * after the receipt ({@link readMatchingAuthorityIdentities}).
+ */
+export async function prepareSafeSameAddressDeployment({
+  sourceClient,
+  destinationClient,
+  creation,
+  safe,
+  from,
+}: {
+  sourceClient: AuthorityClient;
+  destinationClient: AuthorityClient;
+  creation: SafeCreation;
+  safe: Address;
+  /** The account the simulation runs as: the wallet that will send it. */
+  from: Address;
+}): Promise<SafeSameAddressDeployment> {
+  const expected = requireAddress(safe, "Safe address");
+  const sender = requireAddress(from, "deployment sender");
+  const refuse = (
+    reason: SafeSameAddressDeploymentRefusal,
+  ): SafeSameAddressDeployment => ({ valid: false, reason });
+  const [source, destination] = await Promise.all([
+    readAuthorityIdentity(sourceClient, expected),
+    readAuthorityIdentity(destinationClient, expected),
+  ]);
+  if (!source || !destination) return refuse("rpc-error");
+  if (source.kind !== "safe") return refuse("not-a-safe");
+  const validation = validateSafeCreationForCurrentPolicy(creation, source);
+  if (!validation.valid) return refuse(validation.reason);
+  if (destination.kind !== "eoa") return refuse("address-occupied");
+
+  // The validation above decoded this exact initializer.
+  const usesHook = isAddressEqual(
+    decodeFunctionData({ abi: SAFE_SETUP_ABI, data: creation.initializer })
+      .args[2],
+    SAFE_TO_L2_SETUP_ADDRESS,
+  );
+  const hasFallback = !isAddressEqual(source.fallbackHandler, zeroAddress);
+  let codes: unknown[];
+  let sourceCodes: unknown[];
+  try {
+    [codes, sourceCodes] = await Promise.all([
+      Promise.all(
+        [
+          creation.factory,
+          creation.singleton,
+          SAFE_TO_L2_SETUP_ADDRESS,
+          ...(hasFallback ? [source.fallbackHandler] : []),
+          ...source.owners,
+        ].map((address) => destinationClient.getCode({ address })),
+      ),
+      Promise.all(
+        [creation.factory, creation.singleton].map((address) =>
+          sourceClient.getCode({ address }),
+        ),
+      ),
+    ]);
+  } catch {
+    return refuse("rpc-error");
+  }
+  if (
+    [...codes, ...sourceCodes].some(
+      (code) => code !== undefined && !isRuntimeCode(code),
+    )
+  ) {
+    return refuse("rpc-error");
+  }
+  const [factoryCode, singletonCode, hookCode] = codes as (Hex | undefined)[];
+  const fallbackCode = hasFallback ? (codes[3] as Hex | undefined) : undefined;
+  const ownerCodes = codes.slice(hasFallback ? 4 : 3);
+  const [sourceFactoryCode, sourceSingletonCode] = sourceCodes as (
+    | Hex
+    | undefined
+  )[];
+  if (!factoryCode || factoryCode === "0x")
+    return refuse("factory-unavailable");
+  if (factoryCode.toLowerCase() !== sourceFactoryCode?.toLowerCase()) {
+    return refuse("factory-mismatch");
+  }
+  if (!singletonCode || singletonCode === "0x") {
+    return refuse("singleton-unavailable");
+  }
+  if (
+    singletonCode.toLowerCase() !== sourceSingletonCode?.toLowerCase() ||
+    (isAddressEqual(creation.singleton, source.singleton) &&
+      keccak256(singletonCode) !== source.singletonCodeHash.toLowerCase())
+  ) {
+    return refuse("singleton-mismatch");
+  }
+  if (
+    usesHook &&
+    (!hookCode ||
+      hookCode === "0x" ||
+      keccak256(hookCode) !== SAFE_TO_L2_SETUP_CODE_HASH)
+  ) {
+    return refuse("setup-library-mismatch");
+  }
+  if (!ownerCodes.every(isEoaRuntime)) return refuse("contract-owner");
+  if (hasFallback) {
+    if (!fallbackCode || fallbackCode === "0x") {
+      return refuse("fallback-handler-unavailable");
+    }
+    if (isEip7702DelegatedEoaRuntime(fallbackCode)) {
+      return refuse("delegated-fallback-handler");
+    }
+    if (
+      keccak256(fallbackCode) !== source.fallbackHandlerCodeHash?.toLowerCase()
+    ) {
+      return refuse("fallback-handler-mismatch");
+    }
+  }
+  const call = buildSafeProxyFactoryCall(creation);
+  let result: Hex;
+  try {
+    result = await simulateStateChangingTransaction(destinationClient, {
+      from: sender,
+      to: call.target,
+      data: call.data,
+      gas: SAFE_DEPLOY_SIMULATION_GAS,
+      maxReturnBytes: 32,
+    });
+  } catch {
+    return refuse("simulation-failed");
+  }
+  const deployed = result.length === 66 ? wordAddress(result) : null;
+  if (!deployed || !isAddressEqual(deployed, expected)) {
+    return refuse("unexpected-address");
+  }
+  return { valid: true, call, source };
+}
+
+// ── MultiSend ────────────────────────────────────────────────────────────────
+
+/** One call of a MultiSendCallOnly batch: always a plain CALL. */
+export type MultiSendCall = { to: Address; data: Hex; value: bigint };
+
+/**
+ * The packed `transactions` bytes: per call, `uint8 operation (0) ‖ address to
+ * ‖ uint256 value ‖ uint256 data length ‖ data`. Throws naming the first call
+ * that is not a valid address, whole hex bytes and a uint256 value.
+ */
+export function packMultiSend(
+  calls: readonly { to: Address; data: Hex; value?: bigint }[],
+): Hex {
+  return concatHex(
+    calls.map((call, index) => {
+      const value = uint256(call?.value ?? 0n);
+      if (
+        typeof call?.to !== "string" ||
+        !isAddress(call.to) ||
+        !isHexBytes(call.data) ||
+        value === null
+      ) {
+        throw new Error(`Batch call ${index + 1} is not a valid call.`);
+      }
+      return encodePacked(
+        ["uint8", "address", "uint256", "uint256", "bytes"],
+        [0, call.to, value, BigInt(size(call.data)), call.data],
+      );
+    }),
+  );
+}
+
+/** `multiSend(transactions)` calldata for at least one call. */
+export function encodeMultiSend(
+  calls: readonly { to: Address; data: Hex; value?: bigint }[],
+): Hex {
+  if (!calls.length) throw new Error("A batch needs at least one call.");
+  return encodeFunctionData({
+    abi: MULTI_SEND_ABI,
+    functionName: "multiSend",
+    args: [packMultiSend(calls)],
+  });
+}
+
+/**
+ * The calls in `multiSend` calldata, or null unless the bytes are exactly a
+ * canonical `multiSend(bytes)` of one or more whole CALL entries. A
+ * DELEGATECALL entry is null: MultiSendCallOnly reverts on it.
+ */
+export function decodeMultiSend(data: unknown): MultiSendCall[] | null {
+  if (!isHexBytes(data)) return null;
+  let packed: Hex;
+  try {
+    const decoded = decodeFunctionData({ abi: MULTI_SEND_ABI, data });
+    packed = decoded.args[0];
+    if (
+      encodeFunctionData({
+        abi: MULTI_SEND_ABI,
+        functionName: "multiSend",
+        args: [packed],
+      }).toLowerCase() !== data.toLowerCase()
+    ) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+  const bytes = packed.slice(2).toLowerCase();
+  const calls: MultiSendCall[] = [];
+  let offset = 0;
+  while (offset < bytes.length) {
+    // 1 + 20 + 32 + 32 header bytes before the call data.
+    if (
+      bytes.length - offset < 170 ||
+      bytes.slice(offset, offset + 2) !== "00"
+    ) {
+      return null;
+    }
+    const length = BigInt(`0x${bytes.slice(offset + 106, offset + 170)}`);
+    const end = BigInt(offset + 170) + length * 2n;
+    if (end > BigInt(bytes.length)) return null;
+    calls.push({
+      to: getAddress(`0x${bytes.slice(offset + 2, offset + 42)}`),
+      value: BigInt(`0x${bytes.slice(offset + 42, offset + 106)}`),
+      data: `0x${bytes.slice(offset + 170, Number(end))}`,
+    });
+    offset = Number(end);
+  }
+  return calls.length ? calls : null;
+}
+
+/** The calls of a Safe transaction that DELEGATECALLs MultiSendCallOnly, else null. */
+export function multiSendCallsOf(tx: {
+  to: unknown;
+  data: unknown;
+  operation: unknown;
+}): MultiSendCall[] | null {
+  return Number(tx?.operation) === 1 &&
+    typeof tx.to === "string" &&
+    isAddress(tx.to) &&
+    isAddressEqual(tx.to, MULTI_SEND_CALL_ONLY)
+    ? decodeMultiSend(tx.data)
+    : null;
 }

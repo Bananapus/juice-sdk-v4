@@ -111,6 +111,18 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/safe.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/v6/distributions.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/untrusted.ts": {
           statements: 100,
           branches: 100,

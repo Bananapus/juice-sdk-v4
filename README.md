@@ -337,6 +337,68 @@ fund several chains with one payment, but chains confirm independently; these
 batches do not provide atomic execution across chains. The client owns signing,
 funding, progress, and recovery.
 
+## Safe authority, queue and distribution checks
+
+The checks web clients run around a project's Safe and its distributions. None
+of them signs or sends; every service and RPC answer is read as untrusted.
+
+`@bananapus/nana-sdk-core/safe` reads who controls an address and reproduces a
+Safe on another chain:
+
+- `readAuthorityIdentity(client, address, { blockNumber })` is `eoa`,
+  `delegated-eoa` (an exact EIP-7702 designator, never a Safe), `contract`, or
+  a `safe` with its live policy: a recognized proxy runtime whose slot zero
+  names a recognized singleton (`RECOGNIZED_SAFE_RELEASES`), its owners,
+  threshold, modules, guard and fallback handler. Every call into the proxy is
+  a raw, gas- and return-bounded `eth_call`, made only after slot zero is
+  known. An RPC failure is `null`, never an EOA or a Safe.
+- `authorityIdentitiesMatch`, `readMatchingAuthorityIdentities` and
+  `readCrossChainHandleAuthority` compare an authority across chains: the same
+  EOA, or plain Safes (EOA owners, no modules, no guard) with the same policy
+  and code. Safe's Ethereum and SafeL2 singletons count as one release.
+- `readBoundedSafeNonce` and `readBoundedSafeApprovedHash` read one word each.
+- `validateSafeCreationForCurrentPolicy`, `buildSafeProxyFactoryCall` and
+  `prepareSafeSameAddressDeployment` reproduce a Safe at its address on
+  another chain only when its creation replays today's plain policy, the
+  destination address is free, the factory, singleton, owners and fallback
+  handler check out there, and a raw simulation returns the Safe's address.
+- `packMultiSend`, `encodeMultiSend`, `decodeMultiSend` and `multiSendCallsOf`
+  handle MultiSendCallOnly batches of plain calls.
+
+`@bananapus/nana-sdk-core/safe-service` handles Safe transactions and Safe's
+transaction service:
+
+```ts
+import {
+  canonicalSafeTxHash,
+  listPendingSafeTransactions,
+  safeExecutionResult,
+} from "@bananapus/nana-sdk-core/safe-service";
+
+// Every row belongs to `safe` and hashes to its advertised safeTxHash.
+const queue = await listPendingSafeTransactions(chainId, safe, onchainNonce);
+
+// After an execution: success, failed (ExecutionFailure: the nonce is spent),
+// reverted (nothing ran) or unproven, from Safe 1.3 or 1.4 events.
+const result = safeExecutionResult(receipt, safe, safeTxHash);
+```
+
+It also has `SAFE_TX_TYPES`, `safeTransactionMessage`, `safeTransactionHash`,
+`requireSafeExecutionSuccess`, `usableSafeConfirmations`,
+`safeExecutionSignatures`, `safeExecutionArgs`, `safeProposalFor`,
+`safeBatchProposalFor`, `safeTransactionMatchesCall`, `nextProposalNonce`,
+`onchainApprovalStep`, `findPendingSafeTransaction`, `readSafeTransaction`,
+`proposeSafeTransaction`, `submitSafeConfirmation`, `fetchSafesOwnedBy`,
+`fetchSafeCreation` and `safeTransactionUrl`. Service calls accept a `fetch`
+of the app's own and send the optional `jb-safe-api-key` from local storage.
+
+`@bananapus/nana-sdk-core/v6` proves a distribution from its receipt:
+`verifyPayoutReceipt` and `verifyReservedDistributionReceipt` require every
+reviewed split's exact share, the reviewed ruleset, sender, owner and amounts,
+no recipient failure, and, for reserved tokens, burns of only the shares sent
+to `0x…dEaD`. A refusal means: keep the transaction, and do not distribute the
+same amounts again.
+
 ## Installation
 
 ```bash
