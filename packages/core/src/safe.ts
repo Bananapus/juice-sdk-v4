@@ -1493,6 +1493,85 @@ function isExactSetupToL2Call(data: Hex, singleton: Address): boolean {
   );
 }
 
+type SafeSetupArgs = readonly [
+  readonly Address[],
+  bigint,
+  Address,
+  Hex,
+  Address,
+  Address,
+  bigint,
+  Address,
+];
+
+/** Why `creation` is malformed or not one recognized Safe release, or null. */
+function safeCreationShapeRefusal(
+  creation: SafeCreation,
+): "malformed-creation" | "unrecognized-deployment" | null {
+  if (
+    !creation ||
+    typeof creation.factory !== "string" ||
+    typeof creation.singleton !== "string" ||
+    !isAddress(creation.factory) ||
+    !isAddress(creation.singleton) ||
+    !isHexBytes(creation.initializer) ||
+    uint256(creation.saltNonce) === null ||
+    typeof creation.saltNonce !== "bigint"
+  ) {
+    return "malformed-creation";
+  }
+  if (!isRecognizedSafeDeployment(creation.factory, creation.singleton)) {
+    return "unrecognized-deployment";
+  }
+  return null;
+}
+
+/**
+ * `setup`'s arguments when `initializer` is exactly their canonical encoding,
+ * with a valid owner set and threshold; null otherwise. A noncanonical
+ * encoding, trailing bytes included, could hide a policy.
+ */
+function canonicalSafeSetupArgs(initializer: Hex): SafeSetupArgs | null {
+  let args: SafeSetupArgs;
+  try {
+    args = decodeFunctionData({ abi: SAFE_SETUP_ABI, data: initializer }).args;
+    if (
+      encodeFunctionData({
+        abi: SAFE_SETUP_ABI,
+        functionName: "setup",
+        args,
+      }).toLowerCase() !== initializer.toLowerCase()
+    ) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+  const [owners, threshold] = args;
+  if (!ownerSet(owners) || threshold < 1n || threshold > BigInt(owners.length)) {
+    return null;
+  }
+  return args;
+}
+
+/**
+ * Whether `setup` runs no delegatecall hook but the exact SafeToL2Setup call
+ * pairing `singleton`, and pays no one.
+ */
+function safeSetupIsInert(args: SafeSetupArgs, singleton: Address): boolean {
+  const [, , to, data, , paymentToken, payment, paymentReceiver] = args;
+  const hook = isAddressEqual(to, SAFE_TO_L2_SETUP_ADDRESS)
+    ? isExactSetupToL2Call(data, singleton)
+    : isAddressEqual(to, zeroAddress) && data === "0x";
+  return (
+    hook &&
+    isAddressEqual(paymentToken, zeroAddress) &&
+    payment === 0n &&
+    (isAddressEqual(paymentReceiver, zeroAddress) ||
+      isAddressEqual(paymentReceiver, SAFE_CANONICAL_PAYMENT_RECEIVER))
+  );
+}
+
 /**
  * Whether replaying `creation` reproduces `current`, the Safe's live policy,
  * and nothing else: a recognized factory and singleton of its release, a
@@ -1507,21 +1586,8 @@ export function validateSafeCreationForCurrentPolicy(
   const refuse = (
     reason: Extract<SafeCreationValidation, { valid: false }>["reason"],
   ): SafeCreationValidation => ({ valid: false, reason });
-  if (
-    !creation ||
-    typeof creation.factory !== "string" ||
-    typeof creation.singleton !== "string" ||
-    !isAddress(creation.factory) ||
-    !isAddress(creation.singleton) ||
-    !isHexBytes(creation.initializer) ||
-    uint256(creation.saltNonce) === null ||
-    typeof creation.saltNonce !== "bigint"
-  ) {
-    return refuse("malformed-creation");
-  }
-  if (!isRecognizedSafeDeployment(creation.factory, creation.singleton)) {
-    return refuse("unrecognized-deployment");
-  }
+  const shape = safeCreationShapeRefusal(creation);
+  if (shape) return refuse(shape);
   if (
     !isDeployableSafeAuthority(current) ||
     !RECOGNIZED_SAFE_PROXY_CODE_HASHES.some(
@@ -1537,52 +1603,9 @@ export function validateSafeCreationForCurrentPolicy(
   if (!safeSingletonsAreEquivalent(creation.singleton, current.singleton)) {
     return refuse("initializer-policy-mismatch");
   }
-  let args: readonly [
-    readonly Address[],
-    bigint,
-    Address,
-    Hex,
-    Address,
-    Address,
-    bigint,
-    Address,
-  ];
-  try {
-    const decoded = decodeFunctionData({
-      abi: SAFE_SETUP_ABI,
-      data: creation.initializer,
-    });
-    args = decoded.args;
-    // A noncanonical encoding, trailing bytes included, could hide a policy.
-    if (
-      encodeFunctionData({
-        abi: SAFE_SETUP_ABI,
-        functionName: "setup",
-        args,
-      }).toLowerCase() !== creation.initializer.toLowerCase()
-    ) {
-      return refuse("malformed-initializer");
-    }
-  } catch {
-    return refuse("malformed-initializer");
-  }
-  const [
-    owners,
-    thresholdRaw,
-    to,
-    data,
-    fallbackHandler,
-    paymentToken,
-    payment,
-    paymentReceiver,
-  ] = args;
-  if (
-    !ownerSet(owners) ||
-    thresholdRaw < 1n ||
-    thresholdRaw > BigInt(owners.length)
-  ) {
-    return refuse("malformed-initializer");
-  }
+  const args = canonicalSafeSetupArgs(creation.initializer);
+  if (!args) return refuse("malformed-initializer");
+  const [owners, thresholdRaw, , , fallbackHandler] = args;
   if (
     thresholdRaw !== BigInt(current.threshold) ||
     !sameOwners(owners, current.owners) ||
@@ -1590,18 +1613,7 @@ export function validateSafeCreationForCurrentPolicy(
   ) {
     return refuse("initializer-policy-mismatch");
   }
-  const hook = isAddressEqual(to, SAFE_TO_L2_SETUP_ADDRESS)
-    ? isExactSetupToL2Call(data, creation.singleton)
-    : isAddressEqual(to, zeroAddress) && data === "0x";
-  if (
-    !hook ||
-    !isAddressEqual(paymentToken, zeroAddress) ||
-    payment !== 0n ||
-    !(
-      isAddressEqual(paymentReceiver, zeroAddress) ||
-      isAddressEqual(paymentReceiver, SAFE_CANONICAL_PAYMENT_RECEIVER)
-    )
-  ) {
+  if (!safeSetupIsInert(args, creation.singleton)) {
     return refuse("unsafe-initializer");
   }
   return {
