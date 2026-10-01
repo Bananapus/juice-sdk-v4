@@ -30,6 +30,11 @@ import {
   jbSplitsAbi,
   jbTokensAbi,
 } from "../generated/juicebox.js";
+import {
+  SAFE_SETUP_ABI,
+  SAFE_TO_L2_SETUP_ABI,
+  SAFE_TO_L2_SETUP_ADDRESS,
+} from "../safe.js";
 import type { JBChainId } from "../types.js";
 import { permissionKeyV6 } from "../v6/permissions.js";
 import { describeStickySplit, isStickySplit } from "../v6/sticky.js";
@@ -1134,38 +1139,6 @@ export function describeSafeInnerCall(
 
 // ── Safe proxy initializer ───────────────────────────────────────────────────
 
-const safeSetupAbi = [
-  {
-    type: "function",
-    name: "setup",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "_owners", type: "address[]" },
-      { name: "_threshold", type: "uint256" },
-      { name: "to", type: "address" },
-      { name: "data", type: "bytes" },
-      { name: "fallbackHandler", type: "address" },
-      { name: "paymentToken", type: "address" },
-      { name: "payment", type: "uint256" },
-      { name: "paymentReceiver", type: "address" },
-    ],
-    outputs: [],
-  },
-] as const;
-
-const safeToL2SetupAbi = [
-  {
-    type: "function",
-    name: "setupToL2",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "l2Singleton", type: "address" }],
-    outputs: [],
-  },
-] as const;
-
-/** The canonical SafeToL2Setup deployment, the same address on every chain. */
-const SAFE_TO_L2_SETUP = "0xbd89a1ce4dde368ffab0ec35506eece0b1ffdc54";
-
 /** A Safe proxy `initializer`: owners, threshold, setup hook and any payment. */
 export function describeSafeInitializer(
   chainId: number,
@@ -1174,7 +1147,8 @@ export function describeSafeInitializer(
   if (typeof value !== "string" || !value.startsWith("0x")) return null;
   const args = (() => {
     try {
-      return decodeFunctionData({ abi: safeSetupAbi, data: value as Hex }).args;
+      return decodeFunctionData({ abi: SAFE_SETUP_ABI, data: value as Hex })
+        .args;
     } catch {
       return null;
     }
@@ -1182,7 +1156,7 @@ export function describeSafeInitializer(
   if (!args) return null;
   // A noncanonical encoding could make the summary disagree with the bytes.
   const canonical = encodeFunctionData({
-    abi: safeSetupAbi,
+    abi: SAFE_SETUP_ABI,
     functionName: "setup",
     args,
   });
@@ -1214,11 +1188,11 @@ export function describeSafeInitializer(
     let hook = `DELEGATECALL to ${to} — data in the raw payload below`;
     // Only the canonical deployment is known to run SafeToL2Setup's code; any
     // other target could run anything under the same calldata.
-    if (to.toLowerCase() === SAFE_TO_L2_SETUP) {
+    if (to.toLowerCase() === SAFE_TO_L2_SETUP_ADDRESS.toLowerCase()) {
       try {
-        const inner = decodeFunctionData({ abi: safeToL2SetupAbi, data });
+        const inner = decodeFunctionData({ abi: SAFE_TO_L2_SETUP_ABI, data });
         const canonicalInner = encodeFunctionData({
-          abi: safeToL2SetupAbi,
+          abi: SAFE_TO_L2_SETUP_ABI,
           functionName: "setupToL2",
           args: inner.args,
         });

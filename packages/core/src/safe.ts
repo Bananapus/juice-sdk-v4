@@ -10,7 +10,6 @@ import {
   isAddress,
   isAddressEqual,
   keccak256,
-  parseAbi,
   toHex,
   zeroAddress,
   type Address,
@@ -18,21 +17,30 @@ import {
   type PublicClient,
 } from "viem";
 
+// This module runs nothing when it loads: every value below is a literal, so
+// importing one export does not pull in the rest. Checksummed addresses are
+// written out rather than computed with getAddress, and ABIs are JSON rather
+// than parseAbi strings.
+
 // Canonical Safe 1.4.1 deployments, from safe-global/safe-deployments.
 // A fixed singleton and initializer preserve CREATE2 addresses across chains.
-export const SAFE_FACTORY = getAddress(
-  "0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67",
-);
-export const SAFE_SINGLETON = getAddress(
-  "0x41675C099F32341bf84BFc5382aF534df5C7461a",
-);
-export const SAFE_FALLBACK = getAddress(
-  "0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99",
-);
-export const MULTICALL3 = getAddress(
-  "0xcA11bde05977b3631167028862bE2a173976CA11",
-);
+export const SAFE_FACTORY: Address =
+  "0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67";
+export const SAFE_SINGLETON: Address =
+  "0x41675C099F32341bf84BFc5382aF534df5C7461a";
+export const SAFE_FALLBACK: Address =
+  "0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99";
+export const MULTICALL3: Address = "0xcA11bde05977b3631167028862bE2a173976CA11";
 export const MAX_SAFE_OWNERS = 50;
+
+/**
+ * Safe's canonical 1.4.1 creation calls `SafeToL2Setup.setupToL2` as `setup`'s
+ * delegatecall hook. That library repoints slot zero at SafeL2 on every chain
+ * except Ethereum, so one initializer produces the same address with a
+ * different, but paired, singleton per chain. Same address on every chain.
+ */
+export const SAFE_TO_L2_SETUP_ADDRESS: Address =
+  "0xBD89A1CE4DDe368FFAB0eC35506eEcE0b1fFdc54";
 
 /**
  * `SafeProxyFactory.proxyCreationCode()` at {@link SAFE_FACTORY}: the same
@@ -61,27 +69,134 @@ const contracts = [
 const PROXY_CODE_HASH =
   "0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c";
 const SENTINEL = "0x0000000000000000000000000000000000000001" as const;
-const SINGLETON_SLOT = toHex(0n, { size: 32 });
+const SINGLETON_SLOT =
+  "0x0000000000000000000000000000000000000000000000000000000000000000" as const;
 const GUARD_SLOT =
   "0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8" as const;
 const FALLBACK_SLOT =
   "0x6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d5" as const;
 
-export const SAFE_CREATE_ABI = parseAbi([
-  "function proxyCreationCode() pure returns (bytes)",
-  "function createProxyWithNonce(address singleton, bytes initializer, uint256 saltNonce) returns (address proxy)",
-  "function setup(address[] owners,uint256 threshold,address to,bytes data,address fallbackHandler,address paymentToken,uint256 payment,address paymentReceiver)",
-]);
-export const CREATE_BATCH_ABI = parseAbi([
-  "function aggregate3Value((address target,bool allowFailure,uint256 value,bytes callData)[] calls) payable returns ((bool success,bytes returnData)[] returnData)",
-]);
-const READ_ABI = parseAbi([
-  "function masterCopy() view returns (address)",
-  "function VERSION() view returns (string)",
-  "function getThreshold() view returns (uint256)",
-  "function getOwners() view returns (address[])",
-  "function getModulesPaginated(address start,uint256 pageSize) view returns (address[],address)",
-]);
+const SETUP_FUNCTION = {
+  name: "setup",
+  type: "function",
+  stateMutability: "nonpayable",
+  inputs: [
+    { type: "address[]", name: "owners" },
+    { type: "uint256", name: "threshold" },
+    { type: "address", name: "to" },
+    { type: "bytes", name: "data" },
+    { type: "address", name: "fallbackHandler" },
+    { type: "address", name: "paymentToken" },
+    { type: "uint256", name: "payment" },
+    { type: "address", name: "paymentReceiver" },
+  ],
+  outputs: [],
+} as const;
+
+/** `Safe.setup`, the initializer a Safe proxy runs once at creation. */
+export const SAFE_SETUP_ABI = [SETUP_FUNCTION] as const;
+
+/** `SafeToL2Setup.setupToL2`, the only delegatecall hook a replayed creation may run. */
+export const SAFE_TO_L2_SETUP_ABI = [
+  {
+    name: "setupToL2",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ type: "address", name: "l2Singleton" }],
+    outputs: [],
+  },
+] as const;
+
+export const SAFE_CREATE_ABI = [
+  {
+    name: "proxyCreationCode",
+    type: "function",
+    stateMutability: "pure",
+    inputs: [],
+    outputs: [{ type: "bytes" }],
+  },
+  {
+    name: "createProxyWithNonce",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { type: "address", name: "singleton" },
+      { type: "bytes", name: "initializer" },
+      { type: "uint256", name: "saltNonce" },
+    ],
+    outputs: [{ type: "address", name: "proxy" }],
+  },
+  SETUP_FUNCTION,
+] as const;
+export const CREATE_BATCH_ABI = [
+  {
+    name: "aggregate3Value",
+    type: "function",
+    stateMutability: "payable",
+    inputs: [
+      {
+        type: "tuple[]",
+        name: "calls",
+        components: [
+          { type: "address", name: "target" },
+          { type: "bool", name: "allowFailure" },
+          { type: "uint256", name: "value" },
+          { type: "bytes", name: "callData" },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        type: "tuple[]",
+        name: "returnData",
+        components: [
+          { type: "bool", name: "success" },
+          { type: "bytes", name: "returnData" },
+        ],
+      },
+    ],
+  },
+] as const;
+const READ_ABI = [
+  {
+    name: "masterCopy",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "VERSION",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "string" }],
+  },
+  {
+    name: "getThreshold",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "getOwners",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address[]" }],
+  },
+  {
+    name: "getModulesPaginated",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { type: "address", name: "start" },
+      { type: "uint256", name: "pageSize" },
+    ],
+    outputs: [{ type: "address[]" }, { type: "address" }],
+  },
+] as const;
 
 export type SafeDeploymentPlan = {
   owners: Address[];

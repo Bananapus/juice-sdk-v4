@@ -5,6 +5,7 @@ import {
   encodeFunctionResult,
   getAddress,
   keccak256,
+  parseAbi,
   toHex,
   zeroAddress,
   type Address,
@@ -19,7 +20,10 @@ import {
   SAFE_FACTORY,
   SAFE_FALLBACK,
   SAFE_PROXY_CREATION_CODE,
+  SAFE_SETUP_ABI,
   SAFE_SINGLETON,
+  SAFE_TO_L2_SETUP_ABI,
+  SAFE_TO_L2_SETUP_ADDRESS,
   buildSafeDeploymentCalls,
   buildSafeDeploymentTx,
   buildSafeInitializer,
@@ -57,6 +61,36 @@ const LAUNCH: SafeCall = {
   data: "0xabcdef",
   value: 123456789n,
 };
+
+describe("Safe constants", () => {
+  test("are the parsed ABIs and checksummed addresses, written as literals", () => {
+    expect(SAFE_CREATE_ABI).toEqual(
+      parseAbi([
+        "function proxyCreationCode() pure returns (bytes)",
+        "function createProxyWithNonce(address singleton, bytes initializer, uint256 saltNonce) returns (address proxy)",
+        "function setup(address[] owners,uint256 threshold,address to,bytes data,address fallbackHandler,address paymentToken,uint256 payment,address paymentReceiver)",
+      ]),
+    );
+    expect(SAFE_SETUP_ABI).toEqual([SAFE_CREATE_ABI[2]]);
+    expect(SAFE_TO_L2_SETUP_ABI).toEqual(
+      parseAbi(["function setupToL2(address l2Singleton)"]),
+    );
+    expect(CREATE_BATCH_ABI).toEqual(
+      parseAbi([
+        "function aggregate3Value((address target,bool allowFailure,uint256 value,bytes callData)[] calls) payable returns ((bool success,bytes returnData)[] returnData)",
+      ]),
+    );
+    for (const address of [
+      SAFE_FACTORY,
+      SAFE_SINGLETON,
+      SAFE_FALLBACK,
+      MULTICALL3,
+      SAFE_TO_L2_SETUP_ADDRESS,
+    ]) {
+      expect(getAddress(address)).toBe(address);
+    }
+  });
+});
 
 describe("buildSafeInitializer", () => {
   test("encodes the ordered signing policy without setup delegatecalls, modules, or payment", () => {
