@@ -307,8 +307,10 @@ export type SafeQueuedTransaction = {
   safeTxGas: string | number | bigint;
   baseGas: string | number | bigint;
   gasPrice: string | number | bigint;
-  gasToken: Address;
-  refundReceiver: Address;
+  /** Null on a service row whose proposer omitted it, hashed as the zero address. */
+  gasToken: Address | null;
+  /** Null on a service row whose proposer omitted it, hashed as the zero address. */
+  refundReceiver: Address | null;
   nonce: number;
   safeTxHash?: Hex;
   contractTransactionHash?: Hex;
@@ -362,8 +364,9 @@ function nonceOf(value: unknown): number {
 /**
  * The exact EIP-712 message of `tx`. Every field is required and read
  * strictly: addresses checksummed, amounts as uint256 in any form, operation 0
- * (CALL) or 1 (DELEGATECALL), and null data as empty. Throws naming the first
- * field that is not.
+ * (CALL) or 1 (DELEGATECALL), null data as empty, and a null gas token or
+ * refund receiver as the zero address. Throws naming the first field that is
+ * not.
  */
 export function safeTransactionMessage(
   tx: SafeQueuedTransaction,
@@ -381,8 +384,14 @@ export function safeTransactionMessage(
     safeTxGas: fieldUint("safeTxGas", tx.safeTxGas),
     baseGas: fieldUint("baseGas", tx.baseGas),
     gasPrice: fieldUint("gasPrice", tx.gasPrice),
-    gasToken: fieldAddress("gasToken", tx.gasToken),
-    refundReceiver: fieldAddress("refundReceiver", tx.refundReceiver),
+    // The service stores an omitted gas token or refund receiver as null and
+    // hashes it as the zero address, as Safe does; nothing else may be absent.
+    gasToken:
+      tx.gasToken === null ? zeroAddress : fieldAddress("gasToken", tx.gasToken),
+    refundReceiver:
+      tx.refundReceiver === null
+        ? zeroAddress
+        : fieldAddress("refundReceiver", tx.refundReceiver),
     nonce: BigInt(nonceOf(tx.nonce)),
   };
 }
@@ -484,22 +493,26 @@ const ZERO_WORD =
  * - `failed`: the Safe ran it and its call failed (ExecutionFailure). A Safe
  *   signed with a nonzero safeTxGas or gasPrice logs this instead of reverting,
  *   so the receipt itself reads success. The nonce is spent;
+ *
+ *   both carry `payment`, the refund the Safe paid its executor. The signed
+ *   hash commits to gasPrice, gas token and refund receiver, and Safe pays only
+ *   when gasPrice > 0, so a refund never changes what ran. Refuse a refund
+ *   before executing ({@link safeTransactionHasRefund}), not after;
  * - `reverted`: the outer transaction reverted, so the Safe ran nothing;
  * - `unproven`: no exact event for it, more than one, or a malformed one.
  */
 export type SafeExecutionResult =
-  | { status: "success" }
-  | { status: "failed" }
+  | { status: "success"; payment: bigint }
+  | { status: "failed"; payment: bigint }
   | { status: "reverted" }
   | { status: "unproven"; reason: string };
 
-type SafeExecutionEvent = { failed: boolean; txHash: string };
+type SafeExecutionEvent = { failed: boolean; txHash: string; payment: bigint };
 
 /**
  * A Safe execution event in exactly the Safe 1.4 layout (txHash indexed) or
- * the Safe 1.3 layout (txHash the first data word), with a zero payment, the
- * only kind this SDK's zero-refund proposals produce. Null for another event;
- * a string naming what is wrong for a malformed one.
+ * the Safe 1.3 layout (txHash the first data word), with its payment. Null for
+ * another event; a string naming what is wrong for a malformed one.
  */
 function safeExecutionEvent(log: {
   topics?: unknown;
@@ -517,13 +530,19 @@ function safeExecutionEvent(log: {
     if (!isBytes32(topics[1]) || !/^0x[\da-f]{64}$/.test(data)) {
       return `a malformed ${name} event`;
     }
-    if (data.slice(2) !== ZERO_WORD) return `a ${name} event with a refund`;
-    return { failed, txHash: topics[1].toLowerCase() };
+    return {
+      failed,
+      txHash: topics[1].toLowerCase(),
+      payment: BigInt(data),
+    };
   }
   if (topics.length === 1) {
     if (!/^0x[\da-f]{128}$/.test(data)) return `a malformed ${name} event`;
-    if (data.slice(66) !== ZERO_WORD) return `a ${name} event with a refund`;
-    return { failed, txHash: data.slice(0, 66) };
+    return {
+      failed,
+      txHash: data.slice(0, 66),
+      payment: BigInt(`0x${data.slice(66)}`),
+    };
   }
   return `a malformed ${name} event`;
 }
@@ -534,9 +553,14 @@ function safeExecutionEvent(log: {
  * proposal at once, the execution's own transaction hash. Then the receipt
  * must carry exactly one execution event of `safe`, whatever its hash.
  * Otherwise exactly one event for `hash`, so another proposal in the same
- * batch cannot stand in for this one. Any malformed execution event of `safe`
- * leaves the result unproven, as does a refund: this SDK proposes only
- * zero-refund transactions.
+ * batch cannot stand in for this one, and another proposal's event, refund
+ * included, never decides this one. Any malformed execution event of `safe`
+ * leaves the result unproven, since it cannot be told apart from this one.
+ *
+ * The at-once reading proves only that the Safe ran one transaction in that
+ * receipt. A caller who holds the executing transaction's input should also
+ * bind it to the reviewed call, as an `execTransaction` with exactly the
+ * reviewed fields.
  */
 export function safeExecutionResult(
   receipt: {
@@ -595,7 +619,8 @@ export function safeExecutionResult(
       `Safe ${safe} logged ${events.length} execution results (${events.map((event) => (event.failed ? "ExecutionFailure" : "ExecutionSuccess")).join(", ")}) for ${subject}, so the receipt proves none of them.`,
     );
   }
-  return events[0].failed ? { status: "failed" } : { status: "success" };
+  const [event] = events;
+  return { status: event.failed ? "failed" : "success", payment: event.payment };
 }
 
 /** Throws unless `receipt` proves the Safe transaction `hash` ran and succeeded ({@link safeExecutionResult}). */
@@ -622,17 +647,51 @@ export function requireSafeExecutionSuccess(
 // ── Signatures ───────────────────────────────────────────────────────────────
 
 /**
- * One confirmation's signature bytes, without 0x: its signature when that is
- * whole hex of at least 65 bytes (an EIP-1271 contract signature is longer),
- * else, for none at all, the `approveHash` form (v = 1) naming the owner.
+ * One confirmation's part of Safe's `signatures` bytes, without 0x:
+ *
+ * - none at all: the `approveHash` form (v = 1) naming the owner, a head;
+ * - an ECDSA, eth_sign or approved-hash signature: exactly 65 bytes, a head;
+ *   an approved hash (v = 1) must name its own owner;
+ * - an EIP-1271 contract signature in the transaction service's standalone
+ *   form: r = owner, s = 65, v = 0, then a length word and the signature,
+ *   optionally zero-padded to a word. Its dynamic part becomes a tail that
+ *   {@link safeExecutionSignatures} places after every head.
+ *
+ * Null for anything else, which never counts as a confirmation.
  */
-function signatureBytes(owner: Address, signature: unknown): string | null {
+function signaturePart(
+  owner: Address,
+  signature: unknown,
+): { head: string } | { contract: string } | null {
+  const word = owner.slice(2).toLowerCase().padStart(64, "0");
   if (signature === undefined || signature === null || signature === "") {
-    return `${owner.slice(2).toLowerCase().padStart(64, "0")}${ZERO_WORD}01`;
+    return { head: `${word}${ZERO_WORD}01` };
   }
-  return isHexBytes(signature) && signature.length >= 132
-    ? signature.slice(2)
-    : null;
+  if (!isHexBytes(signature) || signature.length < 132) return null;
+  const bytes = signature.slice(2).toLowerCase();
+  const v = bytes.slice(128, 130);
+  if (v !== "00") {
+    if (bytes.length !== 130 || (v === "01" && bytes.slice(0, 64) !== word)) {
+      return null;
+    }
+    return { head: bytes };
+  }
+  if (
+    bytes.length < 194 ||
+    bytes.slice(0, 64) !== word ||
+    BigInt(`0x${bytes.slice(64, 128)}`) !== 65n
+  ) {
+    return null;
+  }
+  const end = 194n + 2n * BigInt(`0x${bytes.slice(130, 194)}`);
+  if (
+    end > BigInt(bytes.length) ||
+    BigInt(bytes.length) - end >= 64n ||
+    /[^0]/.test(bytes.slice(Number(end)))
+  ) {
+    return null;
+  }
+  return { contract: bytes.slice(194, Number(end)) };
 }
 
 function requireOwners(owners: readonly Address[]): Set<string> {
@@ -669,7 +728,7 @@ export function usableSafeConfirmations(
       typeof owner !== "string" ||
       !isAddress(owner) ||
       !allowed.has(owner.toLowerCase()) ||
-      signatureBytes(owner, confirmation.signature) === null
+      signaturePart(owner, confirmation.signature) === null
     ) {
       continue;
     }
@@ -688,14 +747,35 @@ export function usableSafeConfirmations(
   );
 }
 
-/** The `signatures` bytes for `execTransaction`: {@link usableSafeConfirmations}, concatenated. */
+/**
+ * The `signatures` bytes for `execTransaction`, as Safe's checkNSignatures
+ * reads them: one 65-byte head per {@link usableSafeConfirmations} entry, in
+ * owner order, then each contract signature's length and bytes. A contract
+ * signature's head points at its tail by byte offset, which is never below
+ * the heads' total length, so it passes Safe's GS021 check.
+ */
 export function safeExecutionSignatures(
   tx: Pick<SafeQueuedTransaction, "confirmations">,
   owners: readonly Address[],
 ): Hex {
-  return `0x${usableSafeConfirmations(tx, owners)
-    .map(({ owner, signature }) => signatureBytes(owner, signature))
-    .join("")}`;
+  const parts = usableSafeConfirmations(tx, owners).map(
+    ({ owner, signature }) => ({
+      owner,
+      part: signaturePart(owner, signature)!,
+    }),
+  );
+  let head = "";
+  let tail = "";
+  for (const { owner, part } of parts) {
+    if ("head" in part) {
+      head += part.head;
+      continue;
+    }
+    const offset = parts.length * 65 + tail.length / 2;
+    head += `${owner.slice(2).toLowerCase().padStart(64, "0")}${offset.toString(16).padStart(64, "0")}00`;
+    tail += `${(part.contract.length / 2).toString(16).padStart(64, "0")}${part.contract}`;
+  }
+  return `0x${head}${tail}`;
 }
 
 /** `execTransaction`'s arguments for `tx`, signed by its usable confirmations from `owners`. */
@@ -716,6 +796,17 @@ export function safeExecutionArgs(
     message.refundReceiver,
     safeExecutionSignatures(tx, owners),
   ] as const;
+}
+
+/**
+ * Whether executing `tx` pays its executor a refund out of the Safe: Safe pays
+ * one only when gasPrice is above zero (in the gas token, or ETH, to the refund
+ * receiver or the executor). This SDK never proposes one. A queue card shows
+ * or refuses such a transaction before executing it. Throws on a malformed
+ * record, as {@link safeTransactionMessage} does.
+ */
+export function safeTransactionHasRefund(tx: SafeQueuedTransaction): boolean {
+  return safeTransactionMessage(tx).gasPrice > 0n;
 }
 
 // ── Proposals ────────────────────────────────────────────────────────────────

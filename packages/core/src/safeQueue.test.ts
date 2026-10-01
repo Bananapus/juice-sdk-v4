@@ -37,6 +37,7 @@ import {
   safeExecutionResult,
   safeExecutionSignatures,
   safeProposalFor,
+  safeTransactionHasRefund,
   safeTransactionHash,
   safeTransactionMatchesCall,
   safeTransactionMessage,
@@ -55,7 +56,13 @@ const STALE_OWNER = "0x7777777777777777777777777777777777777777" as Address;
 const TARGET = "0x3333333333333333333333333333333333333333" as Address;
 const lowSignature = `0x${"11".repeat(65)}` as Hex;
 const highSignature = `0x${"99".repeat(65)}` as Hex;
-const contractSignature = `0x${"22".repeat(97)}` as Hex;
+/** An EIP-1271 signature in the transaction service's standalone form: r = owner, s = 65, v = 0, length, bytes. */
+function serviceContractSignature(owner: Address, inner: Hex, padded = false): Hex {
+  const body = inner.slice(2).toLowerCase();
+  return `0x${owner.slice(2).toLowerCase().padStart(64, "0")}${(65).toString(16).padStart(64, "0")}00${(body.length / 2).toString(16).padStart(64, "0")}${padded ? body.padEnd(Math.ceil(body.length / 64) * 64, "0") : body}` as Hex;
+}
+const nestedSignature = `0x${"ab".repeat(65)}` as Hex;
+const contractSignature = serviceContractSignature(LOW_OWNER, nestedSignature);
 
 const transaction = {
   to: TARGET,
@@ -171,6 +178,17 @@ describe("Safe transaction hashing", () => {
     ).toThrow("Invalid Safe address: 0x12.");
   });
 
+  it("hashes a null gas token or refund receiver as the zero address, as the service does", () => {
+    const omitted = { ...transaction, gasToken: null, refundReceiver: null };
+    expect(safeTransactionMessage(omitted)).toMatchObject({
+      gasToken: zeroAddress,
+      refundReceiver: zeroAddress,
+    });
+    expect(safeTransactionHash(1, SAFE, omitted)).toBe(
+      safeTransactionHash(1, SAFE, transaction),
+    );
+  });
+
   it("refuses an advertised hash, Safe or reviewed hash that the fields do not produce", () => {
     const hash = safeTransactionHash(1, SAFE, transaction);
     expect(
@@ -248,14 +266,14 @@ describe("Safe execution results", () => {
           SAFE,
           expected,
         ),
-      ).toEqual({ status: "success" });
+      ).toEqual({ status: "success", payment: 0n });
       expect(
         safeExecutionResult(
           receipt([executionLog("ExecutionFailure", expected, { indexed })]),
           SAFE,
           expected,
         ),
-      ).toEqual({ status: "failed" });
+      ).toEqual({ status: "failed", payment: 0n });
     }
     // A checksummed or uppercase Safe log address is the same Safe.
     expect(
@@ -269,7 +287,7 @@ describe("Safe execution results", () => {
         SAFE,
         expected,
       ),
-    ).toEqual({ status: "success" });
+    ).toEqual({ status: "success", payment: 0n });
     expect(() =>
       requireSafeExecutionSuccess(
         receipt([executionLog("ExecutionSuccess", expected)]),
@@ -290,7 +308,7 @@ describe("Safe execution results", () => {
         SAFE,
         expected,
       ),
-    ).toEqual({ status: "success" });
+    ).toEqual({ status: "success", payment: 0n });
     for (const logs of [
       [],
       [executionLog("ExecutionSuccess", otherProposal)],
@@ -309,7 +327,7 @@ describe("Safe execution results", () => {
     }
   });
 
-  it("proves nothing from two results for one hash, a malformed event or a refund", () => {
+  it("proves nothing from two results for one hash, or a malformed event", () => {
     const both = receipt([
       executionLog("ExecutionSuccess", expected),
       executionLog("ExecutionFailure", expected),
@@ -322,17 +340,6 @@ describe("Safe execution results", () => {
     );
     const success = executionLog("ExecutionSuccess", expected);
     for (const [log, problem] of [
-      [
-        executionLog("ExecutionSuccess", expected, { payment: 1n }),
-        "a ExecutionSuccess event with a refund",
-      ],
-      [
-        executionLog("ExecutionFailure", expected, {
-          indexed: false,
-          payment: 1n,
-        }),
-        "a ExecutionFailure event with a refund",
-      ],
       [{ ...success, data: "0x" }, "a malformed ExecutionSuccess event"],
       [
         { ...success, topics: [...success.topics, `0x${"ff".repeat(32)}`] },
@@ -385,7 +392,41 @@ describe("Safe execution results", () => {
         SAFE,
         expected,
       ),
-    ).toEqual({ status: "success" });
+    ).toEqual({ status: "success", payment: 0n });
+  });
+
+  it("keeps an execution that paid a refund proven, and reports the refund", () => {
+    expect(
+      safeExecutionResult(
+        receipt([executionLog("ExecutionSuccess", expected, { payment: 7n })]),
+        SAFE,
+        expected,
+      ),
+    ).toEqual({ status: "success", payment: 7n });
+    // The nonce is spent: a failed call that paid a refund is still failed.
+    expect(
+      safeExecutionResult(
+        receipt([
+          executionLog("ExecutionFailure", expected, {
+            indexed: false,
+            payment: 3n,
+          }),
+        ]),
+        SAFE,
+        expected,
+      ),
+    ).toEqual({ status: "failed", payment: 3n });
+    // Another proposal's refunded event never decides this one.
+    expect(
+      safeExecutionResult(
+        receipt([
+          executionLog("ExecutionSuccess", otherProposal, { payment: 9n }),
+          executionLog("ExecutionSuccess", expected),
+        ]),
+        SAFE,
+        expected,
+      ),
+    ).toEqual({ status: "success", payment: 0n });
   });
 
   it("reads Safe{Wallet}'s at-once execution by the transaction's own hash", () => {
@@ -397,14 +438,14 @@ describe("Safe execution results", () => {
         SAFE,
         EXECUTION,
       ),
-    ).toEqual({ status: "success" });
+    ).toEqual({ status: "success", payment: 0n });
     expect(
       safeExecutionResult(
         atOnce([executionLog("ExecutionFailure", expected)]),
         SAFE,
         EXECUTION,
       ),
-    ).toEqual({ status: "failed" });
+    ).toEqual({ status: "failed", payment: 0n });
     expect(safeExecutionResult(atOnce([]), SAFE, EXECUTION)).toEqual({
       status: "unproven",
       reason: `The receipt has no ExecutionSuccess or ExecutionFailure from Safe ${SAFE} for transaction ${EXECUTION}.`,
@@ -563,6 +604,100 @@ describe("Safe signatures", () => {
     ).toThrow("Invalid Safe owners: null.");
   });
 
+  it("places a contract owner's signature after every head, at its byte offset", () => {
+    const word = (owner: Address) => owner.slice(2).toLowerCase().padStart(64, "0");
+    const offset = (bytes: number) => bytes.toString(16).padStart(64, "0");
+    const tail = `${offset(65)}${nestedSignature.slice(2)}`;
+    // One EOA signature, then the contract owner: 65 + 65 heads, then the tail.
+    for (const padded of [false, true]) {
+      const signatures = safeExecutionSignatures(
+        {
+          confirmations: [
+            {
+              owner: HIGH_OWNER,
+              signature: serviceContractSignature(HIGH_OWNER, nestedSignature, padded),
+            },
+            { owner: LOW_OWNER, signature: lowSignature },
+          ],
+        },
+        owners,
+      );
+      expect(signatures).toBe(
+        `0x${lowSignature.slice(2)}${word(HIGH_OWNER)}${offset(130)}00${tail}`,
+      );
+      expect((signatures.length - 2) / 2).toBe(227);
+    }
+    // The contract owner first: its head still points past both heads.
+    expect(
+      safeExecutionSignatures(
+        {
+          confirmations: [
+            { owner: LOW_OWNER, signature: contractSignature },
+            { owner: HIGH_OWNER, signature: highSignature },
+          ],
+        },
+        owners,
+      ),
+    ).toBe(
+      `0x${word(LOW_OWNER)}${offset(130)}00${highSignature.slice(2)}${tail}`,
+    );
+    // Two contract owners: the second tail starts after the first.
+    const second = `0x${"cd".repeat(70)}` as Hex;
+    expect(
+      safeExecutionSignatures(
+        {
+          confirmations: [
+            { owner: LOW_OWNER, signature: contractSignature },
+            {
+              owner: HIGH_OWNER,
+              signature: serviceContractSignature(HIGH_OWNER, second),
+            },
+          ],
+        },
+        owners,
+      ),
+    ).toBe(
+      `0x${word(LOW_OWNER)}${offset(130)}00${word(HIGH_OWNER)}${offset(130 + 32 + 65)}00${tail}${offset(70)}${second.slice(2)}`,
+    );
+  });
+
+  it("never counts a malformed contract, approval or ECDSA signature", () => {
+    const valid = serviceContractSignature(LOW_OWNER, nestedSignature).slice(2);
+    const malformed = [
+      // r names another owner.
+      serviceContractSignature(HIGH_OWNER, nestedSignature),
+      // s is not 65.
+      `0x${valid.slice(0, 64)}${(66).toString(16).padStart(64, "0")}${valid.slice(128)}`,
+      // The length runs past the bytes.
+      `0x${valid.slice(0, 130)}${(66).toString(16).padStart(64, "0")}${valid.slice(194)}`,
+      // Nonzero padding, and a whole extra word of it.
+      `0x${valid}01`,
+      `0x${valid}${"0".repeat(64)}`,
+      // Too short for a length word.
+      `0x${valid.slice(0, 160)}`,
+      // A 70-byte signature that is not a contract signature.
+      `0x${"11".repeat(70)}`,
+      // An approved hash (v = 1) naming another owner.
+      `0x${HIGH_OWNER.slice(2).toLowerCase().padStart(64, "0")}${"0".repeat(64)}01`,
+    ] as Hex[];
+    for (const signature of malformed) {
+      expect(
+        usableSafeConfirmations(
+          { confirmations: [{ owner: LOW_OWNER, signature }] },
+          owners,
+        ),
+      ).toEqual([]);
+    }
+    // An approved hash naming its own owner counts.
+    const approval = `0x${LOW_OWNER.slice(2).toLowerCase().padStart(64, "0")}${"0".repeat(64)}01` as Hex;
+    expect(
+      usableSafeConfirmations(
+        { confirmations: [{ owner: LOW_OWNER, signature: approval }] },
+        owners,
+      ),
+    ).toEqual([{ owner: LOW_OWNER, signature: approval }]);
+  });
+
   it("encodes an onchain approval as Safe's v = 1 signature of the owner", () => {
     expect(
       safeExecutionSignatures(
@@ -648,6 +783,22 @@ describe("Safe proposals", () => {
     expect(() => safeProposalFor({ to: TARGET, data: "0x" }, -1)).toThrow(
       "The Safe transaction's nonce is invalid: -1.",
     );
+  });
+
+  it("names a transaction that pays its executor a refund", () => {
+    expect(safeTransactionHasRefund(transaction)).toBe(true);
+    expect(safeTransactionHasRefund({ ...transaction, gasPrice: "0" })).toBe(
+      false,
+    );
+    expect(
+      safeTransactionHasRefund(safeProposalFor({ to: TARGET, data: "0x" }, 1)),
+    ).toBe(false);
+    expect(() =>
+      safeTransactionHasRefund({
+        ...transaction,
+        gasPrice: -1,
+      } as SafeQueuedTransaction),
+    ).toThrow("The Safe transaction's gasPrice is invalid: -1.");
   });
 
   it("matches a queued proposal only on its exact call, operation and zero refund", () => {
@@ -773,6 +924,14 @@ describe("Safe transaction service", () => {
       `${base}/api/v1/safes/${SAFE}/multisig-transactions/?executed=false&trusted=true&ordering=nonce&limit=50&offset=0&nonce__gte=8`,
       `${base}/api/v1/safes/${SAFE}/multisig-transactions/?executed=false&trusted=true&ordering=nonce&limit=50&offset=50&nonce__gte=8`,
     ]);
+  });
+
+  it("lists a row whose proposer omitted the gas token and refund receiver", async () => {
+    const omitted = { ...row(), gasToken: null, refundReceiver: null };
+    const fetcher = vi.fn(async () => json({ next: null, results: [omitted] }));
+    await expect(
+      listPendingSafeTransactions(1, SAFE, 8, { fetch: fetcher }),
+    ).resolves.toHaveLength(1);
   });
 
   it("finds the queued proposal of an exact call", async () => {
