@@ -42,12 +42,14 @@ import {
   relayrPaymentOptions,
   relayrProgress,
   relayrRecordChain,
+  RelayrDestinationRevertedError,
+  RelayrPaymentRevertedError,
   RelayrProofError,
-  RelayrRevertedError,
   relayrStateIsFailed,
   relayrStateIsSuccess,
   relayrSupportsChain,
   relayrSupportsChains,
+  requireRelayrPaymentRetry,
   requireRelayrPaymentRuntime,
   simulateRelayrPayment,
   TRUSTED_FORWARDER_ABI,
@@ -58,6 +60,7 @@ import {
   type RelayrEntry,
   type RelayrPayment,
   type RelayrPaymentDetails,
+  type RelayrProofClient,
   type RelayrTransactionBinding,
   type RelayrTransactionRecord,
 } from "./relayr.js";
@@ -577,6 +580,8 @@ describe("Relayr quote binding", () => {
   it.each<[string, Partial<RelayrEntry> | null]>([
     ["value", { value: "0x9" }],
     ["virtual nonce", { virtual_nonce: 1 }],
+    // How Relayr echoes nonces for a bundle posted with virtual nonces disabled.
+    ["null virtual nonce", { virtual_nonce: null as unknown as number }],
     ["calldata", { data: "0x99" }],
     ["target", { target: OTHER }],
     ["chain", { chain: 8453 }],
@@ -597,23 +602,64 @@ describe("Relayr quote binding", () => {
     },
   );
 
-  it("does not bind a record whose ID was not quoted, nor one request to two records", async () => {
+  it("binds only a bundle whose records are exactly the quoted IDs, one each", async () => {
     const unquoted = outOfOrder();
     unquoted[2] = recordFor(request.transactions[1], FOURTH_UUID);
+    // Every posted transaction still has its record, but the bundle carries
+    // one more that the destination proof would never accept.
+    const extra = [
+      ...outOfOrder(),
+      recordFor({ ...request.transactions[1], data: "0xdead" }, FOURTH_UUID),
+    ];
     const repeated = [
       ...outOfOrder(),
       recordFor(request.transactions[1], FOURTH_UUID),
     ];
     repeated[3].tx_uuid = OTHER_UUID;
+    const reused = outOfOrder();
+    reused[0].tx_uuid = OTHER_UUID;
+    // A quoted ID on a second record that carries no posted transaction.
+    const twin = [
+      ...outOfOrder(),
+      recordFor({ ...request.transactions[1], data: "0xdead" }, OTHER_UUID),
+    ];
     const shared = outOfOrder();
     shared[2] = recordFor(request.transactions[1], BUNDLE_UUID);
-    for (const records of [unquoted, repeated, shared]) {
+    const anonymous: unknown[] = outOfOrder();
+    anonymous[2] = { request: request.transactions[1] };
+    for (const records of [
+      unquoted,
+      extra,
+      repeated,
+      reused,
+      twin,
+      shared,
+      anonymous,
+    ]) {
       await expect(
         bindRelayrQuote(json(quote()), request, {
           fetch: vi.fn(async () => bundle(records)),
         }),
       ).rejects.toThrow(/did not bind every quoted transaction/);
     }
+  });
+
+  it("refuses two posted transactions bound to one record", async () => {
+    // A hand-built request can repeat a transaction; relayrBundleRequest never does.
+    const twice: RelayrBundleRequest = {
+      transactions: [request.transactions[0], { ...request.transactions[0] }],
+      virtual_nonce_mode: "ChainIndependent",
+    };
+    await expect(
+      bindRelayrQuote(json(quote({ tx_uuids: ids.slice(0, 2) })), twice, {
+        fetch: vi.fn(async () =>
+          bundle([
+            recordFor(request.transactions[0], BUNDLE_UUID),
+            recordFor(request.transactions[1], OTHER_UUID),
+          ]),
+        ),
+      }),
+    ).rejects.toThrow(/did not bind every quoted transaction/);
   });
 
   it("accepts a record whose value Relayr writes in hex", async () => {
@@ -1126,10 +1172,11 @@ describe("Relayr payment proof", () => {
     const reverted = await rejection(
       verify(proofClient([onchain({ status: "reverted" })])),
     );
-    expect(reverted).toBeInstanceOf(RelayrRevertedError);
+    expect(reverted).toBeInstanceOf(RelayrPaymentRevertedError);
     expect(reverted).toBeInstanceOf(RelayrProofError);
+    expect(reverted).not.toBeInstanceOf(RelayrDestinationRevertedError);
     expect(reverted).toMatchObject({
-      name: "RelayrRevertedError",
+      name: "RelayrPaymentRevertedError",
       message: "The Relayr funding transaction reverted onchain.",
       hash: HASH,
       chainId: 1,
@@ -1147,8 +1194,40 @@ describe("Relayr payment proof", () => {
       verify(proofClient([onchain({ status: "reverted", value: 1n })])),
     );
     expect(other).toBeInstanceOf(RelayrProofError);
-    expect(other).not.toBeInstanceOf(RelayrRevertedError);
+    expect(other).not.toBeInstanceOf(RelayrPaymentRevertedError);
   });
+
+  it.each<[string, unknown]>([
+    // A saved session restores the reviewed amount from JSON as a string.
+    ["a decimal string", "100"],
+    ["a hex string", "0x64"],
+    ["an exact number", 100],
+  ])(
+    "proves a payment whose saved amount is %s, and signals its canonical revert",
+    async (_, amount) => {
+      const saved = {
+        ...JSON.parse(
+          JSON.stringify(reviewedPayment(), (_key, value: unknown) =>
+            typeof value === "bigint" ? value.toString() : value,
+          ),
+        ),
+        amount,
+      } as RelayrPaymentDetails;
+      await expect(
+        verify(proofClient([onchain()]), { payment: saved }),
+      ).resolves.toMatchObject({ status: "success" });
+      await expect(
+        verify(proofClient([onchain({ status: "reverted" })]), {
+          payment: saved,
+        }),
+      ).rejects.toBeInstanceOf(RelayrPaymentRevertedError);
+      await expect(
+        verify(proofClient([onchain({ value: 99n })]), { payment: saved }),
+      ).rejects.toThrow(
+        "The funding transaction does not match the reviewed Relayr payment.",
+      );
+    },
+  );
 
   it.each([
     ["sender", { from: OTHER }],
@@ -1309,6 +1388,105 @@ describe("Relayr payment proof", () => {
       "Only an authenticated Relayr payment with its transaction hash can be verified.",
     );
     expect(client.getTransaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("Relayr payment retry", () => {
+  const paid = (payment_received: unknown, bundleUuid = BUNDLE_UUID) =>
+    vi.fn(async () =>
+      json({ bundle_uuid: bundleUuid, payment_received, transactions: [] }),
+    );
+  const retry = (
+    client: object,
+    fetchBundle?: typeof globalThis.fetch,
+    payment: Parameters<
+      typeof verifyRelayrPayment
+    >[1]["payment"] = reviewedPayment(),
+  ) =>
+    requireRelayrPaymentRetry(
+      asClient(client),
+      { hash: HASH, from: ACCOUNT, payment },
+      fetchBundle ? { fetch: fetchBundle } : undefined,
+    );
+  const reverted = () => proofClient([onchain({ status: "reverted" })]);
+
+  it("clears the same quote only after a canonical revert that Relayr confirms left the bundle unpaid", async () => {
+    const fetchBundle = paid(false);
+    await expect(retry(reverted(), fetchBundle)).resolves.toBeUndefined();
+    expect(fetchBundle).toHaveBeenCalledWith(
+      `${RELAYR_API}/v1/bundle/${BUNDLE_UUID}`,
+      { signal: expect.any(AbortSignal) },
+    );
+    // A session restored from JSON carries the amount as a string.
+    await expect(
+      retry(reverted(), paid(false), {
+        ...reviewedPayment(),
+        amount: "100",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("reads the bundle with the global fetch by default", async () => {
+    vi.stubGlobal("fetch", paid(false));
+    await expect(retry(reverted())).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses when Relayr reports a payment for the bundle", async () => {
+    await expect(retry(reverted(), paid(true))).rejects.toThrow(
+      "Relayr already reports a payment for this bundle. Do not pay again.",
+    );
+  });
+
+  it.each([undefined, null, "false", 0])(
+    "refuses while Relayr's payment_received is %j, not false",
+    async (answer) => {
+      await expect(retry(reverted(), paid(answer))).rejects.toThrow(
+        "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.",
+      );
+    },
+  );
+
+  it.each([
+    ["an HTTP error", vi.fn(async () => json({ error: "not found" }, 404))],
+    ["another bundle", paid(false, OTHER_UUID)],
+    ["an unreadable body", vi.fn(async () => json("{not json"))],
+  ])("refuses when the bundle read returns %s", async (_, fetchBundle) => {
+    await expect(retry(reverted(), fetchBundle)).rejects.toThrow(
+      "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.",
+    );
+  });
+
+  it("keeps a failed bundle read's cause out of serialization", async () => {
+    const failure = new TypeError("fetch failed: https://relayr.invalid/key");
+    const error = await rejection(
+      retry(
+        reverted(),
+        vi.fn(async () => {
+          throw failure;
+        }),
+      ),
+    );
+    expect(error.cause).toBe(failure);
+    expect(JSON.stringify(error)).not.toContain("relayr.invalid");
+  });
+
+  it("never asks Relayr about a payment that succeeded, differs or cannot be read", async () => {
+    const fetchBundle = paid(false);
+    await expect(retry(proofClient([onchain()]), fetchBundle)).rejects.toThrow(
+      "This Relayr payment succeeded onchain, so its bundle is paid. Do not pay again.",
+    );
+    await expect(
+      retry(
+        proofClient([onchain({ status: "reverted", value: 1n })]),
+        fetchBundle,
+      ),
+    ).rejects.toBeInstanceOf(RelayrProofError);
+    const unavailable = proofClient([]);
+    await expect(retry(unavailable, fetchBundle)).rejects.toThrow(
+      `Could not read Relayr payment ${HASH} on chain 1. Do not pay again; check it later.`,
+    );
+    expect(fetchBundle).not.toHaveBeenCalled();
   });
 });
 
@@ -1596,7 +1774,7 @@ describe("Relayr destination proof", () => {
     ["value", { value: 1n }, RelayrProofError],
     ["target", { to: TARGET }, RelayrProofError],
     ["chain", { chainId: 8453 }, RelayrProofError],
-    ["receipt status", { status: "reverted" }, RelayrRevertedError],
+    ["receipt status", { status: "reverted" }, RelayrDestinationRevertedError],
   ])(
     "keeps a paid bundle pending when the onchain %s is wrong",
     async (_, change, kind) => {
@@ -1639,8 +1817,10 @@ describe("Relayr destination proof", () => {
         { entry: first, hash: HASH },
       ),
     );
+    // A failed destination never reads as a payment that may be retried.
+    expect(reverted).not.toBeInstanceOf(RelayrPaymentRevertedError);
     expect(reverted).toMatchObject({
-      name: "RelayrRevertedError",
+      name: "RelayrDestinationRevertedError",
       hash: HASH,
       chainId: 1,
     });
@@ -1672,6 +1852,115 @@ describe("Relayr destination proof", () => {
       }),
     ).rejects.toThrow(/lacks exact destination proof/);
     expect(client.getTransaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("Relayr's live bundle shape", () => {
+  // Posted in chain order; Relayr lists the bundle by chain name.
+  const posted = [1, 10, 8453, 42161];
+  const listed = [42161, 8453, 1, 10];
+  const ID: Record<number, string> = {
+    1: OTHER_UUID,
+    10: THIRD_UUID,
+    8453: FOURTH_UUID,
+    42161: "cccccccc-dddd-eeee-ffff-aaaaaaaaaaaa",
+  };
+  const TX: Record<number, Hex> = {
+    1: `0x${"a1".repeat(32)}`,
+    10: `0x${"b2".repeat(32)}`,
+    8453: `0x${"c3".repeat(32)}`,
+    42161: `0x${"d4".repeat(32)}`,
+  };
+  const request = relayrBundleRequest(
+    posted.map((chain) => forwarded(chain, { value: chain === 1 ? 5n : 0n })),
+  );
+  const entryOn = (chain: number) =>
+    request.transactions[posted.indexOf(chain)];
+  // `GET /v1/bundle/{uuid}` with the fields revnet.money's client reads from
+  // the live API, in the order a live bundle posted as 1, 10, 8453, 42161 came
+  // back on 2026-09-25 (bundle 9c33afcf…). No raw response was kept, so it is
+  // rebuilt from that schema and order: hex values, a gas limit per call, and
+  // a completed status that nests the hash beside its block hash.
+  const live = {
+    bundle_uuid: BUNDLE_UUID,
+    created_at: "2026-09-25T21:40:11.482913Z",
+    expires_at: "2026-09-25T22:40:11.482913Z",
+    payment: [paymentFor({ chain: 8453, amount: "0x1c6bf52634000" })],
+    payment_received: true,
+    transactions: listed.map((chain) => ({
+      tx_uuid: ID[chain],
+      request: {
+        chain,
+        target: entryOn(chain).target.toLowerCase(),
+        data: entryOn(chain).data,
+        value: `0x${BigInt(entryOn(chain).value).toString(16)}`,
+        gas_limit: "0x9c4e0",
+        virtual_nonce: 0,
+      },
+      status:
+        chain === 8453
+          ? { state: "Success", data: { hash: TX[chain] } }
+          : {
+              state: "Completed",
+              data: {
+                block_hash: BLOCK_HASH,
+                transaction: { hash: TX[chain] },
+              },
+            },
+    })),
+  };
+  // The quote lists its IDs in that order too, and leaves the records out.
+  const quote = {
+    bundle_uuid: BUNDLE_UUID,
+    payment_info: live.payment,
+    per_txn: listed.map(() => ({
+      gas_cost: 61_234,
+      priced_in: { asset: "ETH", type: "native" },
+      value: 0.0000123,
+    })),
+    txn_uuids: listed.map((chain) => ID[chain]),
+  };
+
+  it("binds each posted call to its own ID and proves every destination", async () => {
+    const bound = await bindRelayrQuote(json(quote), request, {
+      fetch: vi.fn(async () => json(live)),
+    });
+    expect(
+      bound.expectedTransactions.map(({ chain, txUuid }) => [chain, txUuid]),
+    ).toEqual(posted.map((chain) => [chain, ID[chain]]));
+    const client = proofClient(
+      posted.map((chain) =>
+        onchain({
+          hash: TX[chain],
+          chainId: chain,
+          from: OTHER,
+          to: entryOn(chain).target,
+          input: entryOn(chain).data,
+          value: BigInt(entryOn(chain).value),
+        }),
+      ),
+    );
+    const verified = await verifyRelayrDestinations(() => asClient(client), {
+      bindings: bound.expectedTransactions,
+      records: live.transactions as RelayrTransactionRecord[],
+      account: ACCOUNT,
+    });
+    expect(
+      verified.map(({ chainId, receipt }) => [
+        chainId,
+        receipt.transactionHash,
+      ]),
+    ).toEqual(posted.map((chain) => [chain, TX[chain]]));
+  });
+
+  it("refuses to pay its quote again once it reports a payment received", async () => {
+    await expect(
+      requireRelayrPaymentRetry(
+        asClient(proofClient([onchain({ status: "reverted" })])),
+        { hash: HASH, from: ACCOUNT, payment: reviewedPayment() },
+        { fetch: vi.fn(async () => json(live)) },
+      ),
+    ).rejects.toThrow("Relayr already reports a payment for this bundle.");
   });
 });
 
@@ -1862,7 +2151,7 @@ describe("Relayr proofs over viem's HTTP transport and real HTTP", () => {
         from: ACCOUNT,
         payment: reviewedPayment(),
       }),
-    ).rejects.toBeInstanceOf(RelayrRevertedError);
+    ).rejects.toBeInstanceOf(RelayrPaymentRevertedError);
     canonical = OTHER_BLOCK_HASH;
     await expect(
       verifyRelayrPayment(clientOn(mainnet), {
@@ -1966,8 +2255,13 @@ describe("Relayr proofs over viem's HTTP transport and real HTTP", () => {
       },
       SECOND_HASH,
     );
+    // Clients typed by their chain's formatters fit the exported client type.
+    const clients: Record<number, RelayrProofClient> = {
+      1: clientOn(mainnet),
+      8453: clientOn(base),
+    };
     const verified = await verifyRelayrDestinations(
-      (chainId) => (chainId === 1 ? clientOn(mainnet) : clientOn(base)),
+      (chainId) => clients[chainId],
       {
         bindings: [
           { txUuid: OTHER_UUID, chain: 1, entry: first },

@@ -20,25 +20,34 @@ the copies differed. Nothing in it signs or sends:
   both when they differ, and binds each posted transaction to the one quoted ID
   whose record carries its exact request: chain, target, calldata, value and
   virtual nonce. Relayr lists IDs out of request order, so an ID is never bound
-  by its position. The bundle is read when the quote leaves its records out.
+  by its position. The bundle is read when the quote leaves its records out,
+  and its records must be exactly the quoted IDs, one each.
 - Payments: `relayrPaymentDetails` takes the destinations and refuses a payment
   chain outside their family, a contract or token other than Relayr's, and
   calldata other than a payment for this bundle with the quoted deadline. A
   quoted deadline is integer seconds or an RFC 3339 time with an offset, never
-  a time read in the local timezone. Also `relayrPaymentOptions`, `requireRelayrPaymentRuntime` (the
-  payment contract's code hash) and `simulateRelayrPayment` (a raw,
-  gas-bounded `eth_call`).
+  a time read in the local timezone. Also `relayrPaymentOptions`,
+  `requireRelayrPaymentRuntime` (the payment contract's code hash) and
+  `simulateRelayrPayment` (a raw, gas-bounded `eth_call`).
 - Status: `relayrStateIsSuccess`, `relayrStateIsFailed`, `relayrProgress`,
   `relayrDestinationHash` and `relayrRecordChain`. Only `failed` is a failure;
   receipts are the proof.
 - Proofs: `verifyRelayrPayment`, `verifyRelayrDestination`,
-  `verifyRelayrDestinations` and `relayrForwardRequest`. A payment or
-  destination is proven from the chain: the transaction at its hash is exactly
-  the expected one (its sender for a payment, target, calldata, value and
-  chain), its receipt is in the canonical block, and it succeeded.
-  `RelayrRevertedError` reports a canonical revert; for a payment, the bundle
-  was not funded, so its saved quote may be paid again. `RelayrProofError`
-  reports a transaction that is not the expected one: never pay again. Any
-  other error means the proof is not available yet. RPC failures are reported
-  with a fixed message; the RPC error stays in a non-enumerable `cause`, so
-  neither the message nor a serialized error carries the RPC URL.
+  `verifyRelayrDestinations` and `relayrForwardRequest`, with any viem
+  `PublicClient` (`RelayrProofClient`). A payment or destination is proven
+  from the chain: the transaction at its hash is exactly the expected one (its
+  sender for a payment, target, calldata, value and chain), its receipt is in
+  the canonical block, and it succeeded. A saved payment may carry its amount
+  as the decimal string JSON restores. `RelayrProofError` reports a
+  transaction that is not the expected one: never pay again. Its subclasses
+  report a canonical revert: `RelayrDestinationRevertedError` for a
+  destination, and `RelayrPaymentRevertedError` for a payment, which shows
+  only that this one transaction paid nothing. Any other error means the proof
+  is not available yet. RPC failures are reported with a fixed message; the
+  RPC error stays in a non-enumerable `cause`, so neither the message nor a
+  serialized error carries the RPC URL.
+- Retrying a payment: `requireRelayrPaymentRetry` clears a saved quote to be
+  paid once more only when the session's latest payment canonically reverted
+  and Relayr's bundle reports `payment_received: false`. The payment contract
+  keeps no state and Relayr keeps every payment it receives, so a revert alone
+  never shows that the bundle is unpaid.

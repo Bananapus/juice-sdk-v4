@@ -100,6 +100,8 @@ const NO_PROOF =
   "This saved Relayr bundle lacks exact destination proof. Keep it pending and verify the original transactions; do not pay again.";
 const NOT_IDENTIFIED =
   "Relayr has not identified every exact destination transaction. Keep checking the original bundle; do not pay again.";
+const UNKNOWN_PAYMENT =
+  "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.";
 
 /** One transaction of a bundle as posted to Relayr. `value` is decimal wei. */
 export type RelayrEntry = {
@@ -192,7 +194,7 @@ export type RelayrVerifiedDestination = {
  * The reads a proof makes. Typed by the fields it reads, so a PublicClient
  * for any chain, with that chain's formatters, satisfies it.
  */
-type ProofClient = {
+export type RelayrProofClient = {
   getTransaction(args: { hash: Hex }): Promise<{
     hash: Hex;
     chainId?: number;
@@ -216,12 +218,32 @@ export class RelayrProofError extends Error {
 }
 
 /**
- * The transaction is canonically included and reverted. A reverted payment
- * leaves its bundle unfunded, so the same saved quote may be paid once more
- * while it lasts; a reverted destination failed on its chain.
+ * The payment at `hash` is exactly the reviewed payment, canonically included,
+ * and reverted, so that one transaction paid nothing. It does not show that
+ * the bundle is unpaid: the payment contract keeps no state, and Relayr keeps
+ * every payment it receives for a bundle, so another payment may have funded
+ * it. Only {@link requireRelayrPaymentRetry} clears the quote to be paid
+ * again.
  */
-export class RelayrRevertedError extends RelayrProofError {
-  readonly name = "RelayrRevertedError";
+export class RelayrPaymentRevertedError extends RelayrProofError {
+  readonly name = "RelayrPaymentRevertedError";
+
+  constructor(
+    message: string,
+    readonly hash: Hex,
+    readonly chainId: number,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * The destination at `hash` is exactly the signed call, canonically included,
+ * and reverted: the call failed on its chain. Whether its authorization can
+ * still be used again (an unchanged forwarder nonce) is the caller's to check.
+ */
+export class RelayrDestinationRevertedError extends RelayrProofError {
+  readonly name = "RelayrDestinationRevertedError";
 
   constructor(
     message: string,
@@ -383,11 +405,17 @@ export function relayrBundleRequest(
   return { transactions, virtual_nonce_mode: "ChainIndependent" };
 }
 
-async function readQuotedRecords(
+/** Relayr's `GET /v1/bundle/{uuid}` for exactly this bundle, or `unavailable`. */
+async function readBundle(
   fetchBundle: typeof globalThis.fetch,
   bundleUuid: string,
-): Promise<unknown[]> {
-  let bundle: { bundle_uuid?: unknown; transactions?: unknown } | null;
+  unavailable: string,
+): Promise<{ transactions?: unknown; payment_received?: unknown }> {
+  let bundle: {
+    bundle_uuid?: unknown;
+    transactions?: unknown;
+    payment_received?: unknown;
+  } | null;
   try {
     const response = await fetchBundle(
       `${RELAYR_API}/v1/bundle/${bundleUuid}`,
@@ -398,16 +426,12 @@ async function readQuotedRecords(
     if (!response.ok) throw new Error(`Relayr HTTP ${response.status}`);
     bundle = await response.json();
   } catch (cause) {
-    throw errorWithCause(UNRETURNED, cause);
+    throw errorWithCause(unavailable, cause);
   }
-  if (
-    !bundle ||
-    uuidOf(bundle.bundle_uuid) !== bundleUuid ||
-    !Array.isArray(bundle.transactions)
-  ) {
-    throw new Error(UNRETURNED);
+  if (!bundle || uuidOf(bundle.bundle_uuid) !== bundleUuid) {
+    throw new Error(unavailable);
   }
-  return bundle.transactions;
+  return bundle;
 }
 
 /**
@@ -415,8 +439,10 @@ async function readQuotedRecords(
  * {@link relayrBundleRequest}). Relayr lists transaction IDs out of request
  * order, so each posted transaction is bound to the quoted ID whose record
  * carries its exact request; the records are read from the bundle (with
- * `fetch`) when the response leaves them out. Throws, with nothing paid,
- * unless every posted transaction is bound to its own ID.
+ * `fetch`) when the response leaves them out. The records must be exactly the
+ * quoted IDs, one each, as {@link verifyRelayrDestinations} will require of
+ * Relayr's status. Throws, with nothing paid, unless every posted transaction
+ * is bound to its own ID.
  */
 export async function bindRelayrQuote(
   response: Response,
@@ -487,21 +513,28 @@ export async function bindRelayrQuote(
         idOf(record) === null || !(record as { request?: unknown }).request,
     )
   ) {
-    records = await readQuotedRecords(fetchBundle, bundleUuid);
+    const bundle = await readBundle(fetchBundle, bundleUuid, UNRETURNED);
+    if (!Array.isArray(bundle.transactions)) throw new Error(UNRETURNED);
+    records = bundle.transactions;
+  }
+  // Every record carries one of the quoted IDs, once. With every posted
+  // transaction bound to its own record below, the records are then exactly
+  // the quoted IDs, as the destination proof requires of Relayr's status.
+  const recordIds = records.map(idOf);
+  if (
+    recordIds.some((id) => id === null || !quoted.has(id)) ||
+    new Set(recordIds).size !== records.length
+  ) {
+    throw new Error(UNBOUND);
   }
   const bound = transactions.map((entry) => {
-    const matches = records.filter((record) => {
-      const id = idOf(record);
-      return (
-        id !== null &&
-        quoted.has(id) &&
-        isRequestFor(
-          (record as { request?: unknown }).request,
-          entry,
-          "required",
-        )
-      );
-    });
+    const matches = records.filter((record) =>
+      isRequestFor(
+        (record as { request?: unknown }).request,
+        entry,
+        "required",
+      ),
+    );
     if (matches.length !== 1) throw new Error(UNBOUND);
     return matches[0] as RelayrTransactionRecord;
   });
@@ -867,23 +900,23 @@ type ProofWords = {
   unavailable: string;
   mismatch: string;
   notCanonical: string;
-  reverted: string;
 };
 
 /**
  * Read `expected.hash` and prove it is exactly the expected transaction,
- * canonically included and successful. A transaction hash commits to its
- * sender, target, calldata, value and chain, so any difference there is a
- * {@link RelayrProofError}. A receipt, transaction and block that disagree
- * (a lagging node, a reorg) prove nothing either way.
+ * canonically included. Returns its receipt, successful or reverted. A
+ * transaction hash commits to its sender, target, calldata, value and chain,
+ * so any difference there is a {@link RelayrProofError}. A receipt,
+ * transaction and block that disagree (a lagging node, a reorg) prove nothing
+ * either way.
  */
 async function proveTransaction(
-  client: ProofClient,
+  client: RelayrProofClient,
   expected: ExpectedTransaction,
   words: ProofWords,
 ): Promise<TransactionReceipt> {
   const hash = expected.hash.toLowerCase();
-  let transaction: Awaited<ReturnType<ProofClient["getTransaction"]>>;
+  let transaction: Awaited<ReturnType<RelayrProofClient["getTransaction"]>>;
   let receipt: TransactionReceipt;
   try {
     [transaction, receipt] = await Promise.all([
@@ -921,7 +954,7 @@ async function proveTransaction(
   ) {
     throw new Error(words.unavailable);
   }
-  let block: Awaited<ReturnType<ProofClient["getBlock"]>>;
+  let block: Awaited<ReturnType<RelayrProofClient["getBlock"]>>;
   try {
     block = await client.getBlock({ blockNumber: receipt.blockNumber });
   } catch (cause) {
@@ -930,49 +963,56 @@ async function proveTransaction(
   if (block?.hash?.toLowerCase() !== receipt.blockHash.toLowerCase()) {
     throw new Error(words.notCanonical);
   }
-  if (receipt.status === "reverted") {
-    throw new RelayrRevertedError(
-      words.reverted,
-      expected.hash,
-      expected.chainId,
-    );
-  }
   return receipt;
 }
 
 /**
+ * A reviewed payment as {@link relayrPaymentDetails} returned it, or as a
+ * saved session restores it from JSON, with the amount as a decimal string.
+ */
+type ReviewedPayment = Pick<
+  RelayrPaymentDetails,
+  "chainId" | "target" | "calldata" | "bundleUuid"
+> & { amount: bigint | string };
+
+/**
  * Prove a Relayr payment from the chain: the transaction at `hash` is exactly
  * `payment` sent by `from` (chain, payment contract, calldata, value),
- * canonically included, and successful.
+ * canonically included, and successful. Pass the hash that was mined: when a
+ * wallet speeds a payment up, viem's receipt is the replacement's, so verify
+ * its `transactionHash`, not the hash the wallet first returned.
  *
- * Throws {@link RelayrRevertedError} when it canonically reverted: the bundle
- * was not funded, so the same saved quote may be paid once more.
- * {@link RelayrProofError} means the transaction is a different one: never
- * pay again. Any other error means the proof is unavailable for now.
+ * Throws {@link RelayrPaymentRevertedError} when it canonically reverted. That
+ * transaction paid nothing, but the bundle may still be paid by another, so
+ * only {@link requireRelayrPaymentRetry} clears the quote to be paid again.
+ * {@link RelayrProofError} means the transaction is a different one: never pay
+ * again. Any other error means the proof is unavailable for now.
  */
 export async function verifyRelayrPayment(
-  client: ProofClient,
+  client: RelayrProofClient,
   {
     hash,
     from,
     payment,
-  }: { hash: Hex; from: Address; payment: RelayrPaymentDetails },
+  }: { hash: Hex; from: Address; payment: ReviewedPayment },
 ): Promise<TransactionReceipt> {
+  const uuid = uuidOf(payment?.bundleUuid);
+  const amount = uint256(payment?.amount);
   if (
     typeof hash !== "string" ||
     !TRANSACTION_HASH.test(hash) ||
     !isAddressLike(from) ||
     !relayrSupportsChain(payment?.chainId) ||
     !sameAddress(payment.target, RELAYR_PAYMENT_ADDRESS) ||
-    uint256(payment.amount) === null ||
-    uuidOf(payment.bundleUuid) === null ||
-    !paymentCalldataFor(payment.calldata, uuidOf(payment.bundleUuid)!)
+    amount === null ||
+    uuid === null ||
+    !paymentCalldataFor(payment.calldata, uuid)
   ) {
     throw new Error(
       "Only an authenticated Relayr payment with its transaction hash can be verified.",
     );
   }
-  return proveTransaction(
+  const receipt = await proveTransaction(
     client,
     {
       hash,
@@ -980,7 +1020,7 @@ export async function verifyRelayrPayment(
       from,
       to: RELAYR_PAYMENT_ADDRESS,
       data: payment.calldata,
-      value: payment.amount,
+      value: amount,
     },
     {
       unavailable: `Could not read Relayr payment ${hash} on chain ${payment.chainId}. Do not pay again; check it later.`,
@@ -988,8 +1028,54 @@ export async function verifyRelayrPayment(
         "The funding transaction does not match the reviewed Relayr payment. Do not pay again; inspect the wallet's activity and the saved bundle.",
       notCanonical:
         "The Relayr funding receipt is no longer canonical. Do not pay again; check it later.",
-      reverted: "The Relayr funding transaction reverted onchain.",
     },
+  );
+  if (receipt.status === "reverted") {
+    throw new RelayrPaymentRevertedError(
+      "The Relayr funding transaction reverted onchain.",
+      hash,
+      payment.chainId,
+    );
+  }
+  return receipt;
+}
+
+/**
+ * Clear a saved quote to be paid once more after its payment reverted. `hash`
+ * is the session's latest payment, as mined: an earlier attempt's revert says
+ * nothing about a later one. Resolves only when that transaction is exactly
+ * the reviewed payment, canonically reverted, and Relayr's bundle (read with
+ * `fetch`) reports `payment_received: false`. The payment contract keeps no
+ * state and Relayr keeps every payment it receives, so a successful payment
+ * from anywhere else rules a new one out; one still in flight elsewhere is not
+ * visible yet. Throws in every other case, including when an answer is
+ * unavailable. Never pay on an error.
+ */
+export async function requireRelayrPaymentRetry(
+  client: RelayrProofClient,
+  input: { hash: Hex; from: Address; payment: ReviewedPayment },
+  {
+    fetch: fetchBundle = globalThis.fetch,
+  }: { fetch?: typeof globalThis.fetch } = {},
+): Promise<void> {
+  try {
+    await verifyRelayrPayment(client, input);
+  } catch (error) {
+    if (!(error instanceof RelayrPaymentRevertedError)) throw error;
+    const { payment_received } = await readBundle(
+      fetchBundle,
+      uuidOf(input.payment.bundleUuid)!,
+      UNKNOWN_PAYMENT,
+    );
+    if (payment_received === false) return;
+    throw new Error(
+      payment_received === true
+        ? "Relayr already reports a payment for this bundle. Do not pay again."
+        : UNKNOWN_PAYMENT,
+    );
+  }
+  throw new Error(
+    "This Relayr payment succeeded onchain, so its bundle is paid. Do not pay again.",
   );
 }
 
@@ -1000,27 +1086,25 @@ function destinationWords(hash: Hex, chainId: number): ProofWords {
       "The destination transaction does not prove the signed Relayr call. Keep the original bundle pending; do not pay again.",
     notCanonical:
       "The destination receipt is no longer canonical. Keep the original bundle pending.",
-    reverted:
-      "The destination receipt does not prove the signed Relayr call succeeded: it reverted onchain. Keep the original bundle pending; do not pay again.",
   };
 }
 
 /**
  * Prove one destination from the chain: the transaction at `hash` is exactly
  * `entry` (chain, target, calldata, value), canonically included, and
- * successful. Throws {@link RelayrRevertedError} when it canonically
- * reverted, {@link RelayrProofError} when it is a different transaction, and
- * any other error while the proof is unavailable.
+ * successful. Throws {@link RelayrDestinationRevertedError} when it
+ * canonically reverted, {@link RelayrProofError} when it is a different
+ * transaction, and any other error while the proof is unavailable.
  */
 export async function verifyRelayrDestination(
-  client: ProofClient,
+  client: RelayrProofClient,
   { entry, hash }: { entry: RelayrEntry; hash: Hex },
 ): Promise<TransactionReceipt> {
   const read = readEntry(entry);
   if (!read || typeof hash !== "string" || !TRANSACTION_HASH.test(hash)) {
     throw new Error(NO_PROOF);
   }
-  return proveTransaction(
+  const receipt = await proveTransaction(
     client,
     {
       hash,
@@ -1031,6 +1115,14 @@ export async function verifyRelayrDestination(
     },
     destinationWords(hash, read.chain),
   );
+  if (receipt.status === "reverted") {
+    throw new RelayrDestinationRevertedError(
+      "The destination receipt does not prove the signed Relayr call succeeded: it reverted onchain. Keep the original bundle pending; do not pay again.",
+      hash,
+      read.chain,
+    );
+  }
+  return receipt;
 }
 
 /**
@@ -1046,12 +1138,14 @@ export async function verifyRelayrDestination(
  * With `account`, every entry must also be that account's ERC-2771 request
  * on its chain's canonical forwarder, for the entry's own value.
  *
- * Returns the receipts in binding order. Throws {@link RelayrRevertedError} or
- * {@link RelayrProofError} when Relayr or the chain contradicts a binding, and
- * any other error while proof is unavailable. Never pay again on any error.
+ * Returns the receipts in binding order. Throws
+ * {@link RelayrDestinationRevertedError} when a destination canonically
+ * reverted, another {@link RelayrProofError} when Relayr or the chain
+ * contradicts a binding, and any other error while proof is unavailable.
+ * Never pay again on any error.
  */
 export async function verifyRelayrDestinations(
-  clientFor: (chainId: number) => ProofClient | undefined,
+  clientFor: (chainId: number) => RelayrProofClient | undefined,
   {
     bindings,
     records,
