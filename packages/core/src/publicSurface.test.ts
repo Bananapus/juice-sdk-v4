@@ -3,6 +3,7 @@ import * as sdk from "./index.js";
 import * as bendystrawOperations from "./bendystrawOperations.js";
 import * as reviewDecode from "./review/decode.js";
 import * as review from "./review/index.js";
+import * as reviewRelayr from "./review/relayr.js";
 import * as safe from "./safe.js";
 import * as safeService from "./safeService.js";
 import * as feeBuyback from "./v6/feeBuyback.js";
@@ -118,6 +119,44 @@ describe("published core SDK surfaces", () => {
     ]);
     for (const name of Object.keys(reviewDecode)) {
       expect(review).not.toHaveProperty(name);
+    }
+  });
+
+  test("keeps the Relayr primitives on their own entry point", () => {
+    expect(Object.keys(reviewRelayr).sort()).toEqual([
+      "FORWARD_REQUEST_TYPES",
+      "RELAYR_API",
+      "RELAYR_FORWARDER_DEADLINE_SECONDS",
+      "RELAYR_NATIVE_TOKEN",
+      "RELAYR_PAYMENT_ADDRESS",
+      "RELAYR_PAYMENT_CODE_HASH",
+      "RELAYR_PAYMENT_GAS",
+      "RELAYR_PAYMENT_SELECTOR",
+      "RelayrProofError",
+      "RelayrRevertedError",
+      "TRUSTED_FORWARDER_ABI",
+      "bindRelayrQuote",
+      "relayrBundleRequest",
+      "relayrDestinationHash",
+      "relayrForwardRequest",
+      "relayrPaymentChains",
+      "relayrPaymentDetails",
+      "relayrPaymentOptions",
+      "relayrProgress",
+      "relayrRecordChain",
+      "relayrStateIsFailed",
+      "relayrStateIsSuccess",
+      "relayrSupportsChain",
+      "relayrSupportsChains",
+      "requireRelayrPaymentRuntime",
+      "simulateRelayrPayment",
+      "verifyRelayrDestination",
+      "verifyRelayrDestinations",
+      "verifyRelayrPayment",
+    ]);
+    for (const name of Object.keys(reviewRelayr)) {
+      expect(review).not.toHaveProperty(name);
+      expect(sdk).not.toHaveProperty(name);
     }
   });
 });

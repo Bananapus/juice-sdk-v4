@@ -117,7 +117,11 @@ RPC method and historical block and reject OffchainLookup without fetching a
 contract-selected URL; the review preflight’s raw `eth_call`
 (`simulateStateChangingTransaction`), bounded by explicit gas and a return data
 limit and tested the same way; and the fee buyback check’s `eth_blockNumber`
-and pinned `eth_simulateV1`. A new or moved site fails with an unreviewed residual until
+and pinned `eth_simulateV1`. The Relayr payment simulation in `/review/relayr`
+goes through that preflight instead of adding a site, and the Relayr payment
+and destination proofs read only through typed viem actions (`getCode`,
+`getTransaction`, `getTransactionReceipt`, `getBlock`); their tests also run
+over viem’s `http()` transport against a local JSON-RPC server. A new or moved site fails with an unreviewed residual until
 `test/wallet-boundaries.json` names its safety boundary and an existing focused
 test. Stale inventory rows fail too, so the inventory cannot silently become a
 historical allowlist.

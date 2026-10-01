@@ -56,6 +56,11 @@
       "import": "./dist/esm/review/decode.js",
       "require": "./dist/cjs/review/decode.js"
     },
+    "./review/relayr": {
+      "types": "./dist/esm/review/relayr.d.ts",
+      "import": "./dist/esm/review/relayr.js",
+      "require": "./dist/cjs/review/relayr.js"
+    },
     "./bendystraw-operations": {
       "types": "./dist/esm/bendystrawOperations.d.ts",
       "import": "./dist/esm/bendystrawOperations.js",
