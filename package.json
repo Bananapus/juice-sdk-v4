@@ -6,7 +6,7 @@
     "test": "turbo test",
     "test:coverage": "turbo test:coverage",
     "type-check": "turbo type-check",
-    "check:generated": "git diff --exit-code -- packages/core/src/generated/juicebox.ts packages/react/src/generated",
+    "check:generated": "git diff --exit-code -- packages/core/src/generated packages/react/src/generated && test -z \"$(git status --porcelain -- packages/core/src/generated packages/react/src/generated)\"",
     "check:gql": "npm run generate-gql:ci --workspace @bananapus/nana-sdk-react && git diff --exit-code -- packages/react/src/generated",
     "check:package": "node scripts/check-package-budgets.mjs",
     "protocol:check": "node --import tsx scripts/check-v6-protocol.ts",

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import ts from "typescript";
 import { describe, expect, test } from "vitest";
 
@@ -8,7 +8,14 @@ import { describe, expect, test } from "vitest";
  * import and is not marked pure, so a bundler keeps it, and what it calls, in
  * every chunk that imports anything from the module.
  */
-const MODULES = ["src/safe.ts", "src/safeService.ts", "src/review/decode.ts"];
+const MODULES = [
+  "src/safe.ts",
+  "src/safeService.ts",
+  "src/review/decode.ts",
+  ...readdirSync("src/generated/abi").map(
+    (file) => `src/generated/abi/${file}`,
+  ),
+];
 
 /** True when evaluating `node` cannot call anything. */
 function isInert(node: ts.Expression): boolean {
@@ -104,7 +111,7 @@ function moduleWork(file: string, text = readFileSync(file, "utf8")): string[] {
 }
 
 describe("module load", () => {
-  test("the Safe, Safe service and review decoder modules run nothing when imported", () => {
+  test("the Safe, Safe service, review decoder and its ABI modules run nothing when imported", () => {
     for (const file of MODULES) expect(moduleWork(file)).toEqual([]);
   });
 

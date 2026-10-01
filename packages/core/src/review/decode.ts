@@ -15,20 +15,20 @@ import {
   type Hex,
 } from "viem";
 import { SPLITS_TOTAL_PERCENT, USDC_ADDRESSES } from "../constants.js";
+import { jbBuybackHookAbi } from "../generated/abi/jbBuybackHookAbi.js";
+import { jbBuybackHookRegistryAbi } from "../generated/abi/jbBuybackHookRegistryAbi.js";
+import { jbControllerAbi } from "../generated/abi/jbControllerAbi.js";
+import { jbDirectoryAbi } from "../generated/abi/jbDirectoryAbi.js";
+import { jbMultiTerminalAbi } from "../generated/abi/jbMultiTerminalAbi.js";
+import { jbPermissionsAbi } from "../generated/abi/jbPermissionsAbi.js";
+import { jbProjectsAbi } from "../generated/abi/jbProjectsAbi.js";
+import { jbRouterTerminalGatewayAbi } from "../generated/abi/jbRouterTerminalGatewayAbi.js";
+import { jbRouterTerminalRegistryAbi } from "../generated/abi/jbRouterTerminalRegistryAbi.js";
+import { jbSplitsAbi } from "../generated/abi/jbSplitsAbi.js";
+import { jbTokensAbi } from "../generated/abi/jbTokensAbi.js";
 import {
-  jbBuybackHookAbi,
-  jbBuybackHookRegistryAbi,
   jbContractAddress,
   jbContractAddressHistory,
-  jbControllerAbi,
-  jbDirectoryAbi,
-  jbMultiTerminalAbi,
-  jbPermissionsAbi,
-  jbProjectsAbi,
-  jbRouterTerminalGatewayAbi,
-  jbRouterTerminalRegistryAbi,
-  jbSplitsAbi,
-  jbTokensAbi,
 } from "../generated/juicebox.js";
 import {
   SAFE_SETUP_ABI,
