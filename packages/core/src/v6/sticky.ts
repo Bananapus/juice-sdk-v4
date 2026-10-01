@@ -1,6 +1,6 @@
 import { Address, isAddressEqual } from "viem";
-import { JBChainId } from "../types.js";
-import { JBSplit } from "./splits.js";
+import type { JBChainId } from "../types.js";
+import type { JBSplit } from "./splits.js";
 import { v6Address } from "./types.js";
 
 /**

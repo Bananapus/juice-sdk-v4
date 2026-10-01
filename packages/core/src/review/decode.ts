@@ -14,7 +14,7 @@ import {
   type DecodeAbiParametersReturnType,
   type Hex,
 } from "viem";
-import { SPLITS_TOTAL_PERCENT, USDC_ADDRESSES } from "../constants.js";
+import { SPLITS_TOTAL_PERCENT, USDC_ADDRESSES } from "../pureConstants.js";
 import { jbBuybackHookAbi } from "../generated/abi/jbBuybackHookAbi.js";
 import { jbBuybackHookRegistryAbi } from "../generated/abi/jbBuybackHookRegistryAbi.js";
 import { jbControllerAbi } from "../generated/abi/jbControllerAbi.js";
@@ -36,7 +36,7 @@ import {
   SAFE_TO_L2_SETUP_ADDRESS,
 } from "../safe.js";
 import type { JBChainId } from "../types.js";
-import { permissionKeyV6 } from "../v6/permissions.js";
+import { permissionKeyV6 } from "../v6/permissionIds.js";
 import { describeStickySplit, isStickySplit } from "../v6/sticky.js";
 import {
   UNISWAP_PERMIT2_ADDRESS,

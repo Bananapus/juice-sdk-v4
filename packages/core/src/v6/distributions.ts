@@ -6,7 +6,7 @@ import {
   zeroAddress,
   type Address,
 } from "viem";
-import { SPLITS_TOTAL_PERCENT } from "../constants.js";
+import { SPLITS_TOTAL_PERCENT } from "../pureConstants.js";
 import { jbControllerAbi } from "../generated/abi/jbControllerAbi.js";
 import { jbMultiTerminalAbi } from "../generated/abi/jbMultiTerminalAbi.js";
 import { jbTokensAbi } from "../generated/abi/jbTokensAbi.js";
