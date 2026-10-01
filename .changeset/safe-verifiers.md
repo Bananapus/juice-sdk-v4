@@ -19,6 +19,19 @@ stricter check where the copies differed. Nothing in it signs or sends.
   through the proxy before its singleton is known; every call is a raw, gas-
   and return-bounded `eth_call` whose answer must be exactly canonical. An RPC
   failure is `null`.
+- `proveSafeCreation` proves how a Safe was made from its creation record:
+  - a recognized release's factory and singleton;
+  - the exact canonical `setup`, with no delegatecall hook but SafeToL2Setup
+    and no payment;
+  - the CREATE2 address is the Safe.
+
+  Matching owners and code on two chains is only the visible policy. A setup
+  hook can plant an owner or module no getter shows, and a 1.3.0 Safe made with
+  `createProxy` can be claimed at its address on another chain.
+  `readMatchingAuthorityIdentities` and `readCrossChainHandleAuthority` take the
+  record (`creation`). Without a valid proof, Safes never match
+  (`creationUnproven`) and a handle is `unproven-creation`.
+
 - `authorityIdentitiesMatch`, `readMatchingAuthorityIdentities`,
   `readCrossChainHandleAuthority`, `isDeployableSafeAuthority`,
   `safeSingletonsAreEquivalent`, `isEip7702DelegatedEoaRuntime`,
@@ -44,9 +57,15 @@ stricter check where the copies differed. Nothing in it signs or sends.
   (ExecutionFailure: the nonce is spent), `reverted` or `unproven`, from the
   Safe 1.3 or the Safe 1.4 event layout. It needs exactly one event for the
   reviewed safeTxHash, or, when Safe{Wallet} executed at once and returned the
-  transaction's own hash, exactly one event of the Safe. A malformed event or a
-  refund leaves it unproven. `requireSafeExecutionSuccess` throws for anything
-  but success.
+  transaction's own hash, exactly one event of the Safe. Success and failure
+  carry the refund the Safe paid (`payment`); another proposal's event never
+  decides this one, and a malformed event leaves it unproven.
+  `requireSafeExecutionSuccess` throws for anything but success.
+  `safeTransactionHasRefund` lets a queue card show or refuse a refund before
+  executing.
+- `safeExecutionSignatures` places each EIP-1271 contract signature after
+  every 65-byte head, at its byte offset, as Safe's `checkNSignatures` reads
+  it. Signatures that cannot be well-formed never count.
 - `SAFE_TX_TYPES`, `SAFE_EXEC_ABI`, `safeTransactionMessage` (every field read
   strictly), `safeTransactionHash` and `canonicalSafeTxHash`, which refuses a
   record naming another Safe or advertising a different hash.
@@ -66,6 +85,12 @@ stricter check where the copies differed. Nothing in it signs or sends.
   optional `jb-safe-api-key` from local storage.
 - `waitForSafeExecutionHash` refuses a malformed proposal hash and a malformed
   execution hash from the service.
+- Listed rows come back normalized: the nonce as a number, the Safe and the
+  checked hash. Executed rows are dropped. A row without an advertised hash,
+  with more than 100 confirmations, or in a page over 50 rows is refused. A
+  null `gasToken` or `refundReceiver` (as the service stores an omitted one)
+  reads as the zero address. `fetchSafesOwnedBy` reads at most 200 Safes per
+  chain.
 
 `@bananapus/nana-sdk-core/v6`: `verifyPayoutReceipt` and
 `verifyReservedDistributionReceipt` prove a distribution from its receipt: no
@@ -73,7 +98,8 @@ recipient failure, exactly one completion event from the reviewed sender in
 the reviewed ruleset and cycle, to the reviewed owner, for the reviewed
 amounts, and every reviewed split's exact share in order. A payout split's net
 is its gross, or its gross less the 2.5% fee, and only its gross when marked
-feeless. Reserved tokens may be burned only for shares sent to `0x…dEaD`.
+feeless. Reserved tokens may be burned only for shares sent to `0x…dEaD`. A
+log of the reviewed contract that its ABI cannot read is refused, not skipped.
 
 The review decoder's eleven generated ABIs now live in modules of their own, so
 a page that imports other ABIs from the SDK no longer loads them.

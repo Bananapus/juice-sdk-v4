@@ -57,7 +57,11 @@ const TARGET = "0x3333333333333333333333333333333333333333" as Address;
 const lowSignature = `0x${"11".repeat(65)}` as Hex;
 const highSignature = `0x${"99".repeat(65)}` as Hex;
 /** An EIP-1271 signature in the transaction service's standalone form: r = owner, s = 65, v = 0, length, bytes. */
-function serviceContractSignature(owner: Address, inner: Hex, padded = false): Hex {
+function serviceContractSignature(
+  owner: Address,
+  inner: Hex,
+  padded = false,
+): Hex {
   const body = inner.slice(2).toLowerCase();
   return `0x${owner.slice(2).toLowerCase().padStart(64, "0")}${(65).toString(16).padStart(64, "0")}00${(body.length / 2).toString(16).padStart(64, "0")}${padded ? body.padEnd(Math.ceil(body.length / 64) * 64, "0") : body}` as Hex;
 }
@@ -605,7 +609,8 @@ describe("Safe signatures", () => {
   });
 
   it("places a contract owner's signature after every head, at its byte offset", () => {
-    const word = (owner: Address) => owner.slice(2).toLowerCase().padStart(64, "0");
+    const word = (owner: Address) =>
+      owner.slice(2).toLowerCase().padStart(64, "0");
     const offset = (bytes: number) => bytes.toString(16).padStart(64, "0");
     const tail = `${offset(65)}${nestedSignature.slice(2)}`;
     // One EOA signature, then the contract owner: 65 + 65 heads, then the tail.
@@ -615,7 +620,11 @@ describe("Safe signatures", () => {
           confirmations: [
             {
               owner: HIGH_OWNER,
-              signature: serviceContractSignature(HIGH_OWNER, nestedSignature, padded),
+              signature: serviceContractSignature(
+                HIGH_OWNER,
+                nestedSignature,
+                padded,
+              ),
             },
             { owner: LOW_OWNER, signature: lowSignature },
           ],
@@ -689,7 +698,8 @@ describe("Safe signatures", () => {
       ).toEqual([]);
     }
     // An approved hash naming its own owner counts.
-    const approval = `0x${LOW_OWNER.slice(2).toLowerCase().padStart(64, "0")}${"0".repeat(64)}01` as Hex;
+    const approval =
+      `0x${LOW_OWNER.slice(2).toLowerCase().padStart(64, "0")}${"0".repeat(64)}01` as Hex;
     expect(
       usableSafeConfirmations(
         { confirmations: [{ owner: LOW_OWNER, signature: approval }] },
@@ -932,6 +942,62 @@ describe("Safe transaction service", () => {
     await expect(
       listPendingSafeTransactions(1, SAFE, 8, { fetch: fetcher }),
     ).resolves.toHaveLength(1);
+  });
+
+  it("returns normalized rows, drops executed ones, and refuses a row with no hash, too many confirmations or an oversized page", async () => {
+    const page = (results: unknown[]) =>
+      vi.fn(async () => json({ next: null, results }));
+    const listed = await listPendingSafeTransactions(1, SAFE, 8, {
+      fetch: page([
+        { ...row(), nonce: "8" },
+        { ...row({ nonce: 9 }), isExecuted: true },
+      ]),
+    });
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).toMatchObject({
+      nonce: 8,
+      safe: SAFE,
+      safeTxHash: safeTransactionHash(1, SAFE, transaction),
+    });
+    const { safeTxHash: hash, ...unhashed } = row();
+    // The service's other name for the hash is enough.
+    await expect(
+      listPendingSafeTransactions(1, SAFE, 8, {
+        fetch: page([{ ...unhashed, contractTransactionHash: hash }]),
+      }),
+    ).resolves.toHaveLength(1);
+    for (const [bad, problem] of [
+      [
+        { ...unhashed, safeTxHash: null, contractTransactionHash: null },
+        "It advertises no safeTxHash.",
+      ],
+      [unhashed, "It advertises no safeTxHash."],
+      [
+        {
+          ...row(),
+          confirmations: Array.from({ length: 101 }, () => ({
+            owner: LOW_OWNER,
+            signature: lowSignature,
+          })),
+        },
+        "Its confirmations are not a list of at most 100.",
+      ],
+      [{ ...row(), confirmations: "all" }, "Its confirmations are not a list"],
+    ] as const) {
+      await expect(
+        listPendingSafeTransactions(1, SAFE, 8, { fetch: page([bad]) }),
+      ).rejects.toThrow(problem);
+    }
+    await expect(
+      listPendingSafeTransactions(1, SAFE, 8, {
+        fetch: page(
+          Array.from({ length: 51 }, (_, index) => row({ nonce: 8 + index })),
+        ),
+      }),
+    ).rejects.toThrow("returned 51 transactions in a page of 50");
+    expect(() =>
+      canonicalSafeTxHash(1, SAFE, transaction, null as unknown as Hex),
+    ).toThrow("Invalid reviewed Safe transaction hash: null.");
   });
 
   it("finds the queued proposal of an exact call", async () => {
@@ -1286,6 +1352,18 @@ describe("Safe transaction service", () => {
     await expect(
       fetchSafesOwnedBy("not-an-address", [1], { fetch: fetcher }),
     ).resolves.toEqual([]);
+    // At most 200 Safes per chain are read.
+    const many = vi.fn(async () =>
+      json({
+        safes: Array.from(
+          { length: 250 },
+          (_, index) => `0x${(index + 1).toString(16).padStart(40, "0")}`,
+        ),
+      }),
+    ) as unknown as typeof fetch;
+    await expect(
+      fetchSafesOwnedBy(LOW_OWNER, [1], { fetch: many }),
+    ).resolves.toHaveLength(200);
   });
 
   it("reads a Safe's creation strictly, from its source chain's service only", async () => {

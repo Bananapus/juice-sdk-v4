@@ -60,7 +60,9 @@ const READS = parseAbi([
 
 const AUTHORITY = "0x1111111111111111111111111111111111111111" as Address;
 /** A real Ethereum Safe 1.3.0 and its creation record, which re-derives to its address. */
-const creationOf = (record: (typeof creations)["safe130Inert"]): SafeCreation => ({
+const creationOf = (
+  record: (typeof creations)["safe130Inert"],
+): SafeCreation => ({
   factory: record.factory as Address,
   singleton: record.singleton as Address,
   initializer: record.initializer as Hex,
@@ -730,7 +732,10 @@ describe("authority matching across chains", () => {
     await expect(
       readMatchingAuthorityIdentities({
         sourceClient: safeClient({ safe: PROVEN.address }),
-        destinationClient: safeClient({ safe: PROVEN.address, owners: [BOB, ALICE] }),
+        destinationClient: safeClient({
+          safe: PROVEN.address,
+          owners: [BOB, ALICE],
+        }),
         authority: PROVEN.address,
         sourceBlockNumber: 1n,
         destinationBlockNumber: 2n,
@@ -859,7 +864,10 @@ describe("cross-chain handle authority", () => {
     sourceClient: PublicClient,
     mainnetClient?: PublicClient,
     sourceChainId = 8453,
-    { authority = AUTHORITY, creation }: { authority?: Address; creation?: SafeCreation | null } = {},
+    {
+      authority = AUTHORITY,
+      creation,
+    }: { authority?: Address; creation?: SafeCreation | null } = {},
   ) =>
     readCrossChainHandleAuthority({
       sourceChainId,
@@ -900,8 +908,14 @@ describe("cross-chain handle authority", () => {
     ).resolves.toMatchObject({ status: "valid-safe", allowed: true });
     await expect(
       verdict(
-        safeClient({ ...at, ownerCodes: { [ALICE.toLowerCase()]: EIP_7702_CODE } }),
-        safeClient({ ...at, ownerCodes: { [BOB.toLowerCase()]: EIP_7702_CODE } }),
+        safeClient({
+          ...at,
+          ownerCodes: { [ALICE.toLowerCase()]: EIP_7702_CODE },
+        }),
+        safeClient({
+          ...at,
+          ownerCodes: { [BOB.toLowerCase()]: EIP_7702_CODE },
+        }),
         8453,
         proven,
       ),
@@ -912,7 +926,10 @@ describe("cross-chain handle authority", () => {
       {},
       { creation: null },
       { creation: PROVEN.creation },
-      { authority: PROVEN.address, creation: creationOf(creations.safe130Hooked) },
+      {
+        authority: PROVEN.address,
+        creation: creationOf(creations.safe130Hooked),
+      },
     ]) {
       const safe = options.authority ?? AUTHORITY;
       await expect(
@@ -1141,7 +1158,10 @@ describe("Safe creation proof", () => {
       ),
     ).toEqual({ valid: false, reason: "unsafe-initializer" });
     for (const [creation, safe] of [
-      [{ ...PROVEN.creation, saltNonce: PROVEN.creation.saltNonce + 1n }, PROVEN.address],
+      [
+        { ...PROVEN.creation, saltNonce: PROVEN.creation.saltNonce + 1n },
+        PROVEN.address,
+      ],
       [PROVEN.creation, AUTHORITY],
     ] as const) {
       expect(proveSafeCreation(creation, safe)).toEqual({
@@ -1161,12 +1181,18 @@ describe("Safe creation proof", () => {
     ).toEqual({ valid: false, reason: "unrecognized-deployment" });
     expect(
       proveSafeCreation(
-        { ...PROVEN.creation, initializer: `${PROVEN.creation.initializer}00` as Hex },
+        {
+          ...PROVEN.creation,
+          initializer: `${PROVEN.creation.initializer}00` as Hex,
+        },
         PROVEN.address,
       ),
     ).toEqual({ valid: false, reason: "malformed-initializer" });
     for (const [creation, safe] of [
-      [{ ...PROVEN.creation, saltNonce: 1 as unknown as bigint }, PROVEN.address],
+      [
+        { ...PROVEN.creation, saltNonce: 1 as unknown as bigint },
+        PROVEN.address,
+      ],
       [null as unknown as SafeCreation, PROVEN.address],
       [PROVEN.creation, "0x12" as Address],
     ] as const) {

@@ -37,9 +37,15 @@ const budgets = {
     // verifiers on /v6 and the shared untrusted-input readers add two source
     // files, sixteen artifacts, about 377 kilobytes unpacked and 72 kilobytes
     // packed (measured 1,139,349 B packed, 20,075,303 B unpacked, 682 files).
-    packed: 1_143_000,
-    unpacked: 20_080_000,
-    entries: 682,
+    // Loading the decoder and the distribution checks without running
+    // anything splits two modules into sixteen more artifacts, and the
+    // creation proof with the pinned 1.3.0 proxy creation code, the contract
+    // signature encoding and the refund and row checks add about 48 kilobytes
+    // unpacked and 14 kilobytes packed (measured 1,153,389 B packed,
+    // 20,123,016 B unpacked, 698 files).
+    packed: 1_157_000,
+    unpacked: 20_128_000,
+    entries: 698,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

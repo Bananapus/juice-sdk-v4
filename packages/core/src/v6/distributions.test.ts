@@ -365,7 +365,7 @@ describe("payout receipts", () => {
     ).not.toThrow();
   });
 
-  it("ignores other projects, other emitters and malformed logs without counting them", () => {
+  it("ignores other projects, other emitters and logs that are not logs", () => {
     expect(() =>
       verifyPayoutReceipt(
         {
@@ -373,7 +373,7 @@ describe("payout receipts", () => {
             ...receipt().logs,
             event("SendPayouts", { ...payout, projectId: 99n }),
             event("SendPayouts", payout, hook),
-            { ...event("SendPayouts", payout), data: "0x" },
+            { ...event("SendPayouts", payout, hook), data: "0x" },
             { address: 7, topics: [], data: "0x" },
             null,
           ],
@@ -381,6 +381,20 @@ describe("payout receipts", () => {
         expected,
       ),
     ).not.toThrow();
+  });
+
+  it("refuses a log of the terminal its ABI cannot read, instead of skipping it", () => {
+    expect(() =>
+      verifyPayoutReceipt(
+        {
+          logs: [
+            ...receipt().logs,
+            { ...event("SendPayouts", payout), data: "0x" },
+          ],
+        },
+        expected,
+      ),
+    ).toThrow("that its ABI cannot read, so the receipt proves nothing");
   });
 
   it("refuses a failed receipt, no logs, or a malformed expectation, naming it", () => {

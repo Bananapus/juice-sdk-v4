@@ -150,7 +150,11 @@ function sameSplit(
   );
 }
 
-/** The receipt's events from `emitter` that decode with `abi`, with their position. */
+/**
+ * The receipt's events from `emitter`, decoded with `abi`, the contract's full
+ * ABI. A log of `emitter` that does not decode is refused, not skipped: a
+ * skipped PayoutTransferReverted, for one, would let a failed transfer pass.
+ */
 function eventsFrom<const abi extends readonly unknown[]>(
   receipt: Receipt,
   emitter: Address,
@@ -184,7 +188,9 @@ function eventsFrom<const abi extends readonly unknown[]>(
         }) as unknown as { eventName: string; args: Record<string, unknown> },
       ];
     } catch {
-      return [];
+      throw new Error(
+        `The distribution receipt has a log from ${emitter} that its ABI cannot read, so the receipt proves nothing.`,
+      );
     }
   });
 }

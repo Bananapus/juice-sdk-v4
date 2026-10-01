@@ -173,10 +173,11 @@ function closureWork(
 }
 
 describe("module load", () => {
+  // Parsing every module in the closure takes seconds under coverage.
   test("the Safe, Safe service, review decoder, untrusted-input and distribution modules, and every module they load, run nothing when imported", () => {
     const work = closureWork(ENTRIES);
     expect([...work.values()].flat()).toEqual([]);
-  });
+  }, 60_000);
 
   test("flags a module-level call, spread, computed key, constructor or statement", () => {
     const work = (code: string) => moduleWork("sample.ts", code).length;

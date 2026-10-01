@@ -387,7 +387,9 @@ export function safeTransactionMessage(
     // The service stores an omitted gas token or refund receiver as null and
     // hashes it as the zero address, as Safe does; nothing else may be absent.
     gasToken:
-      tx.gasToken === null ? zeroAddress : fieldAddress("gasToken", tx.gasToken),
+      tx.gasToken === null
+        ? zeroAddress
+        : fieldAddress("gasToken", tx.gasToken),
     refundReceiver:
       tx.refundReceiver === null
         ? zeroAddress
@@ -464,6 +466,11 @@ export function canonicalSafeTxHash(
         `The Safe transaction's ${name} ${String(advertised)} does not match its fields, which hash to ${computed}.`,
       );
     }
+  }
+  if (expected !== undefined && !isBytes32(expected)) {
+    throw new Error(
+      `Invalid reviewed Safe transaction hash: ${String(expected)}.`,
+    );
   }
   if (
     expected !== undefined &&
@@ -557,6 +564,9 @@ function safeExecutionEvent(log: {
  * included, never decides this one. Any malformed execution event of `safe`
  * leaves the result unproven, since it cannot be told apart from this one.
  *
+ * `receipt` is viem's parsed receipt: a raw RPC receipt (status "0x1") reads
+ * unproven.
+ *
  * The at-once reading proves only that the Safe ran one transaction in that
  * receipt. A caller who holds the executing transaction's input should also
  * bind it to the reviewed call, as an `execTransaction` with exactly the
@@ -620,7 +630,10 @@ export function safeExecutionResult(
     );
   }
   const [event] = events;
-  return { status: event.failed ? "failed" : "success", payment: event.payment };
+  return {
+    status: event.failed ? "failed" : "success",
+    payment: event.payment,
+  };
 }
 
 /** Throws unless `receipt` proves the Safe transaction `hash` ran and succeeded ({@link safeExecutionResult}). */
@@ -998,15 +1011,40 @@ async function serviceDetail(response: Response): Promise<string> {
   return text ? `: ${text.slice(0, SERVICE_DETAIL_CHARACTERS)}` : "";
 }
 
-/** Every field of a service row read strictly, its hash checked: the row, or a refusal naming it. */
+/** The most confirmations a service row may carry; each must be an owner's. */
+const MAX_ROW_CONFIRMATIONS = 100;
+
+/**
+ * Every field of a service row read strictly, its advertised hash required and
+ * checked, its confirmations bounded: the row with its nonce as a number and
+ * its own Safe and hash, or a refusal naming what is wrong.
+ */
 function checkedRow(
   chainId: number,
   safe: Address,
   row: unknown,
 ): SafeQueuedTransaction {
   try {
-    canonicalSafeTxHash(chainId, safe, row as SafeQueuedTransaction);
-    return row as SafeQueuedTransaction;
+    const tx = row as SafeQueuedTransaction;
+    if (
+      (tx?.safeTxHash === undefined || tx.safeTxHash === null) &&
+      (tx?.contractTransactionHash === undefined ||
+        tx.contractTransactionHash === null)
+    ) {
+      throw new Error("It advertises no safeTxHash.");
+    }
+    if (
+      tx.confirmations !== undefined &&
+      tx.confirmations !== null &&
+      (!Array.isArray(tx.confirmations) ||
+        tx.confirmations.length > MAX_ROW_CONFIRMATIONS)
+    ) {
+      throw new Error(
+        `Its confirmations are not a list of at most ${MAX_ROW_CONFIRMATIONS}.`,
+      );
+    }
+    const hash = canonicalSafeTxHash(chainId, safe, tx);
+    return { ...tx, safe, safeTxHash: hash, nonce: nonceOf(tx.nonce) };
   } catch (error) {
     throw new Error(
       `Safe's transaction service listed a transaction for Safe ${safe} on chain ${chainId} that cannot be trusted. ${(error as Error).message}`,
@@ -1064,9 +1102,16 @@ export async function listPendingSafeTransactions(
         `Safe's transaction service returned no transaction list for Safe ${address} on chain ${chainId}.`,
       );
     }
+    if (body.results.length > PENDING_PAGE_SIZE) {
+      throw new Error(
+        `Safe's transaction service returned ${body.results.length} transactions in a page of ${PENDING_PAGE_SIZE} for Safe ${address} on chain ${chainId}.`,
+      );
+    }
     rows.push(...body.results.map((row) => checkedRow(chainId, address, row)));
     if (body.results.length < PENDING_PAGE_SIZE || !body.next) {
-      return rows.filter((row) => nonceOf(row.nonce) >= fromNonce);
+      return rows.filter(
+        (row) => row.isExecuted !== true && row.nonce >= fromNonce,
+      );
     }
   }
   throw new Error(
@@ -1228,10 +1273,14 @@ export async function submitSafeConfirmation(
   );
 }
 
+/** The most Safes listed for one owner on one chain; the rest are not read. */
+const MAX_OWNED_SAFES = 200;
+
 /**
  * Every Safe `owner` signs for on `chainIds`, from each chain's transaction
- * service. A chain without a service, a failed request or a malformed answer
- * contributes nothing; listed Safes are checksummed and others dropped.
+ * service, at most 200 per chain. A chain without a service, a failed request
+ * or a malformed answer contributes nothing; listed Safes are checksummed and
+ * others dropped.
  */
 export async function fetchSafesOwnedBy(
   owner: string,
@@ -1253,11 +1302,13 @@ export async function fetchSafesOwnedBy(
         if (!response.ok) return [];
         const body = (await response.json()) as { safes?: unknown };
         return Array.isArray(body?.safes)
-          ? body.safes.flatMap((safe) =>
-              typeof safe === "string" && isAddress(safe)
-                ? [{ chainId, safe: getAddress(safe) }]
-                : [],
-            )
+          ? body.safes
+              .slice(0, MAX_OWNED_SAFES)
+              .flatMap((safe) =>
+                typeof safe === "string" && isAddress(safe)
+                  ? [{ chainId, safe: getAddress(safe) }]
+                  : [],
+              )
           : [];
       } catch {
         return [];
