@@ -407,7 +407,10 @@ export function relayrBundleRequest(
   return { transactions, virtual_nonce_mode: "ChainIndependent" };
 }
 
-/** Relayr's `GET /v1/bundle/{uuid}` for exactly this bundle, or `unavailable`. */
+/**
+ * Relayr's `GET /v1/bundle/{uuid}` for exactly this bundle, or `unavailable`.
+ * Never from a cache: a stale answer could say a paid bundle is unpaid.
+ */
 async function readBundle(
   fetchBundle: typeof globalThis.fetch,
   bundleUuid: string,
@@ -422,6 +425,7 @@ async function readBundle(
     const response = await fetchBundle(
       `${RELAYR_API}/v1/bundle/${bundleUuid}`,
       {
+        cache: "no-store",
         signal: AbortSignal.timeout(BUNDLE_READ_TIMEOUT_MS),
       },
     );
@@ -805,6 +809,11 @@ export function relayrStateIsSuccess(state?: string): boolean {
   return label === "success" || label === "completed";
 }
 
+/** `pending`, in any case: Relayr has not run the transaction. */
+function relayrStateIsPending(state: unknown): boolean {
+  return stateLabel(state) === "pending";
+}
+
 /**
  * Only `failed`, in any case, is a failure. Relayr's other states say nothing
  * final; receipts stay the proof either way.
@@ -993,6 +1002,7 @@ function readReviewedPayment(payment: ReviewedPayment): {
   amount: bigint;
   bundleUuid: string;
   calldata: Hex;
+  deadline: bigint;
 } | null {
   const bundleUuid = uuidOf(payment?.bundleUuid);
   const amount = uint256(payment?.amount);
@@ -1010,6 +1020,7 @@ function readReviewedPayment(payment: ReviewedPayment): {
     amount,
     bundleUuid,
     calldata: payment.calldata,
+    deadline: calldataDeadline(payment.calldata),
   };
 }
 
@@ -1074,42 +1085,86 @@ export async function verifyRelayrPayment(
 }
 
 /**
- * Clear a saved quote to be paid once more after its payment reverted. `hash`
- * is the session's latest payment, as mined: an earlier attempt's revert says
- * nothing about a later one. Resolves only when that transaction is exactly
- * the reviewed payment, canonically reverted, and Relayr's bundle (read with
- * `fetch`) reports `payment_received: false`. The payment contract keeps no
- * state and Relayr keeps every payment it receives, so a successful payment
- * from anywhere else rules a new one out; one still in flight elsewhere is not
- * visible yet. Throws in every other case, including when an answer is
- * unavailable. Never pay on an error.
+ * Clear a saved quote to be paid once more after its payments reverted.
+ * `hashes` is every payment this session sent for the quote, each as mined
+ * (see {@link verifyRelayrPayment}). A bundle ID belongs to one quote, and a
+ * quote to the session on the device that requested it, so the session's own
+ * hashes are every payment that could have funded the bundle. Resolves only
+ * when:
+ *
+ * - every one of them is exactly the reviewed payment, canonically reverted;
+ * - the quote's deadline is more than 15 seconds away (`nowSeconds`, by
+ *   default the clock);
+ * - Relayr's bundle, read with `fetch` and never from a cache, reports
+ *   `payment_received: false`, and every record is still pending with no
+ *   destination hash. Relayr runs only paid bundles.
+ *
+ * The payment contract keeps no state and Relayr keeps every payment it
+ * receives, so anything else rules a new payment out, and an empty list never
+ * clears one. A payment still in flight from elsewhere is not visible yet.
+ * Throws in every other case, including when an answer is unavailable. Never
+ * pay on an error.
  */
 export async function requireRelayrPaymentRetry(
   client: RelayrProofClient,
-  input: { hash: Hex; from: Address; payment: ReviewedPayment },
+  {
+    hashes,
+    from,
+    payment,
+  }: { hashes: readonly Hex[]; from: Address; payment: ReviewedPayment },
   {
     fetch: fetchBundle = globalThis.fetch,
-  }: { fetch?: typeof globalThis.fetch } = {},
+    nowSeconds = Date.now() / 1_000,
+  }: { fetch?: typeof globalThis.fetch; nowSeconds?: number } = {},
 ): Promise<void> {
-  try {
-    await verifyRelayrPayment(client, input);
-  } catch (error) {
-    if (!(error instanceof RelayrPaymentRevertedError)) throw error;
-    const { payment_received } = await readBundle(
-      fetchBundle,
-      readReviewedPayment(input.payment)!.bundleUuid,
-      UNKNOWN_PAYMENT,
-    );
-    if (payment_received === false) return;
+  if (!Array.isArray(hashes) || !hashes.length) {
     throw new Error(
-      payment_received === true
-        ? "Relayr already reports a payment for this bundle. Do not pay again."
-        : UNKNOWN_PAYMENT,
+      "Name every payment this session sent for the quote before paying it again.",
     );
   }
-  throw new Error(
-    "This Relayr payment succeeded onchain, so its bundle is paid. Do not pay again.",
+  const reviewed = readReviewedPayment(payment);
+  if (reviewed && quoteExpired(reviewed.deadline, nowSeconds)) {
+    throw new Error(EXPIRED);
+  }
+  for (const hash of hashes) {
+    try {
+      await verifyRelayrPayment(client, { hash, from, payment });
+    } catch (error) {
+      if (error instanceof RelayrPaymentRevertedError) continue;
+      throw error;
+    }
+    throw new Error(
+      "This Relayr payment succeeded onchain, so its bundle is paid. Do not pay again.",
+    );
+  }
+  const { payment_received, transactions } = await readBundle(
+    fetchBundle,
+    reviewed!.bundleUuid,
+    UNKNOWN_PAYMENT,
   );
+  if (payment_received === true) {
+    throw new Error(
+      "Relayr already reports a payment for this bundle. Do not pay again.",
+    );
+  }
+  if (
+    payment_received !== false ||
+    !Array.isArray(transactions) ||
+    !transactions.length
+  ) {
+    throw new Error(UNKNOWN_PAYMENT);
+  }
+  if (
+    transactions.some(
+      (record: RelayrTransactionRecord) =>
+        relayrDestinationHash(record) !== null ||
+        !relayrStateIsPending(record?.status?.state),
+    )
+  ) {
+    throw new Error(
+      "Relayr reports a transaction of this bundle as running or run. Do not pay again.",
+    );
+  }
 }
 
 function destinationWords(hash: Hex, chainId: number): ProofWords {

@@ -46,8 +46,15 @@ the copies differed. Nothing in it signs or sends:
   is not available yet. RPC failures are reported with a fixed message; the
   RPC error stays in a non-enumerable `cause`, so neither the message nor a
   serialized error carries the RPC URL.
-- Retrying a payment: `requireRelayrPaymentRetry` clears a saved quote to be
-  paid once more only when the session's latest payment canonically reverted
-  and Relayr's bundle reports `payment_received: false`. The payment contract
-  keeps no state and Relayr keeps every payment it receives, so a revert alone
-  never shows that the bundle is unpaid.
+- Retrying a payment: `requireRelayrPaymentRetry` takes every payment hash the
+  session sent for the quote. It clears the quote to be paid once more only when
+  all of the following hold; an empty list never clears it:
+  - every one of those payments canonically reverted;
+  - the quote's deadline is more than 15 seconds away;
+  - Relayr's bundle, read without any HTTP cache, reports
+    `payment_received: false`;
+  - every record of the bundle is still pending, with no destination hash.
+
+  The payment contract keeps no state and Relayr keeps every payment it
+  receives, so a revert alone never shows that the bundle is unpaid. Every
+  Relayr bundle read in the module skips the HTTP cache.

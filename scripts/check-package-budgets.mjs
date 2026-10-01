@@ -29,7 +29,7 @@ const budgets = {
     // about 237 kilobytes unpacked and 48 kilobytes packed. The Relayr quote
     // binding, payment checks and payment and destination proofs on their own
     // /review/relayr entry point add one source file, eight artifacts, about
-    // 170 kilobytes unpacked and 30 kilobytes packed.
+    // 179 kilobytes unpacked and 31 kilobytes packed.
     packed: 1_050_000,
     unpacked: 19_666_000,
     entries: 578,
