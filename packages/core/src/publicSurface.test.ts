@@ -169,6 +169,7 @@ describe("published core SDK surfaces", () => {
       "MULTICALL3",
       "MULTI_SEND_ABI",
       "MULTI_SEND_CALL_ONLY",
+      "MULTI_SEND_CALL_ONLY_DEPLOYMENTS",
       "RECOGNIZED_SAFE_RELEASES",
       "SAFE_CANONICAL_PAYMENT_RECEIVER",
       "SAFE_CREATE_ABI",

@@ -16,6 +16,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   MULTI_SEND_ABI,
   MULTI_SEND_CALL_ONLY,
+  MULTI_SEND_CALL_ONLY_DEPLOYMENTS,
   RECOGNIZED_SAFE_RELEASES,
   SAFE_CANONICAL_PAYMENT_RECEIVER,
   SAFE_CREATE_ABI,
@@ -777,6 +778,57 @@ describe("MultiSend", () => {
       { to: MULTI_SEND_CALL_ONLY, data: "0x", operation: 1 },
     ]) {
       expect(multiSendCallsOf(tx)).toBeNull();
+    }
+  });
+
+  it("recognizes MultiSendCallOnly 1.3.0, canonical and EIP-155, and 1.4.1, as Safe's deployment records list them", () => {
+    // safe-global/safe-deployments src/assets/v1.3.0 and v1.4.1
+    // multi_send_call_only.json. 1.4.1 has no EIP-155 deployment.
+    expect(MULTI_SEND_CALL_ONLY_DEPLOYMENTS).toEqual([
+      "0x40A2aCCbd92BCA938b02010E17A5b8929b49130D",
+      "0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B",
+      "0x9641d764fc13c8B624c04430C7356C1C7C8102e2",
+    ]);
+    for (const address of MULTI_SEND_CALL_ONLY_DEPLOYMENTS) {
+      expect(getAddress(address)).toBe(address);
+    }
+    expect(MULTI_SEND_CALL_ONLY_DEPLOYMENTS).toContain(MULTI_SEND_CALL_ONLY);
+  });
+
+  it("reads a Safe{Wallet} batch through any recognized MultiSendCallOnly, still only as whole CALL entries", () => {
+    const data = encodeMultiSend(calls);
+    for (const to of MULTI_SEND_CALL_ONLY_DEPLOYMENTS) {
+      expect(multiSendCallsOf({ to, data, operation: 1 })).toEqual(calls);
+      expect(
+        multiSendCallsOf({ to: to.toLowerCase(), data, operation: "1" }),
+      ).toEqual(calls);
+      expect(multiSendCallsOf({ to, data, operation: 0 })).toBeNull();
+      const packed = packMultiSend(calls.slice(0, 1));
+      expect(
+        multiSendCallsOf({
+          to,
+          data: encodeFunctionData({
+            abi: MULTI_SEND_ABI,
+            functionName: "multiSend",
+            args: [`0x01${packed.slice(4)}`],
+          }),
+          operation: 1,
+        }),
+      ).toBeNull();
+      expect(
+        multiSendCallsOf({ to, data: `${data}00`, operation: 1 }),
+      ).toBeNull();
+    }
+    // zkSync's MultiSendCallOnly (an address there does not pin its code),
+    // and MultiSend 1.3.0 and 1.4.1, which run DELEGATECALL entries.
+    for (const to of [
+      "0xf220D3b4DFb23C4ade8C88E526C1353AbAcbC38F",
+      "0x0408EF011960d02349d50286D20531229BCef773",
+      "0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761",
+      "0x998739BFdAAdde7C933B942a68053933098f9EDa",
+      "0x38869bf66a61cF6bDB996A6aE40D5853Fd43B526",
+    ]) {
+      expect(multiSendCallsOf({ to, data, operation: 1 })).toBeNull();
     }
   });
 });

@@ -363,7 +363,10 @@ Safe on another chain:
   destination address is free, the factory, singleton, owners and fallback
   handler check out there, and a raw simulation returns the Safe's address.
 - `packMultiSend`, `encodeMultiSend`, `decodeMultiSend` and `multiSendCallsOf`
-  handle MultiSendCallOnly batches of plain calls.
+  handle MultiSendCallOnly batches of plain calls. Batches are built for
+  `MULTI_SEND_CALL_ONLY` (1.3.0). `multiSendCallsOf` reads a batch sent through
+  any of `MULTI_SEND_CALL_ONLY_DEPLOYMENTS` (1.3.0 canonical and EIP-155, and
+  1.4.1, which Safe{Wallet} uses for a 1.4.1 Safe).
 
 `@bananapus/nana-sdk-core/safe-service` handles Safe transactions and Safe's
 transaction service:
