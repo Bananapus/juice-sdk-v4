@@ -396,8 +396,11 @@ of the app's own and send the optional `jb-safe-api-key` from local storage.
 `verifyPayoutReceipt` and `verifyReservedDistributionReceipt` require every
 reviewed split's exact share, the reviewed ruleset, sender, owner and amounts,
 no recipient failure, and, for reserved tokens, burns of only the shares sent
-to `0x…dEaD`. A refusal means: keep the transaction, and do not distribute the
-same amounts again.
+to `0x…dEaD`. Reserved tokens accrue until the distribution runs, so a reserved
+receipt may distribute more than was reviewed, never fewer: each share is
+checked against the count it distributed, which
+`verifyReservedDistributionReceipt` returns. A refusal means: keep the
+transaction, and do not distribute the same amounts again.
 
 ## Installation
 
