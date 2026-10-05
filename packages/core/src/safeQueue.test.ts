@@ -1111,7 +1111,7 @@ describe("Safe transaction service", () => {
     expect(fetcher).toHaveBeenCalledTimes(4);
   });
 
-  it("waits at most 10 seconds before retrying a 429, whatever its Retry-After asks", async () => {
+  it("waits out a 429's Retry-After of up to 10 seconds, then retries", async () => {
     expect(SAFE_SERVICE_MAX_RETRY_WAIT_MS).toBe(10_000);
     vi.useFakeTimers();
     const fetcher = vi
@@ -1119,7 +1119,7 @@ describe("Safe transaction service", () => {
       .mockResolvedValueOnce(
         new Response("busy", {
           status: 429,
-          headers: { "retry-after": "3600" },
+          headers: { "retry-after": "10" },
         }),
       )
       .mockResolvedValueOnce(json({ next: null, results: [row()] }));
@@ -1129,6 +1129,35 @@ describe("Safe transaction service", () => {
     await vi.advanceTimersByTimeAsync(1);
     await expect(pending).resolves.toHaveLength(1);
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("hands back at once a 429 whose Retry-After asks for more than 10 seconds", async () => {
+    vi.useFakeTimers();
+    for (const retryAfter of ["10.001", "11", "3600"]) {
+      const fetcher = vi.fn(
+        async () =>
+          new Response("busy", {
+            status: 429,
+            headers: { "retry-after": retryAfter },
+          }),
+      );
+      const started = Date.now();
+      let settledAt: number | undefined;
+      const pending = listPendingSafeTransactions(1, SAFE, 8, {
+        fetch: fetcher,
+      })
+        .catch((error: Error) => error.message)
+        .finally(() => {
+          settledAt = Date.now();
+        });
+      await vi.runAllTimersAsync();
+      expect(await pending).toBe(
+        `Safe's transaction service answered 429 listing the queue of Safe ${SAFE} on chain 1: busy`,
+      );
+      // No request was repeated, and no time passed waiting.
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(settledAt).toBe(started);
+    }
   });
 
   it("does not list a page again once its 429 has had its retries", async () => {

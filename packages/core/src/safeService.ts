@@ -958,10 +958,11 @@ export function onchainApprovalStep({
  * between attempts; the call then fails with the signal's reason, except where
  * a failed request reads as nothing found ({@link fetchSafesOwnedBy},
  * {@link fetchSafeCreation}). A 429 is retried up to three times, after its
- * Retry-After or 1, 2 and 3 seconds without one, each wait capped at
- * {@link SAFE_SERVICE_MAX_RETRY_WAIT_MS}. `retryRateLimited: false` hands back
- * the first 429 instead, for a caller that must not wait, such as a server
- * render.
+ * Retry-After or 1, 2 and 3 seconds without one, when that wait is at most
+ * {@link SAFE_SERVICE_MAX_RETRY_WAIT_MS}. A 429 that asks for longer is handed
+ * back at once: retrying before the service allows works against its rate
+ * limit. `retryRateLimited: false` hands back the first 429 instead, for a
+ * caller that must not wait, such as a server render.
  */
 export type SafeServiceOptions = {
   fetch?: typeof fetch;
@@ -969,7 +970,7 @@ export type SafeServiceOptions = {
   retryRateLimited?: boolean;
 };
 
-/** The longest a service call waits before retrying a 429: 10 seconds, whatever its Retry-After asks. */
+/** The longest a service call waits to retry a 429: 10 seconds. A 429 that asks for longer is handed back at once. */
 export const SAFE_SERVICE_MAX_RETRY_WAIT_MS = 10_000;
 
 const PENDING_PAGE_SIZE = 50;
@@ -1034,16 +1035,12 @@ async function serviceFetch(
       return response;
     }
     const retryAfter = Number(response.headers.get("retry-after"));
-    await pause(
-      Math.min(
-        Number.isFinite(retryAfter) && retryAfter > 0
-          ? retryAfter * 1000
-          : 1000 * (attempt + 1),
-        SAFE_SERVICE_MAX_RETRY_WAIT_MS,
-      ),
-      signal,
-      () => signal!.reason,
-    );
+    const wait =
+      Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : 1000 * (attempt + 1);
+    if (wait > SAFE_SERVICE_MAX_RETRY_WAIT_MS) return response;
+    await pause(wait, signal, () => signal!.reason);
   }
 }
 

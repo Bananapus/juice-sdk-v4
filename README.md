@@ -394,8 +394,9 @@ It also has `SAFE_TX_TYPES`, `safeTransactionMessage`, `safeTransactionHash`,
 `proposeSafeTransaction`, `submitSafeConfirmation`, `fetchSafesOwnedBy`,
 `fetchSafeCreation` and `safeTransactionUrl`. Service calls accept a `fetch`
 of the app's own and a `signal`, and send the optional `jb-safe-api-key` from
-local storage. A 429 is retried up to three times, each wait capped at 10
-seconds (`SAFE_SERVICE_MAX_RETRY_WAIT_MS`) and ended by the `signal`.
+local storage. A 429 is retried up to three times after its Retry-After when
+that wait is 10 seconds or less (`SAFE_SERVICE_MAX_RETRY_WAIT_MS`), and the
+`signal` ends the wait; a 429 that asks for longer is handed back at once.
 `retryRateLimited: false` hands back the first 429 instead, for a server render
 that must not wait.
 
