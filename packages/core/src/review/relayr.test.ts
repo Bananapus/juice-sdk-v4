@@ -28,6 +28,7 @@ import {
 import {
   bindRelayrQuote,
   FORWARD_REQUEST_TYPES,
+  quoteExpired,
   RELAYR_API,
   RELAYR_FORWARDER_DEADLINE_SECONDS,
   RELAYR_NATIVE_TOKEN,
@@ -908,6 +909,22 @@ describe("Relayr payment authentication", () => {
     expect(() =>
       details(paymentFor({ payment_deadline: quoted as unknown as string })),
     ).toThrow("Relayr payment calldata does not match the quote deadline.");
+  });
+});
+
+describe("Relayr quote expiry", () => {
+  it("expires a quote once its deadline is 15 seconds away or less", () => {
+    expect(quoteExpired(BigInt(NOW + 16), NOW)).toBe(false);
+    expect(quoteExpired(BigInt(NOW + 15), NOW)).toBe(true);
+    expect(quoteExpired(BigInt(NOW), NOW)).toBe(true);
+    // The current time counts in whole seconds.
+    expect(quoteExpired(BigInt(NOW + 16), NOW + 0.999)).toBe(false);
+  });
+
+  it("reads the clock by default", () => {
+    const now = Math.floor(Date.now() / 1_000);
+    expect(quoteExpired(BigInt(now + 3_600))).toBe(false);
+    expect(quoteExpired(BigInt(now + 10))).toBe(true);
   });
 });
 

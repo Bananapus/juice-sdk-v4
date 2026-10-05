@@ -137,6 +137,7 @@ describe("published core SDK surfaces", () => {
       "RelayrProofError",
       "TRUSTED_FORWARDER_ABI",
       "bindRelayrQuote",
+      "quoteExpired",
       "relayrBundleRequest",
       "relayrDestinationHash",
       "relayrForwardRequest",

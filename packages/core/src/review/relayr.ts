@@ -577,8 +577,15 @@ function calldataDeadline(calldata: string): bigint {
   return BigInt(`0x${calldata.slice(74)}`);
 }
 
-/** A quote is dead once its deadline is 15 seconds away or less. */
-function quoteExpired(deadline: bigint, nowSeconds: number): boolean {
+/**
+ * Whether a quote whose payment deadline is `deadline` (unix seconds) is dead
+ * at `nowSeconds`, by default the clock: its deadline is 15 seconds away or
+ * less, too close for a payment to land before it.
+ */
+export function quoteExpired(
+  deadline: bigint,
+  nowSeconds: number = Date.now() / 1_000,
+): boolean {
   return deadline <= BigInt(Math.floor(nowSeconds)) + 15n;
 }
 
