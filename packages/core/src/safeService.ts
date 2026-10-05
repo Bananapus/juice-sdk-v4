@@ -123,6 +123,29 @@ function noHostedService(chainId: number): Error {
 class SafeExecutionRecordError extends Error {}
 
 /**
+ * Waits `ms`, or rejects with `aborted()` once `signal` aborts: at once when
+ * it already has.
+ */
+function pause(
+  ms: number,
+  signal: AbortSignal | undefined,
+  aborted: () => unknown,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    function onAbort() {
+      clearTimeout(timer);
+      reject(aborted());
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
+  });
+}
+
+/**
  * Resolve a Safe proposal identifier to its actual onchain execution hash.
  * A safeTxHash is not a transaction hash and must never be receipt-polled.
  *
@@ -210,18 +233,11 @@ export async function waitForSafeExecutionHash(
         // proposal pending instead of inviting a duplicate submission.
       }
     }
-    await new Promise<void>((resolve, reject) => {
-      function onAbort() {
-        clearTimeout(timer);
-        reject(new DOMException("Safe execution wait aborted", "AbortError"));
-      }
-      const timer = setTimeout(() => {
-        options.signal?.removeEventListener("abort", onAbort);
-        resolve();
-      }, interval);
-      options.signal?.addEventListener("abort", onAbort, { once: true });
-      if (options.signal?.aborted) onAbort();
-    });
+    await pause(
+      interval,
+      options.signal,
+      () => new DOMException("Safe execution wait aborted", "AbortError"),
+    );
   }
 }
 
