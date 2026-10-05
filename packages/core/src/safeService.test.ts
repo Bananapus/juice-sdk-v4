@@ -142,6 +142,30 @@ describe("Safe transaction service boundaries", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
   });
 
+  it("keeps waiting through a Retry-After longer than one timer can hold, instead of polling again at once", async () => {
+    for (const retryAfter of ["3000000", "Mon, 05 Oct 2099 12:00:00 GMT"]) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async () =>
+            new Response("busy", {
+              status: 429,
+              headers: { "retry-after": retryAfter },
+            }),
+        ),
+      );
+      const page = new AbortController();
+      const waiting = waitForSafeExecutionHash(8453, PROPOSAL, {
+        pollingIntervalMs: 1,
+        signal: page.signal,
+      }).catch((error: unknown) => error);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(fetch).toHaveBeenCalledTimes(1);
+      page.abort();
+      expect(await waiting).toMatchObject({ name: "AbortError" });
+    }
+  });
+
   it("after a 429, waits the longer of the poll interval and its Retry-After before polling again", async () => {
     vi.useFakeTimers();
     const limited = (headers: Record<string, string> = {}) =>
