@@ -71,7 +71,9 @@ itself, so the apps can drop their wrappers.
   are unchanged. A hash that is another transaction still throws
   `RelayrProofError`. A malformed request is refused before anything is read.
 - `readRelayrBundle(bundleUuid, { fetch })` reads a bundle without any HTTP cache
-  and refuses an answer naming another bundle. `requireRelayrBundleUnpaid(bundle)`
-  throws a `RelayrPaymentRetryError` (`paid`, `running` or `unknown`) unless the
-  bundle is unpaid with every call pending. An app confirms a bundle with the two
-  before releasing its quote.
+  and refuses an answer naming another bundle.
+- `requireRelayrBundleUnpaid(bundleUuid, { fetch })` reads the bundle that way
+  and throws a `RelayrPaymentRetryError` (`paid`, `running`, `unknown`, or
+  `invalid` for a malformed bundle ID) unless Relayr reports it unpaid with
+  every call pending. One call reads and checks, so an app confirms a bundle with
+  it before releasing its quote. `requireRelayrPaymentRetry` ends with it.

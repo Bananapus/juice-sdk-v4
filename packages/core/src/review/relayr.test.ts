@@ -61,7 +61,6 @@ import {
   verifyRelayrDestination,
   verifyRelayrDestinations,
   verifyRelayrPayment,
-  type RelayrBundle,
   type RelayrBundleRequest,
   type RelayrEntry,
   type RelayrPayment,
@@ -1992,18 +1991,51 @@ describe("Relayr bundle reads", () => {
     expect(JSON.stringify(error)).not.toContain("relayr.invalid");
   });
 
-  it("passes a bundle Relayr reports unpaid, every call pending in any case", () => {
-    expect(() => requireRelayrBundleUnpaid(unpaid())).not.toThrow();
-    expect(() =>
-      requireRelayrBundleUnpaid(
-        unpaid({
-          transactions: [
-            { tx_uuid: OTHER_UUID, status: { state: " PENDING " } },
-            { tx_uuid: THIRD_UUID, status: { state: "pending" } },
-          ],
+  /** The retry refusal `requireRelayrBundleUnpaid` rejects with, as its reason and words. */
+  const unpaidRefusal = async (promise: Promise<unknown>) => {
+    const error = await rejection(promise);
+    expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+    return {
+      reason: (error as RelayrPaymentRetryError).reason,
+      message: error.message,
+    };
+  };
+  const UNKNOWN =
+    "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.";
+
+  it("reads the bundle never from a cache, and passes one Relayr reports unpaid with every call pending in any case", async () => {
+    for (const answer of [
+      unpaid({ bundle_uuid: BUNDLE_UUID.toUpperCase() }),
+      unpaid({
+        transactions: [
+          { tx_uuid: OTHER_UUID, status: { state: " PENDING " } },
+          { tx_uuid: THIRD_UUID, status: { state: "pending" } },
+        ],
+      }),
+    ]) {
+      const fetchBundle = vi.fn(async () => json(answer));
+      await expect(
+        requireRelayrBundleUnpaid(BUNDLE_UUID.toUpperCase(), {
+          fetch: fetchBundle,
         }),
-      ),
-    ).not.toThrow();
+      ).resolves.toBeUndefined();
+      expect(fetchBundle).toHaveBeenCalledTimes(1);
+      expect(fetchBundle).toHaveBeenCalledWith(
+        `${RELAYR_API}/v1/bundle/${BUNDLE_UUID}`,
+        { cache: "no-store", signal: expect.any(AbortSignal) },
+      );
+    }
+  });
+
+  it("reads with the global fetch by default", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(unpaid())),
+    );
+    await expect(
+      requireRelayrBundleUnpaid(BUNDLE_UUID),
+    ).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it.each<[string, unknown, RelayrPaymentRetryRefusal]>([
@@ -2045,24 +2077,57 @@ describe("Relayr bundle reads", () => {
     ["an empty record list", unpaid({ transactions: [] }), "unknown"],
     ["records that are not a list", unpaid({ transactions: "x" }), "unknown"],
     ["no bundle", null, "unknown"],
-  ])("refuses a bundle with %s", (_, bundle, reason) => {
-    let error: unknown;
-    try {
-      requireRelayrBundleUnpaid(bundle as RelayrBundle);
-    } catch (thrown) {
-      error = thrown;
-    }
-    expect(error).toBeInstanceOf(RelayrPaymentRetryError);
-    expect(error).toMatchObject({
+    ["another bundle", unpaid({ bundle_uuid: OTHER_UUID }), "unknown"],
+  ])("refuses a bundle with %s", async (_, answer, reason) => {
+    expect(
+      await unpaidRefusal(
+        requireRelayrBundleUnpaid(BUNDLE_UUID, {
+          fetch: vi.fn(async () => json(answer)),
+        }),
+      ),
+    ).toEqual({
       reason,
       message: {
         paid: "Relayr already reports a payment for this bundle. Do not pay again.",
         running:
           "Relayr reports a transaction of this bundle as running or run. Do not pay again.",
-        unknown:
-          "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.",
+        unknown: UNKNOWN,
       }[reason as "paid" | "running" | "unknown"],
     });
+  });
+
+  it("refuses as unknown a bundle it cannot read, keeping the failure as its cause", async () => {
+    expect(
+      await unpaidRefusal(
+        requireRelayrBundleUnpaid(BUNDLE_UUID, {
+          fetch: vi.fn(async () => json({ error: "busy" }, 503)),
+        }),
+      ),
+    ).toEqual({ reason: "unknown", message: UNKNOWN });
+    const failure = new TypeError("fetch failed: https://relayr.invalid/key");
+    const error = await rejection(
+      requireRelayrBundleUnpaid(BUNDLE_UUID, {
+        fetch: vi.fn(async () => {
+          throw failure;
+        }),
+      }),
+    );
+    expect(error).toMatchObject({ reason: "unknown", message: UNKNOWN });
+    expect(error.cause).toBe(failure);
+    expect(JSON.stringify(error)).not.toContain("relayr.invalid");
+  });
+
+  it("asks nothing for an invalid bundle ID", async () => {
+    const fetchBundle = vi.fn();
+    expect(
+      await unpaidRefusal(
+        requireRelayrBundleUnpaid("bundle-1", { fetch: fetchBundle }),
+      ),
+    ).toEqual({
+      reason: "invalid",
+      message: "Invalid Relayr bundle ID: bundle-1.",
+    });
+    expect(fetchBundle).not.toHaveBeenCalled();
   });
 });
 
