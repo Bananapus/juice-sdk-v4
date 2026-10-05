@@ -969,3 +969,152 @@ describe("JB Center client", () => {
     });
   });
 });
+
+describe("JB Center answers and defaults", () => {
+  test("accepts written metadata, a deployed intent, a failed deploy's error and a next-page cursor", async () => {
+    const written = {
+      description: "Funds public goods.",
+      tagline: "For everyone",
+      logoUri: "ipfs://QmNQLK1UW6k13Srgq6awEHiVVP82V5urfKENXBcbSstnzR",
+      owner: null,
+    };
+    const deployed = {
+      ...intent(),
+      ...written,
+      status: "deployed",
+      deploys: [
+        {
+          chainId: 8453,
+          status: "failed",
+          transactionHash: null,
+          bundleUuid: null,
+          error: "The launch reverted.",
+          createdAt: "2026-09-21T00:00:00.000Z",
+          updatedAt: "2026-09-21T00:00:01.000Z",
+        },
+      ],
+    };
+    const page = {
+      items: [
+        {
+          source: "jbcenter",
+          status: "undeployed",
+          intentId: intent().id,
+          contentHash: hash,
+          format: envelope.format,
+          deploymentVersion: "6",
+          chainIds: [1],
+          publisher: address,
+          createdAt: intent().createdAt,
+          name: "Example",
+          tags: ["goods"],
+          ...written,
+        },
+      ],
+      totalCount: 21,
+      nextCursor: "20",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(deployed))
+      .mockResolvedValueOnce(jsonResponse(page));
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    await expect(client.getIntent(intent().id)).resolves.toEqual(deployed);
+    await expect(client.searchIntents({ query: "goods" })).resolves.toEqual(
+      page,
+    );
+  });
+
+  test("refuses an RPC answer with both a result and an error, or neither", async () => {
+    for (const answer of [
+      { jsonrpc: "2.0", id: 1 },
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        result: "0x1",
+        error: { code: -32000, message: "RPC request failed" },
+      },
+    ]) {
+      await expect(
+        createJBCenterClient({
+          fetch: vi.fn().mockResolvedValue(jsonResponse(answer)),
+        }).rpc(1, { method: "eth_chainId" }),
+      ).rejects.toMatchObject({
+        status: 502,
+        message: "JB Center returned an invalid response",
+      });
+    }
+  });
+
+  test("numbers RPC requests from 1 again after the largest safe integer", async () => {
+    const fetchMock = vi.fn(
+      async (_url: RequestInfo | URL, init?: RequestInit) => {
+        const { id } = JSON.parse(String(init?.body)) as { id: number };
+        return jsonResponse({ jsonrpc: "2.0", id, result: "0x1" });
+      },
+    );
+    const client = createJBCenterClient({ fetch: fetchMock });
+    (client as unknown as { nextRpcId: number }).nextRpcId =
+      Number.MAX_SAFE_INTEGER;
+
+    await client.rpc(1, { method: "eth_chainId" });
+    await client.rpc(1, { method: "eth_chainId" });
+    expect(
+      fetchMock.mock.calls.map(
+        ([, init]) => (JSON.parse(String(init?.body)) as { id: number }).id,
+      ),
+    ).toEqual([Number.MAX_SAFE_INTEGER, 1]);
+  });
+
+  test("pins with the caller's timeout, and names a file after itself or its kind", async () => {
+    const hang = (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(init.signal?.reason),
+        );
+      });
+    await expect(
+      createJBCenterClient({ fetch: vi.fn(hang) }).pinJson(
+        { name: "Example" },
+        { timeoutMs: 5 },
+      ),
+    ).rejects.toMatchObject({ name: "JBCenterTimeoutError", timeoutMs: 5 });
+
+    const pin = {
+      cid: "QmNQLK1UW6k13Srgq6awEHiVVP82V5urfKENXBcbSstnzR",
+      status: "queued",
+      uri: "ipfs://QmNQLK1UW6k13Srgq6awEHiVVP82V5urfKENXBcbSstnzR",
+      gatewayUrl: "/ipfs/QmNQLK1UW6k13Srgq6awEHiVVP82V5urfKENXBcbSstnzR",
+    };
+    const fetchMock = vi.fn().mockImplementation(() => jsonResponse(pin));
+    const client = createJBCenterClient({ fetch: fetchMock });
+    await client.pinImage(new File(["image"], "logo.png"));
+    await client.pinImage(new Blob(["image"]));
+    await client.pinMedia(new Blob(["video"]));
+    expect(
+      fetchMock.mock.calls.map(([, init]) =>
+        ((init as RequestInit).body as FormData).get("file"),
+      ),
+    ).toMatchObject([
+      { name: "logo.png" },
+      { name: "image" },
+      { name: "media" },
+    ]);
+  });
+
+  test("reports an error answer that is not a record by its status", async () => {
+    for (const body of [["unexpected"], "down", null]) {
+      await expect(
+        createJBCenterClient({
+          fetch: vi.fn().mockResolvedValue(jsonResponse(body, { status: 500 })),
+        }).getIntent(intent().id),
+      ).rejects.toMatchObject({
+        name: "JBCenterRequestError",
+        status: 500,
+        message: "JB Center request failed (500)",
+        code: undefined,
+      });
+    }
+  });
+});
