@@ -45,6 +45,10 @@ export type ReviewedContractWriteOptions<
   onWriteRejected?: () => unknown | Promise<unknown>;
   write: (simulated: TSimulated) => Promise<THash>;
   onPhase?: (phase: ReviewedWritePhase) => void;
+  /**
+   * The refusal when the connected account is not `expectedAccount`; by
+   * default "The connected account changed. Review again."
+   */
   accountChangedError?: string;
   /**
    * An app-specific gate run before anything else, such as refusing writes while
@@ -57,8 +61,10 @@ export type ReviewedContractWriteOptions<
  * Shared review-to-wallet boundary for direct contract writes.
  *
  * The exact request object accepted by review is also handed to simulation,
- * and only the simulation result reaches the wallet writer. Account identity
- * is checked after a chain switch and again immediately before signing.
+ * and only the simulation result reaches the wallet writer. The connected
+ * account must be `expectedAccount`, the account the request was reviewed for,
+ * before the review opens, after a chain switch and again immediately before
+ * signing.
  */
 export async function submitReviewedContractWrite<
   TRequest extends { chainId: number },
@@ -77,11 +83,12 @@ export async function submitReviewedContractWrite<
   onWriteRejected,
   write,
   onPhase,
-  accountChangedError = "Connected account changed. Review the transaction again.",
+  accountChangedError = "The connected account changed. Review again.",
   guard,
 }: ReviewedContractWriteOptions<TRequest, TSimulated, THash>): Promise<THash> {
   guard?.();
   if (!expectedAccount) throw new Error("Connect a wallet first.");
+  assertExpectedAccount(currentAccount(), expectedAccount, accountChangedError);
 
   onPhase?.("review");
   await review(request);

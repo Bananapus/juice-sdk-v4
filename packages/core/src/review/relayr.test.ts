@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import {
   createPublicClient,
   encodeFunctionData,
+  getAddress,
   http,
   keccak256,
   toFunctionSelector,
@@ -27,6 +28,8 @@ import {
 import {
   bindRelayrQuote,
   FORWARD_REQUEST_TYPES,
+  quoteExpired,
+  readRelayrBundle,
   RELAYR_API,
   RELAYR_FORWARDER_DEADLINE_SECONDS,
   RELAYR_NATIVE_TOKEN,
@@ -43,12 +46,14 @@ import {
   relayrProgress,
   relayrRecordChain,
   RelayrDestinationRevertedError,
+  RelayrPaymentRetryError,
   RelayrPaymentRevertedError,
   RelayrProofError,
   relayrStateIsFailed,
   relayrStateIsSuccess,
   relayrSupportsChain,
   relayrSupportsChains,
+  requireRelayrBundleUnpaid,
   requireRelayrPaymentRetry,
   requireRelayrPaymentRuntime,
   simulateRelayrPayment,
@@ -60,6 +65,7 @@ import {
   type RelayrEntry,
   type RelayrPayment,
   type RelayrPaymentDetails,
+  type RelayrPaymentRetryRefusal,
   type RelayrProofClient,
   type RelayrTransactionBinding,
   type RelayrTransactionRecord,
@@ -79,6 +85,21 @@ const BLOCK_HASH = `0x${"cd".repeat(32)}` as Hex;
 const OTHER_BLOCK_HASH = `0x${"45".repeat(32)}` as Hex;
 const NOW = 1_750_000_000;
 const DEADLINE = NOW + 600;
+// Relayr's payment contract and native token as EIP-55 writes them, with the
+// case of one letter flipped so the checksum fails, and in upper case, which
+// viem's strict address check refuses too.
+const CHECKSUMMED_PAYMENT_ADDRESS =
+  "0x1C05F7841379D4393574c0FFA17908Ec40FFD97d" as Address;
+const MISCASED_PAYMENT_ADDRESS =
+  "0x1c05F7841379D4393574c0FFA17908Ec40FFD97d" as Address;
+const UPPERCASE_PAYMENT_ADDRESS =
+  "0x1C05F7841379D4393574C0FFA17908EC40FFD97D" as Address;
+const CHECKSUMMED_NATIVE_TOKEN =
+  "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
+const MISCASED_NATIVE_TOKEN =
+  "0xeeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
+const UPPERCASE_NATIVE_TOKEN =
+  "0xEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE" as Address;
 const MAINNETS = [1, 10, 8453, 42161];
 const TESTNETS = [11155111, 11155420, 84532, 421614];
 // The runtime code deployed at RELAYR_PAYMENT_ADDRESS on every Relayr chain.
@@ -762,8 +783,20 @@ describe("Relayr payment authentication", () => {
       /unrecognized payment contract/,
     ],
     [{ target: TARGET }, [1], /unrecognized payment contract/],
+    [
+      { target: MISCASED_PAYMENT_ADDRESS },
+      [1],
+      /unrecognized payment contract/,
+    ],
+    [
+      { target: UPPERCASE_PAYMENT_ADDRESS },
+      [1],
+      /unrecognized payment contract/,
+    ],
     [{ token: undefined }, [1], /unsupported payment token/],
     [{ token: TARGET }, [1], /unsupported payment token/],
+    [{ token: MISCASED_NATIVE_TOKEN }, [1], /unsupported payment token/],
+    [{ token: UPPERCASE_NATIVE_TOKEN }, [1], /unsupported payment token/],
     [{ amount: "-1" }, [1], /invalid payment amount/],
     [{ amount: "1.5" }, [1], /invalid payment amount/],
     [{ amount: "1e18" }, [1], /invalid payment amount/],
@@ -810,6 +843,21 @@ describe("Relayr payment authentication", () => {
       ).toThrow(message);
     },
   );
+
+  it("accepts the payment contract and token in lower case or with their EIP-55 checksum", () => {
+    expect(getAddress(RELAYR_PAYMENT_ADDRESS)).toBe(
+      CHECKSUMMED_PAYMENT_ADDRESS,
+    );
+    expect(getAddress(RELAYR_NATIVE_TOKEN)).toBe(CHECKSUMMED_NATIVE_TOKEN);
+    for (const [target, token] of [
+      [RELAYR_PAYMENT_ADDRESS, RELAYR_NATIVE_TOKEN],
+      [CHECKSUMMED_PAYMENT_ADDRESS, CHECKSUMMED_NATIVE_TOKEN],
+    ]) {
+      expect(details(paymentFor({ target, token })).target).toBe(
+        RELAYR_PAYMENT_ADDRESS,
+      );
+    }
+  });
 
   it("rejects a missing payment and an invalid bundle ID", () => {
     expect(() => details(null as unknown as RelayrPayment)).toThrow(
@@ -868,6 +916,22 @@ describe("Relayr payment authentication", () => {
   });
 });
 
+describe("Relayr quote expiry", () => {
+  it("expires a quote once its deadline is 15 seconds away or less", () => {
+    expect(quoteExpired(BigInt(NOW + 16), NOW)).toBe(false);
+    expect(quoteExpired(BigInt(NOW + 15), NOW)).toBe(true);
+    expect(quoteExpired(BigInt(NOW), NOW)).toBe(true);
+    // The current time counts in whole seconds.
+    expect(quoteExpired(BigInt(NOW + 16), NOW + 0.999)).toBe(false);
+  });
+
+  it("reads the clock by default", () => {
+    const now = Math.floor(Date.now() / 1_000);
+    expect(quoteExpired(BigInt(now + 3_600))).toBe(false);
+    expect(quoteExpired(BigInt(now + 10))).toBe(true);
+  });
+});
+
 describe("Relayr payment options", () => {
   it("offers only authenticated options in the destinations' family, one per chain", () => {
     const quote = {
@@ -887,6 +951,58 @@ describe("Relayr payment options", () => {
     ]);
     expect(relayrPaymentOptions(quote, [1, 1], NOW)).toEqual([paymentFor()]);
     expect(relayrPaymentOptions(quote, [1, 11155111], NOW)).toEqual([]);
+  });
+
+  it("offers nothing on a chain where any option's contract or token fails the strict address check", () => {
+    const valid = paymentFor({ amount: "7" });
+    const otherChain = paymentFor({ chain: 10, amount: "9" });
+    for (const corrupted of [
+      paymentFor({ target: MISCASED_PAYMENT_ADDRESS }),
+      paymentFor({ target: UPPERCASE_PAYMENT_ADDRESS }),
+      paymentFor({ target: "not-an-address" as Address }),
+      paymentFor({ token: MISCASED_NATIVE_TOKEN }),
+      paymentFor({ token: UPPERCASE_NATIVE_TOKEN }),
+      paymentFor({ token: undefined }),
+    ]) {
+      // Whether it comes before or after a valid option on the same chain.
+      for (const payment_info of [
+        [valid, corrupted, otherChain],
+        [corrupted, valid, otherChain],
+      ]) {
+        expect(
+          relayrPaymentOptions(
+            { bundle_uuid: BUNDLE_UUID, payment_info },
+            [1, 10],
+            NOW,
+          ),
+        ).toEqual([otherChain]);
+      }
+    }
+  });
+
+  it("refuses a well-formed address that is not Relayr's on its own, like any other refused option", () => {
+    const valid = paymentFor({ amount: "7" });
+    const checksummed = paymentFor({
+      amount: "8",
+      target: CHECKSUMMED_PAYMENT_ADDRESS,
+      token: CHECKSUMMED_NATIVE_TOKEN,
+    });
+    expect(
+      relayrPaymentOptions(
+        {
+          bundle_uuid: BUNDLE_UUID,
+          payment_info: [
+            null as unknown as RelayrPayment,
+            paymentFor({ target: TARGET }),
+            paymentFor({ token: TARGET }),
+            checksummed,
+            valid,
+          ],
+        },
+        [1],
+        NOW,
+      ),
+    ).toEqual([checksummed]);
   });
 
   it("hands out copies the quote's owner cannot change under a later review", () => {
@@ -1422,6 +1538,154 @@ describe("Relayr payment retry", () => {
       { fetch: fetchBundle, nowSeconds },
     );
   const reverted = (hash: Hex = HASH) => onchain({ hash, status: "reverted" });
+  /** The retry refusal `promise` rejects with, as its reason and words. */
+  const refusal = async (promise: Promise<unknown>) => {
+    const error = await rejection(promise);
+    expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+    expect(error.name).toBe("RelayrPaymentRetryError");
+    return {
+      reason: (error as RelayrPaymentRetryError).reason,
+      message: error.message,
+    };
+  };
+
+  it.each<[string, () => Promise<unknown>, RelayrPaymentRetryRefusal, string]>([
+    [
+      "no payments named",
+      () =>
+        requireRelayrPaymentRetry(
+          asClient(proofClient([reverted()])),
+          { hashes: [], from: ACCOUNT, payment: reviewedPayment() },
+          { fetch: unpaid(), nowSeconds: NOW },
+        ),
+      "invalid",
+      "Name every payment this session sent for the quote before paying it again.",
+    ],
+    [
+      "a payment that is not an authenticated Relayr payment",
+      () =>
+        retry(proofClient([reverted()]), {
+          payment: { ...reviewedPayment(), target: TARGET },
+        }),
+      "invalid",
+      "Only an authenticated Relayr payment with its transaction hash can be verified.",
+    ],
+    [
+      "an expired quote",
+      () => retry(proofClient([reverted()]), { nowSeconds: DEADLINE - 15 }),
+      "expired",
+      "This Relayr quote expired. Review the action again for a new quote.",
+    ],
+    [
+      "a payment that succeeded onchain",
+      () => retry(proofClient([onchain()])),
+      "paid",
+      "This Relayr payment succeeded onchain, so its bundle is paid. Do not pay again.",
+    ],
+    [
+      "a payment that cannot be read",
+      () => retry(proofClient([])),
+      "unknown",
+      `Could not read Relayr payment ${HASH} on chain 1. Do not pay again; check it later.`,
+    ],
+    [
+      "a payment receipt that is no longer canonical",
+      () => retry(proofClient([reverted()], OTHER_BLOCK_HASH)),
+      "unknown",
+      "The Relayr funding receipt is no longer canonical. Do not pay again; check it later.",
+    ],
+    [
+      "a bundle Relayr reports paid",
+      () =>
+        retry(proofClient([reverted()]), {
+          fetchBundle: answer({ payment_received: true }),
+        }),
+      "paid",
+      "Relayr already reports a payment for this bundle. Do not pay again.",
+    ],
+    [
+      "a bundle with a call running",
+      () =>
+        retry(proofClient([reverted()]), {
+          fetchBundle: answer({
+            payment_received: false,
+            transactions: [
+              { tx_uuid: OTHER_UUID, status: { state: "Included" } },
+            ],
+          }),
+        }),
+      "running",
+      "Relayr reports a transaction of this bundle as running or run. Do not pay again.",
+    ],
+    [
+      "a bundle Relayr did not return",
+      () =>
+        retry(proofClient([reverted()]), {
+          fetchBundle: vi.fn(async () => json({ error: "busy" }, 503)),
+        }),
+      "unknown",
+      "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.",
+    ],
+    [
+      "a bundle whose payment Relayr has not stated",
+      () => retry(proofClient([reverted()]), { fetchBundle: answer({}) }),
+      "unknown",
+      "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.",
+    ],
+  ])(
+    "names its refusal for %s, in the same words",
+    async (_, run, reason, message) => {
+      expect(await refusal(run())).toEqual({ reason, message });
+    },
+  );
+
+  it("keeps an unreadable payment's failure as the refusal's cause, out of serialization", async () => {
+    const error = await rejection(retry(proofClient([])));
+    expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+    const cause = error.cause as Error & { cause?: unknown };
+    expect(cause.message).toBe(error.message);
+    expect(String(cause.cause)).toContain(`No fixture for ${HASH}`);
+    expect(JSON.stringify(error)).not.toContain("No fixture");
+    expect(JSON.parse(JSON.stringify(error))).toEqual({
+      name: "RelayrPaymentRetryError",
+      reason: "unknown",
+    });
+  });
+
+  it("leaves a payment that is another transaction a proof error", async () => {
+    const error = await rejection(
+      retry(proofClient([onchain({ status: "reverted", value: 1n })])),
+    );
+    expect(error).toBeInstanceOf(RelayrProofError);
+    expect(error).not.toBeInstanceOf(RelayrPaymentRetryError);
+  });
+
+  it("refuses a malformed payment, sender or hash before reading anything", async () => {
+    for (const [hashes, from, payment] of [
+      [[HASH, "0x12"], ACCOUNT, reviewedPayment()],
+      [[HASH], "0x12", reviewedPayment()],
+      [[HASH], ACCOUNT, { ...reviewedPayment(), calldata: "0x" }],
+    ] as [Hex[], Address, RelayrPaymentDetails][]) {
+      const client = proofClient([onchain()]);
+      const fetchBundle = unpaid();
+      expect(
+        await refusal(
+          requireRelayrPaymentRetry(
+            asClient(client),
+            { hashes, from, payment },
+            // The quote has expired too: a malformed request is refused first.
+            { fetch: fetchBundle, nowSeconds: DEADLINE },
+          ),
+        ),
+      ).toEqual({
+        reason: "invalid",
+        message:
+          "Only an authenticated Relayr payment with its transaction hash can be verified.",
+      });
+      expect(client.getTransaction).not.toHaveBeenCalled();
+      expect(fetchBundle).not.toHaveBeenCalled();
+    }
+  });
 
   it("clears the quote only when every payment the session sent canonically reverted and Relayr's bundle is unpaid and unrun", async () => {
     const client = proofClient([reverted(), reverted(SECOND_HASH)]);
@@ -1659,6 +1923,210 @@ describe("Relayr payment retry", () => {
     ).rejects.toThrow(
       "Only an authenticated Relayr payment with its transaction hash can be verified.",
     );
+    expect(fetchBundle).not.toHaveBeenCalled();
+  });
+});
+
+describe("Relayr bundle reads", () => {
+  const unpaid = (overrides: Record<string, unknown> = {}) => ({
+    bundle_uuid: BUNDLE_UUID,
+    payment_received: false,
+    transactions: [{ tx_uuid: OTHER_UUID, status: { state: "Pending" } }],
+    ...overrides,
+  });
+  const UNREADABLE = `Could not read Relayr bundle ${BUNDLE_UUID}. Check it again later.`;
+
+  it("reads exactly the bundle asked for, never from a cache", async () => {
+    const answer = unpaid({ bundle_uuid: BUNDLE_UUID.toUpperCase() });
+    const fetchBundle = vi.fn(async () => json(answer));
+    await expect(
+      readRelayrBundle(BUNDLE_UUID.toUpperCase(), { fetch: fetchBundle }),
+    ).resolves.toEqual(answer);
+    expect(fetchBundle).toHaveBeenCalledTimes(1);
+    expect(fetchBundle).toHaveBeenCalledWith(
+      `${RELAYR_API}/v1/bundle/${BUNDLE_UUID}`,
+      { cache: "no-store", signal: expect.any(AbortSignal) },
+    );
+  });
+
+  it("reads with the global fetch by default", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(unpaid())),
+    );
+    await expect(readRelayrBundle(BUNDLE_UUID)).resolves.toEqual(unpaid());
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks nothing for an invalid bundle ID", async () => {
+    const fetchBundle = vi.fn();
+    await expect(
+      readRelayrBundle("bundle-1", { fetch: fetchBundle }),
+    ).rejects.toThrow(new Error("Invalid Relayr bundle ID: bundle-1."));
+    expect(fetchBundle).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an HTTP error", async () => json({ error: "not found" }, 404)],
+    ["another bundle", async () => json(unpaid({ bundle_uuid: OTHER_UUID }))],
+    ["an unreadable body", async () => json("{not json")],
+    ["an empty body", async () => json("null")],
+  ])("refuses %s", async (_, answer) => {
+    await expect(
+      readRelayrBundle(BUNDLE_UUID, { fetch: vi.fn(answer) }),
+    ).rejects.toThrow(new Error(UNREADABLE));
+  });
+
+  it("keeps a failed read's cause out of serialization", async () => {
+    const failure = new TypeError("fetch failed: https://relayr.invalid/key");
+    const error = await rejection(
+      readRelayrBundle(BUNDLE_UUID, {
+        fetch: vi.fn(async () => {
+          throw failure;
+        }),
+      }),
+    );
+    expect(error.message).toBe(UNREADABLE);
+    expect(error.cause).toBe(failure);
+    expect(JSON.stringify(error)).not.toContain("relayr.invalid");
+  });
+
+  /** The retry refusal `requireRelayrBundleUnpaid` rejects with, as its reason and words. */
+  const unpaidRefusal = async (promise: Promise<unknown>) => {
+    const error = await rejection(promise);
+    expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+    return {
+      reason: (error as RelayrPaymentRetryError).reason,
+      message: error.message,
+    };
+  };
+  const UNKNOWN =
+    "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.";
+
+  it("reads the bundle never from a cache, and passes one Relayr reports unpaid with every call pending in any case", async () => {
+    for (const answer of [
+      unpaid({ bundle_uuid: BUNDLE_UUID.toUpperCase() }),
+      unpaid({
+        transactions: [
+          { tx_uuid: OTHER_UUID, status: { state: " PENDING " } },
+          { tx_uuid: THIRD_UUID, status: { state: "pending" } },
+        ],
+      }),
+    ]) {
+      const fetchBundle = vi.fn(async () => json(answer));
+      await expect(
+        requireRelayrBundleUnpaid(BUNDLE_UUID.toUpperCase(), {
+          fetch: fetchBundle,
+        }),
+      ).resolves.toBeUndefined();
+      expect(fetchBundle).toHaveBeenCalledTimes(1);
+      expect(fetchBundle).toHaveBeenCalledWith(
+        `${RELAYR_API}/v1/bundle/${BUNDLE_UUID}`,
+        { cache: "no-store", signal: expect.any(AbortSignal) },
+      );
+    }
+  });
+
+  it("checks a bundle read with the global fetch by default", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(unpaid())),
+    );
+    await expect(
+      requireRelayrBundleUnpaid(BUNDLE_UUID),
+    ).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each<[string, unknown, RelayrPaymentRetryRefusal]>([
+    ["a payment received", unpaid({ payment_received: true }), "paid"],
+    [
+      "a destination hash",
+      unpaid({
+        transactions: [
+          {
+            tx_uuid: OTHER_UUID,
+            status: { state: "Pending", data: { hash: SECOND_HASH } },
+          },
+        ],
+      }),
+      "running",
+    ],
+    [
+      "a call that ran",
+      unpaid({
+        transactions: [
+          { tx_uuid: OTHER_UUID, status: { state: "Pending" } },
+          { tx_uuid: THIRD_UUID, status: { state: "Success" } },
+        ],
+      }),
+      "running",
+    ],
+    [
+      "a call without a state",
+      unpaid({ transactions: [{ tx_uuid: OTHER_UUID }] }),
+      "running",
+    ],
+    ["no payment_received", unpaid({ payment_received: undefined }), "unknown"],
+    [
+      'payment_received "false"',
+      unpaid({ payment_received: "false" }),
+      "unknown",
+    ],
+    ["no records", unpaid({ transactions: undefined }), "unknown"],
+    ["an empty record list", unpaid({ transactions: [] }), "unknown"],
+    ["records that are not a list", unpaid({ transactions: "x" }), "unknown"],
+    ["no bundle", null, "unknown"],
+    ["another bundle", unpaid({ bundle_uuid: OTHER_UUID }), "unknown"],
+  ])("refuses a bundle with %s", async (_, answer, reason) => {
+    expect(
+      await unpaidRefusal(
+        requireRelayrBundleUnpaid(BUNDLE_UUID, {
+          fetch: vi.fn(async () => json(answer)),
+        }),
+      ),
+    ).toEqual({
+      reason,
+      message: {
+        paid: "Relayr already reports a payment for this bundle. Do not pay again.",
+        running:
+          "Relayr reports a transaction of this bundle as running or run. Do not pay again.",
+        unknown: UNKNOWN,
+      }[reason as "paid" | "running" | "unknown"],
+    });
+  });
+
+  it("refuses as unknown a bundle it cannot read, keeping the failure as its cause", async () => {
+    expect(
+      await unpaidRefusal(
+        requireRelayrBundleUnpaid(BUNDLE_UUID, {
+          fetch: vi.fn(async () => json({ error: "busy" }, 503)),
+        }),
+      ),
+    ).toEqual({ reason: "unknown", message: UNKNOWN });
+    const failure = new TypeError("fetch failed: https://relayr.invalid/key");
+    const error = await rejection(
+      requireRelayrBundleUnpaid(BUNDLE_UUID, {
+        fetch: vi.fn(async () => {
+          throw failure;
+        }),
+      }),
+    );
+    expect(error).toMatchObject({ reason: "unknown", message: UNKNOWN });
+    expect(error.cause).toBe(failure);
+    expect(JSON.stringify(error)).not.toContain("relayr.invalid");
+  });
+
+  it("refuses an invalid bundle ID before checking anything", async () => {
+    const fetchBundle = vi.fn();
+    expect(
+      await unpaidRefusal(
+        requireRelayrBundleUnpaid("bundle-1", { fetch: fetchBundle }),
+      ),
+    ).toEqual({
+      reason: "invalid",
+      message: "Invalid Relayr bundle ID: bundle-1.",
+    });
     expect(fetchBundle).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,7 @@ import {
 } from "./safe.js";
 import {
   SAFE_EXEC_ABI,
+  SAFE_SERVICE_MAX_RETRY_WAIT_MS,
   SAFE_TX_TYPES,
   canonicalSafeTxHash,
   fetchSafeCreation,
@@ -45,6 +46,7 @@ import {
   submitSafeConfirmation,
   usableSafeConfirmations,
   type SafeQueuedTransaction,
+  type SafeServiceOptions,
 } from "./safeService.js";
 
 const SAFE = "0x2222222222222222222222222222222222222222" as Address;
@@ -1109,13 +1111,259 @@ describe("Safe transaction service", () => {
     expect(fetcher).toHaveBeenCalledTimes(4);
   });
 
+  // Monday 5 October 2026, 12:00:00 UTC: Retry-After dates below count from it.
+  const RATE_LIMITED_AT = Date.UTC(2026, 9, 5, 12, 0, 0);
+  const limited = (retryAfter?: string) =>
+    new Response("busy", {
+      status: 429,
+      headers: retryAfter === undefined ? {} : { "retry-after": retryAfter },
+    });
+
+  it.each([
+    ["delay-seconds at the cap", "10", 10_000],
+    ["delay-seconds of 0", "0", 0],
+    ["an IMF-fixdate", "Mon, 05 Oct 2026 12:00:05 GMT", 5_000],
+    ["an RFC 850 date", "Monday, 05-Oct-26 12:00:05 GMT", 5_000],
+    ["an asctime date, read as GMT", "Mon Oct  5 12:00:05 2026", 5_000],
+    ["a date that has passed", "Mon, 05 Oct 2026 11:59:00 GMT", 0],
+    [
+      "an RFC 850 year more than 50 years out, read as the last one past",
+      "Monday, 05-Oct-77 12:00:00 GMT",
+      0,
+    ],
+  ])(
+    "waits out a 429's Retry-After of 10 seconds or less (%s), then retries",
+    async (_, retryAfter, wait) => {
+      expect(SAFE_SERVICE_MAX_RETRY_WAIT_MS).toBe(10_000);
+      vi.useFakeTimers();
+      vi.setSystemTime(RATE_LIMITED_AT);
+      const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(limited(retryAfter))
+        .mockResolvedValueOnce(json({ next: null, results: [row()] }));
+      const pending = listPendingSafeTransactions(1, SAFE, 8, {
+        fetch: fetcher,
+      });
+      if (wait > 0) {
+        await vi.advanceTimersByTimeAsync(wait - 1);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+      }
+      await vi.advanceTimersByTimeAsync(wait > 0 ? 1 : 0);
+      await expect(pending).resolves.toHaveLength(1);
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each([
+    ["delay-seconds over the cap", "11"],
+    ["an hour of delay-seconds", "3600"],
+    ["a date 11 seconds out", "Mon, 05 Oct 2026 12:00:11 GMT"],
+    ["a date an hour out", "Mon, 05 Oct 2026 13:00:00 GMT"],
+    ["an RFC 850 year 50 years out", "Monday, 05-Oct-76 12:00:00 GMT"],
+    ["an RFC 850 year 24 years out", "Monday, 05-Oct-50 12:00:00 GMT"],
+    ["words", "soon"],
+    ["a fraction", "1.5"],
+    ["an exponent", "1e3"],
+    ["two values", "5, 7"],
+    ["a negative delay", "-1"],
+    ["an out-of-range date", "Sun, 32 Nov 1994 08:49:37 GMT"],
+  ])(
+    "hands back at once a 429 whose Retry-After asks for more than 10 seconds or cannot be read (%s)",
+    async (_, retryAfter) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(RATE_LIMITED_AT);
+      const fetcher = vi.fn(async () => limited(retryAfter));
+      let settledAt: number | undefined;
+      const pending = listPendingSafeTransactions(1, SAFE, 8, {
+        fetch: fetcher,
+      })
+        .catch((error: Error) => error.message)
+        .finally(() => {
+          settledAt = Date.now();
+        });
+      await vi.runAllTimersAsync();
+      expect(await pending).toBe(
+        `Safe's transaction service answered 429 listing the queue of Safe ${SAFE} on chain 1: busy`,
+      );
+      // No request was repeated, and no time passed waiting.
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(settledAt).toBe(RATE_LIMITED_AT);
+    },
+  );
+
+  it("waits 1, 2 and 3 seconds after a 429 without a Retry-After, and does not list the page again", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn(async () => limited());
+    const pending = listPendingSafeTransactions(1, SAFE, 8, {
+      fetch: fetcher,
+    }).catch((error: Error) => error.message);
+    for (const [wait, requests] of [
+      [0, 1],
+      [999, 1],
+      [1, 2],
+      [1_999, 2],
+      [1, 3],
+      [2_999, 3],
+      [1, 4],
+    ]) {
+      await vi.advanceTimersByTimeAsync(wait);
+      expect(fetcher).toHaveBeenCalledTimes(requests);
+    }
+    expect(await pending).toBe(
+      `Safe's transaction service answered 429 listing the queue of Safe ${SAFE} on chain 1: busy`,
+    );
+    await vi.runAllTimersAsync();
+    expect(fetcher).toHaveBeenCalledTimes(4);
+  });
+
+  it("hands the first 429 to a caller that must not wait, from every service call", async () => {
+    vi.useFakeTimers();
+    const hash = safeTransactionHash(1, SAFE, transaction);
+    const proposal = safeProposalFor({ to: TARGET, data: "0x12" }, 9);
+    const calls: [
+      (options: SafeServiceOptions) => Promise<unknown>,
+      unknown,
+    ][] = [
+      [
+        (options) => listPendingSafeTransactions(1, SAFE, 8, options),
+        `Safe's transaction service answered 429 listing the queue of Safe ${SAFE} on chain 1: slow down`,
+      ],
+      [
+        (options) =>
+          findPendingSafeTransaction(
+            1,
+            SAFE,
+            8,
+            { to: TARGET, data: "0x12" },
+            options,
+          ),
+        `Safe's transaction service answered 429 listing the queue of Safe ${SAFE} on chain 1: slow down`,
+      ],
+      [
+        (options) => readSafeTransaction(1, SAFE, hash, options),
+        `Safe's transaction service answered 429 for proposal ${hash} on chain 1. Try again when it is available.`,
+      ],
+      [
+        (options) =>
+          proposeSafeTransaction(
+            1,
+            SAFE,
+            proposal,
+            { sender: LOW_OWNER, signature: lowSignature, origin: "app" },
+            options,
+          ),
+        `Safe's transaction service refused the proposal ${safeTransactionHash(1, SAFE, proposal)} for Safe ${SAFE} on chain 1 (429): slow down`,
+      ],
+      [
+        (options) =>
+          submitSafeConfirmation(1, SAFE, transaction, highSignature, options),
+        `Safe's transaction service refused the confirmation of ${hash} on chain 1 (429): slow down`,
+      ],
+      [(options) => fetchSafesOwnedBy(LOW_OWNER, [1], options), []],
+      [(options) => fetchSafeCreation(SAFE, 1, options), null],
+    ];
+    for (const [call, outcome] of calls) {
+      const fetcher = vi.fn(
+        async () =>
+          new Response("slow down", {
+            status: 429,
+            headers: { "retry-after": "1" },
+          }),
+      );
+      const settled = call({ fetch: fetcher, retryRateLimited: false }).catch(
+        (error: Error) => error.message,
+      );
+      await vi.runAllTimersAsync();
+      expect(await settled).toEqual(outcome);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("sends the caller's signal with every request and stops waiting once it aborts", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn(
+      async () =>
+        new Response("busy", { status: 429, headers: { "retry-after": "5" } }),
+    );
+    const controller = new AbortController();
+    const reason = new Error("The page closed.");
+    const pending = listPendingSafeTransactions(1, SAFE, 8, {
+      fetch: fetcher,
+      signal: controller.signal,
+    }).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledWith(expect.any(String), {
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    });
+    controller.abort(reason);
+    expect(await pending).toBe(reason);
+    await vi.runAllTimersAsync();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    // A failed page's wait before its one retry ends too.
+    const failing = vi.fn(async () => new Response("down", { status: 503 }));
+    const between = new AbortController();
+    const listing = listPendingSafeTransactions(1, SAFE, 8, {
+      fetch: failing,
+      signal: between.signal,
+    }).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(100);
+    between.abort(reason);
+    expect(await listing).toBe(reason);
+    expect(failing).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks the service nothing once the caller's signal has aborted", async () => {
+    const signal = AbortSignal.abort();
+    const hash = safeTransactionHash(1, SAFE, transaction);
+    const fetcher = vi.fn(async () => json({ next: null, results: [] }));
+    const options = { fetch: fetcher, signal };
+    for (const call of [
+      listPendingSafeTransactions(1, SAFE, 8, options),
+      findPendingSafeTransaction(
+        1,
+        SAFE,
+        8,
+        { to: TARGET, data: "0x12" },
+        options,
+      ),
+      readSafeTransaction(1, SAFE, hash, options),
+      proposeSafeTransaction(
+        1,
+        SAFE,
+        safeProposalFor({ to: TARGET, data: "0x12" }, 9),
+        { sender: LOW_OWNER, signature: lowSignature, origin: "app" },
+        options,
+      ),
+      submitSafeConfirmation(1, SAFE, transaction, highSignature, options),
+    ]) {
+      await expect(call).rejects.toBe(signal.reason);
+    }
+    // These two read a failed request as nothing found.
+    await expect(fetchSafesOwnedBy(LOW_OWNER, [1], options)).resolves.toEqual(
+      [],
+    );
+    await expect(fetchSafeCreation(SAFE, 1, options)).resolves.toBeNull();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it("uses the global fetch unless given one", async () => {
     const fetcher = vi.fn(async () => json({ next: null, results: [row()] }));
     vi.stubGlobal("fetch", fetcher);
     await expect(listPendingSafeTransactions(1, SAFE, 8)).resolves.toHaveLength(
       1,
     );
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    // A caller without TypeScript may pass an empty fetch.
+    for (const empty of [undefined, null]) {
+      await expect(
+        listPendingSafeTransactions(1, SAFE, 8, {
+          fetch: empty as unknown as typeof fetch,
+        }),
+      ).resolves.toHaveLength(1);
+    }
+    expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
   it("sends the optional local API key with every request", async () => {

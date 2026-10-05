@@ -115,10 +115,27 @@ export const SAFE_L1_L2_SINGLETON_PAIRS = [
 
 /**
  * Safe's MultiSendCallOnly 1.3.0, the same address on every supported chain. A
- * Safe DELEGATECALLs it to run several calls as one transaction.
+ * Safe DELEGATECALLs it to run several calls as one transaction. Batches built
+ * here use it.
  */
 export const MULTI_SEND_CALL_ONLY: Address =
   "0x40A2aCCbd92BCA938b02010E17A5b8929b49130D";
+
+/**
+ * Every MultiSendCallOnly a Safe batch is read through, from
+ * safe-global/safe-deployments (src/assets/v1.3.0/multi_send_call_only.json
+ * and src/assets/v1.4.1/multi_send_call_only.json, at 7b1fb6d): 1.3.0
+ * canonical and EIP-155, and 1.4.1 canonical, which Safe{Wallet} batches a
+ * 1.4.1 Safe through. 1.4.1 has no EIP-155 deployment. zkSync's are left out,
+ * as in {@link RECOGNIZED_SAFE_RELEASES}: there an address does not pin its
+ * code. Both releases run the same `multiSend`, where a DELEGATECALL entry
+ * reverts.
+ */
+export const MULTI_SEND_CALL_ONLY_DEPLOYMENTS = [
+  MULTI_SEND_CALL_ONLY,
+  "0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B",
+  "0x9641d764fc13c8B624c04430C7356C1C7C8102e2",
+] as const satisfies readonly Address[];
 
 export const MULTI_SEND_ABI = [
   {
@@ -2054,16 +2071,22 @@ export function decodeMultiSend(data: unknown): MultiSendCall[] | null {
   return calls.length ? calls : null;
 }
 
-/** The calls of a Safe transaction that DELEGATECALLs MultiSendCallOnly, else null. */
+/**
+ * The calls of a Safe transaction that DELEGATECALLs a recognized
+ * MultiSendCallOnly ({@link MULTI_SEND_CALL_ONLY_DEPLOYMENTS}), else null.
+ */
 export function multiSendCallsOf(tx: {
   to: unknown;
   data: unknown;
   operation: unknown;
 }): MultiSendCall[] | null {
+  const to = tx?.to;
   return Number(tx?.operation) === 1 &&
-    typeof tx.to === "string" &&
-    isAddress(tx.to) &&
-    isAddressEqual(tx.to, MULTI_SEND_CALL_ONLY)
+    typeof to === "string" &&
+    isAddress(to) &&
+    MULTI_SEND_CALL_ONLY_DEPLOYMENTS.some((deployment) =>
+      isAddressEqual(to, deployment),
+    )
     ? decodeMultiSend(tx.data)
     : null;
 }

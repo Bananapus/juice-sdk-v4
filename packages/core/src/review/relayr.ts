@@ -103,6 +103,8 @@ const EXPIRED =
   "This Relayr quote expired. Review the action again for a new quote.";
 const UNKNOWN_PAYMENT =
   "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.";
+const UNVERIFIABLE =
+  "Only an authenticated Relayr payment with its transaction hash can be verified.";
 
 /** One transaction of a bundle as posted to Relayr. `value` is decimal wei. */
 export type RelayrEntry = {
@@ -165,6 +167,18 @@ export type RelayrQuote = {
   transactions: RelayrTransactionRecord[];
   /** Each posted transaction with its quoted ID, in posted order. */
   expectedTransactions: RelayrTransactionBinding[];
+};
+
+/**
+ * Relayr's record of one bundle as {@link readRelayrBundle} returns it: the
+ * bundle it names is the one asked for, and the rest is Relayr's word.
+ */
+export type RelayrBundle = {
+  bundle_uuid: string;
+  /** `true` once Relayr has a payment for the bundle. */
+  payment_received?: unknown;
+  /** Relayr's record of each transaction, as {@link RelayrTransactionRecord}. */
+  transactions?: unknown;
 };
 
 export type RelayrProgressSummary = {
@@ -255,9 +269,43 @@ export class RelayrDestinationRevertedError extends RelayrProofError {
   }
 }
 
-/** Like a native error cause, but set on ES2021 and never enumerable: an RPC error's URL can carry a key. */
-function errorWithCause(message: string, cause: unknown): Error {
-  const error = new Error(message);
+/**
+ * Why {@link requireRelayrPaymentRetry} will not clear a quote to be paid
+ * again, or {@link requireRelayrBundleUnpaid} a bundle to be released:
+ *
+ * - `invalid`: no payment was named, or the payment, its sender, a hash or the
+ *   bundle ID is malformed;
+ * - `expired`: the quote's deadline is 15 seconds away or less;
+ * - `paid`: a payment succeeded onchain, or Relayr reports one;
+ * - `running`: Relayr reports a call of the bundle running or run;
+ * - `unknown`: a payment or the bundle could not be read, or Relayr has not
+ *   said whether the bundle is paid.
+ */
+export type RelayrPaymentRetryRefusal =
+  | "invalid"
+  | "expired"
+  | "paid"
+  | "running"
+  | "unknown";
+
+/**
+ * A refusal to pay a Relayr quote again, with its `reason`. Never pay on one:
+ * `paid` and `running` mean the bundle is funded, `unknown` may clear on a
+ * later check, and `expired` needs a new quote.
+ */
+export class RelayrPaymentRetryError extends Error {
+  readonly name = "RelayrPaymentRetryError";
+
+  constructor(
+    message: string,
+    readonly reason: RelayrPaymentRetryRefusal,
+  ) {
+    super(message);
+  }
+}
+
+/** `error` with `cause` set like a native error cause, but on ES2021 and never enumerable: an RPC error's URL can carry a key. */
+function withCause<T extends Error>(error: T, cause: unknown): T {
   Object.defineProperty(error, "cause", {
     value: cause,
     writable: true,
@@ -267,12 +315,31 @@ function errorWithCause(message: string, cause: unknown): Error {
   return error;
 }
 
+function errorWithCause(message: string, cause: unknown): Error {
+  return withCause(new Error(message), cause);
+}
+
 function isAddressLike(value: unknown): value is Address {
   return typeof value === "string" && isAddress(value, { strict: false });
 }
 
 function sameAddress(value: unknown, address: string): boolean {
   return isAddressLike(value) && value.toLowerCase() === address.toLowerCase();
+}
+
+/**
+ * An address as viem's strict check reads one: in lower case, or with a valid
+ * EIP-55 checksum. Any other mixed case is a corrupted address.
+ */
+function isStrictAddress(value: unknown): value is Address {
+  return typeof value === "string" && isAddress(value);
+}
+
+/** {@link sameAddress}, spelled as {@link isStrictAddress} requires. */
+function sameStrictAddress(value: unknown, address: string): boolean {
+  return (
+    isStrictAddress(value) && value.toLowerCase() === address.toLowerCase()
+  );
 }
 
 function uuidOf(value: unknown): string | null {
@@ -388,19 +455,18 @@ export function relayrBundleRequest(
 }
 
 /**
- * Relayr's `GET /v1/bundle/{uuid}` for exactly this bundle, or `unavailable`.
- * Never from a cache: a stale answer could say a paid bundle is unpaid.
+ * Relayr's `GET /v1/bundle/{uuid}` for exactly this bundle, or throws
+ * `unavailable()`, with the failure as its cause when there is one. Never from
+ * a cache: a stale answer could say a paid bundle is unpaid.
  */
 async function readBundle(
   fetchBundle: typeof globalThis.fetch,
   bundleUuid: string,
-  unavailable: string,
-): Promise<{ transactions?: unknown; payment_received?: unknown }> {
-  let bundle: {
-    bundle_uuid?: unknown;
-    transactions?: unknown;
-    payment_received?: unknown;
-  } | null;
+  unavailable: () => Error,
+): Promise<RelayrBundle> {
+  let bundle:
+    | (Omit<RelayrBundle, "bundle_uuid"> & { bundle_uuid?: unknown })
+    | null;
   try {
     const response = await fetchBundle(
       `${RELAYR_API}/v1/bundle/${bundleUuid}`,
@@ -412,12 +478,37 @@ async function readBundle(
     if (!response.ok) throw new Error(`Relayr HTTP ${response.status}`);
     bundle = await response.json();
   } catch (cause) {
-    throw errorWithCause(unavailable, cause);
+    throw withCause(unavailable(), cause);
   }
   if (!bundle || uuidOf(bundle.bundle_uuid) !== bundleUuid) {
-    throw new Error(unavailable);
+    throw unavailable();
   }
-  return bundle;
+  return bundle as RelayrBundle;
+}
+
+/**
+ * Relayr's `GET /v1/bundle/{uuid}` for exactly `bundleUuid`, read with `fetch`
+ * (the global one by default) within 15 seconds and never from an HTTP cache:
+ * a stale answer could say a paid bundle is unpaid. Throws, with the failure
+ * as its cause, when the read fails or the answer names another bundle.
+ * {@link requireRelayrBundleUnpaid} reads whether the bundle is unpaid.
+ */
+export async function readRelayrBundle(
+  bundleUuid: string,
+  {
+    fetch: fetchBundle = globalThis.fetch,
+  }: { fetch?: typeof globalThis.fetch } = {},
+): Promise<RelayrBundle> {
+  const uuid = uuidOf(bundleUuid);
+  if (!uuid) {
+    throw new Error(`Invalid Relayr bundle ID: ${String(bundleUuid)}.`);
+  }
+  return readBundle(
+    fetchBundle,
+    uuid,
+    () =>
+      new Error(`Could not read Relayr bundle ${uuid}. Check it again later.`),
+  );
 }
 
 /**
@@ -499,7 +590,11 @@ export async function bindRelayrQuote(
         idOf(record) === null || !(record as { request?: unknown }).request,
     )
   ) {
-    const bundle = await readBundle(fetchBundle, bundleUuid, UNRETURNED);
+    const bundle = await readBundle(
+      fetchBundle,
+      bundleUuid,
+      () => new Error(UNRETURNED),
+    );
     if (!Array.isArray(bundle.transactions)) throw new Error(UNRETURNED);
     records = bundle.transactions;
   }
@@ -564,8 +659,15 @@ function calldataDeadline(calldata: string): bigint {
   return BigInt(`0x${calldata.slice(74)}`);
 }
 
-/** A quote is dead once its deadline is 15 seconds away or less. */
-function quoteExpired(deadline: bigint, nowSeconds: number): boolean {
+/**
+ * Whether a quote whose payment deadline is `deadline` (unix seconds) is dead
+ * at `nowSeconds`, by default the clock: its deadline is 15 seconds away or
+ * less, too close for a payment to land before it.
+ */
+export function quoteExpired(
+  deadline: bigint,
+  nowSeconds: number = Date.now() / 1_000,
+): boolean {
   return deadline <= BigInt(Math.floor(nowSeconds)) + 15n;
 }
 
@@ -584,8 +686,9 @@ function paymentCalldataFor(calldata: unknown, bundleUuid: string): boolean {
 /**
  * Authenticate one of Relayr's payment options against its bundle: a chain in
  * the destinations' network family, Relayr's payment contract and native
- * token, calldata that pays for exactly `bundleUuid` with the quoted
- * deadline, and a deadline more than 15 seconds away. Throws otherwise.
+ * token (in lower case or with their EIP-55 checksum), calldata that pays for
+ * exactly `bundleUuid` with the quoted deadline, and a deadline more than 15
+ * seconds away. Throws otherwise.
  */
 export function relayrPaymentDetails(
   payment: RelayrPayment,
@@ -608,10 +711,10 @@ export function relayrPaymentDetails(
       "Choose a supported Relayr funding chain in the same network family as these destinations.",
     );
   }
-  if (!sameAddress(payment.target, RELAYR_PAYMENT_ADDRESS)) {
+  if (!sameStrictAddress(payment.target, RELAYR_PAYMENT_ADDRESS)) {
     throw new Error("Relayr returned an unrecognized payment contract.");
   }
-  if (!sameAddress(payment.token, RELAYR_NATIVE_TOKEN)) {
+  if (!sameStrictAddress(payment.token, RELAYR_NATIVE_TOKEN)) {
     throw new Error("Relayr returned an unsupported payment token.");
   }
   const amount = uint256(payment.amount);
@@ -657,18 +760,30 @@ export function relayrPaymentDetails(
 /**
  * The payment options to offer: each passes {@link relayrPaymentDetails} for
  * the quote's bundle and destinations, one per chain (Relayr's first), copied
- * so the quote's owner cannot change one under a later review.
+ * so the quote's owner cannot change one under a later review. A chain with
+ * any option whose contract or token is not an address as viem's strict check
+ * reads one (in lower case, or with a valid EIP-55 checksum) gets no option:
+ * Relayr's answer for that chain is corrupted.
  */
 export function relayrPaymentOptions(
   quote: Pick<RelayrQuote, "bundle_uuid" | "payment_info">,
   destinationChainIds: readonly number[],
   nowSeconds?: number,
 ): RelayrPayment[] {
+  const payments: RelayrPayment[] = Array.isArray(quote.payment_info)
+    ? quote.payment_info
+    : [];
+  const corrupted = new Set(
+    payments
+      .filter(
+        (payment) =>
+          !isStrictAddress(payment?.target) || !isStrictAddress(payment?.token),
+      )
+      .map((payment) => payment?.chain),
+  );
   const chains = new Set<number>();
   const options: RelayrPayment[] = [];
-  for (const payment of Array.isArray(quote.payment_info)
-    ? quote.payment_info
-    : []) {
+  for (const payment of payments) {
     let chainId: number;
     try {
       ({ chainId } = relayrPaymentDetails(payment, {
@@ -679,7 +794,7 @@ export function relayrPaymentOptions(
     } catch {
       continue;
     }
-    if (chains.has(chainId)) continue;
+    if (chains.has(chainId) || corrupted.has(chainId)) continue;
     chains.add(chainId);
     options.push({ ...payment });
   }
@@ -1005,6 +1120,21 @@ function readReviewedPayment(payment: ReviewedPayment): {
 }
 
 /**
+ * The reviewed payment's parts when it is an authenticated Relayr payment,
+ * `from` is an address and every hash a transaction hash; else null.
+ */
+function verifiablePayment(
+  hashes: readonly unknown[],
+  from: unknown,
+  payment: ReviewedPayment,
+): ReturnType<typeof readReviewedPayment> {
+  const reviewed = readReviewedPayment(payment);
+  return reviewed && isAddressLike(from) && hashes.every(isBytes32)
+    ? reviewed
+    : null;
+}
+
+/**
  * Prove a Relayr payment from the chain: the transaction at `hash` is exactly
  * `payment` sent by `from` (chain, payment contract, calldata, value),
  * canonically included, and successful. Pass the hash that was mined: when a
@@ -1025,17 +1155,8 @@ export async function verifyRelayrPayment(
     payment,
   }: { hash: Hex; from: Address; payment: ReviewedPayment },
 ): Promise<TransactionReceipt> {
-  const reviewed = readReviewedPayment(payment);
-  if (
-    typeof hash !== "string" ||
-    !isBytes32(hash) ||
-    !isAddressLike(from) ||
-    !reviewed
-  ) {
-    throw new Error(
-      "Only an authenticated Relayr payment with its transaction hash can be verified.",
-    );
-  }
+  const reviewed = verifiablePayment([hash], from, payment);
+  if (!reviewed) throw new Error(UNVERIFIABLE);
   const receipt = await proveTransaction(
     client,
     {
@@ -1082,8 +1203,11 @@ export async function verifyRelayrPayment(
  * The payment contract keeps no state and Relayr keeps every payment it
  * receives, so anything else rules a new payment out, and an empty list never
  * clears one. A payment still in flight from elsewhere is not visible yet.
- * Throws in every other case, including when an answer is unavailable. Never
- * pay on an error.
+ * Throws in every other case, including when an answer is unavailable, and
+ * refuses a malformed request before reading anything. Each refusal is a
+ * {@link RelayrPaymentRetryError} naming its `reason`, except a hash that is
+ * another transaction, which stays a {@link RelayrProofError}. Never pay on an
+ * error.
  */
 export async function requireRelayrPaymentRetry(
   client: RelayrProofClient,
@@ -1098,33 +1222,78 @@ export async function requireRelayrPaymentRetry(
   }: { fetch?: typeof globalThis.fetch; nowSeconds?: number } = {},
 ): Promise<void> {
   if (!Array.isArray(hashes) || !hashes.length) {
-    throw new Error(
+    throw new RelayrPaymentRetryError(
       "Name every payment this session sent for the quote before paying it again.",
+      "invalid",
     );
   }
-  const reviewed = readReviewedPayment(payment);
-  if (reviewed && quoteExpired(reviewed.deadline, nowSeconds)) {
-    throw new Error(EXPIRED);
+  const reviewed = verifiablePayment(hashes, from, payment);
+  if (!reviewed) throw new RelayrPaymentRetryError(UNVERIFIABLE, "invalid");
+  if (quoteExpired(reviewed.deadline, nowSeconds)) {
+    throw new RelayrPaymentRetryError(EXPIRED, "expired");
   }
   for (const hash of hashes) {
     try {
       await verifyRelayrPayment(client, { hash, from, payment });
     } catch (error) {
       if (error instanceof RelayrPaymentRevertedError) continue;
-      throw error;
+      if (error instanceof RelayrProofError) throw error;
+      throw withCause(
+        new RelayrPaymentRetryError((error as Error).message, "unknown"),
+        error,
+      );
     }
-    throw new Error(
+    throw new RelayrPaymentRetryError(
       "This Relayr payment succeeded onchain, so its bundle is paid. Do not pay again.",
+      "paid",
     );
   }
-  const { payment_received, transactions } = await readBundle(
-    fetchBundle,
-    reviewed!.bundleUuid,
-    UNKNOWN_PAYMENT,
+  await requireRelayrBundleUnpaid(reviewed.bundleUuid, { fetch: fetchBundle });
+}
+
+/**
+ * Throws a {@link RelayrPaymentRetryError} unless Relayr's bundle
+ * `bundleUuid`, read as {@link readRelayrBundle} reads it (with `fetch`, never
+ * from an HTTP cache, and only an answer naming this bundle), reports no
+ * payment received (`payment_received: false`) and at least one call, every
+ * one still pending with no destination hash. Relayr runs only paid bundles,
+ * so the refusal is `paid` when Relayr reports a payment, `running` when a
+ * call is running or run, `unknown` when the bundle cannot be read or Relayr
+ * has not said, and `invalid` for a malformed bundle ID. Confirm a bundle with
+ * it before releasing its quote; {@link requireRelayrPaymentRetry} runs it
+ * before clearing a quote to be paid again.
+ */
+export async function requireRelayrBundleUnpaid(
+  bundleUuid: string,
+  {
+    fetch: fetchBundle = globalThis.fetch,
+  }: { fetch?: typeof globalThis.fetch } = {},
+): Promise<void> {
+  const uuid = uuidOf(bundleUuid);
+  if (!uuid) {
+    throw new RelayrPaymentRetryError(
+      `Invalid Relayr bundle ID: ${String(bundleUuid)}.`,
+      "invalid",
+    );
+  }
+  requireUnpaidBundle(
+    await readBundle(
+      fetchBundle,
+      uuid,
+      () => new RelayrPaymentRetryError(UNKNOWN_PAYMENT, "unknown"),
+    ),
   );
+}
+
+/** {@link requireRelayrBundleUnpaid}'s check of a bundle already read. */
+function requireUnpaidBundle({
+  payment_received,
+  transactions,
+}: Pick<RelayrBundle, "payment_received" | "transactions">): void {
   if (payment_received === true) {
-    throw new Error(
+    throw new RelayrPaymentRetryError(
       "Relayr already reports a payment for this bundle. Do not pay again.",
+      "paid",
     );
   }
   if (
@@ -1132,7 +1301,7 @@ export async function requireRelayrPaymentRetry(
     !Array.isArray(transactions) ||
     !transactions.length
   ) {
-    throw new Error(UNKNOWN_PAYMENT);
+    throw new RelayrPaymentRetryError(UNKNOWN_PAYMENT, "unknown");
   }
   if (
     transactions.some(
@@ -1141,8 +1310,9 @@ export async function requireRelayrPaymentRetry(
         !relayrStateIsPending(record?.status?.state),
     )
   ) {
-    throw new Error(
+    throw new RelayrPaymentRetryError(
       "Relayr reports a transaction of this bundle as running or run. Do not pay again.",
+      "running",
     );
   }
 }

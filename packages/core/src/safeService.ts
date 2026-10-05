@@ -13,7 +13,7 @@ import {
   MULTI_SEND_CALL_ONLY,
   type SafeCreation,
 } from "./safe.js";
-import { isBytes32, isHexBytes, uint256 } from "./untrusted.js";
+import { isBytes32, isHexBytes, retryAfterMs, uint256 } from "./untrusted.js";
 
 /**
  * Safe's per-chain app URL prefix. Wider than {@link SAFE_SERVICE_PREFIX}:
@@ -122,6 +122,35 @@ function noHostedService(chainId: number): Error {
 /** A service answer the wait cannot get past: it ends the wait, unlike a network error. */
 class SafeExecutionRecordError extends Error {}
 
+/** The longest delay setTimeout holds (about 24.8 days): a longer one fires at once. */
+const MAX_TIMER_MS = 2_147_483_647;
+
+/**
+ * Waits `ms`, at most {@link MAX_TIMER_MS}, or rejects with `aborted()` once
+ * `signal` aborts: at once when it already has.
+ */
+function pause(
+  ms: number,
+  signal: AbortSignal | undefined,
+  aborted: () => unknown,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    function onAbort() {
+      clearTimeout(timer);
+      reject(aborted());
+    }
+    const timer = setTimeout(
+      () => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      },
+      Math.min(ms, MAX_TIMER_MS),
+    );
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
+  });
+}
+
 /**
  * Resolve a Safe proposal identifier to its actual onchain execution hash.
  * A safeTxHash is not a transaction hash and must never be receipt-polled.
@@ -134,6 +163,10 @@ class SafeExecutionRecordError extends Error {}
  * With the chain's `client`, a hash the chain already knows as a transaction
  * is returned as the execution: over WalletConnect, Safe{Wallet} answers with
  * the execution's own hash when the owner executes at once.
+ *
+ * Each poll is one service request with the local API key and `signal`, which
+ * also ends a request in flight. After a 429 the next poll waits the longer of
+ * the polling interval and the wait its Retry-After asks for.
  */
 export async function waitForSafeExecutionHash(
   chainId: number,
@@ -159,6 +192,7 @@ export async function waitForSafeExecutionHash(
     if (options.signal?.aborted) {
       throw new DOMException("Safe execution wait aborted", "AbortError");
     }
+    let wait = interval;
     if (
       client &&
       (await client.getTransaction({ hash: safeTxHash }).then(
@@ -175,7 +209,11 @@ export async function waitForSafeExecutionHash(
       }
     } else {
       try {
-        const response = await fetch(endpoint);
+        const response = await serviceFetch(
+          endpoint,
+          { headers: serviceHeaders() },
+          { signal: options.signal, retryRateLimited: false },
+        );
         if (response.ok) {
           consecutiveNotFound = 0;
           const transaction = (await response.json()) as {
@@ -203,6 +241,10 @@ export async function waitForSafeExecutionHash(
               "Safe’s transaction service has no record of this proposal. Tracking cannot continue here — check the proposal in the Safe app; if it exists there, it will still take effect once executed.",
             );
           }
+        } else if (response.status === 429) {
+          const asked = retryAfterMs(response.headers.get("retry-after"));
+          // Without a readable Retry-After the poll keeps its interval.
+          if (asked !== null && asked > interval) wait = asked;
         }
       } catch (error) {
         if (error instanceof SafeExecutionRecordError) throw error;
@@ -210,18 +252,11 @@ export async function waitForSafeExecutionHash(
         // proposal pending instead of inviting a duplicate submission.
       }
     }
-    await new Promise<void>((resolve, reject) => {
-      function onAbort() {
-        clearTimeout(timer);
-        reject(new DOMException("Safe execution wait aborted", "AbortError"));
-      }
-      const timer = setTimeout(() => {
-        options.signal?.removeEventListener("abort", onAbort);
-        resolve();
-      }, interval);
-      options.signal?.addEventListener("abort", onAbort, { once: true });
-      if (options.signal?.aborted) onAbort();
-    });
+    await pause(
+      wait,
+      options.signal,
+      () => new DOMException("Safe execution wait aborted", "AbortError"),
+    );
   }
 }
 
@@ -936,8 +971,27 @@ export function onchainApprovalStep({
 
 // ── Transaction service ──────────────────────────────────────────────────────
 
-/** Calls to Safe's transaction service go through `fetch`, the global one by default. */
-export type SafeServiceOptions = { fetch?: typeof fetch };
+/**
+ * How calls to Safe's transaction service run. They go through `fetch`, the
+ * global one by default. `signal` goes with every request and ends any wait
+ * between attempts; the call then fails with the signal's reason, except where
+ * a failed request reads as nothing found ({@link fetchSafesOwnedBy},
+ * {@link fetchSafeCreation}). A 429 is retried up to three times after the
+ * wait its Retry-After asks for, in delay-seconds or as an HTTP-date, when that
+ * is at most {@link SAFE_SERVICE_MAX_RETRY_WAIT_MS}, or after 1, 2 and 3
+ * seconds when it sends none. A 429 that asks for longer, or whose Retry-After
+ * cannot be read, is handed back at once: retrying before the service allows
+ * works against its rate limit. `retryRateLimited: false` hands back the first
+ * 429 instead, for a caller that must not wait, such as a server render.
+ */
+export type SafeServiceOptions = {
+  fetch?: typeof fetch;
+  signal?: AbortSignal;
+  retryRateLimited?: boolean;
+};
+
+/** The longest a service call waits to retry a 429: 10 seconds. A 429 that asks for longer is handed back at once. */
+export const SAFE_SERVICE_MAX_RETRY_WAIT_MS = 10_000;
 
 const PENDING_PAGE_SIZE = 50;
 const MAX_PENDING = 250;
@@ -984,25 +1038,28 @@ function serviceHeaders(json = false): Record<string, string> {
   return headers;
 }
 
-/** One service request. A 429 is refused before processing, so it waits and repeats, up to three times. */
+/**
+ * One service request, as {@link SafeServiceOptions} describes: a 429 is
+ * refused before processing, so it waits and repeats, up to three times.
+ */
 async function serviceFetch(
   url: string,
   init: RequestInit,
-  options: SafeServiceOptions,
+  { fetch: custom, signal, retryRateLimited }: SafeServiceOptions,
 ): Promise<Response> {
-  const request = options.fetch ?? fetch;
+  const request = custom ?? fetch;
   for (let attempt = 0; ; attempt += 1) {
-    const response = await request(url, init);
-    if (response.status !== 429 || attempt >= 3) return response;
-    const retryAfter = Number(response.headers.get("retry-after"));
-    await new Promise((resolve) =>
-      setTimeout(
-        resolve,
-        Number.isFinite(retryAfter) && retryAfter > 0
-          ? retryAfter * 1000
-          : 1000 * (attempt + 1),
-      ),
-    );
+    signal?.throwIfAborted();
+    const response = await request(url, signal ? { ...init, signal } : init);
+    if (response.status !== 429 || attempt >= 3 || retryRateLimited === false) {
+      return response;
+    }
+    const retryAfter = response.headers.get("retry-after");
+    const wait =
+      retryAfter === null ? 1000 * (attempt + 1) : retryAfterMs(retryAfter);
+    // An unreadable Retry-After (null) is handed back as well.
+    if (wait === null || wait > SAFE_SERVICE_MAX_RETRY_WAIT_MS) return response;
+    await pause(wait, signal, () => signal!.reason);
   }
 }
 
@@ -1079,9 +1136,10 @@ export async function listPendingSafeTransactions(
       { headers: serviceHeaders() },
       options,
     );
-    if (!response.ok) {
-      // A failed page is retried once before the listing gives up.
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    if (!response.ok && response.status !== 429) {
+      // A failed page is retried once before the listing gives up. A 429 has
+      // already had the retries serviceFetch allows.
+      await pause(500, options.signal, () => options.signal!.reason);
       response = await serviceFetch(
         url,
         { headers: serviceHeaders() },

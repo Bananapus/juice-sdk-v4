@@ -10,6 +10,7 @@ import {
   groupDeploymentCalls,
   isValidDeploymentCalls,
 } from "./jbcenter/setupCalls.js";
+import { retryAfterMs } from "./untrusted.js";
 
 export const JBCENTER_DEFAULT_URL = "https://juicebox.center";
 export const JBCENTER_REQUEST_TIMEOUT_MS = 15_000;
@@ -56,10 +57,17 @@ export type JBCenterRpcRequest = {
 
 /** Structurally compatible with EIP-1193 providers, including viem's `custom`. */
 export type JBCenterRpcProvider = {
-  request<TResult = unknown>(request: {
-    method: string;
-    params?: readonly unknown[];
-  }): Promise<TResult>;
+  /**
+   * One read-only JSON-RPC request. `signal`, which viem's custom transport
+   * passes, ends the request when it aborts.
+   */
+  request<TResult = unknown>(
+    request: {
+      method: string;
+      params?: readonly unknown[];
+    },
+    options?: { signal?: AbortSignal },
+  ): Promise<TResult>;
 };
 
 export type JBCenterJson =
@@ -334,6 +342,7 @@ export class JBCenterRequestError extends Error {
     readonly status: number,
     readonly code?: string,
     readonly requestId?: string,
+    /** The whole seconds the answer's Retry-After asks for, when it can be read. */
     readonly retryAfter?: number,
   ) {
     super(message);
@@ -928,16 +937,21 @@ export class JBCenterClient {
       throw new TypeError("chainId must be a positive safe integer");
     }
     return {
-      request: async <TResult = unknown>(request: {
-        method: string;
-        params?: readonly unknown[];
-      }) => {
+      request: async <TResult = unknown>(
+        request: {
+          method: string;
+          params?: readonly unknown[];
+        },
+        options?: { signal?: AbortSignal },
+      ) => {
         if (
           !(JBCENTER_RPC_METHODS as readonly string[]).includes(request.method)
         ) {
           throw new TypeError("JB Center RPC method is not supported");
         }
-        return this.rpc<TResult>(chainId, request as JBCenterRpcRequest);
+        return this.rpc<TResult>(chainId, request as JBCenterRpcRequest, {
+          signal: options?.signal,
+        });
       },
     };
   }
@@ -979,6 +993,8 @@ export class JBCenterClient {
       () => controller.abort(timeoutReason),
       timeoutMs,
     );
+    // A failure is thrown once the timer and listener are cleaned up.
+    let failure: unknown;
     try {
       if (options.signal?.aborted) abort();
       const headers = new Headers(init.headers);
@@ -1002,18 +1018,13 @@ export class JBCenterClient {
           typeof envelope.error?.message === "string"
             ? envelope.error.message
             : `JB Center request failed (${response.status})`;
-        const retryAfterHeader = response.headers.get("retry-after");
-        const retryAfter = Number(retryAfterHeader);
+        const retryAfter = retryAfterMs(response.headers.get("retry-after"));
         throw new JBCenterRequestError(
           message,
           response.status,
           code,
           response.headers.get("x-request-id") ?? undefined,
-          retryAfterHeader !== null &&
-          Number.isFinite(retryAfter) &&
-          retryAfter >= 0
-            ? retryAfter
-            : undefined,
+          retryAfter === null ? undefined : Math.ceil(retryAfter / 1000),
         );
       }
       if (!validate(body)) {
@@ -1026,12 +1037,13 @@ export class JBCenterClient {
       }
       return body;
     } catch (error) {
-      if (controller.signal.reason === timeoutReason) throw timeoutReason;
-      throw error;
+      failure =
+        controller.signal.reason === timeoutReason ? timeoutReason : error;
     } finally {
       clearTimeout(timeout);
       options.signal?.removeEventListener("abort", abort);
     }
+    throw failure;
   }
 }
 

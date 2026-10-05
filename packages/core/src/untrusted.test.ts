@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isBytes32, isHexBytes, uint256 } from "./untrusted.js";
+import { isBytes32, isHexBytes, retryAfterMs, uint256 } from "./untrusted.js";
 
 describe("untrusted input readers", () => {
   it("reads a uint256 from a bigint, a safe integer, or decimal or hex digits", () => {
@@ -50,6 +50,49 @@ describe("untrusted input readers", () => {
       undefined,
     ]) {
       expect(isBytes32(value)).toBe(false);
+    }
+  });
+
+  // Monday 5 October 2026, 12:00:00 UTC.
+  const NOW = Date.UTC(2026, 9, 5, 12, 0, 0);
+
+  it("reads a Retry-After as delay-seconds or an HTTP-date in any of RFC 9110's three forms", () => {
+    expect(retryAfterMs("0", NOW)).toBe(0);
+    expect(retryAfterMs("120", NOW)).toBe(120_000);
+    for (const date of [
+      "Mon, 05 Oct 2026 12:00:05 GMT",
+      "Monday, 05-Oct-26 12:00:05 GMT",
+      "Mon Oct  5 12:00:05 2026",
+    ]) {
+      expect(retryAfterMs(date, NOW)).toBe(5_000);
+    }
+    // A date that has passed asks for no wait.
+    expect(retryAfterMs("Mon, 05 Oct 2026 11:00:00 GMT", NOW)).toBe(0);
+    // An RFC 850 year 50 years ahead stays ahead; one more is a century back.
+    expect(retryAfterMs("Monday, 05-Oct-76 12:00:00 GMT", NOW)).toBe(
+      Date.UTC(2076, 9, 5, 12, 0, 0) - NOW,
+    );
+    expect(retryAfterMs("Monday, 05-Oct-77 12:00:00 GMT", NOW)).toBe(0);
+    // The clock is the default.
+    expect(retryAfterMs("Mon, 05 Oct 2099 12:00:00 GMT")).toBeGreaterThan(0);
+  });
+
+  it("reads no other Retry-After", () => {
+    for (const value of [
+      null,
+      undefined,
+      5,
+      "",
+      "soon",
+      "1.5",
+      "-1",
+      "1e3",
+      " 5",
+      "5, 7",
+      "Sun, 06 Nov 1994 08:49:37 +0000",
+      "Sun, 32 Nov 1994 08:49:37 GMT",
+    ]) {
+      expect(retryAfterMs(value, NOW)).toBeNull();
     }
   });
 });

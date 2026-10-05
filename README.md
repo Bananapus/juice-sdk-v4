@@ -363,7 +363,10 @@ Safe on another chain:
   destination address is free, the factory, singleton, owners and fallback
   handler check out there, and a raw simulation returns the Safe's address.
 - `packMultiSend`, `encodeMultiSend`, `decodeMultiSend` and `multiSendCallsOf`
-  handle MultiSendCallOnly batches of plain calls.
+  handle MultiSendCallOnly batches of plain calls. Batches are built for
+  `MULTI_SEND_CALL_ONLY` (1.3.0). `multiSendCallsOf` reads a batch sent through
+  any of `MULTI_SEND_CALL_ONLY_DEPLOYMENTS` (1.3.0 canonical and EIP-155, and
+  1.4.1, which Safe{Wallet} uses for a 1.4.1 Safe).
 
 `@bananapus/nana-sdk-core/safe-service` handles Safe transactions and Safe's
 transaction service:
@@ -390,7 +393,13 @@ It also has `SAFE_TX_TYPES`, `safeTransactionMessage`, `safeTransactionHash`,
 `onchainApprovalStep`, `findPendingSafeTransaction`, `readSafeTransaction`,
 `proposeSafeTransaction`, `submitSafeConfirmation`, `fetchSafesOwnedBy`,
 `fetchSafeCreation` and `safeTransactionUrl`. Service calls accept a `fetch`
-of the app's own and send the optional `jb-safe-api-key` from local storage.
+of the app's own and a `signal`, and send the optional `jb-safe-api-key` from
+local storage. A 429 is retried up to three times after the wait its
+Retry-After asks for (delay-seconds or an HTTP-date) when that is 10 seconds or
+less (`SAFE_SERVICE_MAX_RETRY_WAIT_MS`), or after 1, 2 and 3 seconds without
+one, and the `signal` ends the wait. A 429 that asks for longer, or whose
+Retry-After cannot be read, is handed back at once. `retryRateLimited: false`
+hands back the first 429 instead, for a server render that must not wait.
 
 `@bananapus/nana-sdk-core/v6` proves a distribution from its receipt:
 `verifyPayoutReceipt` and `verifyReservedDistributionReceipt` require every
