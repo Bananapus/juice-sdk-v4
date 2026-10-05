@@ -12,5 +12,7 @@ refused, because another distribution ran first or the review was stale.
 
 It returns `{ tokenCount }`, the count the receipt distributed, so an app can
 show the amount that went out. `ExpectedReservedReceipt.tokenCount` keeps its
-shape and is the reviewed minimum: pass the pending reserves the review saw.
+shape and is the reviewed minimum: pass the pending reserves the review saw. A
+`tokenCount` of 0 is refused as an invalid expectation, since the controller
+cannot distribute 0 and a minimum of 0 would accept any count.
 `verifyPayoutReceipt` is unchanged.

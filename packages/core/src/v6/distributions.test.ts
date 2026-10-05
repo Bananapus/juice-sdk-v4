@@ -609,6 +609,17 @@ describe("reserved token receipts", () => {
     ).toThrow(`the controller burned 10 tokens, not the 20 sent to ${DEAD}`);
   });
 
+  it("refuses a reviewed count of 0, which would accept any distribution", () => {
+    for (const tokenCount of [0, 0n, "0", "0x0"]) {
+      expect(() =>
+        verifyReservedDistributionReceipt(
+          { status: "success", logs: valid() },
+          { ...expected, tokenCount },
+        ),
+      ).toThrow(`Invalid distribution expectation tokenCount: ${tokenCount}.`);
+    }
+  });
+
   it("refuses fewer tokens than were reviewed, even with every share of the smaller count", () => {
     expect(() =>
       verifyReservedDistributionReceipt(

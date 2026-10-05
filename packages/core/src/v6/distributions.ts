@@ -63,9 +63,9 @@ export type ExpectedReservedReceipt = {
   owner: Address;
   caller: Address;
   /**
-   * The pending reserved tokens the review saw: the reviewed minimum. Reserved
-   * tokens accrue until the distribution runs, so the receipt may distribute
-   * more.
+   * The pending reserved tokens the review saw, above 0: the reviewed minimum.
+   * Reserved tokens accrue until the distribution runs, so the receipt may
+   * distribute more.
    */
   tokenCount: number | bigint | string;
   splits: readonly ExpectedDistributionSplit[];
@@ -384,6 +384,10 @@ export function verifyReservedDistributionReceipt(
   const owner = readAddress("owner", expected.owner);
   const caller = readAddress("caller", expected.caller);
   const reviewed = readUint("tokenCount", expected.tokenCount);
+  // No honest review has 0: the controller reverts at 0 pending reserves
+  // (JBController_NoReservedTokens). A failed pending read defaulted to 0
+  // would otherwise make the minimum below accept any count.
+  if (reviewed === 0n) throw invalid("tokenCount", expected.tokenCount);
   const splits = readSplits(expected.splits);
   const subject = `Project ${projectId}'s reserved tokens from ${controller}`;
   const refuse = (problem: string) =>
