@@ -954,19 +954,56 @@ describe("Relayr payment options", () => {
     expect(relayrPaymentOptions(quote, [1, 11155111], NOW)).toEqual([]);
   });
 
-  it("skips an option whose contract or token fails its checksum, like any other refused option", () => {
-    const quote = {
-      bundle_uuid: BUNDLE_UUID,
-      payment_info: [
-        paymentFor({ target: MISCASED_PAYMENT_ADDRESS }),
-        paymentFor({ token: MISCASED_NATIVE_TOKEN, amount: "7" }),
-        paymentFor({ chain: 10, target: UPPERCASE_PAYMENT_ADDRESS }),
-        paymentFor({ amount: "8", target: CHECKSUMMED_PAYMENT_ADDRESS }),
-      ],
-    };
-    expect(relayrPaymentOptions(quote, [1, 10], NOW)).toEqual([
-      paymentFor({ amount: "8", target: CHECKSUMMED_PAYMENT_ADDRESS }),
-    ]);
+  it("offers nothing on a chain where any option's contract or token fails the strict address check", () => {
+    const valid = paymentFor({ amount: "7" });
+    const otherChain = paymentFor({ chain: 10, amount: "9" });
+    for (const corrupted of [
+      paymentFor({ target: MISCASED_PAYMENT_ADDRESS }),
+      paymentFor({ target: UPPERCASE_PAYMENT_ADDRESS }),
+      paymentFor({ target: "not-an-address" as Address }),
+      paymentFor({ token: MISCASED_NATIVE_TOKEN }),
+      paymentFor({ token: UPPERCASE_NATIVE_TOKEN }),
+      paymentFor({ token: undefined }),
+    ]) {
+      // Whether it comes before or after a valid option on the same chain.
+      for (const payment_info of [
+        [valid, corrupted, otherChain],
+        [corrupted, valid, otherChain],
+      ]) {
+        expect(
+          relayrPaymentOptions(
+            { bundle_uuid: BUNDLE_UUID, payment_info },
+            [1, 10],
+            NOW,
+          ),
+        ).toEqual([otherChain]);
+      }
+    }
+  });
+
+  it("refuses a well-formed address that is not Relayr's on its own, like any other refused option", () => {
+    const valid = paymentFor({ amount: "7" });
+    const checksummed = paymentFor({
+      amount: "8",
+      target: CHECKSUMMED_PAYMENT_ADDRESS,
+      token: CHECKSUMMED_NATIVE_TOKEN,
+    });
+    expect(
+      relayrPaymentOptions(
+        {
+          bundle_uuid: BUNDLE_UUID,
+          payment_info: [
+            null as unknown as RelayrPayment,
+            paymentFor({ target: TARGET }),
+            paymentFor({ token: TARGET }),
+            checksummed,
+            valid,
+          ],
+        },
+        [1],
+        NOW,
+      ),
+    ).toEqual([checksummed]);
   });
 
   it("hands out copies the quote's owner cannot change under a later review", () => {

@@ -329,15 +329,17 @@ function sameAddress(value: unknown, address: string): boolean {
 }
 
 /**
- * {@link sameAddress}, spelled as viem's strict check reads an address: in
- * lower case, or with a valid EIP-55 checksum. Any other mixed case is a
- * corrupted address.
+ * An address as viem's strict check reads one: in lower case, or with a valid
+ * EIP-55 checksum. Any other mixed case is a corrupted address.
  */
+function isStrictAddress(value: unknown): value is Address {
+  return typeof value === "string" && isAddress(value);
+}
+
+/** {@link sameAddress}, spelled as {@link isStrictAddress} requires. */
 function sameStrictAddress(value: unknown, address: string): boolean {
   return (
-    typeof value === "string" &&
-    isAddress(value) &&
-    value.toLowerCase() === address.toLowerCase()
+    isStrictAddress(value) && value.toLowerCase() === address.toLowerCase()
   );
 }
 
@@ -759,18 +761,30 @@ export function relayrPaymentDetails(
 /**
  * The payment options to offer: each passes {@link relayrPaymentDetails} for
  * the quote's bundle and destinations, one per chain (Relayr's first), copied
- * so the quote's owner cannot change one under a later review.
+ * so the quote's owner cannot change one under a later review. A chain with
+ * any option whose contract or token is not an address as viem's strict check
+ * reads one (in lower case, or with a valid EIP-55 checksum) gets no option:
+ * Relayr's answer for that chain is corrupted.
  */
 export function relayrPaymentOptions(
   quote: Pick<RelayrQuote, "bundle_uuid" | "payment_info">,
   destinationChainIds: readonly number[],
   nowSeconds?: number,
 ): RelayrPayment[] {
+  const payments: RelayrPayment[] = Array.isArray(quote.payment_info)
+    ? quote.payment_info
+    : [];
+  const corrupted = new Set(
+    payments
+      .filter(
+        (payment) =>
+          !isStrictAddress(payment?.target) || !isStrictAddress(payment?.token),
+      )
+      .map((payment) => payment?.chain),
+  );
   const chains = new Set<number>();
   const options: RelayrPayment[] = [];
-  for (const payment of Array.isArray(quote.payment_info)
-    ? quote.payment_info
-    : []) {
+  for (const payment of payments) {
     let chainId: number;
     try {
       ({ chainId } = relayrPaymentDetails(payment, {
@@ -781,7 +795,7 @@ export function relayrPaymentOptions(
     } catch {
       continue;
     }
-    if (chains.has(chainId)) continue;
+    if (chains.has(chainId) || corrupted.has(chainId)) continue;
     chains.add(chainId);
     options.push({ ...payment });
   }
