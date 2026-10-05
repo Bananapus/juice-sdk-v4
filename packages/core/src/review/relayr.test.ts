@@ -2027,7 +2027,7 @@ describe("Relayr bundle reads", () => {
     }
   });
 
-  it("reads with the global fetch by default", async () => {
+  it("checks a bundle read with the global fetch by default", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => json(unpaid())),
@@ -2117,7 +2117,7 @@ describe("Relayr bundle reads", () => {
     expect(JSON.stringify(error)).not.toContain("relayr.invalid");
   });
 
-  it("asks nothing for an invalid bundle ID", async () => {
+  it("refuses an invalid bundle ID before checking anything", async () => {
     const fetchBundle = vi.fn();
     expect(
       await unpaidRefusal(
