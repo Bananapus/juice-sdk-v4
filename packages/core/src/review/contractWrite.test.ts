@@ -52,7 +52,7 @@ function harness() {
 }
 
 describe("reviewed direct-write boundary", () => {
-  it("reviews, switches, checks, simulates, rechecks, then signs exactly once", async () => {
+  it("checks, reviews, switches, checks, simulates, rechecks, then signs exactly once", async () => {
     const run = harness();
 
     await expect(submitReviewedContractWrite(run.options)).resolves.toBe(
@@ -68,8 +68,64 @@ describe("reviewed direct-write boundary", () => {
       "phase:signing",
       "write",
     ]);
-    expect(run.options.currentAccount).toHaveBeenCalledTimes(3);
+    expect(run.options.currentAccount).toHaveBeenCalledTimes(4);
     expect(run.options.write).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses before the review opens when the connected account is not the reviewed one", async () => {
+    for (const connected of [BOB, undefined]) {
+      const run = harness();
+      run.setCurrent(connected);
+      await expect(submitReviewedContractWrite(run.options)).rejects.toThrow(
+        new Error("The connected account changed. Review again."),
+      );
+      expect(run.options.onPhase).not.toHaveBeenCalled();
+      expect(run.options.review).not.toHaveBeenCalled();
+      expect(run.options.switchChain).not.toHaveBeenCalled();
+    }
+    const run = harness();
+    run.setCurrent(BOB);
+    await expect(
+      submitReviewedContractWrite({
+        ...run.options,
+        accountChangedError: "Reconnect the account that reviewed this.",
+      }),
+    ).rejects.toThrow(new Error("Reconnect the account that reviewed this."));
+    expect(run.options.review).not.toHaveBeenCalled();
+  });
+
+  it("compares the reviewed account in any letter case", async () => {
+    const mixed = "0xAbCdEf0000000000000000000000000000000001" as Address;
+    const run = harness();
+    run.setCurrent(mixed.toLowerCase() as Address);
+    await expect(
+      submitReviewedContractWrite({ ...run.options, expectedAccount: mixed }),
+    ).resolves.toBe("0xhash");
+  });
+
+  it("runs the app's guard before reading the account", async () => {
+    const run = harness();
+    run.setCurrent(BOB);
+    const guard = vi.fn(() => {
+      throw new Error("Stop viewing as another account to send.");
+    });
+    await expect(
+      submitReviewedContractWrite({ ...run.options, guard }),
+    ).rejects.toThrow("Stop viewing as another account to send.");
+    expect(run.options.currentAccount).not.toHaveBeenCalled();
+    expect(run.options.review).not.toHaveBeenCalled();
+  });
+
+  it("says the apps' words when the account changes after the review opens", async () => {
+    const run = harness();
+    run.options.review.mockImplementationOnce(async () => {
+      run.setCurrent(BOB);
+    });
+    await expect(submitReviewedContractWrite(run.options)).rejects.toThrow(
+      new Error("The connected account changed. Review again."),
+    );
+    expect(run.options.switchChain).toHaveBeenCalledOnce();
+    expect(run.options.simulate).not.toHaveBeenCalled();
   });
 
   it("fails closed before simulation when reviewed state changes", async () => {
@@ -150,7 +206,7 @@ describe("reviewed direct-write boundary", () => {
       "phase:signing",
       "write",
     ]);
-    expect(run.options.currentAccount).toHaveBeenCalledTimes(4);
+    expect(run.options.currentAccount).toHaveBeenCalledTimes(5);
   });
 
   it("does not mark an attempt when review is cancelled or simulation fails", async () => {
