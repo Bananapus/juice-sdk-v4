@@ -13,7 +13,7 @@ import {
   MULTI_SEND_CALL_ONLY,
   type SafeCreation,
 } from "./safe.js";
-import { isBytes32, isHexBytes, uint256 } from "./untrusted.js";
+import { isBytes32, isHexBytes, retryAfterMs, uint256 } from "./untrusted.js";
 
 /**
  * Safe's per-chain app URL prefix. Wider than {@link SAFE_SERVICE_PREFIX}:
@@ -236,10 +236,9 @@ export async function waitForSafeExecutionHash(
             );
           }
         } else if (response.status === 429) {
-          const retryAfter = response.headers.get("retry-after");
-          const asked = retryAfter === null ? NaN : retryAfterMs(retryAfter);
-          // An unreadable Retry-After (NaN) leaves the interval.
-          if (asked > interval) wait = asked;
+          const asked = retryAfterMs(response.headers.get("retry-after"));
+          // Without a readable Retry-After the poll keeps its interval.
+          if (asked !== null && asked > interval) wait = asked;
         }
       } catch (error) {
         if (error instanceof SafeExecutionRecordError) throw error;
@@ -1033,45 +1032,6 @@ function serviceHeaders(json = false): Record<string, string> {
   return headers;
 }
 
-/** An HTTP-date in IMF-fixdate form, the one RFC 9110 has a sender use. */
-const IMF_FIXDATE =
-  /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/u;
-
-/** An HTTP-date in the obsolete RFC 850 form, with a two-digit year. */
-const RFC_850_DATE =
-  /^(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day, (\d{2})-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{2}) (\d{2}:\d{2}:\d{2}) GMT$/u;
-
-/** An HTTP-date in the obsolete asctime form, which is in GMT without saying so. */
-const ASCTIME_DATE =
-  /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ \d]\d \d{2}:\d{2}:\d{2} \d{4}$/u;
-
-/**
- * The wait a Retry-After asks for, in milliseconds: its delay-seconds, or the
- * time left until its HTTP-date (none once that has passed). NaN when it is
- * neither, as for a negative or fractional delay. An RFC 850 year that would
- * be more than 50 years ahead is the last such year past, as RFC 9110 reads it.
- */
-function retryAfterMs(value: string): number {
-  if (/^\d+$/u.test(value)) return Number(value) * 1000;
-  const now = Date.now();
-  let date: string;
-  const rfc850 = RFC_850_DATE.exec(value);
-  if (rfc850) {
-    const [, day, month, shortYear, time] = rfc850;
-    const thisYear = new Date(now).getUTCFullYear();
-    let year = thisYear - (thisYear % 100) + Number(shortYear);
-    if (year > thisYear + 50) year -= 100;
-    date = `${day} ${month} ${year} ${time} GMT`;
-  } else if (ASCTIME_DATE.test(value)) {
-    date = `${value} GMT`;
-  } else if (IMF_FIXDATE.test(value)) {
-    date = value;
-  } else {
-    return NaN;
-  }
-  return Math.max(Date.parse(date) - now, 0);
-}
-
 /**
  * One service request, as {@link SafeServiceOptions} describes: a 429 is
  * refused before processing, so it waits and repeats, up to three times.
@@ -1091,8 +1051,8 @@ async function serviceFetch(
     const retryAfter = response.headers.get("retry-after");
     const wait =
       retryAfter === null ? 1000 * (attempt + 1) : retryAfterMs(retryAfter);
-    // An unreadable Retry-After (NaN) is handed back as well.
-    if (!(wait <= SAFE_SERVICE_MAX_RETRY_WAIT_MS)) return response;
+    // An unreadable Retry-After (null) is handed back as well.
+    if (wait === null || wait > SAFE_SERVICE_MAX_RETRY_WAIT_MS) return response;
     await pause(wait, signal, () => signal!.reason);
   }
 }
