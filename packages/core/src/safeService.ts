@@ -1024,8 +1024,9 @@ function serviceHeaders(json = false): Record<string, string> {
 async function serviceFetch(
   url: string,
   init: RequestInit,
-  { fetch: request = fetch, signal, retryRateLimited }: SafeServiceOptions,
+  { fetch: custom, signal, retryRateLimited }: SafeServiceOptions,
 ): Promise<Response> {
+  const request = custom ?? fetch;
   for (let attempt = 0; ; attempt += 1) {
     signal?.throwIfAborted();
     const response = await request(url, signal ? { ...init, signal } : init);

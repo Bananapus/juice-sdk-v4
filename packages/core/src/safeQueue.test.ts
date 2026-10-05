@@ -1283,7 +1283,15 @@ describe("Safe transaction service", () => {
     await expect(listPendingSafeTransactions(1, SAFE, 8)).resolves.toHaveLength(
       1,
     );
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    // A caller without TypeScript may pass an empty fetch.
+    for (const empty of [undefined, null]) {
+      await expect(
+        listPendingSafeTransactions(1, SAFE, 8, {
+          fetch: empty as unknown as typeof fetch,
+        }),
+      ).resolves.toHaveLength(1);
+    }
+    expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
   it("sends the optional local API key with every request", async () => {
