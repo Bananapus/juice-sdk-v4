@@ -1166,7 +1166,7 @@ describe("Safe transaction service", () => {
     ["an exponent", "1e3"],
     ["two values", "5, 7"],
     ["a negative delay", "-1"],
-    ["a date that does not exist", "Sun, 32 Nov 1994 08:49:37 GMT"],
+    ["an out-of-range date", "Sun, 32 Nov 1994 08:49:37 GMT"],
   ])(
     "hands back at once a 429 whose Retry-After asks for more than 10 seconds or cannot be read (%s)",
     async (_, retryAfter) => {
