@@ -46,11 +46,11 @@ const budgets = {
     // Deployment diagnostics, shop preparation and overload selection add
     // three source modules and 24 ESM/CJS artifacts.
     // The checks the web clients wrapped (MultiSendCallOnly 1.4.1, the Safe
-    // service's signal and capped 429 waits, the reviewed account before
-    // review, Relayr's checksum, quote expiry, retry refusals and bundle read,
-    // and the JB Center provider's signal) add no files and, mostly in
-    // documentation, about 31 kilobytes unpacked and 7 kilobytes packed
-    // (measured 1,174,958 B packed, 20,267,689 B unpacked, 722 files).
+    // service's signal and 429 rules, the reviewed account before review,
+    // Relayr's checksum, quote expiry, retry refusals, bundle read and unpaid
+    // guard, and the JB Center provider's signal) add no files and, mostly in
+    // documentation, about 39 kilobytes unpacked and 9 kilobytes packed
+    // (measured 1,176,785 B packed, 20,276,127 B unpacked, 722 files).
     packed: 1_182_000,
     unpacked: 20_292_000,
     entries: 722,
