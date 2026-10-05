@@ -957,12 +957,13 @@ export function onchainApprovalStep({
  * global one by default. `signal` goes with every request and ends any wait
  * between attempts; the call then fails with the signal's reason, except where
  * a failed request reads as nothing found ({@link fetchSafesOwnedBy},
- * {@link fetchSafeCreation}). A 429 is retried up to three times, after its
- * Retry-After or 1, 2 and 3 seconds without one, when that wait is at most
- * {@link SAFE_SERVICE_MAX_RETRY_WAIT_MS}. A 429 that asks for longer is handed
- * back at once: retrying before the service allows works against its rate
- * limit. `retryRateLimited: false` hands back the first 429 instead, for a
- * caller that must not wait, such as a server render.
+ * {@link fetchSafeCreation}). A 429 is retried up to three times after the
+ * wait its Retry-After asks for, in delay-seconds or as an HTTP-date, when that
+ * is at most {@link SAFE_SERVICE_MAX_RETRY_WAIT_MS}, or after 1, 2 and 3
+ * seconds when it sends none. A 429 that asks for longer, or whose Retry-After
+ * cannot be read, is handed back at once: retrying before the service allows
+ * works against its rate limit. `retryRateLimited: false` hands back the first
+ * 429 instead, for a caller that must not wait, such as a server render.
  */
 export type SafeServiceOptions = {
   fetch?: typeof fetch;
@@ -1019,6 +1020,25 @@ function serviceHeaders(json = false): Record<string, string> {
 }
 
 /**
+ * An HTTP-date in any of the three forms RFC 9110 has a recipient accept:
+ * IMF-fixdate, RFC 850 and asctime (which is in GMT without saying so).
+ */
+const HTTP_DATE =
+  /^(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT|(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day, \d{2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2} \d{2}:\d{2}:\d{2} GMT|(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ \d]\d \d{2}:\d{2}:\d{2} \d{4})$/u;
+
+/**
+ * The wait a Retry-After asks for, in milliseconds: its delay-seconds, or the
+ * time left until its HTTP-date (none once that has passed). NaN when it is
+ * neither, as for a negative or fractional delay.
+ */
+function retryAfterMs(value: string): number {
+  if (/^\d+$/u.test(value)) return Number(value) * 1000;
+  if (!HTTP_DATE.test(value)) return NaN;
+  const at = Date.parse(value.endsWith(" GMT") ? value : `${value} GMT`);
+  return Math.max(at - Date.now(), 0);
+}
+
+/**
  * One service request, as {@link SafeServiceOptions} describes: a 429 is
  * refused before processing, so it waits and repeats, up to three times.
  */
@@ -1034,12 +1054,11 @@ async function serviceFetch(
     if (response.status !== 429 || attempt >= 3 || retryRateLimited === false) {
       return response;
     }
-    const retryAfter = Number(response.headers.get("retry-after"));
+    const retryAfter = response.headers.get("retry-after");
     const wait =
-      Number.isFinite(retryAfter) && retryAfter > 0
-        ? retryAfter * 1000
-        : 1000 * (attempt + 1);
-    if (wait > SAFE_SERVICE_MAX_RETRY_WAIT_MS) return response;
+      retryAfter === null ? 1000 * (attempt + 1) : retryAfterMs(retryAfter);
+    // An unreadable Retry-After (NaN) is handed back as well.
+    if (!(wait <= SAFE_SERVICE_MAX_RETRY_WAIT_MS)) return response;
     await pause(wait, signal, () => signal!.reason);
   }
 }

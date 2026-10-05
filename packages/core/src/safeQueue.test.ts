@@ -1111,37 +1111,61 @@ describe("Safe transaction service", () => {
     expect(fetcher).toHaveBeenCalledTimes(4);
   });
 
-  it("waits out a 429's Retry-After of up to 10 seconds, then retries", async () => {
-    expect(SAFE_SERVICE_MAX_RETRY_WAIT_MS).toBe(10_000);
-    vi.useFakeTimers();
-    const fetcher = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response("busy", {
-          status: 429,
-          headers: { "retry-after": "10" },
-        }),
-      )
-      .mockResolvedValueOnce(json({ next: null, results: [row()] }));
-    const pending = listPendingSafeTransactions(1, SAFE, 8, { fetch: fetcher });
-    await vi.advanceTimersByTimeAsync(SAFE_SERVICE_MAX_RETRY_WAIT_MS - 1);
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(1);
-    await expect(pending).resolves.toHaveLength(1);
-    expect(fetcher).toHaveBeenCalledTimes(2);
-  });
+  // Monday 5 October 2026, 12:00:00 UTC: Retry-After dates below count from it.
+  const RATE_LIMITED_AT = Date.UTC(2026, 9, 5, 12, 0, 0);
+  const limited = (retryAfter?: string) =>
+    new Response("busy", {
+      status: 429,
+      headers: retryAfter === undefined ? {} : { "retry-after": retryAfter },
+    });
 
-  it("hands back at once a 429 whose Retry-After asks for more than 10 seconds", async () => {
-    vi.useFakeTimers();
-    for (const retryAfter of ["10.001", "11", "3600"]) {
-      const fetcher = vi.fn(
-        async () =>
-          new Response("busy", {
-            status: 429,
-            headers: { "retry-after": retryAfter },
-          }),
-      );
-      const started = Date.now();
+  it.each([
+    ["delay-seconds at the cap", "10", 10_000],
+    ["delay-seconds of 0", "0", 0],
+    ["an IMF-fixdate", "Mon, 05 Oct 2026 12:00:05 GMT", 5_000],
+    ["an RFC 850 date", "Monday, 05-Oct-26 12:00:05 GMT", 5_000],
+    ["an asctime date, read as GMT", "Mon Oct  5 12:00:05 2026", 5_000],
+    ["a date that has passed", "Mon, 05 Oct 2026 11:59:00 GMT", 0],
+  ])(
+    "waits out a 429's Retry-After of 10 seconds or less (%s), then retries",
+    async (_, retryAfter, wait) => {
+      expect(SAFE_SERVICE_MAX_RETRY_WAIT_MS).toBe(10_000);
+      vi.useFakeTimers();
+      vi.setSystemTime(RATE_LIMITED_AT);
+      const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(limited(retryAfter))
+        .mockResolvedValueOnce(json({ next: null, results: [row()] }));
+      const pending = listPendingSafeTransactions(1, SAFE, 8, {
+        fetch: fetcher,
+      });
+      if (wait > 0) {
+        await vi.advanceTimersByTimeAsync(wait - 1);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+      }
+      await vi.advanceTimersByTimeAsync(wait > 0 ? 1 : 0);
+      await expect(pending).resolves.toHaveLength(1);
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each([
+    ["delay-seconds over the cap", "11"],
+    ["an hour of delay-seconds", "3600"],
+    ["a date 11 seconds out", "Mon, 05 Oct 2026 12:00:11 GMT"],
+    ["a date an hour out", "Mon, 05 Oct 2026 13:00:00 GMT"],
+    ["words", "soon"],
+    ["a fraction", "1.5"],
+    ["an exponent", "1e3"],
+    ["two values", "5, 7"],
+    ["a negative delay", "-1"],
+    ["a date that does not exist", "Sun, 32 Nov 1994 08:49:37 GMT"],
+  ])(
+    "hands back at once a 429 whose Retry-After asks for more than 10 seconds or cannot be read (%s)",
+    async (_, retryAfter) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(RATE_LIMITED_AT);
+      const fetcher = vi.fn(async () => limited(retryAfter));
       let settledAt: number | undefined;
       const pending = listPendingSafeTransactions(1, SAFE, 8, {
         fetch: fetcher,
@@ -1156,20 +1180,32 @@ describe("Safe transaction service", () => {
       );
       // No request was repeated, and no time passed waiting.
       expect(fetcher).toHaveBeenCalledTimes(1);
-      expect(settledAt).toBe(started);
-    }
-  });
+      expect(settledAt).toBe(RATE_LIMITED_AT);
+    },
+  );
 
-  it("does not list a page again once its 429 has had its retries", async () => {
+  it("waits 1, 2 and 3 seconds after a 429 without a Retry-After, and does not list the page again", async () => {
     vi.useFakeTimers();
-    const fetcher = vi.fn(async () => new Response("busy", { status: 429 }));
+    const fetcher = vi.fn(async () => limited());
     const pending = listPendingSafeTransactions(1, SAFE, 8, {
       fetch: fetcher,
     }).catch((error: Error) => error.message);
-    await vi.runAllTimersAsync();
+    for (const [wait, requests] of [
+      [0, 1],
+      [999, 1],
+      [1, 2],
+      [1_999, 2],
+      [1, 3],
+      [2_999, 3],
+      [1, 4],
+    ]) {
+      await vi.advanceTimersByTimeAsync(wait);
+      expect(fetcher).toHaveBeenCalledTimes(requests);
+    }
     expect(await pending).toBe(
       `Safe's transaction service answered 429 listing the queue of Safe ${SAFE} on chain 1: busy`,
     );
+    await vi.runAllTimersAsync();
     expect(fetcher).toHaveBeenCalledTimes(4);
   });
 
