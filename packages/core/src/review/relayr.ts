@@ -275,6 +275,19 @@ function sameAddress(value: unknown, address: string): boolean {
   return isAddressLike(value) && value.toLowerCase() === address.toLowerCase();
 }
 
+/**
+ * {@link sameAddress}, spelled as viem's strict check reads an address: in
+ * lower case, or with a valid EIP-55 checksum. Any other mixed case is a
+ * corrupted address.
+ */
+function sameStrictAddress(value: unknown, address: string): boolean {
+  return (
+    typeof value === "string" &&
+    isAddress(value) &&
+    value.toLowerCase() === address.toLowerCase()
+  );
+}
+
 function uuidOf(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const uuid = value.toLowerCase();
@@ -584,8 +597,9 @@ function paymentCalldataFor(calldata: unknown, bundleUuid: string): boolean {
 /**
  * Authenticate one of Relayr's payment options against its bundle: a chain in
  * the destinations' network family, Relayr's payment contract and native
- * token, calldata that pays for exactly `bundleUuid` with the quoted
- * deadline, and a deadline more than 15 seconds away. Throws otherwise.
+ * token (in lower case or with their EIP-55 checksum), calldata that pays for
+ * exactly `bundleUuid` with the quoted deadline, and a deadline more than 15
+ * seconds away. Throws otherwise.
  */
 export function relayrPaymentDetails(
   payment: RelayrPayment,
@@ -608,10 +622,10 @@ export function relayrPaymentDetails(
       "Choose a supported Relayr funding chain in the same network family as these destinations.",
     );
   }
-  if (!sameAddress(payment.target, RELAYR_PAYMENT_ADDRESS)) {
+  if (!sameStrictAddress(payment.target, RELAYR_PAYMENT_ADDRESS)) {
     throw new Error("Relayr returned an unrecognized payment contract.");
   }
-  if (!sameAddress(payment.token, RELAYR_NATIVE_TOKEN)) {
+  if (!sameStrictAddress(payment.token, RELAYR_NATIVE_TOKEN)) {
     throw new Error("Relayr returned an unsupported payment token.");
   }
   const amount = uint256(payment.amount);

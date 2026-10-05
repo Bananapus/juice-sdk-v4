@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import {
   createPublicClient,
   encodeFunctionData,
+  getAddress,
   http,
   keccak256,
   toFunctionSelector,
@@ -79,6 +80,21 @@ const BLOCK_HASH = `0x${"cd".repeat(32)}` as Hex;
 const OTHER_BLOCK_HASH = `0x${"45".repeat(32)}` as Hex;
 const NOW = 1_750_000_000;
 const DEADLINE = NOW + 600;
+// Relayr's payment contract and native token as EIP-55 writes them, with the
+// case of one letter flipped so the checksum fails, and in upper case, which
+// viem's strict address check refuses too.
+const CHECKSUMMED_PAYMENT_ADDRESS =
+  "0x1C05F7841379D4393574c0FFA17908Ec40FFD97d" as Address;
+const MISCASED_PAYMENT_ADDRESS =
+  "0x1c05F7841379D4393574c0FFA17908Ec40FFD97d" as Address;
+const UPPERCASE_PAYMENT_ADDRESS =
+  "0x1C05F7841379D4393574C0FFA17908EC40FFD97D" as Address;
+const CHECKSUMMED_NATIVE_TOKEN =
+  "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
+const MISCASED_NATIVE_TOKEN =
+  "0xeeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
+const UPPERCASE_NATIVE_TOKEN =
+  "0xEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE" as Address;
 const MAINNETS = [1, 10, 8453, 42161];
 const TESTNETS = [11155111, 11155420, 84532, 421614];
 // The runtime code deployed at RELAYR_PAYMENT_ADDRESS on every Relayr chain.
@@ -762,8 +778,20 @@ describe("Relayr payment authentication", () => {
       /unrecognized payment contract/,
     ],
     [{ target: TARGET }, [1], /unrecognized payment contract/],
+    [
+      { target: MISCASED_PAYMENT_ADDRESS },
+      [1],
+      /unrecognized payment contract/,
+    ],
+    [
+      { target: UPPERCASE_PAYMENT_ADDRESS },
+      [1],
+      /unrecognized payment contract/,
+    ],
     [{ token: undefined }, [1], /unsupported payment token/],
     [{ token: TARGET }, [1], /unsupported payment token/],
+    [{ token: MISCASED_NATIVE_TOKEN }, [1], /unsupported payment token/],
+    [{ token: UPPERCASE_NATIVE_TOKEN }, [1], /unsupported payment token/],
     [{ amount: "-1" }, [1], /invalid payment amount/],
     [{ amount: "1.5" }, [1], /invalid payment amount/],
     [{ amount: "1e18" }, [1], /invalid payment amount/],
@@ -810,6 +838,21 @@ describe("Relayr payment authentication", () => {
       ).toThrow(message);
     },
   );
+
+  it("accepts the payment contract and token in lower case or with their EIP-55 checksum", () => {
+    expect(getAddress(RELAYR_PAYMENT_ADDRESS)).toBe(
+      CHECKSUMMED_PAYMENT_ADDRESS,
+    );
+    expect(getAddress(RELAYR_NATIVE_TOKEN)).toBe(CHECKSUMMED_NATIVE_TOKEN);
+    for (const [target, token] of [
+      [RELAYR_PAYMENT_ADDRESS, RELAYR_NATIVE_TOKEN],
+      [CHECKSUMMED_PAYMENT_ADDRESS, CHECKSUMMED_NATIVE_TOKEN],
+    ]) {
+      expect(details(paymentFor({ target, token })).target).toBe(
+        RELAYR_PAYMENT_ADDRESS,
+      );
+    }
+  });
 
   it("rejects a missing payment and an invalid bundle ID", () => {
     expect(() => details(null as unknown as RelayrPayment)).toThrow(
@@ -887,6 +930,21 @@ describe("Relayr payment options", () => {
     ]);
     expect(relayrPaymentOptions(quote, [1, 1], NOW)).toEqual([paymentFor()]);
     expect(relayrPaymentOptions(quote, [1, 11155111], NOW)).toEqual([]);
+  });
+
+  it("skips an option whose contract or token fails its checksum, like any other refused option", () => {
+    const quote = {
+      bundle_uuid: BUNDLE_UUID,
+      payment_info: [
+        paymentFor({ target: MISCASED_PAYMENT_ADDRESS }),
+        paymentFor({ token: MISCASED_NATIVE_TOKEN, amount: "7" }),
+        paymentFor({ chain: 10, target: UPPERCASE_PAYMENT_ADDRESS }),
+        paymentFor({ amount: "8", target: CHECKSUMMED_PAYMENT_ADDRESS }),
+      ],
+    };
+    expect(relayrPaymentOptions(quote, [1, 10], NOW)).toEqual([
+      paymentFor({ amount: "8", target: CHECKSUMMED_PAYMENT_ADDRESS }),
+    ]);
   });
 
   it("hands out copies the quote's owner cannot change under a later review", () => {
