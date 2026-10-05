@@ -217,6 +217,7 @@ describe("published core SDK surfaces", () => {
       "SAFE_EXEC_ABI",
       "SAFE_NONCE_GUIDANCE",
       "SAFE_PREFIX",
+      "SAFE_SERVICE_MAX_RETRY_WAIT_MS",
       "SAFE_SERVICE_PREFIX",
       "SAFE_TX_TYPES",
       "canonicalSafeTxHash",

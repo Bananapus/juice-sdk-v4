@@ -18,6 +18,7 @@ import {
 } from "./safe.js";
 import {
   SAFE_EXEC_ABI,
+  SAFE_SERVICE_MAX_RETRY_WAIT_MS,
   SAFE_TX_TYPES,
   canonicalSafeTxHash,
   fetchSafeCreation,
@@ -45,6 +46,7 @@ import {
   submitSafeConfirmation,
   usableSafeConfirmations,
   type SafeQueuedTransaction,
+  type SafeServiceOptions,
 } from "./safeService.js";
 
 const SAFE = "0x2222222222222222222222222222222222222222" as Address;
@@ -1107,6 +1109,172 @@ describe("Safe transaction service", () => {
     await vi.advanceTimersByTimeAsync(2000 + 500 + 1000);
     await expect(pending).resolves.toHaveLength(1);
     expect(fetcher).toHaveBeenCalledTimes(4);
+  });
+
+  it("waits at most 10 seconds before retrying a 429, whatever its Retry-After asks", async () => {
+    expect(SAFE_SERVICE_MAX_RETRY_WAIT_MS).toBe(10_000);
+    vi.useFakeTimers();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response("busy", {
+          status: 429,
+          headers: { "retry-after": "3600" },
+        }),
+      )
+      .mockResolvedValueOnce(json({ next: null, results: [row()] }));
+    const pending = listPendingSafeTransactions(1, SAFE, 8, { fetch: fetcher });
+    await vi.advanceTimersByTimeAsync(SAFE_SERVICE_MAX_RETRY_WAIT_MS - 1);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(pending).resolves.toHaveLength(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not list a page again once its 429 has had its retries", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn(async () => new Response("busy", { status: 429 }));
+    const pending = listPendingSafeTransactions(1, SAFE, 8, {
+      fetch: fetcher,
+    }).catch((error: Error) => error.message);
+    await vi.runAllTimersAsync();
+    expect(await pending).toBe(
+      `Safe's transaction service answered 429 listing the queue of Safe ${SAFE} on chain 1: busy`,
+    );
+    expect(fetcher).toHaveBeenCalledTimes(4);
+  });
+
+  it("hands the first 429 to a caller that must not wait, from every service call", async () => {
+    vi.useFakeTimers();
+    const hash = safeTransactionHash(1, SAFE, transaction);
+    const proposal = safeProposalFor({ to: TARGET, data: "0x12" }, 9);
+    const calls: [
+      (options: SafeServiceOptions) => Promise<unknown>,
+      unknown,
+    ][] = [
+      [
+        (options) => listPendingSafeTransactions(1, SAFE, 8, options),
+        `Safe's transaction service answered 429 listing the queue of Safe ${SAFE} on chain 1: slow down`,
+      ],
+      [
+        (options) =>
+          findPendingSafeTransaction(
+            1,
+            SAFE,
+            8,
+            { to: TARGET, data: "0x12" },
+            options,
+          ),
+        `Safe's transaction service answered 429 listing the queue of Safe ${SAFE} on chain 1: slow down`,
+      ],
+      [
+        (options) => readSafeTransaction(1, SAFE, hash, options),
+        `Safe's transaction service answered 429 for proposal ${hash} on chain 1. Try again when it is available.`,
+      ],
+      [
+        (options) =>
+          proposeSafeTransaction(
+            1,
+            SAFE,
+            proposal,
+            { sender: LOW_OWNER, signature: lowSignature, origin: "app" },
+            options,
+          ),
+        `Safe's transaction service refused the proposal ${safeTransactionHash(1, SAFE, proposal)} for Safe ${SAFE} on chain 1 (429): slow down`,
+      ],
+      [
+        (options) =>
+          submitSafeConfirmation(1, SAFE, transaction, highSignature, options),
+        `Safe's transaction service refused the confirmation of ${hash} on chain 1 (429): slow down`,
+      ],
+      [(options) => fetchSafesOwnedBy(LOW_OWNER, [1], options), []],
+      [(options) => fetchSafeCreation(SAFE, 1, options), null],
+    ];
+    for (const [call, outcome] of calls) {
+      const fetcher = vi.fn(
+        async () =>
+          new Response("slow down", {
+            status: 429,
+            headers: { "retry-after": "1" },
+          }),
+      );
+      const settled = call({ fetch: fetcher, retryRateLimited: false }).catch(
+        (error: Error) => error.message,
+      );
+      await vi.runAllTimersAsync();
+      expect(await settled).toEqual(outcome);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("sends the caller's signal with every request and stops waiting once it aborts", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn(
+      async () =>
+        new Response("busy", { status: 429, headers: { "retry-after": "5" } }),
+    );
+    const controller = new AbortController();
+    const reason = new Error("The page closed.");
+    const pending = listPendingSafeTransactions(1, SAFE, 8, {
+      fetch: fetcher,
+      signal: controller.signal,
+    }).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledWith(expect.any(String), {
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    });
+    controller.abort(reason);
+    expect(await pending).toBe(reason);
+    await vi.runAllTimersAsync();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    // A failed page's wait before its one retry ends too.
+    const failing = vi.fn(async () => new Response("down", { status: 503 }));
+    const between = new AbortController();
+    const listing = listPendingSafeTransactions(1, SAFE, 8, {
+      fetch: failing,
+      signal: between.signal,
+    }).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(100);
+    between.abort(reason);
+    expect(await listing).toBe(reason);
+    expect(failing).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks the service nothing once the caller's signal has aborted", async () => {
+    const signal = AbortSignal.abort();
+    const hash = safeTransactionHash(1, SAFE, transaction);
+    const fetcher = vi.fn(async () => json({ next: null, results: [] }));
+    const options = { fetch: fetcher, signal };
+    for (const call of [
+      listPendingSafeTransactions(1, SAFE, 8, options),
+      findPendingSafeTransaction(
+        1,
+        SAFE,
+        8,
+        { to: TARGET, data: "0x12" },
+        options,
+      ),
+      readSafeTransaction(1, SAFE, hash, options),
+      proposeSafeTransaction(
+        1,
+        SAFE,
+        safeProposalFor({ to: TARGET, data: "0x12" }, 9),
+        { sender: LOW_OWNER, signature: lowSignature, origin: "app" },
+        options,
+      ),
+      submitSafeConfirmation(1, SAFE, transaction, highSignature, options),
+    ]) {
+      await expect(call).rejects.toBe(signal.reason);
+    }
+    // These two read a failed request as nothing found.
+    await expect(fetchSafesOwnedBy(LOW_OWNER, [1], options)).resolves.toEqual(
+      [],
+    );
+    await expect(fetchSafeCreation(SAFE, 1, options)).resolves.toBeNull();
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("uses the global fetch unless given one", async () => {

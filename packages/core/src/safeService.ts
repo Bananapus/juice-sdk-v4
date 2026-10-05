@@ -952,8 +952,25 @@ export function onchainApprovalStep({
 
 // ── Transaction service ──────────────────────────────────────────────────────
 
-/** Calls to Safe's transaction service go through `fetch`, the global one by default. */
-export type SafeServiceOptions = { fetch?: typeof fetch };
+/**
+ * How calls to Safe's transaction service run. They go through `fetch`, the
+ * global one by default. `signal` goes with every request and ends any wait
+ * between attempts; the call then fails with the signal's reason, except where
+ * a failed request reads as nothing found ({@link fetchSafesOwnedBy},
+ * {@link fetchSafeCreation}). A 429 is retried up to three times, after its
+ * Retry-After or 1, 2 and 3 seconds without one, each wait capped at
+ * {@link SAFE_SERVICE_MAX_RETRY_WAIT_MS}. `retryRateLimited: false` hands back
+ * the first 429 instead, for a caller that must not wait, such as a server
+ * render.
+ */
+export type SafeServiceOptions = {
+  fetch?: typeof fetch;
+  signal?: AbortSignal;
+  retryRateLimited?: boolean;
+};
+
+/** The longest a service call waits before retrying a 429: 10 seconds, whatever its Retry-After asks. */
+export const SAFE_SERVICE_MAX_RETRY_WAIT_MS = 10_000;
 
 const PENDING_PAGE_SIZE = 50;
 const MAX_PENDING = 250;
@@ -1000,24 +1017,31 @@ function serviceHeaders(json = false): Record<string, string> {
   return headers;
 }
 
-/** One service request. A 429 is refused before processing, so it waits and repeats, up to three times. */
+/**
+ * One service request, as {@link SafeServiceOptions} describes: a 429 is
+ * refused before processing, so it waits and repeats, up to three times.
+ */
 async function serviceFetch(
   url: string,
   init: RequestInit,
-  options: SafeServiceOptions,
+  { fetch: request = fetch, signal, retryRateLimited }: SafeServiceOptions,
 ): Promise<Response> {
-  const request = options.fetch ?? fetch;
   for (let attempt = 0; ; attempt += 1) {
-    const response = await request(url, init);
-    if (response.status !== 429 || attempt >= 3) return response;
+    signal?.throwIfAborted();
+    const response = await request(url, signal ? { ...init, signal } : init);
+    if (response.status !== 429 || attempt >= 3 || retryRateLimited === false) {
+      return response;
+    }
     const retryAfter = Number(response.headers.get("retry-after"));
-    await new Promise((resolve) =>
-      setTimeout(
-        resolve,
+    await pause(
+      Math.min(
         Number.isFinite(retryAfter) && retryAfter > 0
           ? retryAfter * 1000
           : 1000 * (attempt + 1),
+        SAFE_SERVICE_MAX_RETRY_WAIT_MS,
       ),
+      signal,
+      () => signal!.reason,
     );
   }
 }
@@ -1095,9 +1119,10 @@ export async function listPendingSafeTransactions(
       { headers: serviceHeaders() },
       options,
     );
-    if (!response.ok) {
-      // A failed page is retried once before the listing gives up.
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    if (!response.ok && response.status !== 429) {
+      // A failed page is retried once before the listing gives up. A 429 has
+      // already had the retries serviceFetch allows.
+      await pause(500, options.signal, () => options.signal!.reason);
       response = await serviceFetch(
         url,
         { headers: serviceHeaders() },

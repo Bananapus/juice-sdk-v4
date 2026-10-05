@@ -393,7 +393,11 @@ It also has `SAFE_TX_TYPES`, `safeTransactionMessage`, `safeTransactionHash`,
 `onchainApprovalStep`, `findPendingSafeTransaction`, `readSafeTransaction`,
 `proposeSafeTransaction`, `submitSafeConfirmation`, `fetchSafesOwnedBy`,
 `fetchSafeCreation` and `safeTransactionUrl`. Service calls accept a `fetch`
-of the app's own and send the optional `jb-safe-api-key` from local storage.
+of the app's own and a `signal`, and send the optional `jb-safe-api-key` from
+local storage. A 429 is retried up to three times, each wait capped at 10
+seconds (`SAFE_SERVICE_MAX_RETRY_WAIT_MS`) and ended by the `signal`.
+`retryRateLimited: false` hands back the first 429 instead, for a server render
+that must not wait.
 
 `@bananapus/nana-sdk-core/v6` proves a distribution from its receipt:
 `verifyPayoutReceipt` and `verifyReservedDistributionReceipt` require every
