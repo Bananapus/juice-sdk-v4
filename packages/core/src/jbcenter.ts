@@ -991,6 +991,8 @@ export class JBCenterClient {
       () => controller.abort(timeoutReason),
       timeoutMs,
     );
+    // A failure is thrown once the timer and listener are cleaned up.
+    let failure: unknown;
     try {
       if (options.signal?.aborted) abort();
       const headers = new Headers(init.headers);
@@ -1038,12 +1040,13 @@ export class JBCenterClient {
       }
       return body;
     } catch (error) {
-      if (controller.signal.reason === timeoutReason) throw timeoutReason;
-      throw error;
+      failure =
+        controller.signal.reason === timeoutReason ? timeoutReason : error;
     } finally {
       clearTimeout(timeout);
       options.signal?.removeEventListener("abort", abort);
     }
+    throw failure;
   }
 }
 
