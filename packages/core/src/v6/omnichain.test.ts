@@ -85,6 +85,25 @@ function launchArgs() {
 }
 
 describe("buildOmnichainLaunchProjectTx", () => {
+  test("omitted shop configuration retains the original six-argument launch", () => {
+    const args = launchArgs();
+    const request = buildOmnichainLaunchProjectTx(args);
+    expect(request.args).toHaveLength(6);
+    expect(request.args.slice(0, 5)).toEqual([
+      args.owner,
+      args.projectUri,
+      args.rulesetConfigurations,
+      args.terminalConfigurations,
+      "",
+    ]);
+    expect(encodeFunctionData(request)).toBe(
+      encodeFunctionData({
+        abi: jbOmnichainDeployerAbi,
+        functionName: "launchProjectFor",
+        args: request.args,
+      }),
+    );
+  });
   test("encodes the 6-arg overload with sucker configs for every other chain", () => {
     const request = buildOmnichainLaunchProjectTx(launchArgs());
 

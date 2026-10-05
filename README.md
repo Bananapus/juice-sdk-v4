@@ -773,3 +773,120 @@ Modules:
 - `loans` — REVLoans borrow/repay/reallocate + borrowable reads
 - `currency` — currency id helpers
 - `fees` — protocol fee constants and math
+
+### Check a v6 deployment
+
+`getProjectDeploymentDiagnostics` reads current contract wiring without a wallet or
+indexer. It verifies the RPC network, pins all reads to one block, and returns a
+JSON-safe report. Each check separates confirmed mismatches from unavailable
+reads, unsupported custom contracts, and informational settings. A custom owner,
+controller, hook, pricing precision, or restricted operator is not automatically
+an invalid deployment. These checks establish the stated bindings and capabilities;
+they are not an audit of custom contract behavior.
+
+```ts
+import { createPublicClient, http } from "viem";
+import { baseSepolia } from "@bananapus/nana-sdk-core/chains";
+import {
+  getProjectDeploymentDiagnostics,
+  describeProjectDataStatus,
+} from "@bananapus/nana-sdk-core/v6";
+
+const client = createPublicClient({ chain: baseSepolia, transport: http() });
+const report = await getProjectDeploymentDiagnostics(client, {
+  chainId: baseSepolia.id,
+  projectId: 45n,
+  // Optional: operator, expectedPricing: { currency: 2, decimals: 6 }
+});
+console.log(JSON.stringify(report, null, 2));
+console.log(describeProjectDataStatus("not-checked"));
+```
+
+Indexer evidence is independent. A failed request does not prove indexing delay;
+an empty successful query does not explain why a record is missing. The SDK never
+includes raw provider errors or endpoint credentials in reports. The report records
+the chain, project, timestamp, checked block and optional operator, so copied checks
+remain attributable. To inspect a project URL or a deployment transaction from this
+checkout, build core once, then use the read-only example:
+
+```sh
+npm run build:esm --workspace @bananapus/nana-sdk-core
+node --import tsx examples/check-deployment.mts https://revnet.money/basesep:45
+node --import tsx examples/check-deployment.mts v6:basesep:45
+node --import tsx examples/check-deployment.mts 0xYOUR_TRANSACTION_HASH basesep
+```
+
+The transaction mode accepts a successful receipt identifying exactly one v6
+project, through the canonical project registry or Revnet deployer. Otherwise,
+supply the project explicitly. `RPC_URL` can override the public chain endpoint; `OPERATOR_ADDRESS` enables
+current shop permission checks.
+A mismatched network is rejected before interpreting project IDs. Current versionless Revnet and Juicebox URLs identify v6; explicit older versions
+are rejected instead of being queried through v6 contracts.
+
+### Prepare shop settings
+
+Canonical v6 Revnet and omnichain launch overloads create an empty 721 shop even
+when no shop configuration is supplied. That omission does **not** mean “no hook.”
+Omitting configuration continues to use the original contract defaults: an empty
+shop with 18-decimal pricing and, for Revnets, all four shop permissions granted
+to the operator. These are valid settings; no extra acknowledgement is required.
+
+To choose different settings, supply `tiered721Config` to the Revnet builder or
+`deploy721Config` to the omnichain launch builder. Revnet callers can also use
+`default721Config` to prepare an empty shop with conventional pricing precision
+and explicit operator powers. Existing callers can continue unchanged.
+
+`buildRevnet721Config` owns permission inversion and full shop configuration.
+`resolve721PricingContext` conventionally chooses USD=6, ETH/native=18, or the
+matching token accounting context's precision. Unknown or ambiguous currencies
+require explicit `decimals`. Any explicit integer precision from 0 through 18 is
+preserved, including USD=18. Existing tier integer prices must be encoded using
+that precision; precision alone cannot prove a deployed price is wrong.
+
+```ts
+const request = buildDeployRevnetTx({
+  chainId,
+  config,
+  accountingContexts,
+  suckerConfig,
+  creationFee: await getProjectCreationFee(client, chainId),
+  default721Config: {
+    operatorPermissions: {
+      canAdjustTiers: true,
+      canUpdateMetadata: true,
+      canMint: false,
+      canIncreaseDiscountPercent: false,
+    },
+  },
+});
+```
+
+For a new project, read and send the **exact current creation fee on that chain**.
+For an existing project converted to a Revnet, the builder sends zero value.
+Explicit configs retain their provided values. Both builders select only the
+intended overloaded function in the request ABI, making empty-array encoding and
+simulation consistent. `selectDeploymentAbi` provides the same selection for
+callers assembling custom deployment requests. Omnichain ruleset queue semantics
+are unchanged.
+
+A complete example prepares an empty USD shop and optionally simulates it:
+
+```sh
+node --import tsx examples/prepare-revnet.mts 0xYOUR_SENDER_ADDRESS
+node --import tsx examples/prepare-revnet.mts 0xYOUR_SENDER_ADDRESS --simulate
+```
+
+This example only reads chain state, prints calldata, and optionally performs
+`eth_call`. It never reads a private key or sends a transaction. Persist its shared
+salt and absolute stage start before adapting it for deployment on multiple chains.
+
+For app integration before an npm release, `scripts/pack-deployment-preview.mjs`
+rebuilds core and creates a content-addressed preview package with source hashes:
+
+```sh
+node scripts/pack-deployment-preview.mjs . /tmp/juice-sdk-preview
+```
+
+The source package version remains unchanged; the generated archive carries its
+preview version and `snapshot-provenance.json`. Keep the same archive and lockfile
+in each consuming app until migrating to the released package.

@@ -22,3 +22,6 @@ export * from "./permissions.js";
 export * from "./suckers.js";
 export * from "./loans.js";
 export * from "./sticky.js";
+export * from "./revnet721.js";
+export * from "./deploymentDiagnostics.js";
+export * from "./deploymentAbi.js";

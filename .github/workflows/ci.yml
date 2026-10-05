@@ -69,6 +69,8 @@ jobs:
         run: npm run test:coverage
       - name: Build ESM, CJS, and React package artifacts
         run: npm run build
+      - name: Verify read-only deployment examples
+        run: npm run examples:check
       - name: Enforce published package budgets
         run: npm run check:package
       - name: Verify generated contract bindings are committed

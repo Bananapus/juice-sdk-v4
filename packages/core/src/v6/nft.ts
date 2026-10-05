@@ -438,6 +438,97 @@ export async function get721MetadataIdTarget(
     });
 }
 
+/** Resolve the shop hook/store without requiring pricing or tier reads.
+ * Missing custom hook capabilities return null; transport failures propagate.
+ * `includeInactiveHook` also inspects a configured but disabled pay hook.
+ */
+export async function resolveProject721Hook(
+  client: PublicClient,
+  {
+    chainId,
+    projectId,
+    isRevnet,
+    ruleset: suppliedRuleset,
+    includeInactiveHook = false,
+  }: {
+    chainId: JBChainId;
+    projectId: bigint;
+    isRevnet: boolean;
+    ruleset?: JBRulesetWithMetadata;
+    includeInactiveHook?: boolean;
+  },
+): Promise<{
+  hook: Address;
+  store: Address;
+  ruleset: JBRulesetWithMetadata | null;
+} | null> {
+  // 1. Resolve the 721 hook.
+  let hook: Address | null = null;
+  // A non-authoritative candidate is the ruleset data hook, which might be some
+  // other kind of hook; the STORE() probe below decides.
+  let authoritative = true;
+  let currentRuleset: JBRulesetWithMetadata | null = null;
+
+  if (isRevnet) {
+    const revnetHook = await getRevnetTiered721Hook(client, {
+      chainId,
+      revnetId: projectId,
+    });
+    hook = revnetHook !== zeroAddress ? revnetHook : null;
+  } else {
+    currentRuleset =
+      suppliedRuleset ??
+      (await getCurrentRuleset(client, { chainId, projectId }));
+    const { ruleset, metadata } = currentRuleset;
+    const dataHook = metadata.dataHook as Address;
+    if (
+      (metadata.useDataHookForPay || includeInactiveHook) &&
+      dataHook &&
+      dataHook !== zeroAddress
+    ) {
+      const omni = jbContractAddress["6"][
+        JBOmnichainDeployerContracts.JBOmnichainDeployer
+      ]?.[chainId] as Address | undefined;
+      if (omni && dataHook.toLowerCase() === omni.toLowerCase()) {
+        // Omnichain project: the real 721 hook lives in the deployer's
+        // per-ruleset mapping.
+        const [omniHook] = await client.readContract({
+          address: omni,
+          abi: jbOmnichainDeployerAbi,
+          functionName: "tiered721HookOf",
+          args: [projectId, BigInt(ruleset.id)],
+        });
+        hook = omniHook !== zeroAddress ? omniHook : null;
+      } else {
+        // Single-chain custom project: the data hook may be the 721 hook itself.
+        hook = dataHook;
+        authoritative = false;
+      }
+    }
+  }
+  if (!hook) return null;
+
+  // 2. The hook's store. For a non-authoritative candidate a PROVEN revert (or
+  // empty return) means "not a 721 hook" — no shop. Transport failures prove
+  // nothing and are rethrown; swallowing them would render "no shop" for a
+  // project that has one. For an authoritative hook, let every failure throw.
+  const readStore = () =>
+    client.readContract({
+      address: hook!,
+      abi: jb721TiersHookAbi,
+      functionName: "STORE",
+    });
+  const store = authoritative
+    ? await readStore()
+    : await readStore().catch((error: unknown) => {
+        if (isMissingContractFunctionError(error)) return null;
+        throw error;
+      });
+  if (!store) return null;
+
+  return { hook, store, ruleset: currentRuleset };
+}
+
 /**
  * Resolve a project's 721 tiers hook, its store, metadata id target, pricing
  * context, and tiers in one call.
@@ -483,63 +574,13 @@ export async function getProject721Shop(
     includeResolvedUri?: boolean;
   },
 ): Promise<Project721Shop | null> {
-  // 1. Resolve the 721 hook.
-  let hook: Address | null = null;
-  // A non-authoritative candidate is the ruleset data hook, which might be some
-  // other kind of hook; the STORE() probe below decides.
-  let authoritative = true;
-  let currentRuleset: JBRulesetWithMetadata | null = null;
-
-  if (isRevnet) {
-    const revnetHook = await getRevnetTiered721Hook(client, {
-      chainId,
-      revnetId: projectId,
-    });
-    hook = revnetHook !== zeroAddress ? revnetHook : null;
-  } else {
-    currentRuleset = await getCurrentRuleset(client, { chainId, projectId });
-    const { ruleset, metadata } = currentRuleset;
-    const dataHook = metadata.dataHook as Address;
-    if (metadata.useDataHookForPay && dataHook && dataHook !== zeroAddress) {
-      const omni = jbContractAddress["6"][
-        JBOmnichainDeployerContracts.JBOmnichainDeployer
-      ]?.[chainId] as Address | undefined;
-      if (omni && dataHook.toLowerCase() === omni.toLowerCase()) {
-        // Omnichain project: the real 721 hook lives in the deployer's
-        // per-ruleset mapping.
-        const [omniHook] = await client.readContract({
-          address: omni,
-          abi: jbOmnichainDeployerAbi,
-          functionName: "tiered721HookOf",
-          args: [projectId, BigInt(ruleset.id)],
-        });
-        hook = omniHook !== zeroAddress ? omniHook : null;
-      } else {
-        // Single-chain custom project: the data hook may be the 721 hook itself.
-        hook = dataHook;
-        authoritative = false;
-      }
-    }
-  }
-  if (!hook) return null;
-
-  // 2. The hook's store. For a non-authoritative candidate a PROVEN revert (or
-  // empty return) means "not a 721 hook" — no shop. Transport failures prove
-  // nothing and are rethrown; swallowing them would render "no shop" for a
-  // project that has one. For an authoritative hook, let every failure throw.
-  const readStore = () =>
-    client.readContract({
-      address: hook!,
-      abi: jb721TiersHookAbi,
-      functionName: "STORE",
-    });
-  const store = authoritative
-    ? await readStore()
-    : await readStore().catch((error: unknown) => {
-        if (isMissingContractFunctionError(error)) return null;
-        throw error;
-      });
-  if (!store) return null;
+  const resolved = await resolveProject721Hook(client, {
+    chainId,
+    projectId,
+    isRevnet,
+  });
+  if (!resolved) return null;
+  const { hook, store, ruleset: currentRuleset } = resolved;
 
   // 3. Metadata id target + pricing context. Pricing is meaningless without the
   // hook's exact currency + decimals, so a failure here is an error, not a

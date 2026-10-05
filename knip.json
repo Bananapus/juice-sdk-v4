@@ -1,18 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignoreDependencies": [
-    "vitest"
-  ],
+  "ignoreDependencies": ["vitest"],
   "workspaces": {
     "packages/core": {
-      "entry": [
-        "wagmi.config.ts",
-        "src/**/*.test.{ts,tsx}"
-      ],
-      "project": [
-        "src/**/*.{ts,tsx}",
-        "scripts/**/*.ts"
-      ],
+      "entry": ["wagmi.config.ts", "src/**/*.test.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
       "ignoreDependencies": [
         "@bananapus/721-hook",
         "@bananapus/721-hook-v5",
@@ -42,20 +34,21 @@
       ]
     },
     "packages/react": {
-      "entry": [
-        "src/**/*.test.{ts,tsx}"
-      ],
-      "project": [
-        "src/**/*.{ts,tsx}"
-      ]
+      "entry": ["src/**/*.test.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}"]
     },
     "packages/connect": {
+      "entry": ["src/**/*.test.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    ".": {
       "entry": [
-        "src/**/*.test.{ts,tsx}"
+        "examples/*.mts",
+        "examples/*.test.mjs",
+        "examples/test/*.mjs",
+        "scripts/pack-deployment-preview.mjs"
       ],
-      "project": [
-        "src/**/*.{ts,tsx}"
-      ]
+      "ignoreDependencies": ["viem"]
     }
   }
 }

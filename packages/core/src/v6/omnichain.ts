@@ -8,6 +8,8 @@ import {
 } from "../utils/deploy.js";
 import { JBTerminalConfig } from "./launch.js";
 import { JBRulesetConfig } from "./rulesets.js";
+import { selectDeploymentAbi } from "./deploymentAbi.js";
+import { resolve721PricingContext } from "./revnet721.js";
 import { v6Address } from "./types.js";
 
 type OmnichainLaunchArgs = ContractFunctionArgs<
@@ -68,8 +70,9 @@ export type JBSuckerDeploymentConfig = OmnichainLaunchArgs6[5];
  * bridges: Ethereum<->L2 pairs and the native token only), or "both" (a
  * native AND a CCIP sucker per pair where both exist, for redundancy).
  * @param args.salt The shared salt (use the same value on every chain).
- * @param args.deploy721Config Optional tiered 721 hook to deploy with the
- * project (uses the 7-arg overload when given).
+ * @param args.deploy721Config Explicit shop configuration (7-arg overload).
+ * Both launch overloads create a shop; omitting this config preserves the
+ * contract's empty shop with 18-decimal pricing.
  * @param args.creationFee The exact fee from `JBProjects.creationFee()` on
  * this chain.
  */
@@ -87,6 +90,10 @@ export function buildOmnichainLaunchProjectTx(args: {
   bridge?: JBSuckerBridge;
   deploy721Config?: JBDeploy721TiersHookConfig;
 }) {
+  if (args.deploy721Config)
+    resolve721PricingContext(
+      args.deploy721Config.deployTiersHookConfig.tiersConfig,
+    );
   // parseSuckerDeployerConfig's return type is a v5/v6 union that TS cannot
   // narrow on the `version` option; passing `version: 6` guarantees the v6
   // shape at runtime.
@@ -104,7 +111,7 @@ export function buildOmnichainLaunchProjectTx(args: {
     return {
       chainId: args.chainId,
       address,
-      abi: jbOmnichainDeployerAbi,
+      abi: selectDeploymentAbi(jbOmnichainDeployerAbi, "launchProjectFor", 7),
       functionName: "launchProjectFor" as const,
       args: [
         args.owner,
@@ -121,7 +128,7 @@ export function buildOmnichainLaunchProjectTx(args: {
   return {
     chainId: args.chainId,
     address,
-    abi: jbOmnichainDeployerAbi,
+    abi: selectDeploymentAbi(jbOmnichainDeployerAbi, "launchProjectFor", 6),
     functionName: "launchProjectFor" as const,
     args: [
       args.owner,
