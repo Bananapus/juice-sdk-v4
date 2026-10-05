@@ -43,9 +43,11 @@ const budgets = {
     // signature encoding and the refund and row checks add about 48 kilobytes
     // unpacked and 14 kilobytes packed (measured 1,153,389 B packed,
     // 20,123,016 B unpacked, 698 files).
-    packed: 1_157_000,
-    unpacked: 20_128_000,
-    entries: 698,
+    // Deployment diagnostics, shop preparation and overload selection add
+    // three source modules and 24 ESM/CJS artifacts.
+    packed: 1_174_000,
+    unpacked: 20_256_000,
+    entries: 722,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
@@ -78,7 +80,14 @@ for (const [workspace, budget] of Object.entries(budgets)) {
 
   const result = spawnSync(
     "npm",
-    ["pack", "--dry-run", "--json", "--ignore-scripts", "--workspace", workspace],
+    [
+      "pack",
+      "--dry-run",
+      "--json",
+      "--ignore-scripts",
+      "--workspace",
+      workspace,
+    ],
     {
       cwd: process.cwd(),
       encoding: "utf8",
@@ -90,24 +99,35 @@ for (const [workspace, budget] of Object.entries(budgets)) {
     },
   );
   if (result.status !== 0) {
-    throw new Error(result.stderr || result.stdout || `npm pack failed for ${workspace}`);
+    throw new Error(
+      result.stderr || result.stdout || `npm pack failed for ${workspace}`,
+    );
   }
 
-  const [packed] = JSON.parse(result.stdout);
+  const packs = JSON.parse(result.stdout);
+  const packed = Array.isArray(packs) ? packs[0] : packs[workspace];
+  if (!packed?.files)
+    throw new Error(`npm pack returned no metadata for ${workspace}`);
   const forbidden = packed.files
     .map(({ path }) => path)
     .filter((path) => /\.(?:test|spec)\.|tsbuildinfo$/.test(path));
   if (forbidden.length) {
-    failures.push(`${workspace} publishes test/cache artifacts: ${forbidden.join(", ")}`);
+    failures.push(
+      `${workspace} publishes test/cache artifacts: ${forbidden.join(", ")}`,
+    );
   }
   if (packed.size > budget.packed) {
     failures.push(`${workspace} packed ${packed.size} B > ${budget.packed} B`);
   }
   if (packed.unpackedSize > budget.unpacked) {
-    failures.push(`${workspace} unpacked ${packed.unpackedSize} B > ${budget.unpacked} B`);
+    failures.push(
+      `${workspace} unpacked ${packed.unpackedSize} B > ${budget.unpacked} B`,
+    );
   }
   if (packed.entryCount > budget.entries) {
-    failures.push(`${workspace} files ${packed.entryCount} > ${budget.entries}`);
+    failures.push(
+      `${workspace} files ${packed.entryCount} > ${budget.entries}`,
+    );
   }
 
   console.log(

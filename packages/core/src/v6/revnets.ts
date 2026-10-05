@@ -1,7 +1,13 @@
 import { Address, ContractFunctionArgs, PublicClient } from "viem";
 import { revDeployerAbi, revOwnerAbi } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
+import {
+  buildRevnet721Config,
+  resolve721PricingContext,
+  type Revnet721OperatorPermissions,
+} from "./revnet721.js";
 import { JBAccountingContext } from "./terminals.js";
+import { selectDeploymentAbi } from "./deploymentAbi.js";
 import { v6Address } from "./types.js";
 
 type RevDeployArgs = ContractFunctionArgs<
@@ -132,7 +138,9 @@ export function buildRevnetStageConfig(args: {
 
 /**
  * Build a `REVDeployer.deployFor` transaction request deploying a new revnet
- * (or a 721-shop revnet when `tiered721Config` is given).
+ * Every canonical v6 revnet has a 721 shop, including the four-argument overload.
+ * Omit shop configuration to retain the contract defaults, or use
+ * `tiered721Config` / `default721Config` to choose pricing and operator powers.
  *
  * Deploying a NEW revnet (`revnetId` 0n) is payable and must send EXACTLY the
  * current project creation fee — read it with `getProjectCreationFee` on the
@@ -163,6 +171,11 @@ export function buildDeployRevnetTx(args: {
   creationFee?: bigint;
   revnetId?: bigint;
   tiered721Config?: REVDeploy721TiersHookConfig;
+  /** Build an empty shop with an explicit operator policy and conventional units. */
+  default721Config?: {
+    operatorPermissions: Revnet721OperatorPermissions;
+    pricingDecimals?: number;
+  };
   allowedPosts?: readonly REVCroptopAllowedPost[];
 }) {
   const address = v6Address("REVDeployer", args.chainId);
@@ -196,18 +209,52 @@ export function buildDeployRevnetTx(args: {
   }
   const value = revnetId === 0n ? (args.creationFee as bigint) : 0n;
 
-  if (args.tiered721Config) {
+  if (args.tiered721Config && args.default721Config) {
+    throw new Error(
+      "Choose either tiered721Config or default721Config, not both.",
+    );
+  }
+  if (
+    !args.tiered721Config &&
+    !args.default721Config &&
+    args.allowedPosts?.length
+  ) {
+    throw new Error(
+      "allowedPosts requires an explicit tiered721Config or default721Config.",
+    );
+  }
+  const tiered721Config =
+    args.tiered721Config ??
+    (args.default721Config
+      ? buildRevnet721Config({
+          name: `${args.config.description.name} Store`,
+          symbol: `${args.config.description.ticker}STORE`,
+          contractUri: args.config.description.uri,
+          salt: args.config.description.salt,
+          pricing: resolve721PricingContext({
+            currency: args.config.baseCurrency,
+            accountingContexts: args.accountingContexts,
+            decimals: args.default721Config.pricingDecimals,
+          }),
+          operatorPermissions: args.default721Config.operatorPermissions,
+        })
+      : undefined);
+  if (tiered721Config) {
+    // Validate supported units without changing deliberately supplied configuration.
+    resolve721PricingContext(
+      tiered721Config.baseline721HookConfiguration.tiersConfig,
+    );
     return {
       chainId: args.chainId,
       address,
-      abi: revDeployerAbi,
+      abi: selectDeploymentAbi(revDeployerAbi, "deployFor", 6),
       functionName: "deployFor" as const,
       args: [
         revnetId,
         args.config,
         args.accountingContexts,
         args.suckerConfig,
-        args.tiered721Config,
+        tiered721Config,
         args.allowedPosts ?? [],
       ] as const,
       value,
@@ -216,7 +263,7 @@ export function buildDeployRevnetTx(args: {
   return {
     chainId: args.chainId,
     address,
-    abi: revDeployerAbi,
+    abi: selectDeploymentAbi(revDeployerAbi, "deployFor", 4),
     functionName: "deployFor" as const,
     args: [
       revnetId,
@@ -304,8 +351,8 @@ export async function isRevnetOperator(
 }
 
 /**
- * Read the tiered 721 hook deployed for the revnet (zero address if the
- * revnet was deployed without one).
+ * Read the tiered 721 hook registered for a revnet. Canonical v6 deployment
+ * creates one even for an empty shop; zero means no hook is registered.
  */
 export async function getRevnetTiered721Hook(
   client: PublicClient,

@@ -15,13 +15,14 @@
     "deps:check": "npm ls --all --omit=dev",
     "format:ratchet": "node scripts/check-format-ratchet.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
-    "check": "npm run deps:check && npm run dead-code:check && npm run protocol:check && npm run wallet:check && npm run format:ratchet && npm run check:gql && npm run type-check && npm run test:coverage && npm run build && npm run check:package && npm run check:generated",
+    "check": "npm run deps:check && npm run dead-code:check && npm run protocol:check && npm run wallet:check && npm run format:ratchet && npm run check:gql && npm run type-check && npm run test:coverage && npm run build && npm run examples:check && npm run check:package && npm run check:generated",
     "dev": "turbo dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,md}\"",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "changeset publish"
+    "release": "changeset publish",
+    "examples:check": "tsc -p examples/tsconfig.json && node --test examples/cli.test.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",

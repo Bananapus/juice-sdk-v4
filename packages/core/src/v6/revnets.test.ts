@@ -228,6 +228,125 @@ describe("buildDeployRevnetTx", () => {
     expect(() => encodeFunctionData(request)).not.toThrow();
   });
 
+  test("omitted shop configuration preserves the original contract defaults", () => {
+    const config = { ...revnetConfig(), baseCurrency: 2 };
+    const accountingContexts = [buildAccountingContext()];
+    const request = buildDeployRevnetTx({
+      chainId: sepolia.id,
+      config,
+      accountingContexts,
+      suckerConfig: SUCKER_CONFIG,
+      creationFee: 0n,
+    });
+    expect(request.args).toEqual([
+      0n,
+      config,
+      accountingContexts,
+      SUCKER_CONFIG,
+    ]);
+    expect(request.value).toBe(0n);
+    const originalData = encodeFunctionData({
+      abi: revDeployerAbi,
+      functionName: "deployFor",
+      args: [0n, config, accountingContexts, SUCKER_CONFIG],
+    });
+    expect(encodeFunctionData(request)).toBe(originalData);
+  });
+
+  test("builds conventional USD pricing with deliberately restricted permissions", () => {
+    const request = buildDeployRevnetTx({
+      chainId: sepolia.id,
+      config: { ...revnetConfig(), baseCurrency: 2 },
+      accountingContexts: [buildAccountingContext()],
+      suckerConfig: SUCKER_CONFIG,
+      creationFee: 0n,
+      default721Config: {
+        operatorPermissions: {
+          canAdjustTiers: true,
+          canUpdateMetadata: true,
+          canMint: false,
+          canIncreaseDiscountPercent: false,
+        },
+      },
+    });
+    expect(request.args).toHaveLength(6);
+    expect(request.args[4]).toMatchObject({
+      baseline721HookConfiguration: {
+        tiersConfig: { currency: 2, decimals: 6 },
+      },
+      preventOperatorMinting: true,
+      preventOperatorIncreasingDiscountPercent: true,
+    });
+    expect(
+      request.abi.filter(
+        (item) => item.type === "function" && item.name === "deployFor",
+      ),
+    ).toHaveLength(1);
+    expect(() => encodeFunctionData(request)).not.toThrow();
+  });
+
+  test("does not silently discard allowed posts with contract defaults", () => {
+    expect(() =>
+      buildDeployRevnetTx({
+        chainId: sepolia.id,
+        config: revnetConfig(),
+        accountingContexts: [],
+        suckerConfig: SUCKER_CONFIG,
+        creationFee: 0n,
+        allowedPosts: [{} as never],
+      }),
+    ).toThrow(/allowedPosts requires/);
+  });
+  test("rejects conflicting shop policies and unknown default precision", () => {
+    const args = {
+      chainId: sepolia.id,
+      config: revnetConfig(),
+      accountingContexts: [],
+      suckerConfig: SUCKER_CONFIG,
+      creationFee: 0n,
+    };
+    expect(() =>
+      buildDeployRevnetTx({
+        ...args,
+        tiered721Config: TIERED_721_CONFIG,
+        default721Config: {
+          operatorPermissions: {
+            canAdjustTiers: true,
+            canUpdateMetadata: true,
+            canMint: false,
+            canIncreaseDiscountPercent: false,
+          },
+        },
+      }),
+    ).toThrow(/Choose either/);
+    expect(() =>
+      buildDeployRevnetTx({
+        ...args,
+        config: { ...args.config, baseCurrency: 123 },
+        default721Config: {
+          operatorPermissions: {
+            canAdjustTiers: true,
+            canUpdateMetadata: true,
+            canMint: false,
+            canIncreaseDiscountPercent: false,
+          },
+        },
+      }),
+    ).toThrow(/explicit pricing decimals/);
+  });
+  test("requires a new project's exact fee and attaches zero for existing projects", () => {
+    const args = {
+      chainId: sepolia.id,
+      config: revnetConfig(),
+      accountingContexts: [],
+      suckerConfig: SUCKER_CONFIG,
+      tiered721Config: TIERED_721_CONFIG,
+    };
+    expect(() => buildDeployRevnetTx(args)).toThrow(/creationFee is required/);
+    expect(
+      buildDeployRevnetTx({ ...args, revnetId: 45n, creationFee: 123n }).value,
+    ).toBe(0n);
+  });
   const CROSS_CHAIN_SUCKER_CONFIG: REVSuckerDeploymentConfig = {
     deployerConfigurations: [
       {
