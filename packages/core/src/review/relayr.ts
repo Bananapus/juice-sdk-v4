@@ -1199,11 +1199,25 @@ export async function requireRelayrPaymentRetry(
       "paid",
     );
   }
-  const { payment_received, transactions } = await readBundle(
-    fetchBundle,
-    reviewed.bundleUuid,
-    () => new RelayrPaymentRetryError(UNKNOWN_PAYMENT, "unknown"),
+  requireRelayrBundleUnpaid(
+    await readBundle(
+      fetchBundle,
+      reviewed.bundleUuid,
+      () => new RelayrPaymentRetryError(UNKNOWN_PAYMENT, "unknown"),
+    ),
   );
+}
+
+/**
+ * Throws a {@link RelayrPaymentRetryError} unless `bundle` reports no payment
+ * received and at least one call, every one still pending with no destination
+ * hash. Relayr runs only paid bundles.
+ */
+function requireRelayrBundleUnpaid(bundle: {
+  payment_received?: unknown;
+  transactions?: unknown;
+}): void {
+  const { payment_received, transactions } = bundle;
   if (payment_received === true) {
     throw new RelayrPaymentRetryError(
       "Relayr already reports a payment for this bundle. Do not pay again.",
