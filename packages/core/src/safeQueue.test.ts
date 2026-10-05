@@ -1126,6 +1126,11 @@ describe("Safe transaction service", () => {
     ["an RFC 850 date", "Monday, 05-Oct-26 12:00:05 GMT", 5_000],
     ["an asctime date, read as GMT", "Mon Oct  5 12:00:05 2026", 5_000],
     ["a date that has passed", "Mon, 05 Oct 2026 11:59:00 GMT", 0],
+    [
+      "an RFC 850 year more than 50 years out, read as the last one past",
+      "Monday, 05-Oct-77 12:00:00 GMT",
+      0,
+    ],
   ])(
     "waits out a 429's Retry-After of 10 seconds or less (%s), then retries",
     async (_, retryAfter, wait) => {
@@ -1154,6 +1159,8 @@ describe("Safe transaction service", () => {
     ["an hour of delay-seconds", "3600"],
     ["a date 11 seconds out", "Mon, 05 Oct 2026 12:00:11 GMT"],
     ["a date an hour out", "Mon, 05 Oct 2026 13:00:00 GMT"],
+    ["an RFC 850 year 50 years out", "Monday, 05-Oct-76 12:00:00 GMT"],
+    ["an RFC 850 year 24 years out", "Monday, 05-Oct-50 12:00:00 GMT"],
     ["words", "soon"],
     ["a fraction", "1.5"],
     ["an exponent", "1e3"],

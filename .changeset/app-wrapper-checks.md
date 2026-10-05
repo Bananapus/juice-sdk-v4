@@ -23,8 +23,9 @@ itself, so the apps can drop their wrappers.
   found, as they read any failed request.
 - A 429 is waited out and retried only when its Retry-After asks for 10 seconds
   or less (`SAFE_SERVICE_MAX_RETRY_WAIT_MS`): delay-seconds of 0 or more, or an
-  HTTP-date in any of RFC 9110's three forms, read as the time left until it.
-  Without a Retry-After it waits 1, 2 and 3 seconds. A 429 that asks for longer,
+  HTTP-date in any of RFC 9110's three forms, read as the time left until it (a
+  two-digit RFC 850 year more than 50 years ahead is the last such year past, as
+  RFC 9110 reads it). Without a Retry-After it waits 1, 2 and 3 seconds. A 429 that asks for longer,
   or whose Retry-After cannot be read (words, a negative or fractional delay, a
   date that does not exist), is handed back at once, since retrying before the
   service allows works against its rate limit. It used to wait the whole
