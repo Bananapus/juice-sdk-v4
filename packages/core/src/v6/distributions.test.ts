@@ -524,12 +524,12 @@ describe("reserved token receipts", () => {
   ];
 
   it("accepts every split's exact share, the reviewed total and the leftover", () => {
-    expect(() =>
+    expect(
       verifyReservedDistributionReceipt(
         { status: "success", logs: valid() },
         expected,
       ),
-    ).not.toThrow();
+    ).toEqual({ tokenCount: 100n });
     // Burns of other holders or projects are not the controller's.
     expect(() =>
       verifyReservedDistributionReceipt(
@@ -537,6 +537,106 @@ describe("reserved token receipts", () => {
         expected,
       ),
     ).not.toThrow();
+  });
+
+  it("accepts more tokens than were reviewed, holding every share, the leftover and the burns to the distributed count", () => {
+    // Payments after the review raised the pending reserves from 100 to 200.
+    expect(
+      verifyReservedDistributionReceipt(
+        {
+          status: "success",
+          logs: [
+            sent(splits[0], 100n),
+            sent(splits[1], 20n),
+            burn(20n),
+            sent(splits[2], 60n),
+            total({ tokenCount: 200n, leftoverAmount: 20n }),
+          ],
+        },
+        expected,
+      ),
+    ).toEqual({ tokenCount: 200n });
+    // Each share of 101 rounds down to the reviewed shares; the owner keeps 11.
+    expect(
+      verifyReservedDistributionReceipt(
+        {
+          logs: [
+            ...valid().slice(0, 4),
+            total({ tokenCount: 101n, leftoverAmount: 11n }),
+          ],
+        },
+        expected,
+      ),
+    ).toEqual({ tokenCount: 101n });
+  });
+
+  it("refuses shares, a leftover or burns of the reviewed count when more was distributed", () => {
+    // Every split event as the review planned it, but 200 tokens distributed.
+    expect(() =>
+      verifyReservedDistributionReceipt(
+        { logs: [...valid().slice(0, 4), total({ tokenCount: 200n })] },
+        expected,
+      ),
+    ).toThrow(`split 1 (${recipient}) was sent 50 tokens, not 100`);
+    const shares = [
+      sent(splits[0], 100n),
+      sent(splits[1], 20n),
+      sent(splits[2], 60n),
+    ];
+    expect(() =>
+      verifyReservedDistributionReceipt(
+        {
+          logs: [
+            ...shares,
+            burn(20n),
+            total({ tokenCount: 200n, leftoverAmount: 10n }),
+          ],
+        },
+        expected,
+      ),
+    ).toThrow("10 tokens were left to the owner, not 20");
+    expect(() =>
+      verifyReservedDistributionReceipt(
+        {
+          logs: [
+            ...shares,
+            burn(10n),
+            total({ tokenCount: 200n, leftoverAmount: 20n }),
+          ],
+        },
+        expected,
+      ),
+    ).toThrow(`the controller burned 10 tokens, not the 20 sent to ${DEAD}`);
+  });
+
+  it("refuses a reviewed count of 0, which would accept any distribution", () => {
+    for (const tokenCount of [0, 0n, "0", "0x0"]) {
+      expect(() =>
+        verifyReservedDistributionReceipt(
+          { status: "success", logs: valid() },
+          { ...expected, tokenCount },
+        ),
+      ).toThrow(`Invalid distribution expectation tokenCount: ${tokenCount}.`);
+    }
+  });
+
+  it("refuses fewer tokens than were reviewed, even with every share of the smaller count", () => {
+    expect(() =>
+      verifyReservedDistributionReceipt(
+        {
+          logs: [
+            sent(splits[0], 25n),
+            sent(splits[1], 5n),
+            burn(5n),
+            sent(splits[2], 15n),
+            total({ tokenCount: 50n, leftoverAmount: 5n }),
+          ],
+        },
+        expected,
+      ),
+    ).toThrow(
+      `Project 4's reserved tokens from ${controller}: 50 tokens were distributed, fewer than the reviewed 100; another distribution ran first or the review was stale. Keep this transaction, and do not distribute these reserved tokens again.`,
+    );
   });
 
   it("rejects tokens a hook did not take, and a burn the review did not plan", () => {
@@ -624,8 +724,8 @@ describe("reserved token receipts", () => {
       [{ rulesetCycleNumber: 2n }, "they ran in ruleset 1 cycle 2"],
       [{ owner: hook }, `the owner was ${hook}, not ${owner}`],
       [
-        { tokenCount: 101n },
-        "101 tokens were distributed, not the reviewed 100",
+        { tokenCount: 99n },
+        "99 tokens were distributed, fewer than the reviewed 100; another distribution ran first or the review was stale",
       ],
       [{ leftoverAmount: 11n }, "11 tokens were left to the owner, not 10"],
     ] as const) {

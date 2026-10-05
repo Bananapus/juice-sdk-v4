@@ -62,7 +62,11 @@ export type ExpectedReservedReceipt = {
   /** The project owner, who receives what the splits leave. */
   owner: Address;
   caller: Address;
-  /** The pending reserved tokens the review saw. */
+  /**
+   * The pending reserved tokens the review saw, above 0: the reviewed minimum.
+   * Reserved tokens accrue until the distribution runs, so the receipt may
+   * distribute more.
+   */
   tokenCount: number | bigint | string;
   splits: readonly ExpectedDistributionSplit[];
 };
@@ -356,20 +360,22 @@ export function verifyPayoutReceipt(
  * The controller must log, for the project, no `ReservedDistributionReverted`
  * or `SplitHookReverted`; exactly one `SendReservedTokensToSplits` from the
  * reviewed caller, in the reviewed ruleset and cycle, to the reviewed owner,
- * for the reviewed token count, leaving what the splits do not take; and one
- * `SendReservedTokensToSplit` per reviewed split, in order, naming that exact
- * split with `tokenCount × percent / 100%`. JBTokens must log burns from the
- * controller of exactly the shares sent to 0x…dEaD: any other burn is tokens a
- * hook did not take.
+ * for at least the reviewed token count, leaving what the splits do not take;
+ * and one `SendReservedTokensToSplit` per reviewed split, in order, naming that
+ * exact split with its share of the count distributed,
+ * `tokenCount × percent / 100%`. JBTokens must log burns from the controller of
+ * exactly the shares sent to 0x…dEaD: any other burn is tokens a hook did not
+ * take.
  *
- * Throws, naming the first event that differs. A refusal means the receipt
- * cannot show the distribution completed: keep the transaction, and do not
- * distribute the same reserved tokens again.
+ * Returns the token count the receipt distributed. Throws, naming the first
+ * event that differs. A refusal means the receipt cannot show the distribution
+ * completed: keep the transaction, and do not distribute the same reserved
+ * tokens again.
  */
 export function verifyReservedDistributionReceipt(
   receipt: Receipt,
   expected: ExpectedReservedReceipt,
-): void {
+): { tokenCount: bigint } {
   const controller = readAddress("controller", expected?.controller);
   const tokens = readAddress("tokens", expected.tokens);
   const projectId = readUint("projectId", expected.projectId);
@@ -377,7 +383,11 @@ export function verifyReservedDistributionReceipt(
   const cycleNumber = readUint("cycleNumber", expected.cycleNumber);
   const owner = readAddress("owner", expected.owner);
   const caller = readAddress("caller", expected.caller);
-  const tokenCount = readUint("tokenCount", expected.tokenCount);
+  const reviewed = readUint("tokenCount", expected.tokenCount);
+  // No honest review has 0: the controller reverts at 0 pending reserves
+  // (JBController_NoReservedTokens). A failed pending read defaulted to 0
+  // would otherwise make the minimum below accept any count.
+  if (reviewed === 0n) throw invalid("tokenCount", expected.tokenCount);
   const splits = readSplits(expected.splits);
   const subject = `Project ${projectId}'s reserved tokens from ${controller}`;
   const refuse = (problem: string) =>
@@ -424,11 +434,17 @@ export function verifyReservedDistributionReceipt(
   if (!isAddressEqual(total.owner, owner)) {
     throw refuse(`the owner was ${total.owner}, not ${owner}`);
   }
-  if (total.tokenCount !== tokenCount) {
+  // Reserved tokens accrue until the distribution runs, so a receipt may
+  // distribute more than was reviewed (a Safe can execute days later).
+  // jango, 2026-10-05: any amount at or above the reviewed count is fine.
+  if (total.tokenCount < reviewed) {
     throw refuse(
-      `${format(total.tokenCount)} tokens were distributed, not the reviewed ${format(tokenCount)}`,
+      `${format(total.tokenCount)} tokens were distributed, fewer than the reviewed ${format(reviewed)}; another distribution ran first or the review was stale`,
     );
   }
+  // The controller splits the count it distributed, so every share, the
+  // leftover and the planned burns follow that count.
+  const tokenCount = total.tokenCount;
 
   const sent = events.filter(
     (event) => event.eventName === "SendReservedTokensToSplit",
@@ -490,4 +506,5 @@ export function verifyReservedDistributionReceipt(
       `the controller burned ${format(burned)} tokens, not the ${format(burnShare)} sent to ${BURN_BENEFICIARY}; a hook did not take its share`,
     );
   }
+  return { tokenCount };
 }
