@@ -169,6 +169,18 @@ export type RelayrQuote = {
   expectedTransactions: RelayrTransactionBinding[];
 };
 
+/**
+ * Relayr's record of one bundle as {@link readRelayrBundle} returns it: the
+ * bundle it names is the one asked for, and the rest is Relayr's word.
+ */
+export type RelayrBundle = {
+  bundle_uuid: string;
+  /** `true` once Relayr has a payment for the bundle. */
+  payment_received?: unknown;
+  /** Relayr's record of each transaction, as {@link RelayrTransactionRecord}. */
+  transactions?: unknown;
+};
+
 export type RelayrProgressSummary = {
   confirmed: number;
   failed: number;
@@ -259,7 +271,8 @@ export class RelayrDestinationRevertedError extends RelayrProofError {
 
 /**
  * Why {@link requireRelayrPaymentRetry} will not clear a quote to be paid
- * again:
+ * again, or {@link requireRelayrBundleUnpaid} a bundle to be released (`paid`,
+ * `running` or `unknown`):
  *
  * - `invalid`: no payment was named, or the payment, its sender or a hash is
  *   malformed;
@@ -449,12 +462,10 @@ async function readBundle(
   fetchBundle: typeof globalThis.fetch,
   bundleUuid: string,
   unavailable: () => Error,
-): Promise<{ transactions?: unknown; payment_received?: unknown }> {
-  let bundle: {
-    bundle_uuid?: unknown;
-    transactions?: unknown;
-    payment_received?: unknown;
-  } | null;
+): Promise<RelayrBundle> {
+  let bundle:
+    | (Omit<RelayrBundle, "bundle_uuid"> & { bundle_uuid?: unknown })
+    | null;
   try {
     const response = await fetchBundle(
       `${RELAYR_API}/v1/bundle/${bundleUuid}`,
@@ -471,7 +482,32 @@ async function readBundle(
   if (!bundle || uuidOf(bundle.bundle_uuid) !== bundleUuid) {
     throw unavailable();
   }
-  return bundle;
+  return bundle as RelayrBundle;
+}
+
+/**
+ * Relayr's `GET /v1/bundle/{uuid}` for exactly `bundleUuid`, read with `fetch`
+ * (the global one by default) within 15 seconds and never from an HTTP cache:
+ * a stale answer could say a paid bundle is unpaid. Throws, with the failure
+ * as its cause, when the read fails or the answer names another bundle.
+ * {@link requireRelayrBundleUnpaid} reads whether the bundle is unpaid.
+ */
+export async function readRelayrBundle(
+  bundleUuid: string,
+  {
+    fetch: fetchBundle = globalThis.fetch,
+  }: { fetch?: typeof globalThis.fetch } = {},
+): Promise<RelayrBundle> {
+  const uuid = uuidOf(bundleUuid);
+  if (!uuid) {
+    throw new Error(`Invalid Relayr bundle ID: ${String(bundleUuid)}.`);
+  }
+  return readBundle(
+    fetchBundle,
+    uuid,
+    () =>
+      new Error(`Could not read Relayr bundle ${uuid}. Check it again later.`),
+  );
 }
 
 /**
@@ -1209,15 +1245,20 @@ export async function requireRelayrPaymentRetry(
 }
 
 /**
- * Throws a {@link RelayrPaymentRetryError} unless `bundle` reports no payment
- * received and at least one call, every one still pending with no destination
- * hash. Relayr runs only paid bundles.
+ * Throws a {@link RelayrPaymentRetryError} unless `bundle`, as
+ * {@link readRelayrBundle} returns it, reports no payment received
+ * (`payment_received: false`) and at least one call, every one still pending
+ * with no destination hash. Relayr runs only paid bundles, so the refusal is
+ * `paid` when Relayr reports a payment, `running` when a call is running or
+ * run, and `unknown` otherwise. Confirm a bundle with it before releasing its
+ * quote; {@link requireRelayrPaymentRetry} confirms it before clearing a quote
+ * to be paid again.
  */
-function requireRelayrBundleUnpaid(bundle: {
-  payment_received?: unknown;
-  transactions?: unknown;
-}): void {
-  const { payment_received, transactions } = bundle;
+export function requireRelayrBundleUnpaid(
+  bundle: Pick<RelayrBundle, "payment_received" | "transactions">,
+): void {
+  const payment_received = bundle?.payment_received;
+  const transactions = bundle?.transactions;
   if (payment_received === true) {
     throw new RelayrPaymentRetryError(
       "Relayr already reports a payment for this bundle. Do not pay again.",
