@@ -255,9 +255,8 @@ export class RelayrDestinationRevertedError extends RelayrProofError {
   }
 }
 
-/** Like a native error cause, but set on ES2021 and never enumerable: an RPC error's URL can carry a key. */
-function errorWithCause(message: string, cause: unknown): Error {
-  const error = new Error(message);
+/** `error` with `cause` set like a native error cause, but on ES2021 and never enumerable: an RPC error's URL can carry a key. */
+function withCause<T extends Error>(error: T, cause: unknown): T {
   Object.defineProperty(error, "cause", {
     value: cause,
     writable: true,
@@ -265,6 +264,10 @@ function errorWithCause(message: string, cause: unknown): Error {
     configurable: true,
   });
   return error;
+}
+
+function errorWithCause(message: string, cause: unknown): Error {
+  return withCause(new Error(message), cause);
 }
 
 function isAddressLike(value: unknown): value is Address {
@@ -401,13 +404,14 @@ export function relayrBundleRequest(
 }
 
 /**
- * Relayr's `GET /v1/bundle/{uuid}` for exactly this bundle, or `unavailable`.
- * Never from a cache: a stale answer could say a paid bundle is unpaid.
+ * Relayr's `GET /v1/bundle/{uuid}` for exactly this bundle, or throws
+ * `unavailable()`, with the failure as its cause when there is one. Never from
+ * a cache: a stale answer could say a paid bundle is unpaid.
  */
 async function readBundle(
   fetchBundle: typeof globalThis.fetch,
   bundleUuid: string,
-  unavailable: string,
+  unavailable: () => Error,
 ): Promise<{ transactions?: unknown; payment_received?: unknown }> {
   let bundle: {
     bundle_uuid?: unknown;
@@ -425,10 +429,10 @@ async function readBundle(
     if (!response.ok) throw new Error(`Relayr HTTP ${response.status}`);
     bundle = await response.json();
   } catch (cause) {
-    throw errorWithCause(unavailable, cause);
+    throw withCause(unavailable(), cause);
   }
   if (!bundle || uuidOf(bundle.bundle_uuid) !== bundleUuid) {
-    throw new Error(unavailable);
+    throw unavailable();
   }
   return bundle;
 }
@@ -512,7 +516,11 @@ export async function bindRelayrQuote(
         idOf(record) === null || !(record as { request?: unknown }).request,
     )
   ) {
-    const bundle = await readBundle(fetchBundle, bundleUuid, UNRETURNED);
+    const bundle = await readBundle(
+      fetchBundle,
+      bundleUuid,
+      () => new Error(UNRETURNED),
+    );
     if (!Array.isArray(bundle.transactions)) throw new Error(UNRETURNED);
     records = bundle.transactions;
   }
@@ -1141,7 +1149,7 @@ export async function requireRelayrPaymentRetry(
   const { payment_received, transactions } = await readBundle(
     fetchBundle,
     reviewed!.bundleUuid,
-    UNKNOWN_PAYMENT,
+    () => new Error(UNKNOWN_PAYMENT),
   );
   if (payment_received === true) {
     throw new Error(
