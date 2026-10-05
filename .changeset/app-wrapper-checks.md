@@ -21,9 +21,10 @@ itself, so the apps can drop their wrappers.
   ends any wait between attempts; the call then fails with the signal's reason,
   except that `fetchSafesOwnedBy` and `fetchSafeCreation` read it as nothing
   found, as they read any failed request.
-- The wait before retrying a 429 is capped at 10 seconds
-  (`SAFE_SERVICE_MAX_RETRY_WAIT_MS`), whatever its Retry-After asks. It had no
-  cap.
+- A 429 is waited out and retried only when its Retry-After, or the backoff
+  without one, is 10 seconds or less (`SAFE_SERVICE_MAX_RETRY_WAIT_MS`). A 429
+  that asks for longer is handed back at once, since retrying before the service
+  allows works against its rate limit. It used to wait the whole Retry-After.
 - `retryRateLimited: false` hands back the first 429 instead of retrying it, for
   a server render that must not wait. Juicebox Money and revnet.money turn a 429
   into a 503 in their own `fetch` for this today.
@@ -43,9 +44,11 @@ itself, so the apps can drop their wrappers.
 
 - `relayrPaymentDetails` refuses a payment contract or token written in mixed
   case with a wrong EIP-55 checksum, or in upper case, as viem's strict address
-  check does. Lower case and checksummed spellings pass. `relayrPaymentOptions`
-  skips such an option like any other it refuses, so a later valid option on the
-  same chain is offered.
+  check does. Lower case and checksummed spellings pass.
+- `relayrPaymentOptions` offers no option for a chain when any of that chain's
+  options has a contract or token that fails the strict address check, whether
+  it comes before or after a valid one. A well-formed address that is not
+  Relayr's is still refused on its own.
 - `quoteExpired(deadline, nowSeconds?)` is exported: a quote is dead once its
   deadline is 15 seconds away or less.
 - `requireRelayrPaymentRetry` throws a `RelayrPaymentRetryError` whose `reason`
