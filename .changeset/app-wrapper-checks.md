@@ -31,6 +31,12 @@ itself, so the apps can drop their wrappers.
 - `listPendingSafeTransactions` no longer lists a page again after it answered
   429, since that request has had its retries.
 
+`@bananapus/nana-sdk-core/jbcenter`:
+
+- A JB Center RPC provider (`createJBCenterRpcProvider`, `rpcProvider`) passes
+  on the `signal` viem's custom transport hands it, so a request in flight ends
+  when its page is left instead of holding its slot until it times out.
+
 `@bananapus/nana-sdk-core/review`:
 
 - `submitReviewedContractWrite` refuses before the review opens when the
