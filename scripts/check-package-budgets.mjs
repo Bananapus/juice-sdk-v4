@@ -48,9 +48,10 @@ const budgets = {
     // The checks the web clients wrapped (MultiSendCallOnly 1.4.1, the Safe
     // service's signal and 429 rules, the reviewed account before review,
     // Relayr's checksum, quote expiry, retry refusals, bundle read and unpaid
-    // guard, and the JB Center provider's signal) add no files and, mostly in
-    // documentation, about 39 kilobytes unpacked and 9 kilobytes packed
-    // (measured 1,176,785 B packed, 20,276,127 B unpacked, 722 files).
+    // guard, the JB Center provider's signal and the shared Retry-After
+    // reader) add no files and, mostly in documentation, about 45 kilobytes
+    // unpacked and 10 kilobytes packed (measured 1,177,461 B packed,
+    // 20,281,267 B unpacked, 722 files).
     packed: 1_182_000,
     unpacked: 20_292_000,
     entries: 722,
