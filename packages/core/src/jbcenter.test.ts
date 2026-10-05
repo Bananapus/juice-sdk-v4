@@ -12,6 +12,7 @@ import {
   isSponsorable,
   sponsorableChains,
   unsponsoredChains,
+  type JBCenterRpcRequest,
 } from "./jbcenter.js";
 import {
   SAFE_CREATE_ABI,
@@ -646,6 +647,53 @@ describe("JB Center client", () => {
     await expect(
       createJBCenterClient().rpc(1.5, { method: "eth_chainId" }),
     ).rejects.toThrow("chainId");
+  });
+
+  test("refuses an unsupported method or params that are not a list before making a network request", async () => {
+    const fetchMock = vi.fn();
+    const client = createJBCenterClient({ fetch: fetchMock });
+    await expect(
+      client.rpc(1, {
+        method: "eth_sendRawTransaction",
+        params: ["0x"],
+      } as unknown as JBCenterRpcRequest),
+    ).rejects.toThrow(new TypeError("JB Center RPC method is not supported"));
+    await expect(
+      client.rpc(1, {
+        method: "eth_call",
+        params: "0x",
+      } as unknown as JBCenterRpcRequest),
+    ).rejects.toThrow(new TypeError("JB Center RPC params must be an array"));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("ends a provider request in flight when the signal viem passes it aborts", async () => {
+    let sent: AbortSignal | undefined;
+    const fetchMock = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          sent = init?.signal ?? undefined;
+          init?.signal?.addEventListener("abort", () =>
+            reject(init.signal?.reason),
+          );
+        }),
+    );
+    const provider = createJBCenterRpcProvider(1, {
+      fetch: fetchMock,
+      timeoutMs: 1_000,
+    });
+    const page = new AbortController();
+    const reason = new DOMException("The page closed.", "AbortError");
+    // viem 2.55's custom transport calls request(args, { signal }).
+    const pending = provider.request(
+      { method: "eth_chainId" },
+      { signal: page.signal },
+    );
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(sent?.aborted).toBe(false);
+    page.abort(reason);
+    await expect(pending).rejects.toBe(reason);
+    expect(sent?.aborted).toBe(true);
   });
 
   test("surfaces structured API failures and rejects invalid successful responses", async () => {

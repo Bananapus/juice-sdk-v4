@@ -56,10 +56,17 @@ export type JBCenterRpcRequest = {
 
 /** Structurally compatible with EIP-1193 providers, including viem's `custom`. */
 export type JBCenterRpcProvider = {
-  request<TResult = unknown>(request: {
-    method: string;
-    params?: readonly unknown[];
-  }): Promise<TResult>;
+  /**
+   * One read-only JSON-RPC request. `signal`, which viem's custom transport
+   * passes, ends the request when it aborts.
+   */
+  request<TResult = unknown>(
+    request: {
+      method: string;
+      params?: readonly unknown[];
+    },
+    options?: { signal?: AbortSignal },
+  ): Promise<TResult>;
 };
 
 export type JBCenterJson =
@@ -928,16 +935,21 @@ export class JBCenterClient {
       throw new TypeError("chainId must be a positive safe integer");
     }
     return {
-      request: async <TResult = unknown>(request: {
-        method: string;
-        params?: readonly unknown[];
-      }) => {
+      request: async <TResult = unknown>(
+        request: {
+          method: string;
+          params?: readonly unknown[];
+        },
+        options?: { signal?: AbortSignal },
+      ) => {
         if (
           !(JBCENTER_RPC_METHODS as readonly string[]).includes(request.method)
         ) {
           throw new TypeError("JB Center RPC method is not supported");
         }
-        return this.rpc<TResult>(chainId, request as JBCenterRpcRequest);
+        return this.rpc<TResult>(chainId, request as JBCenterRpcRequest, {
+          signal: options?.signal,
+        });
       },
     };
   }
