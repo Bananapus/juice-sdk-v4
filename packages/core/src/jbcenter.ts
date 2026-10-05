@@ -10,6 +10,7 @@ import {
   groupDeploymentCalls,
   isValidDeploymentCalls,
 } from "./jbcenter/setupCalls.js";
+import { pause } from "./pause.js";
 import { retryAfterMs } from "./untrusted.js";
 
 export const JBCENTER_DEFAULT_URL = "https://juicebox.center";
@@ -50,6 +51,43 @@ export const JBCENTER_RPC_METHODS = [
 
 export type JBCenterRpcMethod = (typeof JBCENTER_RPC_METHODS)[number];
 
+/**
+ * The waits, in milliseconds, before each retry of a read that a node behind
+ * the head could not answer: JSON-RPC -32001. JB Center load balances reads
+ * across nodes that import blocks at slightly different times, so a read
+ * pinned to a block one node has imported can land on a sibling that has not,
+ * which answers -32001 ("Requested resource not found." in viem). Waiting out
+ * the lag is the only correct answer: reading `latest` instead would read
+ * state older than the block the read pins. Base mines every two seconds, so
+ * these waits cover a few blocks of drift.
+ */
+export const JBCENTER_BLOCK_LAG_RETRY_DELAYS_MS = [
+  250, 500, 1_000, 2_000, 2_000,
+] as const;
+
+/** How a JB Center RPC provider retries a read. */
+export type JBCenterRpcProviderOptions = {
+  /**
+   * The waits before each retry of a read a node behind the head answered
+   * with -32001, {@link JBCENTER_BLOCK_LAG_RETRY_DELAYS_MS} by default; `[]`
+   * retries nothing. No other failure is retried: that answer is the only one
+   * that changes by itself, once the node catches up. A revert, bad params or
+   * a refusal comes back the same, a 429 must wait out Center's minute, and a
+   * timeout has already waited its full time. Every method Center allows is a
+   * read, so a retry repeats work, never an effect.
+   */
+  blockLagRetryDelaysMs?: readonly number[];
+};
+
+/** A read pinned past the head of the node that answered it: JSON-RPC -32001. */
+function isBehindHead(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: unknown }).code === -32001
+  );
+}
+
 export type JBCenterRpcRequest = {
   method: JBCenterRpcMethod;
   params?: readonly unknown[];
@@ -58,8 +96,11 @@ export type JBCenterRpcRequest = {
 /** Structurally compatible with EIP-1193 providers, including viem's `custom`. */
 export type JBCenterRpcProvider = {
   /**
-   * One read-only JSON-RPC request. `signal`, which viem's custom transport
-   * passes, ends the request when it aborts.
+   * One read-only JSON-RPC request, asked again while a node behind the head
+   * cannot answer it ({@link JBCenterRpcProviderOptions}). `options`, which
+   * viem's custom transport passes with the read's `signal`, goes with every
+   * try. Once the signal aborts, the request or the wait between tries ends
+   * at once with its reason, and nothing more is sent.
    */
   request<TResult = unknown>(
     request: {
@@ -931,10 +972,27 @@ export class JBCenterClient {
     return body.result as TResult;
   }
 
-  /** Returns an EIP-1193-shaped provider suitable for viem's `custom`. */
-  rpcProvider(chainId: number): JBCenterRpcProvider {
+  /**
+   * Returns an EIP-1193-shaped provider suitable for viem's `custom`. It asks
+   * again for a read a node behind the head could not answer, as
+   * {@link JBCenterRpcProviderOptions} describes.
+   */
+  rpcProvider(
+    chainId: number,
+    options: JBCenterRpcProviderOptions = {},
+  ): JBCenterRpcProvider {
     if (!Number.isSafeInteger(chainId) || chainId <= 0) {
       throw new TypeError("chainId must be a positive safe integer");
+    }
+    const delays: readonly number[] =
+      options.blockLagRetryDelaysMs ?? JBCENTER_BLOCK_LAG_RETRY_DELAYS_MS;
+    if (
+      !Array.isArray(delays) ||
+      !delays.every((ms) => Number.isFinite(ms) && ms >= 0)
+    ) {
+      throw new TypeError(
+        "blockLagRetryDelaysMs must be a list of finite waits of 0 ms or more",
+      );
     }
     return {
       request: async <TResult = unknown>(
@@ -942,16 +1000,28 @@ export class JBCenterClient {
           method: string;
           params?: readonly unknown[];
         },
-        options?: { signal?: AbortSignal },
+        requestOptions?: { signal?: AbortSignal },
       ) => {
         if (
           !(JBCENTER_RPC_METHODS as readonly string[]).includes(request.method)
         ) {
           throw new TypeError("JB Center RPC method is not supported");
         }
-        return this.rpc<TResult>(chainId, request as JBCenterRpcRequest, {
-          signal: options?.signal,
-        });
+        const signal = requestOptions?.signal;
+        for (let attempt = 0; ; attempt += 1) {
+          // A request whose signal has aborted is not sent.
+          signal?.throwIfAborted();
+          try {
+            return await this.rpc<TResult>(
+              chainId,
+              request as JBCenterRpcRequest,
+              requestOptions,
+            );
+          } catch (error) {
+            if (attempt >= delays.length || !isBehindHead(error)) throw error;
+            await pause(delays[attempt], signal, () => signal?.reason);
+          }
+        }
       },
     };
   }
@@ -1055,7 +1125,7 @@ export function createJBCenterClient(
 
 export function createJBCenterRpcProvider(
   chainId: number,
-  options: JBCenterClientOptions = {},
+  options: JBCenterClientOptions & JBCenterRpcProviderOptions = {},
 ): JBCenterRpcProvider {
-  return new JBCenterClient(options).rpcProvider(chainId);
+  return new JBCenterClient(options).rpcProvider(chainId, options);
 }
