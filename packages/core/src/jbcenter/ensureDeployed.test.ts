@@ -587,6 +587,56 @@ describe("ensureDeployed", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  test("ends the run at once when a step's report aborts it, and asks Center nothing more", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ deploys: [deploy(8453, "queued")] }, { status: 202 }),
+      );
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const controller = new AbortController();
+    const reason = new Error("left the page");
+
+    let outcome: unknown = "pending";
+    void ensureDeployed({
+      client,
+      intent: intent([8453]),
+      signal: controller.signal,
+      onStep: () => controller.abort(reason),
+    }).then(
+      () => (outcome = "resolved"),
+      (error: unknown) => (outcome = error),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(outcome).toBe(reason);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("waits out a poll interval longer than a timer holds instead of polling again at once", async () => {
+    const fetchMock = vi.fn((url: string | URL | Request) =>
+      Promise.resolve(
+        url === deployUrl()
+          ? jsonResponse({ deploys: [deploy(8453, "queued")] }, { status: 202 })
+          : jsonResponse(intent([8453], { deploys: [deploy(8453, "sent")] })),
+      ),
+    );
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const controller = new AbortController();
+
+    const run = ensureDeployed({
+      client,
+      intent: intent([8453]),
+      pollMs: 3_000_000_000,
+      signal: controller.signal,
+    }).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    controller.abort(new Error("left the page"));
+    await expect(run).resolves.toMatchObject({ message: "left the page" });
+  });
+
   test("times out polling after timeoutMs when a chain never confirms", async () => {
     const fetchMock = vi.fn((url: string | URL | Request) => {
       if (url === deployUrl()) {

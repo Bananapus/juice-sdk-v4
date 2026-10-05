@@ -16,6 +16,7 @@ import {
   type JBCenterJsonObject,
   type JBCenterRelayRequest,
 } from "../jbcenter.js";
+import { pause } from "../pause.js";
 import { deployedChains } from "./merge.js";
 
 const DEFAULT_POLL_MS = 4_000;
@@ -82,20 +83,6 @@ function checkAborted(signal: AbortSignal | undefined): void {
   if (signal?.aborted) {
     throw signal.reason;
   }
-}
-
-function sleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const onAbort = () => {
-      clearTimeout(timer);
-      reject(signal?.reason);
-    };
-    const timer = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
 }
 
 /**
@@ -188,7 +175,7 @@ async function pollUntilDeployed(
       throw new EnsureDeployedError("JB Center deploy polling timed out");
     }
 
-    await sleep(pollMs, signal);
+    await pause(pollMs, signal, () => signal?.reason);
     current = await client.getIntent(current.id, { signal });
   }
 }
