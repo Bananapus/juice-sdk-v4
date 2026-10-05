@@ -725,6 +725,40 @@ describe("JB Center client", () => {
     });
   });
 
+  test("reads a rate limit's Retry-After as the Safe service does, in whole seconds", async () => {
+    vi.useFakeTimers();
+    // Monday 5 October 2026, 12:00:00.400 UTC.
+    vi.setSystemTime(Date.UTC(2026, 9, 5, 12, 0, 0, 400));
+    try {
+      for (const [retryAfter, seconds] of [
+        ["60", 60],
+        ["0", 0],
+        ["Mon, 05 Oct 2026 12:00:30 GMT", 30],
+        ["Monday, 05-Oct-26 12:00:30 GMT", 30],
+        ["Mon, 05 Oct 2026 11:00:00 GMT", 0],
+        ["", undefined],
+        ["1e3", undefined],
+        ["1.5", undefined],
+        ["-1", undefined],
+        ["soon", undefined],
+      ] as const) {
+        const fetchMock = vi
+          .fn()
+          .mockResolvedValue(
+            jsonResponse(
+              { error: { code: "rate_limit", message: "Slow down" } },
+              { status: 429, headers: { "retry-after": retryAfter } },
+            ),
+          );
+        await expect(
+          createJBCenterClient({ fetch: fetchMock }).searchIntents(),
+        ).rejects.toMatchObject({ status: 429, retryAfter: seconds });
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("fails closed on malformed, empty, and oversized transport responses", async () => {
     const streamedOversize = new Response(JSON.stringify({ value: "large" }), {
       headers: { "content-type": "application/json" },

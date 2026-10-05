@@ -10,6 +10,7 @@ import {
   groupDeploymentCalls,
   isValidDeploymentCalls,
 } from "./jbcenter/setupCalls.js";
+import { retryAfterMs } from "./untrusted.js";
 
 export const JBCENTER_DEFAULT_URL = "https://juicebox.center";
 export const JBCENTER_REQUEST_TIMEOUT_MS = 15_000;
@@ -341,6 +342,7 @@ export class JBCenterRequestError extends Error {
     readonly status: number,
     readonly code?: string,
     readonly requestId?: string,
+    /** The whole seconds the answer's Retry-After asks for, when it can be read. */
     readonly retryAfter?: number,
   ) {
     super(message);
@@ -1016,18 +1018,13 @@ export class JBCenterClient {
           typeof envelope.error?.message === "string"
             ? envelope.error.message
             : `JB Center request failed (${response.status})`;
-        const retryAfterHeader = response.headers.get("retry-after");
-        const retryAfter = Number(retryAfterHeader);
+        const retryAfter = retryAfterMs(response.headers.get("retry-after"));
         throw new JBCenterRequestError(
           message,
           response.status,
           code,
           response.headers.get("x-request-id") ?? undefined,
-          retryAfterHeader !== null &&
-          Number.isFinite(retryAfter) &&
-          retryAfter >= 0
-            ? retryAfter
-            : undefined,
+          retryAfter === null ? undefined : Math.ceil(retryAfter / 1000),
         );
       }
       if (!validate(body)) {

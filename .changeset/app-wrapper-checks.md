@@ -46,6 +46,10 @@ itself, so the apps can drop their wrappers.
 - A JB Center RPC provider (`createJBCenterRpcProvider`, `rpcProvider`) passes
   on the `signal` viem's custom transport hands it, so a request in flight ends
   when its page is left instead of holding its slot until it times out.
+- `JBCenterRequestError.retryAfter` reads the Retry-After header as the Safe
+  service does, in whole seconds: delay-seconds, or the time left until an
+  HTTP-date. A value it cannot read is undefined. It read an empty value as 0,
+  "1e3" as 1000 and "1.5" as 1.5, and an HTTP-date as undefined.
 
 `@bananapus/nana-sdk-core/review`:
 
