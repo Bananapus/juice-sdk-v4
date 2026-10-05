@@ -45,6 +45,7 @@ import {
   relayrProgress,
   relayrRecordChain,
   RelayrDestinationRevertedError,
+  RelayrPaymentRetryError,
   RelayrPaymentRevertedError,
   RelayrProofError,
   relayrStateIsFailed,
@@ -62,6 +63,7 @@ import {
   type RelayrEntry,
   type RelayrPayment,
   type RelayrPaymentDetails,
+  type RelayrPaymentRetryRefusal,
   type RelayrProofClient,
   type RelayrTransactionBinding,
   type RelayrTransactionRecord,
@@ -1497,6 +1499,154 @@ describe("Relayr payment retry", () => {
       { fetch: fetchBundle, nowSeconds },
     );
   const reverted = (hash: Hex = HASH) => onchain({ hash, status: "reverted" });
+  /** The retry refusal `promise` rejects with, as its reason and words. */
+  const refusal = async (promise: Promise<unknown>) => {
+    const error = await rejection(promise);
+    expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+    expect(error.name).toBe("RelayrPaymentRetryError");
+    return {
+      reason: (error as RelayrPaymentRetryError).reason,
+      message: error.message,
+    };
+  };
+
+  it.each<[string, () => Promise<unknown>, RelayrPaymentRetryRefusal, string]>([
+    [
+      "no payments named",
+      () =>
+        requireRelayrPaymentRetry(
+          asClient(proofClient([reverted()])),
+          { hashes: [], from: ACCOUNT, payment: reviewedPayment() },
+          { fetch: unpaid(), nowSeconds: NOW },
+        ),
+      "invalid",
+      "Name every payment this session sent for the quote before paying it again.",
+    ],
+    [
+      "a payment that is not an authenticated Relayr payment",
+      () =>
+        retry(proofClient([reverted()]), {
+          payment: { ...reviewedPayment(), target: TARGET },
+        }),
+      "invalid",
+      "Only an authenticated Relayr payment with its transaction hash can be verified.",
+    ],
+    [
+      "an expired quote",
+      () => retry(proofClient([reverted()]), { nowSeconds: DEADLINE - 15 }),
+      "expired",
+      "This Relayr quote expired. Review the action again for a new quote.",
+    ],
+    [
+      "a payment that succeeded onchain",
+      () => retry(proofClient([onchain()])),
+      "paid",
+      "This Relayr payment succeeded onchain, so its bundle is paid. Do not pay again.",
+    ],
+    [
+      "a payment that cannot be read",
+      () => retry(proofClient([])),
+      "unknown",
+      `Could not read Relayr payment ${HASH} on chain 1. Do not pay again; check it later.`,
+    ],
+    [
+      "a payment receipt that is no longer canonical",
+      () => retry(proofClient([reverted()], OTHER_BLOCK_HASH)),
+      "unknown",
+      "The Relayr funding receipt is no longer canonical. Do not pay again; check it later.",
+    ],
+    [
+      "a bundle Relayr reports paid",
+      () =>
+        retry(proofClient([reverted()]), {
+          fetchBundle: answer({ payment_received: true }),
+        }),
+      "paid",
+      "Relayr already reports a payment for this bundle. Do not pay again.",
+    ],
+    [
+      "a bundle with a call running",
+      () =>
+        retry(proofClient([reverted()]), {
+          fetchBundle: answer({
+            payment_received: false,
+            transactions: [
+              { tx_uuid: OTHER_UUID, status: { state: "Included" } },
+            ],
+          }),
+        }),
+      "running",
+      "Relayr reports a transaction of this bundle as running or run. Do not pay again.",
+    ],
+    [
+      "a bundle Relayr did not return",
+      () =>
+        retry(proofClient([reverted()]), {
+          fetchBundle: vi.fn(async () => json({ error: "busy" }, 503)),
+        }),
+      "unknown",
+      "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.",
+    ],
+    [
+      "a bundle whose payment Relayr has not stated",
+      () => retry(proofClient([reverted()]), { fetchBundle: answer({}) }),
+      "unknown",
+      "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.",
+    ],
+  ])(
+    "names its refusal for %s, in the same words",
+    async (_, run, reason, message) => {
+      expect(await refusal(run())).toEqual({ reason, message });
+    },
+  );
+
+  it("keeps an unreadable payment's failure as the refusal's cause, out of serialization", async () => {
+    const error = await rejection(retry(proofClient([])));
+    expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+    const cause = error.cause as Error & { cause?: unknown };
+    expect(cause.message).toBe(error.message);
+    expect(String(cause.cause)).toContain(`No fixture for ${HASH}`);
+    expect(JSON.stringify(error)).not.toContain("No fixture");
+    expect(JSON.parse(JSON.stringify(error))).toEqual({
+      name: "RelayrPaymentRetryError",
+      reason: "unknown",
+    });
+  });
+
+  it("leaves a payment that is another transaction a proof error", async () => {
+    const error = await rejection(
+      retry(proofClient([onchain({ status: "reverted", value: 1n })])),
+    );
+    expect(error).toBeInstanceOf(RelayrProofError);
+    expect(error).not.toBeInstanceOf(RelayrPaymentRetryError);
+  });
+
+  it("refuses a malformed payment, sender or hash before reading anything", async () => {
+    for (const [hashes, from, payment] of [
+      [[HASH, "0x12"], ACCOUNT, reviewedPayment()],
+      [[HASH], "0x12", reviewedPayment()],
+      [[HASH], ACCOUNT, { ...reviewedPayment(), calldata: "0x" }],
+    ] as [Hex[], Address, RelayrPaymentDetails][]) {
+      const client = proofClient([onchain()]);
+      const fetchBundle = unpaid();
+      expect(
+        await refusal(
+          requireRelayrPaymentRetry(
+            asClient(client),
+            { hashes, from, payment },
+            // The quote has expired too: a malformed request is refused first.
+            { fetch: fetchBundle, nowSeconds: DEADLINE },
+          ),
+        ),
+      ).toEqual({
+        reason: "invalid",
+        message:
+          "Only an authenticated Relayr payment with its transaction hash can be verified.",
+      });
+      expect(client.getTransaction).not.toHaveBeenCalled();
+      expect(fetchBundle).not.toHaveBeenCalled();
+    }
+  });
 
   it("clears the quote only when every payment the session sent canonically reverted and Relayr's bundle is unpaid and unrun", async () => {
     const client = proofClient([reverted(), reverted(SECOND_HASH)]);

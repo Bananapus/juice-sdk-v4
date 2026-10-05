@@ -133,6 +133,7 @@ describe("published core SDK surfaces", () => {
       "RELAYR_PAYMENT_GAS",
       "RELAYR_PAYMENT_SELECTOR",
       "RelayrDestinationRevertedError",
+      "RelayrPaymentRetryError",
       "RelayrPaymentRevertedError",
       "RelayrProofError",
       "TRUSTED_FORWARDER_ABI",

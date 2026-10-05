@@ -103,6 +103,8 @@ const EXPIRED =
   "This Relayr quote expired. Review the action again for a new quote.";
 const UNKNOWN_PAYMENT =
   "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.";
+const UNVERIFIABLE =
+  "Only an authenticated Relayr payment with its transaction hash can be verified.";
 
 /** One transaction of a bundle as posted to Relayr. `value` is decimal wei. */
 export type RelayrEntry = {
@@ -250,6 +252,41 @@ export class RelayrDestinationRevertedError extends RelayrProofError {
     message: string,
     readonly hash: Hex,
     readonly chainId: number,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Why {@link requireRelayrPaymentRetry} will not clear a quote to be paid
+ * again:
+ *
+ * - `invalid`: no payment was named, or the payment, its sender or a hash is
+ *   malformed;
+ * - `expired`: the quote's deadline is 15 seconds away or less;
+ * - `paid`: a payment succeeded onchain, or Relayr reports one;
+ * - `running`: Relayr reports a call of the bundle running or run;
+ * - `unknown`: a payment or the bundle could not be read, or Relayr has not
+ *   said whether the bundle is paid.
+ */
+export type RelayrPaymentRetryRefusal =
+  | "invalid"
+  | "expired"
+  | "paid"
+  | "running"
+  | "unknown";
+
+/**
+ * A refusal to pay a Relayr quote again, with its `reason`. Never pay on one:
+ * `paid` and `running` mean the bundle is funded, `unknown` may clear on a
+ * later check, and `expired` needs a new quote.
+ */
+export class RelayrPaymentRetryError extends Error {
+  readonly name = "RelayrPaymentRetryError";
+
+  constructor(
+    message: string,
+    readonly reason: RelayrPaymentRetryRefusal,
   ) {
     super(message);
   }
@@ -1034,6 +1071,21 @@ function readReviewedPayment(payment: ReviewedPayment): {
 }
 
 /**
+ * The reviewed payment's parts when it is an authenticated Relayr payment,
+ * `from` is an address and every hash a transaction hash; else null.
+ */
+function verifiablePayment(
+  hashes: readonly unknown[],
+  from: unknown,
+  payment: ReviewedPayment,
+): ReturnType<typeof readReviewedPayment> {
+  const reviewed = readReviewedPayment(payment);
+  return reviewed && isAddressLike(from) && hashes.every(isBytes32)
+    ? reviewed
+    : null;
+}
+
+/**
  * Prove a Relayr payment from the chain: the transaction at `hash` is exactly
  * `payment` sent by `from` (chain, payment contract, calldata, value),
  * canonically included, and successful. Pass the hash that was mined: when a
@@ -1054,17 +1106,8 @@ export async function verifyRelayrPayment(
     payment,
   }: { hash: Hex; from: Address; payment: ReviewedPayment },
 ): Promise<TransactionReceipt> {
-  const reviewed = readReviewedPayment(payment);
-  if (
-    typeof hash !== "string" ||
-    !isBytes32(hash) ||
-    !isAddressLike(from) ||
-    !reviewed
-  ) {
-    throw new Error(
-      "Only an authenticated Relayr payment with its transaction hash can be verified.",
-    );
-  }
+  const reviewed = verifiablePayment([hash], from, payment);
+  if (!reviewed) throw new Error(UNVERIFIABLE);
   const receipt = await proveTransaction(
     client,
     {
@@ -1111,8 +1154,11 @@ export async function verifyRelayrPayment(
  * The payment contract keeps no state and Relayr keeps every payment it
  * receives, so anything else rules a new payment out, and an empty list never
  * clears one. A payment still in flight from elsewhere is not visible yet.
- * Throws in every other case, including when an answer is unavailable. Never
- * pay on an error.
+ * Throws in every other case, including when an answer is unavailable, and
+ * refuses a malformed request before reading anything. Each refusal is a
+ * {@link RelayrPaymentRetryError} naming its `reason`, except a hash that is
+ * another transaction, which stays a {@link RelayrProofError}. Never pay on an
+ * error.
  */
 export async function requireRelayrPaymentRetry(
   client: RelayrProofClient,
@@ -1127,33 +1173,41 @@ export async function requireRelayrPaymentRetry(
   }: { fetch?: typeof globalThis.fetch; nowSeconds?: number } = {},
 ): Promise<void> {
   if (!Array.isArray(hashes) || !hashes.length) {
-    throw new Error(
+    throw new RelayrPaymentRetryError(
       "Name every payment this session sent for the quote before paying it again.",
+      "invalid",
     );
   }
-  const reviewed = readReviewedPayment(payment);
-  if (reviewed && quoteExpired(reviewed.deadline, nowSeconds)) {
-    throw new Error(EXPIRED);
+  const reviewed = verifiablePayment(hashes, from, payment);
+  if (!reviewed) throw new RelayrPaymentRetryError(UNVERIFIABLE, "invalid");
+  if (quoteExpired(reviewed.deadline, nowSeconds)) {
+    throw new RelayrPaymentRetryError(EXPIRED, "expired");
   }
   for (const hash of hashes) {
     try {
       await verifyRelayrPayment(client, { hash, from, payment });
     } catch (error) {
       if (error instanceof RelayrPaymentRevertedError) continue;
-      throw error;
+      if (error instanceof RelayrProofError) throw error;
+      throw withCause(
+        new RelayrPaymentRetryError((error as Error).message, "unknown"),
+        error,
+      );
     }
-    throw new Error(
+    throw new RelayrPaymentRetryError(
       "This Relayr payment succeeded onchain, so its bundle is paid. Do not pay again.",
+      "paid",
     );
   }
   const { payment_received, transactions } = await readBundle(
     fetchBundle,
-    reviewed!.bundleUuid,
-    () => new Error(UNKNOWN_PAYMENT),
+    reviewed.bundleUuid,
+    () => new RelayrPaymentRetryError(UNKNOWN_PAYMENT, "unknown"),
   );
   if (payment_received === true) {
-    throw new Error(
+    throw new RelayrPaymentRetryError(
       "Relayr already reports a payment for this bundle. Do not pay again.",
+      "paid",
     );
   }
   if (
@@ -1161,7 +1215,7 @@ export async function requireRelayrPaymentRetry(
     !Array.isArray(transactions) ||
     !transactions.length
   ) {
-    throw new Error(UNKNOWN_PAYMENT);
+    throw new RelayrPaymentRetryError(UNKNOWN_PAYMENT, "unknown");
   }
   if (
     transactions.some(
@@ -1170,8 +1224,9 @@ export async function requireRelayrPaymentRetry(
         !relayrStateIsPending(record?.status?.state),
     )
   ) {
-    throw new Error(
+    throw new RelayrPaymentRetryError(
       "Relayr reports a transaction of this bundle as running or run. Do not pay again.",
+      "running",
     );
   }
 }
