@@ -20,6 +20,7 @@ const executed = (fields: Record<string, unknown>) => ({
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("Safe transaction service boundaries", () => {
@@ -81,7 +82,104 @@ describe("Safe transaction service boundaries", () => {
     );
     expect(fetch).toHaveBeenCalledWith(
       `https://api.safe.global/tx-service/base/api/v1/multisig-transactions/${PROPOSAL}/`,
+      { headers: { accept: "application/json" } },
     );
+  });
+
+  it("polls as every service call does: with the local API key and the caller's signal", async () => {
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => (key === "jb-safe-api-key" ? "secret" : null),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        executed({
+          isExecuted: true,
+          isSuccessful: true,
+          transactionHash: EXECUTION,
+        }),
+      ),
+    );
+    const signal = new AbortController().signal;
+    await expect(
+      waitForSafeExecutionHash(8453, PROPOSAL, { signal }),
+    ).resolves.toBe(EXECUTION);
+    expect(fetch).toHaveBeenCalledWith(
+      `https://api.safe.global/tx-service/base/api/v1/multisig-transactions/${PROPOSAL}/`,
+      {
+        headers: { accept: "application/json", authorization: "Bearer secret" },
+        signal,
+      },
+    );
+  });
+
+  it("ends a poll in flight when the signal aborts", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: unknown, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () =>
+              reject(init.signal?.reason),
+            );
+          }),
+      ),
+    );
+    const page = new AbortController();
+    const waiting = waitForSafeExecutionHash(8453, PROPOSAL, {
+      pollingIntervalMs: 60_000,
+      signal: page.signal,
+    });
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    page.abort();
+    await expect(
+      Promise.race([
+        waiting,
+        new Promise((_resolve, reject) =>
+          setTimeout(() => reject(new Error("Still waiting.")), 500),
+        ),
+      ]),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("after a 429, waits the longer of the poll interval and its Retry-After before polling again", async () => {
+    vi.useFakeTimers();
+    const limited = (headers: Record<string, string> = {}) =>
+      new Response("busy", { status: 429, headers });
+    const responses = [
+      limited({ "retry-after": "20" }),
+      limited({ "retry-after": "2" }),
+      limited(),
+      limited({ "retry-after": "soon" }),
+      new Response(
+        JSON.stringify({
+          isExecuted: true,
+          isSuccessful: true,
+          transactionHash: EXECUTION,
+        }),
+      ),
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => responses.shift()!),
+    );
+    const waiting = waitForSafeExecutionHash(8453, PROPOSAL, {
+      pollingIntervalMs: 5_000,
+    });
+    // Each 429 is one request: the poll does not retry it on its own.
+    for (const [elapsed, polls] of [
+      [0, 1],
+      [19_999, 1],
+      [1, 2],
+      [4_999, 2],
+      [1, 3],
+      [5_000, 4],
+      [5_000, 5],
+    ]) {
+      await vi.advanceTimersByTimeAsync(elapsed);
+      expect(fetch).toHaveBeenCalledTimes(polls);
+    }
+    await expect(waiting).resolves.toBe(EXECUTION);
   });
 
   it("fails at once on chains without a hosted service", async () => {

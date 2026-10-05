@@ -157,6 +157,10 @@ function pause(
  * With the chain's `client`, a hash the chain already knows as a transaction
  * is returned as the execution: over WalletConnect, Safe{Wallet} answers with
  * the execution's own hash when the owner executes at once.
+ *
+ * Each poll is one service request with the local API key and `signal`, which
+ * also ends a request in flight. After a 429 the next poll waits the longer of
+ * the polling interval and the wait its Retry-After asks for.
  */
 export async function waitForSafeExecutionHash(
   chainId: number,
@@ -182,6 +186,7 @@ export async function waitForSafeExecutionHash(
     if (options.signal?.aborted) {
       throw new DOMException("Safe execution wait aborted", "AbortError");
     }
+    let wait = interval;
     if (
       client &&
       (await client.getTransaction({ hash: safeTxHash }).then(
@@ -198,7 +203,11 @@ export async function waitForSafeExecutionHash(
       }
     } else {
       try {
-        const response = await fetch(endpoint);
+        const response = await serviceFetch(
+          endpoint,
+          { headers: serviceHeaders() },
+          { signal: options.signal, retryRateLimited: false },
+        );
         if (response.ok) {
           consecutiveNotFound = 0;
           const transaction = (await response.json()) as {
@@ -226,6 +235,11 @@ export async function waitForSafeExecutionHash(
               "Safe’s transaction service has no record of this proposal. Tracking cannot continue here — check the proposal in the Safe app; if it exists there, it will still take effect once executed.",
             );
           }
+        } else if (response.status === 429) {
+          const retryAfter = response.headers.get("retry-after");
+          const asked = retryAfter === null ? NaN : retryAfterMs(retryAfter);
+          // An unreadable Retry-After (NaN) leaves the interval.
+          if (asked > interval) wait = asked;
         }
       } catch (error) {
         if (error instanceof SafeExecutionRecordError) throw error;
@@ -234,7 +248,7 @@ export async function waitForSafeExecutionHash(
       }
     }
     await pause(
-      interval,
+      wait,
       options.signal,
       () => new DOMException("Safe execution wait aborted", "AbortError"),
     );

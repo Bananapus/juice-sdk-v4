@@ -34,6 +34,11 @@ itself, so the apps can drop their wrappers.
   into a 503 in their own `fetch` for this today.
 - `listPendingSafeTransactions` no longer lists a page again after it answered
   429, since that request has had its retries.
+- `waitForSafeExecutionHash` polls as the other service calls do: each poll
+  sends the local API key and the caller's `signal`, which now also ends a poll
+  in flight, and after a 429 the next poll waits the longer of the polling
+  interval and the wait its Retry-After asks for. It used to poll every interval
+  whatever a 429 said.
 
 `@bananapus/nana-sdk-core/jbcenter`:
 
