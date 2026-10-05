@@ -45,8 +45,14 @@ const budgets = {
     // 20,123,016 B unpacked, 698 files).
     // Deployment diagnostics, shop preparation and overload selection add
     // three source modules and 24 ESM/CJS artifacts.
-    packed: 1_174_000,
-    unpacked: 20_256_000,
+    // The checks the web clients wrapped (MultiSendCallOnly 1.4.1, the Safe
+    // service's signal and capped 429 waits, the reviewed account before
+    // review, and Relayr's checksum, quote expiry, retry refusals and bundle
+    // read) add no files and, mostly in documentation, about 27 kilobytes
+    // unpacked and 6.5 kilobytes packed (measured 1,174,261 B packed,
+    // 20,264,071 B unpacked, 722 files).
+    packed: 1_182_000,
+    unpacked: 20_292_000,
     entries: 722,
   },
   "@bananapus/nana-sdk-react": {
