@@ -270,7 +270,9 @@ export function resolvePersistedBendystrawRequest(
  * Send one persisted operation through the app's same-origin proxy
  * (`/api/bendystraw/{network}/query` unless `endpoint` says otherwise). Only
  * the operation id and variables leave the browser; the response is validated
- * against the document's contract.
+ * against the document's contract. When the caller's `signal` aborts, the
+ * request under way fails with the signal's reason and is not retried; a signal
+ * that has already aborted sends nothing.
  */
 export async function requestPersistedBendystraw<T>(args: {
   contract: BendystrawOperationContract;
@@ -278,6 +280,7 @@ export async function requestPersistedBendystraw<T>(args: {
   query: string;
   variables: Record<string, unknown>;
   endpoint?: string;
+  signal?: AbortSignal;
 }): Promise<T> {
   const operation = await bendystrawOperationId(args.query);
   return requestBendystraw<T, Record<string, unknown>>(
@@ -292,6 +295,7 @@ export async function requestPersistedBendystraw<T>(args: {
           cache: "no-store",
         }),
       operationName: args.contract.operationName,
+      signal: args.signal,
       validateData: (value): value is T => args.contract.validateData(value),
       validateVariables: args.contract.validateVariables,
     },
