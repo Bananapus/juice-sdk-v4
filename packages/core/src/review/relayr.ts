@@ -16,6 +16,7 @@ import {
   jbContractAddress,
 } from "../generated/juicebox.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
+import { isDefiniteWalletRejection } from "./contractWrite.js";
 import { simulateStateChangingTransaction } from "./simulation.js";
 
 // Relayr runs a bundle of transactions on several chains for one prepaid
@@ -88,7 +89,9 @@ const TESTNETS: readonly number[] = [11155111, 11155420, 84532, 421614];
 const PAYMENT_CODE_MAX_BYTES = 2_048;
 const BUNDLE_READ_TIMEOUT_MS = 15_000;
 const HTTP_DETAIL_CHARACTERS = 240;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+/** A Relayr bundle or transaction ID, in lower case. */
+export const RELAYR_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 // RFC 3339 with an explicit offset. A time without one is read in the
 // machine's timezone, which would make the same quote pass or fail by place.
 const DEADLINE_TIME =
@@ -357,7 +360,7 @@ function sameStrictAddress(value: unknown, address: string): boolean {
 function uuidOf(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const uuid = value.toLowerCase();
-  return UUID.test(uuid) ? uuid : null;
+  return RELAYR_UUID_RE.test(uuid) ? uuid : null;
 }
 
 type ReadEntry = { chain: number; target: Address; data: Hex; value: bigint };
@@ -1297,6 +1300,14 @@ export async function requireRelayrBundleUnpaid(
   );
 }
 
+/** Relayr has not run the call: `pending`, in any case, with no destination hash. */
+function relayrRecordPending(record: RelayrTransactionRecord): boolean {
+  return (
+    relayrDestinationHash(record) === null &&
+    relayrStateIsPending(record?.status?.state)
+  );
+}
+
 /** {@link requireRelayrBundleUnpaid}'s check of a bundle already read. */
 function requireUnpaidBundle({
   payment_received,
@@ -1315,13 +1326,7 @@ function requireUnpaidBundle({
   ) {
     throw new RelayrPaymentRetryError(UNKNOWN_PAYMENT, "unknown");
   }
-  if (
-    transactions.some(
-      (record: RelayrTransactionRecord) =>
-        relayrDestinationHash(record) !== null ||
-        !relayrStateIsPending(record?.status?.state),
-    )
-  ) {
+  if (transactions.some((record) => !relayrRecordPending(record))) {
     throw new RelayrPaymentRetryError(
       "Relayr reports a transaction of this bundle as running or run. Do not pay again.",
       "running",
@@ -1629,6 +1634,18 @@ export async function atCanonicalFinalizedBlock<T>(
   }
 }
 
+/** `clientFor(chainId)`, or none when it has none or throws. */
+function clientOn<T>(
+  clientFor: (chainId: number) => T | undefined,
+  chainId: number,
+): T | undefined {
+  try {
+    return clientFor(chainId);
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * The nonce the canonical forwarder on `chainId` expects next from `signer`
  * at the chain's finalized block, still canonical, with that block's
@@ -1640,15 +1657,11 @@ async function finalizedForwarderNonce(
   signer: Address,
 ): Promise<{ nonce: bigint; timestamp: bigint } | null> {
   const forwarder = forwarderOn(chainId);
-  if (!forwarder || !isAddressLike(signer)) return null;
-  let client: RelayrFinalizedClient | undefined;
-  try {
-    client = clientFor(chainId);
-  } catch {
-    return null;
-  }
-  if (!client) return null;
-  const reader = client;
+  const reader =
+    forwarder && isAddressLike(signer)
+      ? clientOn(clientFor, chainId)
+      : undefined;
+  if (!forwarder || !reader) return null;
   const finalized = await atCanonicalFinalizedBlock(reader, (blockNumber) =>
     reader.readContract({
       address: forwarder,
@@ -1924,4 +1937,345 @@ export async function relayrSessionOutcome(
         );
   }
   return { kind: "re-sign", nonces: saved };
+}
+
+// Ruling R104 for a quote a session paid: the payments it sent, the option it
+// pays again with, where a failed payment attempt leaves the quote, and when
+// a quote whose own payments reverted is funded by another, still payable,
+// or released, so that its action quotes its calls again.
+
+/**
+ * A payment sent for a quote: the payment {@link relayrPaymentDetails}
+ * authenticated, with its amount and deadline in decimal so JSON keeps them,
+ * and the hash it was mined under.
+ */
+export type RelayrSentPayment = Omit<
+  RelayrPaymentDetails,
+  "amount" | "deadline"
+> & {
+  amount: string;
+  deadline: string;
+  hash: Hex;
+};
+
+/** The payment `details` describes, as a session records it once sent under `hash`. */
+export function sentRelayrPayment(
+  details: RelayrPaymentDetails,
+  hash: Hex,
+): RelayrSentPayment {
+  return {
+    ...details,
+    amount: details.amount.toString(),
+    deadline: details.deadline.toString(),
+    hash,
+  };
+}
+
+/** The most payments one quote's journal keeps. No payment is sent beyond them. */
+export const MAX_RELAYR_SENT_PAYMENTS = 16;
+
+/** A saved sent payment, read strictly, or null. */
+function relayrSentPaymentSnapshot(value: unknown): RelayrSentPayment | null {
+  if (!value || typeof value !== "object") return null;
+  const { hash, chainId, target, calldata, amount, deadline, bundleUuid } =
+    value as Record<string, unknown>;
+  return isBytes32(hash) &&
+    typeof chainId === "number" &&
+    relayrSupportsChain(chainId) &&
+    isStrictAddress(target) &&
+    typeof calldata === "string" &&
+    /^0x[0-9a-f]{136}$/iu.test(calldata) &&
+    typeof amount === "string" &&
+    /^\d{1,78}$/u.test(amount) &&
+    typeof deadline === "string" &&
+    /^\d{1,13}$/u.test(deadline) &&
+    typeof bundleUuid === "string" &&
+    RELAYR_UUID_RE.test(bundleUuid)
+    ? {
+        hash,
+        chainId,
+        target,
+        calldata: calldata as Hex,
+        amount,
+        deadline,
+        bundleUuid,
+      }
+    : null;
+}
+
+/**
+ * A saved list of sent payments, read strictly: at most
+ * {@link MAX_RELAYR_SENT_PAYMENTS}, each with only a payment's own fields.
+ * Null when any of it is malformed.
+ */
+export function relayrSentPaymentsSnapshot(
+  values: unknown,
+): RelayrSentPayment[] | null {
+  if (!Array.isArray(values) || values.length > MAX_RELAYR_SENT_PAYMENTS) {
+    return null;
+  }
+  const payments = values.map(relayrSentPaymentSnapshot);
+  return payments.every((payment) => payment !== null)
+    ? (payments as RelayrSentPayment[])
+    : null;
+}
+
+/**
+ * The saved option a quote paid before is paid again with: exactly the one
+ * its latest payment used, on its chain with its calldata (in any case) and
+ * amount. Throws when no option is that one.
+ */
+export function relayrRetryOption(
+  payments:
+    | readonly Pick<RelayrSentPayment, "chainId" | "calldata" | "amount">[]
+    | undefined,
+  options: readonly RelayrPayment[] | undefined,
+): RelayrPayment {
+  const latest = Array.isArray(payments)
+    ? payments[payments.length - 1]
+    : undefined;
+  const option =
+    latest && Array.isArray(options)
+      ? options.find(
+          (item) =>
+            item.chain === latest.chainId &&
+            typeof item.calldata === "string" &&
+            item.calldata.toLowerCase() === latest.calldata.toLowerCase() &&
+            typeof item.amount === "string" &&
+            uint256(item.amount) !== null &&
+            uint256(item.amount) === uint256(latest.amount),
+        )
+      : undefined;
+  if (!option) {
+    throw new Error(
+      "This Relayr quote cannot be paid again from its saved record. Keep it pending; do not pay again.",
+    );
+  }
+  return option;
+}
+
+/**
+ * Where a failed payment attempt leaves its quote: `reverted` when the
+ * payment reverted onchain, or when the wallet declined to pay a quote paid
+ * before, which stays on {@link requireRelayrPaymentRetry}'s rule; `unpaid`
+ * when the wallet declined its first payment; null when nothing is known, and
+ * the journal stays as it is. `sending` is whether the wallet held the
+ * payment, and `paid` whether the quote was paid before.
+ */
+export function relayrPaymentAttemptOutcome(
+  error: unknown,
+  { sending, paid }: { sending: boolean; paid: boolean },
+): "reverted" | "unpaid" | null {
+  if (error instanceof RelayrPaymentRevertedError) return "reverted";
+  if (sending && isDefiniteWalletRejection(error)) {
+    return paid ? "reverted" : "unpaid";
+  }
+  return null;
+}
+
+/**
+ * Whether the quote a session paid can still be paid at `nowMs` (the clock by
+ * default): its latest payment's deadline is more than 15 seconds away, as
+ * {@link quoteExpired} reads it and {@link requireRelayrPaymentRetry}
+ * requires. A deadline that can't be read is closed.
+ */
+export function relayrPaidQuoteOpen(
+  payments: readonly Pick<RelayrSentPayment, "deadline">[] | undefined,
+  nowMs: number = Date.now(),
+): boolean {
+  const latest = Array.isArray(payments)
+    ? payments[payments.length - 1]
+    : undefined;
+  const deadline = latest ? uint256(latest.deadline) : null;
+  return deadline !== null && !quoteExpired(deadline, nowMs / 1_000);
+}
+
+/**
+ * Every option of a quote that {@link relayrPaymentDetails} accepts, expired
+ * or not, several on one chain included, with its details: the options a
+ * session keeps, and whose deadlines a release waits out. An option nothing
+ * can authenticate is never paid from, so it is left out.
+ */
+export function relayrQuotedOptions(
+  quote: Pick<RelayrQuote, "bundle_uuid" | "payment_info">,
+  destinationChainIds: readonly number[],
+): { option: RelayrPayment; details: RelayrPaymentDetails }[] {
+  return (Array.isArray(quote.payment_info) ? quote.payment_info : []).flatMap(
+    (option) => {
+      try {
+        return [
+          {
+            option,
+            details: relayrPaymentDetails(option, {
+              bundleUuid: quote.bundle_uuid,
+              destinationChainIds,
+              nowSeconds: 0,
+            }),
+          },
+        ];
+      } catch {
+        return [];
+      }
+    },
+  );
+}
+
+/**
+ * The reads a release makes on a chain: a payment's proof and a deadline at a
+ * canonical finalized block. A PublicClient for any chain satisfies it.
+ */
+export type RelayrReleaseClient = RelayrProofClient &
+  Pick<RelayrFinalizedClient, "getBlock">;
+
+/** A quote as a session saved it, for {@link revertedRelayrQuote}. */
+type RevertedQuote = {
+  bundleUuid: string;
+  /** Every payment sent for the quote, as mined. */
+  payments: readonly RelayrSentPayment[];
+  /** The quote's payment options, as Relayr quoted them. */
+  options: readonly RelayrPayment[];
+  destinationChainIds: readonly number[];
+  /** The account the payments were sent from. */
+  account: string;
+};
+
+/** One uncached read of the bundle, or null when it can't be read, names another bundle or lists no calls. */
+async function relayrBundleIfNamed(
+  bundleUuid: string,
+  fetchBundle: typeof globalThis.fetch,
+): Promise<{
+  paymentReceived: unknown;
+  records: RelayrTransactionRecord[];
+} | null> {
+  try {
+    const { payment_received, transactions } = await readRelayrBundle(
+      bundleUuid,
+      { fetch: fetchBundle },
+    );
+    return Array.isArray(transactions)
+      ? { paymentReceived: payment_received, records: transactions }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Nothing can fund the quote any more: every payment it sent is proven
+ * canonically reverted, and the deadline of each of those payments, and of
+ * each option {@link relayrQuotedOptions} keeps, has passed at a canonical
+ * finalized block on its chain. Anything unread is false.
+ */
+async function relayrQuoteUnfundable(
+  clientFor: (chainId: number) => RelayrReleaseClient | undefined,
+  {
+    payments,
+    options,
+    bundleUuid,
+    destinationChainIds,
+    account,
+  }: RevertedQuote,
+): Promise<boolean> {
+  if (
+    !Array.isArray(payments) ||
+    !payments.length ||
+    !Array.isArray(options) ||
+    !isStrictAddress(account)
+  ) {
+    return false;
+  }
+  for (const payment of payments) {
+    const client = clientOn(clientFor, payment.chainId);
+    if (!client) return false;
+    try {
+      await verifyRelayrPayment(client, {
+        hash: payment.hash,
+        from: account,
+        payment,
+      });
+      return false;
+    } catch (error) {
+      if (!(error instanceof RelayrPaymentRevertedError)) return false;
+    }
+  }
+  const deadlines = new Map<string, { chainId: number; deadline: string }>(
+    payments.map((payment) => [
+      `${payment.chainId}:${payment.deadline}`,
+      payment,
+    ]),
+  );
+  for (const { details } of relayrQuotedOptions(
+    { bundle_uuid: bundleUuid, payment_info: [...options] },
+    destinationChainIds,
+  )) {
+    deadlines.set(`${details.chainId}:${details.deadline}`, {
+      chainId: details.chainId,
+      deadline: details.deadline.toString(),
+    });
+  }
+  for (const { chainId, deadline } of deadlines.values()) {
+    const client = clientOn(clientFor, chainId);
+    if (!client || !(await relayrDeadlinePassed(client, deadline))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * What a quote whose own payments reverted allows (ruling R104), from one
+ * uncached read of its bundle (with `fetch`, the global one by default):
+ *
+ * - `funded` when Relayr reports a payment, or a call running or run: another
+ *   payment funded it, so its destinations are proven, never paid again;
+ * - `payable` while the quote of its latest payment is open at `nowMs` (the
+ *   clock by default), for {@link requireRelayrPaymentRetry}'s rule;
+ * - `released` once nothing can fund it: every payment it sent is proven
+ *   canonically reverted on its chain (with `clientFor`), every deadline of
+ *   those payments and of the options {@link relayrQuotedOptions} keeps
+ *   passed at a canonical finalized block, and
+ *   {@link requireRelayrBundleUnpaid}, reading the bundle once more, finds it
+ *   unpaid with every call pending. Its action then quotes its calls again.
+ *
+ * Throws while an expired quote's release is unproven. Resolves with the
+ * records Relayr reported, or null when the bundle could not be read.
+ */
+export async function revertedRelayrQuote(
+  clientFor: (chainId: number) => RelayrReleaseClient | undefined,
+  quote: RevertedQuote,
+  {
+    fetch: fetchBundle = globalThis.fetch,
+    nowMs = Date.now(),
+  }: { fetch?: typeof globalThis.fetch; nowMs?: number } = {},
+): Promise<{
+  state: "funded" | "payable" | "released";
+  records: RelayrTransactionRecord[] | null;
+}> {
+  const bundle = await relayrBundleIfNamed(quote.bundleUuid, fetchBundle);
+  const records = bundle?.records ?? null;
+  if (
+    bundle &&
+    (bundle.paymentReceived === true ||
+      bundle.records.some((record) => !relayrRecordPending(record)))
+  ) {
+    return { state: "funded", records };
+  }
+  if (relayrPaidQuoteOpen(quote.payments, nowMs)) {
+    return { state: "payable", records };
+  }
+  if (
+    bundle &&
+    (await relayrQuoteUnfundable(clientFor, quote)) &&
+    (await requireRelayrBundleUnpaid(quote.bundleUuid, {
+      fetch: fetchBundle,
+    }).then(
+      () => true,
+      () => false,
+    ))
+  ) {
+    return { state: "released", records };
+  }
+  throw new Error(
+    "This Relayr quote expired after its payment reverted. A new quote needs its deadline final onchain and Relayr to report nothing ran; try again in a few minutes.",
+  );
 }

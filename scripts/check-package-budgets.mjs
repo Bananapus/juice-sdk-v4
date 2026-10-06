@@ -75,8 +75,15 @@ const budgets = {
     // code reads as changed) add no files and about 8 kilobytes unpacked and
     // 3 kilobytes packed, mostly documentation (measured 1,205,816 B packed,
     // 20,403,617 B unpacked, 738 files).
-    packed: 1_210_000,
-    unpacked: 20_410_000,
+    // Ruling R104's quote-release and payment-attempt rules (the sent-payment
+    // journal, the option a quote is paid again with, a failed attempt's
+    // outcome, the paid quote's clock, the quoted options and a reverted
+    // quote's release) add no files and 46,326 bytes unpacked and 17,123 bytes
+    // packed, about a third of it documentation, repeated in the ESM and CJS
+    // JavaScript and declarations (measured 1,222,939 B packed, 20,449,943 B
+    // unpacked, 738 files).
+    packed: 1_223_000,
+    unpacked: 20_450_000,
     entries: 738,
   },
   "@bananapus/nana-sdk-react": {
