@@ -664,10 +664,11 @@ What each app replaces:
   `src/hooks/useReviewedRelayr.ts`: `quotedOptions` (:303), `deadlinesPassed`
   (:326), `relayrBundleFunded` (:669), `quoteUnfundable` (:689),
   `revertedRelayrQuote` (:736), `sentPayments` (:939, read into
-  `RelayrSentPayment`), `requirePaymentRetry` (:951) and the outcome of a
-  declined payment in its send (:1966-1990). Its `provePayment` (:1197) is the
-  nearest to `proveSavedRelayrPayment`, but throws while the proof is
-  unavailable, where jbm's resolves false.
+  `RelayrSentPayment`), `requirePaymentRetry` (:951) and, at 3c29869c, the
+  declined payment's `catch` in its send (:1968-1999), whose retry rule is
+  :1981-1992. Its `provePayment` (:1197) is the nearest to
+  `proveSavedRelayrPayment`, but throws while the proof is unavailable, where
+  jbm's resolves false.
 - Homerun (branch `fix/relayr-session-rules`, 79672a2):
   - `src/lib/relayr-payments.ts`, a copy of jbm's.
   - `src/lib/relayr.ts`: `requireRelayrRetry` (:467), `readRelayrBundle`

@@ -145,6 +145,17 @@ describe("the payments a quote's journal keeps", () => {
       { ...sent(), bundleUuid: BUNDLE_UUID.toUpperCase() },
     ],
     ["a bundle ID that is not one", { ...sent(), bundleUuid: "bundle" }],
+    [
+      "calldata a byte too long, whose last word is still the deadline",
+      {
+        ...sent(),
+        calldata: `${paymentCalldata().slice(0, 74)}00${paymentCalldata().slice(74)}`,
+      },
+    ],
+    [
+      "a deadline that is not the one its calldata pays until",
+      { ...sent(), deadline: "1" },
+    ],
   ])("refuses a saved list with %s", (_, value) => {
     expect(
       relayrSentPaymentsSnapshot(Array.isArray(value) ? value : [value]),
@@ -214,6 +225,16 @@ describe("the option a quote paid before is paid again with", () => {
       [sent()],
       { find: () => paymentFor() } as never,
     ],
+    [
+      "a later twin, after an earlier one whose amount can't be read",
+      [sent()],
+      [paymentFor({ amount: "100 " }), paymentFor()],
+    ],
+    [
+      "an option whose amount, like the payment's, is beyond a uint256",
+      [{ ...sent(), amount: "9".repeat(78) }],
+      [paymentFor({ amount: "9".repeat(78) })],
+    ],
   ])("refuses %s", (_, payments, options) => {
     expect(() => relayrRetryOption(payments, options)).toThrow(
       "This Relayr quote cannot be paid again from its saved record. Keep it pending; do not pay again.",
@@ -275,6 +296,10 @@ describe("whether the quote a session paid can still be paid", () => {
     expect(relayrPaidQuoteOpen(payments, (DEADLINE - 15) * 1_000)).toBe(false);
   });
 
+  it.each([NaN, Infinity, -Infinity])("is closed at a time of %s", (nowMs) => {
+    expect(relayrPaidQuoteOpen([sent()], nowMs)).toBe(false);
+  });
+
   it("reads the clock unless told the time", () => {
     const now = vi.spyOn(Date, "now").mockReturnValue((DEADLINE - 16) * 1_000);
     expect(relayrPaidQuoteOpen([sent()])).toBe(true);
@@ -319,6 +344,20 @@ describe("the options a session keeps from its quote", () => {
       [1, BigInt(DEADLINE)],
       [1, BigInt(DEADLINE + 3_600)],
       [10, BigInt(DEADLINE)],
+    ]);
+  });
+
+  it("keep an option whose deadline passed long ago by the clock", () => {
+    const old = paymentFor({}, 1_000);
+    expect(
+      relayrQuotedOptions({ bundle_uuid: BUNDLE_UUID, payment_info: [old] }, [
+        1,
+      ]),
+    ).toEqual([
+      {
+        option: old,
+        details: expect.objectContaining({ chainId: 1, deadline: 1_000n }),
+      },
     ]);
   });
 
@@ -534,6 +573,14 @@ describe("a quote whose own payments reverted (ruling R104)", () => {
       "Relayr answers without a list of calls",
       () => (reads = [bundle({ transactions: null })]),
     ],
+    [
+      "Relayr cannot be read at first, though a second read finds it unpaid",
+      () =>
+        (reads = [
+          () => Promise.reject(new TypeError("Failed to fetch")),
+          bundle(),
+        ]),
+    ],
     ["its chain has no client", () => (clients[1] = undefined)],
   ])("keeps the quote when %s", async (_, arrange) => {
     arrange();
@@ -564,6 +611,83 @@ describe("a quote whose own payments reverted (ruling R104)", () => {
   ])("keeps the quote when %s", async (_, overrides) => {
     await expect(reverted(overrides)).rejects.toThrow(UNRELEASED);
   });
+
+  it("waits for each payment's own deadline, with no options to wait for", async () => {
+    finalized[1] = DEADLINE;
+    await expect(reverted({ options: [] })).rejects.toThrow(UNRELEASED);
+    finalized[1] = DEADLINE + 1;
+    await expect(reverted({ options: [] })).resolves.toMatchObject({
+      state: "released",
+    });
+  });
+
+  it("waits for a deadline on each chain it is on, when two chains share it", async () => {
+    finalized[1] = DEADLINE;
+    finalized[10] = DEADLINE + 3_601;
+    await expect(
+      reverted({
+        options: [paymentFor(), paymentFor({ chain: 10 })],
+        destinationChainIds: [1, 10],
+      }),
+    ).rejects.toThrow(UNRELEASED);
+  });
+
+  it("waits for an option whose deadline passed long ago by the clock, until it passes at its finalized block", async () => {
+    finalized[10] = 1_699_999_999;
+    const options = [paymentFor(), paymentFor({ chain: 10 }, 1_700_000_000)];
+    await expect(
+      reverted({ options, destinationChainIds: [1, 10] }),
+    ).rejects.toThrow(UNRELEASED);
+    finalized[10] = 1_700_000_001;
+    await expect(
+      reverted({ options, destinationChainIds: [1, 10] }),
+    ).resolves.toMatchObject({ state: "released" });
+  });
+
+  it("waits for the deadline its payment's calldata pays until, whatever deadline the journal saved", async () => {
+    finalized[1] = DEADLINE - 1_000;
+    await expect(
+      reverted({ payments: [{ ...sent(), deadline: "1" }], options: [] }),
+    ).rejects.toThrow(UNRELEASED);
+  });
+
+  it("holds a journal that files another bundle's payment under this quote", async () => {
+    const foreign = sentRelayrPayment(
+      relayrPaymentDetails(
+        paymentFor({ calldata: paymentCalldata(OTHER_UUID) }),
+        { bundleUuid: OTHER_UUID, destinationChainIds: [1], nowSeconds: START },
+      ),
+      HASH,
+    );
+    mined.set(HASH, { payment: foreign, status: "reverted" });
+    await expect(reverted({ payments: [foreign] })).rejects.toThrow(UNRELEASED);
+    await expect(
+      reverted({ payments: [foreign] }, (DEADLINE - 16) * 1_000),
+    ).rejects.toThrow(UNRELEASED);
+  });
+
+  it("reads the clock after the bundle, so a quote whose window closes during the read is not payable", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue((DEADLINE - 30) * 1_000);
+    const slow = vi.fn(async (input: unknown, init: unknown) => {
+      now.mockReturnValue(DEADLINE * 1_000);
+      return (
+        fetchBundle as unknown as (a: unknown, b: unknown) => Promise<Response>
+      )(input, init);
+    });
+    await expect(
+      revertedRelayrQuote((chainId) => clients[chainId], quote(), {
+        fetch: slow as unknown as typeof fetch,
+      }),
+    ).resolves.toMatchObject({ state: "released" });
+    now.mockRestore();
+  });
+
+  it.each([NaN, Infinity, -Infinity])(
+    "holds, with its line, at a time of %s",
+    async (nowMs) => {
+      await expect(reverted({}, nowMs)).rejects.toThrow(UNRELEASED);
+    },
+  );
 
   it("keeps the quote when a client cannot be had for a chain", async () => {
     await expect(
@@ -661,6 +785,21 @@ describe("a quote whose own payments reverted (ruling R104)", () => {
       expect(fetchBundle).toHaveBeenCalledTimes(3);
     });
 
+    it("refuses when a later payment of the same option succeeded", async () => {
+      const later = sent(paymentFor(), SECOND_HASH);
+      mined.set(SECOND_HASH, { payment: later, status: "success" });
+      const error = await refusal(retry([sent(), later]));
+      expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+      expect(error.reason).toBe("paid");
+    });
+
+    it("proves the same option on two chains on each chain", async () => {
+      const elsewhere = sent(paymentFor({ chain: 10 }), SECOND_HASH);
+      mined.set(SECOND_HASH, { payment: elsewhere, status: "reverted" });
+      await expect(retry([sent(), elsewhere])).resolves.toBeUndefined();
+      expect(fetchBundle).toHaveBeenCalledTimes(2);
+    });
+
     it("refuses when any payment it sent did not revert, including one before a declined retry", async () => {
       const first = sent(paymentFor(), SECOND_HASH);
       mined.set(SECOND_HASH, { payment: first, status: "success" });
@@ -730,6 +869,17 @@ describe("a quote whose own payments reverted (ruling R104)", () => {
     it.each<[string, unknown]>([
       ["no payments", []],
       ["payments that are not a list", { length: 1, 0: sent() }],
+      ["a payment that is not one", [null]],
+      ["a payment with only its bundle", [{ bundleUuid: BUNDLE_UUID }]],
+      ["an empty payment", [{}]],
+      [
+        "a payment whose deadline is not the one its calldata pays until",
+        [{ ...sent(), deadline: "1" }],
+      ],
+      [
+        "more payments than a journal keeps",
+        Array.from({ length: 17 }, () => sent()),
+      ],
     ])("refuses %s before reading anything", async (_, payments) => {
       const error = await refusal(retry(payments as RelayrSentPayment[]));
       expect(error).toBeInstanceOf(RelayrPaymentRetryError);

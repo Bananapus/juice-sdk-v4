@@ -86,8 +86,13 @@ const budgets = {
     // used) and the saved payment's proof on resume add no files and 14,148
     // bytes unpacked and 2,187 bytes packed (measured 1,225,126 B packed,
     // 20,464,091 B unpacked, 738 files).
-    packed: 1_226_000,
-    unpacked: 20_465_000,
+    // Their review's guards (a saved deadline bound to its calldata's, a
+    // release holding another bundle's payment or an unreadable time, the
+    // clock read after the bundle, and a retry list read as a journal) add no
+    // files and 4,870 bytes unpacked and 911 bytes packed (measured 1,226,037 B
+    // packed, 20,468,961 B unpacked, 738 files).
+    packed: 1_227_000,
+    unpacked: 20_469_000,
     entries: 738,
   },
   "@bananapus/nana-sdk-react": {
