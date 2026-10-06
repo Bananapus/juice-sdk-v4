@@ -63,8 +63,15 @@ const budgets = {
     // source modules, sixteen artifacts, about 47 kilobytes unpacked and 8
     // kilobytes packed over the Safe wait fix (measured 1,189,051 B packed,
     // 20,342,557 B unpacked, 738 files).
-    packed: 1_193_000,
-    unpacked: 20_350_000,
+    // The Relayr session rules Juicebox Money built (rulings R104, R114 and
+    // R117: requests classified at a canonical finalized block, their
+    // verdict, what the session does next, the forwarder-nonce reservation and
+    // the signed-request reader) add no files and about 52 kilobytes unpacked
+    // and 14 kilobytes packed, about half of it documentation repeated in the
+    // ESM and CJS JavaScript and declarations (measured 1,203,010 B packed,
+    // 20,395,254 B unpacked, 738 files).
+    packed: 1_207_000,
+    unpacked: 20_403_000,
     entries: 738,
   },
   "@bananapus/nana-sdk-react": {
