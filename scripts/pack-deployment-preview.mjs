@@ -16,6 +16,11 @@ import { tmpdir } from "node:os";
 const sdk = realpathSync(resolve(process.argv[2]));
 const packScript = realpathSync(process.argv[1]);
 const output = resolve(process.argv[3]);
+// Keep one packaging owner for all SDK previews. Existing callers retain
+// their deployment label; other migrations supply their own explicit label.
+const label = process.argv[4] ?? "deployment";
+if (!/^[a-z][a-z0-9-]*$/u.test(label))
+  throw new Error("Expected a lowercase preview label.");
 const core = join(sdk, "packages/core");
 if (
   JSON.parse(readFileSync(join(core, "package.json"), "utf8")).name !==
@@ -55,7 +60,7 @@ const sourceFiles = inputPaths.map((path) => ({
 const sourceDigest = sha(JSON.stringify(sourceFiles));
 const manifest = JSON.parse(readFileSync(join(core, "package.json"), "utf8"));
 const [major, minor] = manifest.version.split(".").map(Number);
-manifest.version = `${major}.${minor + 1}.0-preview.deployment.${sourceDigest.slice(0, 12)}`;
+manifest.version = `${major}.${minor + 1}.0-preview.${label}.${sourceDigest.slice(0, 12)}`;
 manifest.files = [...manifest.files, "snapshot-provenance.json"];
 const stage = mkdtempSync(join(tmpdir(), "kmac-sdk-pack-"));
 cpSync(join(core, "dist"), join(stage, "dist"), { recursive: true });
@@ -73,8 +78,7 @@ const provenance = {
   }).trim(),
   sourceDigest,
   sourceFiles,
-  reproduce:
-    "node scripts/pack-deployment-preview.mjs <sdk-root> <output-directory>",
+  reproduce: `node scripts/pack-deployment-preview.mjs <sdk-root> <output-directory> ${label}`,
   buildCommands: [
     "npm run build:esm --workspace @bananapus/nana-sdk-core",
     "npm run build:cjs --workspace @bananapus/nana-sdk-core",

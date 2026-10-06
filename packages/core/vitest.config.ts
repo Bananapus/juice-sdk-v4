@@ -105,6 +105,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/review/safeRelayr.ts": {
+          statements: 98,
+          branches: 90,
+          functions: 100,
+          lines: 98,
+        },
         "src/review/receipt.ts": {
           statements: 100,
           branches: 100,

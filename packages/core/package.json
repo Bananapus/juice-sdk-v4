@@ -110,6 +110,11 @@
       "types": "./dist/esm/v6/uniswapV4Deployments.d.ts",
       "import": "./dist/esm/v6/uniswapV4Deployments.js",
       "require": "./dist/cjs/v6/uniswapV4Deployments.js"
+    },
+    "./review/safe-relayr": {
+      "types": "./dist/esm/review/safeRelayr.d.ts",
+      "import": "./dist/esm/review/safeRelayr.js",
+      "require": "./dist/cjs/review/safeRelayr.js"
     }
   },
   "files": [

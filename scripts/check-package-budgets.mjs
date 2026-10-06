@@ -91,9 +91,13 @@ const budgets = {
     // clock read after the bundle, and a retry list read as a journal) add no
     // files and 4,870 bytes unpacked and 911 bytes packed (measured 1,226,037 B
     // packed, 20,468,961 B unpacked, 738 files).
-    packed: 1_227_000,
-    unpacked: 20_469_000,
-    entries: 738,
+    // The shared Safe Relayr lifecycle replaces both clients' preparation,
+    // funding and recovery rules. Its one source module adds eight compiled
+    // artifacts: measured 1,244,411 B packed, 20,606,456 B unpacked, 746 files.
+    // Retain the existing narrow rounding margin and all other package limits.
+    packed: 1_245_000,
+    unpacked: 20_607_000,
+    entries: 746,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
