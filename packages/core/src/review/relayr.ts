@@ -1,8 +1,11 @@
 import {
+  ContractFunctionRevertedError,
   decodeFunctionData,
   encodeFunctionData,
   isAddress,
   keccak256,
+  RpcError,
+  RpcRequestError,
   type Address,
   type Hex,
   type PublicClient,
@@ -1582,8 +1585,9 @@ export type RelayrDiscardReason = "ran" | "changed" | "expired";
  *   is below a saved one (a reorg dropped an earlier forwarded transaction),
  *   or there are no saved nonces to sign at (`nonces` omitted or empty), or
  *   there were no requests. It holds until the nonce catches up.
- * - `unchecked`: the recheck could not reach the chain, which decides
- *   nothing. Try again.
+ * - `unchecked`: the recheck failed because the node could not answer (ruling
+ *   R118): its cause chain holds a transport or JSON-RPC failure, or a revert
+ *   without revert data, and no revert data. That decides nothing. Try again.
  *
  * `error` is never enumerable, so no JSON or log of an outcome shows it: an
  * RPC error's URL can carry a key.
@@ -1750,7 +1754,7 @@ export async function relayrRequestStates(
 
 /**
  * What `states` allow together. No states are neither run nor unused, so a
- * session with none holds, as it did when its app found nothing to classify.
+ * session with none holds.
  */
 export function relayrRequestsVerdict(
   states: readonly RelayrRequestState[],
@@ -1813,19 +1817,60 @@ export function isRelayrDiscardReason(
   return value === "ran" || value === "changed" || value === "expired";
 }
 
-/** The failures that mean a recheck could not reach the chain. */
+/** The transport failures that mean a recheck could not reach the chain. */
 const UNREACHED = ["HttpRequestError", "TimeoutError", "WebSocketRequestError"];
 
-/** The recheck failed to reach the chain (in its first eight errors), so it says nothing about the project. */
+/**
+ * Revert data: whole bytes of hex, at least a 4-byte selector, bare or in
+ * Nethermind's "Reverted 0x…" form.
+ */
+const REVERT_DATA = /^(?:Reverted )?0x(?:[0-9a-fA-F]{2}){4,}$/u;
+
+/**
+ * Whether one error carries revert data, whatever its JSON-RPC code: in its
+ * `data`, in a `data.data` a node nests there, or in the `raw` data of viem's
+ * contract revert. Such an error is the chain answering.
+ */
+function revertedWithData(link: Error): boolean {
+  const { raw, data } = link as { raw?: unknown; data?: unknown };
+  const nested =
+    data !== null && typeof data === "object"
+      ? (data as { data?: unknown }).data
+      : undefined;
+  return [raw, data, nested].some(
+    (value) => typeof value === "string" && REVERT_DATA.test(value),
+  );
+}
+
+/**
+ * Ruling R118: the node could not answer the recheck, so it says nothing
+ * about the project. Within the error's first eight links (its cause chain),
+ * one is a transport failure (HTTP, timeout or WebSocket), a JSON-RPC failure
+ * (viem's `RpcRequestError` or any `RpcError`, such as -32001, -32005 or
+ * -32603), or a contract revert without revert data, as viem reads a bare
+ * revert, transient or not; and no link carries revert data, which on any
+ * code is the chain answering. An app's error that wraps such a failure as
+ * its `cause` reads the same way.
+ */
 function recheckUnreached(error: unknown): boolean {
+  const links: Error[] = [];
   for (
-    let link = error, depth = 0;
-    depth < 8 && link instanceof Error;
-    depth += 1, link = (link as { cause?: unknown }).cause
+    let link = error;
+    links.length < 8 && link instanceof Error;
+    link = (link as { cause?: unknown }).cause
   ) {
-    if (UNREACHED.includes(link.name)) return true;
+    links.push(link);
   }
-  return false;
+  return (
+    !links.some(revertedWithData) &&
+    links.some(
+      (link) =>
+        UNREACHED.includes(link.name) ||
+        link instanceof RpcRequestError ||
+        link instanceof RpcError ||
+        link instanceof ContractFunctionRevertedError,
+    )
+  );
 }
 
 /**
@@ -1844,9 +1889,9 @@ function recheckUnreached(error: unknown): boolean {
  * they do and throws when they don't; a value it resolves with is never read.
  * It runs only once every request is dead and unused. Without one, as in an
  * account view, such a session can be discarded as `expired`. A recheck that
- * fails to reach the chain decides nothing. Known limit: a reorg that drops
- * an earlier forwarded transaction can leave a finalized nonce below a saved
- * one, and the session holds until the nonce catches up.
+ * fails because the node could not answer decides nothing. Known limit: a
+ * reorg that drops an earlier forwarded transaction can leave a finalized
+ * nonce below a saved one, and the session holds until the nonce catches up.
  */
 export async function relayrSessionOutcome(
   verdict: RelayrRequestsVerdict,
