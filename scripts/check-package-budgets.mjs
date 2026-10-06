@@ -61,8 +61,8 @@ const budgets = {
     // rate-limit module (the limiter, its guard against a request asking it
     // for another, and the refusal readers the web clients copied) add two
     // source modules, sixteen artifacts, about 47 kilobytes unpacked and 8
-    // kilobytes packed over the Safe wait fix (measured 1,188,746 B packed,
-    // 20,340,521 B unpacked, 738 files).
+    // kilobytes packed over the Safe wait fix (measured 1,189,051 B packed,
+    // 20,342,557 B unpacked, 738 files).
     packed: 1_193_000,
     unpacked: 20_350_000,
     entries: 738,
