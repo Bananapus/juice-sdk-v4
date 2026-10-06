@@ -1,5 +1,14 @@
 # juice-sdk-core
 
+## 2.24.0
+
+### Minor Changes
+
+- 01bbb7f: Add the framework-independent Safe Relayr lifecycle at `review/safe-relayr`.
+  Both web clients can share durable publication, exact saved-quote reuse,
+  nonce reservations, payment retry and recovery, canonical expiry, and Safe
+  execution receipt verification while retaining their storage and wallet adapters.
+
 ## 2.23.0
 
 ### Minor Changes
