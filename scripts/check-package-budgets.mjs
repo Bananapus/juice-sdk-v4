@@ -58,12 +58,13 @@ const budgets = {
     // and 2.5 kilobytes packed (measured 1,180,514 B packed, 20,293,611 B
     // unpacked, 722 files).
     // JB Center's node-lag retry, the shared abortable wait and the JB Center
-    // rate-limit module (the limiter and the refusal readers the web clients
-    // copied) add two source modules, sixteen artifacts, about 47 kilobytes
-    // unpacked and 8 kilobytes packed (measured 1,185,581 B packed,
-    // 20,331,053 B unpacked, 738 files).
-    packed: 1_189_000,
-    unpacked: 20_337_000,
+    // rate-limit module (the limiter, its guard against a request asking it
+    // for another, and the refusal readers the web clients copied) add two
+    // source modules, sixteen artifacts, about 47 kilobytes unpacked and 8
+    // kilobytes packed over the Safe wait fix (measured 1,188,746 B packed,
+    // 20,340,521 B unpacked, 738 files).
+    packed: 1_193_000,
+    unpacked: 20_350_000,
     entries: 738,
   },
   "@bananapus/nana-sdk-react": {
