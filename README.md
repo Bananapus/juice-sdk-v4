@@ -88,10 +88,11 @@ a 429 must wait out Center's minute. A wait between tries ends at once when the
 read's signal aborts, and a read whose signal has aborted sends nothing. `rpc`
 is always one request.
 
-Center counts each origin's requests, every chain's together, 600 a minute with
-refused ones included, and refuses the rest of the minute with a 429 whose
-Retry-After says how long is left. To keep a page within it, create one limiter
-when the page loads and give it to every chain's provider:
+Center counts each origin's requests, every chain's together and refused ones
+included: 600 a minute for an allowlisted first-party origin, 120 for any other.
+Past that it refuses the rest of the minute with a 429 whose Retry-After says
+how long is left. To keep a page within it, create one limiter when the page
+loads and give it to every chain's provider:
 
 ```ts
 import { custom, http } from "viem";
@@ -113,14 +114,22 @@ const overHttp = centerLimiter.transport(http(rpcUrl));
 ```
 
 A limiter keeps at most `slots` requests in flight, every chain's together, and
-starts them in the order they were made; `slots` has no default. Each try takes
-its own slot, so a read waiting out a node behind the head holds none. After a
-429 that says how long to wait, nothing starts until that has passed, a minute
-at most (`JBCENTER_MAX_RATE_LIMIT_PAUSE_MS`). A request whose signal aborts
-while it waits leaves the line unsent; one under way answers to its own signal
-and frees its slot when it ends. Give the limiter to the provider, or wrap a
-transport with it, but never both for the same requests. Without a limiter,
-requests go as they are made.
+starts them in the order they were made; `slots` has no default. Slots bound
+how many requests are in flight, not how many go out a minute: two in flight
+send up to 343 a minute at a 0.35 s round trip, under 600 but over 120. Each
+try takes its own slot, so a read waiting out a node behind the head holds
+none. After a 429 that says how long to wait, nothing starts until that has
+passed, a minute at most (`JBCENTER_MAX_RATE_LIMIT_PAUSE_MS`). A request whose
+signal aborts while it waits leaves the line unsent; one under way answers to
+its own signal and frees its slot when it ends. Without a limiter, requests go
+as they are made.
+
+Give the limiter to the provider or wrap one transport with it, once. A
+transport that already sends through the limiter, one built on a provider that
+has it or one it wraps already, fails each request at once with a TypeError
+and sends nothing. A request that asks its own limiter for another after an
+await cannot be seen, and would wait on the slot it holds, so a request never
+does.
 
 `errorChain`, `isRateLimited` and `retryAfterOf` read a refusal through the
 errors viem wraps around it: the chain of causes, whether any link is a 429,

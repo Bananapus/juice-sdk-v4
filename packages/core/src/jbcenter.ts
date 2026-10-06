@@ -80,9 +80,10 @@ export type JBCenterRpcProviderOptions = {
   blockLagRetryDelaysMs?: readonly number[];
   /**
    * The limiter every try waits for a slot of ({@link createJBCenterLimiter}):
-   * one per page, shared by every chain's provider, so the page keeps to
-   * Center's rate limit. Each try takes its own slot, so a wait between tries
-   * holds none. Without one, requests go as they are made.
+   * one per page, shared by every chain's provider, so the page's requests
+   * share its slots and its pause after a 429. Each try takes its own slot, so
+   * a wait between tries holds none. Without one, requests go as they are
+   * made.
    */
   limiter?: JBCenterLimiter;
 };

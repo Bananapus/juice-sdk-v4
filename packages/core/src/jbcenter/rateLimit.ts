@@ -3,9 +3,10 @@ import { retryAfterMs } from "../untrusted.js";
 
 // JB Center's rate limit, as the SDK reads it and keeps to it. Center counts
 // each origin's requests, every chain's together, in a fixed minute in which
-// refused requests count too: 600 a minute. It refuses the rest of the minute
-// with a 429 whose Retry-After says how long is left, and a page that trips it
-// stalls until then.
+// refused requests count too: 600 a minute for an allowlisted first-party
+// origin, 120 for any other. It refuses the rest of the minute with a 429 whose
+// Retry-After says how long is left, and a page that trips it stalls until
+// then.
 
 /** What one link of an error chain can say about a refusal. */
 export type ErrorChainLink = {
@@ -74,9 +75,11 @@ export const JBCENTER_MAX_RATE_LIMIT_PAUSE_MS = 60_000;
 
 export type JBCenterLimiterOptions = {
   /**
-   * How many requests may be in flight at once, every chain's together. Two in
-   * flight are at most 343 requests a minute at the quickest round trip
-   * measured against Center's staging (0.35 s), under Center's 600.
+   * How many requests may be in flight at once, every chain's together. Slots
+   * bound how many are in flight, not how many go out a minute: two in flight
+   * send up to 343 a minute at the quickest round trip measured against
+   * Center's staging (0.35 s), under the 600 a first-party origin gets but over
+   * the 120 any other gets. Past the limit, the first 429 pauses the rest.
    */
   slots: number;
 };
