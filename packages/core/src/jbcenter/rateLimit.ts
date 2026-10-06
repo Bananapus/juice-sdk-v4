@@ -65,6 +65,10 @@ export function retryAfterOf(error: unknown): number | undefined {
   return undefined;
 }
 
+/** What a limiter says when a request it is starting asks it for another slot. */
+const NESTED =
+  "A request this JB Center limiter was starting asked it for another slot. Give the limiter to JB Center's provider or wrap one transport with it, not both, and wrap only once.";
+
 /** The longest a refusal holds a limiter's slots: Center's window is a minute. */
 export const JBCENTER_MAX_RATE_LIMIT_PAUSE_MS = 60_000;
 
@@ -87,7 +91,11 @@ export type JBCenterLimiter = {
    * the minute would be refused, and would count. A request whose `signal`
    * aborts while it waits leaves the line, rejecting with the reason, and is
    * never sent. One under way answers to its own signal: the limiter does not
-   * stop it, and its slot frees when it ends.
+   * stop it, and its slot frees when it ends. A request that `send` asks the
+   * same limiter for before it returns is refused at once with a TypeError,
+   * since it would wait on the slot its asker holds. One asked for after an
+   * await looks like any other request and is not refused, so a request never
+   * asks its own limiter for another.
    */
   run<T>(
     send: () => Promise<T>,
@@ -100,9 +108,10 @@ export type JBCenterLimiter = {
    * leaves the line when it aborts. This is for a transport that does not go
    * through JB Center's provider, such as viem's `http`. Give that provider
    * the limiter instead (`createJBCenterRpcProvider`'s `limiter`), so its
-   * waits for a node behind the head hold no slot. Never wrap a transport
-   * built on a provider that has the limiter: each request would need two
-   * slots at once, and two requests could block each other for good.
+   * waits for a node behind the head hold no slot. A transport that already
+   * sends through this limiter, one built on a provider that has it or one it
+   * wraps already, fails each request at once with a TypeError and sends
+   * nothing, where it would wait on its own slot for good.
    */
   transport(transport: Transport): Transport;
 };
@@ -186,13 +195,29 @@ export function createJBCenterLimiter({
     }, ms);
   }
 
+  /** Whether one of the limiter's requests is starting: its `send` has not returned yet. */
+  let starting = false;
+
+  /** `send()`, with every request it asks this limiter for before it returns refused. */
+  function begin<T>(send: () => Promise<T>): Promise<T> {
+    starting = true;
+    try {
+      return send();
+    } finally {
+      starting = false;
+    }
+  }
+
   function run<T>(
     send: () => Promise<T>,
     { signal }: { signal?: AbortSignal } = {},
   ): Promise<T> {
+    // Asked for by a request this limiter is starting, it would wait on the
+    // slot that request holds, and the request on it.
+    if (starting) return Promise.reject(new TypeError(NESTED));
     return queue.join(async () => {
       try {
-        return await send();
+        return await begin(send);
       } catch (error) {
         const seconds = isRateLimited(error) ? retryAfterOf(error) : undefined;
         if (seconds !== undefined && seconds > 0) {

@@ -2,6 +2,7 @@ import {
   HttpRequestError,
   createPublicClient,
   custom,
+  fallback,
   http,
   type Chain,
 } from "viem";
@@ -24,6 +25,31 @@ import {
 afterEach(() => {
   vi.useRealTimers();
 });
+
+/** What the limiter says when a request it is starting asks it for another slot. */
+const NESTED =
+  "A request this JB Center limiter was starting asked it for another slot. Give the limiter to JB Center's provider or wrap one transport with it, not both, and wrap only once.";
+
+/** How a promise has settled so far. */
+function watch<T>(promise: Promise<T>) {
+  const state: {
+    outcome: "pending" | "resolved" | "rejected";
+    value?: unknown;
+  } = { outcome: "pending" };
+  promise.then(
+    (value) => Object.assign(state, { outcome: "resolved", value }),
+    (error: unknown) =>
+      Object.assign(state, { outcome: "rejected", value: error }),
+  );
+  return state;
+}
+
+/** The TypeError a failure wraps, wherever viem put it. */
+function typeErrorIn(error: unknown): TypeError | undefined {
+  return errorChain(error).find(
+    (link): link is TypeError => link instanceof TypeError,
+  );
+}
 
 /** Center's 429 as the SDK throws it and viem wraps it: the status and Retry-After on a cause. */
 function refused(retryAfter?: number) {
@@ -494,6 +520,44 @@ describe("a JB Center limiter", () => {
     held.resolve("ok");
   });
 
+  test("refuses at once a request that one of its own requests asks for while it starts, and keeps its slot free", async () => {
+    const limiter = createJBCenterLimiter({ slots: 1 });
+    let inner: Promise<string> | undefined;
+    const outer = watch(
+      limiter.run(() => {
+        inner = limiter.run(async () => "never");
+        return inner;
+      }),
+    );
+    const innerState = watch(inner!);
+    await vi.waitFor(() => expect(outer.outcome).toBe("rejected"), {
+      timeout: 500,
+    });
+    expect(innerState.outcome).toBe("rejected");
+    expect(innerState.value).toEqual(new TypeError(NESTED));
+    expect(outer.value).toBe(innerState.value);
+
+    // The refused request took no slot, and the one that asked frees its own.
+    const next = pending();
+    void limiter.run(next.send);
+    await ticks();
+    expect(next.sent).toBe(true);
+    next.resolve("ok");
+  });
+
+  test("refuses only what a request asks for while it starts: one made after it has started waits its turn", async () => {
+    const limiter = createJBCenterLimiter({ slots: 2 });
+    const answer = limiter.run(async () => {
+      await Promise.resolve();
+      return limiter.run(async () => "after an await");
+    });
+    await expect(answer).resolves.toBe("after an await");
+    await expect(
+      limiter.run(() => Promise.reject(new Error("rpc down"))),
+    ).rejects.toThrow("rpc down");
+    expect(await limiter.run(async () => "next")).toBe("next");
+  });
+
   test("refuses a slot count that is not a positive whole number", () => {
     for (const slots of [
       0,
@@ -958,6 +1022,93 @@ describe("a JB Center limiter shared by a page's readers", () => {
     answers.shift()!();
     await expect(busy).resolves.toBe("0x64");
     expect(sent).toEqual(["8453 eth_blockNumber"]);
+  });
+
+  test("refuses at once, sending nothing, a transport it wraps that already sends through it: around the provider, inside a fallback, or wrapped twice", async () => {
+    const shapes = {
+      "around the provider": (fetch: CenterFetch, limiter: JBCenterLimiter) =>
+        limiter.transport(
+          custom(provider(8453, fetch, limiter), { retryCount: 0 }),
+        ),
+      "inside a fallback": (fetch: CenterFetch, limiter: JBCenterLimiter) =>
+        limiter.transport(
+          fallback(
+            [custom(provider(8453, fetch, limiter), { retryCount: 0 })],
+            { retryCount: 0 },
+          ),
+        ),
+      "wrapped twice": (fetch: CenterFetch, limiter: JBCenterLimiter) =>
+        limiter.transport(
+          limiter.transport(
+            http("https://juicebox.center/v1/rpc/8453", {
+              fetchFn: fetch,
+              retryCount: 0,
+            }),
+          ),
+        ),
+    };
+    for (const [shape, build] of Object.entries(shapes)) {
+      for (const slots of [1, 2]) {
+        const limiter = createJBCenterLimiter({ slots });
+        const fetchMock = vi.fn(
+          async (input: RequestInfo | URL, init?: RequestInit) =>
+            answered(asked(input, init).id, "0x64"),
+        );
+        const client = createPublicClient({
+          chain: base,
+          transport: build(fetchMock, limiter),
+        });
+        const reads = Array.from({ length: slots + 1 }, () =>
+          watch(client.request({ method: "eth_blockNumber" })),
+        );
+        await vi.waitFor(
+          () =>
+            expect(
+              reads.map(({ outcome }) => outcome),
+              `${shape} with ${slots} slots`,
+            ).toEqual(reads.map(() => "rejected")),
+          { timeout: 500 },
+        );
+        for (const read of reads) {
+          expect(typeErrorIn(read.value)?.message).toBe(NESTED);
+        }
+        expect(
+          fetchMock,
+          `${shape} with ${slots} slots`,
+        ).not.toHaveBeenCalled();
+      }
+    }
+  });
+
+  test("keeps serving a page's other readers after it refuses a doubled one", async () => {
+    const limiter = createJBCenterLimiter({ slots: 2 });
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) =>
+        answered(asked(input, init).id, "0x64"),
+    );
+    const doubled = createPublicClient({
+      chain: base,
+      transport: limiter.transport(
+        custom(provider(8453, fetchMock, limiter), { retryCount: 0 }),
+      ),
+    });
+    const refusedReads = [0, 1, 2].map(() =>
+      watch(doubled.request({ method: "eth_blockNumber" })),
+    );
+    await vi.waitFor(
+      () =>
+        expect(refusedReads.map(({ outcome }) => outcome)).toEqual([
+          "rejected",
+          "rejected",
+          "rejected",
+        ]),
+      { timeout: 500 },
+    );
+
+    await expect(
+      reader(10, fetchMock, limiter).getBlockNumber({ cacheTime: 0 }),
+    ).resolves.toBe(100n);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   test("keeps two in flight at most under load: four chains' reads at once, a 429 and a page left", async () => {
