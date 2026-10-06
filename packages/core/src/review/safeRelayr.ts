@@ -8,7 +8,9 @@ import {
   zeroAddress,
   type Address,
   type Hex,
+  type PublicClient,
 } from "viem";
+import { readBoundedSafeNonce } from "../safe.js";
 import {
   SAFE_EXEC_ABI,
   canonicalSafeTxHash,
@@ -21,6 +23,7 @@ import {
   RELAYR_API,
   RELAYR_UUID_RE,
   MAX_RELAYR_SENT_PAYMENTS,
+  atCanonicalFinalizedBlock,
   bindRelayrQuote,
   readRelayrBundle,
   relayrBundleRequest,
@@ -72,6 +75,8 @@ export type SafeRelayrSession = {
     | "expired";
   payments: RelayrSentPayment[];
   state: "publishing" | "active" | "complete" | "released";
+  /** Obsolete Safe nonces do not prove execution success, quote expiry, or a refund. */
+  releaseReason?: "quote-expired" | "safe-nonces-consumed";
   createdAt: number;
   records?: RelayrTransactionRecord[];
   /** Conservative legacy reservations when exact execution proof is unavailable. */
@@ -92,6 +97,26 @@ export type SafeRelayrResult = {
   state: "ready" | "pending" | "complete" | "released";
   session: SafeRelayrSession;
   payments: RelayrPayment[];
+  recovery?: SafeRelayrRecovery;
+};
+
+/** Read-only evidence when the saved publication cannot identify an exact quote. */
+export type SafeRelayrRecovery = {
+  reason:
+    | "missing-execution-proof"
+    | "safe-nonces-live"
+    | "safe-nonces-mixed"
+    | "safe-nonces-unavailable"
+    | "safe-nonces-consumed"
+    | "funding-unresolved";
+  message: string;
+  checks?: {
+    chainId: number;
+    safe: Address;
+    nonce: number;
+    currentNonce?: string;
+    state: "consumed" | "live" | "unavailable";
+  }[];
 };
 
 export type SafeRelayrReady = SafeRelayrResult & {
@@ -107,7 +132,11 @@ export type SafeRelayrStatus = (
 
 export type SafeRelayrOptions = {
   store: SafeRelayrStore;
-  clientFor: (chainId: number) => RelayrReleaseClient | undefined;
+  clientFor: (
+    chainId: number,
+  ) =>
+    | (RelayrReleaseClient & Partial<Pick<PublicClient, "request">>)
+    | undefined;
   fetch?: typeof globalThis.fetch;
   currentAccount: () => Address | undefined;
   /** Check live Safe nonce/policy, app permissions, and simulate this ORIGINAL calldata. */
@@ -146,6 +175,7 @@ export class SafeRelayrRecoveryError extends Error {
   constructor(
     readonly session: SafeRelayrSession,
     message = "This Safe execution has an existing Relayr bundle. Check the existing bundle before submitting another payment.",
+    readonly recovery?: SafeRelayrRecovery,
   ) {
     super(message);
   }
@@ -537,7 +567,142 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     state: SafeRelayrResult["state"],
     session: SafeRelayrSession,
     payments: RelayrPayment[] = [],
-  ): SafeRelayrResult => ({ state, session, payments });
+  ): SafeRelayrResult => ({
+    state,
+    session,
+    payments,
+    ...(state === "released" && session.releaseReason === "safe-nonces-consumed"
+      ? {
+          recovery: {
+            reason: "safe-nonces-consumed" as const,
+            message:
+              "Every saved Safe nonce has been used. This saved selection is obsolete; refresh the Safe queue. This does not prove the intended calls succeeded or that any payment was refunded.",
+          },
+        }
+      : {}),
+  });
+
+  async function inspectMissingQuote(
+    session: SafeRelayrSession,
+  ): Promise<SafeRelayrResult> {
+    const pending = (recovery: SafeRelayrRecovery): SafeRelayrResult => ({
+      ...result("pending", session),
+      recovery,
+    });
+    try {
+      validateExecutions(session.executions);
+      const exactKeys = new Set(
+        session.executions.map(safeRelayrReservationKey),
+      );
+      if (
+        session.reservationKeys?.some(
+          (key) => !exactKeys.has(key.toLowerCase()),
+        )
+      )
+        throw new Error("Incomplete Safe identities");
+    } catch {
+      return pending({
+        reason: "missing-execution-proof",
+        message:
+          "This saved selection is missing complete Safe transaction details. Its status cannot be verified automatically. Inspect the original Safe proposals; the saved payment evidence has been kept.",
+      });
+    }
+    const checks = await Promise.all(
+      session.executions.map(
+        async (
+          execution,
+        ): Promise<NonNullable<SafeRelayrRecovery["checks"]>[number]> => {
+          const check = {
+            chainId: execution.entry.chain,
+            safe: execution.safe,
+            nonce: execution.nonce,
+          };
+          try {
+            const client = options.clientFor(execution.entry.chain);
+            const request = client?.request;
+            if (!client || !request) return { ...check, state: "unavailable" };
+            const finalized = await atCanonicalFinalizedBlock(
+              client,
+              (blockNumber) =>
+                readBoundedSafeNonce({ request }, execution.safe, {
+                  blockNumber,
+                }),
+            );
+            const nonce = finalized?.value;
+            if (typeof nonce !== "bigint" || nonce < 0n)
+              return { ...check, state: "unavailable" };
+            return {
+              ...check,
+              currentNonce: nonce.toString(),
+              state: nonce > BigInt(execution.nonce) ? "consumed" : "live",
+            };
+          } catch {
+            return { ...check, state: "unavailable" };
+          }
+        },
+      ),
+    );
+    if (checks.some((check) => check.state === "unavailable"))
+      return pending({
+        reason: "safe-nonces-unavailable",
+        message:
+          "Some Safe nonces could not be verified at a finalized block. The saved selection remains reserved. Check again when those networks respond.",
+        checks,
+      });
+    if (checks.every((check) => check.state === "consumed")) {
+      // A nonce proves an authorization is obsolete, not where any funding went.
+      // Keep uncertain funding records reserved: some legacy stores hold only one
+      // session per Safe and replacing it would erase the unresolved evidence.
+      if (
+        session.paymentStatus !== "unfunded" ||
+        !Array.isArray(session.payments) ||
+        session.payments.length
+      )
+        return pending({
+          reason: "funding-unresolved",
+          message:
+            "Every saved Safe nonce has been used, but this selection still has unresolved payment evidence. Inspect the original Safe proposals and funding transactions before replacing it. No refund or successful execution has been confirmed.",
+          checks,
+        });
+      if (session.bundleUuid) {
+        try {
+          await requireRelayrBundleUnpaid(session.bundleUuid, {
+            fetch: fetchRelayr,
+          });
+        } catch {
+          return pending({
+            reason: "funding-unresolved",
+            message:
+              "Every saved Safe nonce has been used, but the existing Relayr bundle has not been proven unpaid with all calls pending. Keep its payment evidence and inspect the original bundle before replacing this selection.",
+            checks,
+          });
+        }
+      }
+      session = {
+        ...session,
+        state: "released",
+        releaseReason: "safe-nonces-consumed",
+      };
+      await store.save(session);
+      return {
+        ...result("released", session),
+        recovery: { ...result("released", session).recovery!, checks },
+      };
+    }
+    if (checks.some((check) => check.state === "consumed"))
+      return pending({
+        reason: "safe-nonces-mixed",
+        message:
+          "Some saved Safe nonces have been used, while others are still unused. This selection remains reserved. Inspect each original Safe proposal before continuing.",
+        checks,
+      });
+    return pending({
+      reason: "safe-nonces-live",
+      message:
+        "The saved Safe nonces are still unused. This record has no complete Relayr quote to resume, so it remains reserved. Inspect the original Safe proposals before submitting another payment.",
+      checks,
+    });
+  }
 
   async function inspect(
     session: SafeRelayrSession,
@@ -545,7 +710,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     if (session.state === "released") return result("released", session);
     if (session.state === "complete") return result("complete", session);
     if (!session.bundleUuid || !session.quote)
-      return result("pending", session);
+      return inspectMissingQuote(session);
     const quote = requireSessionQuote(session);
     const chains = session.executions.map(({ entry }) => entry.chain);
     const bundle = await readRelayrBundle(session.bundleUuid, {
@@ -628,7 +793,12 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       );
       if (disposition.state === "funded") return result("pending", session);
       if (disposition.state === "released") {
-        session = { ...session, state: "released", paymentStatus: "expired" };
+        session = {
+          ...session,
+          state: "released",
+          paymentStatus: "expired",
+          releaseReason: "quote-expired",
+        };
         await store.save(session);
         return result("released", session);
       }
@@ -637,7 +807,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       return result("pending", session);
     }
     const quoted = relayrQuotedOptions(quote, chains);
-    if (!quoted.length) return result("pending", session);
+    if (!quoted.length) return inspectMissingQuote(session);
     const payments = relayrPaymentOptions(quote, chains);
     const expired = payments.length
       ? [false]
@@ -660,7 +830,12 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       } catch {
         return result("pending", session);
       }
-      session = { ...session, state: "released", paymentStatus: "expired" };
+      session = {
+        ...session,
+        state: "released",
+        paymentStatus: "expired",
+        releaseReason: "quote-expired",
+      };
       await store.save(session);
       return result("released", session);
     }
@@ -710,6 +885,15 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
             error instanceof Error ? error.message : undefined,
           );
         }
+        if (
+          checked.state === "released" &&
+          checked.session.releaseReason === "safe-nonces-consumed"
+        )
+          throw new SafeRelayrRecoveryError(
+            checked.session,
+            checked.recovery?.message,
+            checked.recovery,
+          );
         if (checked.state === "released" || checked.state === "complete")
           continue;
         if (
@@ -717,7 +901,11 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           saved.account.toLowerCase() !== account.toLowerCase() ||
           !sameSafeRelayrIntents(saved.executions, executions)
         )
-          throw new SafeRelayrRecoveryError(checked.session);
+          throw new SafeRelayrRecoveryError(
+            checked.session,
+            checked.recovery?.message,
+            checked.recovery,
+          );
         await assertUnreserved(account, executions, saved.id);
         await revalidate(saved.executions, account, onStatus, false, signal);
         await options.review(saved.executions, { resumed: true });
@@ -813,7 +1001,12 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       let session = await load(account, sessionId);
       const checked = await inspect(session);
       session = checked.session;
-      if (checked.state !== "ready") throw new SafeRelayrRecoveryError(session);
+      if (checked.state !== "ready")
+        throw new SafeRelayrRecoveryError(
+          session,
+          checked.recovery?.message,
+          checked.recovery,
+        );
       if (session.payments.length >= MAX_RELAYR_SENT_PAYMENTS)
         throw new SafeRelayrRecoveryError(
           session,
