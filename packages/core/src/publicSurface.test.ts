@@ -55,6 +55,9 @@ describe("published core SDK surfaces", () => {
     expect(sdk.JBCenterIntentMismatchError).toBeTypeOf("function");
     expect(sdk.describeCenterRefusal).toBeTypeOf("function");
     expect(sdk.describeCenterRefusal(new Error("boom"))).toBeNull();
+    expect(sdk.failures).toBeTypeOf("function");
+    expect(sdk.isRateLimited({ status: 429 })).toBe(true);
+    expect(sdk.retryAfterOf({ retryAfter: 60 })).toBe(60);
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
     expect(v6.buildAutoIssueTx).toBeTypeOf("function");
     expect(v6.quoteDirectPaySwap).toBeTypeOf("function");

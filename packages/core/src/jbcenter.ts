@@ -166,6 +166,9 @@ export type {
 } from "./jbcenter/refusal.js";
 export { describeCenterRefusal } from "./jbcenter/refusal.js";
 
+export type { Failure } from "./jbcenter/rateLimit.js";
+export { failures, isRateLimited, retryAfterOf } from "./jbcenter/rateLimit.js";
+
 export type JBCenterContractCall<
   TAbi extends Abi = Abi,
   TFunctionName extends ContractFunctionName<
