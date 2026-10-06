@@ -1,3 +1,4 @@
+import { createTransport, type Transport } from "viem";
 import { retryAfterMs } from "../untrusted.js";
 
 // JB Center's rate limit, as the SDK reads it and keeps to it. Center counts
@@ -92,6 +93,18 @@ export type JBCenterLimiter = {
     send: () => Promise<T>,
     options?: { signal?: AbortSignal },
   ): Promise<T>;
+  /**
+   * `transport`, with every request it sends in one of the limiter's slots.
+   * Each try is a request of its own, so viem's retry of a refused request
+   * waits out the Retry-After with the rest, and a try made with a signal
+   * leaves the line when it aborts. This is for a transport that does not go
+   * through JB Center's provider, such as viem's `http`. Give that provider
+   * the limiter instead (`createJBCenterRpcProvider`'s `limiter`), so its
+   * waits for a node behind the head hold no slot. Never wrap a transport
+   * built on a provider that has the limiter: each request would need two
+   * slots at once, and two requests could block each other for good.
+   */
+  transport(transport: Transport): Transport;
 };
 
 /** Tasks that wait their turn: at most `room` under way at once, started in the order they joined, none while `held`. */
@@ -145,8 +158,9 @@ function line(room: number, held: () => boolean): Line {
 
 /**
  * A limiter for every request a page sends to JB Center: create one when the
- * page loads (at module level in the browser) and hand it to each provider
- * (`createJBCenterRpcProvider`'s `limiter`). Every try takes its own slot, so
+ * page loads (at module level in the browser), hand it to every chain's
+ * provider (`createJBCenterRpcProvider`'s `limiter`), and wrap any other
+ * transport to Center with its `transport`. Every try takes its own slot, so
  * a read waiting out a node behind the head holds none.
  */
 export function createJBCenterLimiter({
@@ -189,5 +203,23 @@ export function createJBCenterLimiter({
     }, signal);
   }
 
-  return { run };
+  function transport(wrapped: Transport): Transport {
+    return (parameters) => {
+      const { config, value } = wrapped(parameters);
+      const send = config.request;
+      const request = (
+        args: Parameters<typeof send>[0],
+        options?: Parameters<typeof send>[1],
+      ) =>
+        run(() => send(args, options), {
+          signal: (options as { signal?: AbortSignal } | undefined)?.signal,
+        });
+      return createTransport(
+        { ...config, request: request as typeof send },
+        value,
+      );
+    };
+  }
+
+  return { run, transport };
 }

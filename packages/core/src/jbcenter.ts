@@ -10,6 +10,7 @@ import {
   groupDeploymentCalls,
   isValidDeploymentCalls,
 } from "./jbcenter/setupCalls.js";
+import type { JBCenterLimiter } from "./jbcenter/rateLimit.js";
 import { pause } from "./pause.js";
 import { retryAfterMs } from "./untrusted.js";
 
@@ -77,6 +78,13 @@ export type JBCenterRpcProviderOptions = {
    * read, so a retry repeats work, never an effect.
    */
   blockLagRetryDelaysMs?: readonly number[];
+  /**
+   * The limiter every try waits for a slot of ({@link createJBCenterLimiter}):
+   * one per page, shared by every chain's provider, so the page keeps to
+   * Center's rate limit. Each try takes its own slot, so a wait between tries
+   * holds none. Without one, requests go as they are made.
+   */
+  limiter?: JBCenterLimiter;
 };
 
 /** A read pinned past the head of the node that answered it: JSON-RPC -32001. */
@@ -1007,6 +1015,7 @@ export class JBCenterClient {
         "blockLagRetryDelaysMs must be a list of finite waits of 0 ms or more",
       );
     }
+    const { limiter } = options;
     return {
       request: async <TResult = unknown>(
         request: {
@@ -1021,15 +1030,17 @@ export class JBCenterClient {
           throw new TypeError("JB Center RPC method is not supported");
         }
         const signal = requestOptions?.signal;
+        const ask = () =>
+          this.rpc<TResult>(
+            chainId,
+            request as JBCenterRpcRequest,
+            requestOptions,
+          );
         for (let attempt = 0; ; attempt += 1) {
           // A request whose signal has aborted is not sent.
           signal?.throwIfAborted();
           try {
-            return await this.rpc<TResult>(
-              chainId,
-              request as JBCenterRpcRequest,
-              requestOptions,
-            );
+            return await (limiter ? limiter.run(ask, { signal }) : ask());
           } catch (error) {
             if (attempt >= delays.length || !isBehindHead(error)) throw error;
             await pause(delays[attempt], signal, () => signal?.reason);
