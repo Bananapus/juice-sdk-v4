@@ -1474,3 +1474,380 @@ export async function verifyRelayrDestinations(
   }
   return verified;
 }
+
+// A session whose bundle won't run as signed: an unpaid quote that was
+// released, a payment that reverted, a bundle whose calls reverted, a nonce
+// that moved. These rules decide what it may do next from the chain alone
+// (rulings R104, R114 and R117). Each signed forward request is classified at
+// a canonical finalized block on its chain, by OpenZeppelin ERC2771Forwarder's
+// rules: a request runs only at its signer's current nonce and while its
+// deadline is at least the block's timestamp, and an execute that reverts
+// leaves the nonce unused. Anything that cannot be read counts as live.
+
+/**
+ * The reads that classify signed forward requests at a canonical finalized
+ * block. Typed by the fields they read, so a PublicClient for any chain, with
+ * that chain's formatters, satisfies it.
+ */
+export type RelayrFinalizedClient = {
+  getBlock(args: { blockTag: "finalized" }): Promise<{
+    number: bigint | null;
+    hash: Hex | null;
+    timestamp: bigint;
+  }>;
+  getBlock(args: { blockNumber: bigint }): Promise<{ hash: Hex | null }>;
+  readContract(args: {
+    address: Address;
+    abi: typeof erc2771ForwarderAbi;
+    functionName: "nonces";
+    args: readonly [Address];
+    blockNumber: bigint;
+  }): Promise<bigint>;
+};
+
+/**
+ * A signed forward request as these rules read it: its chain, its signer (the
+ * request's `from`, whose forwarder nonce it uses), its deadline in seconds,
+ * and the forwarder nonce it was signed with, when that was saved.
+ */
+export type RelayrSignedRequest = {
+  chainId: number;
+  signer: Address;
+  deadline: number | bigint;
+  nonce?: string | bigint;
+};
+
+/**
+ * One signed request at a canonical finalized block on its chain (ruling
+ * R114). It is dead once the forwarder's nonce for its signer moved past the
+ * nonce it was signed with (it, or another request at that nonce, may have
+ * run), or once its deadline is strictly earlier than that block's timestamp.
+ * `unused`: the nonce still equals the saved one. Anything unknown is live: a
+ * failed read, a node without a finalized block, a block no longer canonical,
+ * and a request saved without its nonce until its deadline passes.
+ */
+export type RelayrRequestState =
+  | { live: true; deadline: number }
+  | { live: false; mayHaveRun: boolean; unused: boolean };
+
+/**
+ * What a set of requests allows together (ruling R114). While any one is live
+ * the set holds until `until`, the deadline of its last live request.
+ * `mayHaveRun` says whether a dead one's nonce moved or was never saved, and,
+ * once every one is dead, `unused` whether every nonce still equals the saved
+ * one.
+ */
+export type RelayrRequestsVerdict =
+  | { live: true; until: number; mayHaveRun: boolean }
+  | { live: false; mayHaveRun: boolean; unused: boolean };
+
+/**
+ * Why a session whose requests are all dead can be discarded (ruling R114):
+ *
+ * - `ran`: a request's nonce moved past the one it was signed with, or the
+ *   session saved no nonces, so one may have run;
+ * - `changed`: none ran, and the action's recheck refuses its calls;
+ * - `expired`: none ran, and no recheck could run, as in an account view. The
+ *   action itself still signs them again at their saved nonces.
+ */
+export type RelayrDiscardReason = "ran" | "changed" | "expired";
+
+/**
+ * What a session whose bundle won't run as signed does next, from its
+ * requests' verdict (rulings R104 and R114). Discard ends only the session,
+ * never what the action saved.
+ *
+ * - `hold`: a request can still run and one may already have run. No new
+ *   signature, no new quote and no Discard until `until`.
+ * - `refresh`: a request can still run and none moved (R114 (a)). Until
+ *   `until`, the session may quote or pay its saved requests again while they
+ *   still verify and the action's recheck passes, or sign each again at its
+ *   saved nonce, in `nonces` (null when it saved none): the forwarder runs one
+ *   request per nonce, so an old request and its refresh never both run. A
+ *   signature at any other nonce waits until every request is dead.
+ * - `re-sign`: every request is dead and unused, and the recheck passed: sign
+ *   the calls again at `nonces` (R104).
+ * - `discard`: every request is dead; Discard for `reason`. With `changed`,
+ *   `error` is the recheck's refusal.
+ * - `reorg-hold`: every request is dead and none moved, but a finalized nonce
+ *   is below a saved one (a reorg dropped an earlier forwarded transaction),
+ *   or there are no saved nonces to sign at. It holds until the nonce catches
+ *   up.
+ * - `unchecked`: the recheck could not reach the chain, which decides
+ *   nothing. Try again.
+ */
+export type RelayrSessionOutcome =
+  | { kind: "hold"; until: number }
+  | { kind: "refresh"; until: number; nonces: string[] | null }
+  | { kind: "re-sign"; nonces: string[] }
+  | { kind: "discard"; reason: RelayrDiscardReason; error?: unknown }
+  | { kind: "reorg-hold" }
+  | { kind: "unchecked"; error: unknown };
+
+/**
+ * `read` at the chain's finalized block, with that block's timestamp, once
+ * the block at its number still has the same hash after the read. Null while
+ * any of it cannot be read: a node without the finalized tag, an RPC error, a
+ * malformed block, or a block that is no longer canonical.
+ */
+export async function atCanonicalFinalizedBlock<T>(
+  client: Pick<RelayrFinalizedClient, "getBlock">,
+  read: (blockNumber: bigint) => Promise<T>,
+): Promise<{ value: T; timestamp: bigint } | null> {
+  try {
+    const { number, hash, timestamp } =
+      (await client.getBlock({ blockTag: "finalized" })) ?? {};
+    if (
+      typeof number !== "bigint" ||
+      !isBytes32(hash) ||
+      typeof timestamp !== "bigint"
+    ) {
+      return null;
+    }
+    const value = await read(number);
+    const canonical = await client.getBlock({ blockNumber: number });
+    return canonical?.hash === hash ? { value, timestamp } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The nonce the canonical forwarder on `chainId` expects next from `signer`
+ * at the chain's finalized block, still canonical, with that block's
+ * timestamp. Null while that cannot be read.
+ */
+async function finalizedForwarderNonce(
+  clientFor: (chainId: number) => RelayrFinalizedClient | undefined,
+  chainId: number,
+  signer: Address,
+): Promise<{ nonce: bigint; timestamp: bigint } | null> {
+  const forwarder = forwarderOn(chainId);
+  if (!forwarder || !isAddressLike(signer)) return null;
+  let client: RelayrFinalizedClient | undefined;
+  try {
+    client = clientFor(chainId);
+  } catch {
+    return null;
+  }
+  if (!client) return null;
+  const reader = client;
+  const finalized = await atCanonicalFinalizedBlock(reader, (blockNumber) =>
+    reader.readContract({
+      address: forwarder,
+      abi: erc2771ForwarderAbi,
+      functionName: "nonces",
+      args: [signer],
+      blockNumber,
+    }),
+  );
+  const nonce = finalized && uint256(finalized.value);
+  return finalized && nonce !== null
+    ? { nonce, timestamp: finalized.timestamp }
+    : null;
+}
+
+/**
+ * The requests a session published, each read from its entry (an `execute`
+ * on its chain's canonical forwarder, as {@link relayrForwardRequest} reads
+ * it), with the nonce it was signed with when `nonces` has one for every
+ * entry. Null when there are none, or one is not such a request: requests
+ * that can't be read can't be classified, so they never count as dead.
+ */
+export function relayrSignedRequests(
+  entries:
+    | readonly Pick<RelayrEntry, "chain" | "target" | "data">[]
+    | undefined,
+  nonces?: readonly (string | bigint)[],
+): RelayrSignedRequest[] | null {
+  const published = Array.isArray(entries) ? entries : [];
+  const saved =
+    Array.isArray(nonces) && nonces.length === published.length
+      ? nonces
+      : undefined;
+  const requests = published.flatMap((entry, index) => {
+    const request = relayrForwardRequest(entry);
+    return request
+      ? [
+          {
+            chainId: entry.chain,
+            signer: request.from,
+            deadline: request.deadline,
+            ...(saved ? { nonce: saved[index] } : {}),
+          },
+        ]
+      : [];
+  });
+  return published.length && requests.length === published.length
+    ? requests
+    : null;
+}
+
+/**
+ * The one classification of signed forward requests (ruling R114): each at a
+ * canonical finalized block on its chain, read once per chain and signer with
+ * `clientFor(chainId)`. Never throws for a chain it cannot read: its requests
+ * are live.
+ */
+export async function relayrRequestStates(
+  clientFor: (chainId: number) => RelayrFinalizedClient | undefined,
+  requests: readonly RelayrSignedRequest[],
+): Promise<RelayrRequestState[]> {
+  const finalized = new Map<
+    string,
+    ReturnType<typeof finalizedForwarderNonce>
+  >();
+  return Promise.all(
+    requests.map(
+      async ({
+        chainId,
+        signer,
+        deadline,
+        nonce,
+      }): Promise<RelayrRequestState> => {
+        const key = `${chainId}:${String(signer).toLowerCase()}`;
+        if (!finalized.has(key)) {
+          finalized.set(
+            key,
+            finalizedForwarderNonce(clientFor, chainId, signer),
+          );
+        }
+        const block = await finalized.get(key);
+        try {
+          const saved = nonce === undefined ? null : BigInt(nonce);
+          if (block && saved !== null && block.nonce > saved) {
+            return { live: false, mayHaveRun: true, unused: false };
+          }
+          if (block && BigInt(deadline) < block.timestamp) {
+            return {
+              live: false,
+              mayHaveRun: saved === null,
+              unused: block.nonce === saved,
+            };
+          }
+        } catch {
+          // An unreadable nonce or deadline is unknown.
+        }
+        return { live: true, deadline: Number(deadline) };
+      },
+    ),
+  );
+}
+
+/** What `states` allow together. No states read as dead and unused: classify only a session's actual requests. */
+export function relayrRequestsVerdict(
+  states: readonly RelayrRequestState[],
+): RelayrRequestsVerdict {
+  const deadlines = states.flatMap((state) =>
+    state.live ? [state.deadline] : [],
+  );
+  const mayHaveRun = states.some((state) => !state.live && state.mayHaveRun);
+  if (deadlines.length) {
+    return { live: true, until: Math.max(...deadlines), mayHaveRun };
+  }
+  return {
+    live: false,
+    mayHaveRun,
+    unused: states.every((state) => !state.live && state.unused),
+  };
+}
+
+/**
+ * Ruling R117: whether every request is dead at a canonical finalized block
+ * on its chain, anything unknown counting as live. A saved session reserves
+ * its signers' forwarder nonces on its chains exactly while one of its
+ * requests is live, never by a device clock or a quote's expiry. Requests that
+ * can't be classified (null) or none at all are never dead.
+ */
+export async function relayrRequestsDead(
+  clientFor: (chainId: number) => RelayrFinalizedClient | undefined,
+  requests: readonly RelayrSignedRequest[] | null | undefined,
+): Promise<boolean> {
+  return (
+    Array.isArray(requests) &&
+    requests.length > 0 &&
+    !relayrRequestsVerdict(await relayrRequestStates(clientFor, requests)).live
+  );
+}
+
+/**
+ * Whether the chain's finalized block, still canonical, is past `deadline`
+ * (seconds): its timestamp is later. False while that is unknown.
+ */
+export async function relayrDeadlinePassed(
+  client: Pick<RelayrFinalizedClient, "getBlock">,
+  deadline: number | string | bigint,
+): Promise<boolean> {
+  const finalized = await atCanonicalFinalizedBlock(
+    client,
+    async () => undefined,
+  );
+  try {
+    return !!finalized && finalized.timestamp > BigInt(deadline);
+  } catch {
+    return false;
+  }
+}
+
+/** Whether `value` is a {@link RelayrDiscardReason}, for a reason read back from storage. */
+export function isRelayrDiscardReason(
+  value: unknown,
+): value is RelayrDiscardReason {
+  return value === "ran" || value === "changed" || value === "expired";
+}
+
+/** The failures that mean a recheck could not reach the chain. */
+const UNREACHED = ["HttpRequestError", "TimeoutError", "WebSocketRequestError"];
+
+/** The recheck failed to reach the chain (in its first eight errors), so it says nothing about the project. */
+function recheckUnreached(error: unknown): boolean {
+  for (
+    let link = error, depth = 0;
+    depth < 8 && link instanceof Error;
+    depth += 1, link = (link as { cause?: unknown }).cause
+  ) {
+    if (UNREACHED.includes(link.name)) return true;
+  }
+  return false;
+}
+
+/**
+ * What a session does next from its requests' `verdict` (see
+ * {@link RelayrSessionOutcome}), which was classified before the action's own
+ * recheck, since a request that ran would make the recheck refuse. `nonces`
+ * are the ones its requests were signed with, in order. `recheck`, the
+ * action's proof that its calls still apply, runs only once every request is
+ * dead and unused; without one, as in an account view, such a session can be
+ * discarded as `expired`. A recheck that fails to reach the chain decides
+ * nothing. Known limit: a reorg that drops an earlier forwarded transaction
+ * can leave a finalized nonce below a saved one, and the session holds until
+ * the nonce catches up.
+ */
+export async function relayrSessionOutcome(
+  verdict: RelayrRequestsVerdict,
+  {
+    nonces,
+    recheck,
+  }: {
+    nonces?: readonly string[] | null;
+    recheck?: () => Promise<unknown>;
+  } = {},
+): Promise<RelayrSessionOutcome> {
+  const saved = nonces?.length ? [...nonces] : null;
+  if (verdict.live) {
+    return verdict.mayHaveRun
+      ? { kind: "hold", until: verdict.until }
+      : { kind: "refresh", until: verdict.until, nonces: saved };
+  }
+  if (verdict.mayHaveRun) return { kind: "discard", reason: "ran" };
+  if (!verdict.unused || !saved) return { kind: "reorg-hold" };
+  if (!recheck) return { kind: "discard", reason: "expired" };
+  try {
+    await recheck();
+  } catch (error) {
+    return recheckUnreached(error)
+      ? { kind: "unchecked", error }
+      : { kind: "discard", reason: "changed", error };
+  }
+  return { kind: "re-sign", nonces: saved };
+}
