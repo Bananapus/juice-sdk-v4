@@ -13,3 +13,7 @@ it answered or timed out.
 - Juicebox Money's and Homerun's `bendystraw()` can take a `signal` option and
   pass it on, to this function in the browser and to `requestBendystraw` on the
   server.
+
+`resolvePersistedBendystrawRequest` is unchanged. Each of its refusals is now
+pinned by its own test here, so an app's tests of its relay need no copy of that
+table.

@@ -15,6 +15,7 @@ const PROJECTS = `
     }
   }
 `;
+const OPERATION = createHash("sha256").update(PROJECTS).digest("hex");
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -149,27 +150,7 @@ describe("Bendystraw operation contracts", () => {
 
 describe("persisted Bendystraw requests", () => {
   it("uses the document SHA-256 as its operation id", async () => {
-    expect(await bendystrawOperationId(PROJECTS)).toBe(
-      createHash("sha256").update(PROJECTS).digest("hex"),
-    );
-  });
-
-  it("resolves only registered ids with a variables object", async () => {
-    const operation = await bendystrawOperationId(PROJECTS);
-    const registry = { [operation]: PROJECTS };
-    expect(
-      resolvePersistedBendystrawRequest({ operation, variables: {} }, registry),
-    ).toEqual({ query: PROJECTS, variables: {} });
-    for (const body of [
-      { operation, variables: {}, query: "query Attacker { a }" },
-      { operation: "0".repeat(64), variables: {} },
-      { operation: "__proto__", variables: {} },
-      { operation, variables: [] },
-      { operation: 1, variables: {} },
-      null,
-    ]) {
-      expect(resolvePersistedBendystrawRequest(body, registry)).toBeNull();
-    }
+    expect(await bendystrawOperationId(PROJECTS)).toBe(OPERATION);
   });
 
   it("sends the id and variables, never the document, and validates the reply", async () => {
@@ -220,6 +201,84 @@ describe("persisted Bendystraw requests", () => {
         variables,
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe("resolving a persisted request", () => {
+  const near = {
+    upperCase: OPERATION.toUpperCase(),
+    oneShort: OPERATION.slice(1),
+    oneLong: `${OPERATION}0`,
+    lineBreak: `${OPERATION}\n`,
+    leadingSpace: ` ${OPERATION}`,
+  };
+  // Every near miss of the id is registered too, so a malformed id is refused
+  // for its shape and not only because it is unknown.
+  const registry = Object.fromEntries(
+    [OPERATION, ...Object.values(near)].map((id) => [id, PROJECTS]),
+  );
+
+  it("resolves a registered id with its variables and nothing else", () => {
+    const variables = { where: { version: 6 }, limit: 25 };
+    expect(
+      resolvePersistedBendystrawRequest(
+        { operation: OPERATION, variables },
+        registry,
+      ),
+    ).toEqual({ query: PROJECTS, variables });
+  });
+
+  // One row for each way the resolver refuses a body.
+  const refusals: Array<[name: string, body: unknown]> = [
+    [
+      "a raw document beside the id",
+      {
+        operation: OPERATION,
+        variables: {},
+        query: "query Attacker { projects { totalCount } }",
+      },
+    ],
+    [
+      "an own `__proto__` key, as JSON.parse makes one",
+      JSON.parse(`{"operation":"${OPERATION}","variables":{},"__proto__":{}}`),
+    ],
+    [
+      "an id that is not registered",
+      { operation: "0".repeat(64), variables: {} },
+    ],
+    ["an upper case id", { operation: near.upperCase, variables: {} }],
+    [
+      "an inherited property name for an id",
+      { operation: "constructor", variables: {} },
+    ],
+    ["`__proto__` for an id", { operation: "__proto__", variables: {} }],
+    ["an id one character short", { operation: near.oneShort, variables: {} }],
+    ["an id one character long", { operation: near.oneLong, variables: {} }],
+    [
+      "an id with a line break after it",
+      { operation: near.lineBreak, variables: {} },
+    ],
+    [
+      "an id with a space before it",
+      { operation: near.leadingSpace, variables: {} },
+    ],
+    ["an id that is a number", { operation: 1, variables: {} }],
+    [
+      "an id in an array, which reads as the id text",
+      { operation: [OPERATION], variables: {} },
+    ],
+    ["no id", { variables: {} }],
+    ["no variables", { operation: OPERATION }],
+    ["variables in an array", { operation: OPERATION, variables: [] }],
+    ["null variables", { operation: OPERATION, variables: null }],
+    ["variables that are text", { operation: OPERATION, variables: "{}" }],
+    ["an array for a body", []],
+    ["null for a body", null],
+    ["text for a body", "query { projects { totalCount } }"],
+  ];
+
+  it.each(refusals)("refuses %s", (_name, body) => {
+    expect(resolvePersistedBendystrawRequest(body, registry)).toBeNull();
   });
 });
 
