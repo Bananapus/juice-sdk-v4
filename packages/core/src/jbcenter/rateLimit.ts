@@ -8,7 +8,7 @@ import { retryAfterMs } from "../untrusted.js";
 // stalls until then.
 
 /** What one link of an error chain can say about a refusal. */
-export type Failure = {
+export type ErrorChainLink = {
   status?: unknown;
   code?: unknown;
   message?: unknown;
@@ -22,21 +22,21 @@ export type Failure = {
  * wraps whatever its transport throws, so the HTTP status or the JSON-RPC
  * code Center answered with usually sits on a cause.
  */
-export function failures(error: unknown): Failure[] {
-  const chain: Failure[] = [];
+export function errorChain(error: unknown): ErrorChainLink[] {
+  const chain: ErrorChainLink[] = [];
   for (
     let next = error;
     typeof next === "object" && next !== null && chain.length < 8;
     next = (next as { cause?: unknown }).cause
   ) {
-    chain.push(next as Failure);
+    chain.push(next as ErrorChainLink);
   }
   return chain;
 }
 
 /** Whether `error` is a 429, as an HTTP status or a JSON-RPC code, on it or on anything it wraps. */
 export function isRateLimited(error: unknown): boolean {
-  return failures(error).some(
+  return errorChain(error).some(
     ({ status, code }) => status === 429 || code === 429,
   );
 }
@@ -49,7 +49,7 @@ export function isRateLimited(error: unknown): boolean {
  * headers) is read as `retryAfterMs` reads it, in whole seconds rounded up.
  */
 export function retryAfterOf(error: unknown): number | undefined {
-  const chain = failures(error);
+  const chain = errorChain(error);
   const said = chain
     .map((link) => link.retryAfter)
     .find(

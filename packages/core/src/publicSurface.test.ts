@@ -57,7 +57,7 @@ describe("published core SDK surfaces", () => {
     expect(sdk.describeCenterRefusal(new Error("boom"))).toBeNull();
     expect(sdk.createJBCenterLimiter).toBeTypeOf("function");
     expect(sdk.JBCENTER_MAX_RATE_LIMIT_PAUSE_MS).toBe(60_000);
-    expect(sdk.failures).toBeTypeOf("function");
+    expect(sdk.errorChain).toBeTypeOf("function");
     expect(sdk.isRateLimited({ status: 429 })).toBe(true);
     expect(sdk.retryAfterOf({ retryAfter: 60 })).toBe(60);
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");

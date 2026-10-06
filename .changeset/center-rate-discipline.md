@@ -25,7 +25,7 @@ and Sticky can drop their copies.
   each try takes its own slot so a node-lag wait holds none, and wrap any
   other transport to Center with `limiter.transport`. Never both for the same
   requests. Nothing changes for an app that passes no limiter.
-- `failures`, `isRateLimited` and `retryAfterOf` (and the `Failure` type) read
+- `errorChain`, `isRateLimited` and `retryAfterOf` (and the `ErrorChainLink` type) read
   a refusal through the errors viem wraps around it. `retryAfterOf` gives the
   first `retryAfter` in the chain, in seconds, and otherwise reads the
   Retry-After header viem's HTTP error carries, rounded up to whole seconds.
@@ -51,7 +51,8 @@ What each app replaces when it upgrades:
   build each chain's transport as
   `custom(center.rpcProvider(chainId, { limiter: centerLimiter }), { retryCount: 1 })`,
   and wrap the fixture transport with `centerLimiter.transport(http(...))`.
-  `hook-logs.ts` imports `failures`, `isRateLimited`, `retryAfterOf` and
-  `Failure` from the SDK. One reading widens: where no link of a refusal
+  `hook-logs.ts` imports `isRateLimited`, `retryAfterOf`, `errorChain` (its
+  `failures`) and `ErrorChainLink` (its `Failure`) from the SDK. One reading
+  widens: where no link of a refusal
   carries `retryAfter`, the SDK's `retryAfterOf` reads the Retry-After header
   on viem's HTTP error, which Sticky's copy left unread.

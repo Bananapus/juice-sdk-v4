@@ -175,14 +175,14 @@ export type {
 export { describeCenterRefusal } from "./jbcenter/refusal.js";
 
 export type {
-  Failure,
+  ErrorChainLink,
   JBCenterLimiter,
   JBCenterLimiterOptions,
 } from "./jbcenter/rateLimit.js";
 export {
   JBCENTER_MAX_RATE_LIMIT_PAUSE_MS,
   createJBCenterLimiter,
-  failures,
+  errorChain,
   isRateLimited,
   retryAfterOf,
 } from "./jbcenter/rateLimit.js";

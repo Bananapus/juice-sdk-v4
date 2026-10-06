@@ -122,7 +122,7 @@ and frees its slot when it ends. Give the limiter to the provider, or wrap a
 transport with it, but never both for the same requests. Without a limiter,
 requests go as they are made.
 
-`failures`, `isRateLimited` and `retryAfterOf` read a refusal through the
+`errorChain`, `isRateLimited` and `retryAfterOf` read a refusal through the
 errors viem wraps around it: the chain of causes, whether any link is a 429,
 and how many seconds it asked to wait, from the SDK's `retryAfter` or the
 Retry-After header on viem's HTTP error.
@@ -287,7 +287,7 @@ The module's helpers, in full:
 | `createJBCenterClient`               | Builds the `JBCenterClient` every helper below takes.                                                 |
 | `createJBCenterRpcProvider`          | A chain-bound EIP-1193 provider over JB Center's read-only RPC that waits out a node behind the head. |
 | `createJBCenterLimiter`              | One page's slots for JB Center's rate limit, shared by every chain's provider.                        |
-| `failures`                           | An error and what it wraps, outermost first.                                                          |
+| `errorChain`                         | An error and what it wraps, outermost first.                                                          |
 | `isRateLimited`                      | Whether an error, or anything it wraps, is a 429.                                                     |
 | `retryAfterOf`                       | How many seconds a refusal asked to wait.                                                             |
 | `createJBCenterDeploymentCall`       | Freezes a typed viem request into the `{ chainId, to, data }` call an intent signs.                   |

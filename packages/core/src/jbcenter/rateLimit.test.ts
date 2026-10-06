@@ -15,7 +15,7 @@ import {
 import {
   JBCENTER_MAX_RATE_LIMIT_PAUSE_MS,
   createJBCenterLimiter,
-  failures,
+  errorChain,
   isRateLimited,
   retryAfterOf,
   type JBCenterLimiter,
@@ -55,7 +55,7 @@ describe("a refusal read through viem's cause chain", () => {
     const inner = { status: 429 };
     const middle = Object.assign(new Error("middle"), { cause: inner });
     const outer = Object.assign(new Error("outer"), { cause: middle });
-    const chain = failures(outer);
+    const chain = errorChain(outer);
     expect(chain).toHaveLength(3);
     expect(chain[0]).toBe(outer);
     expect(chain[1]).toBe(middle);
@@ -63,12 +63,12 @@ describe("a refusal read through viem's cause chain", () => {
 
     const loop: { cause?: unknown } = {};
     loop.cause = loop;
-    expect(failures(loop)).toHaveLength(8);
+    expect(errorChain(loop)).toHaveLength(8);
     expect(
-      failures(Object.assign(new Error("text cause"), { cause: "busy" })),
+      errorChain(Object.assign(new Error("text cause"), { cause: "busy" })),
     ).toHaveLength(1);
     for (const notAnObject of [null, undefined, "busy", 429]) {
-      expect(failures(notAnObject)).toEqual([]);
+      expect(errorChain(notAnObject)).toEqual([]);
     }
   });
 
