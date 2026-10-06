@@ -564,6 +564,82 @@ describe("ensureDeployed", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ["pollMs", Number.NaN],
+    ["pollMs", -1],
+    ["pollMs", 0],
+    ["pollMs", "4000"],
+    ["pollMs", Number.POSITIVE_INFINITY],
+    ["timeoutMs", Number.NaN],
+    ["timeoutMs", -1],
+    ["timeoutMs", 0],
+    ["timeoutMs", "600000"],
+  ])(
+    "refuses a %s of %o before asking Center for anything",
+    async (option, value) => {
+      const fetchMock = vi.fn();
+      const client = createJBCenterClient({ fetch: fetchMock });
+
+      await expect(
+        ensureDeployed({
+          client,
+          intent: intent([8453]),
+          [option]: value,
+        }),
+      ).rejects.toThrow(
+        new TypeError(
+          option === "pollMs"
+            ? "pollMs must be a positive finite number of milliseconds"
+            : "timeoutMs must be a positive number of milliseconds",
+        ),
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  test("polls without end for a timeoutMs of Infinity", async () => {
+    let polls = 0;
+    const fetchMock = vi.fn((url: string | URL | Request) => {
+      if (url === deployUrl()) {
+        return Promise.resolve(
+          jsonResponse({ deploys: [deploy(8453, "queued")] }, { status: 202 }),
+        );
+      }
+      polls += 1;
+      return Promise.resolve(
+        jsonResponse(
+          polls < 3
+            ? intent([8453], { deploys: [deploy(8453, "sent")] })
+            : intent([8453], {
+                deploys: [deploy(8453, "confirmed", TX_HASH_1)],
+                deployments: [
+                  {
+                    chainId: 8453,
+                    projectId: "55",
+                    transactionHash: TX_HASH_1,
+                    createdAt: "",
+                  },
+                ],
+              }),
+        ),
+      );
+    });
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    const promise = ensureDeployed({
+      client,
+      intent: intent([8453]),
+      pollMs: 600_000,
+      timeoutMs: Number.POSITIVE_INFINITY,
+    });
+    await vi.advanceTimersByTimeAsync(1_799_999);
+    expect(polls).toBe(2);
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect(promise).resolves.toEqual({ 8453: "55" });
+    expect(polls).toBe(3);
+  });
+
   test("stops polling and rejects when the signal is aborted", async () => {
     const fetchMock = vi
       .fn()
@@ -585,6 +661,56 @@ describe("ensureDeployed", () => {
 
     await assertion;
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("ends the run at once when a step's report aborts it, and asks Center nothing more", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ deploys: [deploy(8453, "queued")] }, { status: 202 }),
+      );
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const controller = new AbortController();
+    const reason = new Error("left the page");
+
+    let outcome: unknown = "pending";
+    void ensureDeployed({
+      client,
+      intent: intent([8453]),
+      signal: controller.signal,
+      onStep: () => controller.abort(reason),
+    }).then(
+      () => (outcome = "resolved"),
+      (error: unknown) => (outcome = error),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(outcome).toBe(reason);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("waits out a poll interval longer than a timer holds instead of polling again at once", async () => {
+    const fetchMock = vi.fn((url: string | URL | Request) =>
+      Promise.resolve(
+        url === deployUrl()
+          ? jsonResponse({ deploys: [deploy(8453, "queued")] }, { status: 202 })
+          : jsonResponse(intent([8453], { deploys: [deploy(8453, "sent")] })),
+      ),
+    );
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const controller = new AbortController();
+
+    const run = ensureDeployed({
+      client,
+      intent: intent([8453]),
+      pollMs: 3_000_000_000,
+      signal: controller.signal,
+    }).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    controller.abort(new Error("left the page"));
+    await expect(run).resolves.toMatchObject({ message: "left the page" });
   });
 
   test("times out polling after timeoutMs when a chain never confirms", async () => {
@@ -617,6 +743,50 @@ describe("ensureDeployed", () => {
 
     await assertion;
   });
+
+  test.each([
+    ["longer than a timer holds", 3_000_000_000, 600_000, undefined],
+    ["longer than the run's timeout", 600_000, 60_000, 60_000],
+  ])(
+    "times out on time with a poll interval %s, after one last read",
+    async (_case, pollMs, timeoutAfterMs, timeoutMs) => {
+      const fetchMock = vi.fn((url: string | URL | Request) =>
+        Promise.resolve(
+          url === deployUrl()
+            ? jsonResponse(
+                { deploys: [deploy(8453, "queued")] },
+                { status: 202 },
+              )
+            : jsonResponse(intent([8453], { deploys: [deploy(8453, "sent")] })),
+        ),
+      );
+      const client = createJBCenterClient({ fetch: fetchMock });
+
+      let outcome: unknown = "pending";
+      void ensureDeployed({
+        client,
+        intent: intent([8453]),
+        pollMs,
+        timeoutMs,
+      }).then(
+        () => (outcome = "resolved"),
+        (error: unknown) => (outcome = error),
+      );
+      await vi.advanceTimersByTimeAsync(timeoutAfterMs - 1);
+      expect(outcome).toBe("pending");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(outcome).toMatchObject({
+        name: "EnsureDeployedError",
+        message: "JB Center deploy polling timed out",
+      });
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+        deployUrl(),
+        intentUrl(),
+      ]);
+    },
+  );
   const FORWARDER = "0x0000000000000000000000000000000000007771" as const;
 
   function relayUrl(id = INTENT_ID) {

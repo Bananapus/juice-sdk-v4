@@ -58,11 +58,15 @@ const chainId = await center.rpc<`0x${string}`>(1, {
 });
 ```
 
+### JB Center RPC
+
 The chain-bound provider is structurally compatible with EIP-1193 consumers
-such as viem:
+such as viem. The request options viem passes, the read's `signal` among them,
+go with every try:
 
 ```ts
-import { custom, createPublicClient, mainnet } from "viem";
+import { custom, createPublicClient } from "viem";
+import { mainnet } from "viem/chains";
 import { createJBCenterRpcProvider } from "@bananapus/nana-sdk-core/jbcenter";
 
 const publicClient = createPublicClient({
@@ -70,6 +74,67 @@ const publicClient = createPublicClient({
   transport: custom(createJBCenterRpcProvider(mainnet.id)),
 });
 ```
+
+JB Center load balances reads across nodes that import blocks at slightly
+different times. A read pinned to a block one node has imported can land on a
+node that has not, which answers JSON-RPC -32001 ("Requested resource not
+found." in viem). The provider asks again after 250, 500, 1,000, 2,000 and
+2,000 ms (`JBCENTER_BLOCK_LAG_RETRY_DELAYS_MS`; `blockLagRetryDelaysMs` sets
+other waits, and `[]` none). Waiting is the only correct answer: reading
+`latest` instead would read state older than the block the read pins. Nothing
+else is retried, because -32001 is the one answer that changes by itself once
+the node catches up: a revert, bad params or a refusal comes back the same, and
+a 429 must wait out Center's minute. A wait between tries ends at once when the
+read's signal aborts, and a read whose signal has aborted sends nothing. `rpc`
+is always one request.
+
+Center counts each origin's requests, every chain's together and refused ones
+included: 600 a minute for an allowlisted first-party origin, 120 for any other.
+Past that it refuses the rest of the minute with a 429 whose Retry-After says
+how long is left. To keep a page within it, create one limiter when the page
+loads and give it to every chain's provider:
+
+```ts
+import { custom, http } from "viem";
+import {
+  createJBCenterLimiter,
+  createJBCenterRpcProvider,
+} from "@bananapus/nana-sdk-core/jbcenter";
+
+// Once per page: at module level in the browser.
+const centerLimiter = createJBCenterLimiter({ slots: 2 });
+
+const transport = custom(
+  createJBCenterRpcProvider(chainId, { limiter: centerLimiter }),
+  { retryCount: 1 },
+);
+
+// A transport to Center that does not go through the provider.
+const overHttp = centerLimiter.transport(http(rpcUrl));
+```
+
+A limiter keeps at most `slots` requests in flight, every chain's together, and
+starts them in the order they were made; `slots` has no default. Slots bound
+how many requests are in flight, not how many go out a minute: two in flight
+send up to 343 a minute at a 0.35 s round trip, under 600 but over 120. Each
+try takes its own slot, so a read waiting out a node behind the head holds
+none. After a 429 that says how long to wait, nothing starts until that has
+passed, a minute at most (`JBCENTER_MAX_RATE_LIMIT_PAUSE_MS`). A request whose
+signal aborts while it waits leaves the line unsent; one under way answers to
+its own signal and frees its slot when it ends. Without a limiter, requests go
+as they are made.
+
+Give the limiter to the provider or wrap one transport with it, once. A
+transport that already sends through the limiter, one built on a provider that
+has it or one it wraps already, fails each request at once with a TypeError
+and sends nothing. A request that asks its own limiter for another after an
+await cannot be seen, and would wait on the slot it holds, so a request never
+does.
+
+`errorChain`, `isRateLimited` and `retryAfterOf` read a refusal through the
+errors viem wraps around it: the chain of causes, whether any link is a 429,
+and how many seconds it asked to wait, from the SDK's `retryAfter` or the
+Retry-After header on viem's HTTP error.
 
 ### Project intents
 
@@ -226,37 +291,43 @@ else throw error;
 
 The module's helpers, in full:
 
-| Helper                           | What it does                                                                                       |
-| -------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `createJBCenterClient`           | Builds the `JBCenterClient` every helper below takes.                                              |
-| `createJBCenterRpcProvider`      | A chain-bound EIP-1193 provider over JB Center's read-only RPC.                                    |
-| `createJBCenterDeploymentCall`   | Freezes a typed viem request into the `{ chainId, to, data }` call an intent signs.                |
-| `publishSignedIntent`            | Prepares, checks JB Center's envelope and message, signs with the caller's signer, publishes.      |
-| `JBCenterIntentMismatchError`    | Thrown by `publishSignedIntent` before signing; `reason` is `"envelope"` or `"message"`.           |
-| `decodeDeploymentCall`           | Reads a frozen call back as a project, 721, omnichain, or revnet launch, or a Safe creation.       |
-| `intentCalls`                    | An intent's calls per chain, decoded: the setup calls before it, then the launch.                  |
-| `mergeSearch`                    | Interleaves undeployed intent rows into a list of deployed project rows by creation time.          |
-| `intentRow`                      | Turns one search item into the row `mergeSearch` merges.                                           |
-| `intentPath`                     | The `/intent/<id>` route for an undeployed intent.                                                 |
-| `deployedChains`                 | The chain ids an intent has landed on.                                                             |
-| `isFullyDeployed`                | Whether every chain in the intent has landed.                                                      |
-| `isSponsorable`                  | Whether JB Center's sponsor covers every chain in the list.                                        |
-| `sponsorableChains`              | The chains in a list JB Center's sponsor covers, in the order given.                               |
-| `unsponsoredChains`              | The chains in a list JB Center's sponsor does not cover.                                           |
-| `ensureDeployed`                 | The pre-step before an intent's first on-chain write: one sender per intent, polled to completion. |
-| `EnsureDeployedError`            | Thrown by `ensureDeployed` when a chain cannot be finished; carries the `chainId`.                 |
-| `describeCenterRefusal`          | The fixed sentence for a sponsorship refusal, or `null` when the failure is something else.        |
-| `JBCenterRequestError`           | A non-2xx answer from JB Center; carries `status`, `code`, `requestId`, `retryAfter`.              |
-| `JBCenterTimeoutError`           | A request that passed its `timeoutMs`.                                                             |
-| `JBCenterRpcError`               | A JSON-RPC error from the read-only RPC; carries `code` and `data`.                                |
-| `JBCENTER_SPONSORED_CHAIN_IDS`   | The chain ids JB Center's sponsor covers.                                                          |
-| `JBCenterClient`                 | The client class `createJBCenterClient` returns.                                                   |
-| `JBCENTER_DEFAULT_URL`           | The JB Center origin a client uses when none is given.                                             |
-| `JBCENTER_REQUEST_TIMEOUT_MS`    | The default per-request timeout.                                                                   |
-| `JBCENTER_DEPLOYMENT_TIMEOUT_MS` | The timeout a sponsored deploy request is given.                                                   |
-| `JBCENTER_PIN_TIMEOUT_MS`        | The timeout a media pin is given.                                                                  |
-| `MAX_JBCENTER_RESPONSE_BYTES`    | The largest response body a client reads.                                                          |
-| `JBCENTER_RPC_METHODS`           | The JSON-RPC methods JB Center's read-only RPC accepts.                                            |
+| Helper                               | What it does                                                                                          |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `createJBCenterClient`               | Builds the `JBCenterClient` every helper below takes.                                                 |
+| `createJBCenterRpcProvider`          | A chain-bound EIP-1193 provider over JB Center's read-only RPC that waits out a node behind the head. |
+| `createJBCenterLimiter`              | One page's slots for JB Center's rate limit, shared by every chain's provider.                        |
+| `errorChain`                         | An error and what it wraps, outermost first.                                                          |
+| `isRateLimited`                      | Whether an error, or anything it wraps, is a 429.                                                     |
+| `retryAfterOf`                       | How many seconds a refusal asked to wait.                                                             |
+| `createJBCenterDeploymentCall`       | Freezes a typed viem request into the `{ chainId, to, data }` call an intent signs.                   |
+| `publishSignedIntent`                | Prepares, checks JB Center's envelope and message, signs with the caller's signer, publishes.         |
+| `JBCenterIntentMismatchError`        | Thrown by `publishSignedIntent` before signing; `reason` is `"envelope"` or `"message"`.              |
+| `decodeDeploymentCall`               | Reads a frozen call back as a project, 721, omnichain, or revnet launch, or a Safe creation.          |
+| `intentCalls`                        | An intent's calls per chain, decoded: the setup calls before it, then the launch.                     |
+| `mergeSearch`                        | Interleaves undeployed intent rows into a list of deployed project rows by creation time.             |
+| `intentRow`                          | Turns one search item into the row `mergeSearch` merges.                                              |
+| `intentPath`                         | The `/intent/<id>` route for an undeployed intent.                                                    |
+| `deployedChains`                     | The chain ids an intent has landed on.                                                                |
+| `isFullyDeployed`                    | Whether every chain in the intent has landed.                                                         |
+| `isSponsorable`                      | Whether JB Center's sponsor covers every chain in the list.                                           |
+| `sponsorableChains`                  | The chains in a list JB Center's sponsor covers, in the order given.                                  |
+| `unsponsoredChains`                  | The chains in a list JB Center's sponsor does not cover.                                              |
+| `ensureDeployed`                     | The pre-step before an intent's first on-chain write: one sender per intent, polled to completion.    |
+| `EnsureDeployedError`                | Thrown by `ensureDeployed` when a chain cannot be finished; carries the `chainId`.                    |
+| `describeCenterRefusal`              | The fixed sentence for a sponsorship refusal, or `null` when the failure is something else.           |
+| `JBCenterRequestError`               | A non-2xx answer from JB Center; carries `status`, `code`, `requestId`, `retryAfter`.                 |
+| `JBCenterTimeoutError`               | A request that passed its `timeoutMs`.                                                                |
+| `JBCenterRpcError`                   | A JSON-RPC error from the read-only RPC; carries `code` and `data`.                                   |
+| `JBCENTER_SPONSORED_CHAIN_IDS`       | The chain ids JB Center's sponsor covers.                                                             |
+| `JBCenterClient`                     | The client class `createJBCenterClient` returns.                                                      |
+| `JBCENTER_DEFAULT_URL`               | The JB Center origin a client uses when none is given.                                                |
+| `JBCENTER_REQUEST_TIMEOUT_MS`        | The default per-request timeout.                                                                      |
+| `JBCENTER_DEPLOYMENT_TIMEOUT_MS`     | The timeout a sponsored deploy request is given.                                                      |
+| `JBCENTER_PIN_TIMEOUT_MS`            | The timeout a media pin is given.                                                                     |
+| `MAX_JBCENTER_RESPONSE_BYTES`        | The largest response body a client reads.                                                             |
+| `JBCENTER_RPC_METHODS`               | The JSON-RPC methods JB Center's read-only RPC accepts.                                               |
+| `JBCENTER_BLOCK_LAG_RETRY_DELAYS_MS` | The waits before a read a node behind the head could not answer is asked again.                       |
+| `JBCENTER_MAX_RATE_LIMIT_PAUSE_MS`   | The longest a 429 pauses a limiter.                                                                   |
 
 ## Inline Safe creation
 

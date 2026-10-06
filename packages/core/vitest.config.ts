@@ -51,6 +51,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/jbcenter/ensureDeployed.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/jbcenter/publish.ts": {
           statements: 100,
           branches: 100,
@@ -64,6 +70,12 @@ export default defineConfig({
           lines: 100,
         },
         "src/v6/sticky.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/jbcenter/rateLimit.ts": {
           statements: 100,
           branches: 100,
           functions: 100,
@@ -130,6 +142,12 @@ export default defineConfig({
           lines: 100,
         },
         "src/untrusted.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/pause.ts": {
           statements: 100,
           branches: 100,
           functions: 100,

@@ -1,6 +1,8 @@
-import { describe, expect, test, vi } from "vitest";
-import { custom, encodeFunctionData } from "viem";
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { createPublicClient, custom, encodeFunctionData, erc20Abi } from "viem";
+import { base } from "viem/chains";
 import {
+  JBCENTER_BLOCK_LAG_RETRY_DELAYS_MS,
   JBCENTER_DEFAULT_URL,
   JBCENTER_SPONSORED_CHAIN_IDS,
   JBCenterRequestError,
@@ -1150,5 +1152,314 @@ describe("JB Center answers and defaults", () => {
         code: undefined,
       });
     }
+  });
+});
+
+/** The id of the JSON-RPC request a fetch to JB Center sends. */
+function rpcId(init: RequestInit | undefined): number {
+  return (JSON.parse(String(init?.body)) as { id: number }).id;
+}
+
+/** Center's answer to one JSON-RPC request. */
+function rpcResult(id: number, result: unknown): Response {
+  return jsonResponse({ jsonrpc: "2.0", id, result });
+}
+
+/** A node behind the head, asked for a block it has not imported yet. */
+function behindHead(id: number): Response {
+  return jsonResponse({
+    jsonrpc: "2.0",
+    id,
+    error: { code: -32001, message: "Requested resource not found" },
+  });
+}
+
+describe("JB Center RPC provider and a node behind the head", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test("asks again for a read pinned to a block the answering node has not imported yet", async () => {
+    let calls = 0;
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        calls += 1;
+        return calls <= 2
+          ? behindHead(rpcId(init))
+          : rpcResult(rpcId(init), "0x2a");
+      },
+    );
+    const provider = createJBCenterRpcProvider(8453, {
+      fetch: fetchMock,
+      blockLagRetryDelaysMs: [0, 0, 0],
+    });
+
+    await expect(
+      provider.request({ method: "eth_call", params: [{}, "0x64"] }),
+    ).resolves.toBe("0x2a");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  test("hands back the node's answer once the waits are spent", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) =>
+        behindHead(rpcId(init)),
+    );
+    const provider = createJBCenterRpcProvider(8453, {
+      fetch: fetchMock,
+      blockLagRetryDelaysMs: [0, 0],
+    });
+
+    await expect(
+      provider.request({ method: "eth_call" }),
+    ).rejects.toMatchObject({ name: "JBCenterRpcError", code: -32001 });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  test("waits 250, 500, 1,000, 2,000 and 2,000 ms by default", async () => {
+    vi.useFakeTimers();
+    const start = Date.now();
+    const sentAt: number[] = [];
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        sentAt.push(Date.now() - start);
+        return behindHead(rpcId(init));
+      },
+    );
+    const read = createJBCenterRpcProvider(8453, { fetch: fetchMock })
+      .request({ method: "eth_call" })
+      .catch((error: unknown) => error);
+
+    await vi.advanceTimersByTimeAsync(5_749);
+    expect(sentAt).toEqual([0, 250, 750, 1_750, 3_750]);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sentAt).toEqual([0, 250, 750, 1_750, 3_750, 5_750]);
+    expect(await read).toMatchObject({ code: -32001 });
+    expect(JBCENTER_BLOCK_LAG_RETRY_DELAYS_MS).toEqual([
+      250, 500, 1_000, 2_000, 2_000,
+    ]);
+  });
+
+  test("never asks again after a revert, any other RPC error, a refusal or a timeout", async () => {
+    const answers: ((id: number) => Response)[] = [
+      (id) =>
+        jsonResponse({
+          jsonrpc: "2.0",
+          id,
+          error: { code: 3, message: "execution reverted", data: "0x" },
+        }),
+      (id) =>
+        jsonResponse({
+          jsonrpc: "2.0",
+          id,
+          error: { code: -32000, message: "header not found" },
+        }),
+      () =>
+        jsonResponse(
+          { error: { code: "rate_limit", message: "Slow down" } },
+          { status: 429, headers: { "retry-after": "60" } },
+        ),
+    ];
+    for (const answer of answers) {
+      const fetchMock = vi.fn(
+        async (_input: RequestInfo | URL, init?: RequestInit) =>
+          answer(rpcId(init)),
+      );
+      await expect(
+        createJBCenterRpcProvider(1, {
+          fetch: fetchMock,
+          blockLagRetryDelaysMs: [0],
+        }).request({ method: "eth_call" }),
+      ).rejects.toBeInstanceOf(Error);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    }
+
+    const hang = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) =>
+          init?.signal?.addEventListener("abort", () =>
+            reject(init.signal?.reason),
+          ),
+        ),
+    );
+    await expect(
+      createJBCenterRpcProvider(1, {
+        fetch: hang,
+        timeoutMs: 5,
+        blockLagRetryDelaysMs: [0],
+      }).request({ method: "eth_call" }),
+    ).rejects.toBeInstanceOf(JBCenterTimeoutError);
+    expect(hang).toHaveBeenCalledTimes(1);
+  });
+
+  test("keeps `rpc` to one request: a node behind the head is its caller's to wait out", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) =>
+        behindHead(rpcId(init)),
+    );
+    await expect(
+      createJBCenterClient({ fetch: fetchMock }).rpc(1, { method: "eth_call" }),
+    ).rejects.toMatchObject({ code: -32001 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("passes the caller's request options, signal included, to every try", async () => {
+    const sent: AbortSignal[] = [];
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      sent.push(init!.signal!);
+      if (sent.length === 1) return Promise.resolve(behindHead(rpcId(init)));
+      return new Promise<Response>((_resolve, reject) =>
+        init?.signal?.addEventListener("abort", () =>
+          reject(init.signal?.reason),
+        ),
+      );
+    });
+    const client = createJBCenterClient({ fetch: fetchMock });
+    const rpc = vi.spyOn(client, "rpc");
+    const page = new AbortController();
+    const options = { signal: page.signal };
+    const read = client
+      .rpcProvider(8453, { blockLagRetryDelaysMs: [0] })
+      .request({ method: "eth_call" }, options);
+
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(rpc.mock.calls.map(([, , passed]) => passed)).toEqual([
+      options,
+      options,
+    ]);
+    expect(rpc.mock.calls[1]?.[2]).toBe(options);
+    const reason = new DOMException("The page closed.", "AbortError");
+    page.abort(reason);
+    await expect(read).rejects.toBe(reason);
+    expect(sent[1]?.aborted).toBe(true);
+  });
+
+  test("ends a wait between tries the moment the signal aborts, and asks no more", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) =>
+        behindHead(rpcId(init)),
+    );
+    const page = new AbortController();
+    const reason = new Error("left the page");
+    const read = createJBCenterRpcProvider(8453, {
+      fetch: fetchMock,
+      blockLagRetryDelaysMs: [60_000],
+    })
+      .request({ method: "eth_call" }, { signal: page.signal })
+      .catch((error: unknown) => error);
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    page.abort(reason);
+
+    expect(await read).toBe(reason);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  test("sends nothing for a signal that has already aborted", async () => {
+    const fetchMock = vi.fn();
+    const page = new AbortController();
+    const reason = new Error("left the page");
+    page.abort(reason);
+
+    await expect(
+      createJBCenterRpcProvider(8453, { fetch: fetchMock }).request(
+        { method: "eth_call" },
+        { signal: page.signal },
+      ),
+    ).rejects.toBe(reason);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("turns the retry off with no waits, and refuses a wait that is not a finite number of milliseconds", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) =>
+        behindHead(rpcId(init)),
+    );
+    await expect(
+      createJBCenterRpcProvider(1, {
+        fetch: fetchMock,
+        blockLagRetryDelaysMs: [],
+      }).request({ method: "eth_call" }),
+    ).rejects.toMatchObject({ code: -32001 });
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    for (const blockLagRetryDelaysMs of [
+      [-1],
+      [Number.NaN],
+      [Number.POSITIVE_INFINITY],
+      [250, "500"],
+      250,
+    ]) {
+      expect(() =>
+        createJBCenterClient().rpcProvider(1, {
+          blockLagRetryDelaysMs: blockLagRetryDelaysMs as readonly number[],
+        }),
+      ).toThrow(
+        new TypeError(
+          "blockLagRetryDelaysMs must be a list of finite waits of 0 ms or more",
+        ),
+      );
+    }
+  });
+
+  test("keeps the waits it checked: changing the list afterwards changes nothing", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        calls += 1;
+        return calls === 1
+          ? behindHead(rpcId(init))
+          : rpcResult(rpcId(init), "0x2a");
+      },
+    );
+    const waits = [0];
+    const provider = createJBCenterRpcProvider(1, {
+      fetch: fetchMock,
+      blockLagRetryDelaysMs: waits,
+    });
+    waits[0] = 60_000;
+
+    const read = provider.request({ method: "eth_call" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await expect(read).resolves.toBe("0x2a");
+  });
+
+  test("carries a pinned read through a lagging node on a viem client", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        calls += 1;
+        return calls === 1
+          ? behindHead(rpcId(init))
+          : rpcResult(
+              rpcId(init),
+              `0x${1_000_000n.toString(16).padStart(64, "0")}`,
+            );
+      },
+    );
+    const client = createPublicClient({
+      chain: base,
+      transport: custom(
+        createJBCenterRpcProvider(base.id, { fetch: fetchMock }),
+      ),
+    });
+
+    const balance = client.readContract({
+      address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: ["0x000000000000000000000000000000000000dEaD"],
+      blockNumber: 50_623_163n,
+    });
+    await vi.advanceTimersByTimeAsync(250);
+
+    await expect(balance).resolves.toBe(1_000_000n);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

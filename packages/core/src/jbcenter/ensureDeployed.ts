@@ -16,6 +16,7 @@ import {
   type JBCenterJsonObject,
   type JBCenterRelayRequest,
 } from "../jbcenter.js";
+import { pause } from "../pause.js";
 import { deployedChains } from "./merge.js";
 
 const DEFAULT_POLL_MS = 4_000;
@@ -63,7 +64,12 @@ export type EnsureDeployedOptions = {
     calls: JBCenterDeploymentCall[],
   ) => Promise<JBCenterDeploymentInput[]>;
   onStep?: (step: EnsureDeployedStep) => void;
+  /** The wait between polls, in milliseconds: a positive finite number, 4,000 by default. */
   pollMs?: number;
+  /**
+   * How long the run polls before it fails, in milliseconds: a positive
+   * number, `Infinity` to poll until the run lands, 600,000 by default.
+   */
   timeoutMs?: number;
   signal?: AbortSignal;
 };
@@ -82,20 +88,6 @@ function checkAborted(signal: AbortSignal | undefined): void {
   if (signal?.aborted) {
     throw signal.reason;
   }
-}
-
-function sleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const onAbort = () => {
-      clearTimeout(timer);
-      reject(signal?.reason);
-    };
-    const timer = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
 }
 
 /**
@@ -184,11 +176,17 @@ async function pollUntilDeployed(
       return deployedChains(current);
     }
 
-    if (Date.now() - startedAt >= timeoutMs) {
+    const elapsed = Date.now() - startedAt;
+    if (elapsed >= timeoutMs) {
       throw new EnsureDeployedError("JB Center deploy polling timed out");
     }
 
-    await sleep(pollMs, signal);
+    // A wait never runs past the run's timeout: the read at its end is the last.
+    await pause(
+      Math.min(pollMs, timeoutMs - elapsed),
+      signal,
+      () => signal?.reason,
+    );
     current = await client.getIntent(current.id, { signal });
   }
 }
@@ -367,6 +365,16 @@ export async function ensureDeployed(
   const { client, intent, onStep, relayPaid, selfPaid, signal } = options;
   const pollMs = options.pollMs ?? DEFAULT_POLL_MS;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  // A wait of NaN, 0 or less fires at once, and the run would poll Center
+  // without pause. A timeoutMs of Infinity polls until the run lands.
+  if (!Number.isFinite(pollMs) || pollMs <= 0) {
+    throw new TypeError(
+      "pollMs must be a positive finite number of milliseconds",
+    );
+  }
+  if (typeof timeoutMs !== "number" || !(timeoutMs > 0)) {
+    throw new TypeError("timeoutMs must be a positive number of milliseconds");
+  }
 
   if (relayPaid && selfPaid) {
     throw new EnsureDeployedError(
