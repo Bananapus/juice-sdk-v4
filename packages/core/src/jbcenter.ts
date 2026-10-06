@@ -166,8 +166,18 @@ export type {
 } from "./jbcenter/refusal.js";
 export { describeCenterRefusal } from "./jbcenter/refusal.js";
 
-export type { Failure } from "./jbcenter/rateLimit.js";
-export { failures, isRateLimited, retryAfterOf } from "./jbcenter/rateLimit.js";
+export type {
+  Failure,
+  JBCenterLimiter,
+  JBCenterLimiterOptions,
+} from "./jbcenter/rateLimit.js";
+export {
+  JBCENTER_MAX_RATE_LIMIT_PAUSE_MS,
+  createJBCenterLimiter,
+  failures,
+  isRateLimited,
+  retryAfterOf,
+} from "./jbcenter/rateLimit.js";
 
 export type JBCenterContractCall<
   TAbi extends Abi = Abi,

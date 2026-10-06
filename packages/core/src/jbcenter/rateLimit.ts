@@ -1,9 +1,10 @@
 import { retryAfterMs } from "../untrusted.js";
 
-// JB Center's rate limit, as the SDK reads it. Center counts each origin's
-// requests, every chain's together, in a fixed minute in which refused
-// requests count too: 600 a minute. It refuses the rest of the minute with a
-// 429 whose Retry-After says how long is left.
+// JB Center's rate limit, as the SDK reads it and keeps to it. Center counts
+// each origin's requests, every chain's together, in a fixed minute in which
+// refused requests count too: 600 a minute. It refuses the rest of the minute
+// with a 429 whose Retry-After says how long is left, and a page that trips it
+// stalls until then.
 
 /** What one link of an error chain can say about a refusal. */
 export type Failure = {
@@ -61,4 +62,132 @@ export function retryAfterOf(error: unknown): number | undefined {
     if (ms !== null) return Math.ceil(ms / 1000);
   }
   return undefined;
+}
+
+/** The longest a refusal holds a limiter's slots: Center's window is a minute. */
+export const JBCENTER_MAX_RATE_LIMIT_PAUSE_MS = 60_000;
+
+export type JBCenterLimiterOptions = {
+  /**
+   * How many requests may be in flight at once, every chain's together. Two in
+   * flight are at most 343 requests a minute at the quickest round trip
+   * measured against Center's staging (0.35 s), under Center's 600.
+   */
+  slots: number;
+};
+
+/** Requests that share JB Center's rate limit. One limiter serves a whole page. */
+export type JBCenterLimiter = {
+  /**
+   * `send`, once one of the limiter's slots is free: requests start in the
+   * order they came, at most `slots` at once. When Center refuses one with a
+   * 429 that says how long to wait, nothing starts until that has passed, a
+   * minute at most ({@link JBCENTER_MAX_RATE_LIMIT_PAUSE_MS}): every request in
+   * the minute would be refused, and would count. A request whose `signal`
+   * aborts while it waits leaves the line, rejecting with the reason, and is
+   * never sent. One under way answers to its own signal: the limiter does not
+   * stop it, and its slot frees when it ends.
+   */
+  run<T>(
+    send: () => Promise<T>,
+    options?: { signal?: AbortSignal },
+  ): Promise<T>;
+};
+
+/** Tasks that wait their turn: at most `room` under way at once, started in the order they joined, none while `held`. */
+type Line = {
+  join<T>(task: () => Promise<T>, signal: AbortSignal | undefined): Promise<T>;
+  /** Starts what waits, as far as there is room, once `held` no longer holds the line. */
+  resume(): void;
+};
+
+function line(room: number, held: () => boolean): Line {
+  let running = 0;
+  /** What waits, in the order it joined. */
+  const waiting = new Set<() => void>();
+
+  function resume() {
+    while (!held() && running < room && waiting.size > 0) {
+      const [next] = waiting;
+      waiting.delete(next);
+      next();
+    }
+  }
+
+  function join<T>(
+    task: () => Promise<T>,
+    signal: AbortSignal | undefined,
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      if (signal?.aborted) return reject(signal.reason);
+      function start() {
+        signal?.removeEventListener("abort", leave);
+        running += 1;
+        new Promise<T>((begun) => begun(task()))
+          .then(resolve, reject)
+          .finally(() => {
+            running -= 1;
+            resume();
+          });
+      }
+      function leave() {
+        waiting.delete(start);
+        reject(signal!.reason);
+      }
+      signal?.addEventListener("abort", leave, { once: true });
+      waiting.add(start);
+      resume();
+    });
+  }
+
+  return { join, resume };
+}
+
+/**
+ * A limiter for every request a page sends to JB Center: create one when the
+ * page loads (at module level in the browser) and hand it to each provider
+ * (`createJBCenterRpcProvider`'s `limiter`). Every try takes its own slot, so
+ * a read waiting out a node behind the head holds none.
+ */
+export function createJBCenterLimiter({
+  slots,
+}: JBCenterLimiterOptions): JBCenterLimiter {
+  if (!Number.isSafeInteger(slots) || slots <= 0) {
+    throw new TypeError("slots must be a positive safe integer");
+  }
+  /** When the slots open again after a refusal, by the clock, and the timer that opens them. */
+  let resumeAt = 0;
+  let paused: ReturnType<typeof setTimeout> | undefined;
+  const queue = line(slots, () => paused !== undefined);
+
+  /** Holds every slot for `ms`, or until a later end a refusal already set. */
+  function hold(ms: number) {
+    const until = Date.now() + ms;
+    if (paused !== undefined && until <= resumeAt) return;
+    clearTimeout(paused);
+    resumeAt = until;
+    paused = setTimeout(() => {
+      paused = undefined;
+      queue.resume();
+    }, ms);
+  }
+
+  function run<T>(
+    send: () => Promise<T>,
+    { signal }: { signal?: AbortSignal } = {},
+  ): Promise<T> {
+    return queue.join(async () => {
+      try {
+        return await send();
+      } catch (error) {
+        const seconds = isRateLimited(error) ? retryAfterOf(error) : undefined;
+        if (seconds !== undefined && seconds > 0) {
+          hold(Math.min(seconds * 1_000, JBCENTER_MAX_RATE_LIMIT_PAUSE_MS));
+        }
+        throw error;
+      }
+    }, signal);
+  }
+
+  return { run };
 }
