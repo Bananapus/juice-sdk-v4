@@ -547,12 +547,15 @@ const released = await relayrRequestsDead(clientFor, requests);
   It holds until the nonce catches up. It is also the outcome when `nonces` is
   omitted or empty, or there were no requests: such a session is neither
   discarded nor signed again.
-- `unchecked`: the recheck failed because the node could not answer: within
-  its first eight errors, an HTTP, timeout or WebSocket failure, a JSON-RPC
-  error (such as -32001, -32005 or -32603), or a contract revert without revert
-  data, which viem builds from a transient -32603. Nothing is decided. A revert
-  that carries revert data is the chain answering and reads as `changed`, as
-  does the action's own refusal.
+- `unchecked`: the recheck failed because the node could not answer. Its
+  cause chain (its first eight errors) holds a transport failure (HTTP, timeout
+  or WebSocket) or a JSON-RPC failure (such as -32001, -32005 or -32603), and
+  no revert data. That includes a bare revert with no data, transient or not,
+  and an app error that wraps such a failure as its `cause`. Nothing is
+  decided. Revert data on any code is the chain answering and reads as
+  `changed`: Nethermind's `Reverted 0x…`, or hex of at least a 4-byte selector
+  in an error's `data`, in a nested `data.data` or in viem's revert `raw`. So
+  does an app's own refusal with no such failure in its cause chain.
 
 `nonces` must be the saved nonces of exactly the requests that were
 classified, in the same order, since `refresh` and `re-sign` hand them back to

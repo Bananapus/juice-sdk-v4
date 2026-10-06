@@ -4,6 +4,7 @@ import {
   ContractFunctionExecutionError,
   ContractFunctionRevertedError,
   createPublicClient,
+  custom,
   encodeErrorResult,
   encodeFunctionData,
   getAddress,
@@ -31,6 +32,7 @@ import {
   erc2771ForwarderAbi,
   jbContractAddress,
 } from "../generated/juicebox.js";
+import { createJBCenterRpcProvider } from "../jbcenter.js";
 import {
   atCanonicalFinalizedBlock,
   isRelayrDiscardReason,
@@ -188,6 +190,21 @@ const asData = (outcome: RelayrSessionOutcome) => ({
 /** `cause` wrapped in an error, as a native error cause, which ES2021's types lack. */
 const wrapped = (message: string, cause: unknown): Error =>
   Object.assign(new Error(message), { cause });
+
+/** The JSON-RPC error a node answered with, as viem's HTTP transport reports it. */
+const nodeError = (code: number, message: string, data?: unknown) =>
+  new RpcRequestError({
+    body: {},
+    error: { code, message, ...(data === undefined ? {} : { data }) },
+    url: "https://rpc.example",
+  });
+
+/** Revert data: `Error("Payouts were sent")`, as a contract reverts with it. */
+const REVERT = encodeErrorResult({
+  abi: parseAbi(["error Error(string message)"]),
+  errorName: "Error",
+  args: ["Payouts were sent"],
+});
 
 /** An HTTP failure under a contract read, as viem reports an unreachable RPC. */
 function unreachableRead(): Error {
@@ -645,7 +662,7 @@ describe("what a set of requests allows together (ruling R114)", () => {
     });
   });
 
-  it("reads no requests as neither run nor unused, so a session with none holds, as jbm's callers made it", async () => {
+  it("reads no requests as neither run nor unused, so a session with none holds", async () => {
     const none = relayrRequestsVerdict([]);
     expect(none).toEqual({ live: false, mayHaveRun: false, unused: false });
     const recheck = vi.fn(async () => {});
@@ -971,6 +988,51 @@ describe("what a session whose bundle won't run as signed does next (rulings R10
           url: "https://rpc.example",
         }),
     ],
+    [
+      "an execution revert whose data is null",
+      () => nodeError(3, "execution reverted", null),
+    ],
+    [
+      "an execution revert whose data is odd hex",
+      () => nodeError(3, "execution reverted", "0xabc"),
+    ],
+    [
+      "an execution revert whose data is shorter than a selector",
+      () => nodeError(3, "execution reverted", "0x123456"),
+    ],
+    [
+      "an execution revert whose data is not hex",
+      () => nodeError(3, "execution reverted", "execution reverted"),
+    ],
+    [
+      "a nested revert data field that is not hex",
+      () => nodeError(-32603, "execution reverted", { data: "0xzz" }),
+    ],
+    [
+      "Nethermind's revert form without hex",
+      () => nodeError(-32015, "VM execution error.", "Reverted 0xzz"),
+    ],
+    [
+      "Nethermind's revert form shorter than a selector",
+      () => nodeError(-32015, "VM execution error.", "Reverted 0x1234"),
+    ],
+    [
+      "a revert whose raw data is shorter than a selector",
+      () =>
+        new ContractFunctionRevertedError({
+          abi: [],
+          data: "0x1234",
+          functionName: "splitsOf",
+        }),
+    ],
+    [
+      "an app error that wraps a JSON-RPC failure as its cause",
+      () =>
+        wrapped(
+          "The queue changed",
+          new InternalRpcError(new Error("internal error")),
+        ),
+    ],
   ])(
     "reads %s as a recheck the node could not answer (ruling R118)",
     async (_, failure) => {
@@ -1024,6 +1086,24 @@ describe("what a session whose bundle won't run as signed does next (rulings R10
             }),
           }),
         ),
+    ],
+    [
+      "revert data on a -32000 answer",
+      () => nodeError(-32000, "Execution reverted", REVERT),
+    ],
+    [
+      "revert data on a -32603 answer, nested beside a message",
+      () =>
+        new InternalRpcError(
+          nodeError(-32603, "execution reverted", {
+            message: "execution reverted",
+            data: REVERT,
+          }),
+        ),
+    ],
+    [
+      "Nethermind's revert form on a -32015 answer",
+      () => nodeError(-32015, "VM execution error.", `Reverted ${REVERT}`),
     ],
   ])(
     "reads %s as the chain answering: changed (ruling R118)",
@@ -1262,9 +1342,10 @@ describe("the session rules over viem's HTTP transport", () => {
   /** The forwarder's nonce for every signer. */
   let nonce: bigint;
   /** The JSON-RPC error a call to TARGET answers with, if any. */
-  let callError: { code: number; message: string; data?: Hex } | null;
-  /** The HTTP status every request answers with, if not 200. */
+  let callError: { code: number; message: string; data?: unknown } | null;
+  /** The HTTP status every request answers with, if not 200, carrying `callError` when set. */
   let httpStatus: number | null;
+  let origin: string;
   let requestsSeen: { method: string; params: unknown[] }[];
 
   const hex = (value: number | bigint) => `0x${value.toString(16)}`;
@@ -1299,8 +1380,15 @@ describe("the session rules over viem's HTTP transport", () => {
       request.on("end", () => {
         response.setHeader("content-type", "application/json");
         if (httpStatus) {
+          const { id } = JSON.parse(body) as { id: number };
           response.statusCode = httpStatus;
-          response.end(JSON.stringify({ error: "Too many requests" }));
+          response.end(
+            JSON.stringify(
+              callError
+                ? { jsonrpc: "2.0", id, error: callError }
+                : { error: "Too many requests" },
+            ),
+          );
           return;
         }
         const answer = ({
@@ -1327,11 +1415,14 @@ describe("the session rules over viem's HTTP transport", () => {
           }
           const to = (params[0] as { to?: string } | undefined)?.to;
           if (
-            method === "eth_call" &&
+            (method === "eth_call" || method === "eth_estimateGas") &&
             callError &&
             to?.toLowerCase() === TARGET.toLowerCase()
           ) {
             return { jsonrpc: "2.0", id, error: callError };
+          }
+          if (method === "eth_chainId") {
+            return { jsonrpc: "2.0", id, result: "0x1" };
           }
           if (method === "eth_call") {
             return {
@@ -1357,7 +1448,8 @@ describe("the session rules over viem's HTTP transport", () => {
     await new Promise<void>((resolve) =>
       server.listen(0, "127.0.0.1", resolve),
     );
-    url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/rpc`;
+    origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    url = `${origin}/rpc`;
   });
 
   afterAll(async () => {
@@ -1376,7 +1468,7 @@ describe("the session rules over viem's HTTP transport", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((input: string | URL | Request, init?: RequestInit) =>
-        String(input).startsWith(url)
+        String(input).startsWith(origin)
           ? loopbackFetch(input, init)
           : Promise.reject(new Error(`Unexpected fetch: ${String(input)}`)),
       ),
@@ -1500,6 +1592,131 @@ describe("the session rules over viem's HTTP transport", () => {
         await projectClient().call({ to: TARGET, data: "0x12345678" });
       }),
     ).resolves.toMatchObject({ kind: "discard", reason: "changed" });
+  });
+
+  /** Rechecks reading the project as apps do, each through the loopback node. */
+  const RECHECKS: [string, () => Promise<void>][] = [
+    ["readContract", readProject],
+    [
+      "call",
+      async () => {
+        await projectClient().call({ to: TARGET, data: "0x12345678" });
+      },
+    ],
+    [
+      "estimateGas",
+      async () => {
+        await projectClient().estimateGas({
+          account: ALICE,
+          to: TARGET,
+          data: "0x12345678",
+        });
+      },
+    ],
+    [
+      "a raw eth_call",
+      async () => {
+        await projectClient().request({
+          method: "eth_call",
+          params: [{ to: TARGET, data: "0x12345678" }, "latest"],
+        });
+      },
+    ],
+  ];
+  const REVERTS_WITH_DATA: [string, NonNullable<typeof callError>][] = [
+    [
+      "-32603 with revert data",
+      { code: -32603, message: "execution reverted", data: REVERT },
+    ],
+    [
+      "-32603 with revert data nested beside a message",
+      {
+        code: -32603,
+        message: "execution reverted",
+        data: { message: "execution reverted", data: REVERT },
+      },
+    ],
+    [
+      "-32000 with revert data",
+      { code: -32000, message: "Execution reverted", data: REVERT },
+    ],
+    [
+      "-32015 with Nethermind's Reverted form",
+      {
+        code: -32015,
+        message: "VM execution error.",
+        data: `Reverted ${REVERT}`,
+      },
+    ],
+  ];
+
+  it.each(
+    REVERTS_WITH_DATA.flatMap(([shape, error]) =>
+      RECHECKS.map(([api, recheck]) => [shape, api, error, recheck] as const),
+    ),
+  )(
+    "reads %s through %s as the chain answering: changed (ruling R118)",
+    async (_, __, error, recheck) => {
+      callError = error;
+      await expect(outcomeAfter(recheck)).resolves.toMatchObject({
+        kind: "discard",
+        reason: "changed",
+      });
+    },
+  );
+
+  it("reads an HTTP 500 carrying a revert as unchecked: viem 2.37 keeps that body only in the error's details", async () => {
+    httpStatus = 500;
+    callError = { code: 3, message: "execution reverted", data: REVERT };
+    for (const [, recheck] of RECHECKS) {
+      await expect(outcomeAfter(recheck)).resolves.toMatchObject({
+        kind: "unchecked",
+      });
+    }
+  });
+
+  it("reads the JB Center transport's answers as the apps get them: a lagging node unchecked, a revert with data changed", async () => {
+    const center = createPublicClient({
+      chain: mainnet,
+      transport: custom(
+        createJBCenterRpcProvider(1, {
+          baseUrl: origin,
+          blockLagRetryDelaysMs: [],
+        }),
+      ),
+    });
+    const names = (error: unknown) => {
+      const found: string[] = [];
+      for (let link = error; link instanceof Error; ) {
+        found.push(link.name);
+        link = (link as { cause?: unknown }).cause;
+      }
+      return found;
+    };
+    const readOverCenter = async () => {
+      await center.readContract({
+        address: TARGET,
+        abi: PROJECT_ABI,
+        functionName: "splitsOf",
+        args: [1n],
+      });
+    };
+    callError = { code: -32001, message: "Requested resource not found." };
+    const lagging = await outcomeAfter(readOverCenter);
+    expect(lagging.kind).toBe("unchecked");
+    // The classifier reads Center's own error, with its code, in the chain.
+    expect(names(asData(lagging).error)).toContain("JBCenterRpcError");
+    callError = { code: 3, message: "execution reverted", data: "0xdeadbeef" };
+    await expect(outcomeAfter(readOverCenter)).resolves.toMatchObject({
+      kind: "discard",
+      reason: "changed",
+    });
+    // A raw call keeps Center's error, and its data, under viem's.
+    const reverted = await outcomeAfter(async () => {
+      await center.call({ to: TARGET, data: "0x12345678" });
+    });
+    expect(reverted).toMatchObject({ kind: "discard", reason: "changed" });
+    expect(names(asData(reverted).error)).toContain("JBCenterRpcError");
   });
 
   it("reads the action's own refusal, after the node answered, as changed", async () => {

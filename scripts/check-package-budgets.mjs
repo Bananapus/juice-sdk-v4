@@ -70,8 +70,13 @@ const budgets = {
     // and 14 kilobytes packed, about half of it documentation repeated in the
     // ESM and CJS JavaScript and declarations (measured 1,203,010 B packed,
     // 20,395,254 B unpacked, 738 files).
-    packed: 1_207_000,
-    unpacked: 20_403_000,
+    // The session rules' review fixes and ruling R118's recheck rule (a node
+    // that could not answer reads as unchecked; revert data on any JSON-RPC
+    // code reads as changed) add no files and about 8 kilobytes unpacked and
+    // 3 kilobytes packed, mostly documentation (measured 1,205,816 B packed,
+    // 20,403,617 B unpacked, 738 files).
+    packed: 1_210_000,
+    unpacked: 20_410_000,
     entries: 738,
   },
   "@bananapus/nana-sdk-react": {

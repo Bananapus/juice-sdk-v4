@@ -57,7 +57,8 @@ Where it differs from Juicebox Money's copies:
 - An empty set of requests is neither run nor unused, so it holds as
   `reorg-hold`, as Juicebox Money's callers held a session in which they found
   nothing to classify. An empty `nonces` list also gives `reorg-hold`, where
-  Juicebox Money would have re-signed nothing; it never saved an empty list.
+  Juicebox Money signed the calls again at the live forwarder nonce; it never
+  saved an empty list.
 - Deadlines and nonces are read as the SDK reads any untrusted number: a safe
   integer, decimal or 0x-hex digits, or a bigint. Anything else (`""`, `" "`,
   `"-1"`) leaves the request live, and `relayrDeadlinePassed` false. Juicebox

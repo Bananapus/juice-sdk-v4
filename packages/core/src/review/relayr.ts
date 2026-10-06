@@ -1586,7 +1586,8 @@ export type RelayrDiscardReason = "ran" | "changed" | "expired";
  *   or there are no saved nonces to sign at (`nonces` omitted or empty), or
  *   there were no requests. It holds until the nonce catches up.
  * - `unchecked`: the recheck failed because the node could not answer (ruling
- *   R118), which decides nothing. Try again.
+ *   R118): its cause chain holds a transport or JSON-RPC failure, or a revert
+ *   without revert data, and no revert data. That decides nothing. Try again.
  *
  * `error` is never enumerable, so no JSON or log of an outcome shows it: an
  * RPC error's URL can carry a key.
@@ -1753,7 +1754,7 @@ export async function relayrRequestStates(
 
 /**
  * What `states` allow together. No states are neither run nor unused, so a
- * session with none holds, as it did when its app found nothing to classify.
+ * session with none holds.
  */
 export function relayrRequestsVerdict(
   states: readonly RelayrRequestState[],
@@ -1819,32 +1820,37 @@ export function isRelayrDiscardReason(
 /** The transport failures that mean a recheck could not reach the chain. */
 const UNREACHED = ["HttpRequestError", "TimeoutError", "WebSocketRequestError"];
 
-/** Hex with at least one byte, as a revert's data is. */
-function isRevertData(value: unknown): boolean {
-  return isHexBytes(value) && value.length > 2;
-}
+/**
+ * Revert data: whole bytes of hex, at least a 4-byte selector, bare or in
+ * Nethermind's "Reverted 0x…" form.
+ */
+const REVERT_DATA = /^(?:Reverted )?0x(?:[0-9a-fA-F]{2}){4,}$/u;
 
-/** A revert that carries revert data, so the chain answered. A node may nest code 3's data. */
+/**
+ * Whether one error carries revert data, whatever its JSON-RPC code: in its
+ * `data`, in a `data.data` a node nests there, or in the `raw` data of viem's
+ * contract revert. Such an error is the chain answering.
+ */
 function revertedWithData(link: Error): boolean {
-  if (link instanceof ContractFunctionRevertedError) {
-    return isRevertData(link.raw) || link.data !== undefined;
-  }
-  const { code, data } = link as { code?: unknown; data?: unknown };
-  return (
-    code === 3 &&
-    isRevertData(
-      data && typeof data === "object"
-        ? (data as { data?: unknown }).data
-        : data,
-    )
+  const { raw, data } = link as { raw?: unknown; data?: unknown };
+  const nested =
+    data !== null && typeof data === "object"
+      ? (data as { data?: unknown }).data
+      : undefined;
+  return [raw, data, nested].some(
+    (value) => typeof value === "string" && REVERT_DATA.test(value),
   );
 }
 
 /**
  * Ruling R118: the node could not answer the recheck, so it says nothing
- * about the project. One of its first eight errors is a transport failure, a
- * JSON-RPC error, or a revert without revert data (viem's reading of a
- * transient -32603), and none is a revert with revert data.
+ * about the project. Within the error's first eight links (its cause chain),
+ * one is a transport failure (HTTP, timeout or WebSocket), a JSON-RPC failure
+ * (viem's `RpcRequestError` or any `RpcError`, such as -32001, -32005 or
+ * -32603), or a contract revert without revert data, as viem reads a bare
+ * revert, transient or not; and no link carries revert data, which on any
+ * code is the chain answering. An app's error that wraps such a failure as
+ * its `cause` reads the same way.
  */
 function recheckUnreached(error: unknown): boolean {
   const links: Error[] = [];
