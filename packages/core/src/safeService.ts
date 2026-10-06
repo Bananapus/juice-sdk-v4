@@ -158,6 +158,34 @@ class SafeExecutionRecordError extends Error {}
 /** The longest delay setTimeout holds (about 24.8 days): a longer one fires at once. */
 const MAX_TIMER_MS = 2_147_483_647;
 
+/** What a wait ends with when its signal aborts. */
+function waitAborted(): DOMException {
+  return new DOMException("Safe execution wait aborted", "AbortError");
+}
+
+/**
+ * `work`, cut short when `signal` aborts: the promise then rejects with
+ * `aborted()`, at once when `signal` already has. `work` is left to settle on
+ * its own and its answer is ignored. The abort listener goes when it does.
+ */
+function abortable<T>(
+  work: Promise<T>,
+  signal: AbortSignal | undefined,
+  aborted: () => unknown,
+): Promise<T> {
+  if (!signal) return work;
+  return new Promise<T>((resolve, reject) => {
+    function onAbort() {
+      reject(aborted());
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) onAbort();
+    work
+      .finally(() => signal.removeEventListener("abort", onAbort))
+      .then(resolve, reject);
+  });
+}
+
 /**
  * Waits `ms`, at most {@link MAX_TIMER_MS}, or rejects with `aborted()` once
  * `signal` aborts: at once when it already has.
@@ -206,9 +234,11 @@ function pause(
  * hash may be a real execution. The wait keeps looking, so without a `signal`
  * it lasts as long as the node cannot answer.
  *
- * Each poll is one service request with the local API key and `signal`, which
- * also ends a request in flight. After a 429 the next poll waits the longer of
- * the polling interval and the wait its Retry-After asks for.
+ * `signal` ends the wait at once, even while a chain look is in flight: the
+ * look is left to settle and its answer is ignored. Each poll is one service
+ * request with the local API key and `signal`, which also ends a request in
+ * flight. After a 429 the next poll waits the longer of the polling interval
+ * and the wait its Retry-After asks for.
  */
 export async function waitForSafeExecutionHash(
   chainId: number,
@@ -231,11 +261,15 @@ export async function waitForSafeExecutionHash(
   let consecutiveNotFound = 0;
 
   for (;;) {
-    if (options.signal?.aborted) {
-      throw new DOMException("Safe execution wait aborted", "AbortError");
-    }
+    if (options.signal?.aborted) throw waitAborted();
     let wait = interval;
-    const look = client && (await lookUpTransaction(client, safeTxHash));
+    const look =
+      client &&
+      (await abortable(
+        lookUpTransaction(client, safeTxHash),
+        options.signal,
+        waitAborted,
+      ));
     if (look === "found") return safeTxHash;
     if (!endpoint) {
       // Without a service only the chain answers. A look it could not answer
@@ -291,11 +325,7 @@ export async function waitForSafeExecutionHash(
         // proposal pending instead of inviting a duplicate submission.
       }
     }
-    await pause(
-      wait,
-      options.signal,
-      () => new DOMException("Safe execution wait aborted", "AbortError"),
-    );
+    await pause(wait, options.signal, waitAborted);
   }
 }
 

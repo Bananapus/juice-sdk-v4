@@ -1,3 +1,4 @@
+import { getEventListeners } from "node:events";
 import {
   createPublicClient,
   custom,
@@ -30,6 +31,32 @@ const notFound = () => new TransactionNotFoundError({ hash: PROPOSAL });
 /** A node that cannot be reached says nothing about a transaction. */
 const unreachable = () =>
   new HttpRequestError({ url: "https://rpc.example", details: "fetch failed" });
+/** The two ends of a look that settles when the test says so. */
+type Look = {
+  resolve: (value: unknown) => void;
+  reject: (reason: unknown) => void;
+};
+/** `promise`, or a rejection after `ms`, so a wait that never ends fails its test instead of hanging it. */
+const within = <T>(promise: Promise<T>, ms = 500): Promise<T> =>
+  Promise.race([
+    promise,
+    new Promise<never>((_resolve, reject) =>
+      setTimeout(() => reject(new Error("Still waiting.")), ms),
+    ),
+  ]);
+/**
+ * A chain check that fails with `failure()` for `looks` looks and then knows
+ * the hash, so a wait that should have ended by then resolves instead of
+ * looping.
+ */
+const failingThenKnown = (failure: () => unknown, looks = 12) => {
+  let seen = 0;
+  return vi.fn(async () => {
+    seen += 1;
+    if (seen > looks) return {};
+    throw failure();
+  });
+};
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -464,6 +491,104 @@ describe("Safe transaction service boundaries", () => {
     page.abort();
     expect(await outcome).toMatchObject({ name: "AbortError" });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["without a hosted service", 11155420],
+    ["with a hosted service", 8453],
+  ])(
+    "ends at once when the signal aborts while a chain look is still in flight, on a chain %s",
+    async (_case, chainId) => {
+      // A look that never settles, as one over a transport with no timeout does.
+      const getTransaction = vi.fn(() => new Promise<never>(() => undefined));
+      const page = new AbortController();
+      const waiting = waitForSafeExecutionHash(chainId, PROPOSAL, {
+        client: { getTransaction },
+        signal: page.signal,
+      });
+      await vi.waitFor(() => expect(getTransaction).toHaveBeenCalledTimes(1));
+      page.abort();
+      await expect(within(waiting)).rejects.toMatchObject({
+        name: "AbortError",
+      });
+    },
+  );
+
+  it("ends at once when a chain look aborts the signal as it starts", async () => {
+    const page = new AbortController();
+    const getTransaction = vi.fn(() => {
+      page.abort();
+      return new Promise<never>(() => undefined);
+    });
+    await expect(
+      within(
+        waitForSafeExecutionHash(11155420, PROPOSAL, {
+          client: { getTransaction },
+          signal: page.signal,
+        }),
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it.each([
+    ["knows the hash", (look: Look) => look.resolve({})],
+    ["fails", (look: Look) => look.reject(new Error("late failure"))],
+    [
+      // The look itself rejects only when it cannot read the failure's name.
+      "fails with an error whose name cannot be read",
+      (look: Look) =>
+        look.reject(
+          Object.defineProperty({}, "name", {
+            get() {
+              throw new Error("unreadable");
+            },
+          }),
+        ),
+    ],
+  ])(
+    "ignores what a look answers after the wait ended, when it %s",
+    async (_case, answer) => {
+      const unhandled = vi.fn();
+      process.on("unhandledRejection", unhandled);
+      try {
+        const look = {} as Look;
+        const getTransaction = vi.fn(
+          () =>
+            new Promise<unknown>((resolve, reject) => {
+              Object.assign(look, { resolve, reject });
+            }),
+        );
+        const page = new AbortController();
+        const waiting = waitForSafeExecutionHash(11155420, PROPOSAL, {
+          client: { getTransaction },
+          signal: page.signal,
+        });
+        await vi.waitFor(() => expect(getTransaction).toHaveBeenCalledTimes(1));
+        page.abort();
+        await expect(within(waiting)).rejects.toMatchObject({
+          name: "AbortError",
+        });
+        answer(look);
+        // Give an unhandled rejection the time to surface.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(unhandled).not.toHaveBeenCalled();
+        expect(getTransaction).toHaveBeenCalledTimes(1);
+      } finally {
+        process.off("unhandledRejection", unhandled);
+      }
+    },
+  );
+
+  it("leaves no abort listener on the caller's signal once its looks are done", async () => {
+    const page = new AbortController();
+    await expect(
+      waitForSafeExecutionHash(11155420, PROPOSAL, {
+        pollingIntervalMs: 1,
+        client: { getTransaction: failingThenKnown(notFound, 3) },
+        signal: page.signal,
+      }),
+    ).resolves.toBe(PROPOSAL);
+    expect(getEventListeners(page.signal, "abort")).toHaveLength(0);
   });
 
   it.each([

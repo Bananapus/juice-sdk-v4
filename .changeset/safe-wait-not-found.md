@@ -18,8 +18,12 @@ not-found answers are in, or when the `signal` aborts, so a wait without a
 `signal` lasts as long as the node cannot answer. The error is matched by its
 name, so it counts when the app's viem and the SDK's are different installs.
 
-Nothing changes on a chain with a Safe service: a failed chain check there still
-leaves the decision to the service. A `client` whose `getTransaction` reports a
-missing transaction another way, such as a test double that throws a plain
+The `signal` now also ends the wait while a chain look is in flight, on any
+chain. It waited for that look to settle, which over a transport with no
+timeout is never. The look's late answer is ignored.
+
+On a chain with a Safe service, a failed chain check still leaves the decision to
+the service. A `client` whose `getTransaction` reports a missing transaction
+another way, such as a test double that throws a plain
 `Error("Transaction not found")`, no longer ends the wait. Make it throw viem's
 `TransactionNotFoundError`.
