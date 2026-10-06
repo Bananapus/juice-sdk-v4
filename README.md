@@ -590,6 +590,80 @@ What each app replaces:
   its reconcile). A launch whose nonce moved can never be cancelled there; with
   these rules it ends with the `ran` Discard.
 
+### Quotes whose payment reverted
+
+When a session's payment reverts onchain, `revertedRelayrQuote` reads the
+quote's bundle once, never from a cache, and says what the quote allows (ruling
+R104):
+
+- `funded`: Relayr reports a payment, or a call running or run. Another
+  payment funded it, so the app proves its destinations and never pays again.
+- `payable`: the quote of its latest payment is still open, so the app pays it
+  again with exactly the option it used (`relayrRetryOption`), once
+  `requireRelayrPaymentRetry` clears it.
+- `released`: nothing can fund it any more. Every payment it sent is proven
+  canonically reverted, every deadline of those payments and of the quote's
+  options passed at a canonical finalized block, and one more read finds the
+  bundle unpaid with every call pending. The app then quotes its calls again.
+
+Anything else throws, and the quote holds.
+
+```ts
+import {
+  relayrPaymentAttemptOutcome,
+  relayrRetryOption,
+  revertedRelayrQuote,
+} from "@bananapus/nana-sdk-core/review/relayr";
+
+// clientFor(chainId) is a PublicClient for that chain.
+const { state, records } = await revertedRelayrQuote(clientFor, {
+  bundleUuid,
+  payments, // every payment sent for the quote, as sentRelayrPayment recorded it
+  options, // the quote's payment options
+  destinationChainIds,
+  account,
+});
+if (state === "payable") payment = relayrRetryOption(payments, options);
+
+// After a failed payment attempt: "reverted", "unpaid", or null to keep the journal.
+const outcome = relayrPaymentAttemptOutcome(error, { sending, paid });
+```
+
+`sentRelayrPayment` records a payment as it was mined, and
+`relayrSentPaymentsSnapshot` reads a saved list back strictly, at most
+`MAX_RELAYR_SENT_PAYMENTS`. `RELAYR_UUID_RE` is a Relayr ID in lower case.
+`relayrPaidQuoteOpen` says whether the latest payment's quote can still be paid
+at `nowMs`, and `relayrQuotedOptions` lists the options a session keeps, whose
+deadlines a release waits out. jbm's `relayrQuoteReleased` is not here: it
+reads the device clock, and only an account view's line still calls it.
+
+What each app replaces:
+
+- Juicebox Money (27c40e98):
+  - `src/lib/relayr-payments.ts`, the whole file: `RELAYR_UUID_RE` (:5),
+    `RelayrSentPayment` (:12), `sentRelayrPayment` (:18), `MAX_RELAYR_SENT_PAYMENTS`
+    (:38) and `relayrSentPaymentsSnapshot` (:41).
+  - `src/lib/relayr.ts`: `relayrRetryOption` (:1050),
+    `relayrPaymentAttemptOutcome` (:1094), `readRelayrBundleIfNamed` (:1287,
+    over its `readRelayrBundle`, :1272), `relayrRecordPending` (:1297),
+    `relayrBundleFunded` (:1303), `relayrPaidQuoteOpen` (:1392),
+    `relayrQuotedOptions` (:1402), `relayrQuoteUnfundable` (:1421) and
+    `revertedRelayrQuote` (:1463).
+  - Its `readRelayrBundle` stays for `relayrPoll`, which counts Relayr's 404s.
+- revnet.money (branch `fix/relayr-session-rules`, 3c29869c),
+  `src/hooks/useReviewedRelayr.ts`: `quotedOptions` (:303), `deadlinesPassed`
+  (:326), `relayrBundleFunded` (:669), `quoteUnfundable` (:689),
+  `revertedRelayrQuote` (:736), `sentPayments` (:939, read into
+  `RelayrSentPayment`) and the outcome of a declined payment in its send
+  (:1966-1990).
+- Homerun (branch `fix/relayr-session-rules`, 79672a2):
+  - `src/lib/relayr-payments.ts`, a copy of jbm's.
+  - `src/lib/relayr.ts`: `readRelayrBundle` (:632), `readRelayrBundleIfNamed`
+    (:647), `relayrRecordPending` (:657), `relayrBundleFunded` (:663),
+    `relayrRetryOption` (:671), `relayrPaymentAttemptOutcome` (:715),
+    `relayrPaidQuoteOpen` (:729), `relayrQuotedOptions` (:739),
+    `relayrQuoteUnfundable` (:758) and `revertedRelayrQuote` (:800).
+
 ## Installation
 
 ```bash
