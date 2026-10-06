@@ -95,8 +95,10 @@ const budgets = {
     // funding and recovery rules. Its one source module adds eight compiled
     // artifacts: measured 1,244,411 B packed, 20,606,456 B unpacked, 746 files.
     // Retain the existing narrow rounding margin and all other package limits.
-    packed: 1_245_000,
-    unpacked: 20_607_000,
+    // Finalized nonce recovery and structured recovery results add no files:
+    // measured 1,251,517 B packed and 20,628,836 B unpacked (746 files).
+    packed: 1_252_000,
+    unpacked: 20_629_000,
     entries: 746,
   },
   "@bananapus/nana-sdk-react": {

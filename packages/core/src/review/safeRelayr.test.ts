@@ -216,10 +216,12 @@ function harness() {
     async () => undefined,
   );
   let id = 0;
+  let clientFor: SafeRelayrOptions["clientFor"] = () =>
+    client as unknown as RelayrReleaseClient;
   const controllerOptions: SafeRelayrOptions = {
     store,
     fetch: fetchRelayr,
-    clientFor: () => client as unknown as RelayrReleaseClient,
+    clientFor: (chainId) => clientFor(chainId),
     currentAccount: () => account,
     revalidate,
     review,
@@ -263,6 +265,9 @@ function harness() {
     controller,
     firstSessionId: `${prefix}-session-1`,
     recreateController: () => createSafeRelayrController(controllerOptions),
+    setClientFor: (read: SafeRelayrOptions["clientFor"]) => {
+      clientFor = read;
+    },
     sessions,
     store,
     order,
@@ -296,6 +301,450 @@ function harness() {
 
 beforeEach(() => {
   vi.spyOn(Date, "now").mockReturnValue(NOW * 1000);
+});
+
+describe("Safe Relayr recovery without a complete quote", () => {
+  function orphan(
+    h: ReturnType<typeof harness>,
+    overrides: Partial<SafeRelayrSession> = {},
+  ) {
+    const session: SafeRelayrSession = {
+      id: h.firstSessionId,
+      account: ACCOUNT,
+      executions: [execution()],
+      state: "publishing",
+      paymentStatus: "unfunded",
+      payments: [],
+      createdAt: NOW,
+      context: { legacyJournal: "retained" },
+      ...overrides,
+    };
+    h.sessions.set(session.id, session);
+    return session;
+  }
+
+  function nonceClient(h: ReturnType<typeof harness>, nonce: bigint) {
+    const request = vi.fn(async () =>
+      encodeAbiParameters([{ type: "uint256" }], [nonce]),
+    );
+    h.setClientFor(
+      () => ({ ...h.client, request }) as unknown as RelayrReleaseClient,
+    );
+    return request;
+  }
+
+  it("returns the obsolete selection's release evidence on the first prepare without reviewing stale nonces", async () => {
+    const h = harness();
+    const session = orphan(h);
+    const request = nonceClient(h, 18n);
+    const error = await h.controller
+      .prepare({ account: ACCOUNT, executions: session.executions })
+      .catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(error).toMatchObject({
+      session: {
+        id: session.id,
+        state: "released",
+        releaseReason: "safe-nonces-consumed",
+        paymentStatus: "unfunded",
+      },
+      recovery: {
+        reason: "safe-nonces-consumed",
+        checks: [{ currentNonce: "18", state: "consumed" }],
+      },
+    });
+    expect(request).toHaveBeenCalledOnce();
+    expect(h.revalidate).not.toHaveBeenCalled();
+    expect(h.review).not.toHaveBeenCalled();
+    expect(h.fetchRelayr).not.toHaveBeenCalled();
+    expect(h.sendPayment).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing quote and UUID", "missing quote", "missing UUID"])(
+    "releases an unfunded %s only after every Safe nonce is finalized and consumed",
+    async (missing) => {
+      const h = harness();
+      const calls = [execution(), execution(10)];
+      let session: SafeRelayrSession;
+      if (missing === "missing UUID") {
+        const ready = await h.controller.prepare({
+          account: ACCOUNT,
+          executions: calls,
+        });
+        session = h.sessions.get(ready.session.id)!;
+        delete session.bundleUuid;
+        h.revalidate.mockClear();
+        h.review.mockClear();
+        h.fetchRelayr.mockClear();
+      } else {
+        session = orphan(h, {
+          executions: calls,
+          ...(missing === "missing quote" ? { bundleUuid: BUNDLE } : {}),
+        });
+        if (missing === "missing quote")
+          h.setRecords(
+            calls.map((call, index) => ({
+              tx_uuid: IDS[index],
+              request: call.entry,
+              status: { state: "Pending" },
+            })),
+          );
+      }
+      const request = nonceClient(h, 18n);
+      const checked = await h.controller.check({
+        account: ACCOUNT,
+        sessionId: session.id,
+      });
+      expect(checked.state).toBe("released");
+      expect(checked.session.releaseReason).toBe("safe-nonces-consumed");
+      expect(checked.session.paymentStatus).toBe("unfunded");
+      expect(checked.recovery).toMatchObject({
+        reason: "safe-nonces-consumed",
+        checks: calls.map(({ entry, safe, nonce }) => ({
+          chainId: entry.chain,
+          safe,
+          nonce,
+          currentNonce: "18",
+          state: "consumed",
+        })),
+      });
+      expect(request).toHaveBeenCalledTimes(2);
+      expect(request).toHaveBeenCalledWith({
+        method: "eth_call",
+        params: [{ to: SAFE, data: "0xaffed0e0", gas: "0x186a0" }, "0x7b"],
+      });
+      expect(h.client.getBlock).toHaveBeenCalledWith({ blockTag: "finalized" });
+      expect(h.client.getBlock).toHaveBeenCalledWith({ blockNumber: 123n });
+      if (missing === "missing quote")
+        expect(h.fetchRelayr).toHaveBeenCalledTimes(1);
+      else expect(h.fetchRelayr).not.toHaveBeenCalled();
+      expect(h.review).not.toHaveBeenCalled();
+      expect(h.sendPayment).not.toHaveBeenCalled();
+      expect(h.afterVerified).not.toHaveBeenCalled();
+      expect(h.sessions.get(session.id)?.executions).toEqual(calls);
+    },
+  );
+
+  it.each(["unpaid", "paid", "unknown", "running"])(
+    "classifies a synthetic quote with no payment options while Relayr is %s",
+    async (remote) => {
+      const h = harness();
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: [execution()],
+      });
+      const saved = h.sessions.get(ready.session.id)!;
+      saved.quote!.payment_info = [];
+      const originalCalls = structuredClone(saved.executions);
+      h.setPaymentReceived(
+        remote === "paid" ? true : remote === "unknown" ? undefined : false,
+      );
+      if (remote === "running")
+        h.setRecords([
+          {
+            tx_uuid: IDS[0],
+            request: saved.executions[0].entry,
+            status: { state: "Running" },
+          },
+        ]);
+      h.review.mockClear();
+      const request = nonceClient(h, 18n);
+      const checked = await h.controller.check({
+        account: ACCOUNT,
+        sessionId: saved.id,
+      });
+      expect(checked.state).toBe(remote === "unpaid" ? "released" : "pending");
+      expect(checked.recovery?.reason).toBe(
+        remote === "unpaid" ? "safe-nonces-consumed" : "funding-unresolved",
+      );
+      expect(checked.session.executions).toEqual(originalCalls);
+      expect(checked.session.paymentStatus).toBe("unfunded");
+      expect(checked.session.releaseReason).toBe(
+        remote === "unpaid" ? "safe-nonces-consumed" : undefined,
+      );
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(h.review).not.toHaveBeenCalled();
+      expect(h.sendPayment).not.toHaveBeenCalled();
+      expect(h.afterVerified).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { method: "prepare", available: true },
+    { method: "prepare", available: false },
+    { method: "fund", available: true },
+    { method: "fund", available: false },
+  ] as const)(
+    "returns recovery evidence directly from $method when nonce availability is $available",
+    async ({ method, available }) => {
+      const h = harness();
+      const session = orphan(h);
+      const request = nonceClient(h, 17n);
+      if (!available)
+        request.mockRejectedValueOnce(new Error("RPC unavailable"));
+      const operation =
+        method === "prepare"
+          ? h.controller.prepare({
+              account: ACCOUNT,
+              executions: [execution()],
+            })
+          : h.controller.fund({
+              account: ACCOUNT,
+              sessionId: session.id,
+              paymentChainId: 1,
+            });
+      const error = await operation.catch((cause: unknown) => cause);
+      expect(error).toBeInstanceOf(SafeRelayrRecoveryError);
+      if (!(error instanceof SafeRelayrRecoveryError))
+        throw new Error("Expected typed recovery");
+      expect(error.recovery?.reason).toBe(
+        available ? "safe-nonces-live" : "safe-nonces-unavailable",
+      );
+      expect(error.message).toBe(error.recovery?.message);
+      expect(error.session.id).toBe(session.id);
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(h.fetchRelayr).not.toHaveBeenCalled();
+      expect(h.review).not.toHaveBeenCalled();
+      expect(h.sendPayment).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([17n, 16n])(
+    "keeps same or lower finalized nonce %s reserved with an explicit live explanation",
+    async (nonce) => {
+      const h = harness();
+      const session = orphan(h);
+      nonceClient(h, nonce);
+      const checked = await h.controller.check({
+        account: ACCOUNT,
+        sessionId: session.id,
+      });
+      expect(checked.state).toBe("pending");
+      expect(checked.recovery).toMatchObject({
+        reason: "safe-nonces-live",
+        checks: [
+          {
+            chainId: 1,
+            safe: SAFE,
+            nonce: 17,
+            currentNonce: nonce.toString(),
+            state: "live",
+          },
+        ],
+      });
+      expect(checked.recovery?.message).toBeTruthy();
+      expect(h.sessions.get(session.id)?.releaseReason).toBeUndefined();
+      await expect(
+        h.controller.prepare({ account: ACCOUNT, executions: [execution()] }),
+      ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+      expect(h.fetchRelayr).not.toHaveBeenCalled();
+      expect(h.sendPayment).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps a partly consumed multichain reservation intact", async () => {
+    const h = harness();
+    const session = orphan(h, { executions: [execution(), execution(10)] });
+    h.setClientFor(
+      (chainId) =>
+        ({
+          ...h.client,
+          request: vi.fn(async () =>
+            encodeAbiParameters(
+              [{ type: "uint256" }],
+              [chainId === 1 ? 18n : 17n],
+            ),
+          ),
+        }) as unknown as RelayrReleaseClient,
+    );
+    const checked = await h.controller.check({
+      account: ACCOUNT,
+      sessionId: session.id,
+    });
+    expect(checked.state).toBe("pending");
+    expect(checked.recovery).toMatchObject({
+      reason: "safe-nonces-mixed",
+      checks: [
+        { chainId: 1, state: "consumed" },
+        { chainId: 10, state: "live" },
+      ],
+    });
+    expect(h.sessions.get(session.id)?.state).toBe("publishing");
+    expect(h.afterVerified).not.toHaveBeenCalled();
+  });
+
+  it("starts every independent finalized nonce check before any returns", async () => {
+    const h = harness();
+    const calls = [1, 10, 8453, 42161].map((chainId) => execution(chainId));
+    const session = orphan(h, { executions: calls });
+    const started = deferred();
+    const gate = deferred();
+    const requests = calls.map(() =>
+      vi.fn(async () => {
+        if (requests.every((request) => request.mock.calls.length === 1))
+          started.resolve();
+        await gate.promise;
+        return encodeAbiParameters([{ type: "uint256" }], [18n]);
+      }),
+    );
+    h.setClientFor(
+      (chainId) =>
+        ({
+          ...h.client,
+          request:
+            requests[calls.findIndex(({ entry }) => entry.chain === chainId)],
+        }) as unknown as RelayrReleaseClient,
+    );
+    const checking = h.controller.check({
+      account: ACCOUNT,
+      sessionId: session.id,
+    });
+    await started.promise;
+    expect(requests.every((request) => request.mock.calls.length === 1)).toBe(
+      true,
+    );
+    expect(h.sessions.get(session.id)?.state).toBe("publishing");
+    gate.resolve();
+    expect((await checking).state).toBe("released");
+  });
+
+  it.each([
+    "no raw request",
+    "missing client",
+    "throwing client",
+    "read failure",
+    "malformed nonce",
+    "reorg",
+    "unavailable finalized block",
+  ])("reports unavailable proof for %s without releasing", async (failure) => {
+    const h = harness();
+    const session = orphan(h);
+    const request = nonceClient(h, 18n);
+    if (failure === "no raw request")
+      h.setClientFor(() => h.client as unknown as RelayrReleaseClient);
+    if (failure === "missing client") h.setClientFor(() => undefined);
+    if (failure === "throwing client")
+      h.setClientFor(() => {
+        throw new Error("unsupported chain");
+      });
+    if (failure === "read failure")
+      request.mockRejectedValueOnce(new Error("RPC unavailable"));
+    if (failure === "malformed nonce") request.mockResolvedValueOnce("0x01");
+    if (failure === "reorg") h.setCanonicalHash(WRONG_BLOCK);
+    if (failure === "unavailable finalized block")
+      h.client.getBlock.mockRejectedValueOnce(
+        new Error("finalized unsupported"),
+      );
+    const checked = await h.controller.check({
+      account: ACCOUNT,
+      sessionId: session.id,
+    });
+    expect(checked.state).toBe("pending");
+    expect(checked.recovery).toMatchObject({
+      reason: "safe-nonces-unavailable",
+      checks: [{ chainId: 1, safe: SAFE, nonce: 17, state: "unavailable" }],
+    });
+    expect(h.sessions.get(session.id)?.state).toBe("publishing");
+    expect(h.sendPayment).not.toHaveBeenCalled();
+    expect(h.afterVerified).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "empty executions",
+    "wildcard reservation",
+    "uncovered reservation",
+    "invalid hash",
+    "duplicate nonce",
+  ])("does not infer release from incomplete identity: %s", async (missing) => {
+    const h = harness();
+    const session = orphan(h);
+    if (missing === "empty executions") session.executions = [];
+    if (missing === "wildcard reservation")
+      session.reservationKeys = [`1:${SAFE}:*`];
+    if (missing === "uncovered reservation")
+      session.reservationKeys = [`10:${SAFE}:17`];
+    if (missing === "invalid hash") session.executions[0].safeTxHash = HASH;
+    if (missing === "duplicate nonce") session.executions.push(execution());
+    const request = nonceClient(h, 18n);
+    const checked = await h.controller.check({
+      account: ACCOUNT,
+      sessionId: session.id,
+    });
+    expect(checked.state).toBe("pending");
+    expect(checked.recovery?.reason).toBe("missing-execution-proof");
+    expect(h.sessions.get(session.id)?.state).toBe("publishing");
+    expect(request).not.toHaveBeenCalled();
+    expect(h.afterVerified).not.toHaveBeenCalled();
+  });
+
+  it("accepts exact legacy reservation keys when every nonce proof covers them", async () => {
+    const h = harness();
+    const session = orphan(h, {
+      reservationKeys: [safeRelayrReservationKey(execution())],
+    });
+    nonceClient(h, 18n);
+    expect(
+      (await h.controller.check({ account: ACCOUNT, sessionId: session.id }))
+        .state,
+    ).toBe("released");
+  });
+
+  it.each([
+    "sending",
+    "submitted",
+    "confirmed",
+    "reverted",
+    "expired",
+  ] as const)(
+    "keeps consumed nonces reserved while funding is %s",
+    async (paymentStatus) => {
+      const h = harness();
+      const session = orphan(h, { paymentStatus });
+      nonceClient(h, 18n);
+      const checked = await h.controller.check({
+        account: ACCOUNT,
+        sessionId: session.id,
+      });
+      expect(checked.state).toBe("pending");
+      expect(checked.recovery?.reason).toBe("funding-unresolved");
+      expect(checked.session.paymentStatus).toBe(paymentStatus);
+      expect(h.sessions.get(session.id)?.context).toEqual({
+        legacyJournal: "retained",
+      });
+      expect(h.afterVerified).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["known payment", "malformed history"])(
+    "retains consumed nonces with an unfunded label but %s",
+    async (history) => {
+      const h = harness();
+      const sent = sentRelayrPayment(
+        relayrPaymentDetails(payment(), {
+          bundleUuid: BUNDLE,
+          destinationChainIds: [1],
+          nowSeconds: NOW,
+        }),
+        HASH,
+      );
+      const session = orphan(h, {
+        payments:
+          history === "known payment"
+            ? [sent]
+            : (null as unknown as SafeRelayrSession["payments"]),
+      });
+      nonceClient(h, 18n);
+      const checked = await h.controller.check({
+        account: ACCOUNT,
+        sessionId: session.id,
+      });
+      expect(checked.state).toBe("pending");
+      expect(checked.recovery?.reason).toBe("funding-unresolved");
+      expect(checked.session.payments).toEqual(session.payments);
+      expect(h.afterVerified).not.toHaveBeenCalled();
+      expect(h.sendPayment).not.toHaveBeenCalled();
+    },
+  );
 });
 afterEach(() => {
   vi.useRealTimers();
