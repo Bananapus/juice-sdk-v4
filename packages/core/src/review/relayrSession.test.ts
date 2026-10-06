@@ -2,11 +2,16 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import {
   ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
   createPublicClient,
+  encodeErrorResult,
   encodeFunctionData,
   getAddress,
   HttpRequestError,
   http,
+  InternalRpcError,
+  parseAbi,
+  RpcRequestError,
   TimeoutError,
   WebSocketRequestError,
   type Address,
@@ -927,6 +932,115 @@ describe("what a session whose bundle won't run as signed does next (rulings R10
 
   it.each<[string, () => unknown]>([
     [
+      "a JSON-RPC error the node sent",
+      () =>
+        new RpcRequestError({
+          body: {},
+          error: { code: -32002, message: "resource unavailable" },
+          url: "https://rpc.example",
+        }),
+    ],
+    [
+      "viem's error for one",
+      () => new InternalRpcError(new Error("internal error")),
+    ],
+    [
+      "a revert with no revert data, as viem reads a transient -32603",
+      () =>
+        new ContractFunctionRevertedError({
+          abi: [],
+          functionName: "splitsOf",
+          message: "internal error",
+        }),
+    ],
+    [
+      "a revert whose data is empty",
+      () =>
+        new ContractFunctionRevertedError({
+          abi: [],
+          data: "0x",
+          functionName: "splitsOf",
+        }),
+    ],
+    [
+      "an execution revert without data",
+      () =>
+        new RpcRequestError({
+          body: {},
+          error: { code: 3, message: "execution reverted", data: "0x" },
+          url: "https://rpc.example",
+        }),
+    ],
+  ])(
+    "reads %s as a recheck the node could not answer (ruling R118)",
+    async (_, failure) => {
+      finalizedAt(REQUESTS_EXPIRED);
+      const error = failure();
+      recheck.mockRejectedValueOnce(error);
+      expect(asData(await decide())).toEqual({ kind: "unchecked", error });
+    },
+  );
+
+  it.each<[string, () => unknown]>([
+    [
+      "a revert carrying its data",
+      () =>
+        new ContractFunctionRevertedError({
+          abi: [],
+          data: "0xdeadbeef",
+          functionName: "splitsOf",
+        }),
+    ],
+    [
+      "an execution revert whose data a node nests",
+      () =>
+        wrapped(
+          "wrapper",
+          new RpcRequestError({
+            body: {},
+            error: {
+              code: 3,
+              message: "execution reverted",
+              data: { data: "0xdeadbeef" },
+            },
+            url: "https://rpc.example",
+          }),
+        ),
+    ],
+    [
+      "an execution revert with data under a transport error",
+      () =>
+        wrapped(
+          "wrapper",
+          Object.assign(new HttpRequestError({ url: "https://rpc.example" }), {
+            cause: new RpcRequestError({
+              body: {},
+              error: {
+                code: 3,
+                message: "execution reverted",
+                data: "0x08c379a0",
+              },
+              url: "https://rpc.example",
+            }),
+          }),
+        ),
+    ],
+  ])(
+    "reads %s as the chain answering: changed (ruling R118)",
+    async (_, failure) => {
+      finalizedAt(REQUESTS_EXPIRED);
+      const error = failure();
+      recheck.mockRejectedValueOnce(error);
+      expect(asData(await decide())).toEqual({
+        kind: "discard",
+        reason: "changed",
+        error,
+      });
+    },
+  );
+
+  it.each<[string, () => unknown]>([
+    [
       "a failure nine errors deep",
       () => {
         let error: Error = new HttpRequestError({ url: "https://rpc.example" });
@@ -1147,6 +1261,10 @@ describe("the session rules over viem's HTTP transport", () => {
   let canonical: Hex;
   /** The forwarder's nonce for every signer. */
   let nonce: bigint;
+  /** The JSON-RPC error a call to TARGET answers with, if any. */
+  let callError: { code: number; message: string; data?: Hex } | null;
+  /** The HTTP status every request answers with, if not 200. */
+  let httpStatus: number | null;
   let requestsSeen: { method: string; params: unknown[] }[];
 
   const hex = (value: number | bigint) => `0x${value.toString(16)}`;
@@ -1180,6 +1298,11 @@ describe("the session rules over viem's HTTP transport", () => {
       request.on("data", (chunk) => (body += chunk));
       request.on("end", () => {
         response.setHeader("content-type", "application/json");
+        if (httpStatus) {
+          response.statusCode = httpStatus;
+          response.end(JSON.stringify({ error: "Too many requests" }));
+          return;
+        }
         const answer = ({
           id,
           method,
@@ -1201,6 +1324,14 @@ describe("the session rules over viem's HTTP transport", () => {
                   };
             }
             return { jsonrpc: "2.0", id, result: block(canonical) };
+          }
+          const to = (params[0] as { to?: string } | undefined)?.to;
+          if (
+            method === "eth_call" &&
+            callError &&
+            to?.toLowerCase() === TARGET.toLowerCase()
+          ) {
+            return { jsonrpc: "2.0", id, error: callError };
           }
           if (method === "eth_call") {
             return {
@@ -1238,6 +1369,8 @@ describe("the session rules over viem's HTTP transport", () => {
     timestamp = REQUESTS_EXPIRED;
     canonical = BLOCK_HASH;
     nonce = 4n;
+    callError = null;
+    httpStatus = null;
     requestsSeen = [];
     // Only this suite's loopback node may answer.
     vi.stubGlobal(
@@ -1285,6 +1418,97 @@ describe("the session rules over viem's HTTP transport", () => {
     await expect(
       relayrDeadlinePassed(httpClientFor(1), String(REQUEST_DEADLINE)),
     ).resolves.toBe(true);
+  });
+
+  /** The project's view and the error it reverts with once the project changed. */
+  const PROJECT_ABI = parseAbi([
+    "function splitsOf(uint256 projectId) view returns (uint256)",
+    "error ProjectChanged(uint256 projectId)",
+  ]);
+  const projectClient = () =>
+    createPublicClient({
+      chain: mainnet,
+      transport: http(url, { retryCount: 0 }),
+    });
+  /** A recheck reading the project through the loopback node, as an app's does. */
+  const readProject = async () => {
+    await projectClient().readContract({
+      address: TARGET,
+      abi: PROJECT_ABI,
+      functionName: "splitsOf",
+      args: [1n],
+    });
+  };
+  /** What a session whose requests all expired unused does after `recheck`. */
+  const outcomeAfter = (recheck: () => Promise<void>) =>
+    relayrSessionOutcome(
+      { live: false, mayHaveRun: false, unused: true },
+      { nonces: ["4"], recheck },
+    );
+
+  it.each<[string, () => void]>([
+    [
+      "-32001, the resource was not found",
+      () =>
+        (callError = {
+          code: -32001,
+          message: "Requested resource not found.",
+        }),
+    ],
+    [
+      "-32005, a limit was exceeded",
+      () => (callError = { code: -32005, message: "limit exceeded" }),
+    ],
+    [
+      "-32603, an internal error",
+      () => (callError = { code: -32603, message: "internal error" }),
+    ],
+    ["429, too many requests", () => (httpStatus = 429)],
+  ])(
+    "reads a recheck the node could not answer (%s) as unchecked (ruling R118)",
+    async (_, arrange) => {
+      arrange();
+      const outcome = await outcomeAfter(readProject);
+      expect(outcome.kind).toBe("unchecked");
+      expect(JSON.stringify(outcome)).toBe('{"kind":"unchecked"}');
+    },
+  );
+
+  it("reads a recheck the chain answered with a revert carrying data as changed (ruling R118)", async () => {
+    callError = {
+      code: 3,
+      message: "execution reverted",
+      data: encodeErrorResult({
+        abi: PROJECT_ABI,
+        errorName: "ProjectChanged",
+        args: [1n],
+      }),
+    };
+    await expect(outcomeAfter(readProject)).resolves.toMatchObject({
+      kind: "discard",
+      reason: "changed",
+    });
+    // A custom error the reading ABI does not know is revert data too.
+    callError = { code: 3, message: "execution reverted", data: "0xdeadbeef" };
+    await expect(outcomeAfter(readProject)).resolves.toMatchObject({
+      kind: "discard",
+      reason: "changed",
+    });
+    // A raw call's revert keeps the node's code 3 and its data.
+    await expect(
+      outcomeAfter(async () => {
+        await projectClient().call({ to: TARGET, data: "0x12345678" });
+      }),
+    ).resolves.toMatchObject({ kind: "discard", reason: "changed" });
+  });
+
+  it("reads the action's own refusal, after the node answered, as changed", async () => {
+    await expect(
+      outcomeAfter(async () => {
+        await readProject();
+        throw new Error("Payouts were sent since this review.");
+      }),
+    ).resolves.toMatchObject({ kind: "discard", reason: "changed" });
   });
 
   it("reads a node without the finalized tag, or a finalized block no longer canonical, as unknown", async () => {
