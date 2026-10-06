@@ -93,10 +93,10 @@ const budgets = {
     // packed, 20,468,961 B unpacked, 738 files).
     // The shared Safe Relayr lifecycle replaces both clients' preparation,
     // funding and recovery rules. Its one source module adds eight compiled
-    // artifacts: measured 1,244,352 B packed, 20,605,936 B unpacked, 746 files.
+    // artifacts: measured 1,244,411 B packed, 20,606,456 B unpacked, 746 files.
     // Retain the existing narrow rounding margin and all other package limits.
     packed: 1_245_000,
-    unpacked: 20_606_000,
+    unpacked: 20_607_000,
     entries: 746,
   },
   "@bananapus/nana-sdk-react": {

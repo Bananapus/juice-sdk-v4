@@ -1584,54 +1584,74 @@ describe("Safe Relayr funding and canonical outcome", () => {
     expect(h.sendPayment).not.toHaveBeenCalled();
   });
 
-  it("proves every chain in binding order even when Relayr returns records out of order", async () => {
-    const h = harness();
-    const calls = [execution(), execution(10)];
-    const hashes = [HASH, WRONG_BLOCK];
-    const ready = await h.controller.prepare({
-      account: ACCOUNT,
-      executions: calls,
-    });
-    calls.forEach((call, index) =>
-      h.mined({
-        hash: hashes[index],
-        chain: call.entry.chain,
-        target: SAFE,
-        data: call.entry.data,
-        value: 0n,
-        logs: [
-          {
-            address: SAFE,
-            topics: encodeEventTopics({
-              abi: SAFE_EXEC_ABI,
-              eventName: "ExecutionSuccess",
-              args: { txHash: call.safeTxHash },
+  it.each(["all succeed", "last lacks Safe proof"])(
+    "passes canonical receipts to app guards only after every Safe proof: %s",
+    async (outcome) => {
+      const h = harness();
+      const calls = [execution(), execution(10)];
+      const hashes = [HASH, WRONG_BLOCK];
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: calls,
+      });
+      calls.forEach((call, index) =>
+        h.mined({
+          hash: hashes[index],
+          chain: call.entry.chain,
+          target: SAFE,
+          data: call.entry.data,
+          value: 0n,
+          logs:
+            index === calls.length - 1 && outcome === "last lacks Safe proof"
+              ? []
+              : [
+                  {
+                    address: SAFE,
+                    topics: encodeEventTopics({
+                      abi: SAFE_EXEC_ABI,
+                      eventName: "ExecutionSuccess",
+                      args: { txHash: call.safeTxHash },
+                    }),
+                    data: encodeAbiParameters([{ type: "uint256" }], [0n]),
+                  },
+                ],
+        }),
+      );
+      h.setRecords(
+        calls
+          .map((call, index) => ({
+            tx_uuid: IDS[index],
+            request: { ...call.entry, virtual_nonce: 0 },
+            status: { state: "Success", data: { hash: hashes[index] } },
+          }))
+          .reverse(),
+      );
+      const checked = h.controller.check({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+      });
+      if (outcome === "all succeed") {
+        expect((await checked).state).toBe("complete");
+        expect(h.afterVerified.mock.calls.map(([call]) => call)).toEqual(calls);
+        calls.forEach((call, index) =>
+          expect(h.afterVerified).toHaveBeenNthCalledWith(index + 1, call, {
+            txUuid: IDS[index],
+            chainId: call.entry.chain,
+            receipt: expect.objectContaining({
+              transactionHash: hashes[index],
+              blockHash: BLOCK,
+              status: "success",
             }),
-            data: encodeAbiParameters([{ type: "uint256" }], [0n]),
-          },
-        ],
-      }),
-    );
-    h.setRecords(
-      calls
-        .map((call, index) => ({
-          tx_uuid: IDS[index],
-          request: { ...call.entry, virtual_nonce: 0 },
-          status: { state: "Success", data: { hash: hashes[index] } },
-        }))
-        .reverse(),
-    );
-    expect(
-      (
-        await h.controller.check({
-          account: ACCOUNT,
-          sessionId: ready.session.id,
-        })
-      ).state,
-    ).toBe("complete");
-    expect(h.afterVerified.mock.calls.map(([call]) => call)).toEqual(calls);
-    expect(h.sendPayment).not.toHaveBeenCalled();
-  });
+          }),
+        );
+      } else {
+        await expect(checked).rejects.toThrow();
+        expect(h.afterVerified).not.toHaveBeenCalled();
+        expect(h.sessions.get(ready.session.id)?.state).toBe("active");
+      }
+      expect(h.sendPayment).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     "missing event",
@@ -1687,7 +1707,18 @@ describe("Safe Relayr funding and canonical outcome", () => {
       });
       if (outcome === "success") {
         expect((await checked).state).toBe("complete");
-        expect(h.afterVerified).toHaveBeenCalledWith(call);
+        expect(h.afterVerified).toHaveBeenCalledWith(
+          call,
+          expect.objectContaining({
+            txUuid: IDS[0],
+            chainId: call.entry.chain,
+            receipt: expect.objectContaining({
+              transactionHash: HASH,
+              blockHash: BLOCK,
+              status: "success",
+            }),
+          }),
+        );
       } else {
         await expect(checked).rejects.toThrow();
         expect(h.sessions.get(ready.session.id)?.state).toBe("active");

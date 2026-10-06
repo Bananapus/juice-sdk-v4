@@ -133,7 +133,11 @@ export type SafeRelayrOptions = {
     onSending: () => Promise<void>;
     onSent: (payments: RelayrSentPayment[]) => Promise<void>;
   }) => Promise<{ hash: Hex; payments: RelayrSentPayment[] }>;
-  afterVerified?: (execution: SafeRelayrExecution) => Promise<void>;
+  /** App receipt guards run only after every exact destination and Safe event is proven. */
+  afterVerified?: (
+    execution: SafeRelayrExecution,
+    verified: RelayrVerifiedDestination,
+  ) => Promise<void>;
   createId?: () => string;
 };
 
@@ -565,14 +569,14 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           record.status?.data?.hash || record.status?.data?.transaction?.hash,
       )
     ) {
-      await verifySafeRelayrLanding(options.clientFor, {
+      const verified = await verifySafeRelayrLanding(options.clientFor, {
         executions: session.executions,
         bindings: quote.expectedTransactions,
         records,
       });
       await Promise.all(
-        session.executions.map((execution) =>
-          options.afterVerified?.(execution),
+        session.executions.map((execution, index) =>
+          options.afterVerified?.(execution, verified[index]),
         ),
       );
       session = { ...session, state: "complete" };
