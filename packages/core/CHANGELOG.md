@@ -1,5 +1,15 @@
 # juice-sdk-core
 
+## 2.24.1
+
+### Patch Changes
+
+- b88857b: Report canonical Safe nonce evidence when a saved Relayr selection lacks its quote.
+  Check all exact saved identities concurrently at finalized blocks. Release only
+  unfunded selections whose nonces are all consumed, while preserving incomplete
+  identities and uncertain funding for explicit recovery. Distinguish obsolete
+  Safe selections from expired unpaid quotes and successful executions.
+
 ## 2.24.0
 
 ### Minor Changes
