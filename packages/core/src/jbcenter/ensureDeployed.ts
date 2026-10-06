@@ -64,7 +64,12 @@ export type EnsureDeployedOptions = {
     calls: JBCenterDeploymentCall[],
   ) => Promise<JBCenterDeploymentInput[]>;
   onStep?: (step: EnsureDeployedStep) => void;
+  /** The wait between polls, in milliseconds: a positive finite number, 4,000 by default. */
   pollMs?: number;
+  /**
+   * How long the run polls before it fails, in milliseconds: a positive
+   * number, `Infinity` to poll until the run lands, 600,000 by default.
+   */
   timeoutMs?: number;
   signal?: AbortSignal;
 };
@@ -360,6 +365,16 @@ export async function ensureDeployed(
   const { client, intent, onStep, relayPaid, selfPaid, signal } = options;
   const pollMs = options.pollMs ?? DEFAULT_POLL_MS;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  // A wait of NaN, 0 or less fires at once, and the run would poll Center
+  // without pause. A timeoutMs of Infinity polls until the run lands.
+  if (!Number.isFinite(pollMs) || pollMs <= 0) {
+    throw new TypeError(
+      "pollMs must be a positive finite number of milliseconds",
+    );
+  }
+  if (typeof timeoutMs !== "number" || !(timeoutMs > 0)) {
+    throw new TypeError("timeoutMs must be a positive number of milliseconds");
+  }
 
   if (relayPaid && selfPaid) {
     throw new EnsureDeployedError(

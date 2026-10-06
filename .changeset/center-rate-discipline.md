@@ -39,6 +39,10 @@ Sticky, Succulent and Telligence can drop their copies.
   ends at `timeoutMs` at the latest and never asks a timer for more than it
   holds (about 24.8 days): a `pollMs` longer than `timeoutMs` ran past the
   timeout, and one past the timer's limit polled Center every millisecond.
+  `pollMs` must be a positive finite number and `timeoutMs` a positive number,
+  `Infinity` to poll until the run lands; anything else is refused with a
+  TypeError before Center is asked. A `pollMs` of NaN polled Center every
+  millisecond.
 
 What each app replaces when it upgrades:
 

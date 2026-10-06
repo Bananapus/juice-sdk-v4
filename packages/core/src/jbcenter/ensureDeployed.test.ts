@@ -564,6 +564,82 @@ describe("ensureDeployed", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ["pollMs", Number.NaN],
+    ["pollMs", -1],
+    ["pollMs", 0],
+    ["pollMs", "4000"],
+    ["pollMs", Number.POSITIVE_INFINITY],
+    ["timeoutMs", Number.NaN],
+    ["timeoutMs", -1],
+    ["timeoutMs", 0],
+    ["timeoutMs", "600000"],
+  ])(
+    "refuses a %s of %o before asking Center for anything",
+    async (option, value) => {
+      const fetchMock = vi.fn();
+      const client = createJBCenterClient({ fetch: fetchMock });
+
+      await expect(
+        ensureDeployed({
+          client,
+          intent: intent([8453]),
+          [option]: value,
+        }),
+      ).rejects.toThrow(
+        new TypeError(
+          option === "pollMs"
+            ? "pollMs must be a positive finite number of milliseconds"
+            : "timeoutMs must be a positive number of milliseconds",
+        ),
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  test("polls without end for a timeoutMs of Infinity", async () => {
+    let polls = 0;
+    const fetchMock = vi.fn((url: string | URL | Request) => {
+      if (url === deployUrl()) {
+        return Promise.resolve(
+          jsonResponse({ deploys: [deploy(8453, "queued")] }, { status: 202 }),
+        );
+      }
+      polls += 1;
+      return Promise.resolve(
+        jsonResponse(
+          polls < 3
+            ? intent([8453], { deploys: [deploy(8453, "sent")] })
+            : intent([8453], {
+                deploys: [deploy(8453, "confirmed", TX_HASH_1)],
+                deployments: [
+                  {
+                    chainId: 8453,
+                    projectId: "55",
+                    transactionHash: TX_HASH_1,
+                    createdAt: "",
+                  },
+                ],
+              }),
+        ),
+      );
+    });
+    const client = createJBCenterClient({ fetch: fetchMock });
+
+    const promise = ensureDeployed({
+      client,
+      intent: intent([8453]),
+      pollMs: 600_000,
+      timeoutMs: Number.POSITIVE_INFINITY,
+    });
+    await vi.advanceTimersByTimeAsync(1_799_999);
+    expect(polls).toBe(2);
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect(promise).resolves.toEqual({ 8453: "55" });
+    expect(polls).toBe(3);
+  });
+
   test("stops polling and rejects when the signal is aborted", async () => {
     const fetchMock = vi
       .fn()
