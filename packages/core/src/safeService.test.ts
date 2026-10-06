@@ -291,6 +291,55 @@ describe("Safe transaction service boundaries", () => {
     ).resolves.toBe(EXECUTION);
   });
 
+  it("counts the service's 404s since its last record: a record, even a pending one, starts the count over, its other failures do not", async () => {
+    const missing = () => ({ ok: false, status: 404 });
+    const pending = () => executed({ isExecuted: false });
+    const unavailable = () => ({ ok: false, status: 503 });
+    const down = () => {
+      throw new TypeError("network down");
+    };
+    const times = (count: number, answer: () => unknown) =>
+      Array.from({ length: count }, () => answer);
+    // The service answers as the script says, then reports the execution, so a
+    // wait that should have ended by then resolves instead of looping.
+    const serving = (script: Array<() => unknown>) => {
+      const service = vi.fn(async () =>
+        script.length
+          ? script.shift()!()
+          : executed({
+              isExecuted: true,
+              isSuccessful: true,
+              transactionHash: EXECUTION,
+            }),
+      );
+      vi.stubGlobal("fetch", service);
+      return service;
+    };
+
+    // Eleven 404s, a pending record, then twelve more: the record started the count over.
+    let service = serving([
+      ...times(11, missing),
+      pending,
+      ...times(12, missing),
+    ]);
+    await expect(
+      waitForSafeExecutionHash(8453, PROPOSAL, { pollingIntervalMs: 1 }),
+    ).rejects.toThrow(/no record of this proposal/i);
+    expect(service).toHaveBeenCalledTimes(24);
+
+    // Six 404s, other failures, six more: only 404s count and nothing started over.
+    service = serving([
+      ...times(6, missing),
+      ...times(3, unavailable),
+      ...times(2, down),
+      ...times(6, missing),
+    ]);
+    await expect(
+      waitForSafeExecutionHash(8453, PROPOSAL, { pollingIntervalMs: 1 }),
+    ).rejects.toThrow(/no record of this proposal/i);
+    expect(service).toHaveBeenCalledTimes(17);
+  });
+
   it("reports an executed proposal whose onchain transaction failed", async () => {
     vi.stubGlobal(
       "fetch",
@@ -431,16 +480,14 @@ describe("Safe transaction service boundaries", () => {
         client: later,
       }),
     ).resolves.toBe(EXECUTION);
-    const never = vi.fn(async () => {
-      throw notFound();
-    });
+    const none = failingThenKnown(notFound);
     await expect(
       waitForSafeExecutionHash(11155420, PROPOSAL, {
         pollingIntervalMs: 1,
-        client: { getTransaction: never },
+        client: { getTransaction: none },
       }),
     ).rejects.toThrow(/does not host a transaction service/i);
-    expect(never).toHaveBeenCalledTimes(12);
+    expect(none).toHaveBeenCalledTimes(12);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -618,12 +665,7 @@ describe("Safe transaction service boundaries", () => {
   ])(
     "does not take %s for the chain having no such transaction",
     async (_what, failure) => {
-      let looks = 0;
-      const getTransaction = vi.fn(async () => {
-        looks += 1;
-        if (looks > 20) return {};
-        throw failure;
-      });
+      const getTransaction = failingThenKnown(() => failure, 20);
       await expect(
         waitForSafeExecutionHash(11155420, PROPOSAL, {
           pollingIntervalMs: 1,
@@ -634,21 +676,63 @@ describe("Safe transaction service boundaries", () => {
     },
   );
 
-  it("reads the answers of a real viem client: a hash its chain has no transaction for is a not-found, a node that fails is not", async () => {
-    let calls = 0;
-    // A node that fails for fifteen looks, then knows the hash.
-    const flaky = createPublicClient({
-      transport: custom(
-        {
-          request: async ({ method }: { method: string }) => {
-            expect(method).toBe("eth_getTransactionByHash");
-            calls += 1;
-            if (calls <= 15) throw new Error("fetch failed");
-            return { hash: PROPOSAL, type: "0x0" };
-          },
+  it.each([
+    [
+      "throws before it returns anything",
+      {
+        getTransaction: () => {
+          throw new Error("client broke");
         },
-        { retryCount: 0 },
-      ),
+      },
+      /client broke/,
+    ],
+    ["is not a chain client", {} as never, /not a function/i],
+  ])(
+    "fails at once, instead of looking on, when the client %s",
+    async (_what, client, message) => {
+      for (const chainId of [11155420, 8453]) {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        // A wait that read this as a look the chain could not answer would loop
+        // until the signal's timeout.
+        await expect(
+          waitForSafeExecutionHash(chainId, PROPOSAL, {
+            pollingIntervalMs: 1,
+            client,
+            signal: AbortSignal.timeout(500),
+          }),
+        ).rejects.toThrow(message);
+        expect(fetchMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("reads the answers of a real viem client: a hash its chain has no transaction for is a not-found, a node that fails is not", async () => {
+    const methods: string[] = [];
+    // A viem client over a node that answers each of its requests as `answer` says.
+    const nodeAnswering = (answer: (look: number) => unknown) => {
+      let looks = 0;
+      return createPublicClient({
+        transport: custom(
+          {
+            request: async ({ method }: { method: string }) => {
+              // viem turns anything thrown in here into an error of its own,
+              // so the methods are checked once the waits are over.
+              methods.push(method);
+              looks += 1;
+              return answer(looks);
+            },
+          },
+          { retryCount: 0 },
+        ),
+      });
+    };
+    const known = { hash: PROPOSAL, type: "0x0" };
+
+    // A node that fails for fifteen looks, then knows the hash.
+    const flaky = nodeAnswering((look) => {
+      if (look <= 15) throw new Error("fetch failed");
+      return known;
     });
     await expect(
       waitForSafeExecutionHash(11155420, PROPOSAL, {
@@ -656,19 +740,21 @@ describe("Safe transaction service boundaries", () => {
         client: flaky,
       }),
     ).resolves.toBe(PROPOSAL);
-    expect(calls).toBe(16);
+    expect(methods).toHaveLength(16);
 
-    // A node that answers null for every look: viem reads that as TransactionNotFoundError.
-    const empty = vi.fn(async () => null);
+    // A node that answers null for twelve looks, which viem reads as
+    // TransactionNotFoundError, then knows the hash: a wait that should have
+    // ended by then resolves instead of looping.
+    const empty = nodeAnswering((look) => (look <= 12 ? null : known));
     await expect(
       waitForSafeExecutionHash(11155420, PROPOSAL, {
         pollingIntervalMs: 1,
-        client: createPublicClient({
-          transport: custom({ request: empty }, { retryCount: 0 }),
-        }),
+        client: empty,
       }),
     ).rejects.toThrow(/does not host a transaction service/i);
-    expect(empty).toHaveBeenCalledTimes(12);
+    expect(methods).toHaveLength(16 + 12);
+    // Only the transaction lookup was asked, so the answers above are to it.
+    expect(new Set(methods)).toEqual(new Set(["eth_getTransactionByHash"]));
   });
 
   it("reads a not-found by its name, so another install of viem's error counts", async () => {
@@ -678,9 +764,7 @@ describe("Safe transaction service boundaries", () => {
         name: "TransactionNotFoundError",
       });
     expect(foreign() instanceof TransactionNotFoundError).toBe(false);
-    const getTransaction = vi.fn(async () => {
-      throw foreign();
-    });
+    const getTransaction = failingThenKnown(foreign);
     await expect(
       waitForSafeExecutionHash(11155420, PROPOSAL, {
         pollingIntervalMs: 1,

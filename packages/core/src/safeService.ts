@@ -92,12 +92,15 @@ export function safeQueueUrl(chainId: number, safe: Address): string | null {
 }
 
 /**
- * Not-found answers before the wait gives up: the transaction service's 404s
- * or, on a chain without a service, the chain's own answer that it has no such
- * transaction. The service can lag a just-created proposal briefly, but a
- * sustained 404 means it will never report this proposal (wrong network or an
- * unhosted chain that slipped through) — polling forever just strands the flow
- * at "pending". At the default 5s interval this is about a minute of patience.
+ * Not-found answers before the wait gives up. With a service they are its 404s
+ * since the last record it returned for the proposal, even a pending one; its
+ * other failures neither count nor start over. Without one they are the
+ * chain's own answers that it has no such transaction, a running total: nothing
+ * starts it over, and a look the chain could not answer does not count. The
+ * service can lag a just-created proposal briefly, but a sustained 404 means it
+ * will never report this proposal (wrong network or an unhosted chain that
+ * slipped through) — polling forever just strands the flow at "pending". At the
+ * default 5s interval this is about a minute of patience.
  */
 const SAFE_EXECUTION_NOT_FOUND_LIMIT = 12;
 
@@ -129,14 +132,16 @@ type SafeExecutionClient = {
 type ChainLook = "found" | "none" | "unanswered";
 
 /**
- * Whether the chain knows `hash` as a transaction. Only viem's
- * `TransactionNotFoundError` is the chain saying it has none. Any other
- * failure (a timeout, an HTTP error, a node still indexing) says nothing about
- * the hash and reads `unanswered`. The error is matched by its name, as
+ * What the chain says of `hash`: a transaction (`found`), none (`none`) or
+ * nothing (`unanswered`). Only viem's `TransactionNotFoundError` is the chain
+ * saying it has none. Any other failure (a timeout, an HTTP error, a node still
+ * indexing) says nothing about the hash. The error is matched by its name, as
  * `isDefiniteWalletRejection` (in /review) matches viem's wallet rejection: the
  * app's viem and the SDK's can be different installs, whose classes never
  * match under `instanceof`. viem throws it from `getTransaction` itself, so
- * there is no cause chain to read.
+ * there is no cause chain to read. Only the promise's rejection is read: a
+ * client that throws before it returns one, or is not a client, fails the wait
+ * at once instead of reading as a look the chain could not answer.
  */
 async function lookUpTransaction(
   client: SafeExecutionClient,
@@ -258,7 +263,7 @@ export async function waitForSafeExecutionHash(
   const interval = options.pollingIntervalMs ?? 5_000;
   const endpoint =
     base && `${base}/api/v1/multisig-transactions/${safeTxHash}/`;
-  let consecutiveNotFound = 0;
+  let notFoundAnswers = 0;
 
   for (;;) {
     if (options.signal?.aborted) throw waitAborted();
@@ -275,8 +280,8 @@ export async function waitForSafeExecutionHash(
       // Without a service only the chain answers. A look it could not answer
       // says nothing about the proposal, so it neither counts nor starts over.
       if (look === "none") {
-        consecutiveNotFound += 1;
-        if (consecutiveNotFound >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
+        notFoundAnswers += 1;
+        if (notFoundAnswers >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
           throw noHostedService(chainId);
         }
       }
@@ -288,7 +293,7 @@ export async function waitForSafeExecutionHash(
           { signal: options.signal, retryRateLimited: false },
         );
         if (response.ok) {
-          consecutiveNotFound = 0;
+          notFoundAnswers = 0;
           const transaction = (await response.json()) as {
             isExecuted?: boolean;
             isSuccessful?: boolean | null;
@@ -308,8 +313,8 @@ export async function waitForSafeExecutionHash(
             return transaction.transactionHash;
           }
         } else if (response.status === 404) {
-          consecutiveNotFound += 1;
-          if (consecutiveNotFound >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
+          notFoundAnswers += 1;
+          if (notFoundAnswers >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
             throw new SafeExecutionRecordError(
               "Safe’s transaction service has no record of this proposal. Tracking cannot continue here — check the proposal in the Safe app; if it exists there, it will still take effect once executed.",
             );
