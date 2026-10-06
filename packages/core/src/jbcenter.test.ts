@@ -1405,6 +1405,30 @@ describe("JB Center RPC provider and a node behind the head", () => {
     }
   });
 
+  test("keeps the waits it checked: changing the list afterwards changes nothing", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        calls += 1;
+        return calls === 1
+          ? behindHead(rpcId(init))
+          : rpcResult(rpcId(init), "0x2a");
+      },
+    );
+    const waits = [0];
+    const provider = createJBCenterRpcProvider(1, {
+      fetch: fetchMock,
+      blockLagRetryDelaysMs: waits,
+    });
+    waits[0] = 60_000;
+
+    const read = provider.request({ method: "eth_call" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await expect(read).resolves.toBe("0x2a");
+  });
+
   test("carries a pinned read through a lagging node on a viem client", async () => {
     vi.useFakeTimers();
     let calls = 0;

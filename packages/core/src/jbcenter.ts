@@ -1005,16 +1005,18 @@ export class JBCenterClient {
     if (!Number.isSafeInteger(chainId) || chainId <= 0) {
       throw new TypeError("chainId must be a positive safe integer");
     }
-    const delays: readonly number[] =
+    const given: readonly number[] =
       options.blockLagRetryDelaysMs ?? JBCENTER_BLOCK_LAG_RETRY_DELAYS_MS;
     if (
-      !Array.isArray(delays) ||
-      !delays.every((ms) => Number.isFinite(ms) && ms >= 0)
+      !Array.isArray(given) ||
+      !given.every((ms) => Number.isFinite(ms) && ms >= 0)
     ) {
       throw new TypeError(
         "blockLagRetryDelaysMs must be a list of finite waits of 0 ms or more",
       );
     }
+    // The provider keeps its own copy, so the waits it checked are the waits it uses.
+    const delays = [...given];
     const { limiter } = options;
     return {
       request: async <TResult = unknown>(
