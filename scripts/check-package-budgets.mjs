@@ -57,9 +57,14 @@ const budgets = {
     // add no files and, mostly in documentation, about 9.5 kilobytes unpacked
     // and 2.5 kilobytes packed (measured 1,180,514 B packed, 20,293,611 B
     // unpacked, 722 files).
-    packed: 1_182_000,
-    unpacked: 20_298_000,
-    entries: 722,
+    // JB Center's node-lag retry, the shared abortable wait and the JB Center
+    // rate-limit module (the limiter and the refusal readers the web clients
+    // copied) add two source modules, sixteen artifacts, about 42 kilobytes
+    // unpacked and 7 kilobytes packed (measured 1,184,795 B packed,
+    // 20,326,423 B unpacked, 738 files).
+    packed: 1_189_000,
+    unpacked: 20_337_000,
+    entries: 738,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
