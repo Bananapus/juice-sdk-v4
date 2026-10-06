@@ -1,3 +1,11 @@
+import {
+  createPublicClient,
+  custom,
+  HttpRequestError,
+  RpcRequestError,
+  TimeoutError,
+  TransactionNotFoundError,
+} from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isSafeWalletPeer,
@@ -17,6 +25,11 @@ const executed = (fields: Record<string, unknown>) => ({
   ok: true,
   json: async () => fields,
 });
+/** How viem's chain client answers `getTransaction` for a hash the chain has no transaction for. */
+const notFound = () => new TransactionNotFoundError({ hash: PROPOSAL });
+/** A node that cannot be reached says nothing about a transaction. */
+const unreachable = () =>
+  new HttpRequestError({ url: "https://rpc.example", details: "fetch failed" });
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -327,7 +340,10 @@ describe("Safe transaction service boundaries", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("asks the service when the chain does not know the hash", async () => {
+  it.each([
+    ["does not know the hash", notFound],
+    ["cannot answer", unreachable],
+  ])("asks the service when the chain %s", async (_case, failure) => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -342,12 +358,34 @@ describe("Safe transaction service boundaries", () => {
       waitForSafeExecutionHash(8453, PROPOSAL, {
         client: {
           getTransaction: async () => {
-            throw new Error("Transaction not found");
+            throw failure();
           },
         },
       }),
     ).resolves.toBe(EXECUTION);
   });
+
+  it.each([
+    ["has no transaction with the hash", notFound],
+    ["cannot answer", unreachable],
+  ])(
+    "leaves a chain with a hosted service to the service when its chain %s: twelve 404s from the service end the wait, whatever the chain says",
+    async (_case, failure) => {
+      const fetchMock = vi.fn(async () => ({ ok: false, status: 404 }));
+      vi.stubGlobal("fetch", fetchMock);
+      const getTransaction = vi.fn(async () => {
+        throw failure();
+      });
+      await expect(
+        waitForSafeExecutionHash(8453, PROPOSAL, {
+          pollingIntervalMs: 1,
+          client: { getTransaction },
+        }),
+      ).rejects.toThrow(/no record of this proposal/i);
+      expect(fetchMock).toHaveBeenCalledTimes(12);
+      expect(getTransaction).toHaveBeenCalledTimes(12);
+    },
+  );
 
   it("tracks an executed hash on a chain without a hosted service, and gives up on a proposal", async () => {
     const fetchMock = vi.fn();
@@ -356,7 +394,7 @@ describe("Safe transaction service boundaries", () => {
     const later = {
       getTransaction: async () => {
         seen += 1;
-        if (seen < 3) throw new Error("Transaction not found");
+        if (seen < 3) throw notFound();
         return {};
       },
     };
@@ -367,7 +405,7 @@ describe("Safe transaction service boundaries", () => {
       }),
     ).resolves.toBe(EXECUTION);
     const never = vi.fn(async () => {
-      throw new Error("Transaction not found");
+      throw notFound();
     });
     await expect(
       waitForSafeExecutionHash(11155420, PROPOSAL, {
@@ -377,6 +415,154 @@ describe("Safe transaction service boundaries", () => {
     ).rejects.toThrow(/does not host a transaction service/i);
     expect(never).toHaveBeenCalledTimes(12);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("gives up after twelve not-found answers even when the failures between them are not", async () => {
+    // Looks: not found x6, a node that cannot answer, not found x5 (eleven in all), two more
+    // failures, then the twelfth not-found answer. A failed look neither counts nor starts over.
+    const looks = [
+      ...Array.from({ length: 6 }, () => notFound),
+      unreachable,
+      ...Array.from({ length: 5 }, () => notFound),
+      unreachable,
+      unreachable,
+      notFound,
+    ];
+    const getTransaction = vi.fn(async () => {
+      const next = looks.shift();
+      // A wait that counted a failure would have ended already; one that started over keeps looking.
+      if (!next) return {};
+      throw next();
+    });
+    await expect(
+      waitForSafeExecutionHash(11155420, PROPOSAL, {
+        pollingIntervalMs: 1,
+        client: { getTransaction },
+      }),
+    ).rejects.toThrow(/does not host a transaction service/i);
+    expect(getTransaction).toHaveBeenCalledTimes(15);
+  });
+
+  it("keeps looking on a chain without a hosted service while its node cannot answer, until the signal aborts", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const getTransaction = vi.fn(async () => {
+      throw unreachable();
+    });
+    const page = new AbortController();
+    const outcome = waitForSafeExecutionHash(11155420, PROPOSAL, {
+      client: { getTransaction },
+      signal: page.signal,
+    }).then(
+      () => "resolved",
+      (error: unknown) => error,
+    );
+    // Twelve looks are about a minute at the default 5 s. Five minutes in, the wait is still looking.
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(getTransaction).toHaveBeenCalledTimes(61);
+    page.abort();
+    expect(await outcome).toMatchObject({ name: "AbortError" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a failed HTTP request", unreachable()],
+    [
+      "a timeout",
+      new TimeoutError({
+        body: { method: "eth_getTransactionByHash" },
+        url: "https://rpc.example",
+      }),
+    ],
+    [
+      "a node's own error",
+      new RpcRequestError({
+        body: { method: "eth_getTransactionByHash" },
+        error: { code: -32000, message: "transaction indexing is in progress" },
+        url: "https://rpc.example",
+      }),
+    ],
+    [
+      "a plain error whose message says not found",
+      new Error("Transaction not found"),
+    ],
+    ["a thrown string", "Transaction not found"],
+    ["a thrown undefined", undefined],
+    ["a thrown null", null],
+  ])(
+    "does not take %s for the chain having no such transaction",
+    async (_what, failure) => {
+      let looks = 0;
+      const getTransaction = vi.fn(async () => {
+        looks += 1;
+        if (looks > 20) return {};
+        throw failure;
+      });
+      await expect(
+        waitForSafeExecutionHash(11155420, PROPOSAL, {
+          pollingIntervalMs: 1,
+          client: { getTransaction },
+        }),
+      ).resolves.toBe(PROPOSAL);
+      expect(getTransaction).toHaveBeenCalledTimes(21);
+    },
+  );
+
+  it("reads the answers of a real viem client: a hash its chain has no transaction for is a not-found, a node that fails is not", async () => {
+    let calls = 0;
+    // A node that fails for fifteen looks, then knows the hash.
+    const flaky = createPublicClient({
+      transport: custom(
+        {
+          request: async ({ method }: { method: string }) => {
+            expect(method).toBe("eth_getTransactionByHash");
+            calls += 1;
+            if (calls <= 15) throw new Error("fetch failed");
+            return { hash: PROPOSAL, type: "0x0" };
+          },
+        },
+        { retryCount: 0 },
+      ),
+    });
+    await expect(
+      waitForSafeExecutionHash(11155420, PROPOSAL, {
+        pollingIntervalMs: 1,
+        client: flaky,
+      }),
+    ).resolves.toBe(PROPOSAL);
+    expect(calls).toBe(16);
+
+    // A node that answers null for every look: viem reads that as TransactionNotFoundError.
+    const empty = vi.fn(async () => null);
+    await expect(
+      waitForSafeExecutionHash(11155420, PROPOSAL, {
+        pollingIntervalMs: 1,
+        client: createPublicClient({
+          transport: custom({ request: empty }, { retryCount: 0 }),
+        }),
+      }),
+    ).rejects.toThrow(/does not host a transaction service/i);
+    expect(empty).toHaveBeenCalledTimes(12);
+  });
+
+  it("reads a not-found by its name, so another install of viem's error counts", async () => {
+    // The app's viem and the SDK's can be different installs: their error classes never match under instanceof.
+    const foreign = () =>
+      Object.assign(new Error("Transaction could not be found."), {
+        name: "TransactionNotFoundError",
+      });
+    expect(foreign() instanceof TransactionNotFoundError).toBe(false);
+    const getTransaction = vi.fn(async () => {
+      throw foreign();
+    });
+    await expect(
+      waitForSafeExecutionHash(11155420, PROPOSAL, {
+        pollingIntervalMs: 1,
+        client: { getTransaction },
+      }),
+    ).rejects.toThrow(/does not host a transaction service/i);
+    expect(getTransaction).toHaveBeenCalledTimes(12);
   });
 
   it("recognizes Safe{Wallet} as a WalletConnect peer, and only it", () => {
