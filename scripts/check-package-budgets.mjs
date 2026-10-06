@@ -60,8 +60,8 @@ const budgets = {
     // JB Center's node-lag retry, the shared abortable wait and the JB Center
     // rate-limit module (the limiter and the refusal readers the web clients
     // copied) add two source modules, sixteen artifacts, about 42 kilobytes
-    // unpacked and 7 kilobytes packed (measured 1,184,795 B packed,
-    // 20,326,423 B unpacked, 738 files).
+    // unpacked and 7 kilobytes packed (measured 1,184,869 B packed,
+    // 20,326,787 B unpacked, 738 files).
     packed: 1_189_000,
     unpacked: 20_337_000,
     entries: 738,
