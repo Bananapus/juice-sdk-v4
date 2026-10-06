@@ -612,6 +612,7 @@ Anything else throws, and the quote holds.
 import {
   relayrPaymentAttemptOutcome,
   relayrRetryOption,
+  requireRelayrRetry,
   revertedRelayrQuote,
 } from "@bananapus/nana-sdk-core/review/relayr";
 
@@ -625,6 +626,9 @@ const { state, records } = await revertedRelayrQuote(clientFor, {
 });
 if (state === "payable") payment = relayrRetryOption(payments, options);
 
+// Right before paying it again: the SDK's retry rule for each option paid.
+await requireRelayrRetry(clientFor, { payments, from: account, bundleUuid });
+
 // After a failed payment attempt: "reverted", "unpaid", or null to keep the journal.
 const outcome = relayrPaymentAttemptOutcome(error, { sending, paid });
 ```
@@ -634,7 +638,12 @@ const outcome = relayrPaymentAttemptOutcome(error, { sending, paid });
 `MAX_RELAYR_SENT_PAYMENTS`. `RELAYR_UUID_RE` is a Relayr ID in lower case.
 `relayrPaidQuoteOpen` says whether the latest payment's quote can still be paid
 at `nowMs`, and `relayrQuotedOptions` lists the options a session keeps, whose
-deadlines a release waits out. jbm's `relayrQuoteReleased` is not here: it
+deadlines a release waits out. `requireRelayrRetry` groups the payments sent
+for a quote by the option each used and clears the quote for one more payment
+only when `requireRelayrPaymentRetry` clears every group.
+`proveSavedRelayrPayment` proves a resumed session's latest payment: true once
+it succeeded, false while that can't be proven, and on a canonical revert it
+runs its `onReverted` and throws. jbm's `relayrQuoteReleased` is not here: it
 reads the device clock, and only an account view's line still calls it.
 
 What each app replaces:
@@ -643,7 +652,8 @@ What each app replaces:
   - `src/lib/relayr-payments.ts`, the whole file: `RELAYR_UUID_RE` (:5),
     `RelayrSentPayment` (:12), `sentRelayrPayment` (:18), `MAX_RELAYR_SENT_PAYMENTS`
     (:38) and `relayrSentPaymentsSnapshot` (:41).
-  - `src/lib/relayr.ts`: `relayrRetryOption` (:1050),
+  - `src/lib/relayr.ts`: `requireRelayrRetry` (:1030), `relayrRetryOption`
+    (:1050), `proveSavedRelayrPayment` (:1070),
     `relayrPaymentAttemptOutcome` (:1094), `readRelayrBundleIfNamed` (:1287,
     over its `readRelayrBundle`, :1272), `relayrRecordPending` (:1297),
     `relayrBundleFunded` (:1303), `relayrPaidQuoteOpen` (:1392),
@@ -654,13 +664,16 @@ What each app replaces:
   `src/hooks/useReviewedRelayr.ts`: `quotedOptions` (:303), `deadlinesPassed`
   (:326), `relayrBundleFunded` (:669), `quoteUnfundable` (:689),
   `revertedRelayrQuote` (:736), `sentPayments` (:939, read into
-  `RelayrSentPayment`) and the outcome of a declined payment in its send
-  (:1966-1990).
+  `RelayrSentPayment`), `requirePaymentRetry` (:951) and the outcome of a
+  declined payment in its send (:1966-1990). Its `provePayment` (:1197) is the
+  nearest to `proveSavedRelayrPayment`, but throws while the proof is
+  unavailable, where jbm's resolves false.
 - Homerun (branch `fix/relayr-session-rules`, 79672a2):
   - `src/lib/relayr-payments.ts`, a copy of jbm's.
-  - `src/lib/relayr.ts`: `readRelayrBundle` (:632), `readRelayrBundleIfNamed`
-    (:647), `relayrRecordPending` (:657), `relayrBundleFunded` (:663),
-    `relayrRetryOption` (:671), `relayrPaymentAttemptOutcome` (:715),
+  - `src/lib/relayr.ts`: `requireRelayrRetry` (:467), `readRelayrBundle`
+    (:632), `readRelayrBundleIfNamed` (:647), `relayrRecordPending` (:657),
+    `relayrBundleFunded` (:663), `relayrRetryOption` (:671),
+    `proveSavedRelayrPayment` (:691), `relayrPaymentAttemptOutcome` (:715),
     `relayrPaidQuoteOpen` (:729), `relayrQuotedOptions` (:739),
     `relayrQuoteUnfundable` (:758) and `revertedRelayrQuote` (:800).
 

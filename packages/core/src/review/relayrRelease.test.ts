@@ -13,13 +13,17 @@ import {
   RELAYR_PAYMENT_ADDRESS,
   RELAYR_PAYMENT_SELECTOR,
   RELAYR_UUID_RE,
+  RelayrPaymentRetryError,
   RelayrPaymentRevertedError,
+  RelayrProofError,
+  proveSavedRelayrPayment,
   relayrPaidQuoteOpen,
   relayrPaymentAttemptOutcome,
   relayrPaymentDetails,
   relayrQuotedOptions,
   relayrRetryOption,
   relayrSentPaymentsSnapshot,
+  requireRelayrRetry,
   revertedRelayrQuote,
   sentRelayrPayment,
   type RelayrPayment,
@@ -335,6 +339,8 @@ describe("a quote whose own payments reverted (ruling R104)", () => {
   let finalized: Record<number, number | null>;
   /** The hash of the block at the finalized number when it is read again. */
   let canonical: Hex;
+  /** The hash of the block a payment was mined in when it is read again. */
+  let paymentBlock: Hex;
   /** How each payment mined, by hash: anything missing cannot be read. */
   let mined: Map<string, { payment: RelayrSentPayment; status: string }>;
   /** Relayr's answers to each bundle read, in order; the last one repeats. */
@@ -355,7 +361,7 @@ describe("a quote whose own payments reverted (ruling R104)", () => {
               timestamp: BigInt(timestamp),
             };
           }
-          return { hash: args.blockNumber === 200n ? canonical : BLOCK_HASH };
+          return { hash: args.blockNumber === 200n ? canonical : paymentBlock };
         },
       ),
       getTransaction: vi.fn(async ({ hash }: { hash: Hex }) => {
@@ -405,6 +411,7 @@ describe("a quote whose own payments reverted (ruling R104)", () => {
     // Every deadline involved passed at both chains' finalized blocks.
     finalized = { 1: DEADLINE + 3_601, 10: DEADLINE + 3_601 };
     canonical = FINAL_HASH;
+    paymentBlock = BLOCK_HASH;
     mined = new Map([[HASH, { payment: sent(), status: "reverted" }]]);
     reads = [bundle()];
     let read = 0;
@@ -611,6 +618,254 @@ describe("a quote whose own payments reverted (ruling R104)", () => {
       revertedRelayrQuote((chainId) => clients[chainId], quote()),
     ).resolves.toMatchObject({ state: "payable" });
     now.mockRestore();
+  });
+
+  describe("clearing a quote paid before for one more payment", () => {
+    /** While the quote is still open. */
+    const OPEN = DEADLINE - 16;
+    const retry = (
+      payments: readonly RelayrSentPayment[],
+      { bundleUuid = BUNDLE_UUID, nowSeconds = OPEN } = {},
+    ) =>
+      requireRelayrRetry(
+        (chainId) => clients[chainId],
+        { payments, from: ACCOUNT, bundleUuid },
+        { fetch: fetchBundle as unknown as typeof fetch, nowSeconds },
+      );
+    const refusal = async (promise: Promise<unknown>) => {
+      try {
+        await promise;
+      } catch (error) {
+        return error as RelayrPaymentRetryError;
+      }
+      throw new Error("Expected a refusal.");
+    };
+
+    it("clears it once every payment it sent reverted, the quote is open and Relayr reports it unpaid with every call pending", async () => {
+      await expect(retry([sent()])).resolves.toBeUndefined();
+      expect(fetchBundle).toHaveBeenCalledTimes(1);
+    });
+
+    it("proves the payments of one option together, its calldata in any case, and each other option on its own", async () => {
+      const again = {
+        ...sent(paymentFor(), SECOND_HASH),
+        calldata: paymentCalldata().toUpperCase().replace("0X", "0x") as Hex,
+      };
+      mined.set(SECOND_HASH, { payment: again, status: "reverted" });
+      await expect(retry([sent(), again])).resolves.toBeUndefined();
+      // One option, so one bundle read for both payments.
+      expect(fetchBundle).toHaveBeenCalledTimes(1);
+      const other = sent(paymentFor({ amount: "200" }), OTHER_HASH);
+      mined.set(OTHER_HASH, { payment: other, status: "reverted" });
+      await expect(retry([sent(), other])).resolves.toBeUndefined();
+      expect(fetchBundle).toHaveBeenCalledTimes(3);
+    });
+
+    it("refuses when any payment it sent did not revert, including one before a declined retry", async () => {
+      const first = sent(paymentFor(), SECOND_HASH);
+      mined.set(SECOND_HASH, { payment: first, status: "success" });
+      const error = await refusal(retry([first, sent()]));
+      expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+      expect(error.reason).toBe("paid");
+    });
+
+    it.each<[string, () => void, string]>([
+      [
+        "Relayr cannot be read",
+        () =>
+          (reads = [() => Promise.reject(new TypeError("Failed to fetch"))]),
+        "unknown",
+      ],
+      [
+        "Relayr reports a call running",
+        () =>
+          (reads = [
+            bundle({
+              transactions: [
+                { tx_uuid: OTHER_UUID, status: { state: "Included" } },
+              ],
+            }),
+          ]),
+        "running",
+      ],
+      ["its chain has no client", () => (clients[1] = undefined), "unknown"],
+    ])("refuses while %s", async (_, arrange, reason) => {
+      arrange();
+      const error = await refusal(retry([sent()]));
+      expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+      expect(error.reason).toBe(reason);
+    });
+
+    it("refuses once the quote expired", async () => {
+      const error = await refusal(
+        retry([sent()], { nowSeconds: DEADLINE - 15 }),
+      );
+      expect(error.reason).toBe("expired");
+    });
+
+    it("refuses a chain whose client cannot be had", async () => {
+      const error = await refusal(
+        requireRelayrRetry(
+          () => {
+            throw new Error("No RPC for chain 1");
+          },
+          { payments: [sent()], from: ACCOUNT, bundleUuid: BUNDLE_UUID },
+          { fetch: fetchBundle as unknown as typeof fetch, nowSeconds: OPEN },
+        ),
+      );
+      expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+      expect(error.reason).toBe("unknown");
+      expect(error.message).toBe(
+        "No RPC is available for chain 1. Do not pay again yet; check it later.",
+      );
+    });
+
+    it("refuses a payment that belongs to another bundle", async () => {
+      await expect(retry([sent()], { bundleUuid: OTHER_UUID })).rejects.toThrow(
+        "A saved Relayr payment belongs to another bundle. Do not pay again; check the original bundle.",
+      );
+      expect(fetchBundle).not.toHaveBeenCalled();
+    });
+
+    it.each<[string, unknown]>([
+      ["no payments", []],
+      ["payments that are not a list", { length: 1, 0: sent() }],
+    ])("refuses %s before reading anything", async (_, payments) => {
+      const error = await refusal(retry(payments as RelayrSentPayment[]));
+      expect(error).toBeInstanceOf(RelayrPaymentRetryError);
+      expect(error.reason).toBe("invalid");
+      expect(fetchBundle).not.toHaveBeenCalled();
+    });
+
+    it("reads Relayr through the global fetch and the clock unless given others", async () => {
+      vi.stubGlobal("fetch", fetchBundle);
+      const now = vi.spyOn(Date, "now").mockReturnValue(OPEN * 1_000);
+      await expect(
+        requireRelayrRetry((chainId) => clients[chainId], {
+          payments: [sent()],
+          from: ACCOUNT,
+          bundleUuid: BUNDLE_UUID,
+        }),
+      ).resolves.toBeUndefined();
+      now.mockRestore();
+    });
+  });
+
+  describe("proving a saved session's latest payment", () => {
+    const prove = (
+      payments: unknown,
+      account: unknown = ACCOUNT,
+      onReverted = vi.fn(),
+    ) =>
+      proveSavedRelayrPayment(
+        (chainId) => clients[chainId],
+        payments as RelayrSentPayment[],
+        account as string,
+        onReverted,
+      );
+
+    it("resolves true once the latest payment succeeded", async () => {
+      mined.set(HASH, { payment: sent(), status: "success" });
+      const onReverted = vi.fn();
+      await expect(prove([sent()], ACCOUNT, onReverted)).resolves.toBe(true);
+      expect(onReverted).not.toHaveBeenCalled();
+    });
+
+    it("proves only the latest payment", async () => {
+      mined.set(SECOND_HASH, {
+        payment: sent(paymentFor(), SECOND_HASH),
+        status: "success",
+      });
+      await expect(
+        prove([sent(), sent(paymentFor(), SECOND_HASH)]),
+      ).resolves.toBe(true);
+    });
+
+    it("runs onReverted and throws when the payment canonically reverted", async () => {
+      const onReverted = vi.fn();
+      await expect(prove([sent()], ACCOUNT, onReverted)).rejects.toBeInstanceOf(
+        RelayrPaymentRevertedError,
+      );
+      expect(onReverted).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws onReverted's own failure", async () => {
+      await expect(
+        prove(
+          [sent()],
+          ACCOUNT,
+          vi.fn(() => {
+            throw new Error("Could not save the reverted payment.");
+          }),
+        ),
+      ).rejects.toThrow("Could not save the reverted payment.");
+    });
+
+    it("throws, without onReverted, when the hash holds another transaction", async () => {
+      mined.set(HASH, {
+        payment: { ...sent(), amount: "99" },
+        status: "success",
+      });
+      const onReverted = vi.fn();
+      const error = await prove([sent()], ACCOUNT, onReverted).catch(
+        (caught: unknown) => caught,
+      );
+      expect(error).toBeInstanceOf(RelayrProofError);
+      expect(error).not.toBeInstanceOf(RelayrPaymentRevertedError);
+      expect(onReverted).not.toHaveBeenCalled();
+    });
+
+    it.each<[string, () => void]>([
+      ["the payment cannot be read", () => mined.clear()],
+      [
+        "its receipt's block is no longer canonical",
+        () => (paymentBlock = OTHER_HASH),
+      ],
+      ["its chain has no client", () => (clients[1] = undefined)],
+    ])("resolves false while %s", async (_, arrange) => {
+      arrange();
+      const onReverted = vi.fn();
+      await expect(prove([sent()], ACCOUNT, onReverted)).resolves.toBe(false);
+      expect(onReverted).not.toHaveBeenCalled();
+    });
+
+    it("resolves false when a client cannot be had for its chain", async () => {
+      await expect(
+        proveSavedRelayrPayment(
+          () => {
+            throw new Error("No RPC for chain 1");
+          },
+          [sent()],
+          ACCOUNT,
+          vi.fn(),
+        ),
+      ).resolves.toBe(false);
+    });
+
+    it.each<[string, unknown, unknown]>([
+      ["no payments", [], ACCOUNT],
+      ["no payment list", undefined, ACCOUNT],
+      ["payments that are not a list", { length: 1, 0: sent() }, ACCOUNT],
+      ["no account", [sent()], null],
+      ["an account that is not an address", [sent()], "0x1234"],
+      [
+        "an account with a wrong checksum",
+        [sent()],
+        "0x1C05F7841379D4393574c0FFA17908Ec40FFD97D",
+      ],
+    ])(
+      "resolves false, reading nothing, for %s",
+      async (_, payments, account) => {
+        await expect(prove(payments, account)).resolves.toBe(false);
+        expect(
+          (
+            clients[1] as unknown as {
+              getTransaction: ReturnType<typeof vi.fn>;
+            }
+          ).getTransaction,
+        ).not.toHaveBeenCalled();
+      },
+    );
   });
 
   it("takes a PublicClient for any chain", () => {

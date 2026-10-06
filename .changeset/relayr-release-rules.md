@@ -24,6 +24,15 @@ end.
   paid again with, exactly the one its latest payment used.
 - `relayrPaymentAttemptOutcome(error, { sending, paid })`: `reverted`,
   `unpaid`, or null to keep the journal as it is.
+- `requireRelayrRetry(clientFor, { payments, from, bundleUuid }, options)`
+  groups the payments sent for a quote by the option each used (its chain,
+  calldata in any case, and amount) and runs `requireRelayrPaymentRetry`, with
+  the same `fetch` and `nowSeconds` options, for each group on its chain. It
+  refuses a payment of another bundle.
+- `proveSavedRelayrPayment(clientFor, payments, account, onReverted)` proves a
+  resumed session's latest payment: true once it succeeded, false while that
+  can't be proven, and on a canonical revert it runs `onReverted` and throws,
+  as it throws any other `RelayrProofError`.
 - `relayrPaidQuoteOpen(payments, nowMs)` and `relayrQuotedOptions`.
 - `sentRelayrPayment`, `relayrSentPaymentsSnapshot`, `MAX_RELAYR_SENT_PAYMENTS`
   (16) and `RELAYR_UUID_RE`, with the types `RelayrSentPayment` and
@@ -43,3 +52,10 @@ rather than releasing it or paying again):
   Juicebox Money threw a `TypeError` there.
 - A bundle ID that is not a Relayr ID is never read, so its quote is neither
   funded nor released. Juicebox Money sent it to Relayr and compared the echo.
+- `requireRelayrRetry` refuses an empty or malformed list of payments as
+  `invalid`, where Juicebox Money's resolved for an empty list (its only caller
+  never passed one) and threw a `TypeError` for anything else. A chain without
+  a client is refused as `unknown`, where Juicebox Money's client lookup threw
+  its own error.
+- `proveSavedRelayrPayment` reads payments that are not a list as none and
+  resolves false, where Juicebox Money threw a `TypeError`.

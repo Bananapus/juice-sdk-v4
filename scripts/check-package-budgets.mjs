@@ -82,8 +82,12 @@ const budgets = {
     // packed, about a third of it documentation, repeated in the ESM and CJS
     // JavaScript and declarations (measured 1,222,939 B packed, 20,449,943 B
     // unpacked, 738 files).
-    packed: 1_223_000,
-    unpacked: 20_450_000,
+    // The retry rule over a quote's sent payments (grouped by the option each
+    // used) and the saved payment's proof on resume add no files and 14,148
+    // bytes unpacked and 2,187 bytes packed (measured 1,225,126 B packed,
+    // 20,464,091 B unpacked, 738 files).
+    packed: 1_226_000,
+    unpacked: 20_465_000,
     entries: 738,
   },
   "@bananapus/nana-sdk-react": {

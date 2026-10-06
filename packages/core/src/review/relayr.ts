@@ -109,6 +109,8 @@ const EXPIRED =
   "This Relayr quote expired. Review the action again for a new quote.";
 const UNKNOWN_PAYMENT =
   "Relayr has not said whether this bundle is paid. Do not pay again yet; check it later.";
+const UNNAMED =
+  "Name every payment this session sent for the quote before paying it again.";
 const UNVERIFIABLE =
   "Only an authenticated Relayr payment with its transaction hash can be verified.";
 
@@ -1237,10 +1239,7 @@ export async function requireRelayrPaymentRetry(
   }: { fetch?: typeof globalThis.fetch; nowSeconds?: number } = {},
 ): Promise<void> {
   if (!Array.isArray(hashes) || !hashes.length) {
-    throw new RelayrPaymentRetryError(
-      "Name every payment this session sent for the quote before paying it again.",
-      "invalid",
-    );
+    throw new RelayrPaymentRetryError(UNNAMED, "invalid");
   }
   const reviewed = verifiablePayment(hashes, from, payment);
   if (!reviewed) throw new RelayrPaymentRetryError(UNVERIFIABLE, "invalid");
@@ -2071,6 +2070,93 @@ export function relayrPaymentAttemptOutcome(
     return paid ? "reverted" : "unpaid";
   }
   return null;
+}
+
+/**
+ * Clear a quote paid before for one more payment, with
+ * {@link requireRelayrPaymentRetry}'s rule for each option its payments used.
+ * `payments` is every payment the session sent for the quote, as mined; those
+ * of one option (its chain, its calldata in any case, and its amount) are
+ * proven together on its chain, with `clientFor`. Before reading anything it
+ * refuses an empty or malformed list (`invalid`) and a payment of another
+ * bundle; a chain without a client is `unknown`. Never pay on an error.
+ */
+export async function requireRelayrRetry(
+  clientFor: (chainId: number) => RelayrProofClient | undefined,
+  {
+    payments,
+    from,
+    bundleUuid,
+  }: {
+    payments: readonly RelayrSentPayment[];
+    from: Address;
+    bundleUuid: string;
+  },
+  options: { fetch?: typeof globalThis.fetch; nowSeconds?: number } = {},
+): Promise<void> {
+  const sent: readonly RelayrSentPayment[] = Array.isArray(payments)
+    ? payments
+    : [];
+  if (!sent.length) throw new RelayrPaymentRetryError(UNNAMED, "invalid");
+  if (sent.some((payment) => payment.bundleUuid !== bundleUuid)) {
+    throw new Error(
+      "A saved Relayr payment belongs to another bundle. Do not pay again; check the original bundle.",
+    );
+  }
+  const byPayment = new Map<
+    string,
+    { payment: RelayrSentPayment; hashes: Hex[] }
+  >();
+  for (const payment of sent) {
+    const key = `${payment.chainId}:${payment.calldata.toLowerCase()}:${payment.amount}`;
+    const group = byPayment.get(key) ?? { payment, hashes: [] };
+    group.hashes.push(payment.hash);
+    byPayment.set(key, group);
+  }
+  for (const { payment, hashes } of byPayment.values()) {
+    const client = clientOn(clientFor, payment.chainId);
+    if (!client) {
+      throw new RelayrPaymentRetryError(
+        `No RPC is available for chain ${payment.chainId}. Do not pay again yet; check it later.`,
+        "unknown",
+      );
+    }
+    await requireRelayrPaymentRetry(client, { hashes, from, payment }, options);
+  }
+}
+
+/**
+ * Prove a saved session's latest payment when it resumes, on its chain with
+ * `clientFor`. Resolves true once it succeeded onchain, and false while that
+ * can't be proven: no payment, an `account` that is not an address, no client
+ * for its chain, or a read that failed. A canonical revert runs `onReverted`
+ * and is thrown, as is any other {@link RelayrProofError}; the quote then
+ * waits on {@link requireRelayrPaymentRetry}'s rule.
+ */
+export async function proveSavedRelayrPayment(
+  clientFor: (chainId: number) => RelayrProofClient | undefined,
+  payments: readonly RelayrSentPayment[] | undefined,
+  account: string | null | undefined,
+  onReverted: () => void,
+): Promise<boolean> {
+  const latest = Array.isArray(payments)
+    ? payments[payments.length - 1]
+    : undefined;
+  if (!latest || !isStrictAddress(account)) return false;
+  const client = clientOn(clientFor, latest.chainId);
+  if (!client) return false;
+  try {
+    await verifyRelayrPayment(client, {
+      hash: latest.hash,
+      from: account,
+      payment: latest,
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof RelayrPaymentRevertedError) onReverted();
+    if (error instanceof RelayrProofError) throw error;
+    return false;
+  }
 }
 
 /**
