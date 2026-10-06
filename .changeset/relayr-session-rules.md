@@ -25,9 +25,12 @@ Juicebox Money's at 02278f0, with the differences listed at the end.
   does next: `hold`, `refresh` (sign again only at the saved nonces while a
   request is live and none moved), `re-sign` (every request dead and unused,
   recheck passed), `discard` with the reason `ran`, `changed` or `expired`,
-  `reorg-hold` (a finalized nonce below a saved one), or `unchecked` (the
-  recheck could not reach the chain). The recheck runs only once every request
-  is dead and unused.
+  `reorg-hold` (a finalized nonce below a saved one, `nonces` omitted or
+  empty, or no requests at all), or `unchecked` (the recheck could not reach
+  the chain). `nonces` must be the saved nonces of exactly the requests that
+  were classified, in order. The recheck is a `() => Promise<void>` that throws
+  to refuse, and runs only once every request is dead and unused. An outcome's
+  `error` is never enumerable.
 - `relayrRequestsDead(clientFor, requests)` is ruling R117's reservation: a
   session reserves its signers' forwarder nonces exactly while one of its
   requests is live. Requests that can't be classified (null) or none are never
@@ -51,3 +54,12 @@ Where it differs from Juicebox Money's copies:
   sessions always signed with.
 - Entries or nonces that are not lists read as none, where Juicebox Money threw
   or read a string's characters as nonces.
+- An empty set of requests is neither run nor unused, so it holds as
+  `reorg-hold`, as Juicebox Money's callers held a session in which they found
+  nothing to classify. An empty `nonces` list also gives `reorg-hold`, where
+  Juicebox Money would have re-signed nothing; it never saved an empty list.
+- Deadlines and nonces are read as the SDK reads any untrusted number: a safe
+  integer, decimal or 0x-hex digits, or a bigint. Anything else (`""`, `" "`,
+  `"-1"`) leaves the request live, and `relayrDeadlinePassed` false. Juicebox
+  Money's `BigInt` read an empty or blank string as 0 and `"-1"` as -1, so such
+  a deadline had passed and such a nonce had moved.

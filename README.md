@@ -544,14 +544,22 @@ const released = await relayrRequestsDead(clientFor, requests);
   them again. Discard ends only the session, never the action's draft.
 - `reorg-hold`: every request is dead and none moved, but a finalized nonce is
   below a saved one, as after a reorg drops an earlier forwarded transaction.
-  It holds until the nonce catches up.
+  It holds until the nonce catches up. It is also the outcome when `nonces` is
+  omitted or empty, or there were no requests: such a session is neither
+  discarded nor signed again.
 - `unchecked`: the recheck could not reach the chain (an HTTP, timeout or
   WebSocket failure in its first eight errors). Nothing is decided.
 
-The recheck runs only once every request is dead and unused. A session
-reserves its signers' forwarder nonces on its chains exactly while one of its
-requests is live, never by a device clock or a quote's expiry: requests that
-can't be classified never count as dead. `isRelayrDiscardReason` reads a
+`nonces` must be the saved nonces of exactly the requests that were
+classified, in the same order, since `refresh` and `re-sign` hand them back to
+sign at. The recheck resolves when the action's calls still apply and throws
+when they don't, and runs only once every request is dead and unused. An
+outcome's `error` is never enumerable, so no JSON or log of it shows an RPC
+URL's key. A deadline or nonce that can't be read (anything but a safe
+integer, decimal or 0x-hex digits, or a bigint) leaves its request live. A
+session reserves its signers' forwarder nonces on its chains exactly while one
+of its requests is live, never by a device clock or a quote's expiry: requests
+that can't be classified never count as dead. `isRelayrDiscardReason` reads a
 stored reason back. `relayrDeadlinePassed(client, deadline)` says whether a
 canonical finalized block is past a deadline, such as a quote's payment
 deadline, and `atCanonicalFinalizedBlock(client, read)` runs any read at that

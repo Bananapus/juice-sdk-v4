@@ -304,15 +304,24 @@ export class RelayrPaymentRetryError extends Error {
   }
 }
 
-/** `error` with `cause` set like a native error cause, but on ES2021 and never enumerable: an RPC error's URL can carry a key. */
-function withCause<T extends Error>(error: T, cause: unknown): T {
-  Object.defineProperty(error, "cause", {
-    value: cause,
+/** `target` with `key` set to `value`, writable but never enumerable: an RPC error's URL can carry a key, and no JSON or log may show it. */
+function withHidden<T extends object, K extends string>(
+  target: T,
+  key: K,
+  value: unknown,
+): T & Record<K, unknown> {
+  Object.defineProperty(target, key, {
+    value,
     writable: true,
     enumerable: false,
     configurable: true,
   });
-  return error;
+  return target as T & Record<K, unknown>;
+}
+
+/** `error` with `cause` set like a native error cause, but on ES2021 and never enumerable: an RPC error's URL can carry a key. */
+function withCause<T extends Error>(error: T, cause: unknown): T {
+  return withHidden(error, "cause", cause);
 }
 
 function errorWithCause(message: string, cause: unknown): Error {
@@ -1534,8 +1543,8 @@ export type RelayrRequestState =
  * What a set of requests allows together (ruling R114). While any one is live
  * the set holds until `until`, the deadline of its last live request.
  * `mayHaveRun` says whether a dead one's nonce moved or was never saved, and,
- * once every one is dead, `unused` whether every nonce still equals the saved
- * one.
+ * once every one is dead, `unused` whether there is at least one and every
+ * nonce still equals the saved one.
  */
 export type RelayrRequestsVerdict =
   | { live: true; until: number; mayHaveRun: boolean }
@@ -1571,10 +1580,13 @@ export type RelayrDiscardReason = "ran" | "changed" | "expired";
  *   `error` is the recheck's refusal.
  * - `reorg-hold`: every request is dead and none moved, but a finalized nonce
  *   is below a saved one (a reorg dropped an earlier forwarded transaction),
- *   or there are no saved nonces to sign at. It holds until the nonce catches
- *   up.
+ *   or there are no saved nonces to sign at (`nonces` omitted or empty), or
+ *   there were no requests. It holds until the nonce catches up.
  * - `unchecked`: the recheck could not reach the chain, which decides
  *   nothing. Try again.
+ *
+ * `error` is never enumerable, so no JSON or log of an outcome shows it: an
+ * RPC error's URL can carry a key.
  */
 export type RelayrSessionOutcome =
   | { kind: "hold"; until: number }
@@ -1595,8 +1607,9 @@ export async function atCanonicalFinalizedBlock<T>(
   read: (blockNumber: bigint) => Promise<T>,
 ): Promise<{ value: T; timestamp: bigint } | null> {
   try {
-    const { number, hash, timestamp } =
-      (await client.getBlock({ blockTag: "finalized" })) ?? {};
+    const { number, hash, timestamp } = await client.getBlock({
+      blockTag: "finalized",
+    });
     if (
       typeof number !== "bigint" ||
       !isBytes32(hash) ||
@@ -1606,7 +1619,7 @@ export async function atCanonicalFinalizedBlock<T>(
     }
     const value = await read(number);
     const canonical = await client.getBlock({ blockNumber: number });
-    return canonical?.hash === hash ? { value, timestamp } : null;
+    return canonical.hash === hash ? { value, timestamp } : null;
   } catch {
     return null;
   }
@@ -1713,20 +1726,21 @@ export async function relayrRequestStates(
           );
         }
         const block = await finalized.get(key);
-        try {
-          const saved = nonce === undefined ? null : BigInt(nonce);
-          if (block && saved !== null && block.nonce > saved) {
+        // A saved nonce that can't be read leaves the request unknown, and a
+        // deadline that can't be read has not passed.
+        const saved = nonce === undefined ? null : uint256(nonce);
+        const end = uint256(deadline);
+        if (block && (nonce === undefined || saved !== null)) {
+          if (saved !== null && block.nonce > saved) {
             return { live: false, mayHaveRun: true, unused: false };
           }
-          if (block && BigInt(deadline) < block.timestamp) {
+          if (end !== null && end < block.timestamp) {
             return {
               live: false,
               mayHaveRun: saved === null,
               unused: block.nonce === saved,
             };
           }
-        } catch {
-          // An unreadable nonce or deadline is unknown.
         }
         return { live: true, deadline: Number(deadline) };
       },
@@ -1734,7 +1748,10 @@ export async function relayrRequestStates(
   );
 }
 
-/** What `states` allow together. No states read as dead and unused: classify only a session's actual requests. */
+/**
+ * What `states` allow together. No states are neither run nor unused, so a
+ * session with none holds, as it did when its app found nothing to classify.
+ */
 export function relayrRequestsVerdict(
   states: readonly RelayrRequestState[],
 ): RelayrRequestsVerdict {
@@ -1748,7 +1765,8 @@ export function relayrRequestsVerdict(
   return {
     live: false,
     mayHaveRun,
-    unused: states.every((state) => !state.live && state.unused),
+    unused:
+      states.length > 0 && states.every((state) => !state.live && state.unused),
   };
 }
 
@@ -1772,7 +1790,9 @@ export async function relayrRequestsDead(
 
 /**
  * Whether the chain's finalized block, still canonical, is past `deadline`
- * (seconds): its timestamp is later. False while that is unknown.
+ * (seconds, as a safe integer, decimal or 0x-hex digits, or a bigint): its
+ * timestamp is later. False while that is unknown, or the deadline can't be
+ * read.
  */
 export async function relayrDeadlinePassed(
   client: Pick<RelayrFinalizedClient, "getBlock">,
@@ -1782,11 +1802,8 @@ export async function relayrDeadlinePassed(
     client,
     async () => undefined,
   );
-  try {
-    return !!finalized && finalized.timestamp > BigInt(deadline);
-  } catch {
-    return false;
-  }
+  const end = uint256(deadline);
+  return !!finalized && end !== null && finalized.timestamp > end;
 }
 
 /** Whether `value` is a {@link RelayrDiscardReason}, for a reason read back from storage. */
@@ -1814,14 +1831,22 @@ function recheckUnreached(error: unknown): boolean {
 /**
  * What a session does next from its requests' `verdict` (see
  * {@link RelayrSessionOutcome}), which was classified before the action's own
- * recheck, since a request that ran would make the recheck refuse. `nonces`
- * are the ones its requests were signed with, in order. `recheck`, the
- * action's proof that its calls still apply, runs only once every request is
- * dead and unused; without one, as in an account view, such a session can be
- * discarded as `expired`. A recheck that fails to reach the chain decides
- * nothing. Known limit: a reorg that drops an earlier forwarded transaction
- * can leave a finalized nonce below a saved one, and the session holds until
- * the nonce catches up.
+ * recheck, since a request that ran would make the recheck refuse.
+ *
+ * `nonces` must be the saved nonces of exactly the requests that were
+ * classified into `verdict`, in the same order: `refresh` and `re-sign` hand
+ * them back to sign at, and nothing here can check them against the verdict.
+ * Without them (omitted, empty or not a list), a session whose requests are
+ * all dead and unused holds as `reorg-hold`, and is neither discarded nor
+ * signed again.
+ *
+ * `recheck`, the action's proof that its calls still apply, resolves when
+ * they do and throws when they don't; a value it resolves with is never read.
+ * It runs only once every request is dead and unused. Without one, as in an
+ * account view, such a session can be discarded as `expired`. A recheck that
+ * fails to reach the chain decides nothing. Known limit: a reorg that drops
+ * an earlier forwarded transaction can leave a finalized nonce below a saved
+ * one, and the session holds until the nonce catches up.
  */
 export async function relayrSessionOutcome(
   verdict: RelayrRequestsVerdict,
@@ -1830,10 +1855,10 @@ export async function relayrSessionOutcome(
     recheck,
   }: {
     nonces?: readonly string[] | null;
-    recheck?: () => Promise<unknown>;
+    recheck?: () => Promise<void>;
   } = {},
 ): Promise<RelayrSessionOutcome> {
-  const saved = nonces?.length ? [...nonces] : null;
+  const saved = Array.isArray(nonces) && nonces.length ? [...nonces] : null;
   if (verdict.live) {
     return verdict.mayHaveRun
       ? { kind: "hold", until: verdict.until }
@@ -1846,8 +1871,12 @@ export async function relayrSessionOutcome(
     await recheck();
   } catch (error) {
     return recheckUnreached(error)
-      ? { kind: "unchecked", error }
-      : { kind: "discard", reason: "changed", error };
+      ? withHidden({ kind: "unchecked" as const }, "error", error)
+      : withHidden(
+          { kind: "discard" as const, reason: "changed" as const },
+          "error",
+          error,
+        );
   }
   return { kind: "re-sign", nonces: saved };
 }

@@ -174,6 +174,12 @@ function forwarded(
   };
 }
 
+/** An outcome as plain data, with its `error`, which is never enumerable, read out. */
+const asData = (outcome: RelayrSessionOutcome) => ({
+  ...outcome,
+  error: (outcome as { error?: unknown }).error,
+});
+
 /** `cause` wrapped in an error, as a native error cause, which ES2021's types lack. */
 const wrapped = (message: string, cause: unknown): Error =>
   Object.assign(new Error(message), { cause });
@@ -539,6 +545,27 @@ describe("classifying signed requests at a canonical finalized block (ruling R11
     ).toBeNaN();
   });
 
+  it.each<[string, Partial<RelayrSignedRequest>]>([
+    ["an empty nonce", { nonce: "" }],
+    ["a blank nonce", { nonce: " " }],
+    ["a negative nonce", { nonce: "-1" }],
+    ["a padded nonce", { nonce: " 4" }],
+    ["a null nonce", { nonce: null as unknown as string }],
+    ["an empty deadline", { deadline: "" as unknown as number }],
+    ["a blank deadline", { deadline: " " as unknown as number }],
+    ["a negative deadline", { deadline: "-1" as unknown as number }],
+    ["a negative number deadline", { deadline: -1 }],
+  ])(
+    "cannot classify a request with %s, so it stays live",
+    async (_, malformed) => {
+      finalizedAt(REQUESTS_EXPIRED);
+      const [state] = await relayrRequestStates(clientFor, [
+        { ...requests()[0], ...malformed },
+      ]);
+      expect(state.live).toBe(true);
+    },
+  );
+
   it("takes deadlines and nonces as numbers, decimal strings or bigints", async () => {
     finalizedAt(REQUESTS_EXPIRED);
     await expect(
@@ -613,12 +640,16 @@ describe("what a set of requests allows together (ruling R114)", () => {
     });
   });
 
-  it("reads no requests as dead and unused, as jbm does: classify only a session's actual requests", () => {
-    expect(relayrRequestsVerdict([])).toEqual({
-      live: false,
-      mayHaveRun: false,
-      unused: true,
-    });
+  it("reads no requests as neither run nor unused, so a session with none holds, as jbm's callers made it", async () => {
+    const none = relayrRequestsVerdict([]);
+    expect(none).toEqual({ live: false, mayHaveRun: false, unused: false });
+    const recheck = vi.fn(async () => {});
+    for (const options of [{ nonces: ["4"], recheck }, { nonces: ["4"] }]) {
+      await expect(relayrSessionOutcome(none, options)).resolves.toEqual({
+        kind: "reorg-hold",
+      });
+    }
+    expect(recheck).not.toHaveBeenCalled();
   });
 });
 
@@ -706,6 +737,9 @@ describe("whether a deadline passed at a canonical finalized block", () => {
       String(START),
     ],
     ["the deadline cannot be read", () => {}, "soon"],
+    ["the deadline is empty", () => {}, ""],
+    ["the deadline is blank", () => {}, " "],
+    ["the deadline is negative", () => {}, "-1"],
   ])("does not pass while %s", async (_, arrange, deadline) => {
     finalizedAt(REQUESTS_EXPIRED);
     arrange();
@@ -785,7 +819,7 @@ describe("what a session whose bundle won't run as signed does next (rulings R10
       "The authority, queue, or rules changed on Ethereum.",
     );
     recheck.mockRejectedValue(refusal);
-    await expect(decide()).resolves.toEqual({
+    expect(asData(await decide())).toEqual({
       kind: "discard",
       reason: "changed",
       error: refusal,
@@ -806,7 +840,7 @@ describe("what a session whose bundle won't run as signed does next (rulings R10
     });
   });
 
-  it("reads a session saved without nonces as possibly run once its requests expired, and holds it before", async () => {
+  it("reads a session saved without nonces as possibly run once its requests expired; before, it may only send them again as signed", async () => {
     finalizedAt(EXPIRED);
     // While its requests can still run it may only send them again as signed.
     await expect(decide([undefined, undefined])).resolves.toEqual({
@@ -847,7 +881,7 @@ describe("what a session whose bundle won't run as signed does next (rulings R10
     finalizedAt(REQUESTS_EXPIRED);
     const failure = unreachableRead();
     recheck.mockRejectedValueOnce(failure);
-    await expect(decide()).resolves.toEqual({
+    expect(asData(await decide())).toEqual({
       kind: "unchecked",
       error: failure,
     });
@@ -887,7 +921,7 @@ describe("what a session whose bundle won't run as signed does next (rulings R10
       finalizedAt(REQUESTS_EXPIRED);
       const error = failure();
       recheck.mockRejectedValueOnce(error);
-      await expect(decide()).resolves.toEqual({ kind: "unchecked", error });
+      expect(asData(await decide())).toEqual({ kind: "unchecked", error });
     },
   );
 
@@ -914,7 +948,7 @@ describe("what a session whose bundle won't run as signed does next (rulings R10
     finalizedAt(REQUESTS_EXPIRED);
     const error = failure();
     recheck.mockRejectedValueOnce(error);
-    await expect(decide()).resolves.toEqual({
+    expect(asData(await decide())).toEqual({
       kind: "discard",
       reason: "changed",
       error,
@@ -924,14 +958,72 @@ describe("what a session whose bundle won't run as signed does next (rulings R10
   it("reads a recheck that throws before it returns as one that refused", async () => {
     finalizedAt(REQUESTS_EXPIRED);
     const refusal = new Error("The queue changed");
+    const outcome = await relayrSessionOutcome(await classify(requests()), {
+      nonces: ["4", "4"],
+      recheck: () => {
+        throw refusal;
+      },
+    });
+    expect(asData(outcome)).toEqual({
+      kind: "discard",
+      reason: "changed",
+      error: refusal,
+    });
+  });
+
+  it("keeps the recheck's error out of the outcome's enumerable fields, since an RPC URL can carry a key", async () => {
+    finalizedAt(REQUESTS_EXPIRED);
+    const keyed = "https://rpc.example/v2/SECRETKEY";
+    const failure = new ContractFunctionExecutionError(
+      new HttpRequestError({ url: keyed, status: 503 }),
+      { abi: [], functionName: "splitsOf" },
+    );
+    // The error itself carries the URL in its enumerable fields.
+    expect(JSON.stringify(failure)).toContain("SECRETKEY");
+    recheck.mockRejectedValueOnce(failure);
+    const unchecked = await decide();
+    expect(unchecked.kind).toBe("unchecked");
+    expect(asData(unchecked).error).toBe(failure);
+    expect(Object.keys(unchecked)).toEqual(["kind"]);
+    expect(JSON.stringify(unchecked)).not.toContain("SECRETKEY");
+    const refusal = Object.assign(new Error("The queue changed"), {
+      url: keyed,
+    });
+    recheck.mockRejectedValueOnce(refusal);
+    const changed = await decide();
+    expect(asData(changed)).toEqual({
+      kind: "discard",
+      reason: "changed",
+      error: refusal,
+    });
+    expect(Object.keys(changed).sort()).toEqual(["kind", "reason"]);
+    expect(JSON.stringify(changed)).not.toContain("SECRETKEY");
+  });
+
+  it("takes only a recheck that resolves with nothing, so a check that resolves false can't read as passed", async () => {
+    const unused = { live: false, mayHaveRun: false, unused: true } as const;
+    const outcome = relayrSessionOutcome(unused, {
+      nonces: ["4"],
+      // @ts-expect-error A recheck refuses by throwing; a value it resolves with is never read.
+      recheck: async () => false,
+    });
+    await expect(outcome).resolves.toEqual({ kind: "re-sign", nonces: ["4"] });
+  });
+
+  it("reads nonces that are not a list as none", async () => {
+    const unused = { live: false, mayHaveRun: false, unused: true } as const;
+    for (const nonces of ["44", { length: 1, 0: "4" }]) {
+      await expect(
+        relayrSessionOutcome(unused, { nonces: nonces as never, recheck }),
+      ).resolves.toEqual({ kind: "reorg-hold" });
+    }
     await expect(
-      relayrSessionOutcome(await classify(requests()), {
-        nonces: ["4", "4"],
-        recheck: () => {
-          throw refusal;
-        },
-      }),
-    ).resolves.toEqual({ kind: "discard", reason: "changed", error: refusal });
+      relayrSessionOutcome(
+        { live: true, until: 9, mayHaveRun: false },
+        { nonces: "44" as never },
+      ),
+    ).resolves.toEqual({ kind: "refresh", until: 9, nonces: null });
+    expect(recheck).not.toHaveBeenCalled();
   });
 
   it("offers Discard with the expired reason where the recheck cannot run, as in an account view (ruling R114 (e))", async () => {
