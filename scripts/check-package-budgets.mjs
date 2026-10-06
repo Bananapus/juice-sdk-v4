@@ -52,8 +52,13 @@ const budgets = {
     // reader) add no files and, mostly in documentation, about 45 kilobytes
     // unpacked and 10 kilobytes packed (measured 1,177,461 B packed,
     // 20,281,267 B unpacked, 722 files).
+    // The Safe execution wait's not-found rule (only viem's not-found counts
+    // toward giving up) and its signal (an abort ends a chain look in flight)
+    // add no files and, mostly in documentation, about 9.5 kilobytes unpacked
+    // and 2.5 kilobytes packed (measured 1,180,514 B packed, 20,293,611 B
+    // unpacked, 722 files).
     packed: 1_182_000,
-    unpacked: 20_292_000,
+    unpacked: 20_298_000,
     entries: 722,
   },
   "@bananapus/nana-sdk-react": {

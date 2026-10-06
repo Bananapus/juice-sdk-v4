@@ -92,11 +92,15 @@ export function safeQueueUrl(chainId: number, safe: Address): string | null {
 }
 
 /**
- * Consecutive 404s from the transaction service before the wait gives up. The
- * service can lag a just-created proposal briefly, but a sustained 404 means
- * it will never report this proposal (wrong network or an unhosted chain that
- * slipped through) — polling forever just strands the flow at "pending".
- * At the default 5s interval this is about a minute of patience.
+ * Not-found answers before the wait gives up. With a service they are its 404s
+ * since the last record it returned for the proposal, even a pending one; its
+ * other failures neither count nor start over. Without one they are the
+ * chain's own answers that it has no such transaction, a running total: nothing
+ * starts it over, and a look the chain could not answer does not count. The
+ * service can lag a just-created proposal briefly, but a sustained 404 means it
+ * will never report this proposal (wrong network or an unhosted chain that
+ * slipped through) — polling forever just strands the flow at "pending". At the
+ * default 5s interval this is about a minute of patience.
  */
 const SAFE_EXECUTION_NOT_FOUND_LIMIT = 12;
 
@@ -119,11 +123,73 @@ function noHostedService(chainId: number): Error {
   );
 }
 
+/** The chain's client, as far as the wait reads it. */
+type SafeExecutionClient = {
+  getTransaction: (args: { hash: Hex }) => Promise<unknown>;
+};
+
+/** What the chain said of a hash: it is a transaction, there is none, or the chain could not say. */
+type ChainLook = "found" | "none" | "unanswered";
+
+/**
+ * What the chain says of `hash`: a transaction (`found`), none (`none`) or
+ * nothing (`unanswered`). Only viem's `TransactionNotFoundError` is the chain
+ * saying it has none. Any other failure (a timeout, an HTTP error, a node still
+ * indexing) says nothing about the hash. The error is matched by its name, as
+ * `isDefiniteWalletRejection` (in /review) matches viem's wallet rejection: the
+ * app's viem and the SDK's can be different installs, whose classes never
+ * match under `instanceof`. viem throws it from `getTransaction` itself, so
+ * there is no cause chain to read. Only the promise's rejection is read: a
+ * client that throws before it returns one, or is not a client, fails the wait
+ * at once instead of reading as a look the chain could not answer.
+ */
+async function lookUpTransaction(
+  client: SafeExecutionClient,
+  hash: Hex,
+): Promise<ChainLook> {
+  return client.getTransaction({ hash }).then(
+    () => "found",
+    (error: unknown) =>
+      (error as { name?: unknown } | null | undefined)?.name ===
+      "TransactionNotFoundError"
+        ? "none"
+        : "unanswered",
+  );
+}
+
 /** A service answer the wait cannot get past: it ends the wait, unlike a network error. */
 class SafeExecutionRecordError extends Error {}
 
 /** The longest delay setTimeout holds (about 24.8 days): a longer one fires at once. */
 const MAX_TIMER_MS = 2_147_483_647;
+
+/** What a wait ends with when its signal aborts. */
+function waitAborted(): DOMException {
+  return new DOMException("Safe execution wait aborted", "AbortError");
+}
+
+/**
+ * `work`, cut short when `signal` aborts: the promise then rejects with
+ * `aborted()`, at once when `signal` already has. `work` is left to settle on
+ * its own and its answer is ignored. The abort listener goes when it does.
+ */
+function abortable<T>(
+  work: Promise<T>,
+  signal: AbortSignal | undefined,
+  aborted: () => unknown,
+): Promise<T> {
+  if (!signal) return work;
+  return new Promise<T>((resolve, reject) => {
+    function onAbort() {
+      reject(aborted());
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) onAbort();
+    work
+      .finally(() => signal.removeEventListener("abort", onAbort))
+      .then(resolve, reject);
+  });
+}
 
 /**
  * Waits `ms`, at most {@link MAX_TIMER_MS}, or rejects with `aborted()` once
@@ -162,11 +228,22 @@ function pause(
  *
  * With the chain's `client`, a hash the chain already knows as a transaction
  * is returned as the execution: over WalletConnect, Safe{Wallet} answers with
- * the execution's own hash when the owner executes at once.
+ * the execution's own hash when the owner executes at once. On a chain with a
+ * service, a failed chain check leaves the decision to the service.
  *
- * Each poll is one service request with the local API key and `signal`, which
- * also ends a request in flight. After a 429 the next poll waits the longer of
- * the polling interval and the wait its Retry-After asks for.
+ * On a chain without a service only the `client` answers. The wait throws that
+ * Safe does not host one after twelve answers (about a minute at the default
+ * interval) that the chain has no such transaction, which is viem's
+ * `TransactionNotFoundError`. A look the chain cannot answer, such as an RPC
+ * failure or a timeout, neither counts nor starts the count over, because the
+ * hash may be a real execution. The wait keeps looking, so without a `signal`
+ * it lasts as long as the node cannot answer.
+ *
+ * `signal` ends the wait at once, even while a chain look is in flight: the
+ * look is left to settle and its answer is ignored. Each poll is one service
+ * request with the local API key and `signal`, which also ends a request in
+ * flight. After a 429 the next poll waits the longer of the polling interval
+ * and the wait its Retry-After asks for.
  */
 export async function waitForSafeExecutionHash(
   chainId: number,
@@ -174,7 +251,7 @@ export async function waitForSafeExecutionHash(
   options: {
     pollingIntervalMs?: number;
     signal?: AbortSignal;
-    client?: { getTransaction: (args: { hash: Hex }) => Promise<unknown> };
+    client?: SafeExecutionClient;
   } = {},
 ): Promise<Hex> {
   if (!isBytes32(safeTxHash)) {
@@ -186,26 +263,27 @@ export async function waitForSafeExecutionHash(
   const interval = options.pollingIntervalMs ?? 5_000;
   const endpoint =
     base && `${base}/api/v1/multisig-transactions/${safeTxHash}/`;
-  let consecutiveNotFound = 0;
+  let notFoundAnswers = 0;
 
   for (;;) {
-    if (options.signal?.aborted) {
-      throw new DOMException("Safe execution wait aborted", "AbortError");
-    }
+    if (options.signal?.aborted) throw waitAborted();
     let wait = interval;
-    if (
+    const look =
       client &&
-      (await client.getTransaction({ hash: safeTxHash }).then(
-        () => true,
-        () => false,
-      ))
-    ) {
-      return safeTxHash;
-    }
+      (await abortable(
+        lookUpTransaction(client, safeTxHash),
+        options.signal,
+        waitAborted,
+      ));
+    if (look === "found") return safeTxHash;
     if (!endpoint) {
-      consecutiveNotFound += 1;
-      if (consecutiveNotFound >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
-        throw noHostedService(chainId);
+      // Without a service only the chain answers. A look it could not answer
+      // says nothing about the proposal, so it neither counts nor starts over.
+      if (look === "none") {
+        notFoundAnswers += 1;
+        if (notFoundAnswers >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
+          throw noHostedService(chainId);
+        }
       }
     } else {
       try {
@@ -215,7 +293,7 @@ export async function waitForSafeExecutionHash(
           { signal: options.signal, retryRateLimited: false },
         );
         if (response.ok) {
-          consecutiveNotFound = 0;
+          notFoundAnswers = 0;
           const transaction = (await response.json()) as {
             isExecuted?: boolean;
             isSuccessful?: boolean | null;
@@ -235,8 +313,8 @@ export async function waitForSafeExecutionHash(
             return transaction.transactionHash;
           }
         } else if (response.status === 404) {
-          consecutiveNotFound += 1;
-          if (consecutiveNotFound >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
+          notFoundAnswers += 1;
+          if (notFoundAnswers >= SAFE_EXECUTION_NOT_FOUND_LIMIT) {
             throw new SafeExecutionRecordError(
               "Safe’s transaction service has no record of this proposal. Tracking cannot continue here — check the proposal in the Safe app; if it exists there, it will still take effect once executed.",
             );
@@ -252,11 +330,7 @@ export async function waitForSafeExecutionHash(
         // proposal pending instead of inviting a duplicate submission.
       }
     }
-    await pause(
-      wait,
-      options.signal,
-      () => new DOMException("Safe execution wait aborted", "AbortError"),
-    );
+    await pause(wait, options.signal, waitAborted);
   }
 }
 
