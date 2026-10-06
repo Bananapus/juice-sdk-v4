@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   bendystrawOperationId,
   compileBendystrawOperation,
@@ -18,6 +18,7 @@ const PROJECTS = `
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("Bendystraw operation contracts", () => {
@@ -219,5 +220,84 @@ describe("persisted Bendystraw requests", () => {
         variables,
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe("persisted Bendystraw requests with a caller's signal", () => {
+  const variables = { where: { version: 6 }, limit: 1 };
+  const reason = new Error("left the page");
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  /**
+   * A relay that never answers and fails a request with its signal's reason the
+   * moment that signal aborts, as fetch does. A signal that has already aborted
+   * fails at once, before anything is sent.
+   */
+  function silentRelay() {
+    const relay = vi.fn<typeof fetch>(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal;
+          if (signal?.aborted) return reject(signal.reason);
+          signal?.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+    );
+    vi.stubGlobal("fetch", relay);
+    return relay;
+  }
+
+  const failureOf = (request: Promise<unknown>) =>
+    request.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+  const requestWith = (signal: AbortSignal) =>
+    failureOf(
+      requestPersistedBendystraw({
+        contract: compileBendystrawOperation(PROJECTS),
+        network: "mainnet",
+        query: PROJECTS,
+        signal,
+        variables,
+      }),
+    );
+
+  // Time enough for a request that was not cancelled to time out at 15 s and
+  // retry.
+  const waitOutRetries = () => vi.advanceTimersByTimeAsync(60_000);
+
+  it("ends the request under way with the caller's reason and never retries it", async () => {
+    const relay = silentRelay();
+    const controller = new AbortController();
+    const failure = requestWith(controller.signal);
+    // The document is hashed before anything is sent.
+    await vi.waitFor(() => expect(relay).toHaveBeenCalledOnce());
+    expect(relay.mock.calls[0]![1]?.signal?.aborted).toBe(false);
+
+    controller.abort(reason);
+    await waitOutRetries();
+
+    expect(await failure).toBe(reason);
+    expect(relay).toHaveBeenCalledOnce();
+    expect(relay.mock.calls[0]![1]?.signal?.aborted).toBe(true);
+  });
+
+  it("hands fetch a signal that has already aborted, so nothing is sent", async () => {
+    const relay = silentRelay();
+    const controller = new AbortController();
+    controller.abort(reason);
+    const failure = requestWith(controller.signal);
+    await vi.waitFor(() => expect(relay).toHaveBeenCalled());
+    await waitOutRetries();
+
+    expect(await failure).toBe(reason);
+    expect(relay).toHaveBeenCalledOnce();
+    expect(relay.mock.calls[0]![1]?.signal?.aborted).toBe(true);
   });
 });
