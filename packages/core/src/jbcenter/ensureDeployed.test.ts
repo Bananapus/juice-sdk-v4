@@ -667,6 +667,50 @@ describe("ensureDeployed", () => {
 
     await assertion;
   });
+
+  test.each([
+    ["longer than a timer holds", 3_000_000_000, 600_000, undefined],
+    ["longer than the run's timeout", 600_000, 60_000, 60_000],
+  ])(
+    "times out on time with a poll interval %s, after one last read",
+    async (_case, pollMs, timeoutAfterMs, timeoutMs) => {
+      const fetchMock = vi.fn((url: string | URL | Request) =>
+        Promise.resolve(
+          url === deployUrl()
+            ? jsonResponse(
+                { deploys: [deploy(8453, "queued")] },
+                { status: 202 },
+              )
+            : jsonResponse(intent([8453], { deploys: [deploy(8453, "sent")] })),
+        ),
+      );
+      const client = createJBCenterClient({ fetch: fetchMock });
+
+      let outcome: unknown = "pending";
+      void ensureDeployed({
+        client,
+        intent: intent([8453]),
+        pollMs,
+        timeoutMs,
+      }).then(
+        () => (outcome = "resolved"),
+        (error: unknown) => (outcome = error),
+      );
+      await vi.advanceTimersByTimeAsync(timeoutAfterMs - 1);
+      expect(outcome).toBe("pending");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(outcome).toMatchObject({
+        name: "EnsureDeployedError",
+        message: "JB Center deploy polling timed out",
+      });
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+        deployUrl(),
+        intentUrl(),
+      ]);
+    },
+  );
   const FORWARDER = "0x0000000000000000000000000000000000007771" as const;
 
   function relayUrl(id = INTENT_ID) {

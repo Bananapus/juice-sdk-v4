@@ -171,11 +171,17 @@ async function pollUntilDeployed(
       return deployedChains(current);
     }
 
-    if (Date.now() - startedAt >= timeoutMs) {
+    const elapsed = Date.now() - startedAt;
+    if (elapsed >= timeoutMs) {
       throw new EnsureDeployedError("JB Center deploy polling timed out");
     }
 
-    await pause(pollMs, signal, () => signal?.reason);
+    // A wait never runs past the run's timeout: the read at its end is the last.
+    await pause(
+      Math.min(pollMs, timeoutMs - elapsed),
+      signal,
+      () => signal?.reason,
+    );
     current = await client.getIntent(current.id, { signal });
   }
 }
