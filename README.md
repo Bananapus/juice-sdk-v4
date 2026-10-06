@@ -482,6 +482,99 @@ checked against the count it distributed, which
 `verifyReservedDistributionReceipt` returns. A refusal means: keep the
 transaction, and do not distribute the same amounts again.
 
+## Relayr sessions whose bundle won't run as signed
+
+A Relayr session signs one ERC-2771 forward request per chain. When its
+bundle won't run as signed (an unpaid quote released, a payment or a bundle
+that reverted, a nonce that moved), `@bananapus/nana-sdk-core/review/relayr`
+decides from the chain what the session may do next. These are Juicebox
+Money's rules (rulings R104, R114 and R117), framework-free: plain data in,
+verdicts out, no storage and no UI copy.
+
+The forwarder is OpenZeppelin's ERC2771Forwarder: a request runs only at its
+signer's current nonce and while its deadline is at least the block's
+timestamp, and an execute that reverts leaves the nonce unused. Each request
+is classified at a canonical finalized block on its chain: dead once the
+forwarder's nonce for its signer moved past the saved one (it may have run),
+or once its deadline is strictly earlier than that block's timestamp.
+Anything that can't be read (an RPC error, a node without the finalized tag,
+a block no longer canonical) counts as live.
+
+```ts
+import {
+  relayrRequestStates,
+  relayrRequestsDead,
+  relayrRequestsVerdict,
+  relayrSessionOutcome,
+  relayrSignedRequests,
+} from "@bananapus/nana-sdk-core/review/relayr";
+
+// clientFor(chainId) is a PublicClient for that chain.
+const requests = relayrSignedRequests(session.publishedEntries, session.nonces);
+if (requests) {
+  const verdict = relayrRequestsVerdict(
+    await relayrRequestStates(clientFor, requests),
+  );
+  const outcome = await relayrSessionOutcome(verdict, {
+    nonces: session.nonces,
+    recheck: () => reverifyTheAction(), // omit where it can't run
+  });
+}
+
+// Ruling R117: another action may sign on these chains once this is true.
+const released = await relayrRequestsDead(clientFor, requests);
+```
+
+`relayrSessionOutcome` returns one `kind`:
+
+- `hold`: a request can still run and one may already have run. No new
+  signature, no new quote and no Discard until `until`.
+- `refresh`: a request can still run and none moved. The session may quote or
+  pay its saved requests again while they still verify and the action's
+  recheck passes, or sign each again at its saved nonce (`nonces`, null when it
+  saved none). The forwarder runs one request per nonce, so an old request and
+  its refresh never both run. A signature at any other nonce waits until every
+  request is dead.
+- `re-sign`: every request is dead and unused and the recheck passed. Sign the
+  calls again at `nonces`.
+- `discard`, with a `reason`: every request is dead. `ran` when a nonce moved
+  or the session saved no nonces (one may have run), `changed` when none ran
+  and the recheck refuses (its refusal is `error`), and `expired` when none ran
+  and no recheck was given, as in an account view, whose action still signs
+  them again. Discard ends only the session, never the action's draft.
+- `reorg-hold`: every request is dead and none moved, but a finalized nonce is
+  below a saved one, as after a reorg drops an earlier forwarded transaction.
+  It holds until the nonce catches up.
+- `unchecked`: the recheck could not reach the chain (an HTTP, timeout or
+  WebSocket failure in its first eight errors). Nothing is decided.
+
+The recheck runs only once every request is dead and unused. A session
+reserves its signers' forwarder nonces on its chains exactly while one of its
+requests is live, never by a device clock or a quote's expiry: requests that
+can't be classified never count as dead. `isRelayrDiscardReason` reads a
+stored reason back. `relayrDeadlinePassed(client, deadline)` says whether a
+canonical finalized block is past a deadline, such as a quote's payment
+deadline, and `atCanonicalFinalizedBlock(client, read)` runs any read at that
+block.
+
+What each app replaces:
+
+- Juicebox Money: its copies in `src/lib/relayr.ts` (`relayrRequestStates`,
+  `relayrRequestsVerdict`, `relayrRequestsDead`, `relayrDeadlinePassed`,
+  `atCanonicalFinalizedBlock`, `finalizedForwarderNonce`, `deadSessionNonces`
+  and its recheck failure check, `RelayrDiscardReason` and its guard) and
+  `savedForwardRequests` in `src/lib/forwarder-authorization.ts`. Its copy
+  (`relayrHeldMessage`, the discard lines) and storage stay in the app.
+- revnet.money: `useReviewedRelayr`'s release of an unpaid quote by the device
+  clock (`relayrAuthorizationExpiresAt`) and its signing at the live nonce
+  after one. A session holds while one of its requests is live, signs again
+  only at its saved nonces, and reserves the forwarder nonce until every
+  request is dead.
+- Homerun: `fund-launch-relayr`'s inline finalized-block reads
+  (`unusedSignaturesExpired`, `originalPaymentExpired` and the expiry check in
+  its reconcile). A launch whose nonce moved can never be cancelled there; with
+  these rules it ends with the `ran` Discard.
+
 ## Installation
 
 ```bash
