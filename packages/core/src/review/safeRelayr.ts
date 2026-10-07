@@ -30,16 +30,21 @@ import {
   relayrDeadlinePassed,
   relayrPaymentOptions,
   relayrPaymentDetails,
+  relayrDestinationHash,
+  relayrDestinationHashes,
   relayrRetryOption,
   relayrSentPaymentsSnapshot,
   relayrStateIsPending,
+  relayrStateIsFailed,
   relayrQuotedOptions,
   requireRelayrBundleUnpaid,
   requireRelayrRetry,
   revertedRelayrQuote,
   verifyRelayrDestinations,
+  verifyRelayrDestination,
   verifyRelayrPayment,
   RelayrPaymentRevertedError,
+  RelayrProofUnavailableError,
   type RelayrEntry,
   type RelayrPayment,
   type RelayrQuote,
@@ -207,8 +212,32 @@ export type SafeRelayrStatus = (
   execution: SafeRelayrExecution,
 ) => void;
 
+export type SafeRelayrPhase =
+  | "reviewing"
+  | "quoting"
+  | "payment-review"
+  | "payment-submitting"
+  | "payment-confirming"
+  | "executing"
+  | "complete";
+
+/** Display evidence only; notifications never authorize or replace chain proofs. */
+export type SafeRelayrProgress =
+  | { type: "phase"; phase: SafeRelayrPhase; session?: SafeRelayrSession }
+  | {
+      type: "execution";
+      session: SafeRelayrSession;
+      index: number;
+      execution: SafeRelayrExecution;
+      status: "pending" | "confirming" | "executed" | "failed";
+      hash?: Hex;
+      message?: string;
+    };
+
 export type SafeRelayrOptions = {
   store: SafeRelayrStore;
+  /** Best-effort display updates, isolated from the journal and payment flow. */
+  onProgress?: (progress: SafeRelayrProgress) => void;
   clientFor: (
     chainId: number,
   ) =>
@@ -239,7 +268,7 @@ export type SafeRelayrOptions = {
     onSending: () => Promise<void>;
     onSent: (payments: RelayrSentPayment[]) => Promise<void>;
   }) => Promise<{ hash: Hex; payments: RelayrSentPayment[] }>;
-  /** App receipt guards run only after every exact destination and Safe event is proven. */
+  /** App receipt guards run after that execution's exact destination and Safe event are proven. */
   afterVerified?: (
     execution: SafeRelayrExecution,
     verified: RelayrVerifiedDestination,
@@ -469,6 +498,19 @@ function requireSafeRelayrRecords(
   }
 }
 
+function requireSafeLanding(
+  execution: SafeRelayrExecution,
+  { receipt }: RelayrVerifiedDestination,
+): void {
+  const { safe, safeTxHash } = execution;
+  requireSafeExecutionSuccess(receipt, safe, safeTxHash);
+  const event = safeExecutionResult(receipt, safe, safeTxHash);
+  if (event.status !== "success" || event.payment !== 0n)
+    throw new Error(
+      "The Safe execution reimbursed its executor. Keep the existing bundle for verification.",
+    );
+}
+
 /** Canonical exact destination receipts plus matching, refund-free Safe success events. */
 export async function verifySafeRelayrLanding(
   clientFor: (chainId: number) => RelayrProofClient | undefined,
@@ -500,15 +542,9 @@ export async function verifySafeRelayrLanding(
     bindings,
     records,
   });
-  verified.forEach(({ receipt }, index) => {
-    const { safe, safeTxHash } = executions[index];
-    requireSafeExecutionSuccess(receipt, safe, safeTxHash);
-    const event = safeExecutionResult(receipt, safe, safeTxHash);
-    if (event.status !== "success" || event.payment !== 0n)
-      throw new Error(
-        "The Safe execution reimbursed its executor. Keep the existing bundle for verification.",
-      );
-  });
+  verified.forEach((item, index) =>
+    requireSafeLanding(executions[index], item),
+  );
   return verified;
 }
 
@@ -548,6 +584,57 @@ function requireSessionQuote(session: SafeRelayrSession): RelayrQuote {
 export function createSafeRelayrController(options: SafeRelayrOptions) {
   const { store } = options;
   const fetchRelayr = options.fetch ?? globalThis.fetch;
+  const displayedExecutions = new Map<string, string>();
+  const notify = (progress: SafeRelayrProgress, rechecking = false) => {
+    if (progress.type === "execution") {
+      const key = `${progress.session.id}:${progress.index}`;
+      const display = JSON.stringify([
+        progress.status,
+        progress.hash,
+        progress.message,
+      ]);
+      const previous = displayedExecutions.get(key);
+      // Rechecking does not undo a proven display result. A later unavailable,
+      // contradictory, or changed-hash result explicitly updates it below.
+      if (
+        previous === display ||
+        (rechecking &&
+          previous === JSON.stringify(["executed", progress.hash, undefined]))
+      )
+        return;
+      displayedExecutions.set(key, display);
+    }
+    try {
+      // A view must not mutate frozen calls or turn a submitted payment into a
+      // rejected operation. Also consume rejection from an async UI callback.
+      void Promise.resolve(
+        options.onProgress?.(structuredClone(progress)),
+      ).catch(() => undefined);
+    } catch {
+      // Display observers cannot change the durable execution lifecycle.
+    }
+  };
+  const phase = (
+    phase: SafeRelayrPhase,
+    session?: SafeRelayrSession,
+    signal?: AbortSignal,
+  ) => {
+    if (!signal?.aborted) notify({ type: "phase", phase, session });
+  };
+  const savedPhase = (session: SafeRelayrSession, signal?: AbortSignal) => {
+    if (session.state === "released") return;
+    if (session.state === "complete") phase("complete", session, signal);
+    else if (
+      session.paymentStatus === "confirmed" ||
+      hasObservedFunding(session)
+    )
+      phase("executing", session, signal);
+    else if (
+      session.paymentStatus === "submitted" ||
+      session.paymentStatus === "sending"
+    )
+      phase("payment-confirming", session, signal);
+  };
   const checkAccount = (account: Address, signal?: AbortSignal) => {
     signal?.throwIfAborted();
     if (
@@ -789,105 +876,294 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
 
   async function inspect(
     session: SafeRelayrSession,
+    signal?: AbortSignal,
   ): Promise<SafeRelayrResult> {
-    if (session.state === "released") return result("released", session);
-    if (session.state === "complete") return result("complete", session);
-    if (hasObservedFunding(session) && session.fundingObserved !== true) {
-      session = { ...session, fundingObserved: true };
-      await store.save(session);
-    }
-    if (!session.bundleUuid || !session.quote)
-      return inspectMissingQuote(session);
-    const quote = requireSessionQuote(session);
-    const chains = session.executions.map(({ entry }) => entry.chain);
-    const bundle = await readRelayrBundle(session.bundleUuid, {
-      fetch: fetchRelayr,
-    });
-    if (
-      hasObservedFunding(session) ||
-      bundle.payment_received === true ||
-      hasFundingRecords(bundle.transactions)
-    ) {
-      session = { ...session, fundingObserved: true };
-      await store.save(session);
-    }
-    if (!Array.isArray(bundle.transactions))
-      throw new SafeRelayrRecoveryError(
-        session,
-        "Relayr has not returned this bundle's transactions. Check the existing bundle again.",
-      );
-    const records = bundle.transactions as RelayrTransactionRecord[];
-    requireSafeRelayrRecords(quote.expectedTransactions, records);
-    session = { ...session, records };
-    await store.save(session);
-    // A reported hash is only a pointer. Completion requires canonical exact
-    // calldata/value receipts AND the matching Safe ExecutionSuccess event.
-    if (
-      records.length &&
-      records.every(
-        (record) =>
-          record.status?.data?.hash || record.status?.data?.transaction?.hash,
-      )
-    ) {
-      const verified = await verifySafeRelayrLanding(options.clientFor, {
-        executions: session.executions,
-        bindings: quote.expectedTransactions,
-        records,
+    const report = (progress: SafeRelayrProgress, rechecking = false) => {
+      if (!signal?.aborted) notify(progress, rechecking);
+    };
+    try {
+      savedPhase(session, signal);
+      if (session.state === "released") return result("released", session);
+      if (session.state === "complete") return result("complete", session);
+      if (hasObservedFunding(session) && session.fundingObserved !== true) {
+        session = { ...session, fundingObserved: true };
+        await store.save(session);
+      }
+      if (!session.bundleUuid || !session.quote)
+        return inspectMissingQuote(session);
+      const quote = requireSessionQuote(session);
+      const chains = session.executions.map(({ entry }) => entry.chain);
+      const bundle = await readRelayrBundle(session.bundleUuid, {
+        fetch: fetchRelayr,
       });
-      await Promise.all(
-        session.executions.map((execution, index) =>
-          options.afterVerified?.(execution, verified[index]),
-        ),
-      );
-      session = { ...session, state: "complete" };
+      if (
+        hasObservedFunding(session) ||
+        bundle.payment_received === true ||
+        hasFundingRecords(bundle.transactions)
+      ) {
+        session = { ...session, fundingObserved: true };
+        await store.save(session);
+      }
+      if (!Array.isArray(bundle.transactions))
+        throw new SafeRelayrRecoveryError(
+          session,
+          "Relayr has not returned this bundle's transactions. Check the existing bundle again.",
+        );
+      const records = bundle.transactions as RelayrTransactionRecord[];
+      requireSafeRelayrRecords(quote.expectedTransactions, records);
+      session = { ...session, records };
       await store.save(session);
-      return result("complete", session);
-    }
-    if (session.paymentStatus === "sending") return result("pending", session);
-    if (
-      session.payments.some(
-        (payment) => payment.bundleUuid !== session.bundleUuid,
-      )
-    )
-      throw new SafeRelayrRecoveryError(
-        session,
-        "A saved payment belongs to another bundle. Keep the existing bundle for verification.",
+      savedPhase(session, signal);
+      // Each hash is only a pointer. Check available chains independently, using
+      // the same complete binding validator and exact receipt proof as completion.
+      const indexed = quote.expectedTransactions.map((binding, index) => ({
+        binding,
+        index,
+        record: records.find(
+          (record) =>
+            record.tx_uuid?.toLowerCase() === binding.txUuid.toLowerCase(),
+        )!,
+      }));
+      const known = indexed.filter(
+        ({ record }) =>
+          record.status?.data?.hash !== undefined ||
+          record.status?.data?.transaction?.hash !== undefined,
       );
-    if (session.payments.length) {
-      let everyReverted = true;
-      for (const payment of session.payments) {
-        const client = options.clientFor(payment.chainId);
-        if (!client) return result("pending", session);
+      if (known.length) {
         try {
-          await verifyRelayrPayment(client, {
-            hash: payment.hash,
-            from: session.account,
-            payment,
+          relayrDestinationHashes({
+            bindings: known.map(({ binding }) => binding),
+            records: known.map(({ record }) => record),
           });
-          session = { ...session, paymentStatus: "confirmed" };
-          await store.save(session);
-          return result("pending", session);
         } catch (error) {
-          if (!(error instanceof RelayrPaymentRevertedError))
-            everyReverted = false;
+          for (const { index, record } of known)
+            report({
+              type: "execution",
+              session,
+              index,
+              execution: session.executions[index],
+              status: "failed",
+              hash: relayrDestinationHash(record) ?? undefined,
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "The destination records do not match this quote.",
+            });
+          throw new SafeRelayrRecoveryError(
+            session,
+            error instanceof Error ? error.message : undefined,
+          );
+        }
+        phase("executing", session, signal);
+      }
+      if (
+        known.length ||
+        session.paymentStatus !== "unfunded" ||
+        session.fundingObserved
+      ) {
+        for (const { index, record } of indexed) {
+          const hash = relayrDestinationHash(record) ?? undefined;
+          report(
+            {
+              type: "execution",
+              session,
+              index,
+              execution: session.executions[index],
+              status: hash
+                ? "confirming"
+                : relayrStateIsFailed(record.status?.state)
+                  ? "failed"
+                  : "pending",
+              hash,
+              ...(!hash && relayrStateIsFailed(record.status?.state)
+                ? {
+                    message:
+                      "Relayr reported this execution failed. Its onchain result has not been verified.",
+                  }
+                : {}),
+            },
+            true,
+          );
         }
       }
-      if (!everyReverted) return result("pending", session);
-      session = { ...session, paymentStatus: "reverted" };
-      await store.save(session);
-      const disposition = await revertedRelayrQuote(
-        options.clientFor,
-        {
-          bundleUuid: quote.bundle_uuid,
-          payments: session.payments,
-          options: quote.payment_info,
-          destinationChainIds: chains,
-          account: session.account,
-        },
-        { fetch: fetchRelayr },
+      const landed = await Promise.allSettled(
+        known.map(async ({ binding, index, record }) => {
+          const execution = session.executions[index];
+          const hash = relayrDestinationHash(record)!;
+          const client = options.clientFor(binding.chain);
+          if (!client) {
+            report({
+              type: "execution",
+              session,
+              index,
+              execution,
+              status: "confirming",
+              hash,
+              message: "Waiting for a connection to this network.",
+            });
+            return false;
+          }
+          try {
+            const receipt = await verifyRelayrDestination(client, {
+              entry: binding.entry,
+              hash,
+            });
+            const verified = {
+              txUuid: binding.txUuid,
+              chainId: binding.chain,
+              receipt,
+            };
+            requireSafeLanding(execution, verified);
+            await options.afterVerified?.(execution, verified);
+            report({
+              type: "execution",
+              session,
+              index,
+              execution,
+              status: "executed",
+              hash,
+            });
+            return true;
+          } catch (error) {
+            if (error instanceof RelayrProofUnavailableError) {
+              report({
+                type: "execution",
+                session,
+                index,
+                execution,
+                status: "confirming",
+                hash,
+                message: "Waiting for the network to confirm this transaction.",
+              });
+              return false;
+            }
+            report({
+              type: "execution",
+              session,
+              index,
+              execution,
+              status: "failed",
+              hash,
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "The Safe execution could not be verified.",
+            });
+            throw error;
+          }
+        }),
       );
-      if (disposition.state === "funded") return result("pending", session);
-      if (disposition.state === "released") {
+      const failure = landed.find((item) => item.status === "rejected");
+      if (failure?.status === "rejected")
+        throw new SafeRelayrRecoveryError(
+          session,
+          failure.reason instanceof Error ? failure.reason.message : undefined,
+        );
+      if (
+        known.length === session.executions.length &&
+        landed.every((item) => item.status === "fulfilled" && item.value)
+      ) {
+        session = { ...session, state: "complete" };
+        await store.save(session);
+        phase("complete", session, signal);
+        return result("complete", session);
+      }
+      if (session.paymentStatus === "sending")
+        return result("pending", session);
+      if (
+        session.payments.some(
+          (payment) => payment.bundleUuid !== session.bundleUuid,
+        )
+      )
+        throw new SafeRelayrRecoveryError(
+          session,
+          "A saved payment belongs to another bundle. Keep the existing bundle for verification.",
+        );
+      if (session.payments.length) {
+        let everyReverted = true;
+        for (const payment of session.payments) {
+          const client = options.clientFor(payment.chainId);
+          if (!client) return result("pending", session);
+          try {
+            await verifyRelayrPayment(client, {
+              hash: payment.hash,
+              from: session.account,
+              payment,
+            });
+            session = { ...session, paymentStatus: "confirmed" };
+            await store.save(session);
+            phase("executing", session, signal);
+            return result("pending", session);
+          } catch (error) {
+            if (!(error instanceof RelayrPaymentRevertedError))
+              everyReverted = false;
+          }
+        }
+        if (!everyReverted) return result("pending", session);
+        session = { ...session, paymentStatus: "reverted" };
+        await store.save(session);
+        const disposition = await revertedRelayrQuote(
+          options.clientFor,
+          {
+            bundleUuid: quote.bundle_uuid,
+            payments: session.payments,
+            options: quote.payment_info,
+            destinationChainIds: chains,
+            account: session.account,
+          },
+          { fetch: fetchRelayr },
+        );
+        if (disposition.state === "funded") return result("pending", session);
+        if (disposition.state === "released") {
+          session = {
+            ...session,
+            state: "released",
+            paymentStatus: "expired",
+            releaseReason: "quote-expired",
+          };
+          await store.save(session);
+          return result("released", session);
+        }
+      } else if (
+        session.paymentStatus !== "unfunded" ||
+        session.fundingObserved
+      ) {
+        // A wallet invocation without a known hash may still have broadcast.
+        return session.fundingObserved && !known.length
+          ? {
+              ...result("pending", session),
+              recovery: {
+                reason: "funding-unresolved",
+                message:
+                  "This saved selection has reported funding or execution activity. Check the existing bundle and its funding transactions before submitting another payment.",
+              },
+            }
+          : result("pending", session);
+      }
+      const quoted = relayrQuotedOptions(quote, chains);
+      if (!quoted.length) return inspectMissingQuote(session);
+      const payments = relayrPaymentOptions(quote, chains);
+      const expired = payments.length
+        ? [false]
+        : await Promise.all(
+            quoted.map(async ({ details }) => {
+              const client = options.clientFor(details.chainId);
+              return (
+                !!client &&
+                (await relayrDeadlinePassed(client, details.deadline).catch(
+                  () => false,
+                ))
+              );
+            }),
+          );
+      if (expired.every(Boolean)) {
+        try {
+          await requireRelayrBundleUnpaid(quote.bundle_uuid, {
+            fetch: fetchRelayr,
+          });
+        } catch {
+          return result("pending", session);
+        }
         session = {
           ...session,
           state: "released",
@@ -897,39 +1173,6 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         await store.save(session);
         return result("released", session);
       }
-    } else if (
-      session.paymentStatus !== "unfunded" ||
-      session.fundingObserved
-    ) {
-      // A wallet invocation without a known hash may still have broadcast.
-      return session.fundingObserved
-        ? {
-            ...result("pending", session),
-            recovery: {
-              reason: "funding-unresolved",
-              message:
-                "This saved selection has reported funding or execution activity. Check the existing bundle and its funding transactions before submitting another payment.",
-            },
-          }
-        : result("pending", session);
-    }
-    const quoted = relayrQuotedOptions(quote, chains);
-    if (!quoted.length) return inspectMissingQuote(session);
-    const payments = relayrPaymentOptions(quote, chains);
-    const expired = payments.length
-      ? [false]
-      : await Promise.all(
-          quoted.map(async ({ details }) => {
-            const client = options.clientFor(details.chainId);
-            return (
-              !!client &&
-              (await relayrDeadlinePassed(client, details.deadline).catch(
-                () => false,
-              ))
-            );
-          }),
-        );
-    if (expired.every(Boolean)) {
       try {
         await requireRelayrBundleUnpaid(quote.bundle_uuid, {
           fetch: fetchRelayr,
@@ -937,29 +1180,20 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       } catch {
         return result("pending", session);
       }
-      session = {
-        ...session,
-        state: "released",
-        paymentStatus: "expired",
-        releaseReason: "quote-expired",
-      };
-      await store.save(session);
-      return result("released", session);
+      const allowed =
+        session.payments.length && payments.length
+          ? [relayrRetryOption(session.payments, payments)]
+          : payments;
+      return allowed.length
+        ? result("ready", session, allowed)
+        : result("pending", session);
+    } catch (error) {
+      if (error instanceof SafeRelayrRecoveryError) throw error;
+      throw new SafeRelayrRecoveryError(
+        session,
+        error instanceof Error ? error.message : undefined,
+      );
     }
-    try {
-      await requireRelayrBundleUnpaid(quote.bundle_uuid, {
-        fetch: fetchRelayr,
-      });
-    } catch {
-      return result("pending", session);
-    }
-    const allowed =
-      session.payments.length && payments.length
-        ? [relayrRetryOption(session.payments, payments)]
-        : payments;
-    return allowed.length
-      ? result("ready", session, allowed)
-      : result("pending", session);
   }
 
   async function prepare({
@@ -984,8 +1218,9 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         if (canReplaceSafeRelayrQuote(saved)) continue;
         let checked: SafeRelayrResult;
         try {
-          checked = await inspect(saved);
+          checked = await inspect(saved, signal);
         } catch (error) {
+          if (error instanceof SafeRelayrRecoveryError) throw error;
           throw new SafeRelayrRecoveryError(
             saved,
             error instanceof Error ? error.message : undefined,
@@ -1014,12 +1249,14 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           );
         await assertUnreserved(account, executions, saved.id);
         await revalidate(saved.executions, account, onStatus, false, signal);
+        phase("reviewing", checked.session, signal);
         await options.review(saved.executions, { resumed: true });
         checkAccount(account, signal);
         rememberReview(checked.session);
         return { ...checked, state: "ready", resumed: true };
       }
       await revalidate(executions, account, onStatus, false, signal);
+      phase("reviewing", undefined, signal);
       await options.review(executions, { resumed: false });
       checkAccount(account, signal);
       // Re-read under the shared lock after review. A rejected review leaves the
@@ -1054,6 +1291,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         throw error;
       }
       const request = relayrBundleRequest(executions.map(({ entry }) => entry));
+      phase("quoting", session, signal);
       const response = await fetchRelayr(`${RELAYR_API}/v1/bundle/prepaid`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -1092,13 +1330,17 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   async function check({
     account,
     sessionId,
+    signal,
   }: {
     account: Address;
     sessionId: string;
+    signal?: AbortSignal;
   }): Promise<SafeRelayrResult> {
-    return store.withLock(account, async () =>
-      inspect(await load(account, sessionId)),
-    );
+    return store.withLock(account, async () => {
+      signal?.throwIfAborted();
+      const session = await load(account, sessionId);
+      return inspect(session, signal);
+    });
   }
 
   async function fund({
@@ -1117,7 +1359,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     return store.withLock(account, async () => {
       checkAccount(account, signal);
       let session = await load(account, sessionId);
-      const checked = await inspect(session);
+      const checked = await inspect(session, signal);
       session = checked.session;
       if (checked.state !== "ready")
         throw new SafeRelayrRecoveryError(
@@ -1139,6 +1381,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         );
       await assertUnreserved(account, session.executions, session.id);
       if (!reviewedIntents.has(reviewKey(session))) {
+        phase("reviewing", session, signal);
         await options.review(session.executions, { resumed: true });
         checkAccount(account, signal);
         rememberReview(session);
@@ -1191,6 +1434,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           throw error;
         }
         sending = true;
+        phase("payment-submitting", session, signal);
       };
       const onSent = async (payments: RelayrSentPayment[]) => {
         const snapshot = relayrSentPaymentsSnapshot(payments);
@@ -1254,8 +1498,10 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           paymentStatus: "submitted",
         };
         await store.save(session);
+        phase("payment-confirming", session, signal);
       };
       try {
+        phase("payment-review", session, signal);
         const sent = await options.sendPayment({
           session: structuredClone(session),
           payment,
@@ -1281,10 +1527,19 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
             paymentStatus: checked.session.paymentStatus,
           };
           await store.save(session);
+          throw error;
         }
+        if (
+          sending ||
+          session.payments.length > checked.session.payments.length
+        )
+          throw new SafeRelayrRecoveryError(
+            session,
+            error instanceof Error ? error.message : undefined,
+          );
         throw error;
       }
-      return inspect(session);
+      return inspect(session, signal);
     });
   }
 
@@ -1316,7 +1571,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     const started = Date.now();
     while (true) {
       signal?.throwIfAborted();
-      const next = await check({ account, sessionId });
+      const next = await check({ account, sessionId, signal });
       signal?.throwIfAborted();
       await onUpdate?.(next);
       const remaining = timeoutMs - (Date.now() - started);

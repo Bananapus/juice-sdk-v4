@@ -49,6 +49,7 @@ import {
   RelayrPaymentRetryError,
   RelayrPaymentRevertedError,
   RelayrProofError,
+  RelayrProofUnavailableError,
   relayrStateIsFailed,
   relayrStateIsSuccess,
   relayrSupportsChain,
@@ -541,6 +542,250 @@ describe("Relayr quote binding", () => {
     await expect(bindRelayrQuote(unreadable, request)).rejects.toThrow(
       /^Relayr HTTP 504$/,
     );
+  });
+
+  it("surfaces a simulation reason after large calldata and keeps its raw evidence out of serialization and logs", async () => {
+    const body = JSON.stringify({
+      SimulationReverted: {
+        transaction: {
+          chain: 1,
+          target: TARGET,
+          data: `0x${"ab".repeat(7_000)}`,
+        },
+        reason: "execution reverted: GS013",
+      },
+    });
+    const logs = (["log", "warn", "error", "info"] as const).map((method) =>
+      vi.spyOn(console, method).mockImplementation(() => {}),
+    );
+    try {
+      const error = await rejection(bindRelayrQuote(json(body, 406), request));
+      expect(error.message).toBe(
+        "Relayr HTTP 406: SimulationReverted on chain 1: execution reverted: GS013",
+      );
+      expect(error.cause).toEqual({ status: 406, body, truncated: false });
+      expect(Object.getOwnPropertyDescriptor(error, "cause")?.enumerable).toBe(
+        false,
+      );
+      expect(JSON.stringify(error)).not.toContain("SimulationReverted");
+      expect(JSON.stringify(error)).not.toContain("abababab");
+      for (const log of logs) expect(log).not.toHaveBeenCalled();
+    } finally {
+      for (const log of logs) log.mockRestore();
+    }
+  });
+
+  it.each(["message", "error", "cause", "details"])(
+    "finds a simulation's %s instead of displaying transaction bytes",
+    async (field) => {
+      const error = await rejection(
+        bindRelayrQuote(
+          json(
+            {
+              SimulationReverted: {
+                transaction: { chain: 1, data: `0x${"ab".repeat(7_000)}` },
+                [field]: "execution reverted: GS013",
+              },
+            },
+            406,
+          ),
+          request,
+        ),
+      );
+      expect(error.message).toBe(
+        "Relayr HTTP 406: SimulationReverted on chain 1: execution reverted: GS013",
+      );
+    },
+  );
+
+  it("retains an unfamiliar error variant and its available explanation", async () => {
+    const error = await rejection(
+      bindRelayrQuote(
+        json(
+          {
+            NewRelayrFailure: {
+              chain: 8453,
+              message: "The destination simulator is unavailable.",
+            },
+          },
+          503,
+        ),
+        request,
+      ),
+    );
+    expect(error.message).toBe(
+      "Relayr HTTP 503: NewRelayrFailure on chain 8453: The destination simulator is unavailable.",
+    );
+  });
+
+  it("retains an unfamiliar variant's explanation when no chain was reported", async () => {
+    const error = await rejection(
+      bindRelayrQuote(
+        json({ SimulatorUnavailable: { message: "Try later." } }, 503),
+        request,
+      ),
+    );
+    expect(error.message).toBe(
+      "Relayr HTTP 503: SimulatorUnavailable: Try later.",
+    );
+  });
+
+  it("bounds a structured explanation without discarding the complete diagnostic", async () => {
+    const body = JSON.stringify({
+      SimulationReverted: {
+        chain: 1,
+        reason: `execution reverted: ${"reason ".repeat(100)}`,
+      },
+    });
+    const error = await rejection(bindRelayrQuote(json(body, 406), request));
+    expect(error.message).toMatch(
+      /^Relayr HTTP 406: SimulationReverted on chain 1: execution reverted:/,
+    );
+    expect(error.message.length).toBeLessThanOrEqual(
+      "Relayr HTTP 406: ".length + 240,
+    );
+    expect(error.cause).toEqual({ status: 406, body, truncated: false });
+  });
+
+  it.each(["upstream unavailable", '{"SimulationReverted":broken', ""])(
+    "preserves malformed or plain HTTP evidence (%j)",
+    async (body) => {
+      const error = await rejection(bindRelayrQuote(json(body, 502), request));
+      expect(error.message).toBe(`Relayr HTTP 502${body ? `: ${body}` : ""}`);
+      expect(error.cause).toEqual({ status: 502, body, truncated: false });
+      expect(Object.keys(error)).not.toContain("cause");
+    },
+  );
+
+  it("bounds traversal of deeply nested and malformed diagnostic values", async () => {
+    const bodies = [
+      `${'{"cause":'.repeat(2_000)}null${"}".repeat(2_000)}`,
+      JSON.stringify({
+        SimulationReverted: {
+          chain: {},
+          reason: [null, false, {}],
+          message: null,
+        },
+      }),
+      JSON.stringify([null, false, 12, { error: {} }]),
+    ];
+    for (const body of bodies) {
+      const error = await rejection(bindRelayrQuote(json(body, 406), request));
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toMatch(/^Relayr HTTP 406/);
+      expect(error.message.length).toBeLessThanOrEqual(
+        "Relayr HTTP 406: ".length + 240,
+      );
+      expect(error.cause).toEqual({ status: 406, body, truncated: false });
+    }
+  });
+
+  it("preserves a complete UTF-8 body exactly at the byte limit across split characters", async () => {
+    const body = "é".repeat(32_768);
+    const bytes = new TextEncoder().encode(body);
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes.slice(0, 1));
+          controller.enqueue(bytes.slice(1, 32_769));
+          controller.enqueue(bytes.slice(32_769));
+          controller.close();
+        },
+        cancel,
+      }),
+      { status: 502 },
+    );
+    const error = await rejection(bindRelayrQuote(response, request));
+    expect(error.message).toBe(`Relayr HTTP 502: ${body.slice(0, 240)}`);
+    expect(error.cause).toEqual({ status: 502, body, truncated: false });
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("cancels an oversized UTF-8 stream at 64 KiB and never invents an unseen reason", async () => {
+    const body = "🙂".repeat(17_000);
+    const bytes = new TextEncoder().encode(body);
+    const cancel = vi.fn();
+    const boundaries = [0, 1, 2_039, 32_003, 65_535, 65_550, bytes.length];
+    let next = 0;
+    const response = new Response(
+      new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            controller.enqueue(
+              bytes.slice(boundaries[next], boundaries[next + 1]),
+            );
+            next += 1;
+            if (next === boundaries.length - 1) controller.close();
+          },
+          cancel,
+        },
+        { highWaterMark: 0 },
+      ),
+      { status: 406 },
+    );
+    const error = await rejection(bindRelayrQuote(response, request));
+    expect(error.message).toMatch(
+      /^Relayr HTTP 406: .*response exceeded (?:the )?diagnostic size limit/i,
+    );
+    expect(error.message).not.toContain("GS013");
+    expect(error.cause).toEqual({
+      status: 406,
+      body: "🙂".repeat(16_384),
+      truncated: true,
+    });
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(next).toBeLessThan(boundaries.length - 1);
+    expect(JSON.stringify(error)).not.toContain("🙂");
+  });
+
+  it("does not add a replacement character when the byte cap splits a UTF-8 character", async () => {
+    const body = `a${"🙂".repeat(17_000)}`;
+    const error = await rejection(bindRelayrQuote(json(body, 406), request));
+    expect(error.cause).toEqual({
+      status: 406,
+      body: `a${"🙂".repeat(16_383)}`,
+      truncated: true,
+    });
+  });
+
+  it("reports truncation when a JSON response's reason falls beyond the retained body", async () => {
+    const body = JSON.stringify({
+      SimulationReverted: {
+        transaction: { chain: 1, data: `0x${"ab".repeat(34_000)}` },
+        reason: "execution reverted: GS013",
+      },
+    });
+    const error = await rejection(bindRelayrQuote(json(body, 406), request));
+    expect(error.message).toMatch(
+      /response exceeded (?:the )?diagnostic size limit/i,
+    );
+    expect(error.message).not.toContain("GS013");
+    expect(error.message).not.toContain("abababab");
+    expect(error.cause).toEqual({
+      status: 406,
+      body: body.slice(0, 65_536),
+      truncated: true,
+    });
+  });
+
+  it("keeps an unreadable HTTP stream's status without leaking its failure", async () => {
+    const response = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.error(new Error("private stream failure"));
+        },
+      }),
+      { status: 504 },
+    );
+    const error = await rejection(bindRelayrQuote(response, request));
+    expect(error.message).toBe("Relayr HTTP 504");
+    expect(error.cause).toMatchObject({
+      status: 504,
+      body: "",
+      truncated: false,
+    });
+    expect(JSON.stringify(error)).not.toContain("private stream failure");
   });
 
   it.each(["not json", "null", "5", '"text"'])(
@@ -1431,6 +1676,7 @@ describe("Relayr payment proof", () => {
       client.getTransactionReceipt.mockResolvedValue(row.receipt);
       const error = await rejection(verify(client));
       expect(error).not.toBeInstanceOf(RelayrProofError);
+      expect(error).toBeInstanceOf(RelayrProofUnavailableError);
       expect(error).toMatchObject({
         message: `Could not read Relayr payment ${HASH} on chain 1. Do not pay again; check it later.`,
       });
@@ -1456,6 +1702,7 @@ describe("Relayr payment proof", () => {
       client[method].mockRejectedValueOnce(failure);
       const error = await rejection(verify(client));
       expect(error).not.toBeInstanceOf(RelayrProofError);
+      expect(error).toBeInstanceOf(RelayrProofUnavailableError);
       expect(error.message).toBe(
         `Could not read Relayr payment ${HASH} on chain 1. Do not pay again; check it later.`,
       );
@@ -2436,6 +2683,7 @@ describe("Relayr destination proof", () => {
       verifyAll({}, clients(undefined, OTHER_BLOCK_HASH).clientFor),
     );
     expect(error).not.toBeInstanceOf(RelayrProofError);
+    expect(error).toBeInstanceOf(RelayrProofUnavailableError);
     expect(error).toMatchObject({
       message:
         "The destination receipt is no longer canonical. Keep the original bundle pending.",
@@ -2473,6 +2721,7 @@ describe("Relayr destination proof", () => {
         hash: HASH,
       }),
     );
+    expect(unavailable).toBeInstanceOf(RelayrProofUnavailableError);
     expect(unavailable.message).toBe(
       `Could not read destination transaction ${HASH} on chain 1. Keep the original bundle pending; do not pay again.`,
     );

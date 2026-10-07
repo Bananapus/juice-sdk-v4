@@ -99,8 +99,10 @@ const budgets = {
     // measured 1,251,517 B packed and 20,628,836 B unpacked (746 files).
     // Safe-only unused quote replacement and sticky funding evidence add no
     // files: measured 1,259,012 B packed and 20,645,481 B unpacked (746 files).
-    packed: 1_260_000,
-    unpacked: 20_646_000,
+    // Bounded HTTP diagnostics and independent Safe destination progress add
+    // no files: measured 1,268,545 B packed and 20,695,695 B unpacked (746 files).
+    packed: 1_269_000,
+    unpacked: 20_696_000,
     entries: 746,
   },
   "@bananapus/nana-sdk-react": {
