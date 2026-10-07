@@ -1,5 +1,16 @@
 # juice-sdk-core
 
+## 2.24.3
+
+### Patch Changes
+
+- ea7b048: Show Relayr rejection variants, chains and reasons before transaction calldata,
+  while retaining bounded original responses in private error causes. Expose Safe
+  bundle progress per chain and keep checking paid transactions while their
+  canonical receipts are temporarily unavailable. Preserve exact destination,
+  Safe execution and payment proofs before reporting confirmation or offering a
+  retry.
+
 ## 2.24.2
 
 ### Patch Changes
