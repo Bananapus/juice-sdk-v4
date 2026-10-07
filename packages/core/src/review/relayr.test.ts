@@ -1529,6 +1529,30 @@ describe("Relayr payment proof", () => {
     expect(client.getBlock).toHaveBeenCalledWith({ blockNumber: 123n });
   });
 
+  it("keeps identity contradictions ahead of inconsistent receipt metadata", async () => {
+    const row = onchain({ value: 101n });
+    row.receipt.blockHash = "0x1234";
+    const client = proofClient([row]);
+    await expect(verify(client)).rejects.toBeInstanceOf(RelayrProofError);
+    await expect(
+      verifyRelayrDestination(asClient(client), {
+        hash: HASH,
+        entry: {
+          chain: 1,
+          target: RELAYR_PAYMENT_ADDRESS,
+          data: paymentCalldata(),
+          value: "100",
+        },
+      }),
+    ).rejects.toBeInstanceOf(RelayrProofError);
+    expect(client.getBlock).not.toHaveBeenCalled();
+
+    row.receipt.transactionHash = SECOND_HASH;
+    await expect(verify(client)).rejects.toBeInstanceOf(
+      RelayrProofUnavailableError,
+    );
+  });
+
   it("permits recovery only when the original funding transaction canonically reverted", async () => {
     const reverted = await rejection(
       verify(proofClient([onchain({ status: "reverted" })])),

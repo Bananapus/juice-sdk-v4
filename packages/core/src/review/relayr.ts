@@ -1122,26 +1122,23 @@ type ProofWords = {
   notCanonical: string;
 };
 
-/**
- * Read `expected.hash` and prove it is exactly the expected transaction,
- * canonically included. Returns its receipt, successful or reverted. A
- * transaction hash commits to its sender, target, calldata, value and chain,
- * so any difference there is a {@link RelayrProofError}. A receipt,
- * transaction and block that disagree (a lagging node, a reorg) prove nothing
- * either way.
- */
-async function proveTransaction(
+type TransactionProof = {
+  transaction: Awaited<ReturnType<RelayrProofClient["getTransaction"]>>;
+  receipt: TransactionReceipt;
+};
+
+async function readTransaction(
   client: RelayrProofClient,
-  expected: ExpectedTransaction,
+  expectedHash: Hex,
   words: ProofWords,
-): Promise<TransactionReceipt> {
-  const hash = expected.hash.toLowerCase();
-  let transaction: Awaited<ReturnType<RelayrProofClient["getTransaction"]>>;
+): Promise<TransactionProof> {
+  const hash = expectedHash.toLowerCase();
+  let transaction: TransactionProof["transaction"];
   let receipt: TransactionReceipt;
   try {
     [transaction, receipt] = await Promise.all([
-      client.getTransaction({ hash: expected.hash }),
-      client.getTransactionReceipt({ hash: expected.hash }),
+      client.getTransaction({ hash: expectedHash }),
+      client.getTransactionReceipt({ hash: expectedHash }),
     ]);
   } catch (cause) {
     throw withCause(new RelayrProofUnavailableError(words.unavailable), cause);
@@ -1152,6 +1149,14 @@ async function proveTransaction(
   ) {
     throw new RelayrProofUnavailableError(words.unavailable);
   }
+  return { transaction, receipt };
+}
+
+function requireExpectedTransaction(
+  transaction: TransactionProof["transaction"],
+  expected: ExpectedTransaction,
+  words: ProofWords,
+): void {
   if (
     transaction.chainId !== expected.chainId ||
     !sameAddress(transaction.to, expected.to) ||
@@ -1163,8 +1168,16 @@ async function proveTransaction(
   ) {
     throw new RelayrProofError(words.mismatch);
   }
+}
+
+async function proveReceipt(
+  client: RelayrProofClient,
+  { transaction, receipt }: TransactionProof,
+  target: Address,
+  words: ProofWords,
+): Promise<TransactionReceipt> {
   if (
-    !sameAddress(receipt.to, expected.to) ||
+    !sameAddress(receipt.to, target) ||
     typeof receipt.blockHash !== "string" ||
     !isBytes32(receipt.blockHash) ||
     transaction.blockHash?.toLowerCase() !== receipt.blockHash.toLowerCase() ||
@@ -1184,6 +1197,20 @@ async function proveTransaction(
     throw new RelayrProofUnavailableError(words.notCanonical);
   }
   return receipt;
+}
+
+/**
+ * Prove the exact transaction and its canonical inclusion. Identity
+ * differences contradict the proof; inconsistent RPC answers prove nothing.
+ */
+async function proveTransaction(
+  client: RelayrProofClient,
+  expected: ExpectedTransaction,
+  words: ProofWords,
+): Promise<TransactionReceipt> {
+  const proof = await readTransaction(client, expected.hash, words);
+  requireExpectedTransaction(proof.transaction, expected, words);
+  return proveReceipt(client, proof, expected.to, words);
 }
 
 /**
