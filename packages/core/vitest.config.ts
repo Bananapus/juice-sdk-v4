@@ -21,6 +21,12 @@ export default defineConfig({
         branches: 82,
         functions: 92,
         lines: 95,
+        "src/activityGroups.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/actions/dataHook.ts": {
           statements: 100,
           branches: 100,
