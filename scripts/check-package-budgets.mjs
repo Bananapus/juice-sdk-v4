@@ -101,9 +101,11 @@ const budgets = {
     // files: measured 1,259,012 B packed and 20,645,481 B unpacked (746 files).
     // Bounded HTTP diagnostics and independent Safe destination progress add
     // no files: measured 1,268,545 B packed and 20,695,695 B unpacked (746 files).
-    packed: 1_269_000,
-    unpacked: 20_696_000,
-    entries: 746,
+    // The shared project activity display grouping adds eight artifacts:
+    // measured 1,270,129 B packed, 20,703,967 B unpacked, 754 files.
+    packed: 1_271_000,
+    unpacked: 20_704_000,
+    entries: 754,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

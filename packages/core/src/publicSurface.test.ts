@@ -27,6 +27,7 @@ describe("published core SDK surfaces", () => {
     expect(sdk.getTokenAToBQuote).toBeTypeOf("function");
     expect(sdk.getProjectTerminalStore).toBeTypeOf("function");
     expect(sdk.downsampleTimeSeries).toBeTypeOf("function");
+    expect(sdk.mergeCrossChainActivityGroups).toBeTypeOf("function");
     expect(sdk.requestBendystraw).toBeTypeOf("function");
     expect(sdk.resolveBendystrawNetwork).toBeTypeOf("function");
     expect(sdk.selectBendystrawEndpoint).toBeTypeOf("function");
