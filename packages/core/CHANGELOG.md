@@ -1,5 +1,15 @@
 # juice-sdk-core
 
+## 2.24.2
+
+### Patch Changes
+
+- 348343a: Allow a fresh Safe execution quote after unused or lost quote attempts. Review
+  and validate the current selection before retiring prior quote-only records under
+  the shared lock. Preserve actual or ambiguous funding, observed remote execution,
+  and all funding evidence; keep existing canonical payment retry rules. Support
+  single-session storage scopes without duplicating lifecycle policy in clients.
+
 ## 2.24.1
 
 ### Patch Changes
