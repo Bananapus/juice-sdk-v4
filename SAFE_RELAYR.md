@@ -15,9 +15,10 @@ can be released.
 
 An execution contains its exact Relayr entry and its chain, Safe address,
 Safe transaction hash and nonce. Quote reuse compares the complete set of Safe
-intents. Reservation checks compare chain, Safe and nonce so another transaction
-at that nonce cannot bypass an existing reservation. Additional owner signatures
-can match the same intent, but never replace the original quoted calldata.
+intents when recovering a funded session. Reservation checks compare chain,
+Safe and nonce so another transaction cannot bypass funding recovery. An unused
+quote is replaced with the current validated and explicitly reviewed selection;
+additional owner signatures and changed chain selections do not force recovery.
 
 Independent validation calls overlap. Request pacing remains at the clients'
 RPC transport boundary; a slow response does not hold later chains in a worker
@@ -30,19 +31,35 @@ saves transitions back into that journal. Application context carries the
 project-specific checks and display metadata associated with frozen calls.
 
 Publication intent is saved before posting a bundle. A lost publication response
-must leave that reservation intact. Payment intent is saved before invoking the
-wallet. A missing hash or an uncertain wallet response is not proof of rejection.
-Storage failures stop publication or payment before the external action.
+is an unused quote attempt when its Safe calls are authentic, its payment status
+is unfunded, and its payment history is empty with no observed funding or execution.
+`canReplaceSafeRelayrQuote` owns this distinction. After validating and reviewing
+the current selection, preparation rereads storage under the shared lock and
+retires eligible old quotes as `quote-replaced` before saving the new quote. Old
+tabs cannot pay those retired quotes. Rejected review leaves the old quote intact.
+
+Payment intent is saved before invoking the wallet. A missing hash or an uncertain
+wallet response is not proof of rejection. Observed remote funding or execution
+is retained through `fundingObserved`, even if later responses omit it. Known
+payment hashes still use canonical receipt and retry proofs. Storage failures
+stop publication or payment before the external action.
+
+Stores default to overlapping Safe reservations. A journal with one active slot
+per Safe sets `scope: "single-session"`; the SDK then owns replacement of its old
+selection even when the new selection uses disjoint chains. The adapter persists
+lifecycle transitions before replacing its active slot, without deciding eligibility.
 
 Saved paid bundles are checked by their original identities. Every destination
 requires its exact canonical transaction and a successful, refund-free Safe
 execution. Relayr's status text alone is not proof. Older records missing the
 necessary immutable evidence remain available for read-only recovery.
 
-An unpaid quote can be replaced only after its authenticated payment deadlines
-have passed on canonical finalized blocks and Relayr still proves it unpaid with
-all calls pending. Reverted funding attempts use the existing SDK payment retry
-and release rules. Device time alone never releases a reservation.
+A quote alone does not fund or execute a Safe transaction. Safe-native nonces and
+live validation prevent repeated execution; unused quote attempts therefore do
+not need expiry or old nonce-consumption proofs before replacement. Actual or
+ambiguous funding remains protected. Reverted funding attempts use the existing
+SDK payment retry and canonical expiry rules. Raw and forwarded Relayr
+authorization policies are unchanged.
 
 Preparation and checking never pay. Funding requires a current account, a
 selected authenticated payment option, the application's exact-call review and

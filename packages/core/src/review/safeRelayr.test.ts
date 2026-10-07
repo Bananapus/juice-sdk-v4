@@ -20,6 +20,7 @@ import {
 } from "./relayr.js";
 import {
   createSafeRelayrController,
+  canReplaceSafeRelayrQuote,
   requireSafeRelayrExecution,
   SafeRelayrRecoveryError,
   safeRelayrPreconditions,
@@ -36,6 +37,7 @@ const OTHER = "0x2222222222222222222222222222222222222222" as Address;
 const SAFE = "0x3333333333333333333333333333333333333333" as Address;
 const TARGET = "0x4444444444444444444444444444444444444444" as Address;
 const BUNDLE = "01234567-89ab-cdef-0123-456789abcdef";
+const NEXT_BUNDLE = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 const IDS = [
   "11111111-1111-1111-1111-111111111111",
   "22222222-2222-2222-2222-222222222222",
@@ -99,14 +101,14 @@ function execution(
   };
 }
 
-function payment() {
+function payment(bundleUuid = BUNDLE) {
   return {
     chain: 1,
     amount: "100",
     target: RELAYR_PAYMENT_ADDRESS,
     token: RELAYR_NATIVE_TOKEN,
     calldata:
-      `${RELAYR_PAYMENT_SELECTOR}${BUNDLE.replaceAll("-", "").padEnd(64, "0")}${BigInt(DEADLINE).toString(16).padStart(64, "0")}` as Hex,
+      `${RELAYR_PAYMENT_SELECTOR}${bundleUuid.replaceAll("-", "").padEnd(64, "0")}${BigInt(DEADLINE).toString(16).padStart(64, "0")}` as Hex,
     payment_deadline: DEADLINE,
   };
 }
@@ -139,6 +141,7 @@ function harness() {
   >();
   let account: Address | undefined = ACCOUNT;
   let records: RelayrTransactionRecord[] = [];
+  let bundleUuid = BUNDLE;
   let paymentReceived: boolean | undefined = false;
   let timestamp = BigInt(NOW);
   let canonicalHash = BLOCK;
@@ -154,15 +157,15 @@ function harness() {
         status: { state: "Pending" },
       }));
       return json({
-        bundle_uuid: BUNDLE,
-        payment_info: [payment()],
+        bundle_uuid: bundleUuid,
+        payment_info: [payment(bundleUuid)],
         tx_uuids: IDS.slice(0, records.length),
         transactions: records,
       });
     }
     order.push("get");
     return json({
-      bundle_uuid: BUNDLE,
+      bundle_uuid: bundleUuid,
       payment_received: paymentReceived,
       transactions: records,
     });
@@ -197,13 +200,21 @@ function harness() {
   );
   const review = vi.fn<SafeRelayrOptions["review"]>(async () => undefined);
   const sendPayment = vi.fn<SafeRelayrOptions["sendPayment"]>(
-    async ({ beforeSend, onSending, onSent }) => {
+    async ({
+      session,
+      payment: quotedPayment,
+      beforeSend,
+      onSending,
+      onSent,
+    }) => {
       await beforeSend();
       await onSending();
       const sent = sentRelayrPayment(
-        relayrPaymentDetails(payment(), {
-          bundleUuid: BUNDLE,
-          destinationChainIds: [1],
+        relayrPaymentDetails(quotedPayment, {
+          bundleUuid: session.bundleUuid!,
+          destinationChainIds: session.executions.map(
+            ({ entry }) => entry.chain,
+          ),
           nowSeconds: NOW,
         }),
         HASH,
@@ -293,6 +304,9 @@ function harness() {
     setRecords: (value: RelayrTransactionRecord[]) => {
       records = value;
     },
+    setBundleUuid: (value: string) => {
+      bundleUuid = value;
+    },
     onPost: (value: () => Promise<void>) => {
       onPost = value;
     },
@@ -333,28 +347,20 @@ describe("Safe Relayr recovery without a complete quote", () => {
     return request;
   }
 
-  it("returns the obsolete selection's release evidence on the first prepare without reviewing stale nonces", async () => {
+  it("rechecks the current proposal before retiring an unused old quote attempt", async () => {
     const h = harness();
     const session = orphan(h);
     const request = nonceClient(h, 18n);
-    const error = await h.controller
-      .prepare({ account: ACCOUNT, executions: session.executions })
-      .catch((error: unknown) => error);
-    expect(error).toBeInstanceOf(SafeRelayrRecoveryError);
-    expect(error).toMatchObject({
-      session: {
-        id: session.id,
-        state: "released",
-        releaseReason: "safe-nonces-consumed",
-        paymentStatus: "unfunded",
-      },
-      recovery: {
-        reason: "safe-nonces-consumed",
-        checks: [{ currentNonce: "18", state: "consumed" }],
-      },
-    });
-    expect(request).toHaveBeenCalledOnce();
-    expect(h.revalidate).not.toHaveBeenCalled();
+    h.revalidate.mockRejectedValueOnce(new Error("Current Safe nonce changed"));
+    await expect(
+      h.controller.prepare({
+        account: ACCOUNT,
+        executions: session.executions,
+      }),
+    ).rejects.toThrow("Current Safe nonce changed");
+    expect(h.sessions.get(session.id)?.state).toBe("publishing");
+    expect(request).not.toHaveBeenCalled();
+    expect(h.revalidate).toHaveBeenCalledOnce();
     expect(h.review).not.toHaveBeenCalled();
     expect(h.fetchRelayr).not.toHaveBeenCalled();
     expect(h.sendPayment).not.toHaveBeenCalled();
@@ -462,7 +468,9 @@ describe("Safe Relayr recovery without a complete quote", () => {
       expect(checked.session.releaseReason).toBe(
         remote === "unpaid" ? "safe-nonces-consumed" : undefined,
       );
-      expect(request).toHaveBeenCalledTimes(1);
+      expect(request).toHaveBeenCalledTimes(
+        remote === "paid" || remote === "running" ? 0 : 1,
+      );
       expect(h.review).not.toHaveBeenCalled();
       expect(h.sendPayment).not.toHaveBeenCalled();
       expect(h.afterVerified).not.toHaveBeenCalled();
@@ -478,7 +486,7 @@ describe("Safe Relayr recovery without a complete quote", () => {
     "returns recovery evidence directly from $method when nonce availability is $available",
     async ({ method, available }) => {
       const h = harness();
-      const session = orphan(h);
+      const session = orphan(h, { paymentStatus: "sending" });
       const request = nonceClient(h, 17n);
       if (!available)
         request.mockRejectedValueOnce(new Error("RPC unavailable"));
@@ -534,6 +542,7 @@ describe("Safe Relayr recovery without a complete quote", () => {
       });
       expect(checked.recovery?.message).toBeTruthy();
       expect(h.sessions.get(session.id)?.releaseReason).toBeUndefined();
+      session.paymentStatus = "sending";
       await expect(
         h.controller.prepare({ account: ACCOUNT, executions: [execution()] }),
       ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
@@ -808,6 +817,134 @@ describe("Safe Relayr execution identity", () => {
   );
 });
 
+describe("unused Safe quote replacement eligibility", () => {
+  const quoteOnly = (): SafeRelayrSession => ({
+    id: "quote-only",
+    account: ACCOUNT,
+    executions: [execution()],
+    state: "active",
+    paymentStatus: "unfunded",
+    payments: [],
+    createdAt: NOW,
+  });
+
+  it.each(["active", "publishing"] as const)(
+    "allows an unfunded %s attempt with valid empty payment history",
+    (state) => {
+      expect(canReplaceSafeRelayrQuote({ ...quoteOnly(), state })).toBe(true);
+      expect(
+        canReplaceSafeRelayrQuote({
+          ...quoteOnly(),
+          state,
+          fundingObserved: false,
+          reservationKeys: [safeRelayrReservationKey(execution())],
+        }),
+      ).toBe(true);
+    },
+  );
+
+  it.each([
+    { state: "released" },
+    { state: "complete" },
+    { state: "unexpected" },
+    { paymentStatus: "sending" },
+    { paymentStatus: "submitted" },
+    { paymentStatus: "confirmed" },
+    { paymentStatus: "reverted" },
+    { paymentStatus: "expired" },
+    { paymentStatus: null },
+    { payments: null },
+    { payments: undefined },
+    { payments: {} },
+    { payments: [null] },
+    { fundingObserved: true },
+    { fundingObserved: null },
+    { fundingObserved: "false" },
+    { executions: [] },
+    { executions: [{ ...execution(), safeTxHash: HASH }] },
+    { reservationKeys: [`1:${SAFE}:*`] },
+    { reservationKeys: [`10:${SAFE}:17`] },
+    { reservationKeys: null },
+  ])("refuses malformed, incomplete or funded evidence %o", (patch) => {
+    expect(
+      canReplaceSafeRelayrQuote({
+        ...quoteOnly(),
+        ...patch,
+      } as unknown as SafeRelayrSession),
+    ).toBe(false);
+  });
+
+  it.each(
+    [
+      undefined,
+      [],
+      [{}],
+      [{ status: {} }],
+      [{ status: { state: "Pending" } }],
+      [{ status: { state: "pending" } }],
+      [{ status: { state: "Pending", data: null } }],
+    ].map((records) => ({ records })),
+  )(
+    "allows untouched quote records without execution evidence %o",
+    ({ records }) => {
+      const session = quoteOnly();
+      expect(
+        canReplaceSafeRelayrQuote({ ...session, records } as SafeRelayrSession),
+      ).toBe(true);
+      expect(
+        canReplaceSafeRelayrQuote({
+          ...session,
+          quote: { transactions: records },
+        } as unknown as SafeRelayrSession),
+      ).toBe(true);
+    },
+  );
+
+  it.each(
+    [
+      null,
+      {},
+      "invalid",
+      [null],
+      [1],
+      [[]],
+      [{ status: null }],
+      [{ status: [] }],
+      [{ status: "Pending" }],
+      [{ status: { state: "Pending", data: [] } }],
+      [{ status: { state: "Pending", data: "invalid" } }],
+      [{ status: { state: "Pending", data: { transaction: null } } }],
+      [{ status: { state: "Pending", data: { transaction: [] } } }],
+      [{ status: { state: "Pending", data: { transaction: "invalid" } } }],
+      [{ status: { state: "Running" } }],
+      [{ status: { state: "Success" } }],
+      [{ status: { state: "Failed" } }],
+      [{ status: { state: "Unknown" } }],
+      [{ status: { state: null } }],
+      [{ status: { state: "Pending", data: { hash: HASH } } }],
+      [{ status: { state: "Pending", data: { hash: null } } }],
+      [{ status: { data: { transaction: { hash: HASH } } } }],
+    ].map((records) => ({ records })),
+  )(
+    "preserves records with observed execution or malformed status %o",
+    ({ records }) => {
+      const session = quoteOnly();
+      expect(
+        canReplaceSafeRelayrQuote({
+          ...session,
+          records,
+        } as unknown as SafeRelayrSession),
+      ).toBe(false);
+      expect(
+        canReplaceSafeRelayrQuote({
+          ...session,
+          quote: { transactions: records },
+        } as unknown as SafeRelayrSession),
+      ).toBe(false);
+    },
+  );
+});
+
 describe("Safe Relayr preparation and recovery", () => {
   it("persists publication before POST and never pays on preparation or checks", async () => {
     const h = harness();
@@ -837,7 +974,7 @@ describe("Safe Relayr preparation and recovery", () => {
     ).toHaveLength(1);
   });
 
-  it("retains a reservation when publication loses its response", async () => {
+  it("replaces a lost quote response with the current calls and funds only after explicit approval", async () => {
     const h = harness();
     h.onPost(async () => {
       throw new Error("response lost");
@@ -846,11 +983,37 @@ describe("Safe Relayr preparation and recovery", () => {
       h.controller.prepare({ account: ACCOUNT, executions: [execution()] }),
     ).rejects.toThrow("response lost");
     expect(h.sessions.get(h.firstSessionId)?.state).toBe("publishing");
-    await expect(
-      h.controller.prepare({ account: ACCOUNT, executions: [execution()] }),
-    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
-    expect(h.fetchRelayr).toHaveBeenCalledTimes(1);
+    const old = structuredClone(h.sessions.get(h.firstSessionId)!);
+    h.onPost(async () => undefined);
+    h.setBundleUuid(NEXT_BUNDLE);
+    const calls = [execution(1, { signatures: "0x112233" }), execution(10)];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    expect(ready.resumed).toBe(false);
+    expect(ready.session.executions).toEqual(calls);
+    expect(ready.session.bundleUuid).toBe(NEXT_BUNDLE);
+    expect(h.sessions.get(old.id)).toEqual({
+      ...old,
+      state: "released",
+      releaseReason: "quote-replaced",
+    });
+    expect(
+      h.fetchRelayr.mock.calls.every(([, init]) => init?.method === "POST"),
+    ).toBe(true);
+    expect(h.fetchRelayr).toHaveBeenCalledTimes(2);
     expect(h.sendPayment).not.toHaveBeenCalled();
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    expect(h.sendPayment).toHaveBeenCalledOnce();
+    expect(h.sessions.get(ready.session.id)?.payments[0].bundleUuid).toBe(
+      NEXT_BUNDLE,
+    );
+    expect(h.sessions.get(old.id)?.payments).toEqual([]);
   });
 
   it("retains an authenticated published quote with no payment options for recovery", async () => {
@@ -890,6 +1053,7 @@ describe("Safe Relayr preparation and recovery", () => {
       account: ACCOUNT,
       executions: [execution()],
     });
+    h.sessions.get(ready.session.id)!.paymentStatus = "sending";
     h.fetchRelayr.mockImplementationOnce(async () =>
       json({ bundle_uuid: BUNDLE, payment_received: false }),
     );
@@ -925,7 +1089,7 @@ describe("Safe Relayr preparation and recovery", () => {
     },
   );
 
-  it("resumes the original frozen calldata across all chains after confirmations change", async () => {
+  it("reviews and quotes the current calldata across all chains after confirmations change", async () => {
     const h = harness();
     const original = [1, 10, 8453, 42161].map((chain) => execution(chain));
     const first = await h.controller.prepare({
@@ -934,49 +1098,318 @@ describe("Safe Relayr preparation and recovery", () => {
     });
     h.revalidate.mockClear();
     h.review.mockClear();
+    h.setBundleUuid(NEXT_BUNDLE);
+    const current = [...original]
+      .reverse()
+      .map(({ entry }) =>
+        execution(entry.chain, { signatures: "0x111122223333" }),
+      );
     const second = await h.controller.prepare({
       account: ACCOUNT,
-      executions: [...original]
-        .reverse()
-        .map(({ entry }) =>
-          execution(entry.chain, { signatures: "0x111122223333" }),
-        ),
+      executions: current,
     });
-    expect(second.resumed).toBe(true);
-    expect(second.session.id).toBe(first.session.id);
-    expect(second.session.executions).toEqual(original);
-    expect(h.revalidate.mock.calls.map(([call]) => call)).toEqual(original);
-    expect(h.review).toHaveBeenCalledWith(original, { resumed: true });
+    expect(second.resumed).toBe(false);
+    expect(second.session.id).not.toBe(first.session.id);
+    expect(second.session.bundleUuid).toBe(NEXT_BUNDLE);
+    expect(second.session.executions).toEqual(current);
+    expect(h.sessions.get(first.session.id)?.releaseReason).toBe(
+      "quote-replaced",
+    );
+    expect(h.sessions.get(first.session.id)?.executions).toEqual(original);
+    expect(h.revalidate.mock.calls.map(([call]) => call)).toEqual(current);
+    expect(h.review).toHaveBeenCalledWith(current, { resumed: false });
+    expect(
+      h.fetchRelayr.mock.calls.filter(([, init]) => init?.method === "POST"),
+    ).toHaveLength(2);
+    expect(h.sendPayment).not.toHaveBeenCalled();
+  });
+
+  it.each(["subset", "superset", "changed intent", "different account"])(
+    "replaces an unfunded quote for the current %s selection",
+    async (kind) => {
+      const h = harness();
+      const original =
+        kind === "subset"
+          ? [1, 10, 8453, 42161].map((chain) => execution(chain))
+          : [execution()];
+      const first = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: original,
+      });
+      if (kind === "different account")
+        h.sessions.get(first.session.id)!.account = OTHER;
+      h.setBundleUuid(NEXT_BUNDLE);
+      const next =
+        kind === "subset"
+          ? original.slice(0, 3)
+          : kind === "superset"
+            ? [execution(), execution(10)]
+            : [
+                execution(
+                  1,
+                  kind === "changed intent"
+                    ? { data: "0xffff" }
+                    : { signatures: "0x1122" },
+                ),
+              ];
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: next,
+      });
+      expect(ready.session.executions).toEqual(next);
+      expect(ready.session.bundleUuid).toBe(NEXT_BUNDLE);
+      expect(h.sessions.get(first.session.id)?.releaseReason).toBe(
+        "quote-replaced",
+      );
+      expect(h.sendPayment).not.toHaveBeenCalled();
+      expect(
+        h.fetchRelayr.mock.calls.filter(([, init]) => init?.method === "POST"),
+      ).toHaveLength(2);
+    },
+  );
+
+  it("keeps the old quote and metadata intact when review of its replacement is cancelled", async () => {
+    const h = harness();
+    const first = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.sessions.get(first.session.id)!.context = { legacyJournal: "original" };
+    const old = structuredClone(h.sessions.get(first.session.id)!);
+    h.review.mockRejectedValueOnce(new Error("Review cancelled"));
+    await expect(
+      h.controller.prepare({
+        account: ACCOUNT,
+        executions: [execution(), execution(10)],
+      }),
+    ).rejects.toThrow("Review cancelled");
+    expect(h.sessions.get(first.session.id)).toEqual(old);
+    expect(h.sessions.size).toBe(1);
     expect(
       h.fetchRelayr.mock.calls.filter(([, init]) => init?.method === "POST"),
     ).toHaveLength(1);
     expect(h.sendPayment).not.toHaveBeenCalled();
   });
 
-  it.each(["subset", "superset", "changed intent"])(
-    "blocks an overlapping %s instead of publishing twice",
-    async (kind) => {
+  it("rereads funding evidence after replacement review before retiring the old quote", async () => {
+    const h = harness();
+    const first = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.review.mockImplementationOnce(async () => {
+      h.sessions.get(first.session.id)!.paymentStatus = "sending";
+    });
+    await expect(
+      h.controller.prepare({
+        account: ACCOUNT,
+        executions: [execution(), execution(10)],
+      }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(h.sessions.get(first.session.id)).toMatchObject({
+      state: "active",
+      paymentStatus: "sending",
+      payments: [],
+    });
+    expect(h.sessions.size).toBe(1);
+    expect(
+      h.fetchRelayr.mock.calls.filter(([, init]) => init?.method === "POST"),
+    ).toHaveLength(1);
+  });
+
+  it("refuses funding the retired quote from a stale controller", async () => {
+    const h = harness();
+    const oldController = h.recreateController();
+    const first = await oldController.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.setBundleUuid(NEXT_BUNDLE);
+    const second = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution(), execution(10)],
+    });
+    await expect(
+      oldController.fund({
+        account: ACCOUNT,
+        sessionId: first.session.id,
+        paymentChainId: 1,
+      }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(h.sendPayment).not.toHaveBeenCalled();
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: second.session.id,
+      paymentChainId: 1,
+    });
+    expect(h.sendPayment).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        session: expect.objectContaining({
+          id: second.session.id,
+          bundleUuid: NEXT_BUNDLE,
+        }),
+      }),
+    );
+  });
+
+  it("retires every eligible overlapping quote while preserving unrelated quote history", async () => {
+    const h = harness();
+    const first = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const original = h.sessions.get(first.session.id)!;
+    h.sessions.set("overlapping-legacy", {
+      ...structuredClone(original),
+      id: "overlapping-legacy",
+      context: { keep: "overlapping" },
+    });
+    const unrelated = {
+      ...structuredClone(original),
+      id: "unrelated-legacy",
+      executions: [execution(8453)],
+      context: { keep: "unrelated" },
+    };
+    h.sessions.set(unrelated.id, unrelated);
+    h.setBundleUuid(NEXT_BUNDLE);
+    await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution(), execution(10)],
+    });
+    expect(h.sessions.get(first.session.id)?.releaseReason).toBe(
+      "quote-replaced",
+    );
+    expect(h.sessions.get("overlapping-legacy")).toMatchObject({
+      state: "released",
+      releaseReason: "quote-replaced",
+      context: { keep: "overlapping" },
+    });
+    expect(h.sessions.get(unrelated.id)).toEqual(unrelated);
+  });
+
+  it.each([false, true])(
+    "reuses original calldata after a proven payment revert with prior observed funding %s",
+    async (fundingObserved) => {
       const h = harness();
-      const original =
-        kind === "subset" ? [execution(), execution(10)] : [execution()];
-      await h.controller.prepare({ account: ACCOUNT, executions: original });
-      const next =
-        kind === "superset"
-          ? [execution(), execution(10)]
-          : [
-              execution(
-                1,
-                kind === "changed intent"
-                  ? { data: "0xffff" }
-                  : { signatures: "0x1122" },
-              ),
-            ];
+      const original = execution();
+      const first = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: [original],
+      });
+      await h.controller.fund({
+        account: ACCOUNT,
+        sessionId: first.session.id,
+        paymentChainId: 1,
+      });
+      h.mined({ status: "reverted" });
+      h.sessions.get(first.session.id)!.fundingObserved = fundingObserved;
+      h.revalidate.mockClear();
+      h.review.mockClear();
+      const retry = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: [execution(1, { signatures: "0x11223344" })],
+      });
+      expect(retry.resumed).toBe(true);
+      expect(retry.session.id).toBe(first.session.id);
+      expect(retry.session.executions).toEqual([original]);
+      expect(retry.session.payments).toHaveLength(1);
+      expect(h.revalidate).toHaveBeenCalledExactlyOnceWith(original, ACCOUNT);
+      expect(h.review).toHaveBeenCalledExactlyOnceWith([original], {
+        resumed: true,
+      });
+      expect(
+        h.fetchRelayr.mock.calls.filter(([, init]) => init?.method === "POST"),
+      ).toHaveLength(1);
+      expect(h.sendPayment).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("retire an eligible disjoint quote only for a journal with one session slot", async () => {
+    const h = harness();
+    h.store.scope = "single-session";
+    const first = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.setBundleUuid(NEXT_BUNDLE);
+    const next = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution(10)],
+    });
+    expect(next.session.executions).toEqual([execution(10)]);
+    expect(h.sessions.get(first.session.id)?.releaseReason).toBe(
+      "quote-replaced",
+    );
+  });
+
+  it("keeps a funded disjoint selection in a journal with only one session slot", async () => {
+    const h = harness();
+    h.store.scope = "single-session";
+    const first = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.sessions.get(first.session.id)!.paymentStatus = "sending";
+    h.review.mockClear();
+    await expect(
+      h.controller.prepare({ account: ACCOUNT, executions: [execution(10)] }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(h.sessions.get(first.session.id)).toMatchObject({
+      state: "active",
+      paymentStatus: "sending",
+    });
+    expect(h.sessions.size).toBe(1);
+    expect(h.review).not.toHaveBeenCalled();
+  });
+
+  it.each(["funded", "running", "malformed records"])(
+    "preserves %s evidence even if a later Relayr read says unpaid and pending",
+    async (observed) => {
+      const h = harness();
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: [execution()],
+      });
+      if (observed === "funded") h.setPaymentReceived(true);
+      if (observed === "running")
+        h.setRecords([
+          {
+            tx_uuid: IDS[0],
+            request: execution().entry,
+            status: { state: "Running" },
+          },
+        ]);
+      if (observed === "malformed records")
+        h.setRecords("malformed" as unknown as RelayrTransactionRecord[]);
+      const checked = h.controller.check({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+      });
+      if (observed === "malformed records")
+        await expect(checked).rejects.toThrow();
+      else expect((await checked).state).toBe("pending");
+      expect(h.sessions.get(ready.session.id)?.fundingObserved).toBe(true);
+      h.setPaymentReceived(false);
+      h.setRecords([
+        {
+          tx_uuid: IDS[0],
+          request: execution().entry,
+          status: { state: "Pending" },
+        },
+      ]);
+      expect(canReplaceSafeRelayrQuote(h.sessions.get(ready.session.id)!)).toBe(
+        false,
+      );
       await expect(
-        h.controller.prepare({ account: ACCOUNT, executions: next }),
+        h.controller.prepare({
+          account: ACCOUNT,
+          executions: [execution(), execution(10)],
+        }),
       ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
       expect(
         h.fetchRelayr.mock.calls.filter(([, init]) => init?.method === "POST"),
       ).toHaveLength(1);
+      expect(h.sendPayment).not.toHaveBeenCalled();
     },
   );
 
@@ -1026,6 +1459,7 @@ describe("Safe Relayr preparation and recovery", () => {
       executions: [execution()],
     });
     const saved = h.sessions.get(ready.session.id)!;
+    saved.paymentStatus = "sending";
     saved.quote!.expectedTransactions[0].entry.data = execution(1, {
       signatures: "0x9988",
     }).entry.data;

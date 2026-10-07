@@ -97,8 +97,10 @@ const budgets = {
     // Retain the existing narrow rounding margin and all other package limits.
     // Finalized nonce recovery and structured recovery results add no files:
     // measured 1,251,517 B packed and 20,628,836 B unpacked (746 files).
-    packed: 1_252_000,
-    unpacked: 20_629_000,
+    // Safe-only unused quote replacement and sticky funding evidence add no
+    // files: measured 1,259,012 B packed and 20,645,481 B unpacked (746 files).
+    packed: 1_260_000,
+    unpacked: 20_646_000,
     entries: 746,
   },
   "@bananapus/nana-sdk-react": {

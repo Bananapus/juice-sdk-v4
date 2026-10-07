@@ -170,6 +170,7 @@ describe("published core SDK surfaces", () => {
       "relayrSessionOutcome",
       "relayrSignedRequests",
       "relayrStateIsFailed",
+      "relayrStateIsPending",
       "relayrStateIsSuccess",
       "relayrSupportsChain",
       "relayrSupportsChains",

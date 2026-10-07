@@ -922,7 +922,7 @@ export function relayrStateIsSuccess(state?: string): boolean {
 }
 
 /** `pending`, in any case: Relayr has not run the transaction. */
-function relayrStateIsPending(state: unknown): boolean {
+export function relayrStateIsPending(state: unknown): boolean {
   return stateLabel(state) === "pending";
 }
 

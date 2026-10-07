@@ -32,6 +32,7 @@ import {
   relayrPaymentDetails,
   relayrRetryOption,
   relayrSentPaymentsSnapshot,
+  relayrStateIsPending,
   relayrQuotedOptions,
   requireRelayrBundleUnpaid,
   requireRelayrRetry,
@@ -76,7 +77,9 @@ export type SafeRelayrSession = {
   payments: RelayrSentPayment[];
   state: "publishing" | "active" | "complete" | "released";
   /** Obsolete Safe nonces do not prove execution success, quote expiry, or a refund. */
-  releaseReason?: "quote-expired" | "safe-nonces-consumed";
+  releaseReason?: "quote-expired" | "safe-nonces-consumed" | "quote-replaced";
+  /** Sticky evidence that Relayr reported funding or an execution attempt. Not a payment receipt proof. */
+  fundingObserved?: boolean;
   createdAt: number;
   records?: RelayrTransactionRecord[];
   /** Conservative legacy reservations when exact execution proof is unavailable. */
@@ -85,6 +88,8 @@ export type SafeRelayrSession = {
 };
 
 export type SafeRelayrStore = {
+  /** A single-session journal also reserves disjoint selections until its prior session can be replaced. */
+  scope?: "overlapping" | "single-session";
   /** Include unresolved legacy reservations, including those made by other accounts. */
   list(account: Address): Promise<SafeRelayrSession[]>;
   /** Must finish durable persistence before resolving; never silently swallow failure. */
@@ -92,6 +97,78 @@ export type SafeRelayrStore = {
   /** Serialize overlapping Safe scopes across tabs AND accounts. An account-only lock is insufficient; retain legacy locks too. */
   withLock<T>(account: Address, run: () => Promise<T>): Promise<T>;
 };
+
+function hasFundingRecords(records: unknown): boolean {
+  if (records === undefined) return false;
+  if (!Array.isArray(records)) return true;
+  return records.some((record: RelayrTransactionRecord | null) => {
+    if (!record || typeof record !== "object" || Array.isArray(record))
+      return true;
+    const status = record.status;
+    if (status === undefined) return false;
+    if (!status || typeof status !== "object" || Array.isArray(status))
+      return true;
+    const data = status.data;
+    if (
+      data !== undefined &&
+      data !== null &&
+      (typeof data !== "object" || Array.isArray(data))
+    )
+      return true;
+    const transaction = data?.transaction;
+    if (
+      transaction !== undefined &&
+      (transaction === null ||
+        typeof transaction !== "object" ||
+        Array.isArray(transaction))
+    )
+      return true;
+    if (
+      status.data?.hash !== undefined ||
+      status.data?.transaction?.hash !== undefined
+    )
+      return true;
+    return status.state !== undefined && !relayrStateIsPending(status.state);
+  });
+}
+
+function hasObservedFunding(session: SafeRelayrSession): boolean {
+  return (
+    (session.fundingObserved !== undefined &&
+      session.fundingObserved !== false) ||
+    hasFundingRecords(session.records) ||
+    hasFundingRecords(session.quote?.transactions)
+  );
+}
+
+/**
+ * Safe signatures already authorize a nonce-protected call. Publishing or losing
+ * an unused quote is not a funding attempt. Only this Safe-specific owner may
+ * replace such a quote; raw/forwarded authorizations keep their existing rules.
+ */
+export function canReplaceSafeRelayrQuote(session: SafeRelayrSession): boolean {
+  if (
+    (session.state !== "publishing" && session.state !== "active") ||
+    session.paymentStatus !== "unfunded" ||
+    !Array.isArray(session.payments) ||
+    session.payments.length !== 0 ||
+    (session.reservationKeys !== undefined &&
+      !Array.isArray(session.reservationKeys)) ||
+    hasObservedFunding(session)
+  )
+    return false;
+  try {
+    validateExecutions(session.executions);
+    const identities = new Set(
+      session.executions.map(safeRelayrReservationKey),
+    );
+    return !session.reservationKeys?.some(
+      (key) => !identities.has(key.toLowerCase()),
+    );
+  } catch {
+    return false;
+  }
+}
 
 export type SafeRelayrResult = {
   state: "ready" | "pending" | "complete" | "released";
@@ -550,16 +627,21 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     !session.executions.length && !session.reservationKeys?.length;
   const unresolved = (session: SafeRelayrSession) =>
     session.state !== "complete" && session.state !== "released";
+  const reserves = (
+    session: SafeRelayrSession,
+    executions: readonly SafeRelayrExecution[],
+  ) =>
+    unresolved(session) &&
+    (store.scope === "single-session" ||
+      unidentified(session) ||
+      overlap(session, executions));
   const assertUnreserved = async (
     account: Address,
     executions: readonly SafeRelayrExecution[],
     exceptId?: string,
   ) => {
     const conflict = (await store.list(account)).find(
-      (session) =>
-        session.id !== exceptId &&
-        unresolved(session) &&
-        (unidentified(session) || overlap(session, executions)),
+      (session) => session.id !== exceptId && reserves(session, executions),
     );
     if (conflict) throw new SafeRelayrRecoveryError(conflict);
   };
@@ -656,7 +738,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       if (
         session.paymentStatus !== "unfunded" ||
         !Array.isArray(session.payments) ||
-        session.payments.length
+        session.payments.length ||
+        hasObservedFunding(session)
       )
         return pending({
           reason: "funding-unresolved",
@@ -709,6 +792,10 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   ): Promise<SafeRelayrResult> {
     if (session.state === "released") return result("released", session);
     if (session.state === "complete") return result("complete", session);
+    if (hasObservedFunding(session) && session.fundingObserved !== true) {
+      session = { ...session, fundingObserved: true };
+      await store.save(session);
+    }
     if (!session.bundleUuid || !session.quote)
       return inspectMissingQuote(session);
     const quote = requireSessionQuote(session);
@@ -716,6 +803,14 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     const bundle = await readRelayrBundle(session.bundleUuid, {
       fetch: fetchRelayr,
     });
+    if (
+      hasObservedFunding(session) ||
+      bundle.payment_received === true ||
+      hasFundingRecords(bundle.transactions)
+    ) {
+      session = { ...session, fundingObserved: true };
+      await store.save(session);
+    }
     if (!Array.isArray(bundle.transactions))
       throw new SafeRelayrRecoveryError(
         session,
@@ -802,9 +897,21 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         await store.save(session);
         return result("released", session);
       }
-    } else if (session.paymentStatus !== "unfunded") {
+    } else if (
+      session.paymentStatus !== "unfunded" ||
+      session.fundingObserved
+    ) {
       // A wallet invocation without a known hash may still have broadcast.
-      return result("pending", session);
+      return session.fundingObserved
+        ? {
+            ...result("pending", session),
+            recovery: {
+              reason: "funding-unresolved",
+              message:
+                "This saved selection has reported funding or execution activity. Check the existing bundle and its funding transactions before submitting another payment.",
+            },
+          }
+        : result("pending", session);
     }
     const quoted = relayrQuotedOptions(quote, chains);
     if (!quoted.length) return inspectMissingQuote(session);
@@ -870,12 +977,11 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     validateExecutions(executions);
     return store.withLock(account, async () => {
       checkAccount(account, signal);
-      const reservations = (await store.list(account)).filter(
-        (session) =>
-          unresolved(session) &&
-          (unidentified(session) || overlap(session, executions)),
+      const reservations = (await store.list(account)).filter((session) =>
+        reserves(session, executions),
       );
       for (const saved of reservations) {
+        if (canReplaceSafeRelayrQuote(saved)) continue;
         let checked: SafeRelayrResult;
         try {
           checked = await inspect(saved);
@@ -916,6 +1022,18 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       await revalidate(executions, account, onStatus, false, signal);
       await options.review(executions, { resumed: false });
       checkAccount(account, signal);
+      // Re-read under the shared lock after review. A rejected review leaves the
+      // old quote untouched; a recorded wallet invocation can never be retired.
+      for (const saved of await store.list(account)) {
+        if (!reserves(saved, executions)) continue;
+        if (!canReplaceSafeRelayrQuote(saved))
+          throw new SafeRelayrRecoveryError(saved);
+        await store.save({
+          ...saved,
+          state: "released",
+          releaseReason: "quote-replaced",
+        });
+      }
       await assertUnreserved(account, executions);
       let session: SafeRelayrSession = {
         id: options.createId?.() ?? globalThis.crypto.randomUUID(),
@@ -926,8 +1044,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         payments: [],
         createdAt: Date.now(),
       };
-      // Persist before POST. An interrupted response may have published the Safe
-      // signatures; loss of the bundle ID is never permission to publish twice.
+      // Persist before POST so the quote can be recovered or retired later.
+      // Safe publication alone is not evidence that the wallet funded it.
       await store.save(session);
       try {
         checkAccount(account, signal);
