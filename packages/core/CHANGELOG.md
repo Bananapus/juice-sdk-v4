@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 2.24.4
+
+### Patch Changes
+
+- a48beb0: Export the existing project activity display grouping rule as `mergeCrossChainActivityGroups`. Matching signatures on distinct chains within six hours share one representative while retaining every original transaction link and input order. Display signatures remain caller-owned; grouping is not proof that transactions belong to one bundle.
+
 ## 2.24.3
 
 ### Patch Changes
