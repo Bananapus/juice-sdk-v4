@@ -89,6 +89,7 @@ const TESTNETS: readonly number[] = [11155111, 11155420, 84532, 421614];
 const PAYMENT_CODE_MAX_BYTES = 2_048;
 const BUNDLE_READ_TIMEOUT_MS = 15_000;
 const HTTP_DETAIL_CHARACTERS = 240;
+const HTTP_ERROR_BODY_BYTES = 65_536;
 /** A Relayr bundle or transaction ID, in lower case. */
 export const RELAYR_UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
@@ -240,6 +241,11 @@ export class RelayrProofError extends Error {
   readonly name: string = "RelayrProofError";
 }
 
+/** The transaction or its canonical receipt is not yet readable. Retain the bundle and retry its proof. */
+export class RelayrProofUnavailableError extends Error {
+  readonly name = "RelayrProofUnavailableError";
+}
+
 /**
  * The payment at `hash` is exactly the reviewed payment, canonically included,
  * and reverted, so that one transaction paid nothing. It does not show that
@@ -334,6 +340,90 @@ function withCause<T extends Error>(error: T, cause: unknown): T {
 
 function errorWithCause(message: string, cause: unknown): Error {
   return withCause(new Error(message), cause);
+}
+
+// Error envelopes put their transaction (and possibly large calldata) before
+// the reason. Only diagnostic fields belong in the short human message.
+function httpDiagnostic(value: unknown, depth = 0): string {
+  if (depth > 4) return "";
+  if (typeof value === "string")
+    return value.replace(/\s+/gu, " ").trim().slice(0, HTTP_DETAIL_CHARACTERS);
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const record = value as Record<string, unknown>;
+  const fields = ["reason", "message", "error", "details", "cause"];
+  const keys = Object.keys(record);
+  if (
+    keys.length === 1 &&
+    ![...fields, "transaction", "transactions", "data"].includes(keys[0]) &&
+    /^[A-Za-z][A-Za-z0-9_]{0,63}$/u.test(keys[0])
+  ) {
+    const variant = keys[0];
+    const detail = httpDiagnostic(record[variant], depth + 1);
+    return `${variant}${detail ? `${detail.startsWith("on chain ") ? " " : ": "}${detail}` : ""}`;
+  }
+  const transaction = record.transaction as { chain?: unknown } | null;
+  const chain = transaction?.chain ?? record.chain;
+  const location =
+    typeof chain === "number" && Number.isSafeInteger(chain) && chain > 0
+      ? `on chain ${chain}`
+      : "";
+  let reason = "";
+  for (const field of fields) {
+    reason = httpDiagnostic(record[field], depth + 1);
+    if (reason) break;
+  }
+  return `${location}${location && reason ? ": " : ""}${reason}`;
+}
+
+/** Preserve a bounded original response privately; never log or interpolate its calldata. */
+async function relayrHttpError(response: Response): Promise<Error> {
+  let body = "";
+  let truncated = false;
+  let readError: unknown;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  try {
+    reader = response.body?.getReader();
+    if (reader) {
+      const decoder = new TextDecoder();
+      let bytes = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const remaining = HTTP_ERROR_BODY_BYTES - bytes;
+        body += decoder.decode(value.subarray(0, remaining), { stream: true });
+        bytes += value.byteLength;
+        if (bytes > HTTP_ERROR_BODY_BYTES) {
+          truncated = true;
+          void reader.cancel().catch(() => {});
+          break;
+        }
+      }
+      if (!truncated) body += decoder.decode();
+    }
+  } catch (error) {
+    readError = error;
+  } finally {
+    reader?.releaseLock();
+  }
+  let detail = body;
+  if (truncated) detail = "Response exceeded the diagnostic size limit.";
+  else {
+    try {
+      // Keep the established plain-text fallback for unknown/malformed bodies.
+      detail = httpDiagnostic(JSON.parse(body)) || body;
+    } catch {
+      // Non-JSON responses still retain their bounded original detail.
+    }
+  }
+  return errorWithCause(
+    `Relayr HTTP ${response.status}${detail ? `: ${detail.slice(0, HTTP_DETAIL_CHARACTERS)}` : ""}`,
+    {
+      status: response.status,
+      body,
+      truncated,
+      ...(readError ? { readError } : {}),
+    },
+  );
 }
 
 function isAddressLike(value: unknown): value is Address {
@@ -492,7 +582,7 @@ async function readBundle(
         signal: AbortSignal.timeout(BUNDLE_READ_TIMEOUT_MS),
       },
     );
-    if (!response.ok) throw new Error(`Relayr HTTP ${response.status}`);
+    if (!response.ok) throw await relayrHttpError(response);
     bundle = await response.json();
   } catch (cause) {
     throw withCause(unavailable(), cause);
@@ -546,10 +636,7 @@ export async function bindRelayrQuote(
   }: { fetch?: typeof globalThis.fetch } = {},
 ): Promise<RelayrQuote> {
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(
-      `Relayr HTTP ${response.status}${detail ? `: ${detail.slice(0, HTTP_DETAIL_CHARACTERS)}` : ""}`,
-    );
+    throw await relayrHttpError(response);
   }
   let body: {
     bundle_uuid?: unknown;
@@ -1057,13 +1144,13 @@ async function proveTransaction(
       client.getTransactionReceipt({ hash: expected.hash }),
     ]);
   } catch (cause) {
-    throw errorWithCause(words.unavailable, cause);
+    throw withCause(new RelayrProofUnavailableError(words.unavailable), cause);
   }
   if (
     transaction?.hash?.toLowerCase() !== hash ||
     receipt?.transactionHash?.toLowerCase() !== hash
   ) {
-    throw new Error(words.unavailable);
+    throw new RelayrProofUnavailableError(words.unavailable);
   }
   if (
     transaction.chainId !== expected.chainId ||
@@ -1085,16 +1172,16 @@ async function proveTransaction(
     transaction.blockNumber !== receipt.blockNumber ||
     (receipt.status !== "success" && receipt.status !== "reverted")
   ) {
-    throw new Error(words.unavailable);
+    throw new RelayrProofUnavailableError(words.unavailable);
   }
   let block: Awaited<ReturnType<RelayrProofClient["getBlock"]>>;
   try {
     block = await client.getBlock({ blockNumber: receipt.blockNumber });
   } catch (cause) {
-    throw errorWithCause(words.unavailable, cause);
+    throw withCause(new RelayrProofUnavailableError(words.unavailable), cause);
   }
   if (block?.hash?.toLowerCase() !== receipt.blockHash.toLowerCase()) {
-    throw new Error(words.notCanonical);
+    throw new RelayrProofUnavailableError(words.notCanonical);
   }
   return receipt;
 }
@@ -1380,7 +1467,7 @@ export async function verifyRelayrDestination(
 }
 
 /**
- * Prove every destination of a bundle from the chain. `bindings` are the
+ * Bind Relayr's reported destination hashes to a quote. `bindings` are the
  * quote's {@link RelayrQuote.expectedTransactions}; `records` are Relayr's
  * status records, which only say which hash to check. Every record must carry
  * one of the quote's IDs, once. Each binding then needs exactly one record on
@@ -1392,24 +1479,19 @@ export async function verifyRelayrDestination(
  * With `account`, every entry must also be that account's ERC-2771 request
  * on its chain's canonical forwarder, for the entry's own value.
  *
- * Returns the receipts in binding order. Throws
- * {@link RelayrDestinationRevertedError} when a destination canonically
- * reverted, another {@link RelayrProofError} when Relayr or the chain
- * contradicts a binding, and any other error while proof is unavailable.
- * Never pay again on any error.
+ * Returns candidate hashes in binding order, not execution proof. Throws
+ * {@link RelayrProofError} when Relayr contradicts a binding and another error
+ * while the reported inventory is incomplete. Never pay again on any error.
  */
-export async function verifyRelayrDestinations(
-  clientFor: (chainId: number) => RelayrProofClient | undefined,
-  {
-    bindings,
-    records,
-    account,
-  }: {
-    bindings: readonly RelayrTransactionBinding[];
-    records: readonly RelayrTransactionRecord[];
-    account?: Address;
-  },
-): Promise<RelayrVerifiedDestination[]> {
+export function relayrDestinationHashes({
+  bindings,
+  records,
+  account,
+}: {
+  bindings: readonly RelayrTransactionBinding[];
+  records: readonly RelayrTransactionRecord[];
+  account?: Address;
+}): Hex[] {
   const ids = bindings.map((binding) => uuidOf(binding?.txUuid));
   if (
     !bindings.length ||
@@ -1471,6 +1553,24 @@ export async function verifyRelayrDestinations(
       "Relayr reported one destination transaction for two signed calls. Keep the original bundle pending; do not pay again.",
     );
   }
+  return hashes;
+}
+
+/**
+ * Validate all bindings with {@link relayrDestinationHashes}, then prove each
+ * destination with {@link verifyRelayrDestination}. Returns canonical receipts
+ * in binding order. Never pay again on any error.
+ */
+export async function verifyRelayrDestinations(
+  clientFor: (chainId: number) => RelayrProofClient | undefined,
+  expected: {
+    bindings: readonly RelayrTransactionBinding[];
+    records: readonly RelayrTransactionRecord[];
+    account?: Address;
+  },
+): Promise<RelayrVerifiedDestination[]> {
+  const hashes = relayrDestinationHashes(expected);
+  const { bindings } = expected;
   const verified: RelayrVerifiedDestination[] = [];
   for (const [index, binding] of bindings.entries()) {
     const client = clientFor(binding.chain);
@@ -1480,7 +1580,7 @@ export async function verifyRelayrDestinations(
       );
     }
     verified.push({
-      txUuid: ids[index]!,
+      txUuid: uuidOf(binding.txUuid)!,
       chainId: binding.chain,
       receipt: await verifyRelayrDestination(client, {
         entry: binding.entry,

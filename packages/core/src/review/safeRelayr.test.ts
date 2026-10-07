@@ -14,6 +14,7 @@ import {
   RELAYR_PAYMENT_SELECTOR,
   relayrPaymentDetails,
   sentRelayrPayment,
+  RelayrProofUnavailableError,
   type RelayrBundleRequest,
   type RelayrReleaseClient,
   type RelayrTransactionRecord,
@@ -26,6 +27,7 @@ import {
   safeRelayrPreconditions,
   safeRelayrReservationKey,
   sameSafeRelayrIntents,
+  verifySafeRelayrLanding,
   type SafeRelayrExecution,
   type SafeRelayrOptions,
   type SafeRelayrSession,
@@ -226,6 +228,7 @@ function harness() {
   const afterVerified = vi.fn<NonNullable<SafeRelayrOptions["afterVerified"]>>(
     async () => undefined,
   );
+  const onProgress = vi.fn<NonNullable<SafeRelayrOptions["onProgress"]>>();
   let id = 0;
   let clientFor: SafeRelayrOptions["clientFor"] = () =>
     client as unknown as RelayrReleaseClient;
@@ -238,6 +241,7 @@ function harness() {
     review,
     sendPayment,
     afterVerified,
+    onProgress,
     createId: () => `${prefix}-session-${++id}`,
   };
   const controller = createSafeRelayrController(controllerOptions);
@@ -288,6 +292,7 @@ function harness() {
     review,
     sendPayment,
     afterVerified,
+    onProgress,
     mined,
     setAccount: (value: Address | undefined) => {
       account = value;
@@ -311,6 +316,44 @@ function harness() {
       onPost = value;
     },
   };
+}
+
+function mineSafe(
+  h: ReturnType<typeof harness>,
+  call: SafeRelayrExecution,
+  hash: Hex,
+) {
+  h.mined({
+    hash,
+    chain: call.entry.chain,
+    target: call.safe,
+    data: call.entry.data,
+    value: 0n,
+    logs: [
+      {
+        address: call.safe,
+        topics: encodeEventTopics({
+          abi: SAFE_EXEC_ABI,
+          eventName: "ExecutionSuccess",
+          args: { txHash: call.safeTxHash },
+        }),
+        data: encodeAbiParameters([{ type: "uint256" }], [0n]),
+      },
+    ],
+  });
+}
+
+function destinationRecords(
+  calls: SafeRelayrExecution[],
+  hashes: (Hex | undefined)[],
+) {
+  return calls.map((call, index) => ({
+    tx_uuid: IDS[index],
+    request: call.entry,
+    status: hashes[index]
+      ? { state: "Success", data: { hash: hashes[index] } }
+      : { state: "Pending" },
+  }));
 }
 
 beforeEach(() => {
@@ -2468,7 +2511,7 @@ describe("Safe Relayr funding and canonical outcome", () => {
   });
 
   it.each(["all succeed", "last lacks Safe proof"])(
-    "passes canonical receipts to app guards only after every Safe proof: %s",
+    "passes each canonical receipt to its app guard after that Safe proof: %s",
     async (outcome) => {
       const h = harness();
       const calls = [execution(), execution(10)];
@@ -2529,7 +2572,8 @@ describe("Safe Relayr funding and canonical outcome", () => {
         );
       } else {
         await expect(checked).rejects.toThrow();
-        expect(h.afterVerified).not.toHaveBeenCalled();
+        expect(h.afterVerified).toHaveBeenCalledOnce();
+        expect(h.afterVerified.mock.calls[0][0]).toEqual(calls[0]);
         expect(h.sessions.get(ready.session.id)?.state).toBe("active");
       }
       expect(h.sendPayment).not.toHaveBeenCalled();
@@ -2540,6 +2584,7 @@ describe("Safe Relayr funding and canonical outcome", () => {
     "missing event",
     "wrong hash",
     "failure event",
+    "reverted receipt",
     "wrong calldata",
     "noncanonical",
     "unexpected refund",
@@ -2572,6 +2617,7 @@ describe("Safe Relayr funding and canonical outcome", () => {
       };
       h.mined({
         target: SAFE,
+        status: outcome === "reverted receipt" ? "reverted" : "success",
         data: outcome === "wrong calldata" ? "0xffff" : call.entry.data,
         value: 0n,
         logs: outcome === "missing event" ? [] : [event],
@@ -2602,6 +2648,10 @@ describe("Safe Relayr funding and canonical outcome", () => {
             }),
           }),
         );
+      } else if (outcome === "noncanonical") {
+        expect((await checked).state).toBe("pending");
+        expect(h.sessions.get(ready.session.id)?.state).toBe("active");
+        expect(h.afterVerified).not.toHaveBeenCalled();
       } else {
         await expect(checked).rejects.toThrow();
         expect(h.sessions.get(ready.session.id)?.state).toBe("active");
@@ -2612,11 +2662,593 @@ describe("Safe Relayr funding and canonical outcome", () => {
   );
 });
 
+describe("standalone Safe Relayr landing proof", () => {
+  async function landed() {
+    const h = harness();
+    const executions = [execution(), execution(10)];
+    const hashes = [HASH, WRONG_BLOCK];
+    const ready = await h.controller.prepare({ account: ACCOUNT, executions });
+    executions.forEach((call, index) => mineSafe(h, call, hashes[index]));
+    return {
+      h,
+      executions,
+      bindings: ready.session.quote!.expectedTransactions,
+      records: destinationRecords(executions, hashes),
+    };
+  }
+
+  it("proves the exact saved calls and returns ordered canonical Safe receipts", async () => {
+    const { h, ...proof } = await landed();
+    const verified = await verifySafeRelayrLanding(
+      () => h.client as unknown as RelayrReleaseClient,
+      {
+        ...proof,
+        records: [...proof.records].reverse(),
+      },
+    );
+    expect(
+      verified.map(({ txUuid, chainId, receipt }) => [
+        txUuid,
+        chainId,
+        receipt.transactionHash,
+      ]),
+    ).toEqual([
+      [IDS[0], 1, HASH],
+      [IDS[1], 10, WRONG_BLOCK],
+    ]);
+    expect(h.sendPayment).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing binding", "different call"])(
+    "refuses a %s before reading any transaction",
+    async (kind) => {
+      const { h, ...proof } = await landed();
+      if (kind === "missing binding") proof.bindings.pop();
+      else proof.bindings[0].entry.data = "0xffff";
+      await expect(
+        verifySafeRelayrLanding(
+          () => h.client as unknown as RelayrReleaseClient,
+          proof,
+        ),
+      ).rejects.toThrow("bindings do not match");
+      expect(h.client.getTransaction).not.toHaveBeenCalled();
+      expect(h.client.getTransactionReceipt).not.toHaveBeenCalled();
+    },
+  );
+
+  it("retains the typed unavailable proof for callers without treating it as success", async () => {
+    const { h, ...proof } = await landed();
+    h.client.getTransactionReceipt.mockRejectedValueOnce(new Error("RPC lag"));
+    await expect(
+      verifySafeRelayrLanding(
+        () => h.client as unknown as RelayrReleaseClient,
+        proof,
+      ),
+    ).rejects.toBeInstanceOf(RelayrProofUnavailableError);
+    expect(h.sendPayment).not.toHaveBeenCalled();
+  });
+});
+
+describe("Safe Relayr live progress", () => {
+  it.each(["duplicate", "malformed"])(
+    "reports %s destination hashes as a failed proof without losing funding evidence",
+    async (kind) => {
+      const h = harness();
+      const calls = [execution(), execution(10)];
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: calls,
+      });
+      h.setPaymentReceived(true);
+      h.setRecords(
+        destinationRecords(calls, [
+          HASH,
+          kind === "duplicate" ? HASH : "0x1234",
+        ]),
+      );
+      const error = await h.controller
+        .check({ account: ACCOUNT, sessionId: ready.session.id })
+        .catch((error) => error);
+      expect(error).toBeInstanceOf(SafeRelayrRecoveryError);
+      expect(error.session.fundingObserved).toBe(true);
+      expect(h.sessions.get(ready.session.id)?.records).toEqual(
+        error.session.records,
+      );
+      const failed = h.onProgress.mock.calls.flatMap(([event]) =>
+        event.type === "execution" && event.status === "failed"
+          ? [event.index]
+          : [],
+      );
+      expect(failed).toEqual([0, 1]);
+      expect(h.client.getTransaction).not.toHaveBeenCalled();
+      expect(h.sendPayment).not.toHaveBeenCalled();
+    },
+  );
+
+  it("continues other chains when a destination's RPC client is unavailable", async () => {
+    const h = harness();
+    const calls = [execution(), execution(10)];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    mineSafe(h, calls[0], HASH);
+    h.setRecords(destinationRecords(calls, [HASH, WRONG_BLOCK]));
+    h.setClientFor((chainId) =>
+      chainId === 1 ? (h.client as unknown as RelayrReleaseClient) : undefined,
+    );
+    const checked = await h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    expect(checked.state).toBe("pending");
+    expect(
+      h.onProgress.mock.calls.some(
+        ([event]) =>
+          event.type === "execution" &&
+          event.index === 1 &&
+          event.status === "confirming" &&
+          event.message?.includes("connection"),
+      ),
+    ).toBe(true);
+    expect(
+      h.onProgress.mock.calls.some(
+        ([event]) =>
+          event.type === "execution" &&
+          event.index === 0 &&
+          event.status === "executed",
+      ),
+    ).toBe(true);
+    expect(canReplaceSafeRelayrQuote(checked.session)).toBe(false);
+    expect(h.sendPayment).not.toHaveBeenCalled();
+  });
+
+  it("persists a legacy execution observation before a later pending response can overwrite it", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.sessions.get(ready.session.id)!.records = [
+      {
+        tx_uuid: IDS[0],
+        request: execution().entry,
+        status: { state: "Running" },
+      },
+    ];
+    const checked = await h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    expect(checked.state).toBe("pending");
+    expect(checked.session.records![0].status?.state).toBe("Pending");
+    expect(checked.session.fundingObserved).toBe(true);
+    expect(h.sessions.get(ready.session.id)?.fundingObserved).toBe(true);
+    expect(canReplaceSafeRelayrQuote(checked.session)).toBe(false);
+  });
+
+  it.each(["check", "fund"] as const)(
+    "keeps newly observed funding in the %s recovery error after invalid returned bindings",
+    async (method) => {
+      const h = harness();
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: [execution()],
+      });
+      h.setPaymentReceived(true);
+      h.setRecords([
+        {
+          tx_uuid: IDS[1],
+          request: execution().entry,
+          status: { state: "Running" },
+        },
+      ]);
+      const failed =
+        method === "check"
+          ? h.controller.check({
+              account: ACCOUNT,
+              sessionId: ready.session.id,
+            })
+          : h.controller.fund({
+              account: ACCOUNT,
+              sessionId: ready.session.id,
+              paymentChainId: 1,
+            });
+      const error = await failed.catch((error) => error);
+      expect(error).toBeInstanceOf(SafeRelayrRecoveryError);
+      expect(error.session.fundingObserved).toBe(true);
+      expect(error.session).toEqual(h.sessions.get(ready.session.id));
+      expect(canReplaceSafeRelayrQuote(error.session)).toBe(false);
+      expect(h.sendPayment).not.toHaveBeenCalled();
+    },
+  );
+
+  it("shows hashless reported failures while requiring a later exact receipt before success", async () => {
+    const h = harness();
+    const call = execution();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [call],
+    });
+    h.setRecords([
+      { tx_uuid: IDS[0], request: call.entry, status: { state: "Failed" } },
+    ]);
+    expect(
+      (
+        await h.controller.check({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+        })
+      ).state,
+    ).toBe("pending");
+    expect(
+      h.onProgress.mock.calls.some(
+        ([event]) =>
+          event.type === "execution" &&
+          event.status === "failed" &&
+          event.hash === undefined,
+      ),
+    ).toBe(true);
+    expect(h.afterVerified).not.toHaveBeenCalled();
+    mineSafe(h, call, HASH);
+    h.setRecords([
+      {
+        tx_uuid: IDS[0],
+        request: call.entry,
+        status: { state: "Failed", data: { hash: HASH } },
+      },
+    ]);
+    expect(
+      (
+        await h.controller.check({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+        })
+      ).state,
+    ).toBe("complete");
+    expect(
+      h.onProgress.mock.calls.some(
+        ([event]) =>
+          event.type === "execution" &&
+          event.status === "executed" &&
+          event.hash === HASH,
+      ),
+    ).toBe(true);
+  });
+
+  it("does not show an executing phase for released payment history", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.sessions.get(ready.session.id)!.state = "released";
+    h.sessions.get(ready.session.id)!.fundingObserved = true;
+    h.onProgress.mockClear();
+    expect(
+      (
+        await h.controller.check({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+        })
+      ).state,
+    ).toBe("released");
+    expect(h.onProgress).not.toHaveBeenCalled();
+  });
+
+  it("starts quoting only after accepted review and reports durable payment phases", async () => {
+    const h = harness();
+    const entered = deferred();
+    const accepted = deferred();
+    h.review.mockImplementationOnce(async () => {
+      entered.resolve();
+      await accepted.promise;
+    });
+    const prepared = h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    await entered.promise;
+    expect(
+      h.onProgress.mock.calls.map(
+        ([event]) => event.type === "phase" && event.phase,
+      ),
+    ).toEqual(["reviewing"]);
+    expect(h.fetchRelayr).not.toHaveBeenCalled();
+    accepted.resolve();
+    const ready = await prepared;
+    expect(h.onProgress.mock.calls.slice(-1)[0]?.[0]).toMatchObject({
+      type: "phase",
+      phase: "quoting",
+    });
+    h.onProgress.mockClear();
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    const phases = h.onProgress.mock.calls.flatMap(([event]) =>
+      event.type === "phase" ? [event.phase] : [],
+    );
+    expect(phases.indexOf("payment-review")).toBeLessThan(
+      phases.indexOf("payment-submitting"),
+    );
+    expect(phases.indexOf("payment-submitting")).toBeLessThan(
+      phases.indexOf("payment-confirming"),
+    );
+    const submitted = h.onProgress.mock.calls.find(
+      ([event]) =>
+        event.type === "phase" && event.phase === "payment-confirming",
+    )![0];
+    expect(submitted.session?.payments).toHaveLength(1);
+    expect(h.sessions.get(ready.session.id)?.payments).toEqual(
+      submitted.session?.payments,
+    );
+  });
+
+  it.each(["sync", "async"])(
+    "isolates %s observer failure and mutations from calls and funding",
+    async (kind) => {
+      const h = harness();
+      const call = execution();
+      h.onProgress.mockImplementation((event) => {
+        if (event.session) event.session.executions[0].entry.data = "0xffff";
+        if (kind === "async")
+          return Promise.reject(new Error("display failed"));
+        throw new Error("display failed");
+      });
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: [call],
+      });
+      expect(ready.session.executions).toEqual([call]);
+      const paid = await h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      });
+      expect(paid.session.payments).toHaveLength(1);
+      expect(paid.session.executions).toEqual([call]);
+      expect(h.sendPayment).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("reports each available chain before a slower chain finishes its receipt read", async () => {
+    const h = harness();
+    const calls = [
+      execution(),
+      execution(10),
+      execution(8453),
+      execution(42161),
+    ];
+    const hashes = [HASH, BLOCK, WRONG_BLOCK, `0x${"12".repeat(32)}` as Hex];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    calls.forEach((call, index) => mineSafe(h, call, hashes[index]));
+    h.setRecords(destinationRecords(calls, hashes));
+    const slow = deferred();
+    const faster = deferred();
+    const read = h.client.getTransaction.getMockImplementation()!;
+    h.client.getTransaction.mockImplementation(async (args) => {
+      if (args.hash === hashes[0]) await slow.promise;
+      return read(args);
+    });
+    h.onProgress.mockImplementation((event) => {
+      if (
+        event.type === "execution" &&
+        event.index === 3 &&
+        event.status === "executed"
+      )
+        faster.resolve();
+    });
+    const checked = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    await faster.promise;
+    expect(
+      h.afterVerified.mock.calls.map(([call]) => call.entry.chain),
+    ).toEqual([10, 8453, 42161]);
+    expect(
+      h.onProgress.mock.calls.some(
+        ([event]) =>
+          event.type === "execution" &&
+          event.index === 0 &&
+          event.status === "executed",
+      ),
+    ).toBe(false);
+    slow.resolve();
+    expect((await checked).state).toBe("complete");
+    expect(h.onProgress.mock.calls.slice(-1)[0]?.[0]).toMatchObject({
+      type: "phase",
+      phase: "complete",
+    });
+  });
+
+  it("verifies a reported hash before every chain has one and does not regress an unchanged proven row", async () => {
+    const h = harness();
+    const calls = [execution(), execution(10)];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    mineSafe(h, calls[0], HASH);
+    h.setRecords(destinationRecords(calls, [HASH, undefined]));
+    expect(
+      (
+        await h.controller.check({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+        })
+      ).state,
+    ).toBe("pending");
+    expect(
+      h.onProgress.mock.calls.some(
+        ([event]) =>
+          event.type === "execution" &&
+          event.index === 0 &&
+          event.status === "executed" &&
+          event.hash === HASH,
+      ),
+    ).toBe(true);
+    h.onProgress.mockClear();
+    expect(
+      (
+        await h.controller.check({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+        })
+      ).state,
+    ).toBe("pending");
+    expect(
+      h.onProgress.mock.calls.filter(
+        ([event]) => event.type === "execution" && event.index === 0,
+      ),
+    ).toHaveLength(0);
+    expect(h.afterVerified).toHaveBeenCalledTimes(2);
+    h.setCanonicalHash(WRONG_BLOCK);
+    await h.controller.check({ account: ACCOUNT, sessionId: ready.session.id });
+    expect(
+      h.onProgress.mock.calls.some(
+        ([event]) =>
+          event.type === "execution" &&
+          event.index === 0 &&
+          event.status === "confirming",
+      ),
+    ).toBe(true);
+    expect(h.sessions.get(ready.session.id)?.records).toEqual(
+      destinationRecords(calls, [HASH, undefined]),
+    );
+    expect(h.sendPayment).not.toHaveBeenCalled();
+  });
+
+  it.each(["unavailable", "contradiction"])(
+    "classifies the app postcondition as %s without skipping its proof",
+    async (kind) => {
+      const h = harness();
+      const call = execution();
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: [call],
+      });
+      mineSafe(h, call, HASH);
+      h.setRecords(destinationRecords([call], [HASH]));
+      h.afterVerified.mockRejectedValueOnce(
+        kind === "unavailable"
+          ? new RelayrProofUnavailableError("Nonce RPC unavailable")
+          : new Error("Safe nonce did not advance"),
+      );
+      const checked = h.controller.check({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+      });
+      if (kind === "unavailable") expect((await checked).state).toBe("pending");
+      else
+        await expect(checked).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+      expect(h.onProgress.mock.calls.slice(-1)[0]?.[0]).toMatchObject({
+        type: "execution",
+        status: kind === "unavailable" ? "confirming" : "failed",
+        hash: HASH,
+      });
+      expect(h.sessions.get(ready.session.id)?.state).toBe("active");
+      expect(h.sendPayment).not.toHaveBeenCalled();
+    },
+  );
+});
+
 describe("Safe Relayr read-only progress polling", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW * 1000);
   });
+
+  it.each(["arrives", "timeout"])(
+    "retains the paid bundle while a reported destination receipt %s",
+    async (outcome) => {
+      const h = harness();
+      const calls = [
+        execution(),
+        execution(10),
+        execution(8453),
+        execution(42161),
+      ];
+      const hashes = [
+        BLOCK,
+        WRONG_BLOCK,
+        `0x${"12".repeat(32)}` as Hex,
+        `0x${"34".repeat(32)}` as Hex,
+      ];
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: calls,
+      });
+      h.mined();
+      const adapter = h.sendPayment.getMockImplementation()!;
+      h.sendPayment.mockImplementationOnce(async (options) => {
+        const paid = await adapter(options);
+        h.setPaymentReceived(true);
+        h.setRecords(destinationRecords(calls, hashes));
+        calls
+          .slice(1)
+          .forEach((call, index) => mineSafe(h, call, hashes[index + 1]));
+        return paid;
+      });
+      const paid = await h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      });
+      expect(paid.state).toBe("pending");
+      expect(paid.session.paymentStatus).toBe("confirmed");
+      expect(paid.session.payments).toHaveLength(1);
+      expect(
+        h.onProgress.mock.calls.some(
+          ([event]) =>
+            event.type === "execution" &&
+            event.index === 0 &&
+            event.status === "confirming",
+        ),
+      ).toBe(true);
+      expect(
+        h.onProgress.mock.calls.some(
+          ([event]) =>
+            event.type === "execution" &&
+            event.index === 3 &&
+            event.status === "executed",
+        ),
+      ).toBe(true);
+      h.onProgress.mockClear();
+      const first = deferred();
+      const watched = h.controller.watch({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        intervalMs: 100,
+        timeoutMs: 200,
+        onUpdate: () => first.resolve(),
+      });
+      await first.promise;
+      expect(h.onProgress.mock.calls[0][0]).toMatchObject({
+        type: "phase",
+        phase: "executing",
+      });
+      if (outcome === "arrives") mineSafe(h, calls[0], hashes[0]);
+      await vi.advanceTimersByTimeAsync(200);
+      const final = await watched;
+      expect(final.state).toBe(outcome === "arrives" ? "complete" : "pending");
+      expect(final.session.payments).toEqual(paid.session.payments);
+      expect(h.sessions.get(ready.session.id)?.records).toEqual(
+        destinationRecords(calls, hashes),
+      );
+      expect(h.sendPayment).toHaveBeenCalledOnce();
+      expect(
+        h.fetchRelayr.mock.calls.filter(([, init]) => init?.method === "POST"),
+      ).toHaveLength(1);
+      expect(canReplaceSafeRelayrQuote(final.session)).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
 
   it("polls pending progress with no held store lock and returns pending at timeout", async () => {
     const h = harness();
@@ -2784,10 +3416,12 @@ describe("Safe Relayr read-only progress polling", () => {
     });
     const rejection = expect(watched).rejects.toThrow();
     await entered.promise;
+    h.onProgress.mockClear();
     abort.abort();
     gate.resolve();
     await rejection;
     expect(onUpdate).not.toHaveBeenCalled();
+    expect(h.onProgress).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
     expect(h.sendPayment).not.toHaveBeenCalled();
   });

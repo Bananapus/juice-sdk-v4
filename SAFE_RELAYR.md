@@ -66,6 +66,28 @@ selected authenticated payment option, the application's exact-call review and
 live revalidation immediately before sending. Cancellation invalidates the
 pending preparation result; it does not erase publication or funding evidence.
 
+The optional `onProgress` observer reports review, quote and payment phases, plus
+each execution's pending, confirming, executed or failed state and known hash.
+Quoting begins after accepted review. Notifications receive independent copies;
+observer errors cannot interrupt funding or alter the journal. A failed Relayr
+status is reported as such, but only an exact canonical receipt, matching Safe
+success event and the application's postconditions can report executed.
+
+Destination checks run independently as hashes arrive. Each successful chain is
+reported immediately; a slower chain does not hide that progress. Receipt or
+transaction lookup lag and reorg uncertainty are `RelayrProofUnavailableError`,
+which leaves the original bundle pending for the existing bounded `watch` loop.
+An application postcondition may use the same type for unavailable RPC evidence;
+a proven nonce mismatch or other contradiction must remain an error. Watch
+timeouts retain records and payment history for a later read-only check, never a
+new payment. Every check re-proves receipts; display progress is not authority.
+
+Relayr HTTP errors keep their status prefix and prioritize the error variant,
+chain and reason over transaction calldata. The non-enumerable error cause
+retains the original response up to 64 KiB, with an explicit truncation marker
+beyond that limit. This improves diagnosis without inferring why Relayr's
+simulation disagreed with a local check.
+
 ## Client integration before publication
 
 Build a self-contained preview from this source with:
