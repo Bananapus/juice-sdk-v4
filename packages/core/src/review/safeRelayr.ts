@@ -18,7 +18,6 @@ import {
   safeExecutionResult,
   type SafeTransactionMessage,
 } from "../safeService.js";
-import { isDefiniteWalletRejection } from "./contractWrite.js";
 import {
   RELAYR_API,
   RELAYR_UUID_RE,
@@ -30,6 +29,7 @@ import {
   relayrDeadlinePassed,
   relayrPaymentOptions,
   relayrPaymentDetails,
+  relayrPaymentAttemptOutcome,
   relayrDestinationHash,
   relayrDestinationHashes,
   relayrRetryOption,
@@ -1524,7 +1524,10 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       } catch (error) {
         if (
           sending &&
-          isDefiniteWalletRejection(error) &&
+          // Classify only this attempt; restoring the previous status below
+          // preserves the quote's earlier payments and their retry policy.
+          relayrPaymentAttemptOutcome(error, { sending, paid: false }) ===
+            "unpaid" &&
           session.payments.length === checked.session.payments.length
         ) {
           session = {

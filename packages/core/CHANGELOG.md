@@ -10,6 +10,8 @@
 
   Authenticate a prepared intent's canonical envelope hash before requesting its signature and preserve that same envelope through publication. Add a final synchronous app-specific guard after all awaited write preparation, retaining recovery locks for ambiguous wallet submissions.
 
+  Add a typed pre-wallet Relayr refusal so a final synchronous guard can restore an unchanged payment attempt after durable preparation. Actual wallet errors and reported payments retain their existing recovery rules.
+
 ## 2.24.5
 
 ### Patch Changes

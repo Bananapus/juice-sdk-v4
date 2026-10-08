@@ -253,6 +253,24 @@ export class RelayrProofUnavailableError extends Error {
 }
 
 /**
+ * A synchronous final guard refused after saving a payment attempt and before
+ * invoking the wallet. Construct only around that guard, never around the
+ * persistence callback or wallet call: their failures may hide a submission.
+ */
+export class RelayrPaymentNotSentError extends Error {
+  readonly name = "RelayrPaymentNotSentError";
+
+  constructor(cause: unknown) {
+    super(
+      cause instanceof Error
+        ? cause.message
+        : "The payment was not sent. Review the payment again.",
+    );
+    withCause(this, cause);
+  }
+}
+
+/**
  * The payment at `hash` is exactly the reviewed payment, canonically included,
  * and reverted, so that one transaction paid nothing. It does not show that
  * the bundle is unpaid: the payment contract keeps no state, and Relayr keeps
@@ -2344,16 +2362,21 @@ export function relayrRetryOption(
  * Where a failed payment attempt leaves its quote: `reverted` when the
  * payment reverted onchain, or when the wallet declined to pay a quote paid
  * before, which stays on {@link requireRelayrPaymentRetry}'s rule; `unpaid`
- * when the wallet declined its first payment; null when nothing is known, and
- * the journal stays as it is. `sending` is whether the wallet held the
- * payment, and `paid` whether the quote was paid before.
+ * when the wallet declined its first payment. A typed final guard refusal
+ * before the wallet call has the same outcome. Null means nothing is known,
+ * and the journal stays as it is. `sending` is whether the attempt's marker
+ * was saved, and `paid` whether the quote was paid before.
  */
 export function relayrPaymentAttemptOutcome(
   error: unknown,
   { sending, paid }: { sending: boolean; paid: boolean },
 ): "reverted" | "unpaid" | null {
   if (error instanceof RelayrPaymentRevertedError) return "reverted";
-  if (sending && isDefiniteWalletRejection(error)) {
+  if (
+    sending &&
+    (error instanceof RelayrPaymentNotSentError ||
+      isDefiniteWalletRejection(error))
+  ) {
     return paid ? "reverted" : "unpaid";
   }
   return null;

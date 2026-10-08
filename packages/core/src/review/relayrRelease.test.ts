@@ -14,6 +14,7 @@ import {
   RELAYR_PAYMENT_SELECTOR,
   RELAYR_UUID_RE,
   RelayrPaymentRetryError,
+  RelayrPaymentNotSentError,
   RelayrPaymentRevertedError,
   RelayrProofError,
   proveSavedRelayrPayment,
@@ -244,6 +245,41 @@ describe("the option a quote paid before is paid again with", () => {
 
 describe("where a failed payment attempt leaves its quote", () => {
   const rejection = new UserRejectedRequestError(new Error("User rejected."));
+
+  it("clears a saved attempt only for a typed pre-wallet refusal, preserving prior payment policy", () => {
+    const cause = new Error("Wallet changed during persistence");
+    const error = new RelayrPaymentNotSentError(cause);
+    expect(error.message).toBe(cause.message);
+    expect(error).toHaveProperty("cause", cause);
+    expect(Object.keys(error)).not.toContain("cause");
+    expect(
+      relayrPaymentAttemptOutcome(error, { sending: true, paid: false }),
+    ).toBe("unpaid");
+    expect(
+      relayrPaymentAttemptOutcome(error, { sending: true, paid: true }),
+    ).toBe("reverted");
+    expect(
+      relayrPaymentAttemptOutcome(error, { sending: false, paid: false }),
+    ).toBeNull();
+    expect(new RelayrPaymentNotSentError(null).message).toBe(
+      "The payment was not sent. Review the payment again.",
+    );
+  });
+
+  it("never trusts an unsent error name, serialized shape or nested cause", () => {
+    for (const error of [
+      Object.assign(new Error("nothing sent"), {
+        name: "RelayrPaymentNotSentError",
+      }),
+      { name: "RelayrPaymentNotSentError", message: "nothing sent" },
+      Object.assign(new Error("wallet error"), {
+        cause: new RelayrPaymentNotSentError(new Error("changed")),
+      }),
+    ])
+      expect(
+        relayrPaymentAttemptOutcome(error, { sending: true, paid: false }),
+      ).toBeNull();
+  });
 
   it("is reverted when the payment reverted onchain", () => {
     const reverted = new RelayrPaymentRevertedError("reverted", HASH, 1);

@@ -143,6 +143,7 @@ describe("published core SDK surfaces", () => {
       "RELAYR_PAYMENT_SELECTOR",
       "RELAYR_UUID_RE",
       "RelayrDestinationRevertedError",
+      "RelayrPaymentNotSentError",
       "RelayrPaymentRetryError",
       "RelayrPaymentRevertedError",
       "RelayrProofError",
