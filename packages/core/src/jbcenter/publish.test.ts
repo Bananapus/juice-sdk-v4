@@ -1,3 +1,4 @@
+import { keccak256, toBytes } from "viem";
 import { describe, expect, test, vi } from "vitest";
 import { createJBCenterClient, type JBCenterIntentInput } from "../jbcenter.js";
 import { JBCenterIntentMismatchError, publishSignedIntent } from "./publish.js";
@@ -6,7 +7,6 @@ const OWNER_LOWER = "0x000000000000000000000000000000000000dead" as const;
 const OWNER_CHECKSUM = "0x000000000000000000000000000000000000dEaD" as const;
 const PUBLISHER = "0x1111111111111111111111111111111111111111" as const;
 const SIGNATURE = `0x${"34".repeat(65)}` as const;
-const CONTENT_HASH = `0x${"ab".repeat(32)}` as const;
 /** Long enough to be calldata, so its casing is Center's to choose. */
 const CALL_DATA = `0x011fb19e${"ab".repeat(32)}` as const;
 const CALL_DATA_UPPER = `0x${CALL_DATA.slice(2).toUpperCase()}` as const;
@@ -53,21 +53,40 @@ function preparedEnvelope(): JBCenterIntentInput {
   };
 }
 
+/** Exact canonical JSON used by Center and the legacy Sticky client. */
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  return `{${Object.keys(value)
+    .sort()
+    .map(
+      (key) =>
+        `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`,
+    )
+    .join(",")}}`;
+}
+const hashOf = (envelope: JBCenterIntentInput) =>
+  keccak256(toBytes(canonicalJson(envelope)));
+const CONTENT_HASH = hashOf(preparedEnvelope());
+
 function prepared(overrides: Record<string, unknown> = {}) {
+  const envelope = (overrides.envelope ??
+    preparedEnvelope()) as JBCenterIntentInput;
+  const contentHash = hashOf(envelope);
   return {
-    contentHash: CONTENT_HASH,
-    message: centerMessage(CONTENT_HASH.toUpperCase()),
-    envelope: preparedEnvelope(),
+    contentHash,
+    message: centerMessage(contentHash.toUpperCase()),
+    envelope,
     ...overrides,
   };
 }
 
-function storedIntent() {
+function storedIntent(envelope = preparedEnvelope()) {
   return {
     id: INTENT_ID,
     status: "undeployed",
-    contentHash: CONTENT_HASH,
-    envelope: preparedEnvelope(),
+    contentHash: hashOf(envelope),
+    envelope,
     publisher: PUBLISHER,
     signature: SIGNATURE,
     createdAt: "2026-09-21T00:00:00.000Z",
@@ -109,7 +128,7 @@ describe("publishSignedIntent", () => {
     ]);
   });
 
-  test("forwards the caller's intent, publisher, and signature to the publish call", async () => {
+  test("publishes the exact prepared envelope, publisher, and signature", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(prepared()))
@@ -122,7 +141,7 @@ describe("publishSignedIntent", () => {
 
     const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({
-      ...localIntent(),
+      ...preparedEnvelope(),
       publisher: PUBLISHER,
       signature: SIGNATURE,
     });
@@ -150,10 +169,122 @@ describe("publishSignedIntent", () => {
 
     const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({
-      ...localIntent(),
+      ...preparedEnvelope(),
       publisher: PUBLISHER,
       signature: SIGNATURE,
     });
+  });
+
+  test("publishes an immutable prepared snapshot when the service response changes while the signer waits", async () => {
+    const response = prepared();
+    const expected = preparedEnvelope();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(storedIntent()));
+    const client = createJBCenterClient({ fetch: fetchMock });
+    vi.spyOn(client, "prepareIntent").mockResolvedValueOnce(response);
+    let release!: (signature: typeof SIGNATURE) => void;
+    const sign = vi.fn(
+      () =>
+        new Promise<typeof SIGNATURE>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const publishing = publishSignedIntent(client, localIntent(), sign, {
+      publisher: PUBLISHER,
+    });
+    await vi.waitFor(() => expect(sign).toHaveBeenCalledOnce());
+    response.envelope.jb.owner = PUBLISHER;
+    response.envelope.deploymentCalls[0].data = "0xdeadbeef";
+    response.envelope.chainIds.push(10);
+    response.message = "Changed after the review";
+    release(SIGNATURE);
+    await expect(publishing).resolves.toHaveProperty(
+      "contentHash",
+      CONTENT_HASH,
+    );
+    expect(sign).toHaveBeenCalledWith(
+      centerMessage(CONTENT_HASH.toUpperCase()),
+    );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({
+      ...expected,
+      publisher: PUBLISHER,
+      signature: SIGNATURE,
+    });
+  });
+
+  test("matches Sticky's fixed Unicode and checksum content-hash vector", async () => {
+    const deployer = "0xdA38Ec48B5b1d186B02BA99F297e95153BEE33a9" as const;
+    const envelope: JBCenterIntentInput = {
+      format: "sticky.center/deploy.v1",
+      deploymentVersion: "6",
+      chainIds: [84532, 11155420],
+      deploymentCalls: [84532, 11155420].map((chainId) => ({
+        chainId,
+        to: deployer,
+        data: "0x00d5ce37abcd",
+      })),
+      jb: {
+        app: "sticky",
+        kind: "sticky",
+        name: "Sticky Test — ünïcode",
+        owner: "0x042F619EED558723252593DB0375fC34306f203A",
+        chainIds: [84532, 11155420],
+        symbol: "STICKYT",
+        stakedToken: `0x${"5".repeat(40)}`,
+        stakedTokenSymbol: "T",
+        cashOutTaxRate: "1000",
+        soulbound: false,
+        launchId: "abc",
+        projectUri: "data:application/json,{}",
+      },
+    };
+    // Pinned in Sticky's legacy center-intents.test.cjs independently of this implementation.
+    const expectedHash =
+      "0xf9d00ba55aa7a79c95f4fef8f73ed77316caa67b93649f659dc4b6150f24b821";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          envelope,
+          contentHash: expectedHash,
+          message: centerMessage(expectedHash),
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ ...storedIntent(envelope), contentHash: expectedHash }),
+      );
+    const sign = vi.fn().mockResolvedValue(SIGNATURE);
+    await publishSignedIntent(
+      createJBCenterClient({ fetch: fetchMock }),
+      envelope,
+      sign,
+      { publisher: PUBLISHER },
+    );
+    expect(sign).toHaveBeenCalledWith(centerMessage(expectedHash));
+  });
+
+  test("hashes integer-looking object keys lexicographically while retaining array order", async () => {
+    const envelope = localIntent();
+    envelope.jb.values = { "2": "two", "10": "ten", nested: [false, null, 3] };
+    expect(canonicalJson(envelope.jb.values)).toBe(
+      '{"10":"ten","2":"two","nested":[false,null,3]}',
+    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(prepared({ envelope })))
+      .mockResolvedValueOnce(jsonResponse(storedIntent(envelope)));
+    const sign = vi.fn().mockResolvedValue(SIGNATURE);
+    await publishSignedIntent(
+      createJBCenterClient({ fetch: fetchMock }),
+      envelope,
+      sign,
+      { publisher: PUBLISHER },
+    );
+    expect(sign).toHaveBeenCalledWith(
+      centerMessage(hashOf(envelope).toUpperCase()),
+    );
   });
 
   test("accepts the chain ids and calls in the order Center sorts them into", async () => {
@@ -180,9 +311,7 @@ describe("publishSignedIntent", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(prepared({ envelope: sorted })))
-      .mockResolvedValueOnce(
-        jsonResponse({ ...storedIntent(), envelope: sorted }),
-      );
+      .mockResolvedValueOnce(jsonResponse(storedIntent(sorted)));
     const client = createJBCenterClient({ fetch: fetchMock });
     const sign = vi.fn().mockResolvedValue(SIGNATURE);
 
@@ -194,13 +323,64 @@ describe("publishSignedIntent", () => {
     const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({
       ...sorted,
-      deploymentCalls: [
-        { chainId: 84532, to: OWNER_LOWER, data: CALL_DATA },
-        { chainId: 11155420, to: OWNER_LOWER, data: CALL_DATA },
-      ],
       publisher: PUBLISHER,
       signature: SIGNATURE,
     });
+  });
+
+  test("refuses an unrelated hash even when Center pairs it with the expected message and unchanged envelope", async () => {
+    const wrongHash = `0x${"ab".repeat(32)}`;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(
+          prepared({
+            contentHash: wrongHash,
+            message: centerMessage(wrongHash),
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(jsonResponse(storedIntent()));
+    const sign = vi.fn().mockResolvedValue(SIGNATURE);
+    await expect(
+      publishSignedIntent(
+        createJBCenterClient({ fetch: fetchMock }),
+        localIntent(),
+        sign,
+        { publisher: PUBLISHER },
+      ),
+    ).rejects.toMatchObject({
+      name: "JBCenterIntentMismatchError",
+      reason: "contentHash",
+    });
+    expect(sign).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("refuses a published listing with a different content hash", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(prepared()))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          ...storedIntent(),
+          contentHash: `0x${"ab".repeat(32)}`,
+        }),
+      );
+    const sign = vi.fn().mockResolvedValue(SIGNATURE);
+    await expect(
+      publishSignedIntent(
+        createJBCenterClient({ fetch: fetchMock }),
+        localIntent(),
+        sign,
+        { publisher: PUBLISHER },
+      ),
+    ).rejects.toMatchObject({
+      name: "JBCenterIntentMismatchError",
+      reason: "publication",
+    });
+    expect(sign).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   test("refuses before signing when Center changed a value", async () => {
@@ -251,7 +431,7 @@ describe("publishSignedIntent", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(prepared({ envelope: recased })))
-      .mockResolvedValueOnce(jsonResponse(storedIntent()));
+      .mockResolvedValueOnce(jsonResponse(storedIntent(recased)));
     const client = createJBCenterClient({ fetch: fetchMock });
     const sign = vi.fn().mockResolvedValue(SIGNATURE);
 

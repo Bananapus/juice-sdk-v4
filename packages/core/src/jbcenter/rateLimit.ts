@@ -73,15 +73,28 @@ const NESTED =
 /** The longest a refusal holds a limiter's slots: Center's window is a minute. */
 export const JBCENTER_MAX_RATE_LIMIT_PAUSE_MS = 60_000;
 
+/**
+ * First-party browser RPC admission: one queue shared by every chain. Starts
+ * are 125 ms apart, leaving headroom below Center's 600 requests/minute;
+ * slow responses hold no later request. Pass this as the provider's limiter
+ * so time spent queued or waiting out Retry-After precedes its network timeout.
+ */
+export function createPacedJBCenterLimiter(): JBCenterLimiter {
+  return createJBCenterLimiter({ slots: Infinity, startIntervalMs: 125 });
+}
+
 export type JBCenterLimiterOptions = {
   /**
-   * How many requests may be in flight at once, every chain's together. Slots
+   * How many requests may be in flight at once, every chain's together.
+   * Infinity leaves concurrency uncapped; pair it with startIntervalMs. Slots
    * bound how many are in flight, not how many go out a minute: two in flight
    * send up to 343 a minute at the quickest round trip measured against
    * Center's staging (0.35 s), under the 600 a first-party origin gets but over
    * the 120 any other gets. Past the limit, the first 429 pauses the rest.
    */
   slots: number;
+  /** Whole milliseconds between starts, up to 2^31 - 1; zero keeps concurrency-only limiting. */
+  startIntervalMs?: number;
 };
 
 /** Requests that share JB Center's rate limit. One limiter serves a whole page. */
@@ -177,9 +190,19 @@ function line(room: number, held: () => boolean): Line {
  */
 export function createJBCenterLimiter({
   slots,
+  startIntervalMs = 0,
 }: JBCenterLimiterOptions): JBCenterLimiter {
-  if (!Number.isSafeInteger(slots) || slots <= 0) {
-    throw new TypeError("slots must be a positive safe integer");
+  if (slots !== Infinity && (!Number.isSafeInteger(slots) || slots <= 0)) {
+    throw new TypeError("slots must be a positive safe integer or Infinity");
+  }
+  if (
+    !Number.isSafeInteger(startIntervalMs) ||
+    startIntervalMs < 0 ||
+    startIntervalMs > 2 ** 31 - 1
+  ) {
+    throw new TypeError(
+      "startIntervalMs must be a whole number from 0 to 2147483647",
+    );
   }
   /** When the slots open again after a refusal, by the clock, and the timer that opens them. */
   let resumeAt = 0;
@@ -204,6 +227,7 @@ export function createJBCenterLimiter({
   /** `send()`, with every request it asks this limiter for before it returns refused. */
   function begin<T>(send: () => Promise<T>): Promise<T> {
     starting = true;
+    if (startIntervalMs > 0) hold(startIntervalMs);
     try {
       return send();
     } finally {

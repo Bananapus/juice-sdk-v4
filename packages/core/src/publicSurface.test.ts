@@ -94,6 +94,7 @@ describe("published core SDK surfaces", () => {
     expect(feeBuyback.createFeeWatch).toBeTypeOf("function");
     expect(review.isDefiniteWalletRejection).toBeTypeOf("function");
     expect(review.waitForTrackedReceipt).toBeTypeOf("function");
+    expect(review.transactionMessage).toBeTypeOf("function");
     expect(review.TransactionReceiptUnavailableError).toBeTypeOf("function");
     expect(review.isTransactionReceiptUnavailableError).toBeTypeOf("function");
     expect(review.simulateStateChangingTransaction).toBeTypeOf("function");
@@ -158,6 +159,7 @@ describe("published core SDK surfaces", () => {
       "relayrDeadlinePassed",
       "relayrDestinationHash",
       "relayrDestinationHashes",
+      "relayrDestinationRecords",
       "relayrForwardRequest",
       "relayrPaidQuoteOpen",
       "relayrPaymentAttemptOutcome",
@@ -251,26 +253,37 @@ describe("published core SDK surfaces", () => {
       "SAFE_EXEC_ABI",
       "SAFE_NONCE_GUIDANCE",
       "SAFE_PREFIX",
+      "SAFE_PROPOSAL_AWAITING",
+      "SAFE_PROPOSAL_UNCONFIRMED",
       "SAFE_SERVICE_MAX_RETRY_WAIT_MS",
       "SAFE_SERVICE_PREFIX",
       "SAFE_TX_TYPES",
+      "atOnceExecution",
       "canonicalSafeTxHash",
+      "chainAnswer",
       "fetchSafeCreation",
       "fetchSafesOwnedBy",
+      "findPendingSafeAppProposal",
       "findPendingSafeTransaction",
       "hasSafeService",
+      "heldCall",
       "isSafeWalletPeer",
       "listPendingSafeTransactions",
+      "lookAtSafeProposal",
       "nextProposalNonce",
       "onchainApprovalStep",
       "parseSafeCreationPayload",
       "proposeSafeTransaction",
+      "readSafeAppExecution",
       "readSafeTransaction",
+      "reportedSafeExecution",
       "requireSafeExecutionSuccess",
+      "requireSafeProposalSuccess",
       "safeBatchProposalFor",
       "safeCreationUrl",
       "safeExecutionArgs",
       "safeExecutionResult",
+      "safeExecutionRunsCalls",
       "safeExecutionSignatures",
       "safeProposalFor",
       "safeQueueUrl",
@@ -279,11 +292,14 @@ describe("published core SDK surfaces", () => {
       "safeTransactionHash",
       "safeTransactionMatchesCall",
       "safeTransactionMessage",
+      "safeTransactionRunsCalls",
       "safeTransactionUrl",
+      "stampedDeadline",
       "submitSafeConfirmation",
       "swapDeadline",
       "usableSafeConfirmations",
       "waitForSafeExecutionHash",
+      "watchSafeProposal",
     ]);
     for (const name of [...Object.keys(safe), ...Object.keys(safeService)]) {
       expect(sdk).not.toHaveProperty(name);

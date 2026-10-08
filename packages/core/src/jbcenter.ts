@@ -183,6 +183,7 @@ export type {
 export {
   JBCENTER_MAX_RATE_LIMIT_PAUSE_MS,
   createJBCenterLimiter,
+  createPacedJBCenterLimiter,
   errorChain,
   isRateLimited,
   retryAfterOf,

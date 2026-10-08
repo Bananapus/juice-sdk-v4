@@ -45,6 +45,8 @@ import {
   RELAYR_PAYMENT_SELECTOR,
   relayrBundleRequest,
   relayrDestinationHash,
+  relayrDestinationHashes,
+  relayrDestinationRecords,
   relayrForwardRequest,
   relayrPaymentChains,
   relayrPaymentDetails,
@@ -2792,6 +2794,91 @@ describe("Relayr destination proof", () => {
       ...input,
     });
 
+  it("returns records in binding order before their hashes arrive", () => {
+    const waiting = records();
+    waiting[0].status = { state: "Pending" };
+    waiting[1].status = { data: { hash: "0x12" } };
+    const named = relayrDestinationRecords({
+      bindings,
+      records: waiting,
+      account: ACCOUNT,
+    });
+    expect(named).toEqual([waiting[1], waiting[0]]);
+    expect(named[0]).toBe(waiting[1]);
+    expect(named.map(relayrDestinationHash)).toEqual([null, null]);
+    expect(() =>
+      relayrDestinationHashes({ bindings, records: waiting }),
+    ).toThrow(
+      "Relayr has not identified every exact destination transaction. Keep checking the original bundle; do not pay again.",
+    );
+  });
+
+  it("preserves missing-hash precedence over a later mismatched call", () => {
+    const incomplete = records();
+    incomplete[1].status = { state: "Pending" };
+    incomplete[0].request = { ...second, data: "0x99" };
+    expect(() =>
+      relayrDestinationHashes({ bindings, records: incomplete }),
+    ).toThrow(
+      "Relayr has not identified every exact destination transaction. Keep checking the original bundle; do not pay again.",
+    );
+    expect(() =>
+      relayrDestinationHashes({ bindings, records: incomplete }),
+    ).not.toThrow(RelayrProofError);
+    expect(() =>
+      relayrDestinationRecords({ bindings, records: incomplete }),
+    ).toThrow(RelayrProofError);
+  });
+
+  it("refuses duplicate available hashes even while another call has no hash", () => {
+    const third = forwarded(8453);
+    const pending = recordFor(third, FOURTH_UUID, { state: "Pending" });
+    const shared = records();
+    shared[0].status = {
+      data: { hash: HASH.toUpperCase().replace("0X", "0x") as Hex },
+    };
+    const expected = {
+      bindings: [
+        { txUuid: FOURTH_UUID, chain: 8453, entry: third },
+        ...bindings,
+      ],
+      records: [...shared, pending],
+    };
+    expect(() => relayrDestinationRecords(expected)).toThrow(
+      "Relayr reported one destination transaction for two signed calls. Keep the original bundle pending; do not pay again.",
+    );
+    expect(() => relayrDestinationHashes(expected)).not.toThrow(
+      RelayrProofError,
+    );
+    expect(() => relayrDestinationHashes(expected)).toThrow(
+      "Relayr has not identified every exact destination transaction. Keep checking the original bundle; do not pay again.",
+    );
+  });
+
+  it("requires virtual nonces to distinguish otherwise identical calls on one chain", () => {
+    const numbered = bindings.map((binding, index) => ({
+      ...binding,
+      chain: 1,
+      entry: { ...first, virtual_nonce: index },
+    }));
+    const listed = numbered.map(({ entry, txUuid }) =>
+      recordFor(entry, txUuid, {}),
+    );
+    expect(
+      relayrDestinationRecords({
+        bindings: numbered,
+        records: [...listed].reverse(),
+      }),
+    ).toEqual(listed);
+    const ambiguous = listed.map((record) => ({
+      ...record,
+      request: { ...record.request!, virtual_nonce: undefined },
+    }));
+    expect(() =>
+      relayrDestinationRecords({ bindings: numbered, records: ambiguous }),
+    ).toThrow(RelayrProofError);
+  });
+
   it("proves each signed destination onchain and returns its receipt in binding order", async () => {
     const { client, clientFor } = clients();
     const verified = await verifyAll({ account: ACCOUNT }, clientFor);
@@ -2815,6 +2902,10 @@ describe("Relayr destination proof", () => {
       swapped[1].tx_uuid,
       swapped[0].tx_uuid,
     ];
+    expect(relayrDestinationRecords({ bindings, records: swapped })).toEqual([
+      swapped[1],
+      swapped[0],
+    ]);
     await expect(verifyAll({ records: swapped })).resolves.toHaveLength(2);
   });
 
@@ -2824,6 +2915,18 @@ describe("Relayr destination proof", () => {
       status,
       chain: index === 0 ? 10 : 1,
     }));
+    expect(relayrDestinationRecords({ bindings, records: bare })).toEqual([
+      bare[1],
+      bare[0],
+    ]);
+    const nulled = bare.map((record) => ({
+      ...record,
+      request: null,
+    })) as unknown as RelayrTransactionRecord[];
+    expect(relayrDestinationRecords({ bindings, records: nulled })).toEqual([
+      nulled[1],
+      nulled[0],
+    ]);
     await expect(verifyAll({ records: bare })).resolves.toHaveLength(2);
     const swapped = bare.map((record, index) => ({
       ...record,
@@ -2881,6 +2984,11 @@ describe("Relayr destination proof", () => {
       },
     ],
   ])("refuses a saved authorization with %s", async (_, input) => {
+    expect(() =>
+      relayrDestinationRecords({ bindings, records: records(), ...input }),
+    ).toThrow(
+      "The saved relay authorization does not match its account or value.",
+    );
     await expect(verifyAll(input)).rejects.toThrow(
       "The saved relay authorization does not match its account or value.",
     );
@@ -2891,6 +2999,15 @@ describe("Relayr destination proof", () => {
     [
       "an invalid ID",
       { bindings: [{ ...bindings[0], txUuid: "tx-1" }, bindings[1]] },
+    ],
+    [
+      "a non-string ID",
+      {
+        bindings: [
+          { ...bindings[0], txUuid: 7 as unknown as string },
+          bindings[1],
+        ],
+      },
     ],
     [
       "a repeated ID",
@@ -2913,7 +3030,24 @@ describe("Relayr destination proof", () => {
       "a missing binding",
       { bindings: [null as unknown as RelayrTransactionBinding] },
     ],
+    [
+      "a value above uint256",
+      {
+        bindings: [
+          {
+            ...bindings[0],
+            entry: { ...first, value: (2n ** 256n).toString() },
+          },
+          bindings[1],
+        ],
+      },
+    ],
   ])("keeps a saved bundle with %s pending", async (_, input) => {
+    expect(() =>
+      relayrDestinationRecords({ records: records(), ...input }),
+    ).toThrow(
+      "This saved Relayr bundle lacks exact destination proof. Keep it pending and verify the original transactions; do not pay again.",
+    );
     await expect(verifyAll(input)).rejects.toThrow(
       "This saved Relayr bundle lacks exact destination proof. Keep it pending and verify the original transactions; do not pay again.",
     );
@@ -2943,7 +3077,15 @@ describe("Relayr destination proof", () => {
       },
     ],
   ])("keeps checking while Relayr reports %s", async (_, change) => {
-    const error = await rejection(verifyAll({ records: change(records()) }));
+    const changed = change(records());
+    if (changed.length !== bindings.length) {
+      expect(() =>
+        relayrDestinationRecords({ bindings, records: changed }),
+      ).toThrow(
+        "Relayr has not identified every exact destination transaction. Keep checking the original bundle; do not pay again.",
+      );
+    }
+    const error = await rejection(verifyAll({ records: changed }));
     expect(error).not.toBeInstanceOf(RelayrProofError);
     expect(error).toMatchObject({
       message:
@@ -3009,7 +3151,14 @@ describe("Relayr destination proof", () => {
       /one destination transaction for two signed calls/,
     ],
   ])("refuses a status with %s", async (_, change, message) => {
-    const error = await rejection(verifyAll({ records: change(records()) }));
+    const changed = change(records());
+    expect(() =>
+      relayrDestinationRecords({ bindings, records: changed }),
+    ).toThrow(RelayrProofError);
+    expect(() =>
+      relayrDestinationRecords({ bindings, records: changed }),
+    ).toThrow(message);
+    const error = await rejection(verifyAll({ records: changed }));
     expect(error).toBeInstanceOf(RelayrProofError);
     expect(error).toMatchObject({ message: expect.stringMatching(message) });
   });

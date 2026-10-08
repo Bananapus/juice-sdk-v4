@@ -46,7 +46,9 @@ function harness() {
         expect(prepared).toBe(simulated);
         return "0xhash";
       }),
-      onPhase: vi.fn((phase) => events.push(`phase:${phase}`)),
+      onPhase: vi.fn((phase: string) => {
+        events.push(`phase:${phase}`);
+      }),
     },
   };
 }
@@ -68,7 +70,7 @@ describe("reviewed direct-write boundary", () => {
       "phase:signing",
       "write",
     ]);
-    expect(run.options.currentAccount).toHaveBeenCalledTimes(4);
+    expect(run.options.currentAccount).toHaveBeenCalledTimes(5);
     expect(run.options.write).toHaveBeenCalledTimes(1);
   });
 
@@ -252,6 +254,88 @@ describe("reviewed direct-write boundary", () => {
     expect(run.options.write).not.toHaveBeenCalled();
     expect(onBeforeWriteAborted).toHaveBeenCalledOnce();
   });
+
+  it.each([false, true])(
+    "runs the final synchronous guard after every preparation and signing phase (intent %s)",
+    async (persist) => {
+      const run = harness();
+      const beforeWrite = persist
+        ? vi.fn(async () => {
+            await Promise.resolve();
+            run.events.push("persist");
+          })
+        : undefined;
+      const beforeSend = vi.fn(() => {
+        run.events.push("final");
+        queueMicrotask(() => run.events.push("later"));
+      });
+      await submitReviewedContractWrite({
+        ...run.options,
+        beforeWrite,
+        beforeSend,
+      });
+      expect(run.events.slice(-4)).toEqual([
+        "phase:signing",
+        "final",
+        "write",
+        "later",
+      ]);
+      expect(beforeSend).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([false, true])(
+    "cleans only a persisted intent when the final app guard refuses (intent %s)",
+    async (persist) => {
+      const run = harness();
+      const onBeforeWriteAborted = vi.fn();
+      const onWriteRejected = vi.fn();
+      const refusal = new UserRejectedRequestError(
+        new Error("Final scope changed"),
+      );
+      await expect(
+        submitReviewedContractWrite({
+          ...run.options,
+          beforeWrite: persist
+            ? async () => {
+                await Promise.resolve();
+              }
+            : undefined,
+          beforeSend: () => {
+            throw refusal;
+          },
+          onBeforeWriteAborted,
+          onWriteRejected,
+        }),
+      ).rejects.toBe(refusal);
+      expect(onBeforeWriteAborted).toHaveBeenCalledTimes(persist ? 1 : 0);
+      expect(onWriteRejected).not.toHaveBeenCalled();
+      expect(run.options.write).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([false, true])(
+    "refuses account drift in the signing-phase callback (intent %s)",
+    async (persist) => {
+      const run = harness();
+      const onBeforeWriteAborted = vi.fn();
+      const beforeSend = vi.fn();
+      run.options.onPhase.mockImplementation((phase) => {
+        if (phase === "signing") run.setCurrent(BOB);
+      });
+      await expect(
+        submitReviewedContractWrite({
+          ...run.options,
+          beforeWrite: persist ? async () => {} : undefined,
+          beforeSend,
+          onBeforeWriteAborted,
+        }),
+      ).rejects.toThrow(/account changed/i);
+      expect(onBeforeWriteAborted).toHaveBeenCalledTimes(persist ? 1 : 0);
+      expect(beforeSend).not.toHaveBeenCalled();
+      expect(run.options.write).not.toHaveBeenCalled();
+    },
+  );
 
   it("never invokes pre-wallet cleanup after a write starts or when persistence was not completed", async () => {
     for (const gate of ["beforeWrite", "write"] as const) {

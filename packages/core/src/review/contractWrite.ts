@@ -39,6 +39,8 @@ export type ReviewedContractWriteOptions<
   reverify?: (request: TRequest) => Promise<unknown>;
   /** Persist recovery intent after simulation, before a wallet can broadcast. */
   beforeWrite?: () => unknown | Promise<unknown>;
+  /** Final synchronous app scope/chain/connection gate, after all awaits and the signing phase. */
+  beforeSend?: () => void;
   /** The persisted intent was rejected by a final gate before write was invoked. */
   onBeforeWriteAborted?: () => unknown | Promise<unknown>;
   /** Clear that intent only when the wallet explicitly rejects the write. */
@@ -79,6 +81,7 @@ export async function submitReviewedContractWrite<
   simulate,
   reverify,
   beforeWrite,
+  beforeSend,
   onBeforeWriteAborted,
   onWriteRejected,
   write,
@@ -102,23 +105,23 @@ export async function submitReviewedContractWrite<
   const simulated = await simulate(request);
   assertExpectedAccount(currentAccount(), expectedAccount, accountChangedError);
 
-  if (beforeWrite) {
-    await beforeWrite();
-    try {
-      assertExpectedAccount(
-        currentAccount(),
-        expectedAccount,
-        accountChangedError,
-      );
-    } catch (error) {
-      // This is strictly before the wallet writer is invoked. An ambiguous
-      // write error must never reach this cleanup path.
-      await onBeforeWriteAborted?.();
-      throw error;
-    }
-  }
+  if (beforeWrite) await beforeWrite();
 
-  onPhase?.("signing");
+  try {
+    onPhase?.("signing");
+    assertExpectedAccount(
+      currentAccount(),
+      expectedAccount,
+      accountChangedError,
+    );
+    beforeSend?.();
+  } catch (error) {
+    // Strictly before the wallet writer: only a successfully persisted intent
+    // may be cleared. Ambiguous write errors never enter this cleanup path.
+    if (beforeWrite) await onBeforeWriteAborted?.();
+    throw error;
+  }
+  // No await or caller callback may separate the final synchronous gates from write.
   try {
     return await write(simulated);
   } catch (error) {
