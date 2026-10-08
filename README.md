@@ -645,7 +645,12 @@ try {
 } catch (cause) {
   throw new RelayrPaymentNotSentError(cause);
 }
-const hash = await wallet.sendTransaction(request);
+let hash;
+try {
+  hash = await wallet.sendTransaction(request);
+} catch (error) {
+  throw relayrWalletPaymentError(error);
+}
 ```
 
 The outcome classifier treats this instance like a definite wallet rejection
@@ -653,7 +658,11 @@ and preserves prior-payment retry rules. The Safe controller restores its
 previous status only while the known payment history is unchanged. Never
 wrap persistence failures or wallet calls in this error: they may conceal a
 submission. Error names, serialized objects and nested causes do not prove
-that nothing was sent.
+that nothing was sent. In the actual wallet-call catch, use
+`relayrWalletPaymentError` before classifying or rethrowing the result. It
+removes the pre-wallet authority from an incorrectly returned typed refusal,
+keeping its diagnostics privately outside the rejection cause chain; every
+ordinary wallet error, including a definite rejection, is returned unchanged.
 
 `sentRelayrPayment` records a payment as it was mined, and
 `relayrSentPaymentsSnapshot` reads a saved list back strictly, at most

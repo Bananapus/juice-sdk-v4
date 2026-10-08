@@ -271,6 +271,17 @@ export class RelayrPaymentNotSentError extends Error {
 }
 
 /**
+ * Normalize only errors from an invoked wallet: its result cannot prove a
+ * local guard refused before invocation. Preserve a branded error privately
+ * as `walletError`, not `cause`, which the rejection classifier traverses.
+ */
+export function relayrWalletPaymentError(error: unknown): unknown {
+  return error instanceof RelayrPaymentNotSentError
+    ? withHidden(new Error(error.message), "walletError", error)
+    : error;
+}
+
+/**
  * The payment at `hash` is exactly the reviewed payment, canonically included,
  * and reverted, so that one transaction paid nothing. It does not show that
  * the bundle is unpaid: the payment contract keeps no state, and Relayr keeps

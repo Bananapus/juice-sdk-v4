@@ -20,6 +20,7 @@ import {
   proveSavedRelayrPayment,
   relayrPaidQuoteOpen,
   relayrPaymentAttemptOutcome,
+  relayrWalletPaymentError,
   relayrPaymentDetails,
   relayrQuotedOptions,
   relayrRetryOption,
@@ -319,6 +320,56 @@ describe("where a failed payment attempt leaves its quote", () => {
         },
       ),
     ).toBeNull();
+  });
+});
+
+describe("wallet-call errors cannot prove a local pre-wallet refusal", () => {
+  it.each([
+    new Error("Wallet response lost"),
+    Object.assign(new Error("Rejected inside an incorrect unsent result"), {
+      code: 4001,
+    }),
+  ])("keeps an invoked wallet's typed error ambiguous: %s", (cause) => {
+    const walletError = new RelayrPaymentNotSentError(cause);
+    const error = relayrWalletPaymentError(walletError);
+    expect(
+      relayrPaymentAttemptOutcome(error, { sending: true, paid: false }),
+    ).toBeNull();
+    expect(
+      relayrPaymentAttemptOutcome(error, { sending: true, paid: true }),
+    ).toBeNull();
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(RelayrPaymentNotSentError);
+    expect(error).toHaveProperty("message", walletError.message);
+    expect(error).toHaveProperty("walletError", walletError);
+    expect(error).not.toHaveProperty("cause");
+    expect(Object.keys(error as object)).not.toContain("walletError");
+    expect(JSON.stringify(error)).not.toContain(walletError.message);
+  });
+
+  it("preserves every ordinary wallet error and definite rejection exactly", () => {
+    const rejected = new UserRejectedRequestError(new Error("User rejected"));
+    for (const error of [
+      rejected,
+      new Error("Unknown wallet result"),
+      { code: 4001 },
+      null,
+      "timeout",
+    ]) {
+      expect(relayrWalletPaymentError(error)).toBe(error);
+    }
+    expect(
+      relayrPaymentAttemptOutcome(relayrWalletPaymentError(rejected), {
+        sending: true,
+        paid: false,
+      }),
+    ).toBe("unpaid");
+    expect(
+      relayrPaymentAttemptOutcome(
+        new RelayrPaymentNotSentError(new Error("Local guard refused")),
+        { sending: true, paid: false },
+      ),
+    ).toBe("unpaid");
   });
 });
 

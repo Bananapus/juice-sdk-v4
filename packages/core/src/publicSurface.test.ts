@@ -182,6 +182,7 @@ describe("published core SDK surfaces", () => {
       "relayrStateIsSuccess",
       "relayrSupportsChain",
       "relayrSupportsChains",
+      "relayrWalletPaymentError",
       "requireRelayrBundleUnpaid",
       "requireRelayrPaymentRetry",
       "requireRelayrPaymentRuntime",
