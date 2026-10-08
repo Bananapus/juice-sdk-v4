@@ -103,8 +103,13 @@ const budgets = {
     // no files: measured 1,268,545 B packed and 20,695,695 B unpacked (746 files).
     // The shared project activity display grouping adds eight artifacts:
     // measured 1,270,129 B packed, 20,703,967 B unpacked, 754 files.
-    packed: 1_271_000,
-    unpacked: 20_704_000,
+    // Authenticated wrapped funding and Safe post-send recovery change only
+    // sixteen existing JS/declaration/map artifacts: +4,962 B packed and
+    // +21,043 B unpacked against published 2.24.4, with no new dependencies,
+    // files or test fixtures. Retain narrow rounding: measured 1,275,091 B
+    // packed, 20,725,010 B unpacked, 754 files.
+    packed: 1_276_000,
+    unpacked: 20_726_000,
     entries: 754,
   },
   "@bananapus/nana-sdk-react": {

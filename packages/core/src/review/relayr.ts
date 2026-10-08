@@ -47,6 +47,10 @@ export const RELAYR_PAYMENT_SELECTOR = "0x103903a7";
 export const RELAYR_PAYMENT_CODE_HASH =
   "0x6006b5acadb4cd60aa5c00cb844c34563e182dff83d4f4ff4fde226f7df16fa6" as Hex;
 
+/** Prepayment(bytes16 indexed payment_uuid, uint256 amount, uint40 deadline). */
+export const RELAYR_PAYMENT_EVENT =
+  "0xb96b060a9c075a83da0cf1f9405deeb5df21df681a762de16c3d5eaf99531cd8" as Hex;
+
 /** The token Relayr quotes for a payment in the chain's native currency. */
 export const RELAYR_NATIVE_TOKEN =
   "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as Address;
@@ -231,6 +235,8 @@ export type RelayrProofClient = {
   }>;
   getTransactionReceipt(args: { hash: Hex }): Promise<TransactionReceipt>;
   getBlock(args: { blockNumber: bigint }): Promise<{ hash: Hex | null }>;
+  /** Required only to authenticate a successful wallet-wrapped payment. */
+  getCode?: PublicClient["getCode"];
 };
 
 /**
@@ -908,15 +914,17 @@ export function relayrPaymentOptions(
 /**
  * Prove the payment chain runs Relayr's payment contract: the code at
  * {@link RELAYR_PAYMENT_ADDRESS} hashes to {@link RELAYR_PAYMENT_CODE_HASH}.
+ * Pin a receipt's block for recovery; omit it for the latest pre-send check.
  */
 export async function requireRelayrPaymentRuntime(
   client: Pick<PublicClient, "getCode">,
+  blockNumber?: bigint,
 ): Promise<void> {
   let code: unknown;
   try {
     code = await client.getCode({
       address: RELAYR_PAYMENT_ADDRESS,
-      blockTag: "latest",
+      ...(blockNumber === undefined ? { blockTag: "latest" } : { blockNumber }),
     });
   } catch (cause) {
     throw errorWithCause(
@@ -934,6 +942,60 @@ export async function requireRelayrPaymentRuntime(
   if (keccak256(code as Hex) !== RELAYR_PAYMENT_CODE_HASH) {
     throw new Error("Relayr payment contract code is not recognized.");
   }
+}
+
+/**
+ * Exactly one matching Prepayment from the pinned payment contract. The
+ * caller separately proves the receipt's chain, canonical inclusion, success
+ * and runtime. This event proves bundle funding, not the debited account.
+ * Uses the pinned runtime's event; older Relayr source has another event.
+ */
+export function hasRelayrPaymentEvent(
+  logs: unknown,
+  bundleUuid: string,
+  amount: bigint,
+  deadline: bigint,
+): boolean {
+  if (
+    !Array.isArray(logs) ||
+    logs.length > 1_024 ||
+    typeof bundleUuid !== "string" ||
+    !RELAYR_UUID_RE.test(bundleUuid) ||
+    typeof amount !== "bigint" ||
+    amount < 0n ||
+    amount >= 1n << 256n ||
+    typeof deadline !== "bigint" ||
+    deadline < 0n ||
+    deadline >= 1n << 40n
+  )
+    return false;
+  const matching = logs.filter(
+    (
+      log,
+    ): log is {
+      topics: unknown[];
+      removed?: unknown;
+      data?: unknown;
+    } => {
+      if (log === null || typeof log !== "object" || Array.isArray(log))
+        return false;
+      return (
+        typeof log.address === "string" &&
+        log.address.toLowerCase() === RELAYR_PAYMENT_ADDRESS &&
+        Array.isArray(log.topics) &&
+        log.topics[0] === RELAYR_PAYMENT_EVENT
+      );
+    },
+  );
+  const event = matching[0];
+  return (
+    matching.length === 1 &&
+    event.removed !== true &&
+    event.topics.length === 2 &&
+    event.topics[1] === `0x${bundleUuid.replaceAll("-", "").padEnd(64, "0")}` &&
+    event.data ===
+      `0x${amount.toString(16).padStart(64, "0")}${deadline.toString(16).padStart(64, "0")}`
+  );
 }
 
 /**
@@ -1122,26 +1184,23 @@ type ProofWords = {
   notCanonical: string;
 };
 
-/**
- * Read `expected.hash` and prove it is exactly the expected transaction,
- * canonically included. Returns its receipt, successful or reverted. A
- * transaction hash commits to its sender, target, calldata, value and chain,
- * so any difference there is a {@link RelayrProofError}. A receipt,
- * transaction and block that disagree (a lagging node, a reorg) prove nothing
- * either way.
- */
-async function proveTransaction(
+type TransactionProof = {
+  transaction: Awaited<ReturnType<RelayrProofClient["getTransaction"]>>;
+  receipt: TransactionReceipt;
+};
+
+async function readTransaction(
   client: RelayrProofClient,
-  expected: ExpectedTransaction,
+  expectedHash: Hex,
   words: ProofWords,
-): Promise<TransactionReceipt> {
-  const hash = expected.hash.toLowerCase();
-  let transaction: Awaited<ReturnType<RelayrProofClient["getTransaction"]>>;
+): Promise<TransactionProof> {
+  const hash = expectedHash.toLowerCase();
+  let transaction: TransactionProof["transaction"];
   let receipt: TransactionReceipt;
   try {
     [transaction, receipt] = await Promise.all([
-      client.getTransaction({ hash: expected.hash }),
-      client.getTransactionReceipt({ hash: expected.hash }),
+      client.getTransaction({ hash: expectedHash }),
+      client.getTransactionReceipt({ hash: expectedHash }),
     ]);
   } catch (cause) {
     throw withCause(new RelayrProofUnavailableError(words.unavailable), cause);
@@ -1152,6 +1211,14 @@ async function proveTransaction(
   ) {
     throw new RelayrProofUnavailableError(words.unavailable);
   }
+  return { transaction, receipt };
+}
+
+function requireExpectedTransaction(
+  transaction: TransactionProof["transaction"],
+  expected: ExpectedTransaction,
+  words: ProofWords,
+): void {
   if (
     transaction.chainId !== expected.chainId ||
     !sameAddress(transaction.to, expected.to) ||
@@ -1163,8 +1230,16 @@ async function proveTransaction(
   ) {
     throw new RelayrProofError(words.mismatch);
   }
+}
+
+async function proveReceipt(
+  client: RelayrProofClient,
+  { transaction, receipt }: TransactionProof,
+  target: Address,
+  words: ProofWords,
+): Promise<TransactionReceipt> {
   if (
-    !sameAddress(receipt.to, expected.to) ||
+    !sameAddress(receipt.to, target) ||
     typeof receipt.blockHash !== "string" ||
     !isBytes32(receipt.blockHash) ||
     transaction.blockHash?.toLowerCase() !== receipt.blockHash.toLowerCase() ||
@@ -1184,6 +1259,20 @@ async function proveTransaction(
     throw new RelayrProofUnavailableError(words.notCanonical);
   }
   return receipt;
+}
+
+/**
+ * Prove the exact transaction and its canonical inclusion. Identity
+ * differences contradict the proof; inconsistent RPC answers prove nothing.
+ */
+async function proveTransaction(
+  client: RelayrProofClient,
+  expected: ExpectedTransaction,
+  words: ProofWords,
+): Promise<TransactionReceipt> {
+  const proof = await readTransaction(client, expected.hash, words);
+  requireExpectedTransaction(proof.transaction, expected, words);
+  return proveReceipt(client, proof, expected.to, words);
 }
 
 /**
@@ -1239,14 +1328,17 @@ function verifiablePayment(
 }
 
 /**
- * Prove a Relayr payment from the chain: the transaction at `hash` is exactly
- * `payment` sent by `from` (chain, payment contract, calldata, value),
- * canonically included, and successful. Pass the hash that was mined: when a
- * wallet speeds a payment up, viem's receipt is the replacement's, so verify
+ * Prove funding from a canonical successful transaction. A direct payment
+ * must exactly match `from`, contract, calldata and value. A wallet-wrapped
+ * payment instead requires the pinned runtime and its unique exact payment
+ * event; this proves bundle funding, not whose account was debited.
+ * Pass the hash that was mined: when a wallet speeds a payment up, viem's
+ * receipt is the replacement's, so verify
  * its `transactionHash`, not the hash the wallet first returned.
  *
- * Throws {@link RelayrPaymentRevertedError} when it canonically reverted. That
- * transaction paid nothing, but the bundle may still be paid by another, so
+ * Throws {@link RelayrPaymentRevertedError} only for an exact direct payment
+ * that canonically reverted. A wrapped revert cannot prove an inner payment.
+ * That transaction paid nothing, but the bundle may still be paid by another, so
  * only {@link requireRelayrPaymentRetry} clears the quote to be paid again.
  * {@link RelayrProofError} means the transaction is a different one: never pay
  * again. Any other error means the proof is unavailable for now.
@@ -1261,24 +1353,75 @@ export async function verifyRelayrPayment(
 ): Promise<TransactionReceipt> {
   const reviewed = verifiablePayment([hash], from, payment);
   if (!reviewed) throw new Error(UNVERIFIABLE);
-  const receipt = await proveTransaction(
-    client,
-    {
-      hash,
-      chainId: reviewed.chainId,
-      from,
-      to: RELAYR_PAYMENT_ADDRESS,
-      data: reviewed.calldata,
-      value: reviewed.amount,
-    },
-    {
-      unavailable: `Could not read Relayr payment ${hash} on chain ${reviewed.chainId}. Do not pay again; check it later.`,
-      mismatch:
-        "The funding transaction does not match the reviewed Relayr payment. Do not pay again; inspect the wallet's activity and the saved bundle.",
-      notCanonical:
-        "The Relayr funding receipt is no longer canonical. Do not pay again; check it later.",
-    },
-  );
+  const words = {
+    unavailable: `Could not read Relayr payment ${hash} on chain ${reviewed.chainId}. Do not pay again; check it later.`,
+    mismatch:
+      "The funding transaction does not match the reviewed Relayr payment. Do not pay again; inspect the wallet's activity and the saved bundle.",
+    notCanonical:
+      "The Relayr funding receipt is no longer canonical. Do not pay again; check it later.",
+  };
+  const proof = await readTransaction(client, hash, words);
+  const { transaction } = proof;
+  if (sameAddress(transaction.to, RELAYR_PAYMENT_ADDRESS)) {
+    // A direct call retains all reviewed identity checks, even if its logs
+    // contain a payment event (e.g. trailing calldata or another sender).
+    requireExpectedTransaction(
+      transaction,
+      {
+        hash,
+        chainId: reviewed.chainId,
+        from,
+        to: RELAYR_PAYMENT_ADDRESS,
+        data: reviewed.calldata,
+        value: reviewed.amount,
+      },
+      words,
+    );
+  } else {
+    if (
+      transaction.chainId !== reviewed.chainId ||
+      !isAddressLike(transaction.to)
+    )
+      throw new RelayrProofError(words.mismatch);
+    const receipt = await proveReceipt(client, proof, transaction.to, words);
+    if (receipt.status !== "success")
+      throw new RelayrProofUnavailableError(words.unavailable);
+    if (
+      !hasRelayrPaymentEvent(
+        receipt.logs,
+        reviewed.bundleUuid,
+        reviewed.amount,
+        reviewed.deadline,
+      )
+    )
+      throw new RelayrProofError(words.mismatch);
+    if (
+      receipt.logs.some(
+        (log) =>
+          typeof log?.transactionHash !== "string" ||
+          log.transactionHash.toLowerCase() !== hash.toLowerCase() ||
+          typeof log.blockHash !== "string" ||
+          log.blockHash.toLowerCase() !== receipt.blockHash.toLowerCase() ||
+          log.blockNumber !== receipt.blockNumber,
+      )
+    )
+      throw new RelayrProofUnavailableError(words.unavailable);
+    if (!client.getCode)
+      throw new RelayrProofUnavailableError(words.unavailable);
+    try {
+      await requireRelayrPaymentRuntime(
+        { getCode: client.getCode },
+        receipt.blockNumber,
+      );
+    } catch (cause) {
+      throw withCause(
+        new RelayrProofUnavailableError(words.unavailable),
+        cause,
+      );
+    }
+  }
+  // Check canonicality after runtime/event reads too, bracketing a reorg.
+  const receipt = await proveReceipt(client, proof, transaction.to!, words);
   if (receipt.status === "reverted") {
     throw new RelayrPaymentRevertedError(
       "The Relayr funding transaction reverted onchain.",
