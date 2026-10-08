@@ -13,11 +13,15 @@ Required workspace instructions: [AGENTS.md](../../../AGENTS.md), [Ponytail](../
 
 - [x] Capture actual failing-before funding proof and authenticate its historical runtime.
 - [x] Obtain independent minimum-design review.
-- [ ] Extract canonical proof reads with behavior unchanged and baseline tests passing.
-- [ ] Add the shared event owner and wrapped-success proof with adversarial regressions.
-- [ ] Add final payment-checking phase and safe post-submission inspection.
+- [x] Extract canonical proof reads with behavior unchanged and baseline tests passing.
+- [x] Add the shared event owner and wrapped-success proof with adversarial regressions.
+- [x] Add final payment-checking phase and safe post-submission inspection.
 - [ ] Complete SDK verification, independent review and release handoff.
 
 ## Review
 
-Pending implementation and verification. Root owns publication and consumer adoption.
+The unchanged baseline passes 512 focused tests; extraction `4768f3b` passes 513 and independently preserves identity/receipt error ordering. Shared event extraction is `e8ac022`. The actual recorded wrapper failed before the behavior change with the user's exact RelayrProofError; the repaired proof accepts it and rejects contradictory chain, receipt, event, log identity and historical runtime evidence. Receipt/log transaction and block identity remain required, with final canonicality checked after code reads.
+
+All 2,095 core tests pass. `relayr.ts` retains 100% statements, branches, functions and lines; `safeRelayr.ts` has 98.92% statements/lines, 94.14% branches and 100% functions. Core production and test types pass; ESM/CJS generation/build passes against pinned Sticky `b3835db805786e680f5cc27e700d7be660fdba1f` and deploy-all-v6 `a6ab40c5806b52ff4cb21f9eaefe275e621796f9`, with generated files unchanged. Initial loopback binding and absent isolated Sticky path failures were environment setup issues, corrected without altering checks; an exact public-export assertion was updated for the two intended new exports.
+
+The post-send recovery tests preserve the original adapter diagnostic for unresolved, failed, ready/released and failed-persistence outcomes; only freshly proven complete or canonically funded pending results return. First and replacement hash save failures cannot trigger automatic recovery. Independent final review and remaining all-package release gates are pending. Root owns publication and consumer adoption; any local tarball is preview only.

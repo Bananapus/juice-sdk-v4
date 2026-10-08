@@ -1,8 +1,12 @@
 import { createServer, type Server } from "node:http";
+import { readFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import {
   createPublicClient,
   encodeFunctionData,
+  formatBlock,
+  formatTransaction,
+  formatTransactionReceipt,
   getAddress,
   http,
   keccak256,
@@ -1530,6 +1534,14 @@ describe("Relayr payment event", () => {
         ),
       ).toBe(true);
     }
+    expect(
+      hasRelayrPaymentEvent(
+        [{ ...event(), address: RELAYR_PAYMENT_ADDRESS.toUpperCase() }],
+        BUNDLE_UUID,
+        100n,
+        BigInt(DEADLINE),
+      ),
+    ).toBe(true);
   });
 
   it.each([
@@ -1862,6 +1874,246 @@ describe("Relayr payment proof", () => {
       "Only an authenticated Relayr payment with its transaction hash can be verified.",
     );
     expect(client.getTransaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("wrapped Relayr payment proof", () => {
+  const captured = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../test/fixtures/wrapped-relayr-payment.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  const payment = captured.payment as RelayrPaymentDetails;
+  const hash = captured.transaction.hash as Hex;
+  function wrappedClient() {
+    const fixture = structuredClone(captured);
+    return {
+      fixture,
+      getTransaction: vi.fn(async () => formatTransaction(fixture.transaction)),
+      getTransactionReceipt: vi.fn(async () =>
+        formatTransactionReceipt(fixture.receipt),
+      ),
+      getBlock: vi.fn(async () => formatBlock(fixture.block)),
+      getCode: vi.fn(async () => fixture.runtime as Hex),
+    };
+  }
+  const verify = (client: RelayrProofClient) =>
+    verifyRelayrPayment(client, { hash, from: ACCOUNT, payment });
+
+  it("proves the recorded delegated wallet payment without claiming account debit", async () => {
+    const client = wrappedClient();
+    expect(client.fixture.transaction.to).not.toBe(payment.target);
+    expect(client.fixture.transaction.from).not.toBe(ACCOUNT);
+    expect(client.fixture.transaction.value).toBe("0x0");
+    await expect(verify(client)).resolves.toMatchObject({
+      transactionHash: hash,
+      status: "success",
+    });
+    expect(client.getTransaction).toHaveBeenCalledOnce();
+    expect(client.getTransactionReceipt).toHaveBeenCalledOnce();
+    expect(client.getCode).toHaveBeenCalledExactlyOnceWith({
+      address: RELAYR_PAYMENT_ADDRESS,
+      blockNumber: BigInt(client.fixture.receipt.blockNumber),
+    });
+    expect(
+      client.getBlock.mock.invocationCallOrder.slice(-1)[0],
+    ).toBeGreaterThan(client.getCode.mock.invocationCallOrder[0]);
+  });
+
+  it.each(["sender", "calldata", "value"])(
+    "never uses an event to relax a direct payment's %s",
+    async (fault) => {
+      const client = wrappedClient();
+      Object.assign(client.fixture.transaction, {
+        from: ACCOUNT,
+        to: payment.target,
+        input: payment.calldata,
+        value: `0x${BigInt(payment.amount).toString(16)}`,
+      });
+      client.fixture.receipt.to = payment.target;
+      if (fault === "sender") client.fixture.transaction.from = OTHER;
+      if (fault === "calldata") client.fixture.transaction.input += "00";
+      if (fault === "value") client.fixture.transaction.value = "0x0";
+      await expect(verify(client)).rejects.toBeInstanceOf(RelayrProofError);
+      expect(client.getCode).not.toHaveBeenCalled();
+      expect(client.getBlock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "uuid",
+    "amount",
+    "deadline",
+    "emitter",
+    "missing",
+    "removed",
+    "duplicate",
+  ])("refuses a wrapped payment with %s event evidence", async (fault) => {
+    const client = wrappedClient();
+    const log = client.fixture.receipt.logs[0];
+    if (fault === "uuid") log.topics[1] = HASH;
+    if (fault === "amount")
+      log.data = "0x" + "0".repeat(64) + log.data.slice(66);
+    if (fault === "deadline") log.data = log.data.slice(0, -2) + "00";
+    if (fault === "emitter") log.address = OTHER;
+    if (fault === "missing") client.fixture.receipt.logs = [];
+    if (fault === "removed") log.removed = true;
+    if (fault === "duplicate") client.fixture.receipt.logs.push(log);
+    await expect(verify(client)).rejects.toBeInstanceOf(RelayrProofError);
+    expect(client.getCode).not.toHaveBeenCalled();
+  });
+
+  it.each(["chain", "missing-chain", "missing-target"])(
+    "refuses a wrapped transaction's contradictory %s",
+    async (fault) => {
+      const client = wrappedClient();
+      if (fault === "chain") client.fixture.transaction.chainId = "0xa";
+      if (fault === "missing-chain") delete client.fixture.transaction.chainId;
+      if (fault === "missing-target") client.fixture.transaction.to = null;
+      await expect(verify(client)).rejects.toBeInstanceOf(RelayrProofError);
+      expect(client.getCode).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "transaction-hash",
+    "receipt-hash",
+    "receipt-target",
+    "block-hash",
+    "block-number",
+    "canonical-block",
+  ])("keeps a wrapped payment unresolved when %s disagrees", async (fault) => {
+    const client = wrappedClient();
+    if (fault === "transaction-hash") client.fixture.transaction.hash = HASH;
+    if (fault === "receipt-hash") client.fixture.receipt.transactionHash = HASH;
+    if (fault === "receipt-target") client.fixture.receipt.to = OTHER;
+    if (fault === "block-hash") client.fixture.receipt.blockHash = HASH;
+    if (fault === "block-number") client.fixture.receipt.blockNumber = "0x1";
+    if (fault === "canonical-block") client.fixture.block.hash = HASH;
+    await expect(verify(client)).rejects.toBeInstanceOf(
+      RelayrProofUnavailableError,
+    );
+    expect(client.getCode).not.toHaveBeenCalled();
+  });
+
+  it("never treats a wrapped revert as a reviewed reverted payment or clears a retry", async () => {
+    const client = wrappedClient();
+    client.fixture.receipt.status = "0x0";
+    client.fixture.receipt.logs = [];
+    await expect(verify(client)).rejects.toBeInstanceOf(
+      RelayrProofUnavailableError,
+    );
+    const fetch = vi.fn();
+    await expect(
+      requireRelayrPaymentRetry(
+        client,
+        {
+          hashes: [hash],
+          from: ACCOUNT,
+          payment,
+        },
+        { fetch, nowSeconds: Number(BigInt(captured.block.timestamp)) },
+      ),
+    ).rejects.toMatchObject({
+      name: "RelayrPaymentRetryError",
+      reason: "unknown",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("never retries a canonically proven wrapped payment", async () => {
+    const client = wrappedClient();
+    const fetch = vi.fn();
+    await expect(
+      requireRelayrPaymentRetry(
+        client,
+        {
+          hashes: [hash],
+          from: ACCOUNT,
+          payment,
+        },
+        { fetch, nowSeconds: Number(BigInt(captured.block.timestamp)) },
+      ),
+    ).rejects.toMatchObject({
+      name: "RelayrPaymentRetryError",
+      reason: "paid",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing", "unavailable", "wrong", "empty"])(
+    "does not accept %s historical payment runtime",
+    async (fault) => {
+      const client = wrappedClient();
+      if (fault === "missing") Object.assign(client, { getCode: undefined });
+      if (fault === "unavailable")
+        client.getCode.mockRejectedValueOnce(new Error("node unavailable"));
+      if (fault === "wrong") client.getCode.mockResolvedValueOnce("0x6000");
+      if (fault === "empty")
+        client.getCode.mockResolvedValueOnce(undefined as never);
+      await expect(verify(client)).rejects.toBeInstanceOf(
+        RelayrProofUnavailableError,
+      );
+    },
+  );
+
+  it("rejects a reorg observed after reading historical runtime", async () => {
+    const client = wrappedClient();
+    client.getCode.mockImplementationOnce(async () => {
+      client.fixture.block.hash = HASH;
+      return client.fixture.runtime;
+    });
+    await expect(verify(client)).rejects.toThrow("no longer canonical");
+    expect(client.getBlock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["transactionHash", "blockHash", "blockNumber"])(
+    "requires every receipt log's %s to match canonical receipt identity",
+    async (field) => {
+      for (const value of [undefined, field === "blockNumber" ? "0x1" : HASH]) {
+        const client = wrappedClient();
+        client.fixture.receipt.logs[0][field] = value;
+        await expect(verify(client)).rejects.toBeInstanceOf(
+          RelayrProofUnavailableError,
+        );
+        expect(client.getCode).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("refuses malformed ancillary log metadata in an otherwise matching receipt", async () => {
+    const client = wrappedClient();
+    client.fixture.receipt.logs.push(null);
+    client.getTransactionReceipt.mockImplementationOnce(
+      async () =>
+        ({
+          ...formatTransactionReceipt(captured.receipt),
+          logs: [...formatTransactionReceipt(captured.receipt).logs, null],
+        }) as never,
+    );
+    await expect(verify(client)).rejects.toBeInstanceOf(
+      RelayrProofUnavailableError,
+    );
+  });
+
+  it("does not relax exact destination proof for a wrapped transaction", async () => {
+    const client = wrappedClient();
+    await expect(
+      verifyRelayrDestination(client, {
+        hash,
+        entry: {
+          chain: payment.chainId,
+          target: payment.target,
+          data: payment.calldata,
+          value: String(payment.amount),
+        },
+      }),
+    ).rejects.toBeInstanceOf(RelayrProofError);
+    expect(client.getCode).not.toHaveBeenCalled();
   });
 });
 

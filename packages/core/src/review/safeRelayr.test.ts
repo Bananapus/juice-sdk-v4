@@ -2051,6 +2051,245 @@ describe("Safe Relayr funding and canonical outcome", () => {
     expect(h.order).toContain("save:active:submitted");
   });
 
+  it("shows final payment checking only after the nested review resolves", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const reviewEntered = deferred(),
+      accepted = deferred(),
+      checking = deferred(),
+      checked = deferred();
+    const adapter = h.sendPayment.getMockImplementation()!;
+    h.sendPayment.mockImplementationOnce(async (options) => {
+      reviewEntered.resolve();
+      await accepted.promise;
+      return adapter(options);
+    });
+    h.revalidate.mockImplementationOnce(async () => {
+      checking.resolve();
+      await checked.promise;
+    });
+    h.onProgress.mockClear();
+    const funded = h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    await reviewEntered.promise;
+    expect(h.onProgress.mock.calls.slice(-1)[0][0]).toMatchObject({
+      type: "phase",
+      phase: "payment-review",
+    });
+    accepted.resolve();
+    await checking.promise;
+    expect(h.onProgress.mock.calls.slice(-1)[0][0]).toMatchObject({
+      type: "phase",
+      phase: "payment-checking",
+    });
+    expect(h.order).not.toContain("save:active:sending");
+    checked.resolve();
+    await funded;
+    expect(h.sendPayment).toHaveBeenCalledOnce();
+  });
+
+  it.each(["complete", "funding-confirmed"])(
+    "recovers a saved adapter proof error through fresh %s evidence",
+    async (outcome) => {
+      const h = harness();
+      const calls = [execution(), execution(10)];
+      const hashes = [BLOCK, WRONG_BLOCK];
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: calls,
+      });
+      const adapter = h.sendPayment.getMockImplementation()!;
+      h.sendPayment.mockImplementationOnce(async (options) => {
+        await adapter(options);
+        h.setRecords(destinationRecords(calls, hashes));
+        mineSafe(h, calls[1], hashes[1]);
+        if (outcome === "complete") mineSafe(h, calls[0], hashes[0]);
+        else h.mined();
+        throw new Error("Wallet adapter proof unavailable");
+      });
+      const recovered = await h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      });
+      expect(recovered.state).toBe(
+        outcome === "complete" ? "complete" : "pending",
+      );
+      if (outcome === "funding-confirmed")
+        expect(recovered.session.paymentStatus).toBe("confirmed");
+      expect(recovered.session.payments[0].hash).toBe(HASH);
+      expect(recovered.session.records).toEqual(
+        destinationRecords(calls, hashes),
+      );
+      expect(
+        h.onProgress.mock.calls.some(
+          ([event]) =>
+            event.type === "execution" &&
+            event.index === 1 &&
+            event.status === "executed",
+        ),
+      ).toBe(true);
+      expect(h.sendPayment).toHaveBeenCalledOnce();
+      expect(
+        h.fetchRelayr.mock.calls.filter(([, init]) => init?.method === "POST"),
+      ).toHaveLength(1);
+      await expect(
+        h.controller.fund({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+          paymentChainId: 1,
+        }),
+      ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+      expect(h.sendPayment).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("keeps the original adapter diagnostic and new partial evidence when funding is unresolved", async () => {
+    const h = harness();
+    const calls = [execution(), execution(10)];
+    const hashes = [BLOCK, WRONG_BLOCK];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    const adapter = h.sendPayment.getMockImplementation()!;
+    h.sendPayment.mockImplementationOnce(async (options) => {
+      await adapter(options);
+      h.setPaymentReceived(true);
+      h.setRecords(destinationRecords(calls, hashes));
+      mineSafe(h, calls[1], hashes[1]);
+      throw new Error("Original funding diagnostic");
+    });
+    await expect(
+      h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      }),
+    ).rejects.toMatchObject({
+      message: "Original funding diagnostic",
+      session: {
+        fundingObserved: true,
+        paymentStatus: "submitted",
+        payments: [expect.objectContaining({ hash: HASH })],
+        records: destinationRecords(calls, hashes),
+      },
+    });
+    expect(
+      h.onProgress.mock.calls.some(
+        ([event]) =>
+          event.type === "execution" &&
+          event.index === 1 &&
+          event.status === "executed",
+      ),
+    ).toBe(true);
+    expect(h.sendPayment).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the original adapter diagnostic if post-submission inspection fails", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const adapter = h.sendPayment.getMockImplementation()!;
+    h.sendPayment.mockImplementationOnce(async (options) => {
+      await adapter(options);
+      h.fetchRelayr.mockRejectedValueOnce(new Error("Inspection failed"));
+      throw new Error("Original funding diagnostic");
+    });
+    await expect(
+      h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      }),
+    ).rejects.toMatchObject({
+      message: "Original funding diagnostic",
+      session: { payments: [expect.objectContaining({ hash: HASH })] },
+    });
+  });
+
+  it.each(["ready", "released"])(
+    "never returns %s as a successful send recovery",
+    async (outcome) => {
+      const h = harness();
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: [execution()],
+      });
+      const adapter = h.sendPayment.getMockImplementation()!;
+      h.sendPayment.mockImplementationOnce(async (options) => {
+        await adapter(options);
+        h.mined({ status: "reverted" });
+        if (outcome === "released") {
+          h.setTimestamp(BigInt(DEADLINE + 1));
+          vi.mocked(Date.now).mockReturnValue((DEADLINE + 60) * 1_000);
+        }
+        throw new Error("Original funding diagnostic");
+      });
+      await expect(
+        h.controller.fund({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+          paymentChainId: 1,
+        }),
+      ).rejects.toMatchObject({
+        message: "Original funding diagnostic",
+        session: { state: outcome === "released" ? "released" : "active" },
+      });
+    },
+  );
+
+  it.each(["first", "replacement"])(
+    "never masks failed %s hash persistence with receipt success",
+    async (attempt) => {
+      const h = harness();
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: [execution()],
+      });
+      const save = vi.mocked(h.store.save).getMockImplementation()!;
+      let submitted = 0;
+      vi.mocked(h.store.save).mockImplementation(async (session) => {
+        if (
+          session.paymentStatus === "submitted" &&
+          ++submitted === (attempt === "first" ? 1 : 2)
+        )
+          throw new Error("Payment save failed");
+        await save(session);
+      });
+      const adapter = h.sendPayment.getMockImplementation()!;
+      h.sendPayment.mockImplementationOnce(async (options) => {
+        const sent = await adapter(options);
+        await options.onSent([
+          ...sent.payments,
+          { ...sent.payments[0], hash: WRONG_BLOCK },
+        ]);
+        return sent;
+      });
+      h.mined();
+      await expect(
+        h.controller.fund({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+          paymentChainId: 1,
+        }),
+      ).rejects.toThrow("Payment save failed");
+      expect(h.client.getTransaction).not.toHaveBeenCalled();
+      expect(h.sessions.get(ready.session.id)?.payments).toHaveLength(
+        attempt === "first" ? 0 : 1,
+      );
+      expect(h.sendPayment).toHaveBeenCalledOnce();
+    },
+  );
+
   it("stops before wallet submission when the quote expires during rechecks", async () => {
     const h = harness();
     const ready = await h.controller.prepare({

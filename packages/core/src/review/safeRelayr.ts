@@ -216,6 +216,7 @@ export type SafeRelayrPhase =
   | "reviewing"
   | "quoting"
   | "payment-review"
+  | "payment-checking"
   | "payment-submitting"
   | "payment-confirming"
   | "executing"
@@ -1388,6 +1389,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       }
       let verified = false;
       let sending = false;
+      let paymentPersisted = false;
       const requireOpenPayment = () =>
         relayrPaymentDetails(payment, {
           bundleUuid: session.bundleUuid!,
@@ -1396,6 +1398,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           ),
         });
       const beforeSend = async () => {
+        phase("payment-checking", session, signal);
         await revalidate(session.executions, account, onStatus, true, signal);
         await assertUnreserved(account, session.executions, session.id);
         if (session.payments.length) {
@@ -1492,12 +1495,14 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
               "The funding payment differs from the selected Relayr option.",
             );
         }
+        paymentPersisted = false;
         session = {
           ...session,
           payments: structuredClone(payments),
           paymentStatus: "submitted",
         };
         await store.save(session);
+        paymentPersisted = true;
         phase("payment-confirming", session, signal);
       };
       try {
@@ -1532,11 +1537,30 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         if (
           sending ||
           session.payments.length > checked.session.payments.length
-        )
+        ) {
+          // A saved hash may already have funded or completed the bundle even
+          // when the wallet adapter could not prove it. Inspect once, read-only;
+          // never turn an uncertain or unsaved attempt into a retry invitation.
+          if (paymentPersisted) {
+            try {
+              const inspected = await inspect(session, signal);
+              session = inspected.session;
+              if (
+                inspected.state === "complete" ||
+                (inspected.state === "pending" &&
+                  session.paymentStatus === "confirmed")
+              )
+                return inspected;
+            } catch (inspectionError) {
+              if (inspectionError instanceof SafeRelayrRecoveryError)
+                session = inspectionError.session;
+            }
+          }
           throw new SafeRelayrRecoveryError(
             session,
             error instanceof Error ? error.message : undefined,
           );
+        }
         throw error;
       }
       return inspect(session, signal);
