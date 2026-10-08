@@ -16,7 +16,7 @@ Required workspace instructions: [AGENTS.md](../../../AGENTS.md), [Ponytail](../
 - [x] Extract canonical proof reads with behavior unchanged and baseline tests passing.
 - [x] Add the shared event owner and wrapped-success proof with adversarial regressions.
 - [x] Add final payment-checking phase and safe post-submission inspection.
-- [ ] Complete SDK verification, independent review and release handoff.
+- [x] Complete SDK verification, independent review and release handoff.
 
 ## Review
 
@@ -24,4 +24,8 @@ The unchanged baseline passes 512 focused tests; extraction `4768f3b` passes 513
 
 All 2,095 core tests pass. `relayr.ts` retains 100% statements, branches, functions and lines; `safeRelayr.ts` has 98.92% statements/lines, 94.14% branches and 100% functions. Core production and test types pass; ESM/CJS generation/build passes against pinned Sticky `b3835db805786e680f5cc27e700d7be660fdba1f` and deploy-all-v6 `a6ab40c5806b52ff4cb21f9eaefe275e621796f9`, with generated files unchanged. Initial loopback binding and absent isolated Sticky path failures were environment setup issues, corrected without altering checks; an exact public-export assertion was updated for the two intended new exports.
 
-The post-send recovery tests preserve the original adapter diagnostic for unresolved, failed, ready/released and failed-persistence outcomes; only freshly proven complete or canonically funded pending results return. First and replacement hash save failures cannot trigger automatic recovery. Independent final review and remaining all-package release gates are pending. Root owns publication and consumer adoption; any local tarball is preview only.
+The post-send recovery tests preserve the original adapter diagnostic for unresolved, failed, ready/released and failed-persistence outcomes; only freshly proven complete or canonically funded pending results return. First and replacement hash save failures cannot trigger automatic recovery. Independent financial review approves `365ebd65cd4c1ffb96d026f07cc45936c40419d7`; the compiled actual fixture proves funding and refuses retry as paid with no network requests.
+
+React/connect types, coverage and builds, dependency graph, pinned protocol comparison, wallet boundaries, format ratchet, dead-code check, GraphQL regeneration, examples, generated-file comparison and production audit (zero vulnerabilities) pass. The original package cap failure is preserved with an independent comparison to the official 2.24.4 tarball: exactly sixteen existing owner JS/declaration/map artifacts add 4,962 packed and 21,043 unpacked bytes. No runtime/peer dependencies, package files or test fixtures are added. Reviewed caps round measured 1,275,091/20,725,010 bytes to 1,276,000/20,726,000; the 754-file ceiling stays fixed.
+
+Evidence and the source-attributed preview are in `/private/tmp/sdk-wrapped-safe-payment-preview-365ebd6/`. Root owns publication and consumer adoption; the preview's package manifest still says 2.24.4 and must never replace verified official npm adoption for release.
