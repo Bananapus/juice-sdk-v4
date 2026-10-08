@@ -108,9 +108,16 @@ const budgets = {
     // +21,043 B unpacked against published 2.24.4, with no new dependencies,
     // files or test fixtures. Retain narrow rounding: measured 1,275,091 B
     // packed, 20,725,010 B unpacked, 754 files.
-    packed: 1_276_000,
-    unpacked: 20_726_000,
-    entries: 754,
+    // Shared Safe app confirmation/pending-call helpers, early Relayr record
+    // binding and paced request admission modify fifty-six existing artifacts.
+    // Intent hash authentication and final pre-send guards are included.
+    // The presentation-only message formatter adds eight ESM/CJS artifacts.
+    // Against official 2.24.5: +17,359 B packed and +85,916 B unpacked, with
+    // no new dependencies or bundled tests. Measured 1,292,450 B packed,
+    // 20,810,926 B unpacked and 762 files; retain narrow rounding margins.
+    packed: 1_293_000,
+    unpacked: 20_812_000,
+    entries: 762,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

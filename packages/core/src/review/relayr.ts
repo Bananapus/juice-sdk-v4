@@ -1610,6 +1610,24 @@ export async function verifyRelayrDestination(
 }
 
 /**
+ * Bind Relayr's status records to a quote in binding order, using the same
+ * inventory, request and optional account checks as {@link relayrDestinationHashes}.
+ * Missing or malformed hashes do not prevent a record from naming its call;
+ * available hashes must still be unique. These records describe progress,
+ * not execution proof: verify each reported hash with {@link verifyRelayrDestination}.
+ * Throws on incomplete or contradictory bindings; never pay again on an error.
+ */
+export function relayrDestinationRecords(
+  expected: Parameters<typeof matchingDestinationRecords>[0],
+): RelayrTransactionRecord[] {
+  const records = Array.from(matchingDestinationRecords(expected));
+  requireUniqueDestinationHashes(
+    records.flatMap((record) => relayrDestinationHash(record) ?? []),
+  );
+  return records;
+}
+
+/**
  * Bind Relayr's reported destination hashes to a quote. `bindings` are the
  * quote's {@link RelayrQuote.expectedTransactions}; `records` are Relayr's
  * status records, which only say which hash to check. Every record must carry
@@ -1626,7 +1644,20 @@ export async function verifyRelayrDestination(
  * {@link RelayrProofError} when Relayr contradicts a binding and another error
  * while the reported inventory is incomplete. Never pay again on any error.
  */
-export function relayrDestinationHashes({
+export function relayrDestinationHashes(
+  expected: Parameters<typeof matchingDestinationRecords>[0],
+): Hex[] {
+  const hashes = Array.from(matchingDestinationRecords(expected), (record) => {
+    const hash = relayrDestinationHash(record);
+    if (!hash) throw new Error(NOT_IDENTIFIED);
+    return hash;
+  });
+  requireUniqueDestinationHashes(hashes);
+  return hashes;
+}
+
+/** Yield in binding order so callers can validate each result before the next match. */
+function* matchingDestinationRecords({
   bindings,
   records,
   account,
@@ -1634,7 +1665,7 @@ export function relayrDestinationHashes({
   bindings: readonly RelayrTransactionBinding[];
   records: readonly RelayrTransactionRecord[];
   account?: Address;
-}): Hex[] {
+}): Generator<RelayrTransactionRecord> {
   const ids = bindings.map((binding) => uuidOf(binding?.txUuid));
   if (
     !bindings.length ||
@@ -1672,7 +1703,7 @@ export function relayrDestinationHashes({
       "Relayr's status names a transaction this quote did not bind. Keep the original bundle pending; do not pay again.",
     );
   }
-  const hashes = bindings.map((binding, index) => {
+  for (const [index, binding] of bindings.entries()) {
     const matches = records.filter(
       (record, recordIndex) =>
         relayrRecordChain(record) === binding.chain &&
@@ -1685,10 +1716,11 @@ export function relayrDestinationHashes({
         "Relayr's destination call does not match the signed request. Keep the original bundle pending; do not pay again.",
       );
     }
-    const hash = relayrDestinationHash(matches[0]);
-    if (!hash) throw new Error(NOT_IDENTIFIED);
-    return hash;
-  });
+    yield matches[0];
+  }
+}
+
+function requireUniqueDestinationHashes(hashes: readonly Hex[]): void {
   if (
     new Set(hashes.map((hash) => hash.toLowerCase())).size !== hashes.length
   ) {
@@ -1696,7 +1728,6 @@ export function relayrDestinationHashes({
       "Relayr reported one destination transaction for two signed calls. Keep the original bundle pending; do not pay again.",
     );
   }
-  return hashes;
 }
 
 /**

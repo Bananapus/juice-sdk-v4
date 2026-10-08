@@ -559,16 +559,9 @@ describe("a JB Center limiter", () => {
   });
 
   test("refuses a slot count that is not a positive whole number", () => {
-    for (const slots of [
-      0,
-      -1,
-      1.5,
-      Number.NaN,
-      Number.POSITIVE_INFINITY,
-      "2",
-    ]) {
+    for (const slots of [0, -1, 1.5, Number.NaN, "2"]) {
       expect(() => createJBCenterLimiter({ slots: slots as number })).toThrow(
-        new TypeError("slots must be a positive safe integer"),
+        new TypeError("slots must be a positive safe integer or Infinity"),
       );
     }
   });
