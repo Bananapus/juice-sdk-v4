@@ -28,6 +28,7 @@ import {
 import {
   bindRelayrQuote,
   FORWARD_REQUEST_TYPES,
+  hasRelayrPaymentEvent,
   quoteExpired,
   readRelayrBundle,
   RELAYR_API,
@@ -35,6 +36,7 @@ import {
   RELAYR_NATIVE_TOKEN,
   RELAYR_PAYMENT_ADDRESS,
   RELAYR_PAYMENT_CODE_HASH,
+  RELAYR_PAYMENT_EVENT,
   RELAYR_PAYMENT_GAS,
   RELAYR_PAYMENT_SELECTOR,
   relayrBundleRequest,
@@ -1504,6 +1506,91 @@ describe("Relayr forward requests", () => {
       expect(relayrForwardRequest(other)).toBeNull();
     }
   });
+});
+
+describe("Relayr payment event", () => {
+  const event = (amount = 100n) => ({
+    address: RELAYR_PAYMENT_ADDRESS,
+    topics: [
+      RELAYR_PAYMENT_EVENT,
+      `0x${BUNDLE_UUID.replaceAll("-", "").padEnd(64, "0")}`,
+    ],
+    data: `0x${amount.toString(16).padStart(64, "0")}${BigInt(DEADLINE).toString(16).padStart(64, "0")}`,
+    removed: false,
+  });
+
+  it("recognizes the exact event, including zero, without attributing a payer", () => {
+    for (const amount of [0n, 100n]) {
+      expect(
+        hasRelayrPaymentEvent(
+          [null, 5, [], {}, { address: OTHER }, event(amount)],
+          BUNDLE_UUID,
+          amount,
+          BigInt(DEADLINE),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it.each([
+    "missing",
+    "foreign-address",
+    "removed",
+    "no-topics",
+    "other-event",
+    "extra-topic",
+    "wrong-bundle",
+    "duplicate",
+    "too-many",
+    "wrong-amount",
+    "wrong-deadline",
+    "dirty-data",
+    "dirty-uuid-padding",
+  ])("refuses %s", (fault) => {
+    const log = event();
+    let logs: unknown[] = [log];
+    if (fault === "missing") logs = [];
+    if (fault === "foreign-address") log.address = OTHER;
+    if (fault === "removed") log.removed = true;
+    if (fault === "no-topics") log.topics = undefined as never;
+    if (fault === "other-event") log.topics[0] = HASH;
+    if (fault === "extra-topic") log.topics.push(HASH);
+    if (fault === "wrong-bundle") log.topics[1] = HASH;
+    if (fault === "duplicate") logs.push(log);
+    if (fault === "too-many") logs = [...Array(1_024).fill({}), log];
+    if (fault === "wrong-amount") logs = [event(99n)];
+    if (fault === "wrong-deadline") log.data = log.data.slice(0, -2) + "00";
+    if (fault === "dirty-data") log.data += "00";
+    if (fault === "dirty-uuid-padding")
+      log.topics[1] = log.topics[1].slice(0, -2) + "01";
+    expect(
+      hasRelayrPaymentEvent(logs, BUNDLE_UUID, 100n, BigInt(DEADLINE)),
+    ).toBe(false);
+  });
+
+  it.each([
+    [null, BUNDLE_UUID, 100n, BigInt(DEADLINE)],
+    [[], null, 100n, BigInt(DEADLINE)],
+    [[], BUNDLE_UUID.toUpperCase(), 100n, BigInt(DEADLINE)],
+    [[], BUNDLE_UUID, "100", BigInt(DEADLINE)],
+    [[], BUNDLE_UUID, -1n, BigInt(DEADLINE)],
+    [[], BUNDLE_UUID, 1n << 256n, BigInt(DEADLINE)],
+    [[], BUNDLE_UUID, 100n, "1"],
+    [[], BUNDLE_UUID, 100n, -1n],
+    [[], BUNDLE_UUID, 100n, 1n << 40n],
+  ])(
+    "bounds untrusted event expectations %#",
+    (logs, uuid, amount, deadline) => {
+      expect(
+        hasRelayrPaymentEvent(
+          logs,
+          uuid as string,
+          amount as bigint,
+          deadline as bigint,
+        ),
+      ).toBe(false);
+    },
+  );
 });
 
 describe("Relayr payment proof", () => {

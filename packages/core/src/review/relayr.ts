@@ -47,6 +47,10 @@ export const RELAYR_PAYMENT_SELECTOR = "0x103903a7";
 export const RELAYR_PAYMENT_CODE_HASH =
   "0x6006b5acadb4cd60aa5c00cb844c34563e182dff83d4f4ff4fde226f7df16fa6" as Hex;
 
+/** Prepayment(bytes16 indexed payment_uuid, uint256 amount, uint40 deadline). */
+export const RELAYR_PAYMENT_EVENT =
+  "0xb96b060a9c075a83da0cf1f9405deeb5df21df681a762de16c3d5eaf99531cd8" as Hex;
+
 /** The token Relayr quotes for a payment in the chain's native currency. */
 export const RELAYR_NATIVE_TOKEN =
   "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as Address;
@@ -934,6 +938,55 @@ export async function requireRelayrPaymentRuntime(
   if (keccak256(code as Hex) !== RELAYR_PAYMENT_CODE_HASH) {
     throw new Error("Relayr payment contract code is not recognized.");
   }
+}
+
+/**
+ * Exactly one matching Prepayment from the pinned payment contract. The
+ * caller separately proves the receipt's chain, canonical inclusion, success
+ * and runtime. This event proves bundle funding, not the debited account.
+ * Uses the pinned runtime's event; older Relayr source has another event.
+ */
+export function hasRelayrPaymentEvent(
+  logs: unknown,
+  bundleUuid: string,
+  amount: bigint,
+  deadline: bigint,
+): boolean {
+  if (
+    !Array.isArray(logs) ||
+    logs.length > 1_024 ||
+    typeof bundleUuid !== "string" ||
+    !RELAYR_UUID_RE.test(bundleUuid) ||
+    typeof amount !== "bigint" ||
+    amount < 0n ||
+    amount >= 1n << 256n ||
+    typeof deadline !== "bigint" ||
+    deadline < 0n ||
+    deadline >= 1n << 40n
+  )
+    return false;
+  const matching = logs.filter((log): log is {
+    topics: unknown[];
+    removed?: unknown;
+    data?: unknown;
+  } => {
+    if (log === null || typeof log !== "object" || Array.isArray(log))
+      return false;
+    return (
+      sameAddress(log.address, RELAYR_PAYMENT_ADDRESS) &&
+      Array.isArray(log.topics) &&
+      log.topics[0] === RELAYR_PAYMENT_EVENT
+    );
+  });
+  const event = matching[0];
+  return (
+    matching.length === 1 &&
+    event.removed !== true &&
+    event.topics.length === 2 &&
+    event.topics[1] === `0x${bundleUuid.replaceAll("-", "").padEnd(64, "0")}` &&
+    event.data ===
+      `0x${amount.toString(16).padStart(64, "0")}${deadline.toString(16).padStart(64, "0")}`
+  );
 }
 
 /**
