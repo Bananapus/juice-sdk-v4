@@ -15,6 +15,7 @@ import {
   relayrPaymentDetails,
   sentRelayrPayment,
   RelayrProofUnavailableError,
+  RelayrPaymentNotSentError,
   type RelayrBundleRequest,
   type RelayrReleaseClient,
   type RelayrTransactionRecord,
@@ -2403,6 +2404,115 @@ describe("Safe Relayr funding and canonical outcome", () => {
       paymentChainId: 1,
     });
     expect(h.sendPayment).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([false, true])(
+    "restores the pre-wallet status after a typed final refusal (prior payment: %s)",
+    async (paidBefore) => {
+      const h = harness();
+      const ready = await h.controller.prepare({
+        account: ACCOUNT,
+        executions: [execution()],
+      });
+      if (paidBefore) {
+        await h.controller.fund({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+          paymentChainId: 1,
+        });
+        h.mined({ status: "reverted" });
+      }
+      const refusal = new RelayrPaymentNotSentError(
+        new Error("Wallet changed during persistence"),
+      );
+      h.sendPayment.mockImplementationOnce(
+        async ({ beforeSend, onSending }) => {
+          await beforeSend();
+          await onSending();
+          throw refusal;
+        },
+      );
+      await expect(
+        h.controller.fund({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+          paymentChainId: 1,
+        }),
+      ).rejects.toBe(refusal);
+      expect(h.sessions.get(ready.session.id)?.paymentStatus).toBe(
+        paidBefore ? "reverted" : "unfunded",
+      );
+      expect(h.sessions.get(ready.session.id)?.payments).toHaveLength(
+        paidBefore ? 1 : 0,
+      );
+      expect(
+        (
+          await h.controller.check({
+            account: ACCOUNT,
+            sessionId: ready.session.id,
+          })
+        ).state,
+      ).toBe("ready");
+    },
+  );
+
+  it("never clears a reported payment on a late typed refusal", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.sendPayment.mockImplementationOnce(
+      async ({ beforeSend, onSending, onSent }) => {
+        await beforeSend();
+        await onSending();
+        await onSent([
+          sentRelayrPayment(
+            relayrPaymentDetails(payment(), {
+              bundleUuid: BUNDLE,
+              destinationChainIds: [1],
+              nowSeconds: NOW,
+            }),
+            HASH,
+          ),
+        ]);
+        throw new RelayrPaymentNotSentError(
+          new Error("Too late to claim unsent"),
+        );
+      },
+    );
+    await expect(
+      h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(h.sessions.get(ready.session.id)?.paymentStatus).toBe("submitted");
+    expect(h.sessions.get(ready.session.id)?.payments[0].hash).toBe(HASH);
+  });
+
+  it("retains an ambiguous marker when only the error name claims no wallet call", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.sendPayment.mockImplementationOnce(async ({ beforeSend, onSending }) => {
+      await beforeSend();
+      await onSending();
+      throw Object.assign(new Error("Provider response lost"), {
+        name: "RelayrPaymentNotSentError",
+      });
+    });
+    await expect(
+      h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(h.sessions.get(ready.session.id)?.paymentStatus).toBe("sending");
   });
 
   it("does not clear a known payment hash after a rejection-shaped wallet error", async () => {

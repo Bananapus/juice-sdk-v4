@@ -115,8 +115,14 @@ const budgets = {
     // Against official 2.24.5: +17,359 B packed and +85,916 B unpacked, with
     // no new dependencies or bundled tests. Measured 1,292,450 B packed,
     // 20,810,926 B unpacked and 762 files; retain narrow rounding margins.
-    packed: 1_293_000,
-    unpacked: 20_812_000,
+    // The typed post-persistence, pre-wallet Relayr refusal changes existing
+    // artifacts only: +939 B packed / +3,650 B unpacked. Measured 1,293,389 B
+    // packed / 20,814,576 B unpacked; keep the same narrow rounding policy.
+    // Invoked-wallet normalization adds 630 B packed / 2,065 B unpacked,
+    // changing only eight Relayr artifacts and the 2.25.0 manifest version.
+    // Measured 1,294,019 B packed / 20,816,641 B unpacked, still 762 entries.
+    packed: 1_295_000,
+    unpacked: 20_818_000,
     entries: 762,
   },
   "@bananapus/nana-sdk-react": {

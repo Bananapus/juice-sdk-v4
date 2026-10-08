@@ -633,6 +633,37 @@ await requireRelayrRetry(clientFor, { payments, from: account, bundleUuid });
 const outcome = relayrPaymentAttemptOutcome(error, { sending, paid });
 ```
 
+After awaited intent persistence, wallet adapters must repeat their live
+account, chain, connector, view-as and quote checks synchronously before the
+wallet call. Wrap only that guard's refusal in `RelayrPaymentNotSentError`
+from `/review/relayr`:
+
+```ts
+await onSending();
+try {
+  assertCurrentWalletAndPayment(); // synchronous; no wallet invocation
+} catch (cause) {
+  throw new RelayrPaymentNotSentError(cause);
+}
+let hash;
+try {
+  hash = await wallet.sendTransaction(request);
+} catch (error) {
+  throw relayrWalletPaymentError(error);
+}
+```
+
+The outcome classifier treats this instance like a definite wallet rejection
+and preserves prior-payment retry rules. The Safe controller restores its
+previous status only while the known payment history is unchanged. Never
+wrap persistence failures or wallet calls in this error: they may conceal a
+submission. Error names, serialized objects and nested causes do not prove
+that nothing was sent. In the actual wallet-call catch, use
+`relayrWalletPaymentError` before classifying or rethrowing the result. It
+removes the pre-wallet authority from an incorrectly returned typed refusal,
+keeping its diagnostics privately outside the rejection cause chain; every
+ordinary wallet error, including a definite rejection, is returned unchanged.
+
 `sentRelayrPayment` records a payment as it was mined, and
 `relayrSentPaymentsSnapshot` reads a saved list back strictly, at most
 `MAX_RELAYR_SENT_PAYMENTS`. `RELAYR_UUID_RE` is a Relayr ID in lower case.
