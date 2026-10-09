@@ -17,7 +17,7 @@ Base: published core 2.26.0, commit `4c8646e`. Required workspace resources: `/U
 - [x] Add canonical controller resolution and validate exact destination mint inputs.
 - [x] Reuse readiness before manual preparation in all four clients.
 - [x] Refuse affected native Arbitrum collector routes; document the remaining upstream refund issue.
-- [ ] Run focused regressions and types; prepare a reviewable SDK release change without publishing.
+- [x] Run focused regressions and types; prepare a reviewable SDK release change without publishing.
 
 ## Review
 
@@ -34,3 +34,5 @@ Final SDK local gates pass on Node 22.23.1/npm 10.9.8: dependencies, dead code, 
 Release budget growth against the authenticated official 2.26.0 tarball is +20,718 packed bytes/+99,910 unpacked bytes/eight artifacts. The new write-recovery module accounts for +73,986 unpacked bytes; forty existing artifacts account for the remaining +25,924. Actual package size is 1,330,583 packed/21,042,822 unpacked bytes/770 entries, within the new narrow 1,332,000/21,044,000/770 limits. No dependency or bundled-test growth. The existing Changesets policy plans core 2.27.0 and React 41.0.0 (peer dependency propagation), with Connect unchanged.
 
 Final client gates remain pending their frozen recovery changes and the published-package equivalence gate; the local preview is not a released or deployed claim. An independent verifier authenticated all four official package backups against registry integrity, checked preview bytes, and restored Revnet's original nested bs58 5.0.0/base-x 4.0.1 dependencies after the physical replacement. The final installer must preserve these nested dependencies. SDK check logs and artifact provenance live in `/private/tmp/sdk-sticky-adversarial-preview`; final clean-install CI remains a release requirement.
+
+The final immutable preview is `2.27.0-preview.adversarial.9ee3da134017` from `a4022589502dada1507c1b40be7e9c13308bc630`. A fresh `npm ci`, forced `npm run check` and production audit subsequently passed; all 769 compiled files match the installed preview byte-for-byte. Exact successful logs and exit codes are selected in `/private/tmp/sdk-sticky-adversarial-preview/verification.json` (`npm-ci.log`, `clean-check.log`, `clean-audit.log`). The draft SDK PR carries the changeset while the four clients finish qualification. Remote CI, published-package equivalence, consumer adoption, merge and publication remain separate stages; none are inferred from local preview success.

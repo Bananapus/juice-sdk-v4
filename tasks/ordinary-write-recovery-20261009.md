@@ -15,11 +15,11 @@ Review baseline: published SDK `4c8646ee08ab41dc3536a00180d9b1a4fef25518`, Stick
 
 - [x] Prove ordinary-write lost-reply retry and inventory all four current consumers.
 - [x] Independently inspect launch/bridge durable recovery and Safe replacement behavior.
-- [ ] Agree concrete shared recovery transitions and client recovery presentation before production edits.
-- [ ] Add meaningful failing SDK/client regressions for the proved paths.
-- [ ] Implement shared uncertainty/recovery owner and compose existing domain journals.
+- [x] Agree concrete shared recovery transitions and client recovery presentation before production edits.
+- [x] Add meaningful failing SDK/client regressions for the proved paths.
+- [x] Implement shared uncertainty/recovery owner and compose existing domain journals.
 - [ ] Wire and verify each of Sticky, Juicebox, Homerun and Revnet.
-- [ ] Preserve uncertain Safe proposals unless independent execution evidence settles them.
+- [x] Preserve uncertain Safe proposals unless independent execution evidence settles them.
 - [ ] Record exact verification evidence and residual recovery limitations for root integration.
 
 ### Refinement from independent implementation review
@@ -33,4 +33,26 @@ Review baseline: published SDK `4c8646ee08ab41dc3536a00180d9b1a4fef25518`, Stick
 
 ## Review results
 
-Pending implementation. Proof scripts: `/private/tmp/sticky-ambiguous-write-repro.cjs` and `/private/tmp/sticky-safe-stale-replacement-repro.cjs`; these model wallet/node/service responses and execute source or installed SDK code, and are not evidence of any live transaction.
+The shared SDK owner is implemented and frozen at `a4022589502dada1507c1b40be7e9c13308bc630`. The installed preview is `2.27.0-preview.adversarial.9ee3da134017`; all 769 compiled artifacts are byte-identical after a fresh locked install and complete forced SDK check. Core 2,274 tests, React 153 tests and Connect 35 tests pass. `contractWrite` and `safeService` have 100% coverage in every metric; `writeRecovery` has 100% lines/statements/functions and 96.59% branches. The draft SDK PR is reviewable independently; client qualification is explicitly pending.
+
+Juicebox full gates currently pass 2,970 tests and all 66 Chromium cases against the physical preview. Its create and aggregate bundle budgets need exact before/after attribution before a narrow limit change; no client runtime push or published-package qualification is claimed.
+
+Sticky's 293 focused tests, touched-file lint and types passed before complete-suite fixture updates. The full gate exposed old receipt fixtures that require canonical RPC evidence; those are being corrected without proof mocks. Independent review then found repeated returned-hash storage failures could strand current-session recovery despite retaining the safety lock. The existing journal owner is being strengthened to preserve the exact original attempt's known reply; production review and final full gates remain open.
+
+Homerun and Revnet final client work remains open. Homerun is reviewing linked-ruleset completion and partial-reservation failure semantics. Revnet is addressing cross-scope lost updates in its existing whole-array activity owner; the selected persistence API must preserve unrelated reservations and exact post-await proof snapshots. These are client owner refinements, not changes to the frozen SDK artifact.
+
+Residual recovery limit: a hashless nonunique wallet write stays held without proof identifying that exact attempt; elapsed time, nonce movement, dismissal, or an arbitrary historical matching transaction cannot release it. Conflict scope deliberately includes account, chain, target and selector, so a changed recipient/amount still waits for the earlier same-function write. The durable store is local to the browser origin; losing or clearing that storage is outside the persistence guarantee.
+
+Proof scripts: `/private/tmp/sticky-ambiguous-write-repro.cjs` and `/private/tmp/sticky-safe-stale-replacement-repro.cjs`; these model wallet/node/service responses and execute source or installed SDK code, and are not evidence of any live transaction.
+
+## Plan refinement — repeated domain hash-save failure
+
+- **Objective:** Preserve a trusted Bridge/Collector wallet reply across repeated hash-save failures and component close/remount, with an explicit working recovery check once storage returns; never associate it with a replacement attempt.
+- **System fit:** The existing bridge journal retains the exact original UUID snapshot and submitted hash/Safe kind in session memory, while its durable reservation remains authoritative. Existing owner locks, canonical proof and post-proof raw snapshot comparison continue to control progress and clearing. Root explicitly authorized this narrow production reopen.
+- **Reuse and simplicity:** Reuse the journal's submission CAS and both panels' Check transaction action. A storage-scoped WeakMap retains failed commits; public reads expose that reply only against its exact raw reservation, and one shared retry helper persists it before recovery. No timer, second durable journal, historical-hash adoption or SDK runtime change.
+- **Evidence and unknowns:** Independent review reproduced initial and receipt-time hash persistence failures followed by a discarded UI hash. Session memory survives component remount but does not survive page/process loss; unreadable or replaced storage never authorizes release.
+- **Verification:** Regress two failed saves followed by storage restoration and manual recovery in Bridge and Collector, plus replacement UUID/hash/metadata conflicts and raw-CAS behavior in the journal. Run the three focused files, touched-file types/lint and independent source reread before refreezing.
+- **Resource budget:** Edit only the shared journal, two consumers and their existing tests. Parent holds full client gates until this bounded fix is frozen; no build, installation, staging or commit here.
+
+- [ ] Implement exact retained-reply retry in the existing owner and both consumers.
+- [ ] Verify repeated failure recovery and replacement isolation, then report refreeze.
