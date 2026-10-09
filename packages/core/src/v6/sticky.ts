@@ -10,7 +10,6 @@ import {
 } from "viem";
 import {
   jbSuckerRegistryAbi,
-  jbControllerAbi,
   jbDirectoryAbi,
   jbMultiTerminalAbi,
   jbTokensAbi,
@@ -977,9 +976,11 @@ export async function verifyStickyCollectorRoute(
     );
   let destinationProjectId = sourceProjectId;
   if (deployment.sourceChainId !== home) {
-    const { jbSuckerV6ViewAbi, suckerBytes32ToAddress } = await import(
-      "./suckers.js"
-    );
+    const {
+      jbSuckerV6ViewAbi,
+      suckerBytes32ToAddress,
+      verifySuckerDestinationMint,
+    } = await import("./suckers.js");
     const { sucker, backingToken } = args;
     if (!sucker || !backingToken)
       throw new Error("A direct Sticky source-to-home route is required.");
@@ -1117,13 +1118,12 @@ export async function verifyStickyCollectorRoute(
         "Sticky backing decimals differ between source and home chain.",
       );
     // Registration survives some ruleset changes that can revoke mint authority.
-    // Probe the actual current controller as the peer; this eth_call mints no live tokens.
-    await destinationClient.simulateContract({
-      address: destinationContext.controller,
-      abi: jbControllerAbi,
-      functionName: "mintTokensOf",
-      args: [destinationProjectId, 1n, receiver, "", false],
-      account: peerAddress,
+    await verifySuckerDestinationMint(destinationClient, {
+      controller: destinationContext.controller,
+      projectId: destinationProjectId,
+      sucker: peerAddress,
+      beneficiary: receiver,
+      tokenCount: 1n,
     });
   }
   const [sourceToken, rewardToken] = await Promise.all([

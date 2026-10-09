@@ -11,9 +11,29 @@ import {
   zeroHash,
 } from "viem";
 import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
-import { jbSuckerRegistryAbi } from "../generated/juicebox.js";
+import { jbControllerAbi, jbSuckerRegistryAbi } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
 import { v6Address } from "./types.js";
+
+/** Probe the current controller as the verified destination peer; this eth_call mints no live tokens. */
+export async function verifySuckerDestinationMint(
+  client: PublicClient,
+  args: {
+    controller: Address;
+    projectId: bigint;
+    sucker: Address;
+    beneficiary: Address;
+    tokenCount: bigint;
+  },
+): Promise<void> {
+  await client.simulateContract({
+    address: args.controller,
+    abi: jbControllerAbi,
+    functionName: "mintTokensOf",
+    args: [args.projectId, args.tokenCount, args.beneficiary, "", false],
+    account: args.sucker,
+  });
+}
 
 const jbSuckerV6WriteAbi = [
   {
