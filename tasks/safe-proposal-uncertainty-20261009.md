@@ -1,0 +1,43 @@
+# Safe proposal uncertainty — 2026-10-09
+
+Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `workflow/ponytail/SKILL.md`, `workflow/ponytail/README.md`, `docs/PLAN_REFINEMENT.md`, and relevant `tasks/lessons.md`; no descendant SDK instructions. Root review: `/Users/jango/Documents/jb/v6/evm/.worktrees/sticky-client-reconciliation/tasks/adversarial-review-20261009.md`. SDK baseline: `96b42e5a922d575f5d592671ea1b7e0fe5e315d8`, core 2.26.0.
+
+## Plan refinement
+
+- **Objective:** Stop a stale Safe service record from authorizing a duplicate proposal after the original executed; preserve the pending guard until the existing execution reader proves a result or the snapshot proves expiry before execution.
+- **System fit:** `safeService.ts` owns authenticated proposal snapshots and the watcher; client Safe hooks persist proposal identities and release held calls on watcher terminal outcomes. `passed` means either replacement or delayed indexing, so time cannot turn it into execution evidence. Preparation, signing, receipt verification and release authority remain with their current owners; no release, RPC or wallet mutation is authorized.
+- **Reuse and simplicity:** Keep `lookAtSafeProposal` and its existing pinned-block nonce/deadline expiry proof; remove the timer-based replacement conclusion from `watchSafeProposal` rather than adding another scanner or status owner. Audit the public return type and all consumers before deciding whether narrowing its annotation is compatible. Reuse the existing fake-clock Safe app tests and receipt checks.
+- **Evidence and unknowns:** Recovery's `/private/tmp/sticky-safe-stale-replacement-repro.cjs` reports `replaced` after 660000 ms for a proposal at nonce 7 when the chain is at nonce 8 and its valid service record still says `isExecuted=false`. Queue lookup then excludes the old nonce, allowing another proposal. A higher nonce proves consumption, not which transaction consumed it; live execution and service catch-up remain unknown in this offline test.
+- **Verification:** Add the stale-indexer regression before production edits and prove it fails; retain uncertainty beyond the former ten-minute threshold for ordinary and expired-deadline calls, service unavailability and later service execution reports. Preserve actual expiry and cancellation checks, inspect all watcher/snapshot consumers, run focused Node Safe suites with the owner coverage gate, and hand off final source/test diff plus logs for root's combined type/build checks.
+- **Resource budget:** One writer owns `safeService.ts` and `safeApp.test.ts`; a read-only agent audits consumers and expiry semantics. Use existing Node 22 and installed packages, bounded local searches, no network/Forge/RPC, no generated-source builds alongside other SDK work. Replan if canonical replacement proof or a consumer API change is needed; root serializes integration and commits.
+
+## Checklist
+
+- [x] Trace the shared watcher, authenticated snapshot, reproduction and relevant workspace lessons.
+- [x] Add and run a failing stale-indexer regression.
+- [x] Remove unsupported replacement inference and finish related regression updates.
+- [x] Review consumer semantics, run focused Safe tests/coverage and document exact evidence.
+
+## Review
+
+The stale-service regressions failed twice before production edits: both a value transfer and a deadline-bearing swap incorrectly ended `replaced` after the earlier ten-minute interval (`/private/tmp/sdk-safe-uncertainty-before.log`). The shared watcher now keeps `passed` snapshots uncertain indefinitely, retaining its public return union for consumer source compatibility. Cancellation and actual authenticated expiry still work.
+
+The independent arbitrary-target proof (`/private/tmp/safe-expiry-target-proof-20261009.mjs`) and four failing-before tests (`/private/tmp/sdk-safe-deadline-before.log`) demonstrated selector-shaped EOA transfers being marked expired and omitted from queue duplicate checks. `stampedDeadline(call, chainId?)` now requires the existing canonical per-chain Universal Router or PositionManager identity; missing/unsupported chain evidence or an unrelated destination returns null. Both callers pass their chain. A null block number cannot authorize expiry; queue matches remain held and proposal snapshots stay live. Ordinary held-call normalization and receipt execution checks remain unchanged.
+
+Final Node 22.23.1 run: 401 tests pass across `safeApp`, `safeService`, `safeQueue`, `review/safeRelayr`, and `publicSurface`; Safe service statement, branch, function and line coverage are all 100 percent. Log: `/private/tmp/sdk-safe-uncertainty-focused.log`; report: `/private/tmp/sdk-safe-uncertainty-coverage/`. The 71 Safe app cases include wrong-chain/unknown-target data, missing chain/block evidence, prolonged uncertainty, service outage/catch-up, abort and positive canonical expiry. Scoped Prettier and `git diff --check` pass. Independent remediation review found no remaining concrete defect in this frozen Safe diff.
+
+The maintained Juicebox reconciliation adapter already reexports the SDK watcher; no duplicate production fix is needed. Its related `test/safe-connector.test.ts` assertions now match the shared behavior and produce 21 expected failures / 117 passes against the unchanged installed 2.26.0 (`/private/tmp/jbm-safe-uncertainty-sdk226-red.log`). Root's SDK integrator owns the preview install, final type/build checks and rerunning those four affected client suites. Original Juicebox main still contains its old duplicate until reconciliation integration; Revnet and Homerun use different confirmation owners. Sticky's new ordinary-write journal needs exact-record finalized expiry release through existing `readSafeTransaction`, `safeTransactionMatchesCall`, `lookAtSafeProposal` and `atCanonicalFinalizedBlock`; recovery owns that composition and its tests.
+
+Frozen SDK files: `packages/core/src/safeService.ts` SHA-256 `9ab6bb69bb951124ba9258937ad7f5aaf286743b03ef33434d3ca3eb5dce38ed`; `packages/core/src/safeApp.test.ts` SHA-256 `b2c486150d8bb80a7f699eaf97e36dba9ea7a99e162732984b27ec58578d3fc6`. No deployment, release, commit or push.
+
+## Plan refinement
+
+- **Objective:** Complete the timeout fix and root-authorized follow-up for false expiry: only treat a deadline as enforced when the canonical per-chain destination is known; preserve uncertainty for arbitrary destinations and unknown chains.
+- **System fit:** Both queue filtering and the watcher already use `stampedDeadline`; this remains the one deadline owner. `v6/uniswapV4Deployments.ts` owns canonical deployment identities and supplies target evidence without another address table. Client receipt and persistence owners remain unchanged. Review the maintained Juicebox reconciliation worktree for the shared SDK adapter, not the unported original checkout.
+- **Reuse and simplicity:** Extend `stampedDeadline` with an optional chain argument; missing chain evidence returns null, preserving call-site compatibility conservatively. Replace selector-only enforcement metadata with its canonical deployment field, update both internal callers, and use canonical addresses in existing positive fixtures. Do not duplicate a watcher or target list in clients.
+- **Evidence and unknowns:** Independent review found that an authenticated positive-value Safe CALL to an EOA can carry valid router-shaped calldata with an old deadline, yet the original helper labels it expired; an EOA ignores calldata and remains payable. Root authorized a demonstrated-case fix. Existing snapshot expiry is valid only with an enforcing target and a coherent block/nonce read; live deployments and wallet execution remain outside these offline proofs.
+- **Verification:** Add a failing snapshot/queue regression for arbitrary targets before editing deadline production logic; cover canonical router and position-manager targets, wrong-chain targets, unsupported/missing chain evidence, Permit2 non-expiry, malformed data, stale nonce and unavailable reads. Preserve 100 percent Safe service coverage using bounded Node suites; root runs final types, package builds and client integration.
+- **Resource budget:** The same SDK writer owns only Safe source/tests; the read-only reviewer produces a local executable proof and a separate agent checks the maintained Juicebox adapter. No builds, network, RPC or Forge. Replan if trusted-target proof needs new deployment data or an execution scanner; leave uncertain cases held.
+
+- [x] Prove and fix arbitrary-target expiry in the shared deadline owner and its consumers.
+- [x] Confirm the maintained Juicebox adapter consumes the corrected SDK watcher.

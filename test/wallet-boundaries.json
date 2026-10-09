@@ -2,6 +2,13 @@
   "format": "juice-sdk-wallet-boundaries-1",
   "sites": [
     {
+      "file": "packages/core/src/review/writeRecovery.ts",
+      "line": 327,
+      "api": "request",
+      "boundary": "Acquire a native Web Locks exclusive lock for one account, chain, target and selector. Coordinate durable reservation, wallet handoff and canonical recovery across tabs; this request is browser coordination and never a wallet RPC.",
+      "test": "packages/core/src/review/writeRecovery.test.ts"
+    },
+    {
       "file": "packages/react/src/lib/relayr/hooks/useSendRelayrTx.ts",
       "line": 11,
       "api": "useSendTransaction",

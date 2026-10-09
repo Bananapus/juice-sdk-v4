@@ -1,5 +1,7 @@
 # Four-client shared SDK rules
 
+Current independent review follow-up: [Safe proposal uncertainty](safe-proposal-uncertainty-20261009.md) tracks the stale-indexer duplicate-retry regression, shared watcher fix and scoped verification. Root owns combined integration and release authority.
+
 Completed follow-up: [final Relayr wallet refusal](relayr-final-guard-plan.md) records the typed post-persistence guard, failed-before evidence and qualified preview 3. Root owns release integration.
 
 Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, its `README.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`, root `tasks/lessons.md` and latest root `tasks/todo.md`. No descendant SDK instructions. Base main `3a0c156`, core 2.24.5; source JBM `6a0598d`, Revnet `1fcbf1f1`.

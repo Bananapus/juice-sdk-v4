@@ -2,6 +2,7 @@ import { BaseError, UserRejectedRequestError, type Address } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import {
   isDefiniteWalletRejection,
+  SubmittedContractWriteError,
   submitReviewedContractWrite,
 } from "./contractWrite.js";
 
@@ -384,6 +385,105 @@ describe("reviewed direct-write boundary", () => {
       expect(onWriteRejected).not.toHaveBeenCalled();
     }
   });
+
+  it("reports an uncertain result only after invoking the wallet, preserving its original error", async () => {
+    for (const gate of [
+      "review",
+      "simulate",
+      "beforeWrite",
+      "beforeSend",
+      "write",
+    ] as const) {
+      const run = harness();
+      const failure = new Error("Reply lost");
+      const onWriteUncertain = vi.fn();
+      const onWriteSubmitted = vi.fn();
+      const beforeWrite = vi.fn(async () => {});
+      const beforeSend = vi.fn(() => {});
+      if (gate === "beforeWrite") beforeWrite.mockRejectedValueOnce(failure);
+      else if (gate === "beforeSend")
+        beforeSend.mockImplementationOnce(() => {
+          throw failure;
+        });
+      else run.options[gate].mockRejectedValueOnce(failure);
+      await expect(
+        submitReviewedContractWrite({
+          ...run.options,
+          beforeWrite,
+          beforeSend,
+          onWriteUncertain,
+          onWriteSubmitted,
+        }),
+      ).rejects.toBe(failure);
+      expect(onWriteUncertain).toHaveBeenCalledTimes(gate === "write" ? 1 : 0);
+      if (gate === "write")
+        expect(onWriteUncertain).toHaveBeenCalledWith(failure);
+      expect(onWriteSubmitted).not.toHaveBeenCalled();
+    }
+  });
+
+  it("reports explicit rejection without labeling it uncertain", async () => {
+    const run = harness();
+    const error = { code: 4001 };
+    const onWriteUncertain = vi.fn();
+    const onWriteRejected = vi.fn();
+    run.options.write.mockRejectedValueOnce(error);
+    await expect(
+      submitReviewedContractWrite({
+        ...run.options,
+        onWriteUncertain,
+        onWriteRejected,
+      }),
+    ).rejects.toBe(error);
+    expect(onWriteRejected).toHaveBeenCalledOnce();
+    expect(onWriteUncertain).not.toHaveBeenCalled();
+  });
+
+  it("awaits returned-identity persistence outside all wallet error cleanup", async () => {
+    const run = harness();
+    const onWriteSubmitted = vi.fn(async (hash: string) => {
+      await Promise.resolve();
+      expect(hash).toBe("0xhash");
+      run.events.push("submitted");
+    });
+    await expect(
+      submitReviewedContractWrite({ ...run.options, onWriteSubmitted }),
+    ).resolves.toBe("0xhash");
+    expect(run.events.slice(-2)).toEqual(["write", "submitted"]);
+
+    const onWriteRejected = vi.fn();
+    const onWriteUncertain = vi.fn();
+    const onBeforeWriteAborted = vi.fn();
+    const failure = { code: 4001 };
+    onWriteSubmitted.mockRejectedValueOnce(failure);
+    await expect(
+      submitReviewedContractWrite({
+        ...run.options,
+        beforeWrite: async () => {},
+        onWriteSubmitted,
+        onWriteRejected,
+        onWriteUncertain,
+        onBeforeWriteAborted,
+      }),
+    ).rejects.toMatchObject({
+      name: "SubmittedContractWriteError",
+      hash: "0xhash",
+      cause: failure,
+    });
+    try {
+      await submitReviewedContractWrite({
+        ...run.options,
+        onWriteSubmitted: () => {
+          throw failure;
+        },
+      });
+    } catch (error) {
+      expect(error).toBeInstanceOf(SubmittedContractWriteError);
+    }
+    expect(onWriteRejected).not.toHaveBeenCalled();
+    expect(onWriteUncertain).not.toHaveBeenCalled();
+    expect(onBeforeWriteAborted).not.toHaveBeenCalled();
+  });
 });
 
 describe("definite wallet rejections", () => {
@@ -416,6 +516,8 @@ describe("definite wallet rejections", () => {
       { code: "4001" },
       { code: 4100 },
       { code: -32603, cause: { message: "timeout" } },
+      new SubmittedContractWriteError("0xhash", { code: 4001 }),
+      { name: "SubmittedWritePersistenceError", cause: { code: 4001 } },
     ]) {
       expect(isDefiniteWalletRejection(error)).toBe(false);
     }

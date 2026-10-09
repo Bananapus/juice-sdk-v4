@@ -72,6 +72,8 @@ type Read = {
 type Override = (call: Read) => unknown;
 function fixture(
   options: {
+    deployment?: StickySourceCollectorDeployment;
+    transport?: "op" | "arbitrum-l1" | "arbitrum-l2" | "ccip" | "unknown";
     local?: boolean;
     sourceRead?: Override;
     homeRead?: Override;
@@ -79,7 +81,8 @@ function fixture(
     homeCode?: (a: Address) => Hex | undefined;
   } = {},
 ) {
-  const homeId = deployment.destinationChainId;
+  const configured = options.deployment ?? deployment;
+  const homeId = configured.destinationChainId;
   const make = (isSource: boolean) => {
     const readContract = vi.fn(async (call: Read) => {
       const override = (isSource ? options.sourceRead : options.homeRead)?.(
@@ -90,10 +93,10 @@ function fixture(
       if (target === COLLECTOR) {
         const fields = {
           DESTINATION_CHAIN_ID: BigInt(homeId),
-          DIRECTORY: deployment.directory,
-          REGISTRY: deployment.registry,
-          TOKENS: deployment.tokens,
-          RECEIVER_FACTORY: deployment.receiverFactory,
+          DIRECTORY: configured.directory,
+          REGISTRY: configured.registry,
+          TOKENS: configured.tokens,
+          RECEIVER_FACTORY: configured.receiverFactory,
           FEE_PAYER,
           pendingOf: 100n,
         };
@@ -115,7 +118,8 @@ function fixture(
             : REWARD_TOKEN;
       if (name === "isSuckerOf") return true;
       if (name === "projectId") return isSource ? 3n : 30n;
-      if (name === "peerChainId") return isSource ? BigInt(homeId) : 10n;
+      if (name === "peerChainId")
+        return isSource ? BigInt(homeId) : BigInt(configured.sourceChainId);
       if (name === "peer") return pad(isSource ? PEER : SUCKER);
       if (name === "state") return 0;
       if (name === "remoteTokenFor")
@@ -125,9 +129,18 @@ function fixture(
           minGas: 200_000,
           addr: pad(BACKING),
         };
-      if (name === "REGISTRY") return deployment.registry;
-      if (name === "TOKENS") return deployment.tokens;
-      if (name === "DIRECTORY") return deployment.directory;
+      if (name === "REGISTRY") return configured.registry;
+      if (name === "TOKENS") return configured.tokens;
+      if (name === "DIRECTORY") return configured.directory;
+      const transport = options.transport ?? "op";
+      if (name === "CCIP_ROUTER" && transport === "ccip") return address(130);
+      if (name === "OPMESSENGER" && transport === "op") return address(131);
+      if (name === "ARBINBOX" && transport.startsWith("arbitrum"))
+        return transport === "arbitrum-l2" ? zeroAddress : address(132);
+      if (name === "GATEWAYROUTER" && transport.startsWith("arbitrum"))
+        return address(133);
+      if (name === "LAYER" && transport.startsWith("arbitrum"))
+        return transport === "arbitrum-l1" ? 0 : 1;
       throw new Error(`Unhandled read ${name}`);
     });
     const getCode = vi.fn(async ({ address: target }: { address: Address }) => {
@@ -136,7 +149,7 @@ function fixture(
       return target === FEE_PAYER ? FEE_CODE : CODE;
     });
     const getChainId = vi.fn(async () =>
-      isSource && !options.local ? 10 : homeId,
+      isSource && !options.local ? configured.sourceChainId : homeId,
     );
     return {
       readContract,
@@ -350,6 +363,83 @@ describe("Sticky collector recipes and custody reads", () => {
 });
 
 describe("Sticky source-to-home qualification", () => {
+  test("refuses native L1 Arbitrum collector sends whose asynchronous refunds cannot return to the caller", async () => {
+    const configured = {
+      ...deployment,
+      sourceChainId: 1 as const,
+      destinationChainId: 42161 as const,
+    };
+    const f = fixture({ deployment: configured, transport: "arbitrum-l1" });
+    await expect(
+      verifyStickyCollectorRoute(f.sourceClient, f.homeClient, {
+        ...remote,
+        deployment: configured,
+      }),
+    ).rejects.toThrow("asynchronous");
+  });
+  test("retains identified CCIP to Arbitrum and native L2-to-L1/OP routes without inferring live lane qualification", async () => {
+    for (const transport of ["op", "arbitrum-l2", "ccip"] as const) {
+      const configured = {
+        ...deployment,
+        sourceChainId:
+          transport === "arbitrum-l2"
+            ? (42161 as const)
+            : deployment.sourceChainId,
+        destinationChainId:
+          transport === "ccip"
+            ? (42161 as const)
+            : deployment.destinationChainId,
+      };
+      const f = fixture({ deployment: configured, transport });
+      await expect(
+        verifyStickyCollectorRoute(f.sourceClient, f.homeClient, {
+          ...remote,
+          deployment: configured,
+        }),
+      ).resolves.toMatchObject({ receiver: RECEIVER });
+    }
+  });
+  test("does not qualify unknown transports or unreadable Arbitrum layers", async () => {
+    const unknown = fixture({ transport: "unknown" });
+    await expect(
+      verifyStickyCollectorRoute(
+        unknown.sourceClient,
+        unknown.homeClient,
+        remote,
+      ),
+    ).rejects.toThrow("transport");
+    const layer = fixture({
+      transport: "arbitrum-l2",
+      sourceRead: (call) => {
+        if (call.functionName === "LAYER")
+          throw new Error("Layer RPC unavailable");
+      },
+    });
+    await expect(
+      verifyStickyCollectorRoute(layer.sourceClient, layer.homeClient, remote),
+    ).rejects.toThrow("transport");
+  });
+  test("a positive inbox cannot bypass required Arbitrum layer and gateway qualification", async () => {
+    for (const sourceRead of [
+      wrongRead("LAYER", 2),
+      (call: Read) =>
+        call.functionName === "LAYER"
+          ? 1
+          : call.functionName === "GATEWAYROUTER"
+            ? zeroAddress
+            : undefined,
+      (call: Read) => {
+        if (call.functionName === "LAYER")
+          throw new Error("Layer RPC unavailable");
+      },
+    ]) {
+      const f = fixture({ transport: "arbitrum-l1", sourceRead });
+      await expect(
+        verifyStickyCollectorRoute(f.sourceClient, f.homeClient, remote),
+      ).rejects.toThrow();
+      expect(f.home.simulateContract).not.toHaveBeenCalled();
+    }
+  });
   test("qualifies a canonical direct route using the peer's project, including pending deprecation and source credits", async () => {
     const f = fixture();
     await expect(

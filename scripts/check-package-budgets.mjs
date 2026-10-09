@@ -126,9 +126,18 @@ const budgets = {
     // Explicit builder return types avoid repeating the ABI in declarations.
     // Measured 1,309,865 B packed / 20,942,912 B unpacked, still 762 entries
     // (+15,846 B packed / +126,271 B unpacked against 2.25.0).
-    packed: 1_311_000,
-    unpacked: 20_944_000,
-    entries: 762,
+    // Durable reviewed-write recovery adds one source module/eight artifacts
+    // (+73,986 B unpacked). Shared mint readiness, collector transport checks,
+    // Safe evidence checks and submission callbacks change forty existing
+    // artifacts (+25,924 B unpacked). No dependencies or test fixtures added.
+    // Against official 2.26.0: +20,718 B packed / +99,910 B unpacked;
+    // measured 1,330,583 B packed / 21,042,822 B unpacked and 770 entries.
+    // The returned-hash cache conflict guard changes six writeRecovery JS/map
+    // artifacts only: +192 B packed / +1,574 B unpacked, no files/dependencies.
+    // Measured 1,330,775 B packed / 21,044,396 B unpacked and 770 entries.
+    packed: 1_332_000,
+    unpacked: 21_045_000,
+    entries: 770,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

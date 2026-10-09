@@ -10,7 +10,6 @@ import {
 } from "viem";
 import {
   jbSuckerRegistryAbi,
-  jbControllerAbi,
   jbDirectoryAbi,
   jbMultiTerminalAbi,
   jbTokensAbi,
@@ -904,6 +903,8 @@ export interface StickyCollectorRoute {
  * sending. Source credits may queue before their ERC-20 exists; the home-chain
  * reward ERC-20 and registered Sticky pool must already exist. The canonical
  * registered peer determines the destination reward project, never address parity.
+ * Native Arbitrum L1 sends are refused until asynchronous caller refunds are
+ * supported. Identifying a CCIP transport does not certify its live router lane.
  * Re-run through the reviewed-write reverify boundary before simulation/submission.
  */
 export async function verifyStickyCollectorRoute(
@@ -977,9 +978,13 @@ export async function verifyStickyCollectorRoute(
     );
   let destinationProjectId = sourceProjectId;
   if (deployment.sourceChainId !== home) {
-    const { jbSuckerV6ViewAbi, suckerBytes32ToAddress } = await import(
-      "./suckers.js"
-    );
+    const {
+      classifySuckerTransport,
+      jbNativeSuckerV6ProbeAbi,
+      jbSuckerV6ViewAbi,
+      suckerBytes32ToAddress,
+      verifySuckerDestinationMint,
+    } = await import("./suckers.js");
     const { sucker, backingToken } = args;
     if (!sucker || !backingToken)
       throw new Error("A direct Sticky source-to-home route is required.");
@@ -1097,6 +1102,46 @@ export async function verifyStickyCollectorRoute(
       throw new Error(
         "Sticky destination peer does not match the source route.",
       );
+    // The fee child can return only same-call refunds. Native Arbitrum L1
+    // retryables refund later on L2, where the child cannot attribute or return
+    // that caller's payment. This is a qualification mitigation, not a contract
+    // restriction or a fix to the upstream asynchronous refund destination.
+    const transport = await classifySuckerTransport(sourceClient, sucker);
+    if (transport === "unknown")
+      throw new Error("Sticky collector bridge transport cannot be qualified.");
+    if (transport === "native") {
+      const messenger = await sourceClient
+        .readContract({
+          address: sucker,
+          abi: jbNativeSuckerV6ProbeAbi,
+          functionName: "OPMESSENGER",
+        })
+        .catch(() => zeroAddress);
+      if (isAddressEqual(messenger, zeroAddress)) {
+        const layer = await sourceClient.readContract({
+          address: sucker,
+          abi: jbNativeSuckerV6ProbeAbi,
+          functionName: "LAYER",
+        });
+        if (layer === 0)
+          throw new Error(
+            "Native L1 Arbitrum collector delivery is unavailable: asynchronous refunds cannot return to the delivery caller.",
+          );
+        if (layer !== 1)
+          throw new Error(
+            "Sticky collector bridge transport layer cannot be qualified.",
+          );
+        const gateway = await sourceClient.readContract({
+          address: sucker,
+          abi: jbNativeSuckerV6ProbeAbi,
+          functionName: "GATEWAYROUTER",
+        });
+        if (isAddressEqual(gateway, zeroAddress))
+          throw new Error(
+            "Sticky collector bridge transport cannot be qualified.",
+          );
+      }
+    }
     const remoteBackingToken = suckerBytes32ToAddress(mapping.addr);
     const [sourceContext, destinationContext] = await Promise.all([
       stickyBackingContext(
@@ -1117,13 +1162,12 @@ export async function verifyStickyCollectorRoute(
         "Sticky backing decimals differ between source and home chain.",
       );
     // Registration survives some ruleset changes that can revoke mint authority.
-    // Probe the actual current controller as the peer; this eth_call mints no live tokens.
-    await destinationClient.simulateContract({
-      address: destinationContext.controller,
-      abi: jbControllerAbi,
-      functionName: "mintTokensOf",
-      args: [destinationProjectId, 1n, receiver, "", false],
-      account: peerAddress,
+    await verifySuckerDestinationMint(destinationClient, {
+      chainId: home,
+      projectId: destinationProjectId,
+      sucker: peerAddress,
+      beneficiary: receiver,
+      tokenCount: 1n,
     });
   }
   const [sourceToken, rewardToken] = await Promise.all([

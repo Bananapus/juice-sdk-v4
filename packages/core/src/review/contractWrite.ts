@@ -2,6 +2,22 @@ import type { Address } from "viem";
 
 export type ReviewedWritePhase = "review" | "simulating" | "signing";
 
+/** The wallet returned a hash, but the application's submission handoff failed. */
+export class SubmittedContractWriteError<THash = unknown> extends Error {
+  readonly name = "SubmittedContractWriteError";
+  declare readonly cause: unknown;
+
+  constructor(
+    readonly hash: THash,
+    cause: unknown,
+  ) {
+    super(
+      "The wallet returned a transaction identity, but recording it failed. Keep this transaction pending.",
+    );
+    Object.defineProperty(this, "cause", { value: cause, configurable: true });
+  }
+}
+
 /**
  * Whether a wallet error proves that nothing was broadcast. Only an explicit
  * rejection does: EIP-1193 code 4001, or viem's `UserRejectedRequestError`,
@@ -17,6 +33,11 @@ export function isDefiniteWalletRejection(error: unknown): boolean {
     depth += 1
   ) {
     const item = current as { code?: unknown; name?: unknown; cause?: unknown };
+    if (
+      item.name === "SubmittedContractWriteError" ||
+      item.name === "SubmittedWritePersistenceError"
+    )
+      return false;
     if (item.code === 4001 || item.name === "UserRejectedRequestError") {
       return true;
     }
@@ -45,6 +66,10 @@ export type ReviewedContractWriteOptions<
   onBeforeWriteAborted?: () => unknown | Promise<unknown>;
   /** Clear that intent only when the wallet explicitly rejects the write. */
   onWriteRejected?: () => unknown | Promise<unknown>;
+  /** The invoked wallet may have broadcast without returning its identity. */
+  onWriteUncertain?: (error: unknown) => unknown | Promise<unknown>;
+  /** Persist the returned identity before following its receipt. */
+  onWriteSubmitted?: (hash: THash) => unknown | Promise<unknown>;
   write: (simulated: TSimulated) => Promise<THash>;
   onPhase?: (phase: ReviewedWritePhase) => void;
   /**
@@ -84,6 +109,8 @@ export async function submitReviewedContractWrite<
   beforeSend,
   onBeforeWriteAborted,
   onWriteRejected,
+  onWriteUncertain,
+  onWriteSubmitted,
   write,
   onPhase,
   accountChangedError = "The connected account changed. Review again.",
@@ -122,14 +149,24 @@ export async function submitReviewedContractWrite<
     throw error;
   }
   // No await or caller callback may separate the final synchronous gates from write.
+  let hash: THash;
   try {
-    return await write(simulated);
+    hash = await write(simulated);
   } catch (error) {
     // The same-looking error from review/simulation never reaches this catch.
     // An RPC timeout or ambiguous submission must preserve the recovery lock.
     if (isDefiniteWalletRejection(error)) await onWriteRejected?.();
+    else await onWriteUncertain?.(error);
     throw error;
   }
+  // A persistence failure after the wallet returned a hash is never a wallet
+  // rejection, even if a callback happens to throw a rejection-shaped error.
+  try {
+    await onWriteSubmitted?.(hash);
+  } catch (cause) {
+    throw new SubmittedContractWriteError(hash, cause);
+  }
+  return hash;
 }
 
 function assertExpectedAccount(
