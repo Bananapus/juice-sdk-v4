@@ -132,8 +132,11 @@ const budgets = {
     // artifacts (+25,924 B unpacked). No dependencies or test fixtures added.
     // Against official 2.26.0: +20,718 B packed / +99,910 B unpacked;
     // measured 1,330,583 B packed / 21,042,822 B unpacked and 770 entries.
+    // The returned-hash cache conflict guard changes six writeRecovery JS/map
+    // artifacts only: +192 B packed / +1,574 B unpacked, no files/dependencies.
+    // Measured 1,330,775 B packed / 21,044,396 B unpacked and 770 entries.
     packed: 1_332_000,
-    unpacked: 21_044_000,
+    unpacked: 21_045_000,
     entries: 770,
   },
   "@bananapus/nana-sdk-react": {

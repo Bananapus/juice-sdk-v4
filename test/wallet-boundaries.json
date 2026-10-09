@@ -3,7 +3,7 @@
   "sites": [
     {
       "file": "packages/core/src/review/writeRecovery.ts",
-      "line": 313,
+      "line": 327,
       "api": "request",
       "boundary": "Acquire a native Web Locks exclusive lock for one account, chain, target and selector. Coordinate durable reservation, wallet handoff and canonical recovery across tabs; this request is browser coordination and never a wallet RPC.",
       "test": "packages/core/src/review/writeRecovery.test.ts"

@@ -33,7 +33,7 @@ Review baseline: published SDK `4c8646ee08ab41dc3536a00180d9b1a4fef25518`, Stick
 
 ## Review results
 
-The shared SDK owner is implemented and frozen at `a4022589502dada1507c1b40be7e9c13308bc630`. The installed preview is `2.27.0-preview.adversarial.9ee3da134017`; all 769 compiled artifacts are byte-identical after a fresh locked install and complete forced SDK check. Core 2,274 tests, React 153 tests and Connect 35 tests pass. `contractWrite` and `safeService` have 100% coverage in every metric; `writeRecovery` has 100% lines/statements/functions and 96.59% branches. The draft SDK PR is reviewable independently; client qualification is explicitly pending.
+The shared SDK owner was first qualified at `a4022589502dada1507c1b40be7e9c13308bc630`; the later cache-conflict refinement below supersedes that preview for final qualification. The historical preview is `2.27.0-preview.adversarial.9ee3da134017`; all 769 compiled artifacts are byte-identical after a fresh locked install and complete forced SDK check. Core 2,274 tests, React 153 tests and Connect 35 tests pass. `contractWrite` and `safeService` have 100% coverage in every metric; `writeRecovery` has 100% lines/statements/functions and 96.59% branches. The draft SDK PR is reviewable independently; client qualification is explicitly pending.
 
 Juicebox full gates currently pass 2,970 tests and all 66 Chromium cases against the physical preview. Its create and aggregate bundle budgets need exact before/after attribution before a narrow limit change; no client runtime push or published-package qualification is claimed.
 
@@ -50,9 +50,25 @@ Proof scripts: `/private/tmp/sticky-ambiguous-write-repro.cjs` and `/private/tmp
 - **Objective:** Preserve a trusted Bridge/Collector wallet reply across repeated hash-save failures and component close/remount, with an explicit working recovery check once storage returns; never associate it with a replacement attempt.
 - **System fit:** The existing bridge journal retains the exact original UUID snapshot and submitted hash/Safe kind in session memory, while its durable reservation remains authoritative. Existing owner locks, canonical proof and post-proof raw snapshot comparison continue to control progress and clearing. Root explicitly authorized this narrow production reopen.
 - **Reuse and simplicity:** Reuse the journal's submission CAS and both panels' Check transaction action. A storage-scoped WeakMap retains failed commits; public reads expose that reply only against its exact raw reservation, and one shared retry helper persists it before recovery. No timer, second durable journal, historical-hash adoption or SDK runtime change.
-- **Evidence and unknowns:** Independent review reproduced initial and receipt-time hash persistence failures followed by a discarded UI hash. Session memory survives component remount but does not survive page/process loss; unreadable or replaced storage never authorizes release.
+- **Evidence and unknowns:** Independent review reproduced initial and receipt-time hash persistence failures followed by a discarded UI hash, including failures to read the reservation. An unreadable raw record permits retaining a private candidate but never exposing, persisting or clearing it; a retained different attempt cannot be overwritten until raw identity is readable. Session memory survives component remount but does not survive page/process loss.
 - **Verification:** Regress two failed saves followed by storage restoration and manual recovery in Bridge and Collector, plus replacement UUID/hash/metadata conflicts and raw-CAS behavior in the journal. Run the three focused files, touched-file types/lint and independent source reread before refreezing.
 - **Resource budget:** Edit only the shared journal, two consumers and their existing tests. Parent holds full client gates until this bounded fix is frozen; no build, installation, staging or commit here.
 
-- [ ] Implement exact retained-reply retry in the existing owner and both consumers.
-- [ ] Verify repeated failure recovery and replacement isolation, then report refreeze.
+- [x] Implement exact retained-reply retry in the existing owner and both consumers.
+- [x] Verify repeated failure recovery and replacement isolation, then report refreeze.
+
+Reopen verification: 129/129 tests across the existing journal, Bridge and Collector suites; all six touched files pass ESLint and targeted TypeScript checks, and `git diff --check` passes. Both consumers regress repeated read/write failure followed by unmount and storage restoration; journal cases cover exact private candidate exposure, Safe proposal kind, conflicting hashes/UUIDs/metadata, raw-only CAS, and an old unreadable repair preserving a newer retained reply. Independent final source reread reports no remaining concrete issue. Separately, Unstick's canonical wallet fixtures pass all 57 cases, including uncertain-response review close/reopen without another wallet call. Parent resumes broad client gates after refreeze.
+
+## Plan refinement — SDK retained-reply replacement
+
+- **Objective:** Keep the current SDK write's returned hash when an older attempt retries while storage is unreadable; retain valid newer replies after their exact durable reservation is verified.
+- **System fit:** Root explicitly authorized a narrow SDK runtime reopen after an installed-artifact reproduction. The existing recovery cache remains the only memory owner; durable reservation identity, native locks, canonical proof and release rules remain unchanged.
+- **Reuse and simplicity:** Guard the existing rememberSubmission helper against replacing different cached evidence without readable exact ownership. Successful raw reads remove proven-stale cache, and the existing submission CAS permits a legitimate current attempt to replace stale memory after a failed write. No new persistence, timing or API surface.
+- **Evidence and unknowns:** Reproduction completes A, reserves B, fails B's hash write, then loses B's memory hash when A's stale repair encounters getItem failure. Tests must also show stale memory cannot suppress a fresh valid reply. Session-only retention limits are unchanged.
+- **Verification:** Add a failing-before A/B regression, a fresh reservation following proven-stale memory, and a legitimate newer cache replacement after exact raw CAS. Run the source recovery tests, formatting and targeted types; obtain independent reread before parent reruns full SDK gates and repackaging.
+- **Resource budget:** Edit only writeRecovery.ts, its test and this refinement record. Parent owns build, wallet-inventory line update, package installation and release provenance; no compiling, staging or committing here.
+
+- [x] Preserve current retained evidence and verify both replacement directions.
+- [x] Obtain independent source clearance and report exact test evidence before refreeze.
+
+SDK narrow-reopen evidence: the original A/B source regression failed before the fix with B's returned hash missing. All 20 writeRecovery source tests now pass, including stale-cache removal before a new reservation and legitimate replacement after readable exact CAS. Both touched TypeScript files pass Prettier, targeted no-emit type checking (zero diagnostics), and `git diff --check`. Independent final source/test reread reports no remaining finding. No build, package installation, staging or commit was performed by this owner; parent owns the full gates and updating the factual Web Locks inventory line from 313 to 327 before repackaging.

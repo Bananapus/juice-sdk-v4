@@ -312,6 +312,105 @@ describe("ordinary write recovery", () => {
     }
   });
 
+  it("preserves the current returned hash when an older attempt repairs through unreadable storage", async () => {
+    const options = browser();
+    const older = createBrowserWriteRecovery(input, options);
+    const previous = await older.withLock(async () => {
+      older.reserve();
+      const submitted = older.submitted(HASH);
+      older.clear(submitted);
+      return submitted;
+    });
+    const current = createBrowserWriteRecovery(input, options);
+    const reserved = await current.withLock(async () => {
+      const record = current.reserve();
+      options.storage.setItem.mockImplementationOnce(() => {
+        throw new Error("write unavailable");
+      });
+      expect(() => current.submitted(PROPOSAL)).toThrow(
+        SubmittedWritePersistenceError,
+      );
+      return record;
+    });
+    options.storage.getItem.mockImplementationOnce(() => {
+      throw new Error("read unavailable");
+    });
+    await expect(
+      older.withLock(async () => older.submitted(HASH, previous)),
+    ).rejects.toThrow(SubmittedWritePersistenceError);
+    const known = { ...reserved, hash: PROPOSAL };
+    expect(current.read()).toEqual(known);
+    expect(createBrowserWriteRecovery(input, options).read()).toEqual(known);
+    expect(JSON.parse([...options.values.values()][0])).toEqual(reserved);
+    await current.withLock(async () => {
+      current.submitted(PROPOSAL, known);
+      current.clear(known);
+    });
+  });
+
+  it("drops a proven-stale cached reply before a new reservation loses its storage read", async () => {
+    const options = browser();
+    const older = createBrowserWriteRecovery(input, options);
+    const previous = await older.withLock(async () => {
+      const record = older.reserve();
+      options.storage.setItem.mockImplementationOnce(() => {
+        throw new Error("write unavailable");
+      });
+      expect(() => older.submitted(HASH)).toThrow(
+        SubmittedWritePersistenceError,
+      );
+      return record;
+    });
+    // Another tab shares durable values but has its own Storage identity/cache.
+    const otherTab = createBrowserWriteRecovery(input, {
+      ...options,
+      storage: { ...options.storage },
+    });
+    await otherTab.withLock(async () => {
+      otherTab.clear(otherTab.submitted(HASH, previous));
+    });
+    const current = createBrowserWriteRecovery(input, options);
+    await current.withLock(async () => {
+      const reserved = current.reserve();
+      options.storage.getItem.mockImplementationOnce(() => {
+        throw new Error("read unavailable");
+      });
+      expect(() => current.submitted(PROPOSAL)).toThrow(
+        SubmittedWritePersistenceError,
+      );
+      expect(current.read()).toEqual({ ...reserved, hash: PROPOSAL });
+    });
+  });
+
+  it("lets exact raw ownership replace a stale cached reply when the current hash write fails", async () => {
+    const options = browser();
+    const older = createBrowserWriteRecovery(input, options);
+    const previous = await older.withLock(async () => {
+      older.reserve();
+      const submitted = older.submitted(HASH);
+      older.clear(submitted);
+      return submitted;
+    });
+    const current = createBrowserWriteRecovery(input, options);
+    const reserved = await current.withLock(async () => current.reserve());
+    options.storage.getItem.mockImplementationOnce(() => {
+      throw new Error("read unavailable");
+    });
+    await expect(
+      older.withLock(async () => older.submitted(HASH, previous)),
+    ).rejects.toThrow(SubmittedWritePersistenceError);
+    await current.withLock(async () => {
+      options.storage.setItem.mockImplementationOnce(() => {
+        throw new Error("write unavailable");
+      });
+      expect(() => current.submitted(PROPOSAL)).toThrow(
+        SubmittedWritePersistenceError,
+      );
+    });
+    expect(current.read()).toEqual({ ...reserved, hash: PROPOSAL });
+    expect(JSON.parse([...options.values.values()][0])).toEqual(reserved);
+  });
+
   it("cleans only its own partial pre-wallet marker after readback failure", async () => {
     for (const persistent of [false, true]) {
       const options = browser();

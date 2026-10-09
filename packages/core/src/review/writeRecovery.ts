@@ -150,9 +150,20 @@ export function createBrowserWriteRecovery(
     lastStorage = store;
     return store;
   }
-  function rememberSubmission(record: ReviewedWriteRecoveryRecord) {
+  function rememberSubmission(
+    record: ReviewedWriteRecoveryRecord,
+    verifiedReservation = false,
+  ) {
     if (!lastStorage) return;
     let pending = unpersistedSubmissions.get(lastStorage);
+    const previous = pending?.get(key);
+    // An unreadable stale callback cannot replace another attempt's only hash.
+    if (
+      previous &&
+      !verifiedReservation &&
+      JSON.stringify(previous) !== JSON.stringify(record)
+    )
+      return;
     if (!pending)
       unpersistedSubmissions.set(lastStorage, (pending = new Map()));
     pending.set(key, recordOf(record));
@@ -178,8 +189,11 @@ export function createBrowserWriteRecovery(
       JSON.stringify({ ...record, hash: undefined }) !==
         JSON.stringify({ ...memory, hash: undefined }) ||
       (record.hash && record.hash !== memory.hash)
-    )
+    ) {
+      // A readable durable snapshot also proves whether cached evidence is stale.
+      unpersistedSubmissions.get(store)?.delete(key);
       return record;
+    }
     if (record.hash) unpersistedSubmissions.get(store)?.delete(key);
     return recordOf(memory);
   }
@@ -297,7 +311,7 @@ export function createBrowserWriteRecovery(
         try {
           persist(submitted);
         } catch (cause) {
-          rememberSubmission(submitted);
+          rememberSubmission(submitted, true);
           throw new SubmittedWritePersistenceError(submitted, cause);
         }
       }
