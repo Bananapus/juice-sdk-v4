@@ -37,7 +37,15 @@ import {
 } from "../safe.js";
 import type { JBChainId } from "../types.js";
 import { permissionKeyV6 } from "../v6/permissionIds.js";
-import { describeStickySplit, isStickySplit } from "../v6/sticky.js";
+import {
+  describeStickySplit,
+  isStickySplit,
+  stickySourceCollectorAt,
+  stickySourceCollectorAbi,
+  STICKY_SOURCE_COLLECTOR_DEPLOYMENTS,
+  validateStickyGroupId,
+  type StickySourceCollectorDeployment,
+} from "../v6/sticky.js";
 import {
   UNISWAP_PERMIT2_ADDRESS,
   UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES,
@@ -126,6 +134,7 @@ function namedAddresses(): Map<string, string> {
 export function knownAddressName(
   chainId: number,
   value: unknown,
+  collectors: readonly StickySourceCollectorDeployment[] = STICKY_SOURCE_COLLECTOR_DEPLOYMENTS,
 ): string | null {
   if (typeof value !== "string" || !/^0x[0-9a-f]{40}$/iu.test(value)) {
     return null;
@@ -133,6 +142,13 @@ export function knownAddressName(
   if (value.toLowerCase() === UNISWAP_PERMIT2_ADDRESS.toLowerCase()) {
     return "Permit2";
   }
+  const collector = stickySourceCollectorAt(
+    chainId,
+    value as Address,
+    collectors,
+  );
+  if (collector)
+    return `StickySourceCollector (home chain ${collector.destinationChainId})`;
   return namedAddresses().get(addressKey(chainId, value)) ?? null;
 }
 
@@ -1064,6 +1080,7 @@ function safeInnerAbiOf(contract: string): Abi | undefined {
     ["JBBuybackHook", jbBuybackHookAbi],
     ["JBRouterTerminalRegistry", jbRouterTerminalRegistryAbi],
     ["JBRouterTerminalGateway", jbRouterTerminalGatewayAbi],
+    ["StickySourceCollector", stickySourceCollectorAbi],
   ]);
   return safeInnerAbis.get(contract);
 }
@@ -1083,6 +1100,7 @@ export function describeSafeInnerCall(
   chainId: number,
   to: unknown,
   data: unknown,
+  collectors: readonly StickySourceCollectorDeployment[] = STICKY_SOURCE_COLLECTOR_DEPLOYMENTS,
 ): PrettyStep[] | null {
   if (
     typeof data !== "string" ||
@@ -1092,7 +1110,7 @@ export function describeSafeInnerCall(
     return null;
   }
   if (typeof to !== "string" || !/^0x[0-9a-f]{40}$/iu.test(to)) return null;
-  const target = knownAddressName(chainId, to);
+  const target = knownAddressName(chainId, to, collectors);
   const abi =
     target === null || target === "USDC"
       ? (erc20Abi as Abi)
@@ -1291,6 +1309,7 @@ function isStickyHook(hook: string, chainId: number): boolean {
 export function describeSplitGroups(
   chainId: number,
   value: unknown,
+  collectors: readonly StickySourceCollectorDeployment[] = STICKY_SOURCE_COLLECTOR_DEPLOYMENTS,
 ): PrettyStep[] | null {
   if (!Array.isArray(value)) return null;
   const steps: PrettyStep[] = [];
@@ -1330,14 +1349,31 @@ export function describeSplitGroups(
       // A Sticky split's projectId is its holder group and its beneficiary is the Sticky token.
       const sticky =
         typeof split.hook === "string" && isStickyHook(split.hook, chainId);
+      const collector =
+        typeof split.hook === "string"
+          ? stickySourceCollectorAt(chainId, split.hook as Address, collectors)
+          : undefined;
+      const collectorInvalid =
+        collector &&
+        (group.groupId !== 1n ||
+          split.beneficiary.toLowerCase() === zeroAddress ||
+          validateStickyGroupId(split.projectId) !== null);
       const parts = [
-        sticky
-          ? `${describeStickySplit({ projectId: split.projectId })} → Sticky token ${addressLabel(chainId, split.beneficiary)}`
-          : split.projectId !== 0n
-            ? `project #${split.projectId} (beneficiary ${split.beneficiary})`
-            : addressLabel(chainId, split.beneficiary),
+        collector
+          ? collectorInvalid
+            ? `Invalid Sticky collector split: group ${split.projectId}, Sticky token ${addressLabel(collector.destinationChainId, split.beneficiary)} on home chain ${collector.destinationChainId} (reserved group 1 and a valid reward group required); allocation rejected`
+            : `${describeStickySplit({ projectId: split.projectId })} → Sticky token ${addressLabel(collector.destinationChainId, split.beneficiary)} on home chain ${collector.destinationChainId}`
+          : sticky
+            ? `${describeStickySplit({ projectId: split.projectId })} → Sticky token ${addressLabel(chainId, split.beneficiary)}`
+            : split.projectId !== 0n
+              ? `project #${split.projectId} (beneficiary ${split.beneficiary})`
+              : addressLabel(chainId, split.beneficiary),
       ];
-      if (sticky) {
+      if (collector) {
+        parts.push(
+          `via StickySourceCollector ${split.hook} (home chain ${collector.destinationChainId})`,
+        );
+      } else if (sticky) {
         parts.push(`via StickyDistributor ${split.hook}`);
       } else if (
         typeof split.hook === "string" &&

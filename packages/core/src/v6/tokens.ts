@@ -276,6 +276,23 @@ export async function getTokenAddress(
 }
 
 /**
+ * Resolve a registered V6 project token through canonical JBTokens, rather than
+ * trusting an ERC-20's own project-id getter. Returns null for an unregistered token.
+ */
+export async function getProjectIdForToken(
+  client: PublicClient,
+  { chainId, token }: { chainId: JBChainId; token: Address },
+): Promise<bigint | null> {
+  const projectId = await client.readContract({
+    address: v6Address("JBTokens", chainId),
+    abi: jbTokensAbi,
+    functionName: "projectIdOf",
+    args: [token],
+  });
+  return projectId === 0n ? null : projectId;
+}
+
+/**
  * Read a holder's internal token credit balance (unclaimed tokens) via
  * `JBTokens.creditBalanceOf(holder, projectId)`.
  *

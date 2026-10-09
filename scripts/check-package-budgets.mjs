@@ -121,8 +121,13 @@ const budgets = {
     // Invoked-wallet normalization adds 630 B packed / 2,065 B unpacked,
     // changing only eight Relayr artifacts and the 2.25.0 manifest version.
     // Measured 1,294,019 B packed / 20,816,641 B unpacked, still 762 entries.
-    packed: 1_295_000,
-    unpacked: 20_818_000,
+    // Destination-bound Sticky collector identity, route qualification and
+    // review decoding reuse existing modules and add no artifacts/dependencies.
+    // Explicit builder return types avoid repeating the ABI in declarations.
+    // Measured 1,309,865 B packed / 20,942,912 B unpacked, still 762 entries
+    // (+15,846 B packed / +126,271 B unpacked against 2.25.0).
+    packed: 1_311_000,
+    unpacked: 20_944_000,
     entries: 762,
   },
   "@bananapus/nana-sdk-react": {
