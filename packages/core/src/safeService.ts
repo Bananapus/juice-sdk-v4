@@ -23,6 +23,7 @@ import {
 } from "./safe.js";
 import { pause } from "./pause.js";
 import { isBytes32, isHexBytes, retryAfterMs, uint256 } from "./untrusted.js";
+import { uniswapV4Deployment } from "./v6/uniswapV4Deployments.js";
 
 /**
  * Safe's per-chain app URL prefix. Wider than {@link SAFE_SERVICE_PREFIX}:
@@ -878,26 +879,30 @@ export async function requireSafeProposalSuccess(
 
 /**
  * The calls this app stamps with a field at send time, by selector: the
- * stamp's argument, and whether the contract refuses the call once the chain
- * passes it. Universal Router's `execute` and PositionManager's
+ * stamp's argument, and the canonical deployment that enforces its deadline.
+ * Universal Router's `execute` and PositionManager's
  * `modifyLiquidities` check a deadline; the expiration Permit2's `approve`
  * sets only bounds the allowance it grants.
  */
 const STAMPED_CALLS: Record<
   string,
-  { params: readonly AbiParameter[]; stamp: number; reverts: boolean }
+  {
+    params: readonly AbiParameter[];
+    stamp: number;
+    deadlineTarget: "universalRouter" | "positionManager" | null;
+  }
 > = {
   // execute(bytes commands, bytes[] inputs, uint256 deadline)
   "0x3593564c": {
     params: [{ type: "bytes" }, { type: "bytes[]" }, { type: "uint256" }],
     stamp: 2,
-    reverts: true,
+    deadlineTarget: "universalRouter",
   },
   // modifyLiquidities(bytes unlockData, uint256 deadline)
   "0xdd46508f": {
     params: [{ type: "bytes" }, { type: "uint256" }],
     stamp: 1,
-    reverts: true,
+    deadlineTarget: "positionManager",
   },
   // approve(address token, address spender, uint160 amount, uint48 expiration)
   "0x87517c45": {
@@ -908,7 +913,7 @@ const STAMPED_CALLS: Record<
       { type: "uint48" },
     ],
     stamp: 3,
-    reverts: false,
+    deadlineTarget: null,
   },
 };
 
@@ -949,10 +954,19 @@ export function heldCall(call: SafeAppCall): SafeAppCall {
   };
 }
 
-/** The deadline after which the contract refuses `call`, or null for a call without one. */
-export function stampedDeadline(call: SafeAppCall): bigint | null {
+/**
+ * The deadline enforced by `call`'s canonical target on `chainId`, or null
+ * without that evidence. A matching selector alone proves no deadline;
+ * another contract or an EOA can accept the same calldata after its stamp.
+ */
+export function stampedDeadline(
+  call: SafeAppCall,
+  chainId?: number,
+): bigint | null {
   const stamped = stampedArgs(call);
-  return stamped?.shape.reverts
+  if (!stamped?.shape.deadlineTarget || chainId === undefined) return null;
+  const target = uniswapV4Deployment(chainId)?.[stamped.shape.deadlineTarget];
+  return target && isAddressEqual(call.to, target)
     ? BigInt(stamped.args[stamped.shape.stamp] as bigint)
     : null;
 }
@@ -985,10 +999,11 @@ type SafeQueueClient = Parameters<typeof readBoundedSafeNonce>[0] & {
  * service record, its safeTxHash and the call it runs), read from Safe's
  * service from the Safe's nonce in the latest block, or null: a Safe app
  * never proposes an action that is already queued, whoever queued it,
- * whatever its stamp ({@link heldCall}). A queued call the contract refuses
- * once its deadline passed is passed over when that block is past the
- * deadline: it can no longer run. Throws when the block, the nonce or the
- * queue can't be read.
+ * whatever its stamp ({@link heldCall}). A queued call to a canonical target
+ * that enforces its deadline is passed over when that numbered block is past
+ * the deadline: it can no longer run. Without a numbered block, matching
+ * proposals remain held. Throws when the block, the nonce or the queue can't
+ * be read.
  */
 export async function findPendingSafeAppProposal(
   client: SafeQueueClient,
@@ -1017,11 +1032,12 @@ export async function findPendingSafeAppProposal(
   ).flatMap((tx) => {
     const proposed = proposedCall(tx);
     return proposed && sameCall(heldCall(proposed), held)
-      ? [{ tx, call: proposed, deadline: stampedDeadline(proposed) }]
+      ? [{ tx, call: proposed, deadline: stampedDeadline(proposed, chainId) }]
       : [];
   });
   const live = queued.find(
-    ({ deadline }) => deadline === null || deadline >= block.timestamp,
+    ({ deadline }) =>
+      block.number === null || deadline === null || deadline >= block.timestamp,
   );
   return live
     ? {
@@ -1059,8 +1075,10 @@ export async function lookAtSafeProposal(
 ): Promise<SafeProposalLook> {
   try {
     const block = await client.getBlock();
+    // Without a numbered block, the nonce and deadline have no common snapshot.
+    if (block.number === null) return "live";
     const nonce = await readBoundedSafeNonce(client, safe, {
-      blockNumber: block.number ?? undefined,
+      blockNumber: block.number,
     });
     const record = await readSafeTransaction(
       chainId,
@@ -1071,7 +1089,7 @@ export async function lookAtSafeProposal(
     if (nonce === null || record.isExecuted) return "live";
     if (nonce > safeTransactionMessage(record).nonce) return "passed";
     const call = proposedCall(record);
-    const deadline = call && stampedDeadline(call);
+    const deadline = call && stampedDeadline(call, chainId);
     return deadline !== null && block.timestamp > deadline ? "expired" : "live";
   } catch {
     return "live";
@@ -1080,15 +1098,15 @@ export async function lookAtSafeProposal(
 
 /** A watch looks at its proposal once a minute, so it reads the Safe's nonce at most that often. */
 const SAFE_LOOK_MS = 60_000;
-/** How long looks in a row must find the Safe past a proposal before it counts as replaced. */
-const SAFE_REPLACED_AFTER_MS = 10 * 60_000;
 
 /**
  * Watches a proposal awaiting its signers, one {@link lookAtSafeProposal} a
  * minute, until `signal` aborts. It ends `expired` at the first look that
- * finds it expired, and `replaced` once looks in a row have found it passed
- * for ten minutes: one such look proves nothing, since Safe's service may list
- * the proposal's own execution later. Any other look starts that count again.
+ * proves it expired before execution. A passed nonce with no indexed execution
+ * remains uncertain however long it lasts: the proposal itself may have run.
+ * Execution confirmation belongs to the caller's receipt reader. The return
+ * type retains `replaced` for compatibility, but this watch does not infer it
+ * from elapsed time or a missing service record.
  */
 export async function watchSafeProposal(
   client: SafeQueueClient,
@@ -1098,7 +1116,6 @@ export async function watchSafeProposal(
   signal: AbortSignal,
   service?: SafeServiceOptions,
 ): Promise<"expired" | "replaced"> {
-  let passedSince: number | null = null;
   for (;;) {
     await pause(SAFE_LOOK_MS, signal, waitAborted);
     const look = await lookAtSafeProposal(
@@ -1109,12 +1126,6 @@ export async function watchSafeProposal(
       service,
     );
     if (look === "expired") return look;
-    passedSince = look === "passed" ? (passedSince ?? Date.now()) : null;
-    if (
-      passedSince !== null &&
-      Date.now() - passedSince >= SAFE_REPLACED_AFTER_MS
-    )
-      return "replaced";
   }
 }
 

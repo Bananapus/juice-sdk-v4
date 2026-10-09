@@ -6,6 +6,7 @@ import {
   encodeFunctionData,
   keccak256,
   pad,
+  zeroAddress,
   zeroHash,
   type Hex,
 } from "viem";
@@ -530,6 +531,28 @@ describe("suckers", () => {
       await expect(classifySuckerTransport(unknown, sucker)).resolves.toBe(
         "unknown",
       );
+    });
+
+    test("identifies canonical zero-inbox Arbitrum L2 only with its layer and gateway", async () => {
+      for (const [layer, gateway, expected] of [
+        [1, beneficiary, "native"],
+        [0, beneficiary, "unknown"],
+        [1, zeroAddress, "unknown"],
+      ] as const) {
+        const client = {
+          readContract: vi.fn(
+            async ({ functionName }: { functionName: string }) => {
+              if (functionName === "ARBINBOX") return zeroAddress;
+              if (functionName === "LAYER") return layer;
+              if (functionName === "GATEWAYROUTER") return gateway;
+              throw new Error("not this bridge family");
+            },
+          ),
+        } as unknown as PublicClient;
+        await expect(classifySuckerTransport(client, sucker)).resolves.toBe(
+          expected,
+        );
+      }
     });
 
     test("builds sync calldata and shares neutral accounting math", () => {

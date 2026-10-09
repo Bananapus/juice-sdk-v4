@@ -4,6 +4,7 @@ import {
   PublicClient,
   encodeAbiParameters,
   getAddress,
+  isAddressEqual,
   keccak256,
   pad,
   sliceHex,
@@ -11,23 +12,57 @@ import {
   zeroHash,
 } from "viem";
 import { NATIVE_TOKEN, USDC_ADDRESSES } from "../constants.js";
-import { jbControllerAbi, jbSuckerRegistryAbi } from "../generated/juicebox.js";
+import {
+  jbControllerAbi,
+  jbDirectoryAbi,
+  jbSuckerRegistryAbi,
+} from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
 import { v6Address } from "./types.js";
 
-/** Probe the current controller as the verified destination peer; this eth_call mints no live tokens. */
+/**
+ * Probe the destination's actual current controller before burning source tokens.
+ * The caller must first authenticate the registered reciprocal peer and destination
+ * project. Registration alone does not establish current mint authority. This
+ * eth_call uses the reviewed beneficiary/count, mints no live tokens, and proves
+ * only present readiness; re-run before submission and retain bridge recovery.
+ */
 export async function verifySuckerDestinationMint(
   client: PublicClient,
   args: {
-    controller: Address;
+    chainId: JBChainId;
     projectId: bigint;
     sucker: Address;
     beneficiary: Address;
     tokenCount: bigint;
   },
 ): Promise<void> {
+  if (
+    args.projectId <= 0n ||
+    args.tokenCount <= 0n ||
+    isAddressEqual(args.sucker, zeroAddress) ||
+    isAddressEqual(args.beneficiary, zeroAddress)
+  )
+    throw new Error(
+      "Bridge destination mint inputs must be positive and nonzero.",
+    );
+  if ((await client.getChainId()) !== args.chainId)
+    throw new Error("The destination mint RPC returned the wrong chain.");
+  const controller = await client.readContract({
+    address: v6Address("JBDirectory", args.chainId),
+    abi: jbDirectoryAbi,
+    functionName: "controllerOf",
+    args: [args.projectId],
+  });
+  const code = isAddressEqual(controller, zeroAddress)
+    ? undefined
+    : await client.getCode({ address: controller });
+  if (!code || code === "0x")
+    throw new Error(
+      "The bridge destination needs a deployed current controller.",
+    );
   await client.simulateContract({
-    address: args.controller,
+    address: controller,
     abi: jbControllerAbi,
     functionName: "mintTokensOf",
     args: [args.projectId, args.tokenCount, args.beneficiary, "", false],
@@ -219,6 +254,20 @@ export const jbCcipSuckerV6Abi = [
 
 /** Native-bridge-only probes used to positively identify sucker transports. */
 export const jbNativeSuckerV6ProbeAbi = [
+  {
+    type: "function",
+    name: "GATEWAYROUTER",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "LAYER",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint8" }],
+  },
   {
     type: "function",
     name: "OPMESSENGER",
@@ -920,6 +969,25 @@ export async function classifySuckerTransport(
     } catch {
       // Keep probing; an RPC error must not be treated as a positive match.
     }
+  }
+  // Canonical Arbitrum L2 deployments deliberately have no L1 inbox.
+  // Their positive identity is the L2 layer and configured gateway router.
+  try {
+    const [layer, gateway] = await Promise.all([
+      client.readContract({
+        address: sucker,
+        abi: jbNativeSuckerV6ProbeAbi,
+        functionName: "LAYER",
+      }),
+      client.readContract({
+        address: sucker,
+        abi: jbNativeSuckerV6ProbeAbi,
+        functionName: "GATEWAYROUTER",
+      }),
+    ]);
+    if (layer === 1 && !isAddressEqual(gateway, zeroAddress)) return "native";
+  } catch {
+    // A failed required probe cannot establish a usable native transport.
   }
   return "unknown";
 }

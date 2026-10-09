@@ -11,6 +11,7 @@ import {
 } from "viem";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeMultiSend, MULTI_SEND_CALL_ONLY_DEPLOYMENTS } from "./safe.js";
+import { uniswapV4Deployment } from "./v6/uniswapV4Deployments.js";
 import {
   atOnceExecution,
   canonicalSafeTxHash,
@@ -35,6 +36,7 @@ import {
 const HASH = `0x${"ab".repeat(32)}` as Hex;
 const STAMPED_CHAIN = 10;
 const TARGET = "0x3333333333333333333333333333333333333333" as Address;
+const STAMPED_DEPLOYMENT = uniswapV4Deployment(STAMPED_CHAIN)!;
 const STAMPED_SITES: readonly [
   string,
   (stamp: bigint, other?: bigint) => SafeAppCall,
@@ -42,21 +44,21 @@ const STAMPED_SITES: readonly [
   [
     "Universal Router execute",
     (stamp, other = 0n) => ({
-      to: TARGET,
+      to: STAMPED_DEPLOYMENT.universalRouter!,
       data: `0x3593564c${encodeAbiParameters([{ type: "bytes" }, { type: "bytes[]" }, { type: "uint256" }], ["0x01", [`0x${other.toString(16).padStart(2, "0")}`], stamp]).slice(2)}`,
     }),
   ],
   [
     "PositionManager modifyLiquidities",
     (stamp, other = 0n) => ({
-      to: TARGET,
+      to: STAMPED_DEPLOYMENT.positionManager!,
       data: `0xdd46508f${encodeAbiParameters([{ type: "bytes" }, { type: "uint256" }], [`0x${other.toString(16).padStart(2, "0")}`, stamp]).slice(2)}`,
     }),
   ],
   [
     "Permit2 authorization",
     (stamp, other = 0n) => ({
-      to: TARGET,
+      to: STAMPED_DEPLOYMENT.permit2,
       data: `0x87517c45${encodeAbiParameters([{ type: "address" }, { type: "address" }, { type: "uint160" }, { type: "uint48" }], [TARGET, TARGET, other + 1n, Number(stamp)]).slice(2)}`,
     }),
   ],
@@ -249,9 +251,25 @@ describe("the call a Safe proposal holds", () => {
   it.each(STAMPED_SITES)(
     "names the deadline of %s only where the contract refuses the call once it passes",
     (site, build) => {
-      expect(stampedDeadline(callOf(build(NOW)))).toBe(
+      expect(stampedDeadline(callOf(build(NOW)), STAMPED_CHAIN)).toBe(
         revertsOnceStampPasses(site) ? NOW : null,
       );
+    },
+  );
+
+  it.each(STAMPED_SITES.slice(0, 2))(
+    "requires the canonical %s target on the specified chain before trusting its deadline",
+    (_, build) => {
+      const call = build(NOW);
+      expect(stampedDeadline(call)).toBeNull();
+      expect(stampedDeadline(call, 999)).toBeNull();
+      expect(stampedDeadline(call, 1)).toBeNull();
+      expect(
+        stampedDeadline({ ...call, to: TARGET }, STAMPED_CHAIN),
+      ).toBeNull();
+      expect(
+        stampedDeadline({ ...call, to: getAddress(call.to) }, STAMPED_CHAIN),
+      ).toBe(NOW);
     },
   );
 
@@ -345,6 +363,32 @@ describe("the Safe's queue, asked before a proposal", () => {
       ).resolves.not.toBeNull();
     },
   );
+
+  it.each(STAMPED_SITES.slice(0, 2))(
+    "keeps an arbitrary destination queued despite %s-shaped calldata with an old deadline",
+    async (_, build) => {
+      // An EOA can receive this value with any calldata; its last argument
+      // does not cause a revert merely because a router would enforce it.
+      const queued = { ...build(NOW - 1n), to: TARGET, value: 5n };
+      await expect(lookup(queued, [queued])).resolves.not.toBeNull();
+    },
+  );
+
+  it("keeps a deadline-bound proposal queued without a numbered block for the nonce read", async () => {
+    const queued = STAMPED_SITES[0][1](NOW - 1n);
+    await expect(
+      findPendingSafeAppProposal(
+        {
+          ...chain(),
+          getBlock: async () => ({ number: null, timestamp: NOW }),
+        } as never,
+        STAMPED_CHAIN,
+        SAFE,
+        queued,
+        queue([queued]),
+      ),
+    ).resolves.not.toBeNull();
+  });
 
   it("reads the queue as of one block: its time, and the Safe nonce in it", async () => {
     // The proposal executes, before its deadline, while the queue is being read;
@@ -481,6 +525,26 @@ describe("a proposal awaiting its signers", () => {
     await expect(look(callOf(authorization(NOW - 1n)))).resolves.toBe("live");
   });
 
+  it.each(STAMPED_SITES.slice(0, 2))(
+    "keeps an arbitrary destination live despite %s-shaped calldata with an old deadline",
+    async (_, build) => {
+      await expect(
+        look({ ...build(NOW - 1n), to: TARGET, value: 5n }),
+      ).resolves.toBe("live");
+    },
+  );
+
+  it("keeps a deadline-bound proposal live without a numbered block for the nonce read", async () => {
+    const client = {
+      ...chain(),
+      getBlock: async () => ({ number: null, timestamp: NOW }),
+    };
+    await expect(
+      look(sale(NOW - 1n), undefined, client as never),
+    ).resolves.toBe("live");
+    expect(client.request).not.toHaveBeenCalled();
+  });
+
   it("is passed once the Safe's nonce is past it with no execution of it listed", async () => {
     chainState.nonce = 6n;
     await expect(look(callOf(authorization(NOW + 600n)))).resolves.toBe(
@@ -537,26 +601,64 @@ describe("a proposal awaiting its signers", () => {
       expect(ended).toBe("expired");
     });
 
-    it("ends replaced once looks have found the Safe past it for ten minutes in a row, a live look starting the count again", async () => {
-      vi.useFakeTimers();
-      chainState.nonce = 6n;
-      const client = chain();
-      let ended: string | undefined;
-      void watch(callOf(authorization(NOW + 600n)), client).then(
-        (end) => (ended = end),
-      );
-      // Passed at minutes 1 to 3, then live at minute 4: the run starts over at minute 5.
-      await vi.advanceTimersByTimeAsync(3 * 60_000);
-      chainState.nonce = 5n;
-      await vi.advanceTimersByTimeAsync(60_000);
-      chainState.nonce = 6n;
-      await vi.advanceTimersByTimeAsync(10 * 60_000);
-      expect(ended).toBeUndefined();
-      await vi.advanceTimersByTimeAsync(60_000);
-      expect(ended).toBe("replaced");
-      // One look a minute: the Safe's nonce is read at most once a minute.
-      expect(client.request).toHaveBeenCalledTimes(15);
-    });
+    it.each([
+      ["a value transfer", { to: TARGET, data: "0x" as Hex, value: 5n }],
+      ["a swap whose deadline has passed", callOf(sale(NOW - 1n))],
+    ])(
+      "keeps %s unresolved when its execution may be missing from the service",
+      async (_, call) => {
+        vi.useFakeTimers();
+        // This proposal executed and consumed its nonce, but its authenticated
+        // service record still says isExecuted=false. Time cannot distinguish
+        // that indexing delay from a different proposal consuming the nonce.
+        chainState.nonce = 6n;
+        const client = chain();
+        const controller = new AbortController();
+        const ended = vi.fn();
+        const watching = watch(call, client, controller.signal);
+        void watching.then(ended, ended);
+
+        await vi.advanceTimersByTimeAsync(31 * 60_000);
+        expect(ended).not.toHaveBeenCalled();
+        expect(client.request).toHaveBeenCalledTimes(31);
+        controller.abort();
+        await expect(watching).rejects.toThrow(/aborted/i);
+      },
+    );
+
+    it.each(["unavailable", "reporting execution"])(
+      "leaves execution to the receipt reader when the service becomes %s",
+      async (state) => {
+        vi.useFakeTimers();
+        chainState.nonce = 6n;
+        const client = chain();
+        const controller = new AbortController();
+        const call = callOf(authorization(NOW + 600n));
+        const { hash, options } = service(call);
+        const ended = vi.fn();
+        const watching = watchSafeProposal(
+          client as never,
+          STAMPED_CHAIN,
+          SAFE,
+          hash,
+          controller.signal,
+          options,
+        );
+        void watching.then(ended, ended);
+        await vi.advanceTimersByTimeAsync(10 * 60_000);
+        options.fetch.mockImplementation(
+          state === "unavailable"
+            ? async () => new Response("unavailable", { status: 503 })
+            : service(call, { isExecuted: true, transactionHash: HASH }).options
+                .fetch,
+        );
+        await vi.advanceTimersByTimeAsync(21 * 60_000);
+        expect(ended).not.toHaveBeenCalled();
+        expect(client.request).toHaveBeenCalledTimes(31);
+        controller.abort();
+        await expect(watching).rejects.toThrow(/aborted/i);
+      },
+    );
 
     it("stops looking when its signal aborts", async () => {
       vi.useFakeTimers();
@@ -885,7 +987,7 @@ describe("reviewed Safe proposal boundaries", () => {
   });
 
   const word = (nonce: bigint) => `0x${nonce.toString(16).padStart(64, "0")}`;
-  const chain = (result = word(5n), number: bigint | null = null) => ({
+  const chain = (result = word(5n), number: bigint | null = 100n) => ({
     request: vi.fn(async () => result),
     getBlock: async () => ({ number, timestamp: NOW }),
   });
@@ -935,7 +1037,7 @@ describe("reviewed Safe proposal boundaries", () => {
 
   it("uses latest when the block number is unavailable and compares omitted zero values", async () => {
     const queued = service();
-    const client = chain();
+    const client = chain(word(5n), null);
     await expect(
       findPendingSafeAppProposal(
         client as never,
