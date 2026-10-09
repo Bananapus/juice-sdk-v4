@@ -35,7 +35,11 @@ import {
   type DirectPaySwapQuote,
 } from "../v6/directPay.js";
 import { build721PayMetadata } from "../v6/pay.js";
-import { stickyDistributorAddress } from "../v6/sticky.js";
+import {
+  stickyDistributorAddress,
+  stickySourceCollectorAbi,
+  type StickySourceCollectorDeployment,
+} from "../v6/sticky.js";
 import {
   buildUniswapV4ExactInputSwapTx,
   type UniswapV4PoolKey,
@@ -1705,5 +1709,92 @@ describe("split group decoding", () => {
     ]) {
       expect(describeSplitGroups(1, value)).toBeNull();
     }
+  });
+});
+
+// Only application-supplied, reviewed live deployment records enable these labels.
+describe("destination-bound Sticky collector review", () => {
+  const deployment: StickySourceCollectorDeployment = {
+    sourceChainId: 8453,
+    destinationChainId: 1,
+    address: TARGET,
+    runtimeCodeHash: `0x${"11".repeat(32)}`,
+    feePayer: HOOK,
+    feePayerRuntimeCodeHash: `0x${"22".repeat(32)}`,
+    directory: DIRECTORY,
+    tokens: v6.JBTokens[BASE],
+    registry: v6.JBSuckerRegistry[BASE],
+    receiverFactory: v6.StickyRewardReceiverFactory[BASE],
+  };
+  const collectors = [deployment];
+  const splitGroups = (rewardGroup = 4052n, parentGroup = 1n) => [
+    {
+      groupId: parentGroup,
+      splits: [
+        {
+          percent: 1_000_000_000,
+          projectId: rewardGroup,
+          beneficiary: USDC_ADDRESSES[1],
+          hook: TARGET,
+        },
+      ],
+    },
+  ];
+  it("recognizes only a configured collector on its source chain", () => {
+    expect(knownAddressName(BASE, TARGET, collectors)).toBe(
+      "StickySourceCollector (home chain 1)",
+    );
+    expect(knownAddressName(1, TARGET, collectors)).toBeNull();
+    expect(knownAddressName(BASE, TARGET)).toBeNull();
+    const rows = rowsOf(
+      describeSplitGroups(BASE, splitGroups(), collectors),
+    ).join(" ");
+    expect(rows).toContain("home chain 1");
+    expect(rows).toContain("USDC |");
+    expect(rows).toContain("4 to 52 weeks");
+    expect(rows).not.toContain("project #4052");
+    const malformed = splitGroups();
+    malformed[0].splits[0].hook = "0x1234";
+    expect(() =>
+      describeSplitGroups(BASE, malformed, collectors),
+    ).not.toThrow();
+    expect(
+      rowsOf(describeSplitGroups(BASE, splitGroups(), [])).join(" "),
+    ).toContain("via hook");
+  });
+  it("does not use the distributor's default-group fallback for invalid collector groups or payout hooks", () => {
+    const zeroBeneficiary = splitGroups(0n);
+    zeroBeneficiary[0].splits[0].beneficiary = zeroAddress;
+    for (const groups of [
+      splitGroups(1n),
+      splitGroups(4052n, 2n),
+      zeroBeneficiary,
+    ]) {
+      const rows = rowsOf(describeSplitGroups(BASE, groups, collectors)).join(
+        " ",
+      );
+      expect(rows).toContain("allocation rejected");
+      expect(rows).not.toContain("all holders by voting power");
+    }
+    expect(
+      rowsOf(describeSplitGroups(BASE, splitGroups(0n), collectors)).join(" "),
+    ).toContain("all holders by voting power");
+  });
+  it("decodes canonical collector Safe calldata only at a configured target", () => {
+    const data = encodeFunctionData({
+      abi: stickySourceCollectorAbi,
+      functionName: "send",
+      args: [3n, TOKEN, 0n, 20n, HOOK, USDC],
+    });
+    const result = describeSafeInnerCall(BASE, TARGET, data, collectors);
+    expect(result?.[0].title).toBe(
+      "Queued call — StickySourceCollector (home chain 1).send(…)",
+    );
+    expect(rowsOf(result).join(" ")).toContain('sourceProjectId="3"');
+    expect(describeSafeInnerCall(BASE, TARGET, data)).toBeNull();
+    expect(describeSafeInnerCall(1, TARGET, data, collectors)).toBeNull();
+    expect(
+      describeSafeInnerCall(BASE, TARGET, `${data}00`, collectors),
+    ).toBeNull();
   });
 });

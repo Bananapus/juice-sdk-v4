@@ -10,6 +10,7 @@ import {
   buildTransferCreditsTx,
   getCreditBalance,
   getTokenAddress,
+  getProjectIdForToken,
 } from "./tokens.js";
 import { v6Address } from "./types.js";
 
@@ -168,4 +169,31 @@ describe("tokens", () => {
     expect(calls[0].functionName).toEqual("creditBalanceOf");
     expect(calls[0].args).toEqual([holder, projectId]);
   });
+});
+
+test("getProjectIdForToken resolves only canonical registered tokens", async () => {
+  const calls: unknown[] = [];
+  const client = {
+    readContract: async (call: unknown) => {
+      calls.push(call);
+      return 3n;
+    },
+  } as unknown as PublicClient;
+  await expect(
+    getProjectIdForToken(client, { chainId, token: holder }),
+  ).resolves.toBe(3n);
+  expect(calls).toEqual([
+    {
+      address: v6Address("JBTokens", chainId),
+      abi: jbTokensAbi,
+      functionName: "projectIdOf",
+      args: [holder],
+    },
+  ]);
+  await expect(
+    getProjectIdForToken(
+      { readContract: async () => 0n } as unknown as PublicClient,
+      { chainId, token: holder },
+    ),
+  ).resolves.toBeNull();
 });
