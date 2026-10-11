@@ -15,6 +15,7 @@ export * from "./permit2.js";
 export * from "./projectPayers.js";
 export * from "./cashOut.js";
 export * from "./nft.js";
+export * from "./nftInventory.js";
 export * from "./tokens.js";
 export * from "./uniswapV4.js";
 export * from "./uniswapV4Fees.js";

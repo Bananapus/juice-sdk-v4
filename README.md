@@ -1200,3 +1200,39 @@ node scripts/pack-deployment-preview.mjs . /tmp/juice-sdk-preview
 The source package version remains unchanged; the generated archive carries its
 preview version and `snapshot-provenance.json`. Keep the same archive and lockfile
 in each consuming app until migrating to the released package.
+
+### NFT inventory, including Defifa markets
+
+Use `getProjectNftInventory` from `@bananapus/nana-sdk-core/v6` for general
+project NFT displays. It reads one block and returns `null` for projects without
+compatible tiers; transport errors throw rather than hide inventory.
+
+```ts
+import { getProjectNftInventory } from "@bananapus/nana-sdk-core/v6";
+
+const inventory = await getProjectNftInventory(publicClient, {
+  chainId: 8453,
+  projectId: 27n,
+  tierLimit: 100,
+});
+if (inventory?.protocol === "defifa") {
+  // Native names are available without fetching metadata or rendering SVGs.
+  console.log(
+    inventory.tiers.map(({ name, currentSupply }) => ({ name, currentSupply })),
+  );
+  // Defifa's lifecycle and (address,uint16[]) pay metadata need a native adapter.
+  // Do not use generic JB721 mint, cash-out or shop-management builders here.
+} else if (inventory?.protocol === "jb721") {
+  // Existing JB721 metadataIdTarget/pricing context is preserved.
+  console.log(inventory.tiers);
+}
+```
+
+`nextStartingId` is the inclusive store cursor for another page, not the last
+ID plus one: categories can change tier ordering. Repeat the same category
+filter (ascending unique IDs), passing that cursor and the original
+`blockNumber: inventory.blockNumber`, until it is `null`.
+`includeResolvedUri` is opt-in because inline SVG outputs can exceed RPC response
+limits. Inventory capability flags identify compatible transaction formats,
+not permissions or current transaction readiness. `getProject721Shop` retains
+its existing JB721-only behavior.
