@@ -550,6 +550,9 @@ export async function resolveProject721Hook(
  * @param args.isRevnet Whether the project is a revnet (changes hook resolution).
  * @param args.tierLimit Max tiers to read from `tiersOf`. Defaults to 100.
  * @param args.categories Tier categories to filter by (empty = all). Defaults to `[]`.
+ * @param args.startingId Inclusive sorted-tier cursor for pagination. Defaults to `0n`.
+ * @param args.ruleset A previously read current ruleset, avoiding another read.
+ * @param args.includeInactiveHook Inspect the configured hook even when pay is disabled. Defaults to `false`.
  * @param args.includeResolvedUri Ask the store to run the hook's token URI
  * resolver for every tier (`tiersOf`'s `includeResolvedUri`). Defaults to
  * `false`: resolver output (often inline SVG data URIs) is packed into one
@@ -565,6 +568,9 @@ export async function getProject721Shop(
     tierLimit = 100,
     categories = [],
     includeResolvedUri = false,
+    startingId = 0n,
+    ruleset,
+    includeInactiveHook = false,
   }: {
     chainId: JBChainId;
     projectId: bigint;
@@ -572,12 +578,17 @@ export async function getProject721Shop(
     tierLimit?: number;
     categories?: bigint[];
     includeResolvedUri?: boolean;
+    startingId?: bigint;
+    ruleset?: JBRulesetWithMetadata;
+    includeInactiveHook?: boolean;
   },
 ): Promise<Project721Shop | null> {
   const resolved = await resolveProject721Hook(client, {
     chainId,
     projectId,
     isRevnet,
+    ruleset,
+    includeInactiveHook,
   });
   if (!resolved) return null;
   const { hook, store, ruleset: currentRuleset } = resolved;
@@ -599,7 +610,7 @@ export async function getProject721Shop(
     address: store,
     abi: jb721TiersHookStoreAbi,
     functionName: "tiersOf",
-    args: [hook, categories, includeResolvedUri, 0n, BigInt(tierLimit)],
+    args: [hook, categories, includeResolvedUri, startingId, BigInt(tierLimit)],
   });
 
   const tiers: Project721Tier[] = raw

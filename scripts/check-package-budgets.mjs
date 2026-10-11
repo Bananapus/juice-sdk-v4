@@ -135,9 +135,13 @@ const budgets = {
     // The returned-hash cache conflict guard changes six writeRecovery JS/map
     // artifacts only: +192 B packed / +1,574 B unpacked, no files/dependencies.
     // Measured 1,330,775 B packed / 21,044,396 B unpacked and 770 entries.
-    packed: 1_332_000,
-    unpacked: 21_045_000,
-    entries: 770,
+    // Defifa inventory adds one module/eight artifacts, no dependencies.
+    // Measured 1,336,739 B packed / 21,087,436 B unpacked and 778 entries
+    // (+5,964 B packed / +43,040 B unpacked against 2.27.0).
+    // Allow narrow rounding and the pending minor-version changelog entry.
+    packed: 1_340_000,
+    unpacked: 21_094_000,
+    entries: 778,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
