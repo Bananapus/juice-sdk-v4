@@ -82,3 +82,16 @@ Root owns app integration, hosted CI, implementation/version PR merges and offic
 
 - [ ] Implement typed finalized native failure through existing proof owners and test recovery boundaries.
 - [ ] Recheck the final source and publish the reviewed SDK feature PR for root-owned CI/release.
+
+## Plan refinement
+
+- **Objective:** Recover a previously submitted native NFT action after navigation or reload without preparing or submitting another action, even after its mint/refund phase ended.
+- **System fit:** The existing reviewed-write journal retains exact call/account/chain and wallet-returned identity. The native adapter restores its verifier context from that record and authenticated project inventory/terminal at the supplied receipt's historical block; canonical transaction and effects remain the existing verifier's authority. Generic journal namespace/lookup changes are coordinated with root separately.
+- **Reuse and simplicity:** First extract the existing native pay/cash-out metadata decode-and-roundtrip rules from the receipt verifier unchanged, with its receipt regressions green in a separate commit. Then reuse those owners, existing ABI definitions, transaction builders, record parser, pinned inventory reader and terminal accounting in the new restoration function. No new journal, stored ABI, phase-dependent preparation, approval or send.
+- **Evidence and unknowns:** Native payment/cash-out must bind the saved project, actual settlement token, historical authenticated terminal and native implementation metadata. Transfers bind the authenticated hook and saved holder. Archive RPC outages or lost wallet-returned identity remain pending; a hashless uncertain invocation cannot be matched to an arbitrary old receipt. Safe proposal and execution hashes remain distinct.
+- **Verification:** Preserve metadata/effect behavior across extraction, then test restored pay/cash-out/transfer bytes, original account and Safe proposal identity at a pinned historical block. Reject malformed records, wrong project/chain/account/hook/terminal/token/metadata, trailing or unsupported calldata, value mismatch, absent/mismatched hashes and archive errors. Complete independent review and one required final SDK check after all recovery changes stabilize.
+- **Resource budget:** One bounded inventory page and historical terminal/accounting reads; no ownership, price, phase-eligibility or simulation calls during recovery. Use the existing receipt/effect proof afterward. No public transactions or repeat fork setup for unchanged successful native calldata.
+
+- [ ] Extract native metadata read validation without changing receipt behavior.
+- [ ] Restore native receipt context from saved exact call plus authenticated historical inventory.
+- [ ] Coordinate durable journal lookup, final review/checks and refreshed consumer preview.

@@ -513,6 +513,45 @@ export interface DefifaNftReceiptContext {
   safe?: { proposalHash: Hex };
 }
 
+function requireNativeMetadata(metadata: Hex, expected: Hex): void {
+  if (expected.toLowerCase() !== metadata.toLowerCase())
+    throw new Error(
+      "Receipt does not prove the exact reviewed Defifa NFT effects.",
+    );
+}
+
+function payTierIds(metadata: Hex, implementation: Address): bigint[] {
+  const [delegate, ids] = decodeAbiParameters(
+    [{ type: "address" }, { type: "uint16[]" }],
+    `0x${metadata.slice(130)}`,
+  );
+  const tierIds = ids.map(BigInt);
+  requireNativeMetadata(
+    metadata,
+    buildDefifaPayMetadata({
+      metadataIdTarget: implementation,
+      attestationDelegate: delegate,
+      tierIdsToMint: tierIds,
+    }),
+  );
+  return tierIds;
+}
+
+function cashOutTokenIds(metadata: Hex, implementation: Address): bigint[] {
+  const [tokenIds] = decodeAbiParameters(
+    [{ type: "uint256[]" }],
+    `0x${metadata.slice(130)}`,
+  );
+  requireNativeMetadata(
+    metadata,
+    build721CashOutMetadata({
+      metadataIdTarget: implementation,
+      tokenIds: [...tokenIds],
+    }),
+  );
+  return [...tokenIds];
+}
+
 /**
  * Verify native NFT effects of one exact reviewed call; throw if proof is missing.
  * The execution engine MUST first authenticate the canonical receipt and actual
@@ -566,19 +605,7 @@ export function verifyDefifaNftReceipt(
   if (transaction.functionName === "pay") {
     const [projectId, , amount, beneficiary, , memo, metadata] =
       transaction.args;
-    const [delegate, ids] = decodeAbiParameters(
-      [{ type: "address" }, { type: "uint16[]" }],
-      `0x${metadata.slice(130)}`,
-    );
-    const tierIds = ids.map(BigInt);
-    if (
-      buildDefifaPayMetadata({
-        metadataIdTarget: implementation,
-        attestationDelegate: delegate,
-        tierIdsToMint: tierIds,
-      }).toLowerCase() !== metadata.toLowerCase()
-    )
-      fail();
+    const tierIds = payTierIds(metadata, implementation);
     const payments = parseEventLogs({
       abi: jbMultiTerminalAbi,
       eventName: "Pay",
@@ -626,19 +653,8 @@ export function verifyDefifaNftReceipt(
   }
   const [holder, projectId, cashOutCount, , minimum, beneficiary, metadata] =
     transaction.args;
-  const [tokenIds] = decodeAbiParameters(
-    [{ type: "uint256[]" }],
-    `0x${metadata.slice(130)}`,
-  );
-  if (
-    !sameAddress(holder, account) ||
-    cashOutCount !== 0n ||
-    build721CashOutMetadata({
-      metadataIdTarget: implementation,
-      tokenIds: [...tokenIds],
-    }).toLowerCase() !== metadata.toLowerCase()
-  )
-    fail();
+  const tokenIds = cashOutTokenIds(metadata, implementation);
+  if (!sameAddress(holder, account) || cashOutCount !== 0n) fail();
   const cashOuts = parseEventLogs({
     abi: jbMultiTerminalAbi,
     eventName: "CashOutTokens",
