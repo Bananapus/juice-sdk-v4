@@ -32,7 +32,10 @@ import {
 import { buildPayTx, type V6PayTxRequest } from "./pay.js";
 import { resolvePaymentTerminal } from "./terminals.js";
 import { defifaDeployments } from "./defifaDeployments.js";
-import { verifyRelayrDestination } from "../review/relayr.js";
+import {
+  RelayrDestinationRevertedError,
+  verifyRelayrDestination,
+} from "../review/relayr.js";
 import { verifyReviewedWriteReceipt } from "../review/writeRecovery.js";
 
 // @ballkidz/defifa 1.0.2 native getters. Provenance belongs to nftInventory.
@@ -189,6 +192,8 @@ export interface PreparedDefifaPay {
   inventory: ProjectDefifaInventory;
   transaction: V6PayTxRequest;
   amount: bigint;
+  /** Selected-tier review evidence. Unit prices include the native discount. */
+  selectedTiers: { tierId: bigint; count: bigint; unitPrice: bigint }[];
   /** Encoded value; zero preserves the native fallback rule. */
   attestationDelegate: Address;
   /** Shared effective delegate, or null when a gift preserves different tier delegates. */
@@ -236,7 +241,7 @@ export async function prepareDefifaPay(
   const counts = new Map<bigint, bigint>();
   for (const tierId of args.tierIdsToMint)
     counts.set(tierId, (counts.get(tierId) ?? 0n) + 1n);
-  const [terminal, configuredDelegate, costs] = await Promise.all([
+  const [terminal, configuredDelegate, selectedTiers] = await Promise.all([
     paymentTerminal(snapshot, args, inventory),
     snapshot.readContract({
       address: inventory.hook,
@@ -255,11 +260,18 @@ export async function prepareDefifaPay(
           throw new Error(
             `Defifa tier ${tierId} is unavailable for the selected quantity.`,
           );
-        return effectiveTierPrice(tier.price, tier.discountPercent) * count;
+        return {
+          tierId,
+          count,
+          unitPrice: effectiveTierPrice(tier.price, tier.discountPercent),
+        };
       }),
     ),
   ]);
-  const amount = costs.reduce((sum, cost) => sum + cost, 0n);
+  const amount = selectedTiers.reduce(
+    (sum, tier) => sum + tier.unitPrice * tier.count,
+    0n,
+  );
   const metadata = buildDefifaPayMetadata({
     metadataIdTarget: inventory.implementation,
     tierIdsToMint: args.tierIdsToMint,
@@ -287,6 +299,7 @@ export async function prepareDefifaPay(
   return {
     inventory,
     amount,
+    selectedTiers,
     attestationDelegate,
     effectiveAttestationDelegate:
       new Set(effectiveDelegates.map(({ delegate }) => delegate.toLowerCase()))
@@ -670,9 +683,26 @@ export function verifyDefifaNftReceipt(
 }
 
 /**
+ * The exact reviewed action failed in a canonical finalized block. This closes
+ * only that attempt; retain its evidence and review any new intent separately.
+ * A reverted Safe outer executor alone does not establish this outcome.
+ */
+export class DefifaNftTransactionRevertedError extends Error {
+  readonly name = "DefifaNftTransactionRevertedError";
+
+  constructor(
+    readonly hash: Hex,
+    readonly chainId: number,
+  ) {
+    super("The reviewed Defifa transaction failed onchain and is finalized.");
+  }
+}
+
+/**
  * Authenticate canonical execution using the SDK's existing transaction/Safe
- * proof owners, then prove native NFT effects. Retain context and receipt on
- * failure and retry this read-only function; do not prepare or send again.
+ * proof owners, then prove native NFT effects. Only
+ * DefifaNftTransactionRevertedError proves finalized failure. Retain context
+ * and receipt on other errors and retry this read-only function; do not resend.
  */
 export async function verifyDefifaNftTransaction(
   client: PublicClient,
@@ -716,36 +746,56 @@ export async function verifyDefifaNftTransaction(
     getTransaction: async () => actual,
     getTransactionReceipt: async () => canonical,
   };
+  const record = {
+    version: 1 as const,
+    id: "defifa-nft",
+    chainId: transaction.chainId,
+    account,
+    safe: Boolean(context.safe),
+    hash: context.safe?.proposalHash ?? receipt.transactionHash,
+    call: { ...call, value: call.value.toString() },
+  };
   if (context.safe) {
     const status = await verifyReviewedWriteReceipt(
       proofClient,
-      {
-        version: 1,
-        id: "defifa-nft",
-        chainId: transaction.chainId,
-        account,
-        safe: true,
-        hash: context.safe.proposalHash,
-        call: { ...call, value: call.value.toString() },
-      },
+      record,
       canonical,
     );
     if (status !== "success")
-      throw new Error("Defifa Safe transaction did not succeed.");
+      throw new DefifaNftTransactionRevertedError(
+        canonical.transactionHash,
+        chainId,
+      );
   } else {
     if (!sameAddress(actual.from, account))
       throw new Error(
         "Defifa transaction sender does not match the reviewed account.",
       );
-    await verifyRelayrDestination(proofClient, {
-      entry: {
-        chain: transaction.chainId,
-        target: call.to,
-        data: call.data,
-        value: call.value.toString(),
-      },
-      hash: receipt.transactionHash,
-    });
+    try {
+      await verifyRelayrDestination(proofClient, {
+        entry: {
+          chain: transaction.chainId,
+          target: call.to,
+          data: call.data,
+          value: call.value.toString(),
+        },
+        hash: receipt.transactionHash,
+      });
+    } catch (error) {
+      if (!(error instanceof RelayrDestinationRevertedError)) throw error;
+      // Exact call/account proof precedes finality. The existing reviewed-write
+      // owner rejects nonfinal receipts and reorgs before this attempt releases.
+      const status = await verifyReviewedWriteReceipt(
+        proofClient,
+        record,
+        canonical,
+      );
+      if (status !== "failed") throw error;
+      throw new DefifaNftTransactionRevertedError(
+        canonical.transactionHash,
+        chainId,
+      );
+    }
   }
   // The caller's supplied logs may be stale or fabricated. Only fresh canonical
   // logs are admitted to the native effect verifier, including log identities.

@@ -17,10 +17,12 @@ import { describe, expect, test, vi } from "vitest";
 import { NATIVE_TOKEN } from "../constants.js";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
 import * as recovery from "../review/writeRecovery.js";
+import { SAFE_EXEC_ABI } from "../safeService.js";
 import { build721CashOutMetadata, buildCashOutTx } from "./cashOut.js";
 import { buildPayTx } from "./pay.js";
 import {
   buildDefifaPayMetadata,
+  DefifaNftTransactionRevertedError,
   verifyDefifaNftReceipt,
   verifyDefifaNftTransaction,
   type DefifaNftReceiptContext,
@@ -243,10 +245,53 @@ function proofFixture(overrides: Record<string, unknown> = {}) {
     getChainId: vi.fn(async () => 84532),
     getTransaction: vi.fn(async () => transaction),
     getTransactionReceipt: vi.fn(async () => run.receipt),
-    getBlock: vi.fn(async () => ({ hash: blockHash, number: 123n })),
+    getBlock: vi.fn(async () => ({
+      hash: blockHash,
+      number: 123n,
+      timestamp: 100n,
+    })),
     ...overrides,
   } as unknown as PublicClient;
   return { ...run, client, transaction };
+}
+
+function safeFailureFixture() {
+  const run = proofFixture();
+  Object.assign(run.transaction, {
+    from: recipient,
+    to: account,
+    value: 0n,
+    input: encodeFunctionData({
+      abi: SAFE_EXEC_ABI,
+      functionName: "execTransaction",
+      args: [
+        terminal,
+        3000n,
+        run.transaction.input,
+        0,
+        0n,
+        0n,
+        0n,
+        zeroAddress,
+        zeroAddress,
+        "0x",
+      ],
+    }),
+  });
+  run.receipt.from = recipient;
+  run.receipt.to = account;
+  run.receipt.logs = [
+    event(
+      parseAbi(["event ExecutionFailure(bytes32 txHash,uint256 payment)"]),
+      "ExecutionFailure",
+      { txHash: otherHash, payment: 0n },
+      account,
+    ),
+  ];
+  return {
+    ...run,
+    context: { ...run.context, safe: { proposalHash: otherHash } },
+  };
 }
 
 describe("native Defifa receipt effects", () => {
@@ -495,9 +540,133 @@ describe("canonical Defifa transaction verification", () => {
       verify.mockResolvedValue("failed");
       await expect(
         verifyDefifaNftTransaction(run.client, context, run.receipt),
-      ).rejects.toThrow("Safe transaction did not succeed");
+      ).rejects.toBeInstanceOf(DefifaNftTransactionRevertedError);
+      verify.mockRejectedValue(new Error("Safe proof unavailable"));
+      await expect(
+        verifyDefifaNftTransaction(run.client, context, run.receipt),
+      ).rejects.not.toBeInstanceOf(DefifaNftTransactionRevertedError);
     } finally {
       verify.mockRestore();
     }
+  });
+});
+
+describe("native finalized failure classification", () => {
+  test("authenticates and finalizes a reverted exact direct call before classifying it", async () => {
+    const run = proofFixture();
+    run.receipt.status = "reverted";
+    run.receipt.logs = [];
+    const proof = verifyDefifaNftTransaction(
+      run.client,
+      run.context,
+      run.receipt,
+    );
+    await expect(proof).rejects.toBeInstanceOf(
+      DefifaNftTransactionRevertedError,
+    );
+    await expect(proof).rejects.toMatchObject({ hash, chainId: 84532 });
+    expect(run.client.getBlock).toHaveBeenCalledWith({ blockTag: "finalized" });
+    expect(run.client.getTransaction).toHaveBeenCalledTimes(1);
+    expect(run.client.getTransactionReceipt).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(["not-final", "unavailable", "reorg"])(
+    "keeps a direct revert pending when finality is %s",
+    async (reason) => {
+      let reads = 0;
+      const run = proofFixture({
+        getBlock: async ({ blockTag }: { blockTag?: "finalized" }) => {
+          reads += 1;
+          if (blockTag === "finalized") {
+            if (reason === "unavailable") throw new Error("RPC unavailable");
+            return {
+              hash: blockHash,
+              number: reason === "not-final" ? 122n : 123n,
+              timestamp: 100n,
+            };
+          }
+          return {
+            hash: reason === "reorg" && reads > 2 ? otherHash : blockHash,
+            number: 123n,
+          };
+        },
+      });
+      run.receipt.status = "reverted";
+      run.receipt.logs = [];
+      await expect(
+        verifyDefifaNftTransaction(run.client, run.context, run.receipt),
+      ).rejects.not.toBeInstanceOf(DefifaNftTransactionRevertedError);
+    },
+  );
+
+  test.each([
+    { from: recipient },
+    { input: "0x" },
+    { value: 1n },
+    { chainId: 1 },
+  ])(
+    "does not classify a finalized revert for a different reviewed call %#",
+    async (override) => {
+      const run = proofFixture();
+      Object.assign(run.transaction, override);
+      run.receipt.status = "reverted";
+      run.receipt.logs = [];
+      await expect(
+        verifyDefifaNftTransaction(run.client, run.context, run.receipt),
+      ).rejects.not.toBeInstanceOf(DefifaNftTransactionRevertedError);
+      expect(run.client.getBlock).not.toHaveBeenCalledWith({
+        blockTag: "finalized",
+      });
+    },
+  );
+
+  test("requires the finalized proof owner's failed result before releasing a direct attempt", async () => {
+    const verify = vi
+      .spyOn(recovery, "verifyReviewedWriteReceipt")
+      .mockResolvedValue("success");
+    try {
+      const run = proofFixture();
+      run.receipt.status = "reverted";
+      run.receipt.logs = [];
+      await expect(
+        verifyDefifaNftTransaction(run.client, run.context, run.receipt),
+      ).rejects.not.toBeInstanceOf(DefifaNftTransactionRevertedError);
+    } finally {
+      verify.mockRestore();
+    }
+  });
+
+  test("classifies an authenticated finalized Safe failure without native success events", async () => {
+    const run = safeFailureFixture();
+    await expect(
+      verifyDefifaNftTransaction(run.client, run.context, run.receipt),
+    ).rejects.toBeInstanceOf(DefifaNftTransactionRevertedError);
+    expect(run.client.getBlock).toHaveBeenCalledWith({ blockTag: "finalized" });
+  });
+
+  test.each([
+    "outer-revert",
+    "missing-event",
+    "wrong-proposal",
+    "wrong-inner-call",
+    "nonfinal",
+  ])("keeps Safe %s unclassified and pending", async (reason) => {
+    const run = safeFailureFixture();
+    if (reason === "outer-revert") run.receipt.status = "reverted";
+    if (reason === "missing-event") run.receipt.logs = [];
+    if (reason === "wrong-proposal") run.context.safe.proposalHash = blockHash;
+    if (reason === "wrong-inner-call") {
+      run.context.safe.proposalHash = hash;
+      run.transaction.input = "0x";
+    }
+    if (reason === "nonfinal")
+      vi.mocked(run.client.getBlock).mockResolvedValue({
+        hash: blockHash,
+        number: 122n,
+        timestamp: 100n,
+      } as never);
+    await expect(
+      verifyDefifaNftTransaction(run.client, run.context, run.receipt),
+    ).rejects.not.toBeInstanceOf(DefifaNftTransactionRevertedError);
   });
 });

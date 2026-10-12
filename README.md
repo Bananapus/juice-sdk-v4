@@ -1284,6 +1284,9 @@ selected tiers**. Gifts preserve the recipient's existing per-tier delegates;
 `effectiveDelegates` reports those, and `effectiveAttestationDelegate` is null
 when they differ. The ordinary shop boolean payload is incompatible: `true`
 would become voting address `0x0000000000000000000000000000000000000001`.
+`selectedTiers` reports each selected `tierId`, `count` and effective `unitPrice`
+from the same snapshot. Compare this evidence after review alongside the exact
+transaction and delegates: inverse tier price changes can preserve the total.
 
 Cash-out accepts `tokenIds`, optional `beneficiary` and `minimumReclaim`. It
 reuses `build721CashOutMetadata` with native implementation identity and
@@ -1299,7 +1302,11 @@ Retain the exact context and wallet-returned identity until
 `verifyDefifaNftTransaction` succeeds. It checks canonical transaction and NFT
 effects; failures remain pending for read-only verification, never automatic
 resubmission. Safe execution supplies `context.safe: { proposalHash }` and reuses
-the SDK's exact Safe-call proof. The lower-level `verifyDefifaNftReceipt` checks
+the SDK's exact Safe-call proof. Only `DefifaNftTransactionRevertedError`
+identifies an authenticated finalized failure: retain that attempt's hash and
+evidence, then allow a separately reviewed new intent. Other errors remain
+pending; a reverted Safe outer executor alone cannot release its proposal.
+The lower-level `verifyDefifaNftReceipt` checks
 effects only and assumes the engine already authenticated execution. Native
 metadata decoding recognizes pinned lookup IDs but does not prove provenance.
 The generic inventory capability flags deliberately remain false.

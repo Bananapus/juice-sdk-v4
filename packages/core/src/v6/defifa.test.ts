@@ -248,6 +248,10 @@ describe("fresh Defifa payment preparation", () => {
       memo: "Team entry",
     });
     expect(result.amount).toBe(4000n);
+    expect(result.selectedTiers).toEqual([
+      { tierId: 1n, count: 2n, unitPrice: 1000n },
+      { tierId: 2n, count: 1n, unitPrice: 2000n },
+    ]);
     expect(result.attestationDelegate).toBe(zeroAddress);
     expect(result.effectiveAttestationDelegate).toBe(oracle);
     expect(result.transaction).toMatchObject({
@@ -272,6 +276,36 @@ describe("fresh Defifa payment preparation", () => {
     );
     expect(simulations).toHaveLength(0);
     expect(result.inventory.capabilities.genericPay).toBe(false);
+  });
+  test("exposes changed selected-tier unit prices even when the exact payment total is unchanged", async () => {
+    const prepare = async (second: boolean) => {
+      const run = fixture({
+        tierOf: (request: Request) => {
+          const id = Number(request.args?.[1]);
+          return tier(
+            id,
+            second ? (id === 1 ? 1200n : 1600n) : BigInt(id) * 1000n,
+          );
+        },
+      });
+      const prepared = await prepareDefifaPay(run.client, {
+        ...args,
+        tierIdsToMint: [1n, 1n, 2n],
+      });
+      expect(
+        run.requests.filter((request) => request.functionName === "tierOf"),
+      ).toHaveLength(2);
+      return prepared;
+    };
+    const before = await prepare(false);
+    const after = await prepare(true);
+    expect(after.amount).toBe(before.amount);
+    expect(after.transaction).toEqual(before.transaction);
+    expect(after.selectedTiers).toEqual([
+      { tierId: 1n, count: 2n, unitPrice: 1200n },
+      { tierId: 2n, count: 1n, unitPrice: 1600n },
+    ]);
+    expect(after.selectedTiers).not.toEqual(before.selectedTiers);
   });
   test("keeps explicit delegate and beneficiary; empty configured default falls back to beneficiary", async () => {
     const { client } = fixture({ defaultAttestationDelegate: zeroAddress });
@@ -305,6 +339,9 @@ describe("fresh Defifa payment preparation", () => {
       tierIdsToMint: [1n, 1n],
     });
     expect(result.amount).toBe(178n);
+    expect(result.selectedTiers).toEqual([
+      { tierId: 1n, count: 2n, unitPrice: 89n },
+    ]);
     expect(result.transaction.value).toBe(0n);
     expect(result.transaction.args[1]).toBe(oracle);
   });
