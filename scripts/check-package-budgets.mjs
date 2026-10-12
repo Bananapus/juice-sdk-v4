@@ -141,11 +141,12 @@ const budgets = {
     // Allow narrow rounding and the pending minor-version changelog entry.
     // Native Defifa actions, bounded holdings and the shared deployment registry
     // add three modules/24 artifacts. Only decode/index/nftInventory artifacts
-    // also change. Against official 2.28.0: +19,428 B packed / +146,550 B
+    // and reviewed-write recovery also change. Against official 2.28.0:
+    // +23,082 B packed / +180,785 B
     // unpacked, no dependencies or tests; measured 1,356,167 B packed,
     // 21,233,986 B unpacked and 802 entries. Retain narrow release-note margin.
-    packed: 1_360_000,
-    unpacked: 21_240_000,
+    packed: 1_361_000,
+    unpacked: 21_270_000,
     entries: 802,
   },
   "@bananapus/nana-sdk-react": {
