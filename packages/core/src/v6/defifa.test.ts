@@ -778,6 +778,7 @@ describe("restoring native Defifa recovery context", () => {
     "trailing",
     "terminal",
     "unsupported",
+    "donation",
   ])("rejects a saved pay with wrong %s", async (reason) => {
     const prepared = await payment();
     const transaction = {
@@ -810,6 +811,19 @@ describe("restoring native Defifa recovery context", () => {
     if (reason === "trailing") record.call.data = `${record.call.data}00`;
     if (reason === "terminal") record.call.to = recipient;
     if (reason === "unsupported") record.call.data = "0x12345678";
+    if (reason === "donation")
+      record.call.data = encodeFunctionData({
+        abi: prepared.transaction.abi,
+        functionName: "addToBalanceOf",
+        args: [
+          args.projectId,
+          NATIVE_TOKEN,
+          prepared.amount,
+          false,
+          "Donation",
+          "0x",
+        ],
+      });
     await expect(restore(fixture().client, record)).rejects.toThrow();
   });
 
@@ -839,32 +853,42 @@ describe("restoring native Defifa recovery context", () => {
     },
   );
 
-  test.each(["from", "token", "recipient", "value", "function"])(
-    "rejects a saved transfer with wrong %s",
-    async (reason) => {
-      const prepared = await prepareDefifaTransfer(fixture().client, {
-        ...args,
-        tokenId: 1000000001n,
-        recipient,
+  test.each([
+    "from",
+    "token",
+    "recipient",
+    "value",
+    "function",
+    "receiver-data",
+  ])("rejects a saved transfer with wrong %s", async (reason) => {
+    const prepared = await prepareDefifaTransfer(fixture().client, {
+      ...args,
+      tokenId: 1000000001n,
+      recipient,
+    });
+    const record = saved({
+      ...prepared.transaction,
+      args: [
+        reason === "from" ? recipient : account,
+        reason === "recipient" ? zeroAddress : recipient,
+        reason === "token" ? 0n : 1000000001n,
+      ],
+    });
+    if (reason === "value") record.call.value = "1";
+    if (reason === "function")
+      record.call.data = encodeFunctionData({
+        abi: prepared.transaction.abi,
+        functionName: "transferFrom",
+        args: [account, recipient, 1000000001n],
       });
-      const record = saved({
-        ...prepared.transaction,
-        args: [
-          reason === "from" ? recipient : account,
-          reason === "recipient" ? zeroAddress : recipient,
-          reason === "token" ? 0n : 1000000001n,
-        ],
+    if (reason === "receiver-data")
+      record.call.data = encodeFunctionData({
+        abi: prepared.transaction.abi,
+        functionName: "safeTransferFrom",
+        args: [account, recipient, 1000000001n, "0x1234"],
       });
-      if (reason === "value") record.call.value = "1";
-      if (reason === "function")
-        record.call.data = encodeFunctionData({
-          abi: prepared.transaction.abi,
-          functionName: "transferFrom",
-          args: [account, recipient, 1000000001n],
-        });
-      await expect(restore(fixture().client, record)).rejects.toThrow();
-    },
-  );
+    await expect(restore(fixture().client, record)).rejects.toThrow();
+  });
 
   test("does not turn historical identity failures into a restored context", async () => {
     const prepared = await payment();
