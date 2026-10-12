@@ -81,7 +81,7 @@ Root owns app integration, hosted CI, implementation/version PR merges and offic
 - **Resource budget:** Reuse already fetched transaction/receipt evidence. Add finality reads only for proven failures; no extra success-path RPC work, repeated fork setup, contract edits or public-chain transactions.
 
 - [x] Implement typed finalized native failure through existing proof owners and test recovery boundaries.
-- [ ] Recheck the final source and publish the reviewed SDK feature PR for root-owned CI/release.
+- [x] Recheck the final source and prepare the reviewed SDK feature PR for root-owned CI/release.
 
 ## Plan refinement
 
@@ -94,6 +94,16 @@ Root owns app integration, hosted CI, implementation/version PR merges and offic
 
 - [x] Extract native metadata read validation without changing receipt behavior.
 - [x] Restore native receipt context from saved exact call plus authenticated historical inventory.
-- [ ] Coordinate durable journal lookup, final review/checks and refreshed consumer preview.
+- [x] Coordinate durable journal lookup, final review/checks and refreshed consumer preview.
 
 Recovery source review: metadata extraction5fc0791 preserves the existing104 action/receipt cases. Native restoration then passes133 focused cases, including all three actions after phase closure, original Safe proposal identity, input snapshots, wrong call/metadata/value/project/holder and unavailable historical reads. Typed finalized failure preserves unknown and unfinalized attempts. Independent source review of the preceding phase/budget/selected-price/typed-failure changes passed162 focused cases. Namespace/lookup changes remain in the existing reviewed-write owner with their own extraction and regression record. The earlier complete SDK check is evidence for its recorded commit only; rerun the required combined gate after final production source freezes.
+
+## Final combined release review
+
+At source commit `c537bb0`, required `npm run check` passes 2,494 core, 153 React and 35 connect tests (2,682 package tests), plus five CLI checks. Types, builds, coverage, protocol/dependency/dead-code/import-purity/format/wallet-boundary/generated/package gates all pass. Native actions, holdings and reviewed-write recovery have 100% lines/statements/functions; branch coverage is 99.1%, 98.94% and 97.63% respectively. Metadata review remains 100% covered. Final log: `/tmp/sdk-defifa-release-check.log`. The preceding preflight failures were a stale existing Web Locks inventory line and formatting of the new namespace plan; both are corrected without changing wallet authority.
+
+Final independent review has no unresolved findings and passes 178 focused action/receipt/journal/import tests. Recovery requires the original wallet-returned identity; an arbitrary historical matching receipt cannot release a hashless uncertain invocation. The saved-call decoder authenticates the native project and terminal at the receipt block, preserves Safe proposal identity and never re-prepares or sends. Namespaces reuse one storage/parser/cache/lock owner, preserving legacy keys and exact adopted-call restrictions. Generic funding and unrelated projects remain independently scoped.
+
+Final package attribution against published core 2.28.0 is +23,082 bytes packed / +180,785 bytes unpacked / +24 artifacts from three modules, with no dependencies, removed files, bundled tests or unrelated artifacts. Measured size is 1,359,821 bytes packed / 21,268,221 bytes unpacked / 802 entries. Existing decode, writeRecovery, index and nftInventory artifacts also change. Evidence: `/tmp/sdk-defifa-final-package-attribution.json`.
+
+The checked integration preview is `/tmp/sdk-defifa-final-preview/bananapus-nana-sdk-core-2.29.0-preview.defifa-basic.0b0809ae7b0d.tgz`; source digest `0b0809ae7b0d4988d98a0c4288603503f1e5ba39931e655823e46b845b2cf054`, artifact SHA256 `755dad1b83b92283bc21c6b4570cd8268cb170a75d7cd38351993524e7e2eb93`. Both app owners received its manifest and stable APIs. It is a preview, not the official npm release. The private 13-receipt proof above remains scoped to its recorded earlier direct-wallet artifact; final budget/selected-review/recovery changes and Safe paths are qualified by their owning regressions and final checks, not claimed as a repeat fork run. Root owns hosted CI, implementation/version PR merges and official publication.
