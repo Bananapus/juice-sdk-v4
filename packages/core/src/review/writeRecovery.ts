@@ -57,6 +57,21 @@ export class SubmittedWritePersistenceError extends Error {
   }
 }
 
+function normalizedIdentity(
+  input: Pick<ReviewedWriteRecoveryInput, "chainId" | "account">,
+) {
+  if (
+    !Number.isSafeInteger(input?.chainId) ||
+    input.chainId <= 0 ||
+    !isAddress(input?.account, { strict: false })
+  )
+    throw new Error("Invalid reviewed write recovery evidence.");
+  return {
+    chainId: input.chainId,
+    account: input.account.toLowerCase() as Address,
+  };
+}
+
 function normalized(
   input: ReviewedWriteRecoveryInput,
 ): ReviewedWriteRecoveryInput & {
@@ -64,9 +79,6 @@ function normalized(
 } {
   const value = uint256(input?.call?.value ?? 0n);
   if (
-    !Number.isSafeInteger(input?.chainId) ||
-    input.chainId <= 0 ||
-    !isAddress(input?.account, { strict: false }) ||
     typeof input?.safe !== "boolean" ||
     !isAddress(input?.call?.to, { strict: false }) ||
     !isHexBytes(input?.call?.data) ||
@@ -74,8 +86,7 @@ function normalized(
   )
     throw new Error("Invalid reviewed write recovery evidence.");
   return {
-    chainId: input.chainId,
-    account: input.account.toLowerCase() as Address,
+    ...normalizedIdentity(input),
     safe: input.safe,
     call: {
       to: input.call.to.toLowerCase() as Address,
@@ -114,6 +125,37 @@ export { recordOf as parseReviewedWriteRecoveryRecord };
 /** Amounts and quote changes must not evade an unresolved action. */
 function scope(input: ReviewedWriteRecoveryInput): string {
   return `nana-sdk:reviewed-write:v1:${input.chainId}:${input.account}:${input.call.to}:${input.call.data.slice(0, 10)}`;
+}
+
+function readStored(
+  raw: string | null,
+  key: string,
+): ReviewedWriteRecoveryRecord | null {
+  if (raw === null) return null;
+  const record = recordOf(JSON.parse(raw));
+  if (scope(record) !== key)
+    throw new Error("Saved write recovery scope does not match.");
+  return record;
+}
+function readRecovery(
+  store: RecoveryStorage,
+  key: string,
+): ReviewedWriteRecoveryRecord | null {
+  const record = readStored(store.getItem(key), key);
+  const memory = unpersistedSubmissions.get(store)?.get(key);
+  if (
+    !record ||
+    !memory ||
+    JSON.stringify({ ...record, hash: undefined }) !==
+      JSON.stringify({ ...memory, hash: undefined }) ||
+    (record.hash && record.hash !== memory.hash)
+  ) {
+    // A readable durable snapshot also proves whether cached evidence is stale.
+    unpersistedSubmissions.get(store)?.delete(key);
+    return record;
+  }
+  if (record.hash) unpersistedSubmissions.get(store)?.delete(key);
+  return recordOf(memory);
 }
 
 /** Exact reviewed evidence, independent of the reservation and submission identities. */
@@ -172,30 +214,8 @@ export function createBrowserWriteRecovery(
     if (!locked)
       throw new Error("Write recovery changes require the browser lock.");
   }
-  function readStored(raw: string | null): ReviewedWriteRecoveryRecord | null {
-    if (raw === null) return null;
-    const record = recordOf(JSON.parse(raw));
-    if (scope(record) !== key)
-      throw new Error("Saved write recovery scope does not match.");
-    return record;
-  }
   function read(): ReviewedWriteRecoveryRecord | null {
-    const store = storage();
-    const record = readStored(store.getItem(key));
-    const memory = unpersistedSubmissions.get(store)?.get(key);
-    if (
-      !record ||
-      !memory ||
-      JSON.stringify({ ...record, hash: undefined }) !==
-        JSON.stringify({ ...memory, hash: undefined }) ||
-      (record.hash && record.hash !== memory.hash)
-    ) {
-      // A readable durable snapshot also proves whether cached evidence is stale.
-      unpersistedSubmissions.get(store)?.delete(key);
-      return record;
-    }
-    if (record.hash) unpersistedSubmissions.get(store)?.delete(key);
-    return recordOf(memory);
+    return readRecovery(storage(), key);
   }
   function persist(record: ReviewedWriteRecoveryRecord) {
     const raw = JSON.stringify(record);
@@ -208,7 +228,7 @@ export function createBrowserWriteRecovery(
     requireLock();
     // A volatile returned hash is useful for tracking, but is not a successful
     // durable commit. submitted(hash, record) must retry that commit first.
-    const current = readStored(storage().getItem(key));
+    const current = readStored(storage().getItem(key), key);
     if (!current) return;
     if (JSON.stringify(current) !== JSON.stringify(recordOf(expected))) {
       throw new Error(
@@ -295,7 +315,7 @@ export function createBrowserWriteRecovery(
         rememberSubmission(submitted);
         throw new SubmittedWritePersistenceError(submitted, cause);
       }
-      const current = readStored(raw);
+      const current = readStored(raw, key);
       if (
         !current ||
         JSON.stringify({ ...current, hash: undefined }) !==
