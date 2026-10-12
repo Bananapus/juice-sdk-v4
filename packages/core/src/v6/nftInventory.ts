@@ -4,6 +4,7 @@ import {
   jbProjectsAbi,
 } from "../generated/juicebox.js";
 import { v6Address } from "./types.js";
+import { defifaDeployments, defifaStore } from "./defifaDeployments.js";
 import type { JBChainId } from "../types.js";
 import {
   getCurrentRuleset,
@@ -32,27 +33,6 @@ const defifaReadAbi = parseAbi([
   "function currentGamePotOf(uint256,bool) view returns (uint256,address,uint256)",
   "function currentGamePhaseOf(uint256) view returns (uint8)",
 ]);
-const mainnetDefifa = {
-  deployer: "0x375afb2a4b1cadae99f8863f96fc1aebcbaf8bde",
-  implementation: "0xe2229dd6a7da99ebb8f7d749612edd1b2addafe1",
-} as const;
-const testnetDefifa = {
-  deployer: "0xbfa54a97099485c134f06c9a08a4909c26fd7318",
-  implementation: "0x3184783d0e3cbf5a821794b246c71a3d1a0cf312",
-} as const;
-const defifaDeployments: Partial<
-  Record<JBChainId, typeof mainnetDefifa | typeof testnetDefifa>
-> = {
-  1: mainnetDefifa,
-  10: mainnetDefifa,
-  8453: mainnetDefifa,
-  42161: mainnetDefifa,
-  11155111: testnetDefifa,
-  11155420: testnetDefifa,
-  84532: testnetDefifa,
-  421614: testnetDefifa,
-};
-const defifaStore = "0x69913acf79dbba170d9efafe605ee62b42164f9c";
 
 export interface ProjectDefifaTier extends Project721Tier {
   /** Authoritative onchain range/team name, independent of URI resolution. */
@@ -61,7 +41,7 @@ export interface ProjectDefifaTier extends Project721Tier {
   currentSupply: bigint;
 }
 
-/** Display-only Defifa inventory. Never pass it to generic JB721 shop writers. */
+/** Read-only Defifa inventory. Use native preparations, never generic JB721 shop writers. */
 export interface ProjectDefifaInventory {
   protocol: "defifa";
   hook: Address;

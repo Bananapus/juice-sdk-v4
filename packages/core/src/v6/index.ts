@@ -16,6 +16,12 @@ export * from "./projectPayers.js";
 export * from "./cashOut.js";
 export * from "./nft.js";
 export * from "./nftInventory.js";
+export * from "./defifa.js";
+export {
+  getDefifaHoldings,
+  type DefifaHoldingsArgs,
+  type DefifaHolding,
+} from "./defifaHoldings.js";
 export * from "./tokens.js";
 export * from "./uniswapV4.js";
 export * from "./uniswapV4Fees.js";

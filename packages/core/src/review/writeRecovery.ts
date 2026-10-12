@@ -19,6 +19,8 @@ export type ReviewedWriteRecoveryInput = {
   chainId: number;
   account: Address;
   safe: boolean;
+  /** Stable action/project scope, never a per-click ID or calldata fingerprint. */
+  namespace?: string;
   call: { to: Address; data: Hex; value?: bigint | string };
 };
 
@@ -57,16 +59,29 @@ export class SubmittedWritePersistenceError extends Error {
   }
 }
 
+function normalizedIdentity(
+  input: Pick<ReviewedWriteRecoveryInput, "chainId" | "account">,
+) {
+  if (
+    !Number.isSafeInteger(input?.chainId) ||
+    input.chainId <= 0 ||
+    !isAddress(input?.account, { strict: false })
+  )
+    throw new Error("Invalid reviewed write recovery evidence.");
+  return {
+    chainId: input.chainId,
+    account: input.account.toLowerCase() as Address,
+  };
+}
+
 function normalized(
   input: ReviewedWriteRecoveryInput,
 ): ReviewedWriteRecoveryInput & {
   call: ReviewedWriteRecoveryRecord["call"];
 } {
   const value = uint256(input?.call?.value ?? 0n);
+  const namespace = namespaceOf(input?.namespace);
   if (
-    !Number.isSafeInteger(input?.chainId) ||
-    input.chainId <= 0 ||
-    !isAddress(input?.account, { strict: false }) ||
     typeof input?.safe !== "boolean" ||
     !isAddress(input?.call?.to, { strict: false }) ||
     !isHexBytes(input?.call?.data) ||
@@ -74,9 +89,9 @@ function normalized(
   )
     throw new Error("Invalid reviewed write recovery evidence.");
   return {
-    chainId: input.chainId,
-    account: input.account.toLowerCase() as Address,
+    ...normalizedIdentity(input),
     safe: input.safe,
+    ...(namespace === undefined ? {} : { namespace }),
     call: {
       to: input.call.to.toLowerCase() as Address,
       data: input.call.data.toLowerCase() as Hex,
@@ -112,8 +127,93 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
 export { recordOf as parseReviewedWriteRecoveryRecord };
 
 /** Amounts and quote changes must not evade an unresolved action. */
-function scope(input: ReviewedWriteRecoveryInput): string {
+function callScope(input: ReviewedWriteRecoveryInput): string {
   return `nana-sdk:reviewed-write:v1:${input.chainId}:${input.account}:${input.call.to}:${input.call.data.slice(0, 10)}`;
+}
+
+function namespaceOf(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (
+    typeof value !== "string" ||
+    !/^[a-z0-9][a-z0-9:._/-]{0,127}$/.test(value)
+  )
+    throw new Error("Invalid write recovery namespace.");
+  return value;
+}
+
+function namespaceScope(input: {
+  chainId: number;
+  account: Address;
+  namespace: string;
+}): string {
+  return `nana-sdk:reviewed-write:v1:namespace:${input.chainId}:${input.account}:${input.namespace}`;
+}
+
+function scope(input: ReviewedWriteRecoveryInput): string {
+  return input.namespace === undefined
+    ? callScope(input)
+    : namespaceScope({ ...input, namespace: input.namespace });
+}
+
+function recoveryStorage(store?: RecoveryStorage): RecoveryStorage {
+  const result = store ?? globalThis.localStorage;
+  if (!result) throw new Error("Write recovery storage is unavailable.");
+  return result;
+}
+
+export type ReviewedWriteRecoveryScope = Pick<
+  ReviewedWriteRecoveryInput,
+  "chainId" | "account"
+> & { namespace: string };
+
+/**
+ * Open the original namespaced action before fresh quotation or phase checks.
+ * No call is invented to locate evidence. Legacy actions retain factory.read().
+ * A namespace must stay stable across amount, target and quote changes.
+ */
+export function readBrowserWriteRecovery(
+  input: ReviewedWriteRecoveryScope,
+  options: { storage?: RecoveryStorage } = {},
+): ReviewedWriteRecoveryRecord | null {
+  const identity = normalizedIdentity(input);
+  const namespace = namespaceOf(input?.namespace);
+  if (namespace === undefined)
+    throw new Error("Provide a write recovery namespace.");
+  return readRecovery(
+    recoveryStorage(options.storage),
+    namespaceScope({ ...identity, namespace }),
+  );
+}
+
+function readStored(
+  raw: string | null,
+  key: string,
+): ReviewedWriteRecoveryRecord | null {
+  if (raw === null) return null;
+  const record = recordOf(JSON.parse(raw));
+  if (scope(record) !== key)
+    throw new Error("Saved write recovery scope does not match.");
+  return record;
+}
+function readRecovery(
+  store: RecoveryStorage,
+  key: string,
+): ReviewedWriteRecoveryRecord | null {
+  const record = readStored(store.getItem(key), key);
+  const memory = unpersistedSubmissions.get(store)?.get(key);
+  if (
+    !record ||
+    !memory ||
+    JSON.stringify({ ...record, hash: undefined }) !==
+      JSON.stringify({ ...memory, hash: undefined }) ||
+    (record.hash && record.hash !== memory.hash)
+  ) {
+    // A readable durable snapshot also proves whether cached evidence is stale.
+    unpersistedSubmissions.get(store)?.delete(key);
+    return record;
+  }
+  if (record.hash) unpersistedSubmissions.get(store)?.delete(key);
+  return recordOf(memory);
 }
 
 /** Exact reviewed evidence, independent of the reservation and submission identities. */
@@ -127,7 +227,8 @@ export function sameReviewedWrite(
 }
 
 /**
- * One ordinary-write reservation per account/chain/target/selector. Use the
+ * One ordinary-write reservation per account/chain/target/selector by default,
+ * or per account/chain/explicit stable namespace when provided. Use the
  * existing domain journal instead when an action already has one. There is no
  * expiry or nonce-based release: an unknown broadcast remains unknown.
  *
@@ -145,8 +246,7 @@ export function createBrowserWriteRecovery(
   let lastStorage: RecoveryStorage | undefined;
 
   function storage(): RecoveryStorage {
-    const store = options.storage ?? globalThis.localStorage;
-    if (!store) throw new Error("Write recovery storage is unavailable.");
+    const store = recoveryStorage(options.storage);
     lastStorage = store;
     return store;
   }
@@ -172,30 +272,8 @@ export function createBrowserWriteRecovery(
     if (!locked)
       throw new Error("Write recovery changes require the browser lock.");
   }
-  function readStored(raw: string | null): ReviewedWriteRecoveryRecord | null {
-    if (raw === null) return null;
-    const record = recordOf(JSON.parse(raw));
-    if (scope(record) !== key)
-      throw new Error("Saved write recovery scope does not match.");
-    return record;
-  }
   function read(): ReviewedWriteRecoveryRecord | null {
-    const store = storage();
-    const record = readStored(store.getItem(key));
-    const memory = unpersistedSubmissions.get(store)?.get(key);
-    if (
-      !record ||
-      !memory ||
-      JSON.stringify({ ...record, hash: undefined }) !==
-        JSON.stringify({ ...memory, hash: undefined }) ||
-      (record.hash && record.hash !== memory.hash)
-    ) {
-      // A readable durable snapshot also proves whether cached evidence is stale.
-      unpersistedSubmissions.get(store)?.delete(key);
-      return record;
-    }
-    if (record.hash) unpersistedSubmissions.get(store)?.delete(key);
-    return recordOf(memory);
+    return readRecovery(storage(), key);
   }
   function persist(record: ReviewedWriteRecoveryRecord) {
     const raw = JSON.stringify(record);
@@ -208,7 +286,7 @@ export function createBrowserWriteRecovery(
     requireLock();
     // A volatile returned hash is useful for tracking, but is not a successful
     // durable commit. submitted(hash, record) must retry that commit first.
-    const current = readStored(storage().getItem(key));
+    const current = readStored(storage().getItem(key), key);
     if (!current) return;
     if (JSON.stringify(current) !== JSON.stringify(recordOf(expected))) {
       throw new Error(
@@ -242,7 +320,7 @@ export function createBrowserWriteRecovery(
       const actual = actualCall
         ? normalized({ ...reviewed, call: actualCall })
         : reviewed;
-      if (scope(actual) !== key)
+      if (callScope(actual) !== callScope(reviewed))
         throw new Error("The adopted write has a different recovery scope.");
       if (read())
         throw new Error(
@@ -295,7 +373,7 @@ export function createBrowserWriteRecovery(
         rememberSubmission(submitted);
         throw new SubmittedWritePersistenceError(submitted, cause);
       }
-      const current = readStored(raw);
+      const current = readStored(raw, key);
       if (
         !current ||
         JSON.stringify({ ...current, hash: undefined }) !==

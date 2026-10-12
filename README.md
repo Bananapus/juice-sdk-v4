@@ -1220,8 +1220,7 @@ if (inventory?.protocol === "defifa") {
   console.log(
     inventory.tiers.map(({ name, currentSupply }) => ({ name, currentSupply })),
   );
-  // Defifa's lifecycle and (address,uint16[]) pay metadata need a native adapter.
-  // Do not use generic JB721 mint, cash-out or shop-management builders here.
+  // Use the explicit native preparations below, not generic JB721 shop writers.
 } else if (inventory?.protocol === "jb721") {
   // Existing JB721 metadataIdTarget/pricing context is preserved.
   console.log(inventory.tiers);
@@ -1236,3 +1235,101 @@ filter (ascending unique IDs), passing that cursor and the original
 limits. Inventory capability flags identify compatible transaction formats,
 not permissions or current transaction readiness. `getProject721Shop` retains
 its existing JB721-only behavior.
+
+### Native Defifa purchases, cash-outs and transfers
+
+`prepareDefifaPay`, `prepareDefifaCashOut` and `prepareDefifaTransfer` authenticate
+the native game and read one fresh block on every call. They return `inventory`
+plus a viem `transaction` request. Pass `expectedHook` from the collection shown
+in review. Reprepare before sending, compare the reviewed request and effective
+delegation/quote, and simulate the exact final request with the actual account.
+For ERC20 payments, approve the exact amount to the returned terminal before that
+final simulation. These helpers never request a signature or broadcast.
+`MAX_DEFIFA_ACTION_NFTS` (128) bounds native preparation reads and review size;
+this adapter budget is not a protocol supply limit. The shared
+`defifaPhaseAllowsPay` and `defifaPhaseAllowsCashOut` predicates let consumers
+hide phase-ineligible actions without duplicating rules. They do not replace
+fresh preparation, ownership checks or no-contest activation.
+
+```ts
+import {
+  prepareDefifaPay,
+  verifyDefifaNftTransaction,
+} from "@bananapus/nana-sdk-core/v6";
+
+const prepared = await prepareDefifaPay(publicClient, {
+  chainId: 8453,
+  projectId: 27n,
+  account,
+  expectedHook: inventory.hook,
+  tierIdsToMint: [1n, 1n, 3n], // Ascending, one ID for every NFT.
+});
+// Review prepared.transaction, amount and effectiveDelegates. Your existing
+// wallet engine owns approvals, fresh review checks, simulation and submission.
+const context = {
+  hook: prepared.inventory.hook,
+  implementation: prepared.inventory.implementation,
+  account,
+  transaction: prepared.transaction,
+};
+await verifyDefifaNftTransaction(publicClient, context, receipt);
+```
+
+Payments use the game's settlement token and exact tier cost. Extra donations
+are separate `addToBalanceOf` calls. `buildDefifaPayMetadata` encodes native
+`(address,uint16[])` using authenticated `CODE_ORIGIN`. Its optional delegate
+defaults to zero, preserving the configured game default or beneficiary fallback.
+A self-payment can update voting delegation for **all existing holdings in the
+selected tiers**. Gifts preserve the recipient's existing per-tier delegates;
+`effectiveDelegates` reports those, and `effectiveAttestationDelegate` is null
+when they differ. The ordinary shop boolean payload is incompatible: `true`
+would become voting address `0x0000000000000000000000000000000000000001`.
+`selectedTiers` reports each selected `tierId`, `count` and effective `unitPrice`
+from the same snapshot. Compare this evidence after review alongside the exact
+transaction and delegates: inverse tier price changes can preserve the total.
+
+Cash-out accepts `tokenIds`, optional `beneficiary` and `minimumReclaim`. It
+reuses `build721CashOutMetadata` with native implementation identity and
+`cashOutCount: 0n`, checks ownership and native phase, and simulates the exact
+call. `reclaimAmount` is the actual terminal result after fees;
+`protocolRewards` contains token addresses, actual ERC20 decimals and raw claim amounts. A zero
+settlement-token claim can still return protocol rewards. No-contest refunds
+require the protocol's no-contest activation first. Transfer accepts `tokenId`
+and `recipient`, then checks ownership and simulates standard ERC721
+`safeTransferFrom`, including native pause rules and receiver callbacks.
+
+Retain the exact context and wallet-returned identity until
+`verifyDefifaNftTransaction` succeeds. It checks canonical transaction and NFT
+effects; failures remain pending for read-only verification, never automatic
+resubmission. Safe execution supplies `context.safe: { proposalHash }` and reuses
+the SDK's exact Safe-call proof. Only `DefifaNftTransactionRevertedError`
+identifies an authenticated finalized failure: retain that attempt's hash and
+evidence, then allow a separately reviewed new intent. Other errors remain
+pending; a reverted Safe outer executor alone cannot release its proposal.
+For a saved reviewed-write record, `restoreDefifaNftReceiptContext(client, {
+chainId, projectId, record, receipt, expectedHook })` reconstructs this context
+against authenticated project/terminal evidence at the receipt block. It
+requires the original wallet-returned identity and preserves Safe proposal
+hashes; it never runs a new preparation or send. Pass its result to
+`verifyDefifaNftTransaction`. Restoration alone does not prove execution, and
+unavailable archive reads leave the attempt pending.
+Use the existing `createBrowserWriteRecovery` input's optional `namespace`,
+such as `defifa:pay:27`, to isolate project/actions. Keep it stable across quotes,
+amounts and terminal changes. `readBrowserWriteRecovery({ chainId, account,
+namespace })` opens the original record before fresh preparation, without
+inventing calldata or sending again. Reuse its saved call; namespacing does not
+widen the factory's reviewed target/selector adoption checks. Ordinary callers
+without a namespace retain their existing storage keys.
+The lower-level `verifyDefifaNftReceipt` checks
+effects only and assumes the engine already authenticated execution. Native
+metadata decoding recognizes pinned lookup IDs but does not prove provenance.
+The generic inventory capability flags deliberately remain false.
+
+`getDefifaHoldings` returns authenticated `hook`, `blockNumber`, `tokens` with
+token/tier IDs, `totalOwned`, `totalCandidates`, `complete`, and `nextCursor`.
+It checks at most `limit` candidates (default 100, maximum 200) using native
+ever-minted ordinals, so refund burns do not hide later NFTs. Continue with the
+same `blockNumber` and decimal `nextCursor`; only proven nonexistent-token
+reverts are skipped. RPC failures remain errors. Tier discovery is bounded at
+4,096 tiers and reports an error beyond that limit; no indexer or event scan is
+required.
