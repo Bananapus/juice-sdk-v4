@@ -41,7 +41,7 @@ export interface ProjectDefifaTier extends Project721Tier {
   currentSupply: bigint;
 }
 
-/** Display-only Defifa inventory. Never pass it to generic JB721 shop writers. */
+/** Read-only Defifa inventory. Use native preparations, never generic JB721 shop writers. */
 export interface ProjectDefifaInventory {
   protocol: "defifa";
   hook: Address;

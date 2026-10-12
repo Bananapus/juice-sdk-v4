@@ -15,6 +15,8 @@ import {
   type Hex,
 } from "viem";
 import { SPLITS_TOTAL_PERCENT, USDC_ADDRESSES } from "../pureConstants.js";
+import { defifaDeployments } from "../v6/defifaDeployments.js";
+import { hookMetadataId } from "../utils/hook.js";
 import { jbBuybackHookAbi } from "../generated/abi/jbBuybackHookAbi.js";
 import { jbBuybackHookRegistryAbi } from "../generated/abi/jbBuybackHookRegistryAbi.js";
 import { jbControllerAbi } from "../generated/abi/jbControllerAbi.js";
@@ -863,6 +865,15 @@ function tierIdCounts(tierIds: readonly number[]): string {
     .join(", ");
 }
 
+// A lookup ID identifies payload semantics, not the target's onchain provenance.
+// Transaction preparation separately authenticates native clone/project identity.
+function isDefifaPayLookupId(id: Hex): boolean {
+  return Object.values(defifaDeployments).some(
+    ({ implementation }) =>
+      hookMetadataId(implementation, "pay").toLowerCase() === id.toLowerCase(),
+  );
+}
+
 /**
  * Decode a `pay`/`addToBalanceOf`/`cashOutTokensOf` `metadata` argument into
  * its hook entries, reading the payload shapes the ecosystem's builders
@@ -890,10 +901,47 @@ export function describeJBHookMetadata(
     // ambiguous.
     const readings: PrettyStep[] = [];
     if (context === "pay") {
-      const mint = roundTripDecode<readonly [boolean, readonly number[]]>(
-        [{ type: "bool" }, { type: "uint16[]" }],
-        entry.payload,
-      );
+      const isDefifa = isDefifaPayLookupId(entry.id);
+      const nativeMint = isDefifa
+        ? roundTripDecode<readonly [Address, readonly number[]]>(
+            [{ type: "address" }, { type: "uint16[]" }],
+            entry.payload,
+          )
+        : null;
+      if (nativeMint) {
+        readings.push({
+          title: "Defifa mint instructions",
+          rows: [
+            ...base,
+            [
+              "Tier IDs to mint",
+              nativeMint[1].length
+                ? tierIdCounts(nativeMint[1])
+                : "none (native mint reverts)",
+            ],
+            [
+              "Attestation delegate",
+              nativeMint[0] === zeroAddress
+                ? "Game default, or the beneficiary when no default is configured"
+                : nativeMint[0],
+            ],
+            [
+              "Delegation effect",
+              "Self-payments update all existing holdings in selected tiers; gifts preserve recipient delegation",
+            ],
+            [
+              "Interpretation",
+              "Known native lookup ID; contract identity requires separate verification",
+            ],
+          ],
+        });
+      }
+      const mint = isDefifa
+        ? null
+        : roundTripDecode<readonly [boolean, readonly number[]]>(
+            [{ type: "bool" }, { type: "uint16[]" }],
+            entry.payload,
+          );
       if (mint) {
         readings.push({
           title: "721 shop mint instructions",
@@ -912,7 +960,7 @@ export function describeJBHookMetadata(
           ],
         });
       }
-      if (payloadWords === 3) {
+      if (!isDefifa && payloadWords === 3) {
         const buyback = roundTripDecode<readonly [bigint, bigint, boolean]>(
           [{ type: "uint256" }, { type: "uint256" }, { type: "bool" }],
           entry.payload,

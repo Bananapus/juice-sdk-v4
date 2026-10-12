@@ -35,6 +35,7 @@ import {
   type DirectPaySwapQuote,
 } from "../v6/directPay.js";
 import { build721PayMetadata } from "../v6/pay.js";
+import { buildDefifaPayMetadata } from "../v6/defifa.js";
 import {
   stickyDistributorAddress,
   stickySourceCollectorAbi,
@@ -989,6 +990,67 @@ describe("Universal Router execute decoding", () => {
 });
 
 describe("JB hook metadata decoding", () => {
+  it.each([
+    "0xe2229dd6a7da99ebb8f7d749612edd1b2addafe1",
+    "0x3184783d0e3cbf5a821794b246c71a3d1a0cf312",
+  ] as const)(
+    "interprets native Defifa lookup %s without mistaking delegates for booleans",
+    (metadataIdTarget) => {
+      const delegated = describeJBHookMetadata(
+        "pay",
+        buildDefifaPayMetadata({
+          metadataIdTarget,
+          tierIdsToMint: [1n, 1n, 3n],
+          attestationDelegate: TARGET,
+        }),
+      )!;
+      expect(delegated[0].title).toBe("Defifa mint instructions");
+      expect(rowsOf(delegated)).toContain(
+        `Attestation delegate=${getAddress(TARGET)}`,
+      );
+      expect(rowsOf(delegated)).toContain("Tier IDs to mint=2× #1, #3");
+      expect(rowsOf(delegated).join(" ")).toContain(
+        "contract identity requires separate verification",
+      );
+      const fallback = describeJBHookMetadata(
+        "pay",
+        buildDefifaPayMetadata({ metadataIdTarget, tierIdsToMint: [1n] }),
+      )!;
+      expect(rowsOf(fallback).join(" ")).toContain(
+        "Game default, or the beneficiary",
+      );
+      expect(rowsOf(fallback)).not.toContain("Allow overspending");
+      const legacy = describeJBHookMetadata(
+        "pay",
+        build721PayMetadata({ metadataIdTarget, tierIdsToMint: [1n] }),
+      )!;
+      expect(rowsOf(legacy)).toContain(
+        "Attestation delegate=0x0000000000000000000000000000000000000001",
+      );
+      expect(rowsOf(legacy)).not.toContain("Allow overspending");
+      const empty = describeJBHookMetadata(
+        "pay",
+        createHookMetadata(
+          [hookMetadataId(metadataIdTarget, "pay")],
+          [
+            encodeAbiParameters(
+              [{ type: "address" }, { type: "uint16[]" }],
+              [zeroAddress, []],
+            ),
+          ],
+        ),
+      )!;
+      expect(rowsOf(empty).join(" ")).toContain("none (native mint reverts)");
+      const malformed = describeJBHookMetadata(
+        "pay",
+        createHookMetadata(
+          [hookMetadataId(metadataIdTarget, "pay")],
+          [encodeAbiParameters([{ type: "uint256" }], [42n])],
+        ),
+      )!;
+      expect(malformed[0].title).not.toBe("Defifa mint instructions");
+    },
+  );
   it("reads 721 mint instructions from the real builder's bytes", () => {
     const metadata = build721PayMetadata({
       metadataIdTarget: TARGET,
