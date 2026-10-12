@@ -4,6 +4,7 @@ import {
   type PublicClient,
   type TransactionReceipt,
   decodeAbiParameters,
+  decodeFunctionData,
   encodeAbiParameters,
   encodeFunctionData,
   erc20Abi,
@@ -36,7 +37,10 @@ import {
   RelayrDestinationRevertedError,
   verifyRelayrDestination,
 } from "../review/relayr.js";
-import { verifyReviewedWriteReceipt } from "../review/writeRecovery.js";
+import {
+  parseReviewedWriteRecoveryRecord,
+  verifyReviewedWriteReceipt,
+} from "../review/writeRecovery.js";
 
 // @ballkidz/defifa 1.0.2 native getters. Provenance belongs to nftInventory.
 const defifaActionAbi = parseAbi([
@@ -134,7 +138,11 @@ export interface DefifaActionArgs {
   expectedHook?: Address;
 }
 
-async function actionContext(client: PublicClient, args: DefifaActionArgs) {
+async function actionContext(
+  client: PublicClient,
+  args: DefifaActionArgs,
+  blockNumber?: bigint,
+) {
   address(args.account, "Defifa account");
   if (args.expectedHook) address(args.expectedHook, "Defifa expected hook");
   if (args.projectId <= 0n)
@@ -143,6 +151,7 @@ async function actionContext(client: PublicClient, args: DefifaActionArgs) {
     chainId: args.chainId,
     projectId: args.projectId,
     tierLimit: 1,
+    blockNumber,
   });
   if (inventory?.protocol !== "defifa")
     throw new Error("Project is not an authenticated native Defifa game.");
@@ -550,6 +559,136 @@ function cashOutTokenIds(metadata: Hex, implementation: Address): bigint[] {
     }),
   );
   return [...tokenIds];
+}
+
+/**
+ * Reconstruct native verification context from an existing reviewed-write
+ * journal. Authenticate the project/terminal at the receipt's historical block;
+ * never prepare, simulate or send a new action. The wallet-returned identity is
+ * required: a hashless uncertain write cannot be matched to an old receipt.
+ * Call verifyDefifaNftTransaction afterward; restoration alone proves no outcome.
+ */
+export async function restoreDefifaNftReceiptContext(
+  client: PublicClient,
+  args: {
+    chainId: JBChainId;
+    projectId: bigint;
+    record: unknown;
+    receipt: TransactionReceipt;
+    expectedHook?: Address;
+  },
+): Promise<DefifaNftReceiptContext> {
+  args = { ...args, receipt: { ...args.receipt } };
+  const saved = parseReviewedWriteRecoveryRecord(args.record);
+  function fail(): never {
+    throw new Error(
+      "Saved call is not the reviewed native Defifa action. Keep this attempt pending.",
+    );
+  }
+  if (
+    saved.chainId !== args.chainId ||
+    !saved.hash ||
+    (!saved.safe &&
+      saved.hash.toLowerCase() !==
+        args.receipt.transactionHash.toLowerCase()) ||
+    typeof args.receipt.blockNumber !== "bigint" ||
+    args.receipt.blockNumber < 0n
+  )
+    fail();
+  const identity = {
+    chainId: args.chainId,
+    projectId: args.projectId,
+    account: saved.account,
+    expectedHook: args.expectedHook,
+  };
+  const { inventory, snapshot } = await actionContext(
+    client,
+    identity,
+    args.receipt.blockNumber,
+  );
+  let transaction: DefifaNftReceiptContext["transaction"];
+  if (sameAddress(saved.call.to, inventory.hook)) {
+    const call = decodeFunctionData({ abi: erc721Abi, data: saved.call.data });
+    if (call.functionName !== "safeTransferFrom" || call.args.length !== 3)
+      fail();
+    const [from, recipient, tokenId] = call.args;
+    if (!sameAddress(from, saved.account) || tokenId <= 0n) fail();
+    address(recipient, "Defifa recipient");
+    transaction = {
+      chainId: args.chainId,
+      address: inventory.hook,
+      abi: erc721Abi,
+      functionName: "safeTransferFrom",
+      args: [from, recipient, tokenId],
+    };
+  } else {
+    const terminal = await paymentTerminal(snapshot, identity, inventory);
+    if (!sameAddress(saved.call.to, terminal)) fail();
+    const call = decodeFunctionData({
+      abi: jbMultiTerminalAbi,
+      data: saved.call.data,
+    });
+    if (call.functionName === "pay") {
+      const [projectId, token, amount, beneficiary, minimum, memo, metadata] =
+        call.args;
+      if (
+        projectId !== args.projectId ||
+        !sameAddress(token, inventory.pricing.token)
+      )
+        fail();
+      payTierIds(metadata, inventory.implementation);
+      transaction = buildPayTx({
+        chainId: args.chainId,
+        terminal,
+        projectId,
+        token,
+        amount,
+        beneficiary,
+        minReturnedTokens: minimum,
+        memo,
+        metadata,
+      });
+    } else if (call.functionName === "cashOutTokensOf") {
+      const [holder, projectId, count, token, minimum, beneficiary, metadata] =
+        call.args;
+      if (
+        projectId !== args.projectId ||
+        !sameAddress(holder, saved.account) ||
+        !sameAddress(token, inventory.pricing.token) ||
+        count !== 0n
+      )
+        fail();
+      cashOutTokenIds(metadata, inventory.implementation);
+      transaction = buildCashOutTx({
+        chainId: args.chainId,
+        terminal,
+        projectId,
+        holder,
+        cashOutCount: count,
+        tokenToReclaim: token,
+        minTokensReclaimed: minimum,
+        beneficiary,
+        metadata,
+      });
+    } else fail();
+  }
+  const data =
+    transaction.functionName === "safeTransferFrom"
+      ? encodeFunctionData(transaction)
+      : encodeFunctionData(transaction);
+  if (
+    data.toLowerCase() !== saved.call.data.toLowerCase() ||
+    ("value" in transaction ? transaction.value : 0n) !==
+      BigInt(saved.call.value)
+  )
+    fail();
+  return {
+    hook: inventory.hook,
+    implementation: inventory.implementation,
+    account: saved.account,
+    transaction,
+    ...(saved.safe ? { safe: { proposalHash: saved.hash! } } : {}),
+  };
 }
 
 /**

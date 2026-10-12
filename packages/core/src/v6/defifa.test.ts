@@ -2,8 +2,10 @@ import {
   type Address,
   type Hex,
   type PublicClient,
+  type TransactionReceipt,
   decodeAbiParameters,
   encodeAbiParameters,
+  encodeFunctionData,
   zeroAddress,
 } from "viem";
 import { describe, expect, test } from "vitest";
@@ -19,6 +21,8 @@ import {
   MAX_DEFIFA_ACTION_NFTS,
   defifaPhaseAllowsPay,
   defifaPhaseAllowsCashOut,
+  restoreDefifaNftReceiptContext,
+  type DefifaNftReceiptContext,
 } from "./defifa.js";
 
 const hook = "0x1111111111111111111111111111111111111111";
@@ -610,6 +614,272 @@ describe("native Defifa transfer preparation", () => {
     const { client } = fixture();
     await expect(
       prepareDefifaTransfer(client, { ...args, ...input }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("restoring native Defifa recovery context", () => {
+  const hash = `0x${"ab".repeat(32)}` as Hex;
+  const proposalHash = `0x${"cd".repeat(32)}` as Hex;
+  const receipt = {
+    transactionHash: hash,
+    blockNumber: 90n,
+  } as TransactionReceipt;
+  function saved(transaction: DefifaNftReceiptContext["transaction"]) {
+    return {
+      version: 1 as const,
+      id: "native-attempt",
+      chainId: args.chainId,
+      account,
+      safe: false,
+      hash,
+      call: {
+        to: transaction.address,
+        data:
+          transaction.functionName === "safeTransferFrom"
+            ? encodeFunctionData(transaction)
+            : encodeFunctionData(transaction),
+        value: ("value" in transaction ? transaction.value : 0n).toString(),
+      },
+    };
+  }
+  async function payment() {
+    return prepareDefifaPay(fixture().client, {
+      ...args,
+      tierIdsToMint: [1n, 2n],
+    });
+  }
+  const restore = (
+    client: PublicClient,
+    record: unknown,
+    overrides: Partial<
+      Parameters<typeof restoreDefifaNftReceiptContext>[1]
+    > = {},
+  ) =>
+    restoreDefifaNftReceiptContext(client, {
+      ...args,
+      record,
+      receipt,
+      ...overrides,
+    });
+
+  test.each(["pay", "cashout", "transfer"])(
+    "restores %s exactly at the historical receipt block without fresh phase, price, ownership or simulation gates",
+    async (kind) => {
+      const setup = fixture();
+      const prepared =
+        kind === "pay"
+          ? await prepareDefifaPay(setup.client, {
+              ...args,
+              tierIdsToMint: [1n, 2n],
+            })
+          : kind === "cashout"
+            ? await prepareDefifaCashOut(setup.client, {
+                ...args,
+                tokenIds: [1000000001n],
+              })
+            : await prepareDefifaTransfer(setup.client, {
+                ...args,
+                tokenId: 1000000001n,
+                recipient,
+              });
+      const historical = fixture({
+        currentGamePhaseOf: 3,
+        tierOf: new Error("no selected-price read in recovery"),
+        ownerOf: (request: Request) => {
+          if (request.address === hook)
+            throw new Error("no token-owner read in recovery");
+          return deployer;
+        },
+      });
+      const context = await restore(
+        historical.client,
+        saved(prepared.transaction),
+      );
+      expect(context).toEqual({
+        hook,
+        implementation,
+        account,
+        transaction: prepared.transaction,
+      });
+      expect(
+        historical.requests.every((request) => request.blockNumber === 90n),
+      ).toBe(true);
+      expect(historical.simulations).toHaveLength(0);
+    },
+  );
+
+  test("preserves the wallet-returned Safe proposal identity separately from the execution receipt", async () => {
+    const prepared = await payment();
+    const record = {
+      ...saved(prepared.transaction),
+      safe: true,
+      hash: proposalHash,
+    };
+    expect((await restore(fixture().client, record)).safe).toEqual({
+      proposalHash,
+    });
+  });
+
+  test("snapshots recovery identity before awaited reads", async () => {
+    const prepared = await payment();
+    const input = {
+      ...args,
+      record: saved(prepared.transaction),
+      receipt: { ...receipt },
+    };
+    const run = fixture({
+      CODE_ORIGIN: () => {
+        input.projectId = 47n as typeof input.projectId;
+        input.receipt.transactionHash = proposalHash;
+        input.receipt.blockNumber = 91n;
+        input.record.call.data = "0x";
+        return implementation;
+      },
+    });
+    const context = await restoreDefifaNftReceiptContext(run.client, input);
+    expect(context.transaction).toEqual(prepared.transaction);
+    expect(run.requests.every((request) => request.blockNumber === 90n)).toBe(
+      true,
+    );
+  });
+
+  test.each([
+    "missing-hash",
+    "different-hash",
+    "wrong-chain",
+    "malformed",
+    "negative-block",
+  ])("refuses %s evidence before any native RPC reads", async (reason) => {
+    const prepared = await payment();
+    const record: Record<string, unknown> = saved(prepared.transaction);
+    if (reason === "missing-hash") delete record.hash;
+    if (reason === "different-hash") record.hash = proposalHash;
+    if (reason === "wrong-chain") record.chainId = 1;
+    if (reason === "malformed") record.version = 2;
+    const run = fixture();
+    await expect(
+      restore(
+        run.client,
+        record,
+        reason === "negative-block"
+          ? { receipt: { ...receipt, blockNumber: -1n } }
+          : {},
+      ),
+    ).rejects.toThrow();
+    expect(run.requests).toHaveLength(0);
+  });
+
+  test.each([
+    "project",
+    "token",
+    "metadata",
+    "value",
+    "trailing",
+    "terminal",
+    "unsupported",
+  ])("rejects a saved pay with wrong %s", async (reason) => {
+    const prepared = await payment();
+    const transaction = {
+      ...prepared.transaction,
+      args: [
+        ...prepared.transaction.args,
+      ] as unknown as typeof prepared.transaction.args,
+    };
+    if (reason === "project")
+      transaction.args = [
+        47n,
+        ...transaction.args.slice(1),
+      ] as unknown as typeof transaction.args;
+    if (reason === "token")
+      transaction.args = [
+        transaction.args[0],
+        oracle,
+        ...transaction.args.slice(2),
+      ] as unknown as typeof transaction.args;
+    if (reason === "metadata")
+      transaction.args = [
+        ...transaction.args.slice(0, 6),
+        buildDefifaPayMetadata({
+          metadataIdTarget: hook,
+          tierIdsToMint: [1n, 2n],
+        }),
+      ] as unknown as typeof transaction.args;
+    const record = saved(transaction);
+    if (reason === "value") record.call.value = "1";
+    if (reason === "trailing") record.call.data = `${record.call.data}00`;
+    if (reason === "terminal") record.call.to = recipient;
+    if (reason === "unsupported") record.call.data = "0x12345678";
+    await expect(restore(fixture().client, record)).rejects.toThrow();
+  });
+
+  test.each(["holder", "project", "count", "token", "metadata", "value"])(
+    "rejects a saved cash-out with wrong %s",
+    async (reason) => {
+      const prepared = await prepareDefifaCashOut(fixture().client, {
+        ...args,
+        tokenIds: [1000000001n],
+      });
+      const values = [...prepared.transaction.args];
+      if (reason === "holder") values[0] = recipient;
+      if (reason === "project") values[1] = 47n;
+      if (reason === "count") values[2] = 1n;
+      if (reason === "token") values[3] = oracle;
+      if (reason === "metadata")
+        values[6] = build721CashOutMetadata({
+          metadataIdTarget: hook,
+          tokenIds: [1000000001n],
+        });
+      const record = saved({
+        ...prepared.transaction,
+        args: values as unknown as typeof prepared.transaction.args,
+      });
+      if (reason === "value") record.call.value = "1";
+      await expect(restore(fixture().client, record)).rejects.toThrow();
+    },
+  );
+
+  test.each(["from", "token", "recipient", "value", "function"])(
+    "rejects a saved transfer with wrong %s",
+    async (reason) => {
+      const prepared = await prepareDefifaTransfer(fixture().client, {
+        ...args,
+        tokenId: 1000000001n,
+        recipient,
+      });
+      const record = saved({
+        ...prepared.transaction,
+        args: [
+          reason === "from" ? recipient : account,
+          reason === "recipient" ? zeroAddress : recipient,
+          reason === "token" ? 0n : 1000000001n,
+        ],
+      });
+      if (reason === "value") record.call.value = "1";
+      if (reason === "function")
+        record.call.data = encodeFunctionData({
+          abi: prepared.transaction.abi,
+          functionName: "transferFrom",
+          args: [account, recipient, 1000000001n],
+        });
+      await expect(restore(fixture().client, record)).rejects.toThrow();
+    },
+  );
+
+  test("does not turn historical identity failures into a restored context", async () => {
+    const prepared = await payment();
+    for (const overrides of [
+      { CODE_ORIGIN: hook },
+      { currentGamePhaseOf: new Error("archive state unavailable") },
+      { primaryTerminalOf: recipient },
+    ])
+      await expect(
+        restore(fixture(overrides).client, saved(prepared.transaction)),
+      ).rejects.toThrow();
+    await expect(
+      restore(fixture().client, saved(prepared.transaction), {
+        expectedHook: recipient,
+      }),
     ).rejects.toThrow();
   });
 });

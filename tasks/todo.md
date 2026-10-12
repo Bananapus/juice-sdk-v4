@@ -80,7 +80,7 @@ Root owns app integration, hosted CI, implementation/version PR merges and offic
 - **Verification:** Add direct finalized/nonfinal/reorg/wrong-call/RPC-failure regression cases and Safe failed/unknown cases, retaining current success/effect tests. Prove inverse selected-tier price changes keep the total equal but change exposed review evidence, with selected-ID reads still once per tier. Run focused owner tests, independent delta review and the required final SDK check; refresh the consumer preview and package attribution only if final bytes change.
 - **Resource budget:** Reuse already fetched transaction/receipt evidence. Add finality reads only for proven failures; no extra success-path RPC work, repeated fork setup, contract edits or public-chain transactions.
 
-- [ ] Implement typed finalized native failure through existing proof owners and test recovery boundaries.
+- [x] Implement typed finalized native failure through existing proof owners and test recovery boundaries.
 - [ ] Recheck the final source and publish the reviewed SDK feature PR for root-owned CI/release.
 
 ## Plan refinement
@@ -92,6 +92,8 @@ Root owns app integration, hosted CI, implementation/version PR merges and offic
 - **Verification:** Preserve metadata/effect behavior across extraction, then test restored pay/cash-out/transfer bytes, original account and Safe proposal identity at a pinned historical block. Reject malformed records, wrong project/chain/account/hook/terminal/token/metadata, trailing or unsupported calldata, value mismatch, absent/mismatched hashes and archive errors. Complete independent review and one required final SDK check after all recovery changes stabilize.
 - **Resource budget:** One bounded inventory page and historical terminal/accounting reads; no ownership, price, phase-eligibility or simulation calls during recovery. Use the existing receipt/effect proof afterward. No public transactions or repeat fork setup for unchanged successful native calldata.
 
-- [ ] Extract native metadata read validation without changing receipt behavior.
-- [ ] Restore native receipt context from saved exact call plus authenticated historical inventory.
+- [x] Extract native metadata read validation without changing receipt behavior.
+- [x] Restore native receipt context from saved exact call plus authenticated historical inventory.
 - [ ] Coordinate durable journal lookup, final review/checks and refreshed consumer preview.
+
+Recovery source review: metadata extraction5fc0791 preserves the existing104 action/receipt cases. Native restoration then passes133 focused cases, including all three actions after phase closure, original Safe proposal identity, input snapshots, wrong call/metadata/value/project/holder and unavailable historical reads. Typed finalized failure preserves unknown and unfinalized attempts. Independent source review of the preceding phase/budget/selected-price/typed-failure changes passed162 focused cases. Namespace/lookup changes remain in the existing reviewed-write owner with their own extraction and regression record. The earlier complete SDK check is evidence for its recorded commit only; rerun the required combined gate after final production source freezes.

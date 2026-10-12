@@ -1306,6 +1306,20 @@ the SDK's exact Safe-call proof. Only `DefifaNftTransactionRevertedError`
 identifies an authenticated finalized failure: retain that attempt's hash and
 evidence, then allow a separately reviewed new intent. Other errors remain
 pending; a reverted Safe outer executor alone cannot release its proposal.
+For a saved reviewed-write record, `restoreDefifaNftReceiptContext(client, {
+chainId, projectId, record, receipt, expectedHook })` reconstructs this context
+against authenticated project/terminal evidence at the receipt block. It
+requires the original wallet-returned identity and preserves Safe proposal
+hashes; it never runs a new preparation or send. Pass its result to
+`verifyDefifaNftTransaction`. Restoration alone does not prove execution, and
+unavailable archive reads leave the attempt pending.
+Use the existing `createBrowserWriteRecovery` input's optional `namespace`,
+such as `defifa:pay:27`, to isolate project/actions. Keep it stable across quotes,
+amounts and terminal changes. `readBrowserWriteRecovery({ chainId, account,
+namespace })` opens the original record before fresh preparation, without
+inventing calldata or sending again. Reuse its saved call; namespacing does not
+widen the factory's reviewed target/selector adoption checks. Ordinary callers
+without a namespace retain their existing storage keys.
 The lower-level `verifyDefifaNftReceipt` checks
 effects only and assumes the engine already authenticated execution. Native
 metadata decoding recognizes pinned lookup IDs but does not prove provenance.
