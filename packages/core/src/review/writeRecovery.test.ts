@@ -19,6 +19,7 @@ import { encodeMultiSend, MULTI_SEND_CALL_ONLY } from "../safe.js";
 import { submitReviewedContractWrite } from "./contractWrite.js";
 import {
   createBrowserWriteRecovery,
+  readBrowserWriteRecovery,
   sameReviewedWrite,
   SubmittedWritePersistenceError,
   verifyReviewedWriteExpiry,
@@ -79,7 +80,12 @@ function browser() {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("ordinary write recovery", () => {
+const legacyInput = input;
+function ordinaryRecovery(namespace?: string) {
+  const input = {
+    ...legacyInput,
+    ...(namespace === undefined ? {} : { namespace }),
+  };
   it("keeps a lost wallet reply durable through new instances and changed amount/quote", async () => {
     const options = browser();
     const journal = createBrowserWriteRecovery(input, options);
@@ -145,9 +151,9 @@ describe("ordinary write recovery", () => {
     );
     vi.stubGlobal("navigator", undefined);
     await expect(
-      createBrowserWriteRecovery(input, { storage: options.storage }).withLock(
-        async () => {},
-      ),
+      createBrowserWriteRecovery(input, {
+        storage: options.storage,
+      }).withLock(async () => {}),
     ).rejects.toThrow("coordinate");
   });
 
@@ -453,7 +459,13 @@ describe("ordinary write recovery", () => {
       { ...input, call: { ...input.call, to: WRAPPER } },
       { ...input, call: { ...input.call, data: "0x11223344" as Hex } },
     ])
-      expect(createBrowserWriteRecovery(changed, options).read()).toBeNull();
+      expect(createBrowserWriteRecovery(changed, options).read()).toEqual(
+        namespace !== undefined &&
+          changed.chainId === input.chainId &&
+          changed.account === input.account
+          ? first.read()
+          : null,
+      );
     for (const changed of [
       { ...input, chainId: 0 },
       { ...input, account: "0x12" as Address },
@@ -464,7 +476,11 @@ describe("ordinary write recovery", () => {
         "Invalid",
       );
   });
-});
+}
+describe.each([undefined, "defifa:pay:27"])(
+  "ordinary write recovery (%s)",
+  ordinaryRecovery,
+);
 
 function chain() {
   const receipt = {
@@ -857,6 +873,186 @@ describe("reviewed Safe expiry proof", () => {
       const fixture = expiring();
       alter(fixture);
       await expect(fixture.verify()).rejects.toThrow("pending");
+    }
+  });
+});
+
+describe("stable action namespace and read-only opener", () => {
+  const namespace = "defifa:pay:27";
+  const scoped = { ...input, namespace };
+  const lookup = { chainId: input.chainId, account: input.account, namespace };
+  it("preserves the exact legacy key and record shape", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(input, options);
+    const reserved = await journal.withLock(async () => journal.reserve());
+    expect([...options.values.keys()]).toEqual([
+      `nana-sdk:reviewed-write:v1:10:${ACCOUNT}:${TARGET}:0xaabbccdd`,
+    ]);
+    expect(reserved).not.toHaveProperty("namespace");
+  });
+  it("allows independent projects on the same terminal and selector without replacing either", async () => {
+    const options = browser();
+    const a = createBrowserWriteRecovery(scoped, options);
+    const b = createBrowserWriteRecovery(
+      { ...scoped, namespace: "defifa:pay:28" },
+      options,
+    );
+    await a.withLock(async () => {
+      a.reserve();
+      await b.withLock(async () => b.reserve());
+    });
+    expect(options.values.size).toBe(2);
+    expect(readBrowserWriteRecovery(lookup, options)?.namespace).toBe(
+      namespace,
+    );
+    expect(
+      readBrowserWriteRecovery(
+        { ...lookup, namespace: "defifa:pay:28" },
+        options,
+      )?.namespace,
+    ).toBe("defifa:pay:28");
+  });
+  it("finds and blocks an earlier action despite terminal, selector, amount and Safe-mode changes", async () => {
+    const options = browser();
+    const old = createBrowserWriteRecovery(scoped, options);
+    const original = await old.withLock(async () => old.reserve());
+    const changed = createBrowserWriteRecovery(
+      {
+        ...scoped,
+        safe: true,
+        call: { to: WRAPPER, data: "0x11223344", value: 99n },
+      },
+      options,
+    );
+    expect(changed.read()).toEqual(original);
+    await expect(
+      changed.withLock(async () => changed.reserve()),
+    ).rejects.toThrow("still unresolved");
+    expect(readBrowserWriteRecovery(lookup, options)).toEqual(original);
+    expect(
+      sameReviewedWrite(original, {
+        ...scoped,
+        call: { ...scoped.call, to: WRAPPER },
+      }),
+    ).toBe(false);
+  });
+  it("opens original evidence before fresh phase or quote preparation without mutating storage", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(scoped, options);
+    const original = await journal.withLock(async () => journal.reserve());
+    options.storage.setItem.mockClear();
+    options.storage.removeItem.mockClear();
+    const freshPreparation = vi.fn(() => {
+      throw new Error("Entry is now closed");
+    });
+    const pending = readBrowserWriteRecovery(lookup, options);
+    if (!pending) freshPreparation();
+    expect(pending).toEqual(original);
+    expect(freshPreparation).not.toHaveBeenCalled();
+    expect(options.storage.setItem).not.toHaveBeenCalled();
+    expect(options.storage.removeItem).not.toHaveBeenCalled();
+  });
+  it("does not widen Safe adopted-call target or selector authority", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(
+      { ...scoped, safe: true },
+      options,
+    );
+    await journal.withLock(async () => {
+      for (const call of [
+        { ...input.call, to: WRAPPER },
+        { ...input.call, data: "0x11223344" as Hex },
+      ])
+        expect(() => journal.reserve(call)).toThrow("different recovery scope");
+      const actual = journal.reserve({
+        ...input.call,
+        value: 19n,
+        data: "0xaabbccdd9999",
+      });
+      expect(actual.namespace).toBe(namespace);
+      expect(actual.call.value).toBe("19");
+    });
+  });
+  it("shares unpersisted submitted hash evidence with the opener and retains exact repair ownership", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(scoped, options);
+    await journal.withLock(async () => {
+      journal.reserve();
+      options.storage.setItem.mockImplementationOnce(() => {
+        throw new Error("Quota");
+      });
+      expect(() => journal.submitted(HASH)).toThrow(
+        SubmittedWritePersistenceError,
+      );
+    });
+    const known = readBrowserWriteRecovery(lookup, options)!;
+    expect(known.hash).toBe(HASH);
+    const reloaded = createBrowserWriteRecovery(
+      { ...known, call: known.call },
+      options,
+    );
+    await reloaded.withLock(async () => {
+      expect(reloaded.submitted(HASH, known)).toEqual(known);
+      reloaded.clear(known);
+    });
+    expect(readBrowserWriteRecovery(lookup, options)).toBeNull();
+  });
+  it("rejects invalid scope and namespace before touching storage", () => {
+    const options = browser();
+    for (const namespace of [
+      "",
+      "a".repeat(129),
+      "Defifa:pay:27",
+      " space",
+      "../?",
+      "x\n",
+      null,
+      42,
+      undefined,
+    ]) {
+      if (namespace !== undefined)
+        expect(() =>
+          createBrowserWriteRecovery(
+            { ...input, namespace } as typeof scoped,
+            options,
+          ),
+        ).toThrow();
+      expect(() =>
+        readBrowserWriteRecovery(
+          { ...lookup, namespace } as typeof lookup,
+          options,
+        ),
+      ).toThrow();
+    }
+    for (const patch of [
+      { chainId: 0 },
+      { chainId: 1.5 },
+      { account: "invalid" },
+    ])
+      expect(() =>
+        readBrowserWriteRecovery(
+          { ...lookup, ...patch } as typeof lookup,
+          options,
+        ),
+      ).toThrow();
+    expect(options.storage.getItem).not.toHaveBeenCalled();
+  });
+  it("rejects corrupt or foreign namespace records without overwriting saved evidence", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(scoped, options);
+    const original = await journal.withLock(async () => journal.reserve());
+    const [key] = options.values.keys();
+    for (const raw of [
+      "{",
+      JSON.stringify({ ...original, namespace: "defifa:pay:28" }),
+      JSON.stringify({ ...original, namespace: "Invalid" }),
+    ]) {
+      options.values.set(key, raw);
+      expect(() => readBrowserWriteRecovery(lookup, options)).toThrow();
+      await expect(
+        journal.withLock(async () => journal.reserve()),
+      ).rejects.toThrow();
+      expect(options.values.get(key)).toBe(raw);
     }
   });
 });

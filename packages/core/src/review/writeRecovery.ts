@@ -19,6 +19,8 @@ export type ReviewedWriteRecoveryInput = {
   chainId: number;
   account: Address;
   safe: boolean;
+  /** Stable action/project scope, never a per-click ID or calldata fingerprint. */
+  namespace?: string;
   call: { to: Address; data: Hex; value?: bigint | string };
 };
 
@@ -78,6 +80,7 @@ function normalized(
   call: ReviewedWriteRecoveryRecord["call"];
 } {
   const value = uint256(input?.call?.value ?? 0n);
+  const namespace = namespaceOf(input?.namespace);
   if (
     typeof input?.safe !== "boolean" ||
     !isAddress(input?.call?.to, { strict: false }) ||
@@ -88,6 +91,7 @@ function normalized(
   return {
     ...normalizedIdentity(input),
     safe: input.safe,
+    ...(namespace === undefined ? {} : { namespace }),
     call: {
       to: input.call.to.toLowerCase() as Address,
       data: input.call.data.toLowerCase() as Hex,
@@ -123,8 +127,62 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
 export { recordOf as parseReviewedWriteRecoveryRecord };
 
 /** Amounts and quote changes must not evade an unresolved action. */
-function scope(input: ReviewedWriteRecoveryInput): string {
+function callScope(input: ReviewedWriteRecoveryInput): string {
   return `nana-sdk:reviewed-write:v1:${input.chainId}:${input.account}:${input.call.to}:${input.call.data.slice(0, 10)}`;
+}
+
+function namespaceOf(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (
+    typeof value !== "string" ||
+    !/^[a-z0-9][a-z0-9:._/-]{0,127}$/.test(value)
+  )
+    throw new Error("Invalid write recovery namespace.");
+  return value;
+}
+
+function namespaceScope(input: {
+  chainId: number;
+  account: Address;
+  namespace: string;
+}): string {
+  return `nana-sdk:reviewed-write:v1:namespace:${input.chainId}:${input.account}:${input.namespace}`;
+}
+
+function scope(input: ReviewedWriteRecoveryInput): string {
+  return input.namespace === undefined
+    ? callScope(input)
+    : namespaceScope({ ...input, namespace: input.namespace });
+}
+
+function recoveryStorage(store?: RecoveryStorage): RecoveryStorage {
+  const result = store ?? globalThis.localStorage;
+  if (!result) throw new Error("Write recovery storage is unavailable.");
+  return result;
+}
+
+export type ReviewedWriteRecoveryScope = Pick<
+  ReviewedWriteRecoveryInput,
+  "chainId" | "account"
+> & { namespace: string };
+
+/**
+ * Open the original namespaced action before fresh quotation or phase checks.
+ * No call is invented to locate evidence. Legacy actions retain factory.read().
+ * A namespace must stay stable across amount, target and quote changes.
+ */
+export function readBrowserWriteRecovery(
+  input: ReviewedWriteRecoveryScope,
+  options: { storage?: RecoveryStorage } = {},
+): ReviewedWriteRecoveryRecord | null {
+  const identity = normalizedIdentity(input);
+  const namespace = namespaceOf(input?.namespace);
+  if (namespace === undefined)
+    throw new Error("Provide a write recovery namespace.");
+  return readRecovery(
+    recoveryStorage(options.storage),
+    namespaceScope({ ...identity, namespace }),
+  );
 }
 
 function readStored(
@@ -169,7 +227,8 @@ export function sameReviewedWrite(
 }
 
 /**
- * One ordinary-write reservation per account/chain/target/selector. Use the
+ * One ordinary-write reservation per account/chain/target/selector by default,
+ * or per account/chain/explicit stable namespace when provided. Use the
  * existing domain journal instead when an action already has one. There is no
  * expiry or nonce-based release: an unknown broadcast remains unknown.
  *
@@ -187,8 +246,7 @@ export function createBrowserWriteRecovery(
   let lastStorage: RecoveryStorage | undefined;
 
   function storage(): RecoveryStorage {
-    const store = options.storage ?? globalThis.localStorage;
-    if (!store) throw new Error("Write recovery storage is unavailable.");
+    const store = recoveryStorage(options.storage);
     lastStorage = store;
     return store;
   }
@@ -262,7 +320,7 @@ export function createBrowserWriteRecovery(
       const actual = actualCall
         ? normalized({ ...reviewed, call: actualCall })
         : reviewed;
-      if (scope(actual) !== key)
+      if (callScope(actual) !== callScope(reviewed))
         throw new Error("The adopted write has a different recovery scope.");
       if (read())
         throw new Error(
