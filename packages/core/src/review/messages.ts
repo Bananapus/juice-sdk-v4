@@ -78,3 +78,23 @@ export const SAFE_PROPOSAL_EXECUTED_LINE = "Your Safe ran this transaction.";
 /** A quote released after its payment failed and its deadline passed. */
 export const RELAYR_PAYMENT_RELEASED_LINE =
   "Your payment didn't go through and its quote expired. Pay a new quote.";
+
+/** The review's line while held writes last only until this tab closes or reloads. */
+export const WRITE_HOLD_IN_TAB_LINE =
+  "This browser can't remember pending transactions. Check your wallet before repeating one.";
+
+/** A held write whose saved hash is still pending: no exit, the wallet ends it. */
+export const WRITE_HOLD_PENDING_LINE =
+  "Still pending in your wallet. Speed it up or cancel it there.";
+
+/** A write that reverted onchain, held until that is final so a retry can't double it. */
+export const WRITE_HOLD_REVERTED_LINE =
+  "This transaction failed onchain. You can try again in a few minutes.";
+
+/** A held write the chain can't check (saved with no nonce to look at). The exit is offered. */
+export const WRITE_HOLD_UNCHECKED_LINE =
+  "This transaction can't be checked onchain. Check your wallet before sending again.";
+
+/** A send stopped before the wallet because the account's nonce couldn't be read. */
+export const WRITE_HOLD_NONCE_LINE =
+  "Couldn't read your account from the network, so nothing was sent. Try again in a moment.";

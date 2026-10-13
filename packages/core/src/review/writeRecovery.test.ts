@@ -23,6 +23,7 @@ import {
   browserLocks,
   checkReviewedWrite,
   createBrowserWriteRecovery,
+  parseReviewedWriteRecoveryRecord,
   readReviewedWriteNonce,
   readBrowserWriteRecovery,
   sameReviewedWrite,
@@ -1219,6 +1220,8 @@ describe("releasing a write with no confirmed result", () => {
   const check = (client: unknown, record: ReviewedWriteRecoveryRecord) =>
     checkReviewedWrite(client as never, record);
   const pending = { status: "pending" };
+  /** Another transaction used the nonce at a finalized block: still held, with its evidence. */
+  const usedBy = { status: "pending", usedBy: SENT.toLowerCase() };
 
   it("records the account's next nonce and the block it was read at", async () => {
     const client = nonceChain();
@@ -1248,10 +1251,10 @@ describe("releasing a write with no confirmed result", () => {
     // The wallet may have sent it at a later nonce than the sample.
     const { record } = await reserved();
     for (const tx of [cancel, wrapped(SENT), { ...exact(SENT), value: 18n }])
-      await expect(check(nonceChain({ tx }), record)).resolves.toEqual(pending);
+      await expect(check(nonceChain({ tx }), record)).resolves.toEqual(usedBy);
     const hashed = { ...record, hash: HASH };
     await expect(check(nonceChain({ tx: cancel }), hashed)).resolves.toEqual(
-      pending,
+      usedBy,
     );
   });
 
@@ -1281,15 +1284,15 @@ describe("releasing a write with no confirmed result", () => {
     // wallet can run code, pay and clear its delegation in the same block.
     // The user's exit (one tap) ends it.
     await expect(check(nonceChain({ tx: cancel }), bound)).resolves.toEqual(
-      pending,
+      usedBy,
     );
     // A contract could run the reviewed call inside it.
     await expect(
       check(nonceChain({ tx: wrapped(SENT) }), bound),
-    ).resolves.toEqual(pending);
+    ).resolves.toEqual(usedBy);
     await expect(
       check(nonceChain({ tx: { ...cancel, to: null } }), bound),
-    ).resolves.toEqual(pending);
+    ).resolves.toEqual(usedBy);
     // A wallet speed-up: the exact call under a new hash.
     await expect(check(nonceChain(), bound)).resolves.toEqual({
       status: "sent",
@@ -1395,7 +1398,7 @@ describe("releasing a write with no confirmed result", () => {
       replaced.journal.withLock(() =>
         replaced.journal.resolve(nonceChain({ tx: cancel }) as never),
       ),
-    ).resolves.toEqual(pending);
+    ).resolves.toEqual(usedBy);
     expect(replaced.journal.read()?.sentNonce).toBe("7");
 
     const sent = await reserved();
@@ -1508,6 +1511,10 @@ describe("releasing a write with no confirmed result", () => {
 describe("tabs without Web Locks", () => {
   /** A tab: its own copy of the module, sharing the origin's storage and IndexedDB. */
   async function tab() {
+    // Each tab has its own globals; copies of the module in one tab share them.
+    delete (globalThis as Record<symbol, unknown>)[
+      Symbol.for("nana-sdk:write-lock-queues")
+    ];
     vi.resetModules();
     return (await import(
       "./writeRecovery.js"
@@ -1596,5 +1603,50 @@ describe("tabs without Web Locks", () => {
     const module = await tab();
     const journal = module.createBrowserWriteRecovery(input, { storage });
     await expect(journal.withLock(async () => "ran")).resolves.toBe("ran");
+  });
+});
+
+describe("a write the chain proved ran", () => {
+  it("keeps its execution evidence, refuses the exit and rejects malformed evidence", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(
+      { ...input, safe: true },
+      options,
+    );
+    const reserved = await journal.withLock(async () => journal.reserve());
+    expect(() => journal.executed(reserved)).toThrow("browser lock");
+    await journal.withLock(async () => {
+      // Nothing proven runs without a hash to name it.
+      expect(() => journal.executed(reserved)).toThrow("changed");
+      const sent = journal.submitted(PROPOSAL);
+      expect(() => journal.executed(sent, "0x12" as Hex)).toThrow(
+        "Invalid execution",
+      );
+      expect(() => journal.executed({ ...sent, id: "other" })).toThrow(
+        "changed",
+      );
+      expect(() => journal.executed({ ...sent, hash: HASH })).toThrow(
+        "changed",
+      );
+      const ran = journal.executed(
+        sent,
+        HASH.toUpperCase().replace("0X", "0x") as Hex,
+      );
+      expect(ran).toMatchObject({ executed: true, executionHash: HASH });
+      // Later evidence without a hash keeps the one already saved.
+      expect(journal.executed(ran)).toEqual(ran);
+      expect(journal.read()).toEqual(ran);
+    });
+    expect(() =>
+      journal.abandon(journal.read()!, { checkedWallet: true }),
+    ).toThrow("ran onchain");
+    for (const bad of [
+      { executed: false },
+      { executionHash: HASH },
+      { executed: true, executionHash: "0x12" },
+    ])
+      expect(() =>
+        parseReviewedWriteRecoveryRecord({ ...saved, ...bad }),
+      ).toThrow("Invalid saved write recovery record");
   });
 });

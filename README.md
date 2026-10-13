@@ -808,6 +808,80 @@ holds the action. With no IndexedDB either, the lock holds within the tab. It
 never refuses, and notes the fallback once in the console. `browserLocks()`
 returns the same lock manager for an app's own locks.
 
+### Adopting the write hold controller
+
+`createWriteHold` is the one controller around a wallet send. An app's
+`useSafeTx` keeps its UI state and wires four calls; the rules above live in
+the SDK.
+
+```ts
+import {
+  createWriteHold,
+  WriteHeldError,
+  WriteHoldBusyError,
+  WRITE_EXIT_LABEL,
+  writeExitMessage,
+} from "@bananapus/nana-sdk-core/review";
+
+const holds = createWriteHold({ safeService }); // one per app, at module scope
+const hold = holds.open({ chainId, account, safe: viaSafe, call });
+const stop = hold.subscribe(showHeld); // every state, this tab's and others'
+
+try {
+  await hold.send(publicClient, (gate) =>
+    submitReviewedContractWrite({
+      ...boundary,
+      review: async (request) =>
+        review(request, { description: holds.reviewLine() }),
+      beforeWrite: () => gate.beforeSend(),
+      onWriteSubmitted: (hash) => gate.afterSubmit(hash),
+      onWriteRejected: () => gate.onRejected(),
+      onBeforeWriteAborted: () => gate.onRejected(),
+    }),
+  );
+} catch (error) {
+  if (error instanceof WriteHeldError) showHeld(error.state);
+  else if (error instanceof WriteHoldBusyError) showError(error.message);
+  else showHeld(await hold.state(publicClient)); // a lost reply stays held
+}
+
+// The receipt watcher: a success releases at once, a revert at finality.
+await hold.onReceipt(receipt, publicClient);
+// A Safe follower may report a proven execution (with its transaction):
+await hold.onExecuted(publicClient, executionHash);
+
+// The exit, only on a state with `exit: true`, given the state the user saw:
+const { released } = await hold.exit(
+  shown,
+  { checkedWallet: true },
+  publicClient,
+);
+if (released) resend();
+```
+
+`hold.state(client)` is the one answer: `clear` (with how a hold just
+`settled`), `pending-known-hash` (no exit, `WRITE_HOLD_PENDING_LINE`),
+`held-no-hash` and `dropped-proven` (the exit, with `WRITE_EXIT_LABEL` and
+`writeExitMessage(state.record.call)`), `held-unchecked` (a record saved
+without a nonce: the exit, with `WRITE_HOLD_UNCHECKED_LINE`), and
+`ran-executed` (kept through reload until its result settles it, never a
+resend). A hash is dropped only when the node doesn't know it and a canonical
+finalized block shows another transaction ran at the nonce it was sent at
+(`sentNonce`, from its authenticated transaction); a send reads the account's
+nonce first, with one retry, or stops with `WriteHoldNonceError` before the
+wallet opens. Every state carries the record it was read from; `exit` refuses a
+snapshot that changed, and asks the chain once more, so a confirmation that
+lands meanwhile wins.
+
+Holds live in the browser's storage, or this tab's memory where storage is
+refused; `holds.reviewLine()` then returns `WRITE_HOLD_IN_TAB_LINE` for the
+review. Both stores are always read, and a memory hold moves into the browser's
+storage once it can be written. A send checks, reserves and hands the call to
+the wallet under one lock per exact call, so two flows or tabs never both send
+it. For a Safe write, `state` follows the proposal itself: replaced or expired
+releases, and a proven execution is settled from the receipt its canonical log
+names, without Safe's service.
+
 ### Safe proposals
 
 `lookAtSafeProposal` and `watchSafeProposal` end a proposal whose nonce another
@@ -815,7 +889,10 @@ transaction took. Once the Safe's nonce is past the proposal's at a canonical
 finalized block, a search of the Safe's nonce at past blocks finds the block
 where that nonce was used, and the Safe's ExecutionSuccess and ExecutionFailure
 events there decide: `executed` when one names its safeTxHash (read its receipt
-for the result), `replaced` when only others do (propose it again). `passed`
+for the result), `replaced` when only others do (propose it again).
+`lookAtSafeProposalEnd` and `watchSafeProposalEnd` also return the execution
+that log names (`{ executionHash, status }`), and read the chain's proof even
+when Safe's service already lists the proposal executed. `passed`
 remains while that can't be proven, as on a node without history; the app
 keeps showing the proposal with a link to the Safe queue.
 

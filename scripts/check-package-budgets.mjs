@@ -166,9 +166,16 @@ const budgets = {
     // or dependencies. With the 2.30.0 changelog entry and the binding checks
     // (each entry's chain, forwarder calls told apart by function): measured
     // 1,388,807 B packed / 21,398,286 B unpacked and 810 entries.
-    packed: 1_390_000,
-    unpacked: 21_400_000,
-    entries: 810,
+    // The write hold controller every app's send hook adopts (ruling R119:
+    // one owner for held writes, replacing four app copies) adds one module
+    // (writeHold) and eight artifacts. The tab-shared held-write storage, the
+    // proven-execution record fields, the dropped-nonce evidence and the
+    // Safe proposal end with its execution's transaction change existing
+    // artifacts. No dependencies: +23,245 B packed / +132,407 B unpacked.
+    // Measured 1,412,052 B packed / 21,530,693 B unpacked and 818 entries.
+    packed: 1_415_000,
+    unpacked: 21_535_000,
+    entries: 818,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

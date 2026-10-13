@@ -43,6 +43,13 @@ export type ReviewedWriteRecoveryRecord = Omit<
   fromBlock?: string;
   /** The nonce the chain showed for `hash`'s own transaction: the nonce it was actually sent at. */
   sentNonce?: string;
+  /**
+   * The chain proved the write ran (a Safe proposal whose nonce its own
+   * execution used). It is never offered a resend; its result settles it.
+   */
+  executed?: true;
+  /** The transaction the proven execution ran in, when known. */
+  executionHash?: Hex;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -53,6 +60,8 @@ export type ReviewedWriteNonceEvidence = {
 
 type RecoveryStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type RecoveryLocks = Pick<LockManager, "request">;
+const TAB_MEMORY = Symbol.for("nana-sdk:held-writes");
+const TAB_QUEUES = Symbol.for("nana-sdk:write-lock-queues");
 // A returned hash must survive a component remount even when its durable update
 // failed. It is visible only while the exact durable reservation still exists.
 const unpersistedSubmissions = new WeakMap<
@@ -127,7 +136,10 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     (record.hash !== undefined && !isBytes32(record.hash)) ||
     !optionalDecimal(record.nonce) ||
     !optionalDecimal(record.fromBlock) ||
-    !optionalDecimal(record.sentNonce)
+    !optionalDecimal(record.sentNonce) ||
+    (record.executed !== undefined && record.executed !== true) ||
+    (record.executionHash !== undefined &&
+      (record.executed !== true || !isBytes32(record.executionHash)))
   )
     throw new Error(
       "Invalid saved write recovery record. Keep this action pending.",
@@ -142,6 +154,10 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.nonce === undefined ? {} : { nonce: record.nonce }),
     ...(record.fromBlock === undefined ? {} : { fromBlock: record.fromBlock }),
     ...(record.sentNonce === undefined ? {} : { sentNonce: record.sentNonce }),
+    ...(record.executed ? { executed: true as const } : {}),
+    ...(record.executionHash === undefined
+      ? {}
+      : { executionHash: record.executionHash.toLowerCase() as Hex }),
   };
 }
 
@@ -196,6 +212,128 @@ function recoveryStorage(store?: RecoveryStorage): RecoveryStorage {
   const result = store ?? globalThis.localStorage;
   if (!result) throw new Error("Write recovery storage is unavailable.");
   return result;
+}
+
+/** Recovery storage that also says whether its records outlive this tab. */
+export type HeldWriteStorage = RecoveryStorage & {
+  /** Whether records are kept by the browser (shared by tabs, kept across reloads) right now. */
+  durable(): boolean;
+};
+
+const PROBE_KEY = "nana-sdk:reviewed-write:probe";
+
+function idOf(raw: string): string | undefined {
+  try {
+    const id = (JSON.parse(raw) as { id?: unknown } | null)?.id;
+    return typeof id === "string" ? id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The browser's storage, shared by its tabs and kept across reloads, while it
+ * can be written; this tab's memory while it can't (private browsing, a
+ * sandboxed frame, some wallet webviews), so a write is held either way and
+ * never refused. Every read looks at both. A record kept in memory moves into
+ * the browser's storage as soon as it can be written there, after any other
+ * live record saved at the same key ends. While the browser's storage can't
+ * be read, what this tab last read or wrote there still holds.
+ *
+ * `memory` defaults to one map per tab, shared by every copy of this module
+ * loaded there.
+ */
+export function createHeldWriteStorage(
+  options: {
+    durable?: () => RecoveryStorage | undefined;
+    memory?: Map<string, string>;
+  } = {},
+): HeldWriteStorage {
+  const durable =
+    options.durable ??
+    (() => globalThis.localStorage as RecoveryStorage | undefined);
+  const tab = globalThis as { [TAB_MEMORY]?: Map<string, string> };
+  const memory = options.memory ?? (tab[TAB_MEMORY] ??= new Map());
+  /** What this tab last saw in, or wrote to, durable storage. */
+  const seen = new Map<string, string>();
+  const read = (key: string): string | null | undefined => {
+    try {
+      const store = durable();
+      if (!store) return undefined;
+      const value = store.getItem(key);
+      if (value === null) seen.delete(key);
+      else seen.set(key, value);
+      return value;
+    } catch {
+      return undefined;
+    }
+  };
+  const write = (key: string, value: string): boolean => {
+    try {
+      const store = durable();
+      if (!store) return false;
+      store.setItem(key, value);
+      if (store.getItem(key) !== value) return false;
+      seen.set(key, value);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const getItem = (key: string): string | null => {
+    const saved = read(key);
+    const kept = memory.get(key);
+    if (saved === undefined) return kept ?? seen.get(key) ?? null;
+    if (kept === undefined) return saved;
+    if (saved === kept) {
+      memory.delete(key);
+      return saved;
+    }
+    const savedId = saved === null ? undefined : idOf(saved);
+    // Another live record saved there first is held first; this one waits.
+    if (
+      saved !== null &&
+      savedId !== idOf(kept) &&
+      !(savedId !== undefined && getItem(releasedKey(key, savedId)) !== null)
+    )
+      return saved;
+    if (write(key, kept)) memory.delete(key);
+    return kept;
+  };
+  return {
+    getItem,
+    setItem(key, value) {
+      const kept = memory.get(key);
+      if (write(key, value)) {
+        if (kept === value || (kept && idOf(kept) === idOf(value)))
+          memory.delete(key);
+      } else memory.set(key, value);
+    },
+    removeItem(key) {
+      const shown = getItem(key);
+      if (shown !== null && memory.get(key) === shown) {
+        memory.delete(key);
+        if (read(key) !== shown) return;
+      }
+      try {
+        durable()?.removeItem(key);
+      } catch {
+        /* The readback below decides. */
+      }
+      if (read(key) === null) seen.delete(key);
+    },
+    durable() {
+      const probe = String(Date.now());
+      if (!write(PROBE_KEY, probe)) return false;
+      try {
+        durable()!.removeItem(PROBE_KEY);
+      } catch {
+        /* A leftover probe names no write. */
+      }
+      seen.delete(PROBE_KEY);
+      return true;
+    },
+  };
 }
 
 export type ReviewedWriteRecoveryScope = Pick<
@@ -277,8 +415,11 @@ export function sameReviewedWrite(
   );
 }
 
-// Without Web Locks, writes in this tab still run one at a time per action.
-const tabQueues = new Map<string, Promise<void>>();
+// Without Web Locks, writes in this tab still run one at a time per action,
+// across every copy of this module loaded in the tab.
+const tabQueues = ((
+  globalThis as { [TAB_QUEUES]?: Map<string, Promise<void>> }
+)[TAB_QUEUES] ??= new Map<string, Promise<void>>());
 let tabLocksNoted = false;
 const tabLocks = {
   async request<T>(
@@ -689,6 +830,41 @@ export function createBrowserWriteRecovery(
     rejected,
     clear,
     /**
+     * Save the chain's proof that `expected` ran, with the transaction it ran
+     * in when known. From then on the user's exit refuses it: only its result
+     * ({@link verifyReviewedWriteReceipt}) releases it.
+     */
+    executed(
+      expected: ReviewedWriteRecoveryRecord,
+      executionHash?: Hex,
+    ): ReviewedWriteRecoveryRecord {
+      requireLock();
+      if (executionHash !== undefined && !isBytes32(executionHash))
+        throw new Error("Invalid execution transaction identity.");
+      const store = storage();
+      const { at, raw } = locate(store);
+      const current = readRecovery(store, at, raw, scopeAt(at));
+      const wanted = recordOf(expected);
+      if (
+        !current?.hash ||
+        current.id !== wanted.id ||
+        current.hash !== wanted.hash
+      )
+        throw new Error(
+          "Write recovery changed. Keep the current action pending.",
+        );
+      const next = recordOf({
+        ...current,
+        executed: true,
+        ...((executionHash ?? current.executionHash)
+          ? { executionHash: executionHash ?? current.executionHash }
+          : {}),
+      });
+      persist(next, at);
+      unpersistedSubmissions.get(store)?.delete(at);
+      return next;
+    },
+    /**
      * Check the saved write against the chain ({@link checkReviewedWrite}) and
      * apply the finding: `sent` records the hash to track, `ran` releases it.
      * Null when nothing is saved.
@@ -733,6 +909,10 @@ export function createBrowserWriteRecovery(
       const { at, raw } = locate(store);
       const durable = readStored(raw, at, scopeAt(at), store);
       if (!durable) return;
+      if (durable.executed)
+        throw new Error(
+          "This write ran onchain. Keep it held until its result is known.",
+        );
       const shown = readRecovery(store, at, raw, scopeAt(at));
       if (
         JSON.stringify(durable) !== wanted &&
@@ -773,8 +953,13 @@ export function createBrowserWriteRecovery(
 
 /** What the chain shows of a write with no confirmed result. */
 export type ReviewedWriteCheck =
-  /** Nothing proven yet. The user's exit (`abandon`) stays open. */
-  | { status: "pending" }
+  /**
+   * Nothing proven yet. The user's exit (`abandon`) stays open. `usedBy`:
+   * the node doesn't know the saved hash, and a canonical finalized block
+   * shows this other transaction used the nonce the write was sent at, so
+   * the saved hash can never run (a wrapper may still have run the call).
+   */
+  | { status: "pending"; usedBy?: Hex }
   /** The saved hash, or the exact call, is the transaction at its nonce: track that receipt. */
   | { status: "sent"; hash: Hex }
   /** The app's effect read shows the call took effect. */
@@ -908,7 +1093,7 @@ async function inspectWrite(
       // Another transaction at that nonce may have run the call inside it
       // (a wrapper, or an EIP-7702 wallet that ran code and then cleared its
       // delegation), so it proves nothing. The user's exit ends it.
-      return null;
+      return { status: "pending", usedBy: hash };
     },
   );
   return { check: proof?.value ?? pending.check };
