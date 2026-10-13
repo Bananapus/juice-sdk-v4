@@ -795,6 +795,72 @@ describe("a held write", () => {
     ).resolves.toMatchObject({ released: true });
   });
 
+  it("offers the exit for a hash the network still hasn't seen 30 minutes after the wallet returned it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const { hold } = setup();
+    const { chain, client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    expect(handle.peek()).toMatchObject({
+      record: { submittedAt: "1000000" },
+    });
+    vi.setSystemTime(1_000_000 + 29 * 60_000);
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      exit: false,
+    });
+    // A node that can't answer proves nothing, however long it has been.
+    vi.setSystemTime(1_000_000 + 31 * 60_000);
+    client.getTransaction.mockRejectedValueOnce(new Error("timeout"));
+    client.getTransaction.mockRejectedValueOnce(new Error("timeout"));
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+    });
+    const unchecked = await handle.state(client);
+    expect(unchecked).toMatchObject({
+      status: "held-unchecked",
+      hash: HASH,
+      exit: true,
+      line: WRITE_HOLD_UNCHECKED_LINE,
+    });
+    // It shows up later: it is followed as usual, and the old exit is refused.
+    chain.txs.push(sent(HASH));
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      record: { sentNonce: "7" },
+    });
+    await expect(
+      handle.exit(unchecked, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: false });
+    // A record saved before the clock existed keeps waiting on its nonce.
+    const { storage, locks, browser } = setup();
+    const legacy = createBrowserWriteRecovery(ordinary, { storage, locks });
+    await legacy.withLock(async () => {
+      const reserved = legacy.reserve(undefined, {
+        nonce: 7,
+        blockNumber: 100n,
+      });
+      const [key] = browser.values.keys();
+      browser.values.set(key, JSON.stringify({ ...reserved, hash: OTHER }));
+    });
+    await expect(
+      createWriteHold({ storage, locks })
+        .open(ordinary)
+        .state(fakeChain().client),
+    ).resolves.toMatchObject({ status: "pending-known-hash", hash: OTHER });
+    // Never broadcast: the exit releases it.
+    const second = setup();
+    const lost = second.hold.open(ordinary);
+    await lost.send(fakeChain().client, wallet(async () => OTHER).send);
+    vi.setSystemTime(1_000_000 + 62 * 60_000);
+    const never = await lost.state(fakeChain().client);
+    expect(never).toMatchObject({ status: "held-unchecked", hash: OTHER });
+    await expect(
+      lost.exit(never, { checkedWallet: true }, fakeChain().client),
+    ).resolves.toMatchObject({ released: true });
+  });
+
   it("proves a drop only from the nonce the hash was sent at, never the pre-wallet hint", async () => {
     const { hold } = setup();
     const { chain, client } = fakeChain();
@@ -1631,6 +1697,59 @@ describe("a held Safe proposal", () => {
       }),
     ).rejects.toBeInstanceOf(WriteHeldError);
     expect(proposals).toHaveBeenCalledOnce();
+  });
+
+  it("settles an execution returned at once whose outer transaction reverted as failed, once final", async () => {
+    vi.useFakeTimers();
+    const { hold } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(EXECUTION);
+    });
+    // Nothing ran on the Safe: the outer transaction reverted, with no logs.
+    fixture.chain.txs.push({
+      hash: EXECUTION,
+      from: ACCOUNT,
+      nonce: 0,
+      to: SAFE,
+      input: execInput(),
+      value: 0n,
+      block: 95n,
+      status: "reverted",
+    });
+    fixture.chain.head = 120n;
+    fixture.chain.finalized = 94n;
+    const held = await handle.state(fixture.client);
+    expect(held).toMatchObject({
+      status: "ran-executed",
+      executionHash: EXECUTION,
+      exit: false,
+    });
+    await expect(
+      handle.exit(
+        { ...held, exit: true } as WriteHoldState,
+        { checkedWallet: true },
+        fixture.client,
+      ),
+    ).resolves.toMatchObject({ released: false });
+    const seen: WriteHoldState[] = [];
+    handle.subscribe((state) => seen.push(state));
+    fixture.chain.finalized = 96n;
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(seen[seen.length - 1]).toEqual({
+      status: "clear",
+      settled: { result: "failed", hash: EXECUTION },
+    });
+    // A retry is allowed.
+    const retry = vi.fn();
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      retry();
+    });
+    expect(retry).toHaveBeenCalledOnce();
+    hold.dispose();
   });
 
   it("holds an execution returned at once that failed until the failure is final", async () => {

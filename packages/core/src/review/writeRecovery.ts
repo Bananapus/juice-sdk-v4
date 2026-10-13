@@ -50,6 +50,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
   executed?: true;
   /** The transaction the proven execution ran in, when known. */
   executionHash?: Hex;
+  /** When the wallet returned `hash`, in milliseconds since the epoch, as a decimal string. */
+  submittedAt?: string;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -137,6 +139,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.nonce) ||
     !optionalDecimal(record.fromBlock) ||
     !optionalDecimal(record.sentNonce) ||
+    !optionalDecimal(record.submittedAt) ||
     (record.executed !== undefined && record.executed !== true) ||
     (record.executionHash !== undefined &&
       (record.executed !== true || !isBytes32(record.executionHash)))
@@ -154,6 +157,9 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.nonce === undefined ? {} : { nonce: record.nonce }),
     ...(record.fromBlock === undefined ? {} : { fromBlock: record.fromBlock }),
     ...(record.sentNonce === undefined ? {} : { sentNonce: record.sentNonce }),
+    ...(record.submittedAt === undefined
+      ? {}
+      : { submittedAt: record.submittedAt }),
     ...(record.executed ? { executed: true as const } : {}),
     ...(record.executionHash === undefined
       ? {}
@@ -393,8 +399,8 @@ function readRecovery(
   if (
     !record ||
     !memory ||
-    JSON.stringify({ ...record, hash: undefined }) !==
-      JSON.stringify({ ...memory, hash: undefined }) ||
+    JSON.stringify({ ...record, hash: undefined, submittedAt: undefined }) !==
+      JSON.stringify({ ...memory, hash: undefined, submittedAt: undefined }) ||
     (record.hash && record.hash !== memory.hash)
   ) {
     // A readable durable snapshot also proves whether cached evidence is stale.
@@ -723,7 +729,16 @@ export function createBrowserWriteRecovery(
     ) {
       throw new Error("Write recovery changed before submission was recorded.");
     }
-    const submitted = { ...previous, hash: submittedHash };
+    // A hash the wallet returns now starts its clock; a speed-up found at its nonce keeps it.
+    const submittedAt =
+      replace || previous.hash === submittedHash
+        ? previous.submittedAt
+        : String(Date.now());
+    const submitted = recordOf({
+      ...previous,
+      hash: submittedHash,
+      ...(submittedAt === undefined ? {} : { submittedAt }),
+    });
     let raw: string | null;
     let at = key;
     try {
@@ -737,8 +752,16 @@ export function createBrowserWriteRecovery(
     const current = readStored(raw, at, scopeAt(at));
     if (
       !current ||
-      JSON.stringify({ ...current, hash: undefined }) !==
-        JSON.stringify({ ...previous, hash: undefined }) ||
+      JSON.stringify({
+        ...current,
+        hash: undefined,
+        submittedAt: undefined,
+      }) !==
+        JSON.stringify({
+          ...previous,
+          hash: undefined,
+          submittedAt: undefined,
+        }) ||
       (!replace && current.hash && current.hash !== submittedHash)
     ) {
       throw new Error("Write recovery changed before submission was recorded.");
@@ -1197,7 +1220,15 @@ export async function verifyReviewedWriteReceipt(
 
   let status: "success" | "failed" =
     canonical.status === "success" ? "success" : "failed";
-  if (record.safe) {
+  // An execution the wallet returned at once whose own transaction reverted
+  // ran nothing on the Safe: a failure, once final, when it was sent to it.
+  const atOnceReverted =
+    record.safe &&
+    canonical.status === "reverted" &&
+    hash.toLowerCase() === record.hash;
+  if (atOnceReverted) {
+    if (transaction.to?.toLowerCase() !== record.account) throw pending();
+  } else if (record.safe) {
     if (
       !Array.isArray(canonical.logs) ||
       canonical.logs.some(

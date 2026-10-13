@@ -65,7 +65,9 @@ type Held<S extends string, Extra> = {
  *   nonce read before the wallet opened only locates the call). The exit is
  *   offered;
  * - `held-unchecked`: a saved hash the node doesn't know, on a record saved
- *   with no nonce to check. The exit is offered, with a line that says so;
+ *   with no nonce to check, or 30 minutes after the wallet returned it. The
+ *   exit is offered, with a line that says so; a hash that shows up later is
+ *   followed as usual;
  * - `ran-executed`: the chain shows it ran (a Safe execution, or a revert
  *   not final yet). It is kept until its result settles it, and never offered
  *   a resend.
@@ -126,6 +128,8 @@ export type WriteHoldGate = {
 type Locks = Pick<LockManager, "request">;
 
 const SETTLE_POLL_MS = 15_000;
+/** A hash the network still hasn't seen this long after the wallet returned it was almost certainly never broadcast. */
+const UNSEEN_HASH_MS = 30 * 60_000;
 /** About an hour of polls; a later state() looks again. */
 const SETTLE_POLL_ATTEMPTS = 240;
 
@@ -410,8 +414,10 @@ export function createWriteHold(
         };
       if (
         record.hash &&
-        record.nonce === undefined &&
         record.sentNonce === undefined &&
+        (record.nonce === undefined ||
+          Date.now() - Number(record.submittedAt ?? Date.now()) >=
+            UNSEEN_HASH_MS) &&
         (await client.getTransaction({ hash: record.hash }).then(
           () => false,
           (error: { name?: unknown } | null) =>

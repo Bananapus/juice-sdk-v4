@@ -87,6 +87,8 @@ function browser() {
 afterEach(() => vi.unstubAllGlobals());
 
 const legacyInput = input;
+/** When the wallet returned a hash. */
+const AT = expect.stringMatching(/^\d+$/);
 function ordinaryRecovery(namespace?: string) {
   const input = {
     ...legacyInput,
@@ -382,8 +384,8 @@ function ordinaryRecovery(namespace?: string) {
     await expect(
       older.withLock(async () => older.submitted(HASH, previous)),
     ).rejects.toThrow(SubmittedWritePersistenceError);
-    const known = { ...reserved, hash: PROPOSAL };
-    expect(current.read()).toEqual(known);
+    const known = current.read()!;
+    expect(known).toEqual({ ...reserved, hash: PROPOSAL, submittedAt: AT });
     expect(createBrowserWriteRecovery(input, options).read()).toEqual(known);
     expect(JSON.parse([...options.values.values()][0])).toEqual(reserved);
     await current.withLock(async () => {
@@ -422,7 +424,11 @@ function ordinaryRecovery(namespace?: string) {
       expect(() => current.submitted(PROPOSAL)).toThrow(
         SubmittedWritePersistenceError,
       );
-      expect(current.read()).toEqual({ ...reserved, hash: PROPOSAL });
+      expect(current.read()).toEqual({
+        ...reserved,
+        hash: PROPOSAL,
+        submittedAt: AT,
+      });
     });
   });
 
@@ -451,7 +457,11 @@ function ordinaryRecovery(namespace?: string) {
         SubmittedWritePersistenceError,
       );
     });
-    expect(current.read()).toEqual({ ...reserved, hash: PROPOSAL });
+    expect(current.read()).toEqual({
+      ...reserved,
+      hash: PROPOSAL,
+      submittedAt: AT,
+    });
     expect(JSON.parse([...options.values.values()][0])).toEqual(reserved);
   });
 
@@ -704,6 +714,38 @@ describe("reviewed receipt recovery proof", () => {
     });
     await expect(
       verifyReviewedWriteReceipt(run.client, saved, run.receipt),
+    ).rejects.toThrow("pending");
+  });
+
+  it("settles an immediate execution whose outer transaction reverted as failed, only at finality and only to the Safe", async () => {
+    const run = safeChain();
+    run.receipt.status = "reverted";
+    run.receipt.logs = [];
+    const record = { ...saved, safe: true, hash: HASH };
+    run.client.getBlock.mockResolvedValueOnce({
+      hash: BLOCK,
+      number: 6n,
+      timestamp: 100n,
+    });
+    await expect(
+      verifyReviewedWriteReceipt(run.client, record, run.receipt),
+    ).rejects.toThrow("pending");
+    await expect(
+      verifyReviewedWriteReceipt(run.client, record, run.receipt),
+    ).resolves.toBe("failed");
+    // A reverted executor of a proposal has not consumed its nonce: still held.
+    await expect(
+      verifyReviewedWriteReceipt(
+        run.client,
+        { ...record, hash: PROPOSAL },
+        run.receipt,
+      ),
+    ).rejects.toThrow("pending");
+    // A reverted transaction to another contract is not the Safe's execution.
+    run.transaction.to = WRAPPER;
+    run.receipt.to = WRAPPER;
+    await expect(
+      verifyReviewedWriteReceipt(run.client, record, run.receipt),
     ).rejects.toThrow("pending");
   });
 

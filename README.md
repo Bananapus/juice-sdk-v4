@@ -862,8 +862,9 @@ if (released) resend();
 `hold.state(client)` is the one answer: `clear` (with how a hold just
 `settled`), `pending-known-hash` (no exit, `WRITE_HOLD_PENDING_LINE`),
 `held-no-hash` and `dropped-proven` (the exit, with `WRITE_EXIT_LABEL` and
-`writeExitMessage(state.record.call)`), `held-unchecked` (a record saved
-without a nonce: the exit, with `WRITE_HOLD_UNCHECKED_LINE`), and
+`writeExitMessage(state.record.call)`), `held-unchecked` (a hash the node
+doesn't know, saved without a nonce or unseen 30 minutes after the wallet
+returned it: the exit, with `WRITE_HOLD_UNCHECKED_LINE`), and
 `ran-executed` (kept through reload until its result settles it, never a
 resend). A hash is dropped only when the node doesn't know it and a canonical
 finalized block shows another transaction ran at the nonce it was sent at

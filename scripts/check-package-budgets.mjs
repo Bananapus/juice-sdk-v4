@@ -173,8 +173,13 @@ const budgets = {
     // Safe proposal end with its execution's transaction change existing
     // artifacts. No dependencies: +23,245 B packed / +132,407 B unpacked.
     // Measured 1,412,052 B packed / 21,530,693 B unpacked and 818 entries.
+    // The rulings on its two dead ends (a hash unseen 30 minutes after the
+    // wallet returned it gets the exit; an at-once Safe execution whose own
+    // transaction reverted settles as failed once final) change existing
+    // artifacts only: +1,071 B packed / +5,286 B unpacked. Measured
+    // 1,413,123 B packed / 21,535,979 B unpacked and 818 entries.
     packed: 1_415_000,
-    unpacked: 21_535_000,
+    unpacked: 21_540_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {
