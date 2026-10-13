@@ -592,12 +592,12 @@ What each app replaces:
   its reconcile). A launch whose nonce moved can never be cancelled there; with
   these rules it ends with the `ran` Discard.
 
-### Request deadlines and superseding an unpaid session
+### Request deadlines
 
 Signed requests stay executable for 2 hours by default
 (`RELAYR_FORWARDER_DEADLINE_SECONDS`), not 47: a session reserves its
-signers' nonces while one of its requests is live, so a launch held behind an
-abandoned session waits at most 2 hours. `relayrForwarderDeadline({ seconds,
+signers' nonces while one of its requests is live (R114 (g), R117), so an
+action held behind an abandoned session waits at most 2 hours. `relayrForwarderDeadline({ seconds,
 nowSeconds })` is the deadline to sign with; it accepts 1 to 47 hours (Relayr
 refuses 48 or more).
 
@@ -610,63 +610,6 @@ saved without `requestsDeadline` is read from its `expectedTransactions`, and
 one whose forwarded requests can't be read offers no option. An app that
 refreshes signatures before quoting refreshes them once less than the payment
 window plus that margin is left, or quotes come back with no payable option.
-
-Ruling R119 lets an ordinary action replace an earlier session nobody paid
-for, instead of waiting for its requests to die:
-
-```ts
-import {
-  relayrSignedRequests,
-  relayrSupersede,
-} from "@bananapus/nana-sdk-core/review/relayr";
-import {
-  relayrSupersedeHeldMessage,
-  relayrSupersededLine,
-} from "@bananapus/nana-sdk-core/review";
-
-const outcome = await relayrSupersede(
-  clientFor,
-  relayrSignedRequests(session.publishedEntries, session.nonces),
-  {
-    bundleUuid: session.bundleUuid,
-    options: session.quote?.payment_info,
-    expectedTransactions: session.quote?.expectedTransactions,
-    destinationChainIds,
-    paymentAttempted: session.payments.length > 0,
-    launch: sessionLaunches || newCallsLaunch,
-  },
-);
-if (outcome.kind === "supersede") {
-  // Sign the new calls at outcome.nonces, then show:
-  relayrSupersededLine("payment");
-} else if (outcome.kind === "hold") {
-  relayrSupersedeHeldMessage(outcome);
-}
-```
-
-It supersedes only when the app says neither session launches a project
-(`launch: false`; launches keep waiting), no payment was attempted, every
-request is live with none moved and each saved nonce known, and the chain
-proves the quote unpaid: on each payment chain a canonical finalized block is
-past the option's deadline (the payment contract refuses later payments), and
-no `Prepayment` event for the bundle was logged from the quote's time to the
-deadline (500 blocks per read, at most 10,000 blocks). The quote's time is
-Relayr's `created_at`, read fresh before the search: no payment can name the
-bundle before Relayr made it. Every block of that second is searched, and a
-record without one holds until the requests' deadline. The device's clock is
-never a bound. The forwarder's latest nonce must still equal the saved one,
-and Relayr's record, read again last, must give the same quote time, report
-no payment, quote exactly the saved options, and list each saved call once
-with its exact request, pending, and nothing else. Anything unread holds. `released` means every request is dead, and the
-session rules above apply.
-
-While it waits only for finality past the quote's deadline (minutes on L2s,
-about 15 minutes on Ethereum) and every other check passed, the outcome is
-`hold` with `reason: "finality"`, and `relayrSupersedeHeldMessage` shows
-`RELAYR_FINALITY_HOLD_LINE`, "Try again in a few minutes." Every other hold
-shows `relayrHeldMessage(until)`. A session that signed but never got a quote has nothing to read at
-Relayr and holds until its requests' deadline. Known limit: anyone holding an
-old signature can still run it at its nonce first; the new request then fails.
 
 ### Quotes whose payment reverted
 
@@ -882,9 +825,7 @@ keeps showing the proposal with a link to the Safe queue.
 `relayrHeldMessage(until, { action, formatTime })`, `relayrDiscardLine(reason,
 { action, subject, paymentUnmatched })`, `writeHeldMessage`,
 `writeExitMessage`, `WRITE_EXIT_LABEL`, `SAFE_PROPOSAL_REPLACED_LINE`,
-`SAFE_PROPOSAL_EXECUTED_LINE`, `RELAYR_PAYMENT_RELEASED_LINE`,
-`relayrSupersededLine(action)`, `RELAYR_FINALITY_HOLD_LINE` and
-`relayrSupersedeHeldMessage(hold, options)`. Each names
+`SAFE_PROPOSAL_EXECUTED_LINE` and `RELAYR_PAYMENT_RELEASED_LINE`. Each names
 the action, never the service, in one short line. `transactionMessage` now
 writes "Relayr's" as "the" and a bare "Relayr" as "the network".
 

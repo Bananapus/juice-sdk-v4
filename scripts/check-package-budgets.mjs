@@ -160,22 +160,13 @@ const budgets = {
     // exit can't erase a newer write; a memory-only hash still exits) adds
     // +1,911 B packed / +9,252 B unpacked to existing artifacts.
     // Measured 1,384,151 B packed / 21,377,972 B unpacked and 810 entries.
-    // Ruling R119's supersede rule (2-hour request deadlines and their
-    // helper, the quote's request deadline and the 30-minute run margin on
-    // payment options, relayrSupersede and its one line of copy) changes
-    // existing artifacts only, no files or dependencies. With the 2.30.0
-    // changelog entry: measured 1,392,124 B packed / 21,417,085 B unpacked and
-    // 810 entries.
-    // Its review fixes (the unpaid proof from the chain's finalized logs,
-    // Relayr's fresh record matched to the saved options and calls, and the
-    // requests' deadline read from a restored quote's bindings) change
-    // existing artifacts only: +6,987 B packed / +31,850 B unpacked.
-    // Measured 1,399,111 B packed / 21,448,935 B unpacked and 810 entries.
-    // The finality hold reason and its line add +1,186 B packed / +4,964 B
-    // unpacked to existing artifacts. Measured 1,400,297 B packed /
-    // 21,453,899 B unpacked and 810 entries.
-    packed: 1_402_000,
-    unpacked: 21_456_000,
+    // The 2-hour request deadline and its helper, the quote's request
+    // deadline (read from a restored quote's bindings too) and the 30-minute
+    // run margin on payment options change existing artifacts only, no files
+    // or dependencies. With the 2.30.0 changelog entry: measured 1,388,356 B
+    // packed / 21,396,005 B unpacked and 810 entries.
+    packed: 1_390_000,
+    unpacked: 21_398_000,
     entries: 810,
   },
   "@bananapus/nana-sdk-react": {

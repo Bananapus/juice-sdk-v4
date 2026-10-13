@@ -182,7 +182,6 @@ describe("published core SDK surfaces", () => {
       "relayrStateIsFailed",
       "relayrStateIsPending",
       "relayrStateIsSuccess",
-      "relayrSupersede",
       "relayrSupportsChain",
       "relayrSupportsChains",
       "relayrWalletPaymentError",

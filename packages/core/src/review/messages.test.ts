@@ -1,15 +1,12 @@
 import { describe, expect, it } from "vitest";
 import * as review from "./index.js";
 import {
-  RELAYR_FINALITY_HOLD_LINE,
   RELAYR_PAYMENT_RELEASED_LINE,
   SAFE_PROPOSAL_EXECUTED_LINE,
   SAFE_PROPOSAL_REPLACED_LINE,
   WRITE_EXIT_LABEL,
   relayrDiscardLine,
   relayrHeldMessage,
-  relayrSupersededLine,
-  relayrSupersedeHeldMessage,
   writeExitMessage,
   writeHeldMessage,
 } from "./messages.js";
@@ -31,9 +28,6 @@ const lines = () => [
   SAFE_PROPOSAL_REPLACED_LINE,
   SAFE_PROPOSAL_EXECUTED_LINE,
   RELAYR_PAYMENT_RELEASED_LINE,
-  relayrSupersededLine(),
-  relayrSupersededLine("launch"),
-  RELAYR_FINALITY_HOLD_LINE,
 ];
 
 describe("shared held and discard copy", () => {
@@ -85,33 +79,6 @@ describe("shared held and discard copy", () => {
     );
   });
 
-  it("says in one line that an unpaid earlier action is replaced", () => {
-    expect(relayrSupersededLine()).toBe(
-      "Your earlier unpaid action is replaced by this one.",
-    );
-    expect(relayrSupersededLine("payment")).toBe(
-      "Your earlier unpaid payment is replaced by this one.",
-    );
-  });
-
-  it("asks for a few minutes while only finality holds a supersede, and names the time otherwise", () => {
-    expect(RELAYR_FINALITY_HOLD_LINE).toBe("Try again in a few minutes.");
-    expect(
-      relayrSupersedeHeldMessage({ until: UNTIL, reason: "finality" }),
-    ).toBe(RELAYR_FINALITY_HOLD_LINE);
-    expect(
-      relayrSupersedeHeldMessage(
-        { until: UNTIL },
-        { action: "payment", nowMs: 0, formatTime: at },
-      ),
-    ).toBe(
-      relayrHeldMessage(UNTIL, { action: "payment", nowMs: 0, formatTime: at }),
-    );
-    expect(relayrSupersedeHeldMessage({ until: UNTIL })).toBe(
-      relayrHeldMessage(UNTIL),
-    );
-  });
-
   it("keeps every line to one short sentence pair, free of mechanism names and em dashes", () => {
     for (const line of lines()) {
       expect(line).not.toMatch(/relayr|execution service|—/i);
@@ -124,7 +91,5 @@ describe("shared held and discard copy", () => {
     expect(review.relayrHeldMessage).toBe(relayrHeldMessage);
     expect(review.relayrDiscardLine).toBe(relayrDiscardLine);
     expect(review.writeExitMessage).toBe(writeExitMessage);
-    expect(review.relayrSupersededLine).toBe(relayrSupersededLine);
-    expect(review.relayrSupersedeHeldMessage).toBe(relayrSupersedeHeldMessage);
   });
 });
