@@ -59,10 +59,50 @@ export const RELAYR_NATIVE_TOKEN =
 export const RELAYR_PAYMENT_GAS = 150_000n;
 
 /**
- * How long a signed ERC-2771 ForwardRequest stays executable: 47 hours from
- * signing. The forwarder rejects it afterwards, even if the bundle was paid.
+ * How long a signed ERC-2771 ForwardRequest stays executable by default: 2
+ * hours from signing. The forwarder rejects it afterwards, even if the bundle
+ * was paid. A saved session holds its signers' nonces while one of its
+ * requests is live (ruling R117), so a short deadline frees them sooner.
+ * {@link relayrForwarderDeadline} signs with it.
  */
-export const RELAYR_FORWARDER_DEADLINE_SECONDS = 47 * 60 * 60;
+export const RELAYR_FORWARDER_DEADLINE_SECONDS = 2 * 60 * 60;
+
+/** The shortest and longest a signed request may stay executable: Relayr refuses 48 hours or more. */
+const FORWARDER_DEADLINE_MIN_SECONDS = 60 * 60;
+const FORWARDER_DEADLINE_MAX_SECONDS = 47 * 60 * 60;
+
+/**
+ * The time Relayr is given to run a bundle's requests after its quote's
+ * payment deadline: a payment option is offered only when its deadline is at
+ * least this long before the earliest signed request's (see
+ * {@link relayrPaymentDetails}). An app that refreshes signatures before a
+ * quote refreshes them once less than the payment window plus this margin is
+ * left.
+ */
+export const RELAYR_REQUEST_RUN_MARGIN_SECONDS = 30 * 60;
+
+/**
+ * The deadline to sign a ForwardRequest with: `seconds` (by default
+ * {@link RELAYR_FORWARDER_DEADLINE_SECONDS}) after `nowSeconds` (the clock by
+ * default), in whole seconds. Throws unless `seconds` is a whole number from
+ * 1 hour to 47 hours.
+ */
+export function relayrForwarderDeadline({
+  seconds = RELAYR_FORWARDER_DEADLINE_SECONDS,
+  nowSeconds = Date.now() / 1_000,
+}: { seconds?: number; nowSeconds?: number } = {}): number {
+  if (
+    !Number.isSafeInteger(seconds) ||
+    seconds < FORWARDER_DEADLINE_MIN_SECONDS ||
+    seconds > FORWARDER_DEADLINE_MAX_SECONDS
+  ) {
+    throw new Error("A signed request must stay executable for 1 to 47 hours.");
+  }
+  if (!Number.isFinite(nowSeconds) || nowSeconds < 0) {
+    throw new Error("Invalid time for a signed request's deadline.");
+  }
+  return Math.floor(nowSeconds) + seconds;
+}
 
 /** ERC2771Context's view on a destination contract. */
 export const TRUSTED_FORWARDER_ABI = [
@@ -180,6 +220,12 @@ export type RelayrQuote = {
   transactions: RelayrTransactionRecord[];
   /** Each posted transaction with its quoted ID, in posted order. */
   expectedTransactions: RelayrTransactionBinding[];
+  /**
+   * The earliest deadline (seconds) of the bundle's signed forward requests,
+   * when it has any: {@link relayrPaymentOptions} offers only options paid
+   * {@link RELAYR_REQUEST_RUN_MARGIN_SECONDS} before it.
+   */
+  requestsDeadline?: number;
 };
 
 /**
@@ -769,12 +815,62 @@ export async function bindRelayrQuote(
   ) {
     throw new Error(UNBOUND);
   }
+  const requestsDeadline = requestsDeadlineOf(expectedTransactions);
   return {
     bundle_uuid: bundleUuid,
     payment_info: body.payment_info as RelayrPayment[],
     transactions: bound,
     expectedTransactions,
+    ...(typeof requestsDeadline === "number" ? { requestsDeadline } : {}),
   };
+}
+
+/**
+ * The earliest deadline of the signed forward requests among a quote's
+ * bindings: undefined when none is a forward request, and null when one can't
+ * be read. Each binding must name its entry's chain, a Relayr chain. A call to
+ * the chain's forwarder counts as raw only when it decodes to a function that
+ * forwards nothing (a view such as `eip712Domain`); an `execute` must be one
+ * {@link relayrForwardRequest} reads, and anything else (an `executeBatch`,
+ * calldata that doesn't decode) can't be read.
+ */
+function requestsDeadlineOf(bindings: unknown): number | null | undefined {
+  if (!Array.isArray(bindings)) return null;
+  let earliest: number | undefined;
+  for (const binding of bindings) {
+    const { chain, entry } = (binding ?? {}) as {
+      chain?: unknown;
+      entry?: Partial<RelayrEntry> | null;
+    };
+    if (
+      !entry ||
+      typeof entry !== "object" ||
+      typeof chain !== "number" ||
+      entry.chain !== chain ||
+      !relayrSupportsChain(chain)
+    ) {
+      return null;
+    }
+    if (!sameAddress(entry.target, forwarderOn(chain)!)) continue;
+    let functionName: string;
+    try {
+      ({ functionName } = decodeFunctionData({
+        abi: erc2771ForwarderAbi,
+        data: entry.data as Hex,
+      }));
+    } catch {
+      return null;
+    }
+    if (functionName === "executeBatch") return null;
+    if (functionName !== "execute") continue;
+    const request = relayrForwardRequest(entry as RelayrEntry);
+    if (!request) return null;
+    earliest =
+      earliest === undefined
+        ? request.deadline
+        : Math.min(earliest, request.deadline);
+  }
+  return earliest;
 }
 
 /** A quoted deadline in seconds: integer seconds, or an RFC 3339 time with an offset. */
@@ -827,7 +923,12 @@ function paymentCalldataFor(calldata: unknown, bundleUuid: string): boolean {
  * the destinations' network family, Relayr's payment contract and native
  * token (in lower case or with their EIP-55 checksum), calldata that pays for
  * exactly `bundleUuid` with the quoted deadline, and a deadline more than 15
- * seconds away. Throws otherwise.
+ * seconds away. With `requestsDeadline`, the earliest deadline of the bundle's
+ * signed requests, or `expectedTransactions`, the quote's bindings it is read
+ * from, the payment deadline must also be at least
+ * {@link RELAYR_REQUEST_RUN_MARGIN_SECONDS} before the earliest of them, so a
+ * paid bundle's requests can still run; bindings with a forwarder call that
+ * can't be read refuse every option. Throws otherwise.
  */
 export function relayrPaymentDetails(
   payment: RelayrPayment,
@@ -835,10 +936,14 @@ export function relayrPaymentDetails(
     bundleUuid,
     destinationChainIds,
     nowSeconds = Date.now() / 1_000,
+    requestsDeadline,
+    expectedTransactions,
   }: {
     bundleUuid: string;
     destinationChainIds: readonly number[];
     nowSeconds?: number;
+    requestsDeadline?: number | bigint;
+    expectedTransactions?: readonly RelayrTransactionBinding[];
   },
 ): RelayrPaymentDetails {
   const chainId = (payment as Partial<RelayrPayment> | null)?.chain;
@@ -886,6 +991,25 @@ export function relayrPaymentDetails(
     );
   }
   if (quoteExpired(deadline, nowSeconds)) throw new Error(EXPIRED);
+  const ends = [
+    requestsDeadline,
+    expectedTransactions === undefined
+      ? undefined
+      : requestsDeadlineOf(expectedTransactions),
+  ].filter((end) => end !== undefined);
+  for (const value of ends) {
+    const end = uint256(value);
+    if (end === null) {
+      throw new Error(
+        "This quote's signed requests can't be read. Review the action again.",
+      );
+    }
+    if (deadline + BigInt(RELAYR_REQUEST_RUN_MARGIN_SECONDS) > end) {
+      throw new Error(
+        "This quote's payment window ends too close to when the signed requests expire. Review the action again.",
+      );
+    }
+  }
   return {
     chainId,
     target: RELAYR_PAYMENT_ADDRESS,
@@ -898,14 +1022,16 @@ export function relayrPaymentDetails(
 
 /**
  * The payment options to offer: each passes {@link relayrPaymentDetails} for
- * the quote's bundle and destinations, one per chain (Relayr's first), copied
+ * the quote's bundle and destinations (and, when the quote has them, its
+ * `requestsDeadline` and the bindings it is read from), one per chain (Relayr's first), copied
  * so the quote's owner cannot change one under a later review. A chain with
  * any option whose contract or token is not an address as viem's strict check
  * reads one (in lower case, or with a valid EIP-55 checksum) gets no option:
  * Relayr's answer for that chain is corrupted.
  */
 export function relayrPaymentOptions(
-  quote: Pick<RelayrQuote, "bundle_uuid" | "payment_info">,
+  quote: Pick<RelayrQuote, "bundle_uuid" | "payment_info"> &
+    Partial<Pick<RelayrQuote, "requestsDeadline" | "expectedTransactions">>,
   destinationChainIds: readonly number[],
   nowSeconds?: number,
 ): RelayrPayment[] {
@@ -929,6 +1055,13 @@ export function relayrPaymentOptions(
         bundleUuid: quote.bundle_uuid,
         destinationChainIds,
         nowSeconds,
+        // A key present with an unreadable value refuses every option.
+        ...("requestsDeadline" in quote
+          ? { requestsDeadline: quote.requestsDeadline as number }
+          : {}),
+        ...("expectedTransactions" in quote
+          ? { expectedTransactions: quote.expectedTransactions }
+          : {}),
       }));
     } catch {
       continue;

@@ -592,6 +592,25 @@ What each app replaces:
   its reconcile). A launch whose nonce moved can never be cancelled there; with
   these rules it ends with the `ran` Discard.
 
+### Request deadlines
+
+Signed requests stay executable for 2 hours by default
+(`RELAYR_FORWARDER_DEADLINE_SECONDS`), not 47: a session reserves its
+signers' nonces while one of its requests is live (R114 (g), R117), so an
+action held behind an abandoned session waits at most 2 hours. `relayrForwarderDeadline({ seconds,
+nowSeconds })` is the deadline to sign with; it accepts 1 to 47 hours (Relayr
+refuses 48 or more).
+
+A quote's payment window is about 10 minutes, and Relayr needs time to run a
+paid bundle before its requests expire. `bindRelayrQuote` records the
+earliest request deadline as `requestsDeadline`, and `relayrPaymentDetails`
+and `relayrPaymentOptions` refuse an option unless its payment deadline is at
+least `RELAYR_REQUEST_RUN_MARGIN_SECONDS` (30 minutes) before it. A quote
+saved without `requestsDeadline` is read from its `expectedTransactions`, and
+one whose forwarded requests can't be read offers no option. An app that
+refreshes signatures before quoting refreshes them once less than the payment
+window plus that margin is left, or quotes come back with no payable option.
+
 ### Quotes whose payment reverted
 
 When a session's payment reverts onchain, `revertedRelayrQuote` reads the

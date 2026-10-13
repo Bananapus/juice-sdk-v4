@@ -160,8 +160,14 @@ const budgets = {
     // exit can't erase a newer write; a memory-only hash still exits) adds
     // +1,911 B packed / +9,252 B unpacked to existing artifacts.
     // Measured 1,384,151 B packed / 21,377,972 B unpacked and 810 entries.
-    packed: 1_386_000,
-    unpacked: 21_380_000,
+    // The 2-hour request deadline and its helper, the quote's request
+    // deadline (read from a restored quote's bindings too) and the 30-minute
+    // run margin on payment options change existing artifacts only, no files
+    // or dependencies. With the 2.30.0 changelog entry and the binding checks
+    // (each entry's chain, forwarder calls told apart by function): measured
+    // 1,388,807 B packed / 21,398,286 B unpacked and 810 entries.
+    packed: 1_390_000,
+    unpacked: 21_400_000,
     entries: 810,
   },
   "@bananapus/nana-sdk-react": {

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import {
   createPublicClient,
+  decodeFunctionData,
   encodeFunctionData,
   formatBlock,
   formatTransaction,
@@ -38,6 +39,7 @@ import {
   RELAYR_API,
   RELAYR_FORWARDER_DEADLINE_SECONDS,
   RELAYR_NATIVE_TOKEN,
+  RELAYR_REQUEST_RUN_MARGIN_SECONDS,
   RELAYR_PAYMENT_ADDRESS,
   RELAYR_PAYMENT_CODE_HASH,
   RELAYR_PAYMENT_EVENT,
@@ -48,6 +50,7 @@ import {
   relayrDestinationHashes,
   relayrDestinationRecords,
   relayrForwardRequest,
+  relayrForwarderDeadline,
   relayrPaymentChains,
   relayrPaymentDetails,
   relayrPaymentOptions,
@@ -94,6 +97,8 @@ const BLOCK_HASH = `0x${"cd".repeat(32)}` as Hex;
 const OTHER_BLOCK_HASH = `0x${"45".repeat(32)}` as Hex;
 const NOW = 1_750_000_000;
 const DEADLINE = NOW + 600;
+/** When requests signed at NOW stop being executable: the 2-hour default. */
+const REQUESTS_DEADLINE = NOW + 2 * 60 * 60;
 // Relayr's payment contract and native token as EIP-55 writes them, with the
 // case of one letter flipped so the checksum fails, and in upper case, which
 // viem's strict address check refuses too.
@@ -158,7 +163,8 @@ function forwarded(
     from = ACCOUNT,
     value = 5n,
     data = "0x1234" as Hex,
-  }: { from?: Address; value?: bigint; data?: Hex } = {},
+    deadline = REQUESTS_DEADLINE,
+  }: { from?: Address; value?: bigint; data?: Hex; deadline?: number } = {},
 ): RelayrEntry {
   return {
     chain,
@@ -174,7 +180,7 @@ function forwarded(
           to: TARGET,
           value,
           gas: 500_000n,
-          deadline: DEADLINE,
+          deadline,
           data,
           signature: `0x${"11".repeat(65)}`,
         },
@@ -294,7 +300,8 @@ describe("Relayr constants", () => {
     // The runtime's dispatcher pushes (PUSH4) this selector.
     expect(PAYMENT_RUNTIME).toContain(`63${RELAYR_PAYMENT_SELECTOR.slice(2)}`);
     expect(RELAYR_PAYMENT_GAS).toBe(150_000n);
-    expect(RELAYR_FORWARDER_DEADLINE_SECONDS).toBe(47 * 60 * 60);
+    expect(RELAYR_FORWARDER_DEADLINE_SECONDS).toBe(2 * 60 * 60);
+    expect(RELAYR_REQUEST_RUN_MARGIN_SECONDS).toBe(30 * 60);
     expect(RELAYR_API).toBe("https://api.relayr.ba5ed.com");
   });
 
@@ -312,6 +319,57 @@ describe("Relayr constants", () => {
         args: [FORWARDER],
       }).slice(0, 10),
     ).toBe(toFunctionSelector("isTrustedForwarder(address)"));
+  });
+});
+
+describe("Relayr forward request deadlines", () => {
+  it("signs requests for two hours by default", () => {
+    expect(relayrForwarderDeadline({ nowSeconds: NOW })).toBe(
+      NOW + 2 * 60 * 60,
+    );
+    expect(relayrForwarderDeadline({ nowSeconds: NOW + 0.9 })).toBe(
+      NOW + 2 * 60 * 60,
+    );
+  });
+
+  it("reads the clock when no time is given", () => {
+    vi.useFakeTimers({ now: NOW * 1_000 });
+    try {
+      expect(relayrForwarderDeadline()).toBe(NOW + 2 * 60 * 60);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("accepts any whole number of seconds from one hour to 47 hours", () => {
+    for (const seconds of [60 * 60, 5 * 60 * 60, 47 * 60 * 60]) {
+      expect(relayrForwarderDeadline({ seconds, nowSeconds: NOW })).toBe(
+        NOW + seconds,
+      );
+    }
+  });
+
+  it.each([
+    60 * 60 - 1,
+    47 * 60 * 60 + 1,
+    48 * 60 * 60,
+    0,
+    -1,
+    7_200.5,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+  ])("refuses %s seconds", (seconds) => {
+    expect(() => relayrForwarderDeadline({ seconds, nowSeconds: NOW })).toThrow(
+      "A signed request must stay executable for 1 to 47 hours.",
+    );
+  });
+
+  it("refuses a time that is not a number of seconds", () => {
+    for (const nowSeconds of [Number.NaN, -1, Number.POSITIVE_INFINITY]) {
+      expect(() => relayrForwarderDeadline({ nowSeconds })).toThrow(
+        "Invalid time for a signed request's deadline.",
+      );
+    }
   });
 });
 
@@ -467,6 +525,39 @@ describe("Relayr quote binding", () => {
     expect(fetchBundle).toHaveBeenCalledWith(
       `${RELAYR_API}/v1/bundle/${BUNDLE_UUID}`,
       { cache: "no-store", signal: expect.any(AbortSignal) },
+    );
+  });
+
+  it("records when the earliest signed request expires, and nothing for raw calls", async () => {
+    expect(
+      (
+        await bindRelayrQuote(json(quote()), request, {
+          fetch: vi.fn(async () => bundle()),
+        })
+      ).requestsDeadline,
+    ).toBeUndefined();
+    const signed = relayrBundleRequest([
+      forwarded(1),
+      forwarded(10, { deadline: REQUESTS_DEADLINE - 60 }),
+      { chain: 1, target: TARGET, data: "0x03", value: "3" },
+    ]);
+    const bound = await bindRelayrQuote(
+      json({
+        bundle_uuid: BUNDLE_UUID,
+        payment_info: [paymentFor()],
+        tx_uuids: ids,
+        transactions: [
+          recordFor(signed.transactions[0], BUNDLE_UUID),
+          recordFor(signed.transactions[1], OTHER_UUID),
+          recordFor(signed.transactions[2], THIRD_UUID),
+        ],
+      }),
+      signed,
+      { fetch: vi.fn() },
+    );
+    expect(bound.requestsDeadline).toBe(REQUESTS_DEADLINE - 60);
+    expect(JSON.parse(JSON.stringify(bound)).requestsDeadline).toBe(
+      REQUESTS_DEADLINE - 60,
     );
   });
 
@@ -1267,6 +1358,201 @@ describe("Relayr payment options", () => {
     expect(quote.payment_info[0].chain).toBe(1);
   });
 
+  it("offers only options paid at least 30 minutes before the signed requests expire", () => {
+    const quote = (requestsDeadline?: number) => ({
+      bundle_uuid: BUNDLE_UUID,
+      payment_info: [paymentFor(), paymentFor({ chain: 10, amount: "7" })],
+      ...(requestsDeadline === undefined ? {} : { requestsDeadline }),
+    });
+    const margin = RELAYR_REQUEST_RUN_MARGIN_SECONDS;
+    expect(relayrPaymentOptions(quote(), [1, 10], NOW)).toHaveLength(2);
+    expect(
+      relayrPaymentOptions(quote(DEADLINE + margin), [1, 10], NOW),
+    ).toHaveLength(2);
+    expect(
+      relayrPaymentOptions(quote(DEADLINE + margin - 1), [1, 10], NOW),
+    ).toEqual([]);
+    expect(() =>
+      relayrPaymentDetails(paymentFor(), {
+        bundleUuid: BUNDLE_UUID,
+        destinationChainIds: [1],
+        nowSeconds: NOW,
+        requestsDeadline: DEADLINE + margin - 1,
+      }),
+    ).toThrow(
+      "This quote's payment window ends too close to when the signed requests expire. Review the action again.",
+    );
+    expect(
+      relayrPaymentDetails(paymentFor(), {
+        bundleUuid: BUNDLE_UUID,
+        destinationChainIds: [1],
+        nowSeconds: NOW,
+        requestsDeadline: BigInt(DEADLINE + margin),
+      }).deadline,
+    ).toBe(BigInt(DEADLINE));
+  });
+
+  it("derives the requests' deadline from a restored quote's bindings", () => {
+    // Codex's case: a quote saved before requestsDeadline existed, whose
+    // requests expire in 60 seconds while its payment is allowed for 600.
+    const bindingsFor = (entries: RelayrEntry[]) =>
+      relayrBundleRequest(entries).transactions.map((entry, index) => ({
+        txUuid: [BUNDLE_UUID, OTHER_UUID][index],
+        chain: entry.chain,
+        entry,
+      }));
+    const legacy = {
+      bundle_uuid: BUNDLE_UUID,
+      payment_info: [paymentFor()],
+      expectedTransactions: bindingsFor([
+        forwarded(1, { deadline: NOW + 60 }),
+        forwarded(10),
+      ]),
+    };
+    expect(relayrPaymentOptions(legacy, [1, 10], NOW)).toEqual([]);
+    expect(() =>
+      relayrPaymentDetails(paymentFor(), {
+        bundleUuid: BUNDLE_UUID,
+        destinationChainIds: [1, 10],
+        nowSeconds: NOW,
+        expectedTransactions: legacy.expectedTransactions,
+      }),
+    ).toThrow(
+      "This quote's payment window ends too close to when the signed requests expire. Review the action again.",
+    );
+    // A saved requestsDeadline never loosens what the bindings say.
+    expect(
+      relayrPaymentOptions(
+        { ...legacy, requestsDeadline: REQUESTS_DEADLINE },
+        [1, 10],
+        NOW,
+      ),
+    ).toEqual([]);
+    const fresh = {
+      ...legacy,
+      expectedTransactions: bindingsFor([forwarded(1), forwarded(10)]),
+    };
+    expect(relayrPaymentOptions(fresh, [1, 10], NOW)).toEqual([paymentFor()]);
+    const raw = {
+      ...legacy,
+      expectedTransactions: bindingsFor([
+        { chain: 1, target: TARGET, data: "0x01", value: "0" },
+      ]),
+    };
+    expect(relayrPaymentOptions(raw, [1], NOW)).toEqual([paymentFor()]);
+  });
+
+  it("refuses a forwarded quote whose request deadlines can't be recovered", () => {
+    const [binding] = relayrBundleRequest([forwarded(1)]).transactions.map(
+      (entry) => ({ txUuid: BUNDLE_UUID, chain: 1, entry }),
+    );
+    for (const expectedTransactions of [
+      [{ ...binding, entry: { ...binding.entry, data: "0x1234" as Hex } }],
+      [{ txUuid: BUNDLE_UUID, chain: 1 }],
+      [null],
+      "bindings",
+    ]) {
+      expect(
+        relayrPaymentOptions(
+          {
+            bundle_uuid: BUNDLE_UUID,
+            payment_info: [paymentFor()],
+            expectedTransactions:
+              expectedTransactions as unknown as RelayrTransactionBinding[],
+          },
+          [1],
+          NOW,
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it("refuses a restored binding whose entry or chain doesn't hold together", () => {
+    const [binding] = relayrBundleRequest([
+      forwarded(1, { deadline: NOW + 60 }),
+    ]).transactions.map((entry) => ({ txUuid: BUNDLE_UUID, chain: 1, entry }));
+    const { chain: _chain, ...chainless } = binding.entry;
+    for (const restored of [
+      { ...binding, entry: chainless },
+      { ...binding, entry: { ...binding.entry, chain: "1" } },
+      { ...binding, chain: 10 },
+      { ...binding, entry: { ...binding.entry, chain: 5 }, chain: 5 },
+      { ...binding, chain: undefined },
+    ]) {
+      expect(
+        relayrPaymentOptions(
+          {
+            bundle_uuid: BUNDLE_UUID,
+            payment_info: [paymentFor()],
+            expectedTransactions: [
+              restored,
+            ] as unknown as RelayrTransactionBinding[],
+          },
+          [1],
+          NOW,
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it("keeps options for a forwarder call that forwards nothing, and refuses a batch it can't read", () => {
+    const quoteWith = (data: Hex) => ({
+      bundle_uuid: BUNDLE_UUID,
+      payment_info: [paymentFor()],
+      expectedTransactions: [
+        {
+          txUuid: BUNDLE_UUID,
+          chain: 1,
+          entry: { chain: 1, target: FORWARDER, data, value: "0" },
+        },
+      ],
+    });
+    for (const functionName of ["eip712Domain", "nonces"] as const) {
+      const data =
+        functionName === "nonces"
+          ? encodeFunctionData({
+              abi: erc2771ForwarderAbi,
+              functionName,
+              args: [ACCOUNT],
+            })
+          : encodeFunctionData({ abi: erc2771ForwarderAbi, functionName });
+      expect(relayrPaymentOptions(quoteWith(data), [1], NOW)).toEqual([
+        paymentFor(),
+      ]);
+    }
+    const { data: executeData } = forwarded(1);
+    const request = decodeFunctionData({
+      abi: erc2771ForwarderAbi,
+      data: executeData,
+    }).args[0] as never;
+    const batch = encodeFunctionData({
+      abi: erc2771ForwarderAbi,
+      functionName: "executeBatch",
+      args: [[request], ACCOUNT],
+    });
+    expect(relayrPaymentOptions(quoteWith(batch), [1], NOW)).toEqual([]);
+    // An execute that decodes but doesn't re-encode byte for byte.
+    expect(
+      relayrPaymentOptions(quoteWith(`${executeData}00` as Hex), [1], NOW),
+    ).toEqual([]);
+  });
+
+  it("offers nothing when the requests' deadline can't be read", () => {
+    for (const requestsDeadline of [-1, 1.5, "soon", null]) {
+      expect(
+        relayrPaymentOptions(
+          {
+            bundle_uuid: BUNDLE_UUID,
+            payment_info: [paymentFor()],
+            requestsDeadline: requestsDeadline as number,
+          },
+          [1],
+          NOW,
+        ),
+      ).toEqual([]);
+    }
+  });
+
   it("offers nothing for a quote without a payment list", () => {
     expect(
       relayrPaymentOptions(
@@ -1484,7 +1770,7 @@ describe("Relayr forward requests", () => {
         to: TARGET,
         value: 5n,
         gas: 500_000n,
-        deadline: DEADLINE,
+        deadline: REQUESTS_DEADLINE,
         data: "0x1234",
         signature: `0x${"11".repeat(65)}`,
       });
