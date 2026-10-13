@@ -605,7 +605,9 @@ A quote's payment window is about 10 minutes, and Relayr needs time to run a
 paid bundle before its requests expire. `bindRelayrQuote` records the
 earliest request deadline as `requestsDeadline`, and `relayrPaymentDetails`
 and `relayrPaymentOptions` refuse an option unless its payment deadline is at
-least `RELAYR_REQUEST_RUN_MARGIN_SECONDS` (30 minutes) before it. An app that
+least `RELAYR_REQUEST_RUN_MARGIN_SECONDS` (30 minutes) before it. A quote
+saved without `requestsDeadline` is read from its `expectedTransactions`, and
+one whose forwarded requests can't be read offers no option. An app that
 refreshes signatures before quoting refreshes them once less than the payment
 window plus that margin is left, or quotes come back with no payable option.
 
@@ -628,6 +630,8 @@ const outcome = await relayrSupersede(
   {
     bundleUuid: session.bundleUuid,
     options: session.quote?.payment_info,
+    expectedTransactions: session.quote?.expectedTransactions,
+    quotedAt: session.quotedAt, // seconds, when the quote came back
     destinationChainIds,
     paymentAttempted: session.payments.length > 0,
     launch: sessionLaunches || newCallsLaunch,
@@ -643,12 +647,20 @@ if (outcome.kind === "supersede") {
 
 It supersedes only when the app says neither session launches a project
 (`launch: false`; launches keep waiting), no payment was attempted, every
-request is live with none moved and each saved nonce known, every quoted
-option's deadline is more than a minute past at its payment chain's latest
-block, the forwarder's latest nonce still equals the saved one, and Relayr,
-read last, reports the bundle unpaid with every call pending. Anything unread
-holds. `released` means every request is dead, and the session rules above
-apply. A session that signed but never got a quote has nothing to read at
+request is live with none moved and each saved nonce known, and the chain
+proves the quote unpaid: on each payment chain a canonical finalized block is
+past the option's deadline (the payment contract refuses later payments), and
+no `Prepayment` event for the bundle was logged from 10 minutes before
+`quotedAt` to the deadline (500 blocks per read, at most 10,000 blocks). The
+forwarder's latest nonce must still equal the saved one, and Relayr's fresh
+record, read last, must report no payment, quote exactly the saved options,
+and list each saved call once with its exact request, pending, and nothing
+else. Anything unread holds. `released` means every request is dead, and the
+session rules above apply.
+
+While it waits for finality past the quote's deadline (minutes on L2s, about
+15 minutes on Ethereum), the outcome is `hold`: the app shows
+`relayrHeldMessage(until)` and asks again when the user retries. A session that signed but never got a quote has nothing to read at
 Relayr and holds until its requests' deadline. Known limit: anyone holding an
 old signature can still run it at its nonce first; the new request then fails.
 

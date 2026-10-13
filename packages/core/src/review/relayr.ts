@@ -2353,23 +2353,49 @@ export async function relayrSessionOutcome(
   return { kind: "re-sign", nonces: saved };
 }
 
-/**
- * How far past a quote's payment deadline the latest block must be before a
- * session counts as unpayable: the payment contract refuses a payment once a
- * block's timestamp is past the deadline, and the minute covers a short reorg.
- */
-const SUPERSEDE_DEADLINE_MARGIN_SECONDS = 60n;
+/** Relayr's payment contract's one event: `RELAYR_PAYMENT_EVENT` is its topic. */
+const PREPAYMENT_EVENT = {
+  type: "event",
+  name: "Prepayment",
+  inputs: [
+    { name: "payment_uuid", type: "bytes16", indexed: true },
+    { name: "amount", type: "uint256", indexed: false },
+    { name: "deadline", type: "uint40", indexed: false },
+  ],
+} as const;
 
 /**
- * The reads {@link relayrSupersede} makes on a chain: the finalized reads of
- * {@link RelayrFinalizedClient} and the latest block. A PublicClient for any
- * chain satisfies it.
+ * How long before the saved quote time the payment search starts, for a
+ * device clock that runs ahead.
  */
-export type RelayrSupersedeClient = RelayrFinalizedClient & {
-  getBlock(args: { blockTag: "latest" }): Promise<{
+const QUOTE_CLOCK_SLACK_SECONDS = 10 * 60;
+/** The most blocks searched for a payment on one chain; more holds. */
+const MAX_PAYMENT_SEARCH_BLOCKS = 10_000n;
+/** Blocks per log read, within what public nodes and JB Center serve. */
+const LOG_RANGE_BLOCKS = 500n;
+
+/**
+ * The reads {@link relayrSupersede} makes on a chain: blocks by tag and by
+ * number with their timestamps, the forwarder's nonces and the payment
+ * contract's logs. A PublicClient for any chain satisfies it.
+ */
+export type RelayrSupersedeClient = {
+  getBlock(args: { blockTag: "finalized" | "latest" }): Promise<{
     number: bigint | null;
+    hash: Hex | null;
     timestamp: bigint;
   }>;
+  getBlock(args: {
+    blockNumber: bigint;
+  }): Promise<{ hash: Hex | null; timestamp: bigint }>;
+  readContract: RelayrFinalizedClient["readContract"];
+  getLogs(args: {
+    address: Address;
+    event: typeof PREPAYMENT_EVENT;
+    args: { payment_uuid: Hex };
+    fromBlock: bigint;
+    toBlock: bigint;
+  }): Promise<readonly unknown[]>;
 };
 
 /**
@@ -2378,8 +2404,10 @@ export type RelayrSupersedeClient = RelayrFinalizedClient & {
  *
  * - `released`: every request is dead, as {@link relayrRequestsDead} reads
  *   it. The session's own rules ({@link relayrSessionOutcome}) apply.
- * - `hold`: a request can still run. Wait until `until` (seconds; 0 when no
- *   request could be read), as `relayrHeldMessage` words it.
+ * - `hold`: a request can still run, or nothing yet proves the session can
+ *   never be paid. Wait until `until` (seconds; 0 when no request could be
+ *   read), as `relayrHeldMessage` words it, and ask again: once a finalized
+ *   block is past the quote's deadline, a session nobody paid supersedes.
  * - `supersede`: nothing can pay the session any more. Sign the new action's
  *   calls at `nonces`, the saved nonce of each earlier request in order, so
  *   the forwarder runs at most one request per nonce. Show
@@ -2393,6 +2421,142 @@ export type RelayrSupersedeOutcome =
       nonces: { chainId: number; signer: Address; nonce: string }[];
     };
 
+/** One option as compared with Relayr's record of the quote. */
+function optionKey(option: unknown): string {
+  const { chain, amount, calldata, target, token, payment_deadline } =
+    (option ?? {}) as Partial<Record<keyof RelayrPayment, unknown>>;
+  const text = (value: unknown) =>
+    typeof value === "string" ? value.toLowerCase() : "?";
+  return [
+    typeof chain === "number" ? chain : "?",
+    uint256(amount) ?? "?",
+    text(calldata),
+    text(target),
+    text(token),
+    deadlineSeconds(payment_deadline) ?? "?",
+  ].join("|");
+}
+
+/** The sorted keys of a list of options, or null when it is not a list. */
+function optionKeys(options: unknown): string | null {
+  return Array.isArray(options)
+    ? options.map(optionKey).sort().join("\n")
+    : null;
+}
+
+/**
+ * The last block at or before `seconds`, searching back from `high`: -1 when
+ * even block 0 is later. Throws on a block without a timestamp.
+ */
+async function lastBlockAtOrBefore(
+  timestampOf: (block: bigint) => Promise<bigint>,
+  seconds: bigint,
+  high: bigint,
+): Promise<bigint> {
+  if ((await timestampOf(high)) <= seconds) return high;
+  let step = 1n;
+  let low: bigint;
+  for (;;) {
+    const probe = high > step ? high - step : 0n;
+    if ((await timestampOf(probe)) <= seconds) {
+      low = probe;
+      break;
+    }
+    if (probe === 0n) return -1n;
+    high = probe;
+    step *= 2n;
+  }
+  while (high - low > 1n) {
+    const middle = (low + high) / 2n;
+    if ((await timestampOf(middle)) <= seconds) low = middle;
+    else high = middle;
+  }
+  return low;
+}
+
+/**
+ * Whether the chain proves no payment for `uuid` can exist on it: a canonical
+ * finalized block is past `deadline`, so the payment contract refuses any
+ * payment carrying it, and no Prepayment event for the bundle was logged from
+ * the last block at or before `from` to the last at or before `deadline`.
+ * Anything unread is false.
+ */
+async function provenUnpaidOn(
+  client: RelayrSupersedeClient,
+  uuid: string,
+  from: bigint,
+  deadline: bigint,
+): Promise<boolean> {
+  const finalized = await atCanonicalFinalizedBlock(client, async (top) => {
+    const timestamps = new Map<bigint, bigint>();
+    const timestampOf = async (block: bigint) => {
+      if (!timestamps.has(block)) {
+        const { timestamp } = await client.getBlock({ blockNumber: block });
+        if (typeof timestamp !== "bigint") throw new Error("No timestamp.");
+        timestamps.set(block, timestamp);
+      }
+      return timestamps.get(block)!;
+    };
+    if ((await timestampOf(top)) <= deadline) return false;
+    const end = await lastBlockAtOrBefore(timestampOf, deadline, top);
+    const before = await lastBlockAtOrBefore(timestampOf, from, end);
+    const start = before < 0n ? 0n : before;
+    if (end < start || end - start >= MAX_PAYMENT_SEARCH_BLOCKS) return false;
+    for (let low = start; low <= end; low += LOG_RANGE_BLOCKS) {
+      const high =
+        low + LOG_RANGE_BLOCKS - 1n < end ? low + LOG_RANGE_BLOCKS - 1n : end;
+      const logs = await client.getLogs({
+        address: RELAYR_PAYMENT_ADDRESS,
+        event: PREPAYMENT_EVENT,
+        args: { payment_uuid: `0x${uuid.replaceAll("-", "")}` },
+        fromBlock: low,
+        toBlock: high,
+      });
+      if (!Array.isArray(logs) || logs.length) return false;
+    }
+    return true;
+  });
+  return finalized?.value === true;
+}
+
+/**
+ * Whether Relayr's fresh record of the bundle matches what the session saved:
+ * no payment received, the quote's options exactly (deadlines included, in
+ * any order), each saved call's ID on exactly one record that carries its
+ * exact request, still pending with no destination hash, and no other
+ * record. A quote time Relayr gives must not be before `from`.
+ */
+function bundleMatchesSession(
+  bundle: RelayrBundle & { payment?: unknown; created_at?: unknown },
+  options: readonly RelayrPayment[],
+  bindings: readonly RelayrTransactionBinding[],
+  from: number,
+): boolean {
+  const { payment_received, transactions, payment, created_at } = bundle;
+  const created =
+    created_at === undefined ? undefined : deadlineSeconds(created_at);
+  if (
+    payment_received !== false ||
+    !Array.isArray(transactions) ||
+    transactions.length !== bindings.length ||
+    optionKeys(payment) !== optionKeys(options) ||
+    created === null ||
+    (created !== undefined && created < from)
+  ) {
+    return false;
+  }
+  return bindings.every((binding) => {
+    const records = (transactions as RelayrTransactionRecord[]).filter(
+      (record) => uuidOf(record?.tx_uuid) === binding.txUuid,
+    );
+    return (
+      records.length === 1 &&
+      isRequestFor(records[0].request, binding.entry, "when-present") &&
+      relayrRecordPending(records[0])
+    );
+  });
+}
+
 /**
  * Whether a new action may sign different calls at an earlier session's saved
  * nonces instead of waiting for its requests to die (ruling R119, amending
@@ -2405,14 +2569,19 @@ export type RelayrSupersedeOutcome =
  * - every request is live at a canonical finalized block, none moved, and
  *   each has a saved nonce;
  * - every option of the saved quote (`options`, for `bundleUuid` and
- *   `destinationChainIds`) is authenticated, and its deadline is more than a
- *   minute past at its payment chain's latest block, so the payment contract
- *   refuses it;
+ *   `destinationChainIds`) is authenticated;
+ * - on each option's payment chain, a canonical finalized block is past the
+ *   option's deadline, so the payment contract refuses a payment, and no
+ *   Prepayment event for the bundle was logged from 10 minutes before
+ *   `quotedAt` (seconds, when the session received the quote) to the
+ *   deadline, searched 500 blocks at a time and at most 10,000 blocks;
  * - at each destination's latest block, the forwarder still expects the
  *   lowest saved nonce of each signer;
  * - read last, with `fetch` (the global one by default) and never from a
- *   cache, Relayr reports the bundle unpaid with every call pending, as
- *   {@link requireRelayrBundleUnpaid} reads it.
+ *   cache, Relayr's record of the bundle reports no payment, quotes exactly
+ *   the saved options, lists each saved call (`expectedTransactions`) once
+ *   with its exact request, pending, and nothing else, and gives no quote
+ *   time before the search started.
  *
  * Anything unread holds. A session that paid, or may have paid, is never
  * superseded. Known limit: anyone holding an old signature can still run it
@@ -2424,6 +2593,8 @@ export async function relayrSupersede(
   {
     bundleUuid,
     options,
+    expectedTransactions,
+    quotedAt,
     destinationChainIds,
     paymentAttempted,
     launch,
@@ -2431,6 +2602,8 @@ export async function relayrSupersede(
   }: {
     bundleUuid?: string | null;
     options?: readonly RelayrPayment[] | null;
+    expectedTransactions?: readonly RelayrTransactionBinding[] | null;
+    quotedAt?: number | null;
     destinationChainIds: readonly number[];
     paymentAttempted: boolean;
     launch: boolean;
@@ -2448,6 +2621,9 @@ export async function relayrSupersede(
   const saved = requests.map(({ nonce }) =>
     nonce === undefined ? null : uint256(nonce),
   );
+  const bindings = Array.isArray(expectedTransactions)
+    ? expectedTransactions
+    : [];
   if (
     launch !== false ||
     paymentAttempted !== false ||
@@ -2456,7 +2632,14 @@ export async function relayrSupersede(
     saved.some((nonce) => nonce === null) ||
     !uuid ||
     !Array.isArray(options) ||
-    !options.length
+    !options.length ||
+    !bindings.length ||
+    new Set(bindings.map((binding) => uuidOf(binding?.txUuid))).size !==
+      bindings.length ||
+    bindings.some((binding) => !uuidOf(binding?.txUuid)) ||
+    typeof quotedAt !== "number" ||
+    !Number.isFinite(quotedAt) ||
+    quotedAt < 0
   ) {
     return hold;
   }
@@ -2466,34 +2649,18 @@ export async function relayrSupersede(
   );
   if (quoted.length !== options.length) return hold;
 
-  const latest = new Map<
-    number,
-    Promise<{ number: bigint; timestamp: bigint } | null>
-  >();
-  const latestOn = (chainId: number) => {
-    if (!latest.has(chainId)) {
-      const client = clientOn(clientFor, chainId);
-      latest.set(
-        chainId,
-        client
-          ? client.getBlock({ blockTag: "latest" }).then(
-              ({ number, timestamp }) =>
-                typeof number === "bigint" && typeof timestamp === "bigint"
-                  ? { number, timestamp }
-                  : null,
-              () => null,
-            )
-          : Promise.resolve(null),
-      );
-    }
-    return latest.get(chainId)!;
-  };
-
+  const from = Math.max(0, Math.floor(quotedAt) - QUOTE_CLOCK_SLACK_SECONDS);
+  const deadlines = new Map<number, bigint>();
   for (const { details } of quoted) {
-    const block = await latestOn(details.chainId);
+    const latest = deadlines.get(details.chainId);
+    if (latest === undefined || details.deadline > latest)
+      deadlines.set(details.chainId, details.deadline);
+  }
+  for (const [chainId, deadline] of deadlines) {
+    const client = clientOn(clientFor, chainId);
     if (
-      !block ||
-      block.timestamp <= details.deadline + SUPERSEDE_DEADLINE_MARGIN_SECONDS
+      !client ||
+      !(await provenUnpaidOn(client, uuid, BigInt(from), deadline))
     ) {
       return hold;
     }
@@ -2513,16 +2680,17 @@ export async function relayrSupersede(
   for (const { chainId, signer, nonce } of lowest.values()) {
     const forwarder = forwarderOn(chainId);
     const client = clientOn(clientFor, chainId);
-    const block = await latestOn(chainId);
-    if (!forwarder || !client || !block) return hold;
+    if (!forwarder || !client) return hold;
     try {
+      const { number } = await client.getBlock({ blockTag: "latest" });
+      if (typeof number !== "bigint") return hold;
       const expected = uint256(
         await client.readContract({
           address: forwarder,
           abi: erc2771ForwarderAbi,
           functionName: "nonces",
           args: [signer],
-          blockNumber: block.number,
+          blockNumber: number,
         }),
       );
       if (expected !== nonce) return hold;
@@ -2531,11 +2699,13 @@ export async function relayrSupersede(
     }
   }
 
+  let bundle: RelayrBundle;
   try {
-    await requireRelayrBundleUnpaid(uuid, { fetch: fetchBundle });
+    bundle = await readRelayrBundle(uuid, { fetch: fetchBundle });
   } catch {
     return hold;
   }
+  if (!bundleMatchesSession(bundle, options, bindings, from)) return hold;
   return {
     kind: "supersede",
     nonces: requests.map(({ chainId, signer }, index) => ({
