@@ -743,35 +743,40 @@ await journal.withLock(async () => {
 
 // Later, for a held write:
 const check = await journal.withLock(() =>
-  journal.resolve(publicClient, { effect: async () => readTheEffect() }),
+  journal.resolve(publicClient, {
+    effect: async (chainId) => readTheEffect(chainId),
+  }),
 );
 // The user's exit: show writeHeldMessage("payment") and
 // writeExitMessage(record.call, "payment") with a WRITE_EXIT_LABEL button, then
 const record = journal.read()!;
-await journal.withLock(async () =>
-  journal.abandon(record, { checkedWallet: true }),
-);
+journal.abandon(record, { checkedWallet: true }); // needs no lock
 ```
 
-`resolve` (and the pure `checkReviewedWrite`) reads only the record's chain
-(the client's `getChainId()` must match). A release needs proof:
+`resolve` (and the pure `checkReviewedWrite`) reads only the record's chain:
+the client's `getChainId()` must match before any proof, the app's `effect`
+read included, which receives the saved chain ID. A release needs proof:
 
 - The saved hash's own transaction, while the node knows it, is the write:
   `sent` once mined (its receipt decides, wallet wrappers included), `pending`
   in the mempool. `resolve` saves the nonce it was sent at (`sentNonce`).
 - Once the account's nonce is past it at a canonical finalized block, the
   block where it moved holds the transaction that used it. The saved hash or
-  the exact call there is `sent` (a wallet speed-up included). Another
-  transaction is `replaced`, and released, only at the bound `sentNonce` and
-  only when it calls an address with no code, as a wallet's cancel does. A
-  nonce sampled before the wallet opened only locates the exact call.
+  the exact call there is `sent` (a wallet speed-up included). Any other
+  transaction there stays `pending`: a wrapper, or an EIP-7702 wallet that ran
+  code and then cleared its delegation in the same block, may have run the
+  call inside it, so no state at block end proves it didn't. A wallet's cancel
+  therefore costs the user one tap on the exit. A nonce sampled before the
+  wallet opened only locates the exact call.
 - `effect` returning true ends it as `ran`, released.
 
 Anything else stays `pending`: a Safe write, a hashless write the chain
 can't place, or a node without history. The user always keeps the exit:
 `abandon` refuses without their confirmation that they checked their wallet,
 and for a write that carries value `writeExitMessage` says plainly that sending
-again pays twice.
+again pays twice. `abandon` removes only that exact record and needs no lock,
+so it works even when the cross-tab lock can't be taken; new sends still
+need `withLock`.
 
 `withLock` uses Web Locks across tabs. Where a browser or wallet webview has
 none, the origin's tabs share an IndexedDB lease per action: one readwrite
