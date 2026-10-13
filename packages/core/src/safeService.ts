@@ -1116,15 +1116,12 @@ async function provenProposalEnd(
     if (!(await used(number))) return null;
     // Step back, doubling, to a block where the nonce was still unused.
     let high = number;
-    let step = 1n;
-    let low = number - 1n;
-    for (;;) {
-      if (low < 0n) return null;
+    let low: bigint;
+    for (let step = 1n; ; step *= 2n) {
+      low = high > step ? high - step : 0n;
       if (!(await used(low))) break;
+      if (low === 0n) return null;
       high = low;
-      step *= 2n;
-      low = high - step < 0n ? 0n : high - step;
-      if (high === 0n) return null;
     }
     while (high - low > 1n) {
       const middle = (low + high) / 2n;

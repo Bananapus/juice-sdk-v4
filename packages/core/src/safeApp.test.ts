@@ -596,12 +596,14 @@ describe("a proposal awaiting its signers", () => {
       logs = [] as unknown,
       canonical = FINAL,
       finalNumber = "0x5a" as unknown,
+      history = true,
     } = {}) => ({
       request: vi.fn(
         async ({ method, params }: { method: string; params: unknown[] }) => {
           if (method === "eth_call") {
             const at = params[1] as string;
             if (at === "0x64") return word(chainState.nonce);
+            if (!history && at !== finalNumber) return "0x";
             return word(Number(BigInt(at)) >= crossing ? finalNonce : 5n);
           }
           if (method === "eth_getBlockByNumber")
@@ -695,6 +697,11 @@ describe("a proposal awaiting its signers", () => {
       for (const client of [
         proving({ finalNonce: 5n }),
         proving({ finalNumber: null }),
+        // Used since the first block, or further back than the search reads.
+        proving({ crossing: 0 }),
+        // A node that keeps no state for past blocks.
+        proving({ history: false }),
+        proving({ finalNumber: `0x1${"0".repeat(30)}`, crossing: 0x10 }),
         // No execution logged where the nonce moved: nothing proven.
         proving(),
         proving({ logs: {} }),
