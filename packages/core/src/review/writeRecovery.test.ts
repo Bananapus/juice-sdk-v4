@@ -9,6 +9,7 @@ import {
   type Hex,
   type TransactionReceipt,
 } from "viem";
+import { IDBFactory } from "fake-indexeddb";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   canonicalSafeTxHash,
@@ -1419,5 +1420,67 @@ describe("releasing a write with no confirmed result", () => {
       journal.abandon(record, { checkedWallet: true });
     });
     expect(journal.read()).toBeNull();
+  });
+});
+
+describe("tabs without Web Locks", () => {
+  /** A tab: its own copy of the module, sharing the origin's storage and IndexedDB. */
+  async function tab() {
+    vi.resetModules();
+    return (await import(
+      "./writeRecovery.js"
+    )) as typeof import("./writeRecovery.js");
+  }
+  function origin() {
+    const shared = browser();
+    vi.stubGlobal("navigator", undefined);
+    vi.stubGlobal("indexedDB", new IDBFactory());
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    return shared.storage;
+  }
+
+  it("lets only one tab hold an action, and the other reserve after it", async () => {
+    const storage = origin();
+    const [first, second] = [await tab(), await tab()];
+    const a = first.createBrowserWriteRecovery(input, { storage });
+    const b = second.createBrowserWriteRecovery(input, { storage });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const holding = a.withLock(async () => {
+      a.reserve();
+      await held;
+    });
+    await vi.waitFor(() => expect(a.read()).not.toBeNull());
+    await expect(b.withLock(async () => b.reserve())).rejects.toThrow(
+      "another tab",
+    );
+    const queued = b.withLock(async () => b.reserve(), true);
+    release();
+    await holding;
+    await expect(queued).rejects.toThrow("still unresolved");
+  });
+
+  it("takes over a lease its tab stopped renewing", async () => {
+    const storage = origin();
+    const [first, second] = [await tab(), await tab()];
+    const a = first.createBrowserWriteRecovery(input, { storage });
+    const b = second.createBrowserWriteRecovery(input, { storage });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const holding = a.withLock(() => held);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + 60_000);
+    await expect(b.withLock(async () => "taken")).resolves.toBe("taken");
+    release();
+    await holding;
+  });
+
+  it("falls back to a lock within the tab when IndexedDB is unavailable too", async () => {
+    const storage = origin();
+    vi.stubGlobal("indexedDB", undefined);
+    const module = await tab();
+    const journal = module.createBrowserWriteRecovery(input, { storage });
+    await expect(journal.withLock(async () => "ran")).resolves.toBe("ran");
   });
 });
