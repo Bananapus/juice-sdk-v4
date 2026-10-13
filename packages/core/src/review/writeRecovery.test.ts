@@ -1123,23 +1123,62 @@ describe("stable action namespace and read-only opener", () => {
 describe("releasing a write with no confirmed result", () => {
   const SENT = `0x${"dd".repeat(32)}` as Hex;
   const evidence = { nonce: 7, blockNumber: 100n };
-  /** The account's nonce reaches 8 at `crossing`; that block holds `tx`. */
+  type Tx = Record<string, unknown>;
+  const exact = (hash: Hex): Tx => ({
+    hash,
+    from: ACCOUNT,
+    nonce: 7,
+    to: TARGET,
+    input: input.call.data,
+    value: 17n,
+  });
+  /** A wallet's cancel: a zero transfer to the account itself. */
+  const cancel: Tx = {
+    hash: SENT,
+    from: ACCOUNT,
+    nonce: 7,
+    to: ACCOUNT,
+    input: "0x",
+    value: 0n,
+  };
+  /** A smart wallet or batcher contract running the reviewed call. */
+  const wrapped = (hash: Hex): Tx => ({
+    hash,
+    from: ACCOUNT,
+    nonce: 7,
+    to: WRAPPER,
+    input: "0x1234",
+    value: 0n,
+  });
+  /**
+   * The account's nonce reaches 8 at `crossing`; that block holds `tx`.
+   * `known` answers getTransaction by hash; `code` answers getCode.
+   */
   function nonceChain({
     crossing = 150n,
     finalized = 200n,
-    tx = {
-      hash: SENT,
-      from: ACCOUNT,
-      nonce: 7,
-      to: TARGET,
-      input: input.call.data,
-      value: 17n,
-    } as Record<string, unknown>,
+    tx = exact(SENT),
     canonical = BLOCK,
     shifted = false,
+    chainId = 10,
+    known = {} as Record<string, { nonce: number; blockNumber: bigint | null }>,
+    code = { [WRAPPER.toLowerCase()]: "0x6080" } as Record<string, Hex>,
   } = {}) {
     return {
+      getChainId: vi.fn(async () => chainId),
       getBlockNumber: vi.fn(async () => 100n),
+      getTransaction: vi.fn(async ({ hash }: { hash: Hex }) => {
+        const found = known[hash];
+        if (!found)
+          throw Object.assign(new Error("not found"), {
+            name: "TransactionNotFoundError",
+          });
+        return { hash, from: ACCOUNT, ...found };
+      }),
+      getCode: vi.fn(
+        async ({ address }: { address: Address }) =>
+          code[address.toLowerCase()],
+      ),
       getTransactionCount: vi.fn(
         async (args: { blockNumber?: bigint; blockTag?: string }) =>
           args.blockTag === "pending"
@@ -1176,6 +1215,9 @@ describe("releasing a write with no confirmed result", () => {
     );
     return { journal, record, options };
   }
+  const check = (client: unknown, record: ReviewedWriteRecoveryRecord) =>
+    checkReviewedWrite(client as never, record);
+  const pending = { status: "pending" };
 
   it("records the account's next nonce and the block it was read at", async () => {
     const client = nonceChain();
@@ -1193,7 +1235,7 @@ describe("releasing a write with no confirmed result", () => {
   it("finds the exact call at its nonce and returns the hash to track", async () => {
     const { record } = await reserved();
     const client = nonceChain();
-    await expect(checkReviewedWrite(client as never, record)).resolves.toEqual({
+    await expect(check(client, record)).resolves.toEqual({
       status: "sent",
       hash: SENT,
     });
@@ -1201,37 +1243,69 @@ describe("releasing a write with no confirmed result", () => {
     expect(client.getTransactionCount.mock.calls.length).toBeLessThan(12);
   });
 
-  it("releases when another transaction used the nonce", async () => {
+  it("never calls a write replaced from a nonce sampled before the wallet opened", async () => {
+    // The wallet may have sent it at a later nonce than the sample.
     const { record } = await reserved();
-    for (const tx of [
-      {
-        hash: SENT,
-        from: ACCOUNT,
-        nonce: 7,
-        to: WRAPPER,
-        input: input.call.data,
-        value: 17n,
-      },
-      {
-        hash: SENT,
-        from: ACCOUNT,
-        nonce: 7,
-        to: TARGET,
-        input: input.call.data,
-        value: 18n,
-      },
-      {
-        hash: SENT,
-        from: ACCOUNT,
-        nonce: 7,
-        to: TARGET,
-        input: "0xaabbccdd0002",
-        value: 17n,
-      },
-    ])
+    for (const tx of [cancel, wrapped(SENT), { ...exact(SENT), value: 18n }])
+      await expect(check(nonceChain({ tx }), record)).resolves.toEqual(pending);
+    const hashed = { ...record, hash: HASH };
+    await expect(check(nonceChain({ tx: cancel }), hashed)).resolves.toEqual(
+      pending,
+    );
+  });
+
+  it("tracks the saved hash wherever it ran, wallet wrappers included", async () => {
+    const { record } = await reserved();
+    const hashed = { ...record, hash: HASH };
+    // The node knows it as mined: its receipt decides.
+    await expect(
+      check(
+        nonceChain({
+          tx: wrapped(HASH),
+          known: { [HASH]: { nonce: 7, blockNumber: 150n } },
+        }),
+        hashed,
+      ),
+    ).resolves.toEqual({ status: "sent", hash: HASH });
+    // The node dropped it from its index, but it is the transaction at the bound nonce.
+    await expect(
+      check(nonceChain({ tx: wrapped(HASH) }), { ...hashed, sentNonce: "7" }),
+    ).resolves.toEqual({ status: "sent", hash: HASH });
+  });
+
+  it("releases only a replacement proven not to run the call", async () => {
+    const { record } = await reserved();
+    const bound = { ...record, hash: HASH, sentNonce: "7" };
+    await expect(check(nonceChain({ tx: cancel }), bound)).resolves.toEqual({
+      status: "replaced",
+    });
+    // A contract could run the reviewed call inside it.
+    await expect(
+      check(nonceChain({ tx: wrapped(SENT) }), bound),
+    ).resolves.toEqual(pending);
+    await expect(
+      check(nonceChain({ tx: { ...cancel, to: null } }), bound),
+    ).resolves.toEqual(pending);
+    // A wallet speed-up: the exact call under a new hash.
+    await expect(check(nonceChain(), bound)).resolves.toEqual({
+      status: "sent",
+      hash: SENT,
+    });
+  });
+
+  it("applies no evidence from another chain", async () => {
+    const { record } = await reserved();
+    const bound = { ...record, hash: HASH, sentNonce: "7" };
+    for (const [tx, saved] of [
+      [exact(SENT), record],
+      [cancel, bound],
+    ] as const)
       await expect(
-        checkReviewedWrite(nonceChain({ tx }) as never, record),
-      ).resolves.toEqual({ status: "replaced" });
+        check(nonceChain({ tx, chainId: 1 }), saved),
+      ).resolves.toEqual(pending);
+    const failing = nonceChain();
+    failing.getChainId.mockRejectedValue(new Error("rpc down"));
+    await expect(check(failing, record)).resolves.toEqual(pending);
   });
 
   it("holds while the nonce has not moved at a finalized block, or the proof is incomplete", async () => {
@@ -1239,25 +1313,19 @@ describe("releasing a write with no confirmed result", () => {
     for (const client of [
       nonceChain({ crossing: 300n }),
       nonceChain({ canonical: PROPOSAL }),
-      nonceChain({ tx: { hash: SENT, from: WRAPPER, nonce: 7 } }),
-      nonceChain({ tx: { hash: "0x12", from: ACCOUNT, nonce: 7 } }),
+      nonceChain({ tx: { ...exact(SENT), from: WRAPPER } }),
+      nonceChain({ tx: { ...exact(SENT), hash: "0x12" } }),
       nonceChain({ shifted: true }),
     ])
-      await expect(
-        checkReviewedWrite(client as never, record),
-      ).resolves.toEqual({ status: "pending" });
+      await expect(check(client, record)).resolves.toEqual(pending);
     const failing = nonceChain();
     failing.getTransactionCount.mockRejectedValue(new Error("no archive"));
-    await expect(checkReviewedWrite(failing as never, record)).resolves.toEqual(
-      { status: "pending" },
-    );
+    await expect(check(failing, record)).resolves.toEqual(pending);
     const { record: bare } = await reserved(browser(), null);
+    await expect(check(nonceChain(), bare)).resolves.toEqual(pending);
     await expect(
-      checkReviewedWrite(nonceChain() as never, bare),
-    ).resolves.toEqual({ status: "pending" });
-    await expect(
-      checkReviewedWrite(nonceChain() as never, { ...record, safe: true }),
-    ).resolves.toEqual({ status: "pending" });
+      check(nonceChain(), { ...record, safe: true }),
+    ).resolves.toEqual(pending);
   });
 
   it("releases once the call's effect is visible, and ignores a failing effect read", async () => {
@@ -1272,34 +1340,50 @@ describe("releasing a write with no confirmed result", () => {
           throw new Error("rpc down");
         },
       }),
-    ).resolves.toEqual({ status: "pending" });
+    ).resolves.toEqual(pending);
   });
 
-  it("applies each finding to the saved write under the lock", async () => {
+  it("binds the sent nonce while the node knows the hash, then applies each finding", async () => {
     const replaced = await reserved();
     await expect(
       replaced.journal.resolve(nonceChain() as never),
     ).rejects.toThrow("browser lock");
+    await replaced.journal.withLock(async () =>
+      replaced.journal.submitted(HASH),
+    );
+    // Still in the mempool: nothing to decide, but its nonce is now bound.
     await expect(
       replaced.journal.withLock(() =>
         replaced.journal.resolve(
           nonceChain({
-            tx: {
-              hash: SENT,
-              from: ACCOUNT,
-              nonce: 7,
-              to: WRAPPER,
-              input: "0x",
-              value: 0n,
-            },
+            crossing: 300n,
+            known: { [HASH]: { nonce: 7, blockNumber: null } },
           }) as never,
         ),
+      ),
+    ).resolves.toEqual(pending);
+    expect(replaced.journal.read()).toMatchObject({
+      hash: HASH,
+      sentNonce: "7",
+    });
+    // Then the wallet cancelled it.
+    await expect(
+      replaced.journal.withLock(() =>
+        replaced.journal.resolve(nonceChain({ tx: cancel }) as never),
       ),
     ).resolves.toEqual({ status: "replaced" });
     expect(replaced.journal.read()).toBeNull();
 
     const sent = await reserved();
     await sent.journal.withLock(async () => sent.journal.submitted(HASH));
+    await sent.journal.withLock(() =>
+      sent.journal.resolve(
+        nonceChain({
+          crossing: 300n,
+          known: { [HASH]: { nonce: 7, blockNumber: null } },
+        }) as never,
+      ),
+    );
     // The wallet sped it up: the same call landed at its nonce under a new hash.
     await expect(
       sent.journal.withLock(() => sent.journal.resolve(nonceChain() as never)),

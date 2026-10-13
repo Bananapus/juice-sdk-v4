@@ -41,6 +41,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
   nonce?: string;
   /** The block that nonce was read at, as a decimal string. */
   fromBlock?: string;
+  /** The nonce the chain showed for `hash`'s own transaction: the nonce it was actually sent at. */
+  sentNonce?: string;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -124,7 +126,8 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !/^(0|[1-9]\d*)$/.test(record.call.value) ||
     (record.hash !== undefined && !isBytes32(record.hash)) ||
     !optionalDecimal(record.nonce) ||
-    !optionalDecimal(record.fromBlock)
+    !optionalDecimal(record.fromBlock) ||
+    !optionalDecimal(record.sentNonce)
   )
     throw new Error(
       "Invalid saved write recovery record. Keep this action pending.",
@@ -138,6 +141,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       : { hash: record.hash.toLowerCase() as Hex }),
     ...(record.nonce === undefined ? {} : { nonce: record.nonce }),
     ...(record.fromBlock === undefined ? {} : { fromBlock: record.fromBlock }),
+    ...(record.sentNonce === undefined ? {} : { sentNonce: record.sentNonce }),
   };
 }
 
@@ -421,6 +425,27 @@ export function createBrowserWriteRecovery(
     clear(owned);
     owned = undefined;
   }
+  /**
+   * Save the nonce the chain showed for the saved hash. It is extra evidence:
+   * a failed save keeps the record as it was.
+   */
+  function bind(
+    saved: ReviewedWriteRecoveryRecord,
+    sentNonce: string,
+  ): ReviewedWriteRecoveryRecord {
+    const bound = recordOf({ ...saved, sentNonce });
+    try {
+      const store = storage();
+      const { at, raw } = locate(store);
+      const current = readStored(raw, at, scopeAt(at));
+      if (JSON.stringify(current) !== JSON.stringify(recordOf(saved)))
+        return saved;
+      persist(bound, at);
+      return bound;
+    } catch {
+      return saved;
+    }
+  }
   /** `replace`: the exact call was found at its nonce under another hash, as after a wallet speed-up. */
   function record(
     hash: Hex,
@@ -539,9 +564,15 @@ export function createBrowserWriteRecovery(
       checkOptions?: { effect?: () => Promise<boolean> },
     ): Promise<ReviewedWriteCheck | null> {
       requireLock();
-      const saved = read();
+      let saved = read();
       if (!saved) return null;
-      const check = await checkReviewedWrite(client, saved, checkOptions);
+      const { check, sentNonce } = await inspectWrite(
+        client,
+        saved,
+        checkOptions?.effect,
+      );
+      if (sentNonce !== undefined && saved.sentNonce !== sentNonce)
+        saved = bind(saved, sentNonce);
       if (check.status === "sent") {
         if (check.hash !== saved.hash) record(check.hash, saved, true);
       } else if (check.status !== "pending") clear(saved);
@@ -583,11 +614,11 @@ export function createBrowserWriteRecovery(
 
 /** What the chain shows of a write with no confirmed result. */
 export type ReviewedWriteCheck =
-  /** Nothing proven yet. */
+  /** Nothing proven yet. The user's exit (`abandon`) stays open. */
   | { status: "pending" }
-  /** The exact call is at its nonce under `hash`: track that receipt. */
+  /** The saved hash, or the exact call, is the transaction at its nonce: track that receipt. */
   | { status: "sent"; hash: Hex }
-  /** Another transaction used its nonce, so it can never run. */
+  /** A transaction that cannot run the call used its nonce, so it never will. */
   | { status: "replaced" }
   /** The app's effect read shows the call took effect. */
   | { status: "ran" };
@@ -595,7 +626,11 @@ export type ReviewedWriteCheck =
 /** The reads {@link checkReviewedWrite} makes; a viem PublicClient satisfies it. */
 export type ReviewedWriteNonceClient = Pick<
   PublicClient,
-  "getBlock" | "getTransactionCount"
+  | "getBlock"
+  | "getChainId"
+  | "getCode"
+  | "getTransaction"
+  | "getTransactionCount"
 >;
 
 /** The account's next nonce, counting its pending transactions, and the block it was read at. Read it right before `reserve`. */
@@ -612,29 +647,66 @@ export async function readReviewedWriteNonce(
 }
 
 /**
- * What the chain shows of a saved ordinary write, at a canonical finalized
- * block. Once the account's nonce is past the one saved at reserve, the block
- * where it moved holds the transaction that used it: the exact call (`sent`,
- * with its hash, even after a wallet speed-up) or another one (`replaced`).
- * `effect`, the app's read of the call's result, ends it as `ran` when true.
- * Anything unread, a Safe write or a record without nonce evidence stays
- * `pending`.
+ * What the chain shows of a saved ordinary write. Every read is on the
+ * record's chain, at or below a canonical finalized block where it matters.
+ *
+ * - The saved hash, when the node knows it, is the transaction: `sent` once
+ *   mined (its receipt decides, wallet wrappers included), `pending` while in
+ *   the mempool. Its nonce is the nonce it was sent at (`sentNonce`).
+ * - Otherwise, once the account's nonce is past the nonce to look at, the
+ *   block where it moved holds the transaction that used it. The saved hash or
+ *   the exact call there is `sent`. Another transaction is `replaced` only
+ *   when the nonce is the one the saved hash was sent at and that transaction
+ *   calls an address with no code at that block, as a wallet's cancel does:
+ *   nothing could run the call inside it. A nonce sampled before the wallet
+ *   opened only locates the exact call; it never proves a replacement.
+ * - `effect`, the app's read of the call's result, ends it as `ran` when true.
+ *
+ * Anything else stays `pending`: a Safe write, a record without nonce
+ * evidence, another chain, or a node without the history to answer.
  */
 export async function checkReviewedWrite(
   client: ReviewedWriteNonceClient,
   saved: ReviewedWriteRecoveryRecord,
   { effect }: { effect?: () => Promise<boolean> } = {},
 ): Promise<ReviewedWriteCheck> {
+  return (await inspectWrite(client, saved, effect)).check;
+}
+
+async function inspectWrite(
+  client: ReviewedWriteNonceClient,
+  saved: ReviewedWriteRecoveryRecord,
+  effect: (() => Promise<boolean>) | undefined,
+): Promise<{ check: ReviewedWriteCheck; sentNonce?: string }> {
   const record = recordOf(saved);
-  const pending = { status: "pending" } as const;
-  if (effect && (await effect().catch(() => false))) return { status: "ran" };
-  if (
-    record.safe ||
-    record.nonce === undefined ||
-    record.fromBlock === undefined
-  )
+  const pending = { check: { status: "pending" } as const };
+  if (effect && (await effect().catch(() => false)))
+    return { check: { status: "ran" } };
+  if (record.safe) return pending;
+  if ((await client.getChainId().catch(() => null)) !== record.chainId)
     return pending;
-  const nonce = BigInt(record.nonce);
+  if (record.hash) {
+    const sent = await client.getTransaction({ hash: record.hash }).then(
+      (tx) => tx,
+      (error: { name?: unknown } | null) =>
+        error?.name === "TransactionNotFoundError" ? null : undefined,
+    );
+    if (sent === undefined) return pending;
+    if (sent) {
+      if (sent.from?.toLowerCase() !== record.account) return pending;
+      return {
+        check:
+          sent.blockNumber !== null && sent.blockNumber !== undefined
+            ? { status: "sent", hash: record.hash }
+            : { status: "pending" },
+        sentNonce: BigInt(sent.nonce).toString(),
+      };
+    }
+  }
+  const bound = record.hash !== undefined && record.sentNonce !== undefined;
+  const target = bound ? record.sentNonce : record.nonce;
+  if (target === undefined || record.fromBlock === undefined) return pending;
+  const nonce = BigInt(target);
   const count = async (blockNumber: bigint) =>
     BigInt(
       await client.getTransactionCount({
@@ -671,14 +743,25 @@ export async function checkReviewedWrite(
             )
           : undefined;
       if (!used || !isBytes32(used.hash)) return null;
-      return used.to?.toLowerCase() === record.call.to &&
+      const hash = used.hash.toLowerCase() as Hex;
+      if (hash === record.hash) return { status: "sent", hash };
+      if (
+        used.to?.toLowerCase() === record.call.to &&
         used.input?.toLowerCase() === record.call.data &&
         BigInt(used.value ?? 0) === BigInt(record.call.value)
-        ? { status: "sent", hash: used.hash.toLowerCase() as Hex }
-        : { status: "replaced" };
+      )
+        return { status: "sent", hash };
+      if (!bound || !used.to) return null;
+      const code = await client.getCode({
+        address: used.to,
+        blockNumber: high,
+      });
+      return code === undefined || code === "0x"
+        ? { status: "replaced" }
+        : null;
     },
   );
-  return proof?.value ?? pending;
+  return { check: proof?.value ?? pending.check };
 }
 
 /** Minimal RPC reads; PublicClient instances for any chain satisfy this shape. */
