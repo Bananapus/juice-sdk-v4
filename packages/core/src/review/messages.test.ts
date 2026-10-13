@@ -7,6 +7,7 @@ import {
   WRITE_EXIT_LABEL,
   relayrDiscardLine,
   relayrHeldMessage,
+  relayrSupersededLine,
   writeExitMessage,
   writeHeldMessage,
 } from "./messages.js";
@@ -28,6 +29,8 @@ const lines = () => [
   SAFE_PROPOSAL_REPLACED_LINE,
   SAFE_PROPOSAL_EXECUTED_LINE,
   RELAYR_PAYMENT_RELEASED_LINE,
+  relayrSupersededLine(),
+  relayrSupersededLine("launch"),
 ];
 
 describe("shared held and discard copy", () => {
@@ -79,6 +82,15 @@ describe("shared held and discard copy", () => {
     );
   });
 
+  it("says in one line that an unpaid earlier action is replaced", () => {
+    expect(relayrSupersededLine()).toBe(
+      "Your earlier unpaid action is replaced by this one.",
+    );
+    expect(relayrSupersededLine("payment")).toBe(
+      "Your earlier unpaid payment is replaced by this one.",
+    );
+  });
+
   it("keeps every line to one short sentence pair, free of mechanism names and em dashes", () => {
     for (const line of lines()) {
       expect(line).not.toMatch(/relayr|execution service|—/i);
@@ -91,5 +103,6 @@ describe("shared held and discard copy", () => {
     expect(review.relayrHeldMessage).toBe(relayrHeldMessage);
     expect(review.relayrDiscardLine).toBe(relayrDiscardLine);
     expect(review.writeExitMessage).toBe(writeExitMessage);
+    expect(review.relayrSupersededLine).toBe(relayrSupersededLine);
   });
 });

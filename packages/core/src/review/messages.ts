@@ -78,3 +78,8 @@ export const SAFE_PROPOSAL_EXECUTED_LINE = "Your Safe ran this transaction.";
 /** A quote released after its payment failed and its deadline passed. */
 export const RELAYR_PAYMENT_RELEASED_LINE =
   "Your payment didn't go through and its quote expired. Pay a new quote.";
+
+/** An ordinary action that replaced an earlier one nobody paid for. */
+export function relayrSupersededLine(action = "action"): string {
+  return `Your earlier unpaid ${action} is replaced by this one.`;
+}

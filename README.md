@@ -592,6 +592,66 @@ What each app replaces:
   its reconcile). A launch whose nonce moved can never be cancelled there; with
   these rules it ends with the `ran` Discard.
 
+### Request deadlines and superseding an unpaid session
+
+Signed requests stay executable for 2 hours by default
+(`RELAYR_FORWARDER_DEADLINE_SECONDS`), not 47: a session reserves its
+signers' nonces while one of its requests is live, so a launch held behind an
+abandoned session waits at most 2 hours. `relayrForwarderDeadline({ seconds,
+nowSeconds })` is the deadline to sign with; it accepts 1 to 47 hours (Relayr
+refuses 48 or more).
+
+A quote's payment window is about 10 minutes, and Relayr needs time to run a
+paid bundle before its requests expire. `bindRelayrQuote` records the
+earliest request deadline as `requestsDeadline`, and `relayrPaymentDetails`
+and `relayrPaymentOptions` refuse an option unless its payment deadline is at
+least `RELAYR_REQUEST_RUN_MARGIN_SECONDS` (30 minutes) before it. An app that
+refreshes signatures before quoting refreshes them once less than the payment
+window plus that margin is left, or quotes come back with no payable option.
+
+Ruling R119 lets an ordinary action replace an earlier session nobody paid
+for, instead of waiting for its requests to die:
+
+```ts
+import {
+  relayrSignedRequests,
+  relayrSupersede,
+} from "@bananapus/nana-sdk-core/review/relayr";
+import {
+  relayrHeldMessage,
+  relayrSupersededLine,
+} from "@bananapus/nana-sdk-core/review";
+
+const outcome = await relayrSupersede(
+  clientFor,
+  relayrSignedRequests(session.publishedEntries, session.nonces),
+  {
+    bundleUuid: session.bundleUuid,
+    options: session.quote?.payment_info,
+    destinationChainIds,
+    paymentAttempted: session.payments.length > 0,
+    launch: sessionLaunches || newCallsLaunch,
+  },
+);
+if (outcome.kind === "supersede") {
+  // Sign the new calls at outcome.nonces, then show:
+  relayrSupersededLine("payment");
+} else if (outcome.kind === "hold") {
+  relayrHeldMessage(outcome.until);
+}
+```
+
+It supersedes only when the app says neither session launches a project
+(`launch: false`; launches keep waiting), no payment was attempted, every
+request is live with none moved and each saved nonce known, every quoted
+option's deadline is more than a minute past at its payment chain's latest
+block, the forwarder's latest nonce still equals the saved one, and Relayr,
+read last, reports the bundle unpaid with every call pending. Anything unread
+holds. `released` means every request is dead, and the session rules above
+apply. A session that signed but never got a quote has nothing to read at
+Relayr and holds until its requests' deadline. Known limit: anyone holding an
+old signature can still run it at its nonce first; the new request then fails.
+
 ### Quotes whose payment reverted
 
 When a session's payment reverts onchain, `revertedRelayrQuote` reads the
@@ -806,7 +866,8 @@ keeps showing the proposal with a link to the Safe queue.
 `relayrHeldMessage(until, { action, formatTime })`, `relayrDiscardLine(reason,
 { action, subject, paymentUnmatched })`, `writeHeldMessage`,
 `writeExitMessage`, `WRITE_EXIT_LABEL`, `SAFE_PROPOSAL_REPLACED_LINE`,
-`SAFE_PROPOSAL_EXECUTED_LINE` and `RELAYR_PAYMENT_RELEASED_LINE`. Each names
+`SAFE_PROPOSAL_EXECUTED_LINE`, `RELAYR_PAYMENT_RELEASED_LINE` and
+`relayrSupersededLine(action)`. Each names
 the action, never the service, in one short line. `transactionMessage` now
 writes "Relayr's" as "the" and a bare "Relayr" as "the network".
 

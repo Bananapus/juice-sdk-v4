@@ -59,10 +59,50 @@ export const RELAYR_NATIVE_TOKEN =
 export const RELAYR_PAYMENT_GAS = 150_000n;
 
 /**
- * How long a signed ERC-2771 ForwardRequest stays executable: 47 hours from
- * signing. The forwarder rejects it afterwards, even if the bundle was paid.
+ * How long a signed ERC-2771 ForwardRequest stays executable by default: 2
+ * hours from signing. The forwarder rejects it afterwards, even if the bundle
+ * was paid. A saved session holds its signers' nonces while one of its
+ * requests is live (ruling R117), so a short deadline frees them sooner.
+ * {@link relayrForwarderDeadline} signs with it.
  */
-export const RELAYR_FORWARDER_DEADLINE_SECONDS = 47 * 60 * 60;
+export const RELAYR_FORWARDER_DEADLINE_SECONDS = 2 * 60 * 60;
+
+/** The shortest and longest a signed request may stay executable: Relayr refuses 48 hours or more. */
+const FORWARDER_DEADLINE_MIN_SECONDS = 60 * 60;
+const FORWARDER_DEADLINE_MAX_SECONDS = 47 * 60 * 60;
+
+/**
+ * The time Relayr is given to run a bundle's requests after its quote's
+ * payment deadline: a payment option is offered only when its deadline is at
+ * least this long before the earliest signed request's (see
+ * {@link relayrPaymentDetails}). An app that refreshes signatures before a
+ * quote refreshes them once less than the payment window plus this margin is
+ * left.
+ */
+export const RELAYR_REQUEST_RUN_MARGIN_SECONDS = 30 * 60;
+
+/**
+ * The deadline to sign a ForwardRequest with: `seconds` (by default
+ * {@link RELAYR_FORWARDER_DEADLINE_SECONDS}) after `nowSeconds` (the clock by
+ * default), in whole seconds. Throws unless `seconds` is a whole number from
+ * 1 hour to 47 hours.
+ */
+export function relayrForwarderDeadline({
+  seconds = RELAYR_FORWARDER_DEADLINE_SECONDS,
+  nowSeconds = Date.now() / 1_000,
+}: { seconds?: number; nowSeconds?: number } = {}): number {
+  if (
+    !Number.isSafeInteger(seconds) ||
+    seconds < FORWARDER_DEADLINE_MIN_SECONDS ||
+    seconds > FORWARDER_DEADLINE_MAX_SECONDS
+  ) {
+    throw new Error("A signed request must stay executable for 1 to 47 hours.");
+  }
+  if (!Number.isFinite(nowSeconds) || nowSeconds < 0) {
+    throw new Error("Invalid time for a signed request's deadline.");
+  }
+  return Math.floor(nowSeconds) + seconds;
+}
 
 /** ERC2771Context's view on a destination contract. */
 export const TRUSTED_FORWARDER_ABI = [
@@ -180,6 +220,12 @@ export type RelayrQuote = {
   transactions: RelayrTransactionRecord[];
   /** Each posted transaction with its quoted ID, in posted order. */
   expectedTransactions: RelayrTransactionBinding[];
+  /**
+   * The earliest deadline (seconds) of the bundle's signed forward requests,
+   * when it has any: {@link relayrPaymentOptions} offers only options paid
+   * {@link RELAYR_REQUEST_RUN_MARGIN_SECONDS} before it.
+   */
+  requestsDeadline?: number;
 };
 
 /**
@@ -769,11 +815,16 @@ export async function bindRelayrQuote(
   ) {
     throw new Error(UNBOUND);
   }
+  const deadlines = transactions.flatMap((entry) => {
+    const forwarded = relayrForwardRequest(entry);
+    return forwarded ? [forwarded.deadline] : [];
+  });
   return {
     bundle_uuid: bundleUuid,
     payment_info: body.payment_info as RelayrPayment[],
     transactions: bound,
     expectedTransactions,
+    ...(deadlines.length ? { requestsDeadline: Math.min(...deadlines) } : {}),
   };
 }
 
@@ -827,7 +878,10 @@ function paymentCalldataFor(calldata: unknown, bundleUuid: string): boolean {
  * the destinations' network family, Relayr's payment contract and native
  * token (in lower case or with their EIP-55 checksum), calldata that pays for
  * exactly `bundleUuid` with the quoted deadline, and a deadline more than 15
- * seconds away. Throws otherwise.
+ * seconds away. With `requestsDeadline`, the earliest deadline of the bundle's
+ * signed requests, the payment deadline must also be at least
+ * {@link RELAYR_REQUEST_RUN_MARGIN_SECONDS} before it, so a paid bundle's
+ * requests can still run. Throws otherwise.
  */
 export function relayrPaymentDetails(
   payment: RelayrPayment,
@@ -835,10 +889,12 @@ export function relayrPaymentDetails(
     bundleUuid,
     destinationChainIds,
     nowSeconds = Date.now() / 1_000,
+    requestsDeadline,
   }: {
     bundleUuid: string;
     destinationChainIds: readonly number[];
     nowSeconds?: number;
+    requestsDeadline?: number | bigint;
   },
 ): RelayrPaymentDetails {
   const chainId = (payment as Partial<RelayrPayment> | null)?.chain;
@@ -886,6 +942,17 @@ export function relayrPaymentDetails(
     );
   }
   if (quoteExpired(deadline, nowSeconds)) throw new Error(EXPIRED);
+  if (requestsDeadline !== undefined) {
+    const end = uint256(requestsDeadline);
+    if (
+      end === null ||
+      deadline + BigInt(RELAYR_REQUEST_RUN_MARGIN_SECONDS) > end
+    ) {
+      throw new Error(
+        "This quote's payment window ends too close to when the signed requests expire. Review the action again.",
+      );
+    }
+  }
   return {
     chainId,
     target: RELAYR_PAYMENT_ADDRESS,
@@ -898,14 +965,16 @@ export function relayrPaymentDetails(
 
 /**
  * The payment options to offer: each passes {@link relayrPaymentDetails} for
- * the quote's bundle and destinations, one per chain (Relayr's first), copied
+ * the quote's bundle and destinations (and, when the quote has one, its
+ * `requestsDeadline`), one per chain (Relayr's first), copied
  * so the quote's owner cannot change one under a later review. A chain with
  * any option whose contract or token is not an address as viem's strict check
  * reads one (in lower case, or with a valid EIP-55 checksum) gets no option:
  * Relayr's answer for that chain is corrupted.
  */
 export function relayrPaymentOptions(
-  quote: Pick<RelayrQuote, "bundle_uuid" | "payment_info">,
+  quote: Pick<RelayrQuote, "bundle_uuid" | "payment_info"> &
+    Partial<Pick<RelayrQuote, "requestsDeadline">>,
   destinationChainIds: readonly number[],
   nowSeconds?: number,
 ): RelayrPayment[] {
@@ -929,6 +998,10 @@ export function relayrPaymentOptions(
         bundleUuid: quote.bundle_uuid,
         destinationChainIds,
         nowSeconds,
+        // A key present with an unreadable value refuses every option.
+        ...("requestsDeadline" in quote
+          ? { requestsDeadline: quote.requestsDeadline as number }
+          : {}),
       }));
     } catch {
       continue;
@@ -2239,6 +2312,199 @@ export async function relayrSessionOutcome(
         );
   }
   return { kind: "re-sign", nonces: saved };
+}
+
+/**
+ * How far past a quote's payment deadline the latest block must be before a
+ * session counts as unpayable: the payment contract refuses a payment once a
+ * block's timestamp is past the deadline, and the minute covers a short reorg.
+ */
+const SUPERSEDE_DEADLINE_MARGIN_SECONDS = 60n;
+
+/**
+ * The reads {@link relayrSupersede} makes on a chain: the finalized reads of
+ * {@link RelayrFinalizedClient} and the latest block. A PublicClient for any
+ * chain satisfies it.
+ */
+export type RelayrSupersedeClient = RelayrFinalizedClient & {
+  getBlock(args: { blockTag: "latest" }): Promise<{
+    number: bigint | null;
+    timestamp: bigint;
+  }>;
+};
+
+/**
+ * What a new action may do about an earlier session's signed requests
+ * (rulings R117 and R119):
+ *
+ * - `released`: every request is dead, as {@link relayrRequestsDead} reads
+ *   it. The session's own rules ({@link relayrSessionOutcome}) apply.
+ * - `hold`: a request can still run. Wait until `until` (seconds; 0 when no
+ *   request could be read), as `relayrHeldMessage` words it.
+ * - `supersede`: nothing can pay the session any more. Sign the new action's
+ *   calls at `nonces`, the saved nonce of each earlier request in order, so
+ *   the forwarder runs at most one request per nonce. Show
+ *   `relayrSupersededLine`.
+ */
+export type RelayrSupersedeOutcome =
+  | { kind: "released" }
+  | { kind: "hold"; until: number }
+  | {
+      kind: "supersede";
+      nonces: { chainId: number; signer: Address; nonce: string }[];
+    };
+
+/**
+ * Whether a new action may sign different calls at an earlier session's saved
+ * nonces instead of waiting for its requests to die (ruling R119, amending
+ * R114 (g) and R117). It supersedes only when all of these hold:
+ *
+ * - `launch` is false: neither the saved session nor the new calls launch a
+ *   project. Launches keep R114 (g) and wait;
+ * - `paymentAttempted` is false: the session never sent, or tried to send, a
+ *   payment;
+ * - every request is live at a canonical finalized block, none moved, and
+ *   each has a saved nonce;
+ * - every option of the saved quote (`options`, for `bundleUuid` and
+ *   `destinationChainIds`) is authenticated, and its deadline is more than a
+ *   minute past at its payment chain's latest block, so the payment contract
+ *   refuses it;
+ * - at each destination's latest block, the forwarder still expects the
+ *   lowest saved nonce of each signer;
+ * - read last, with `fetch` (the global one by default) and never from a
+ *   cache, Relayr reports the bundle unpaid with every call pending, as
+ *   {@link requireRelayrBundleUnpaid} reads it.
+ *
+ * Anything unread holds. A session that paid, or may have paid, is never
+ * superseded. Known limit: anyone holding an old signature can still run it
+ * at its nonce first, and the new request then fails.
+ */
+export async function relayrSupersede(
+  clientFor: (chainId: number) => RelayrSupersedeClient | undefined,
+  requests: readonly RelayrSignedRequest[] | null | undefined,
+  {
+    bundleUuid,
+    options,
+    destinationChainIds,
+    paymentAttempted,
+    launch,
+    fetch: fetchBundle = globalThis.fetch,
+  }: {
+    bundleUuid?: string | null;
+    options?: readonly RelayrPayment[] | null;
+    destinationChainIds: readonly number[];
+    paymentAttempted: boolean;
+    launch: boolean;
+    fetch?: typeof globalThis.fetch;
+  },
+): Promise<RelayrSupersedeOutcome> {
+  if (!Array.isArray(requests) || !requests.length) {
+    return { kind: "hold", until: 0 };
+  }
+  const states = await relayrRequestStates(clientFor, requests);
+  const verdict = relayrRequestsVerdict(states);
+  if (!verdict.live) return { kind: "released" };
+  const hold: RelayrSupersedeOutcome = { kind: "hold", until: verdict.until };
+  const uuid = uuidOf(bundleUuid);
+  const saved = requests.map(({ nonce }) =>
+    nonce === undefined ? null : uint256(nonce),
+  );
+  if (
+    launch !== false ||
+    paymentAttempted !== false ||
+    verdict.mayHaveRun ||
+    states.some((state) => !state.live) ||
+    saved.some((nonce) => nonce === null) ||
+    !uuid ||
+    !Array.isArray(options) ||
+    !options.length
+  ) {
+    return hold;
+  }
+  const quoted = relayrQuotedOptions(
+    { bundle_uuid: uuid, payment_info: [...options] },
+    destinationChainIds,
+  );
+  if (quoted.length !== options.length) return hold;
+
+  const latest = new Map<
+    number,
+    Promise<{ number: bigint; timestamp: bigint } | null>
+  >();
+  const latestOn = (chainId: number) => {
+    if (!latest.has(chainId)) {
+      const client = clientOn(clientFor, chainId);
+      latest.set(
+        chainId,
+        client
+          ? client.getBlock({ blockTag: "latest" }).then(
+              ({ number, timestamp }) =>
+                typeof number === "bigint" && typeof timestamp === "bigint"
+                  ? { number, timestamp }
+                  : null,
+              () => null,
+            )
+          : Promise.resolve(null),
+      );
+    }
+    return latest.get(chainId)!;
+  };
+
+  for (const { details } of quoted) {
+    const block = await latestOn(details.chainId);
+    if (
+      !block ||
+      block.timestamp <= details.deadline + SUPERSEDE_DEADLINE_MARGIN_SECONDS
+    ) {
+      return hold;
+    }
+  }
+
+  const lowest = new Map<
+    string,
+    { chainId: number; signer: Address; nonce: bigint }
+  >();
+  requests.forEach(({ chainId, signer }, index) => {
+    const key = `${chainId}:${String(signer).toLowerCase()}`;
+    const current = lowest.get(key);
+    if (!current || saved[index]! < current.nonce) {
+      lowest.set(key, { chainId, signer, nonce: saved[index]! });
+    }
+  });
+  for (const { chainId, signer, nonce } of lowest.values()) {
+    const forwarder = forwarderOn(chainId);
+    const client = clientOn(clientFor, chainId);
+    const block = await latestOn(chainId);
+    if (!forwarder || !client || !block) return hold;
+    try {
+      const expected = uint256(
+        await client.readContract({
+          address: forwarder,
+          abi: erc2771ForwarderAbi,
+          functionName: "nonces",
+          args: [signer],
+          blockNumber: block.number,
+        }),
+      );
+      if (expected !== nonce) return hold;
+    } catch {
+      return hold;
+    }
+  }
+
+  try {
+    await requireRelayrBundleUnpaid(uuid, { fetch: fetchBundle });
+  } catch {
+    return hold;
+  }
+  return {
+    kind: "supersede",
+    nonces: requests.map(({ chainId, signer }, index) => ({
+      chainId,
+      signer,
+      nonce: saved[index]!.toString(),
+    })),
+  };
 }
 
 // Ruling R104 for a quote a session paid: the payments it sent, the option it

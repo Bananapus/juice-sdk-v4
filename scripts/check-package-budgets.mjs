@@ -160,8 +160,14 @@ const budgets = {
     // exit can't erase a newer write; a memory-only hash still exits) adds
     // +1,911 B packed / +9,252 B unpacked to existing artifacts.
     // Measured 1,384,151 B packed / 21,377,972 B unpacked and 810 entries.
-    packed: 1_386_000,
-    unpacked: 21_380_000,
+    // Ruling R119's supersede rule (2-hour request deadlines and their
+    // helper, the quote's request deadline and the 30-minute run margin on
+    // payment options, relayrSupersede and its one line of copy) changes
+    // existing artifacts only, no files or dependencies. With the 2.30.0
+    // changelog entry: measured 1,392,124 B packed / 21,417,085 B unpacked and
+    // 810 entries.
+    packed: 1_394_000,
+    unpacked: 21_420_000,
     entries: 810,
   },
   "@bananapus/nana-sdk-react": {
