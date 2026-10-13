@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import {
   createPublicClient,
+  decodeFunctionData,
   encodeFunctionData,
   formatBlock,
   formatTransaction,
@@ -1464,6 +1465,76 @@ describe("Relayr payment options", () => {
         ),
       ).toEqual([]);
     }
+  });
+
+  it("refuses a restored binding whose entry or chain doesn't hold together", () => {
+    const [binding] = relayrBundleRequest([
+      forwarded(1, { deadline: NOW + 60 }),
+    ]).transactions.map((entry) => ({ txUuid: BUNDLE_UUID, chain: 1, entry }));
+    const { chain: _chain, ...chainless } = binding.entry;
+    for (const restored of [
+      { ...binding, entry: chainless },
+      { ...binding, entry: { ...binding.entry, chain: "1" } },
+      { ...binding, chain: 10 },
+      { ...binding, entry: { ...binding.entry, chain: 5 }, chain: 5 },
+      { ...binding, chain: undefined },
+    ]) {
+      expect(
+        relayrPaymentOptions(
+          {
+            bundle_uuid: BUNDLE_UUID,
+            payment_info: [paymentFor()],
+            expectedTransactions: [
+              restored,
+            ] as unknown as RelayrTransactionBinding[],
+          },
+          [1],
+          NOW,
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it("keeps options for a forwarder call that forwards nothing, and refuses a batch it can't read", () => {
+    const quoteWith = (data: Hex) => ({
+      bundle_uuid: BUNDLE_UUID,
+      payment_info: [paymentFor()],
+      expectedTransactions: [
+        {
+          txUuid: BUNDLE_UUID,
+          chain: 1,
+          entry: { chain: 1, target: FORWARDER, data, value: "0" },
+        },
+      ],
+    });
+    for (const functionName of ["eip712Domain", "nonces"] as const) {
+      const data =
+        functionName === "nonces"
+          ? encodeFunctionData({
+              abi: erc2771ForwarderAbi,
+              functionName,
+              args: [ACCOUNT],
+            })
+          : encodeFunctionData({ abi: erc2771ForwarderAbi, functionName });
+      expect(relayrPaymentOptions(quoteWith(data), [1], NOW)).toEqual([
+        paymentFor(),
+      ]);
+    }
+    const { data: executeData } = forwarded(1);
+    const request = decodeFunctionData({
+      abi: erc2771ForwarderAbi,
+      data: executeData,
+    }).args[0] as never;
+    const batch = encodeFunctionData({
+      abi: erc2771ForwarderAbi,
+      functionName: "executeBatch",
+      args: [[request], ACCOUNT],
+    });
+    expect(relayrPaymentOptions(quoteWith(batch), [1], NOW)).toEqual([]);
+    // An execute that decodes but doesn't re-encode byte for byte.
+    expect(
+      relayrPaymentOptions(quoteWith(`${executeData}00` as Hex), [1], NOW),
+    ).toEqual([]);
   });
 
   it("offers nothing when the requests' deadline can't be read", () => {

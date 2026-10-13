@@ -828,22 +828,43 @@ export async function bindRelayrQuote(
 /**
  * The earliest deadline of the signed forward requests among a quote's
  * bindings: undefined when none is a forward request, and null when one can't
- * be read, including a call to a forwarder that doesn't decode.
+ * be read. Each binding must name its entry's chain, a Relayr chain. A call to
+ * the chain's forwarder counts as raw only when it decodes to a function that
+ * forwards nothing (a view such as `eip712Domain`); an `execute` must be one
+ * {@link relayrForwardRequest} reads, and anything else (an `executeBatch`,
+ * calldata that doesn't decode) can't be read.
  */
 function requestsDeadlineOf(bindings: unknown): number | null | undefined {
   if (!Array.isArray(bindings)) return null;
   let earliest: number | undefined;
   for (const binding of bindings) {
-    const entry = (binding as { entry?: unknown } | null)?.entry as
-      | RelayrEntry
-      | undefined;
-    if (!entry || typeof entry !== "object") return null;
-    const request = relayrForwardRequest(entry);
-    if (!request) {
-      const forwarder = forwarderOn(entry.chain);
-      if (forwarder && sameAddress(entry.target, forwarder)) return null;
-      continue;
+    const { chain, entry } = (binding ?? {}) as {
+      chain?: unknown;
+      entry?: Partial<RelayrEntry> | null;
+    };
+    if (
+      !entry ||
+      typeof entry !== "object" ||
+      typeof chain !== "number" ||
+      entry.chain !== chain ||
+      !relayrSupportsChain(chain)
+    ) {
+      return null;
     }
+    if (!sameAddress(entry.target, forwarderOn(chain)!)) continue;
+    let functionName: string;
+    try {
+      ({ functionName } = decodeFunctionData({
+        abi: erc2771ForwarderAbi,
+        data: entry.data as Hex,
+      }));
+    } catch {
+      return null;
+    }
+    if (functionName === "executeBatch") return null;
+    if (functionName !== "execute") continue;
+    const request = relayrForwardRequest(entry as RelayrEntry);
+    if (!request) return null;
     earliest =
       earliest === undefined
         ? request.deadline
