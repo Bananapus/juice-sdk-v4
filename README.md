@@ -620,7 +620,7 @@ import {
   relayrSupersede,
 } from "@bananapus/nana-sdk-core/review/relayr";
 import {
-  relayrHeldMessage,
+  relayrSupersedeHeldMessage,
   relayrSupersededLine,
 } from "@bananapus/nana-sdk-core/review";
 
@@ -641,7 +641,7 @@ if (outcome.kind === "supersede") {
   // Sign the new calls at outcome.nonces, then show:
   relayrSupersededLine("payment");
 } else if (outcome.kind === "hold") {
-  relayrHeldMessage(outcome.until);
+  relayrSupersedeHeldMessage(outcome);
 }
 ```
 
@@ -658,9 +658,11 @@ and list each saved call once with its exact request, pending, and nothing
 else. Anything unread holds. `released` means every request is dead, and the
 session rules above apply.
 
-While it waits for finality past the quote's deadline (minutes on L2s, about
-15 minutes on Ethereum), the outcome is `hold`: the app shows
-`relayrHeldMessage(until)` and asks again when the user retries. A session that signed but never got a quote has nothing to read at
+While it waits only for finality past the quote's deadline (minutes on L2s,
+about 15 minutes on Ethereum) and every other check passed, the outcome is
+`hold` with `reason: "finality"`, and `relayrSupersedeHeldMessage` shows
+`RELAYR_FINALITY_HOLD_LINE`, "Try again in a few minutes." Every other hold
+shows `relayrHeldMessage(until)`. A session that signed but never got a quote has nothing to read at
 Relayr and holds until its requests' deadline. Known limit: anyone holding an
 old signature can still run it at its nonce first; the new request then fails.
 
@@ -878,8 +880,9 @@ keeps showing the proposal with a link to the Safe queue.
 `relayrHeldMessage(until, { action, formatTime })`, `relayrDiscardLine(reason,
 { action, subject, paymentUnmatched })`, `writeHeldMessage`,
 `writeExitMessage`, `WRITE_EXIT_LABEL`, `SAFE_PROPOSAL_REPLACED_LINE`,
-`SAFE_PROPOSAL_EXECUTED_LINE`, `RELAYR_PAYMENT_RELEASED_LINE` and
-`relayrSupersededLine(action)`. Each names
+`SAFE_PROPOSAL_EXECUTED_LINE`, `RELAYR_PAYMENT_RELEASED_LINE`,
+`relayrSupersededLine(action)`, `RELAYR_FINALITY_HOLD_LINE` and
+`relayrSupersedeHeldMessage(hold, options)`. Each names
 the action, never the service, in one short line. `transactionMessage` now
 writes "Relayr's" as "the" and a bare "Relayr" as "the network".
 

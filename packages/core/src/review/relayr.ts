@@ -2406,8 +2406,10 @@ export type RelayrSupersedeClient = {
  *   it. The session's own rules ({@link relayrSessionOutcome}) apply.
  * - `hold`: a request can still run, or nothing yet proves the session can
  *   never be paid. Wait until `until` (seconds; 0 when no request could be
- *   read), as `relayrHeldMessage` words it, and ask again: once a finalized
- *   block is past the quote's deadline, a session nobody paid supersedes.
+ *   read), as `relayrHeldMessage` words it. With `reason: "finality"`, every
+ *   other check passed and only a finalized block past the quote's deadline
+ *   is missing: ask again in a few minutes, as
+ *   `relayrSupersedeHeldMessage` words it.
  * - `supersede`: nothing can pay the session any more. Sign the new action's
  *   calls at `nonces`, the saved nonce of each earlier request in order, so
  *   the forwarder runs at most one request per nonce. Show
@@ -2415,7 +2417,7 @@ export type RelayrSupersedeClient = {
  */
 export type RelayrSupersedeOutcome =
   | { kind: "released" }
-  | { kind: "hold"; until: number }
+  | { kind: "hold"; until: number; reason?: "finality" }
   | {
       kind: "supersede";
       nonces: { chainId: number; signer: Address; nonce: string }[];
@@ -2475,18 +2477,19 @@ async function lastBlockAtOrBefore(
 }
 
 /**
- * Whether the chain proves no payment for `uuid` can exist on it: a canonical
- * finalized block is past `deadline`, so the payment contract refuses any
- * payment carrying it, and no Prepayment event for the bundle was logged from
- * the last block at or before `from` to the last at or before `deadline`.
- * Anything unread is false.
+ * Whether the chain proves no payment for `uuid` can exist on it (`proven`):
+ * a canonical finalized block is past `deadline`, so the payment contract
+ * refuses any payment carrying it, and no Prepayment event for the bundle was
+ * logged from the last block at or before `from` to the last at or before
+ * `deadline`. `finality` while the canonical finalized block is not yet past
+ * the deadline. Anything else, unread included, is `unproven`.
  */
 async function provenUnpaidOn(
   client: RelayrSupersedeClient,
   uuid: string,
   from: bigint,
   deadline: bigint,
-): Promise<boolean> {
+): Promise<"proven" | "finality" | "unproven"> {
   const finalized = await atCanonicalFinalizedBlock(client, async (top) => {
     const timestamps = new Map<bigint, bigint>();
     const timestampOf = async (block: bigint) => {
@@ -2497,11 +2500,12 @@ async function provenUnpaidOn(
       }
       return timestamps.get(block)!;
     };
-    if ((await timestampOf(top)) <= deadline) return false;
+    if ((await timestampOf(top)) <= deadline) return "finality";
     const end = await lastBlockAtOrBefore(timestampOf, deadline, top);
     const before = await lastBlockAtOrBefore(timestampOf, from, end);
     const start = before < 0n ? 0n : before;
-    if (end < start || end - start >= MAX_PAYMENT_SEARCH_BLOCKS) return false;
+    if (end < start || end - start >= MAX_PAYMENT_SEARCH_BLOCKS)
+      return "unproven";
     for (let low = start; low <= end; low += LOG_RANGE_BLOCKS) {
       const high =
         low + LOG_RANGE_BLOCKS - 1n < end ? low + LOG_RANGE_BLOCKS - 1n : end;
@@ -2512,11 +2516,11 @@ async function provenUnpaidOn(
         fromBlock: low,
         toBlock: high,
       });
-      if (!Array.isArray(logs) || logs.length) return false;
+      if (!Array.isArray(logs) || logs.length) return "unproven";
     }
-    return true;
+    return "proven";
   });
-  return finalized?.value === true;
+  return finalized?.value ?? "unproven";
 }
 
 /**
@@ -2656,14 +2660,16 @@ export async function relayrSupersede(
     if (latest === undefined || details.deadline > latest)
       deadlines.set(details.chainId, details.deadline);
   }
+  // A chain still waiting for finality is checked again once every other
+  // check has passed, so that only it holds the session.
+  let finality = false;
   for (const [chainId, deadline] of deadlines) {
     const client = clientOn(clientFor, chainId);
-    if (
-      !client ||
-      !(await provenUnpaidOn(client, uuid, BigInt(from), deadline))
-    ) {
-      return hold;
-    }
+    const proof = client
+      ? await provenUnpaidOn(client, uuid, BigInt(from), deadline)
+      : "unproven";
+    if (proof === "unproven") return hold;
+    if (proof === "finality") finality = true;
   }
 
   const lowest = new Map<
@@ -2706,6 +2712,7 @@ export async function relayrSupersede(
     return hold;
   }
   if (!bundleMatchesSession(bundle, options, bindings, from)) return hold;
+  if (finality) return { ...hold, reason: "finality" };
   return {
     kind: "supersede",
     nonces: requests.map(({ chainId, signer }, index) => ({

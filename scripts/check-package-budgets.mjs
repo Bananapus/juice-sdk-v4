@@ -171,8 +171,11 @@ const budgets = {
     // requests' deadline read from a restored quote's bindings) change
     // existing artifacts only: +6,987 B packed / +31,850 B unpacked.
     // Measured 1,399,111 B packed / 21,448,935 B unpacked and 810 entries.
-    packed: 1_401_000,
-    unpacked: 21_451_000,
+    // The finality hold reason and its line add +1,186 B packed / +4,964 B
+    // unpacked to existing artifacts. Measured 1,400,297 B packed /
+    // 21,453,899 B unpacked and 810 entries.
+    packed: 1_402_000,
+    unpacked: 21_456_000,
     entries: 810,
   },
   "@bananapus/nana-sdk-react": {

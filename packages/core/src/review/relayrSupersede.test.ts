@@ -323,12 +323,40 @@ describe("superseding an unpaid Relayr session", () => {
     chains[1].finalizedAt = PAY_DEADLINE;
     await expect(
       relayrSupersede(clientFor, requests(), settings()),
-    ).resolves.toEqual(hold);
+    ).resolves.toEqual({ ...hold, reason: "finality" });
     expect(clients[1]!.getLogs).not.toHaveBeenCalled();
     chains[1].finalizedAt = PAY_DEADLINE + 1;
     await expect(
       relayrSupersede(clientFor, requests(), settings()),
     ).resolves.toEqual(supersede);
+  });
+
+  it("says finality is the only wait only when every other check passes", async () => {
+    chains[1].finalizedAt = PAY_DEADLINE;
+    chains[10].paidIn = lastBlockAtOrBefore(10, PAY_DEADLINE);
+    await expect(
+      relayrSupersede(clientFor, requests(), settings()),
+    ).resolves.toEqual(hold);
+    chains[10].paidIn = undefined;
+    chains[10].latestNonce = 5n;
+    await expect(
+      relayrSupersede(clientFor, requests(), settings()),
+    ).resolves.toEqual(hold);
+    chains[10].latestNonce = 4n;
+    fetchBundle.mockImplementation(async () =>
+      bundle({ payment_received: true }),
+    );
+    await expect(
+      relayrSupersede(clientFor, requests(), settings()),
+    ).resolves.toEqual(hold);
+    fetchBundle.mockImplementation(async () => bundle());
+    clients[10]!.getLogs.mockRejectedValueOnce(new Error("down"));
+    await expect(
+      relayrSupersede(clientFor, requests(), settings()),
+    ).resolves.toEqual(hold);
+    await expect(
+      relayrSupersede(clientFor, requests(), settings({ launch: true })),
+    ).resolves.toEqual(hold);
   });
 
   it("holds when the search can't be read or the finalized block is no longer canonical", async () => {

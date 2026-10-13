@@ -83,3 +83,20 @@ export const RELAYR_PAYMENT_RELEASED_LINE =
 export function relayrSupersededLine(action = "action"): string {
   return `Your earlier unpaid ${action} is replaced by this one.`;
 }
+
+/** A supersede that waits only for the chain to finalize past a quote's deadline. */
+export const RELAYR_FINALITY_HOLD_LINE = "Try again in a few minutes.";
+
+/**
+ * The line a held supersede shows: {@link RELAYR_FINALITY_HOLD_LINE} when only
+ * finality is missing (`reason: "finality"`), and otherwise
+ * {@link relayrHeldMessage} for `until`, with the same options.
+ */
+export function relayrSupersedeHeldMessage(
+  hold: { until: number; reason?: "finality" },
+  options?: Parameters<typeof relayrHeldMessage>[1],
+): string {
+  return hold.reason === "finality"
+    ? RELAYR_FINALITY_HOLD_LINE
+    : relayrHeldMessage(hold.until, options);
+}
