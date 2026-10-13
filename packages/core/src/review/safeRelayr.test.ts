@@ -2654,6 +2654,70 @@ describe("Safe Relayr funding and canonical outcome", () => {
     expect(h.sendPayment).toHaveBeenCalledTimes(1);
   });
 
+  it("releases a quote whose wrapped payment reverted once its deadline is final and the bundle is unpaid", async () => {
+    const h = harness();
+    h.store.scope = "single-session";
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    // A Safe or smart wallet paid through its own contract, and it reverted.
+    h.mined({ status: "reverted", target: OTHER });
+    const check = () =>
+      h.controller.check({ account: ACCOUNT, sessionId: ready.session.id });
+    expect((await check()).state).toBe("pending");
+    vi.mocked(Date.now).mockReturnValue((DEADLINE + 60) * 1000);
+    expect((await check()).state).toBe("pending");
+    h.setTimestamp(BigInt(DEADLINE + 1));
+    h.setPaymentReceived(true);
+    expect((await check()).state).toBe("pending");
+    h.setPaymentReceived(false);
+    const released = await check();
+    expect(released.state).toBe("released");
+    expect(released.session).toMatchObject({
+      paymentStatus: "expired",
+      releaseReason: "quote-expired",
+    });
+    // A single-session journal takes a new selection with a fresh quote.
+    vi.mocked(Date.now).mockReturnValue(NOW * 1000);
+    h.setTimestamp(BigInt(NOW));
+    h.setBundleUuid(NEXT_BUNDLE);
+    await expect(
+      h.controller.prepare({ account: ACCOUNT, executions: [execution(10)] }),
+    ).resolves.toMatchObject({ state: "ready" });
+    expect(h.sendPayment).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an unproven wrapped payment pending after its deadline", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    // It succeeded without the payment event: not a revert, so never released.
+    h.mined({ status: "success", target: OTHER });
+    vi.mocked(Date.now).mockReturnValue((DEADLINE + 60) * 1000);
+    h.setTimestamp(BigInt(DEADLINE + 1));
+    expect(
+      (
+        await h.controller.check({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+        })
+      ).state,
+    ).toBe("pending");
+  });
+
   it("keeps a retry without a returned hash pending despite a proven previous revert", async () => {
     const h = harness();
     const ready = await h.controller.prepare({
