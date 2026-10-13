@@ -9,7 +9,7 @@ import {
   type Hex,
   type TransactionReceipt,
 } from "viem";
-import { IDBFactory } from "fake-indexeddb";
+import { IDBDatabase, IDBFactory } from "fake-indexeddb";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   canonicalSafeTxHash,
@@ -1274,12 +1274,15 @@ describe("releasing a write with no confirmed result", () => {
     ).resolves.toEqual({ status: "sent", hash: HASH });
   });
 
-  it("releases only a replacement proven not to run the call", async () => {
+  it("never releases another transaction at the sent nonce on its own", async () => {
     const { record } = await reserved();
     const bound = { ...record, hash: HASH, sentNonce: "7" };
-    await expect(check(nonceChain({ tx: cancel }), bound)).resolves.toEqual({
-      status: "replaced",
-    });
+    // Even a cancel to an address with no code at block end: an EIP-7702
+    // wallet can run code, pay and clear its delegation in the same block.
+    // The user's exit (one tap) ends it.
+    await expect(check(nonceChain({ tx: cancel }), bound)).resolves.toEqual(
+      pending,
+    );
     // A contract could run the reviewed call inside it.
     await expect(
       check(nonceChain({ tx: wrapped(SENT) }), bound),
@@ -1332,9 +1335,12 @@ describe("releasing a write with no confirmed result", () => {
   it("releases once the call's effect is visible, and ignores a failing effect read", async () => {
     const { record } = await reserved();
     const client = nonceChain({ crossing: 300n });
+    const effect = vi.fn(async () => true);
     await expect(
-      checkReviewedWrite(client as never, record, { effect: async () => true }),
+      checkReviewedWrite(client as never, record, { effect }),
     ).resolves.toEqual({ status: "ran" });
+    // The effect reads the saved chain.
+    expect(effect).toHaveBeenCalledWith(10);
     await expect(
       checkReviewedWrite(client as never, record, {
         effect: async () => {
@@ -1342,6 +1348,23 @@ describe("releasing a write with no confirmed result", () => {
         },
       }),
     ).resolves.toEqual(pending);
+  });
+
+  it("reads no effect through a client on another chain, and keeps the record", async () => {
+    const { record, journal } = await reserved();
+    const effect = vi.fn(async () => true);
+    await expect(
+      checkReviewedWrite(nonceChain({ chainId: 1 }) as never, record, {
+        effect,
+      }),
+    ).resolves.toEqual(pending);
+    await expect(
+      journal.withLock(() =>
+        journal.resolve(nonceChain({ chainId: 1 }) as never, { effect }),
+      ),
+    ).resolves.toEqual(pending);
+    expect(effect).not.toHaveBeenCalled();
+    expect(journal.read()).toEqual(record);
   });
 
   it("binds the sent nonce while the node knows the hash, then applies each finding", async () => {
@@ -1367,13 +1390,13 @@ describe("releasing a write with no confirmed result", () => {
       hash: HASH,
       sentNonce: "7",
     });
-    // Then the wallet cancelled it.
+    // Then the wallet cancelled it: still held, until the user's exit.
     await expect(
       replaced.journal.withLock(() =>
         replaced.journal.resolve(nonceChain({ tx: cancel }) as never),
       ),
-    ).resolves.toEqual({ status: "replaced" });
-    expect(replaced.journal.read()).toBeNull();
+    ).resolves.toEqual(pending);
+    expect(replaced.journal.read()?.sentNonce).toBe("7");
 
     const sent = await reserved();
     await sent.journal.withLock(async () => sent.journal.submitted(HASH));
@@ -1474,6 +1497,38 @@ describe("tabs without Web Locks", () => {
     await expect(b.withLock(async () => "taken")).resolves.toBe("taken");
     release();
     await holding;
+  });
+
+  it("keeps the user's exit when the lease can't be taken, and blocks new sends", async () => {
+    const storage = origin();
+    const module = await tab();
+    const journal = module.createBrowserWriteRecovery(input, { storage });
+    const record = await journal.withLock(async () => journal.reserve());
+    const transaction = vi
+      .spyOn(IDBDatabase.prototype, "transaction")
+      .mockImplementation(() => {
+        throw new Error("IndexedDB transaction failed");
+      });
+    await expect(
+      journal.withLock(async () => journal.reserve()),
+    ).rejects.toThrow("IndexedDB transaction failed");
+    expect(() =>
+      journal.abandon(
+        { ...record, id: "other" },
+        {
+          checkedWallet: true,
+        },
+      ),
+    ).toThrow("changed");
+    expect(() => journal.abandon(record, {} as never)).toThrow(
+      "checked their wallet",
+    );
+    journal.abandon(record, { checkedWallet: true });
+    expect(journal.read()).toBeNull();
+    await expect(
+      journal.withLock(async () => journal.reserve()),
+    ).rejects.toThrow("IndexedDB transaction failed");
+    transaction.mockRestore();
   });
 
   it("falls back to a lock within the tab when IndexedDB is unavailable too", async () => {

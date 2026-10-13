@@ -503,6 +503,10 @@ export function createBrowserWriteRecovery(
   }
   function clear(expected: ReviewedWriteRecoveryRecord): void {
     requireLock();
+    release(expected);
+  }
+  /** Remove exactly `expected`, refusing any other saved record. */
+  function release(expected: ReviewedWriteRecoveryRecord): void {
     // A volatile returned hash is useful for tracking, but is not a successful
     // durable commit. submitted(hash, record) must retry that commit first.
     const store = storage();
@@ -659,12 +663,12 @@ export function createBrowserWriteRecovery(
     clear,
     /**
      * Check the saved write against the chain ({@link checkReviewedWrite}) and
-     * apply the finding: `sent` records the hash to track, `replaced` and
-     * `ran` release it. Null when nothing is saved.
+     * apply the finding: `sent` records the hash to track, `ran` releases it.
+     * Null when nothing is saved.
      */
     async resolve(
       client: ReviewedWriteNonceClient,
-      checkOptions?: { effect?: () => Promise<boolean> },
+      checkOptions?: { effect?: (chainId: number) => Promise<boolean> },
     ): Promise<ReviewedWriteCheck | null> {
       requireLock();
       let saved = read();
@@ -681,17 +685,20 @@ export function createBrowserWriteRecovery(
       } else if (check.status !== "pending") clear(saved);
       return check;
     },
-    /** The user confirmed they checked their wallet; release the write. */
+    /**
+     * The user confirmed they checked their wallet; release the write. It
+     * removes only `expected` itself, so it needs no lock and still works when
+     * the cross-tab lock can't be taken. New sends still need `withLock`.
+     */
     abandon(
       expected: ReviewedWriteRecoveryRecord,
       acknowledgement: { checkedWallet: true },
     ): void {
-      requireLock();
       if (acknowledgement?.checkedWallet !== true)
         throw new Error(
           "Release a held write only after the user confirms they checked their wallet.",
         );
-      clear(expected);
+      release(expected);
     },
     async withLock<T>(work: () => Promise<T>, wait = false): Promise<T> {
       const locks = options.locks ?? browserLocks();
@@ -721,19 +728,13 @@ export type ReviewedWriteCheck =
   | { status: "pending" }
   /** The saved hash, or the exact call, is the transaction at its nonce: track that receipt. */
   | { status: "sent"; hash: Hex }
-  /** A transaction that cannot run the call used its nonce, so it never will. */
-  | { status: "replaced" }
   /** The app's effect read shows the call took effect. */
   | { status: "ran" };
 
 /** The reads {@link checkReviewedWrite} makes; a viem PublicClient satisfies it. */
 export type ReviewedWriteNonceClient = Pick<
   PublicClient,
-  | "getBlock"
-  | "getChainId"
-  | "getCode"
-  | "getTransaction"
-  | "getTransactionCount"
+  "getBlock" | "getChainId" | "getTransaction" | "getTransactionCount"
 >;
 
 /** The account's next nonce, counting its pending transactions, and the block it was read at. Read it right before `reserve`. */
@@ -758,12 +759,12 @@ export async function readReviewedWriteNonce(
  *   the mempool. Its nonce is the nonce it was sent at (`sentNonce`).
  * - Otherwise, once the account's nonce is past the nonce to look at, the
  *   block where it moved holds the transaction that used it. The saved hash or
- *   the exact call there is `sent`. Another transaction is `replaced` only
- *   when the nonce is the one the saved hash was sent at and that transaction
- *   calls an address with no code at that block, as a wallet's cancel does:
- *   nothing could run the call inside it. A nonce sampled before the wallet
- *   opened only locates the exact call; it never proves a replacement.
- * - `effect`, the app's read of the call's result, ends it as `ran` when true.
+ *   the exact call there is `sent`. Any other transaction there may have run
+ *   the call inside it (a wrapper, or an EIP-7702 wallet that ran code and
+ *   cleared its delegation in the same block), so it stays `pending` and the
+ *   user's exit (`abandon`) ends it.
+ * - `effect`, the app's read of the call's result on the saved chain, ends it
+ *   as `ran` when true. The client's chain is checked first.
  *
  * Anything else stays `pending`: a Safe write, a record without nonce
  * evidence, another chain, or a node without the history to answer.
@@ -771,7 +772,7 @@ export async function readReviewedWriteNonce(
 export async function checkReviewedWrite(
   client: ReviewedWriteNonceClient,
   saved: ReviewedWriteRecoveryRecord,
-  { effect }: { effect?: () => Promise<boolean> } = {},
+  { effect }: { effect?: (chainId: number) => Promise<boolean> } = {},
 ): Promise<ReviewedWriteCheck> {
   return (await inspectWrite(client, saved, effect)).check;
 }
@@ -779,15 +780,16 @@ export async function checkReviewedWrite(
 async function inspectWrite(
   client: ReviewedWriteNonceClient,
   saved: ReviewedWriteRecoveryRecord,
-  effect: (() => Promise<boolean>) | undefined,
+  effect: ((chainId: number) => Promise<boolean>) | undefined,
 ): Promise<{ check: ReviewedWriteCheck; sentNonce?: string }> {
   const record = recordOf(saved);
   const pending = { check: { status: "pending" } as const };
-  if (effect && (await effect().catch(() => false)))
-    return { check: { status: "ran" } };
-  if (record.safe) return pending;
+  // No proof, the app's effect read included, from another chain.
   if ((await client.getChainId().catch(() => null)) !== record.chainId)
     return pending;
+  if (effect && (await effect(record.chainId).catch(() => false)))
+    return { check: { status: "ran" } };
+  if (record.safe) return pending;
   if (record.hash) {
     const sent = await client.getTransaction({ hash: record.hash }).then(
       (tx) => tx,
@@ -854,14 +856,10 @@ async function inspectWrite(
         BigInt(used.value ?? 0) === BigInt(record.call.value)
       )
         return { status: "sent", hash };
-      if (!bound || !used.to) return null;
-      const code = await client.getCode({
-        address: used.to,
-        blockNumber: high,
-      });
-      return code === undefined || code === "0x"
-        ? { status: "replaced" }
-        : null;
+      // Another transaction at that nonce may have run the call inside it
+      // (a wrapper, or an EIP-7702 wallet that ran code and then cleared its
+      // delegation), so it proves nothing. The user's exit ends it.
+      return null;
     },
   );
   return { check: proof?.value ?? pending.check };
