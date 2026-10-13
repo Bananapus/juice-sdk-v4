@@ -1067,7 +1067,10 @@ async function inspectWrite(
   }
   const bound = record.hash !== undefined && record.sentNonce !== undefined;
   const target = bound ? record.sentNonce : record.nonce;
-  if (target === undefined || record.fromBlock === undefined) return pending;
+  // The nonce a hash was sent at is authenticated by its own transaction, so
+  // a record saved without a starting block searches from genesis instead.
+  const from = record.fromBlock ?? (bound ? "0" : undefined);
+  if (target === undefined || from === undefined) return pending;
   const nonce = BigInt(target);
   const count = async (blockNumber: bigint) =>
     BigInt(
@@ -1079,7 +1082,7 @@ async function inspectWrite(
   const proof = await atCanonicalFinalizedBlock(
     client as Pick<RelayrFinalizedClient, "getBlock">,
     async (finalized): Promise<ReviewedWriteCheck | null> => {
-      let low = BigInt(record.fromBlock!);
+      let low = BigInt(from);
       let high = finalized;
       if (
         high <= low ||

@@ -182,7 +182,8 @@ function classify(record: ReviewedWriteRecoveryRecord | null): WriteHoldState {
       record,
       exit: true,
       line:
-        record.safe || record.nonce !== undefined
+        record.safe ||
+        (record.nonce !== undefined && record.fromBlock !== undefined)
           ? writeHeldMessage()
           : WRITE_HOLD_UNCHECKED_LINE,
     };
@@ -416,6 +417,7 @@ export function createWriteHold(
         record.hash &&
         record.sentNonce === undefined &&
         (record.nonce === undefined ||
+          record.fromBlock === undefined ||
           Date.now() - Number(record.submittedAt ?? Date.now()) >=
             UNSEEN_HASH_MS) &&
         (await client.getTransaction({ hash: record.hash }).then(

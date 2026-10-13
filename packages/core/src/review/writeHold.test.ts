@@ -910,6 +910,87 @@ describe("a held write", () => {
     });
   });
 
+  it("adopts a mined speed-up of the same call, and drops only for a different call", async () => {
+    for (const [replacement, status] of [
+      [{}, "pending-known-hash"],
+      [{ value: 18n }, "dropped-proven"],
+      [{ input: "0xaabbccdd0002" as Hex }, "dropped-proven"],
+      [{ to: ACCOUNT }, "dropped-proven"],
+    ] as const) {
+      const { hold } = setup();
+      const { chain, client } = fakeChain();
+      const handle = hold.open(ordinary);
+      await handle.send(client, wallet(async () => HASH).send);
+      chain.txs.push(sent(HASH));
+      await handle.state(client);
+      chain.txs.splice(0, 1, { ...sent(OTHER), ...replacement, block: 105n });
+      chain.head = 120n;
+      chain.finalized = 110n;
+      // The speed-up's receipt isn't readable yet: it is tracked by its hash.
+      client.getTransactionReceipt.mockRejectedValueOnce(new Error("busy"));
+      await expect(handle.state(client)).resolves.toMatchObject(
+        status === "pending-known-hash"
+          ? { status, hash: OTHER, exit: false }
+          : { status, hash: HASH, usedBy: OTHER, exit: true },
+      );
+    }
+  });
+
+  it("repairs a saved record without nonce evidence once the node knows its hash", async () => {
+    const { hold, storage, locks } = setup();
+    const { chain, client } = fakeChain();
+    const old = createBrowserWriteRecovery(ordinary, { storage, locks });
+    await old.withLock(async () => {
+      // A nonce with no block to search from is no evidence either.
+      old.reserve();
+      old.submitted(HASH);
+    });
+    const handle = hold.open(ordinary);
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "held-unchecked",
+      exit: true,
+    });
+    // The RPC recovers and knows it: the nonce it was sent at is bound.
+    chain.txs.push(sent(HASH));
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      exit: false,
+      record: { sentNonce: "7" },
+    });
+    // Then a different transaction takes that nonce: provably dropped.
+    chain.txs.splice(0, 1, {
+      ...sent(OTHER),
+      to: ACCOUNT,
+      input: "0x",
+      value: 0n,
+      block: 105n,
+    });
+    chain.head = 120n;
+    chain.finalized = 110n;
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "dropped-proven",
+    });
+    // A hashless record with a nonce but no block gets the honest line.
+    const partial = setup();
+    const raw = createBrowserWriteRecovery(ordinary, {
+      storage: partial.storage,
+      locks: partial.locks,
+    });
+    await raw.withLock(async () => {
+      const reserved = raw.reserve(undefined, { nonce: 7, blockNumber: 100n });
+      const [key] = partial.browser.values.keys();
+      const { fromBlock: _, ...noBlock } = reserved;
+      partial.browser.values.set(key, JSON.stringify(noBlock));
+    });
+    await expect(
+      partial.hold.open(ordinary).state(fakeChain().client),
+    ).resolves.toMatchObject({
+      status: "held-no-hash",
+      exit: true,
+      line: WRITE_HOLD_UNCHECKED_LINE,
+    });
+  });
+
   it("needs the account's nonce before the wallet opens, with one retry", async () => {
     const { hold } = setup();
     const { client } = fakeChain();

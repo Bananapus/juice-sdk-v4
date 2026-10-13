@@ -10,3 +10,4 @@ One controller for held wallet writes, so each app's send hook becomes thin wiri
 - `lookAtSafeProposalEnd` and `watchSafeProposalEnd` return the execution the canonical ExecutionSuccess or ExecutionFailure log names, and read the chain's proof even when Safe's service already lists the proposal executed. `lookAtSafeProposal` and `watchSafeProposal` keep their return values.
 - `checkReviewedWrite` and `resolve` report `{ status: "pending", usedBy }` when a canonical finalized block shows another transaction used the nonce of a write the node doesn't know.
 - The per-tab lock fallback and the tab memory are shared by every copy of the module loaded in a tab.
+- A record whose hash the node knows but that was saved without a starting block searches for its sent nonce from genesis, so its drop can still be proven; a hashless record without nonce and block evidence gets the exit with `WRITE_HOLD_UNCHECKED_LINE`.
