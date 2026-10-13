@@ -774,9 +774,12 @@ Anything else stays `pending`: a Safe write, a hashless write the chain
 can't place, or a node without history. The user always keeps the exit:
 `abandon` refuses without their confirmation that they checked their wallet,
 and for a write that carries value `writeExitMessage` says plainly that sending
-again pays twice. `abandon` removes only that exact record and needs no lock,
-so it works even when the cross-tab lock can't be taken; new sends still
-need `withLock`.
+again pays twice. `abandon` marks only that exact record (by its ID) as
+released and never removes the saved key, so a stale exit in one tab can't
+erase a newer write another tab saved. It needs no lock, so it works even when
+the cross-tab lock can't be taken, and it accepts what `read()` showed,
+including a returned hash kept only in memory after a failed save. New sends
+still need `withLock`.
 
 `withLock` uses Web Locks across tabs. Where a browser or wallet webview has
 none, the origin's tabs share an IndexedDB lease per action: one readwrite

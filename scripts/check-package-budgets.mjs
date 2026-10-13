@@ -156,8 +156,12 @@ const budgets = {
     // block that used a proposal's nonce) change existing artifacts only:
     // +11,150 B packed / +30,807 B unpacked, no files or dependencies.
     // Measured 1,382,240 B packed / 21,368,720 B unpacked and 810 entries.
-    packed: 1_384_000,
-    unpacked: 21_370_000,
+    // The ID-keyed release marker behind the lock-free user exit (a stale
+    // exit can't erase a newer write; a memory-only hash still exits) adds
+    // +1,911 B packed / +9,252 B unpacked to existing artifacts.
+    // Measured 1,384,151 B packed / 21,377,972 B unpacked and 810 entries.
+    packed: 1_386_000,
+    unpacked: 21_380_000,
     entries: 810,
   },
   "@bananapus/nana-sdk-react": {
