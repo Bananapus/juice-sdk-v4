@@ -151,8 +151,13 @@ const budgets = {
     // the shared held/discard copy add one module (messages) and eight
     // artifacts, no dependencies: +11,269 B packed / +69,692 B unpacked.
     // Measured 1,371,090 B packed / 21,337,913 B unpacked and 810 entries.
-    packed: 1_373_000,
-    unpacked: 21_340_000,
+    // The review fixes (proof bound to the sent nonce and chain, the IndexedDB
+    // lease shared by tabs without Web Locks, the Safe nonce search for the
+    // block that used a proposal's nonce) change existing artifacts only:
+    // +11,150 B packed / +30,807 B unpacked, no files or dependencies.
+    // Measured 1,382,240 B packed / 21,368,720 B unpacked and 810 entries.
+    packed: 1_384_000,
+    unpacked: 21_370_000,
     entries: 810,
   },
   "@bananapus/nana-sdk-react": {

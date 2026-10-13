@@ -753,19 +753,33 @@ await journal.withLock(async () =>
 );
 ```
 
-`resolve` (and the pure `checkReviewedWrite`) reads the chain at a canonical
-finalized block. Once the account's nonce is past the one saved at reserve, the
-block where it moved holds the transaction that used it: the exact call
-(`sent`, with its hash to track, even after a wallet speed-up) or another one
-(`replaced`, released). `effect` returning true ends it as `ran`, released.
-Safe writes and records without nonce evidence stay `pending` until the user
-confirms they checked their wallet. `abandon` refuses without that
-confirmation. For a write that carries value, `writeExitMessage` says sending
+`resolve` (and the pure `checkReviewedWrite`) reads only the record's chain
+(the client's `getChainId()` must match). A release needs proof:
+
+- The saved hash's own transaction, while the node knows it, is the write:
+  `sent` once mined (its receipt decides, wallet wrappers included), `pending`
+  in the mempool. `resolve` saves the nonce it was sent at (`sentNonce`).
+- Once the account's nonce is past it at a canonical finalized block, the
+  block where it moved holds the transaction that used it. The saved hash or
+  the exact call there is `sent` (a wallet speed-up included). Another
+  transaction is `replaced`, and released, only at the bound `sentNonce` and
+  only when it calls an address with no code, as a wallet's cancel does. A
+  nonce sampled before the wallet opened only locates the exact call.
+- `effect` returning true ends it as `ran`, released.
+
+Anything else stays `pending`: a Safe write, a hashless write the chain
+can't place, or a node without history. The user always keeps the exit:
+`abandon` refuses without their confirmation that they checked their wallet,
+and for a write that carries value `writeExitMessage` says plainly that sending
 again pays twice.
 
 `withLock` uses Web Locks across tabs. Where a browser or wallet webview has
-none, it falls back to a lock within the tab, with one console note, and never
-refuses. `browserLocks()` returns the same lock manager for an app's own locks.
+none, the origin's tabs share an IndexedDB lease per action: one readwrite
+transaction claims it atomically, the holder renews it while it works, and a
+closed tab's lease lapses after 15 seconds. It adds no wait unless another tab
+holds the action. With no IndexedDB either, the lock holds within the tab. It
+never refuses, and notes the fallback once in the console. `browserLocks()`
+returns the same lock manager for an app's own locks.
 
 ### Safe proposals
 
