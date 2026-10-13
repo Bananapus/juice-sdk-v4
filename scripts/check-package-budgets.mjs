@@ -145,9 +145,15 @@ const budgets = {
     // +23,082 B packed / +180,785 B unpacked, no dependencies or tests.
     // Measured 1,359,821 B packed / 21,268,221 B unpacked and 802 entries.
     // Retain narrow release-note margin.
-    packed: 1_361_000,
-    unpacked: 21_270_000,
-    entries: 802,
+    // Ruling R119's release rules (exact-call write holds released on nonce
+    // proof or the user's wallet check, the per-tab lock fallback, Safe
+    // proposal ends proven by execution logs, the wrapped-payment release) and
+    // the shared held/discard copy add one module (messages) and eight
+    // artifacts, no dependencies: +11,269 B packed / +69,692 B unpacked.
+    // Measured 1,371,090 B packed / 21,337,913 B unpacked and 810 entries.
+    packed: 1_373_000,
+    unpacked: 21_340_000,
+    entries: 810,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
