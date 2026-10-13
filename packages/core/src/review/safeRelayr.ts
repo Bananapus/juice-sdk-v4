@@ -281,7 +281,7 @@ export class SafeRelayrRecoveryError extends Error {
   readonly name = "SafeRelayrRecoveryError";
   constructor(
     readonly session: SafeRelayrSession,
-    message = "This Safe execution has an existing Relayr bundle. Check the existing bundle before submitting another payment.",
+    message = "This Safe action already has a payment in progress. Check it before paying again.",
     readonly recovery?: SafeRelayrRecovery,
   ) {
     super(message);

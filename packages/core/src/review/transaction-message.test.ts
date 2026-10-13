@@ -13,7 +13,7 @@ describe("transaction diagnostic presentation", () => {
     ],
     [
       "Relayr’s response could not be verified. Keep the original bundle pending.",
-      "The execution service's response could not be verified. Keep the original bundle pending.",
+      "The response could not be verified. Keep the original bundle pending.",
     ],
     [
       "Saved Relayr authorizations may still run.",
@@ -55,11 +55,11 @@ describe("transaction diagnostic presentation", () => {
     ],
     [
       "Relayr reported a failed destination transaction. Do not pay again.",
-      "The execution service reported a failed destination transaction. Do not pay again.",
+      "The network reported a failed destination transaction. Do not pay again.",
     ],
     [
       "Relayr's response does not match the signed bundle. Do not pay again.",
-      "The execution service's response does not match the signed bundle. Do not pay again.",
+      "The response does not match the signed bundle. Do not pay again.",
     ],
     [
       "Relayr funding is being submitted. Do not pay again while the wallet result is uncertain.",
@@ -67,6 +67,7 @@ describe("transaction diagnostic presentation", () => {
     ],
   ])("preserves the transaction meaning of %s", (original, visible) => {
     expect(transactionMessage(original)).toBe(visible);
+    expect(visible).not.toMatch(/execution service/i);
     expect(transactionMessage(visible)).toBe(visible);
   });
 
