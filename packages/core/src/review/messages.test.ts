@@ -42,6 +42,12 @@ describe("shared held and discard copy", () => {
     );
   });
 
+  it("formats the time in the user's locale by default", () => {
+    expect(relayrHeldMessage(UNTIL, { nowMs: 0 })).toContain(
+      new Date(UNTIL * 1_000).toLocaleString(),
+    );
+  });
+
   it("names the subject and action in each discard line", () => {
     expect(relayrDiscardLine("ran", { subject: "revnet" })).toBe(
       "This action's earlier signature may already have run. Check the revnet, then discard it to review it again.",
@@ -67,6 +73,7 @@ describe("shared held and discard copy", () => {
     expect(writeExitMessage({ value: 5n }, "payment")).toBe(
       "If your earlier payment went through, sending again pays twice.",
     );
+    expect(writeExitMessage({})).toBe(writeExitMessage({ value: "0" }));
     expect(writeExitMessage({ value: "0" })).toBe(
       "If your earlier transaction went through, sending again runs it twice.",
     );

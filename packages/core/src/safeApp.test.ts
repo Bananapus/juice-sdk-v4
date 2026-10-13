@@ -589,14 +589,17 @@ describe("a proposal awaiting its signers", () => {
       finalNonce = 6n,
       logs = [] as unknown[],
       canonical = FINAL,
+      finalNumber = "0x5a" as unknown,
     } = {}) => ({
       request: vi.fn(
         async ({ method, params }: { method: string; params: unknown[] }) => {
           if (method === "eth_call")
-            return word(params[1] === "0x5a" ? finalNonce : chainState.nonce);
+            return word(
+              params[1] === finalNumber ? finalNonce : chainState.nonce,
+            );
           if (method === "eth_getBlockByNumber")
             return params[0] === "finalized"
-              ? { number: "0x5a", hash: FINAL, timestamp: "0x1" }
+              ? { number: finalNumber, hash: FINAL, timestamp: "0x1" }
               : { number: params[0], hash: canonical };
           if (method === "eth_getLogs") return logs;
           throw new Error(`unexpected ${method}`);
@@ -629,6 +632,18 @@ describe("a proposal awaiting its signers", () => {
       });
     });
 
+    it("searches only the 500 blocks up to the finalized block", async () => {
+      const client = proving({ finalNumber: "0x400" });
+      await expect(look(call(), undefined, client as never)).resolves.toBe(
+        "replaced",
+      );
+      expect(
+        client.request.mock.calls.find(
+          ([args]) => args.method === "eth_getLogs",
+        )![0].params[0],
+      ).toMatchObject({ fromBlock: "0x20d", toBlock: "0x400" });
+    });
+
     it.each([SUCCESS, FAILURE])(
       "is executed when the Safe logged its safeTxHash (%s)",
       async (topic) => {
@@ -658,6 +673,8 @@ describe("a proposal awaiting its signers", () => {
     it("stays passed while the finalized block is short of the nonce or the proof can't be read", async () => {
       for (const client of [
         proving({ finalNonce: 5n }),
+        proving({ finalNumber: null }),
+        proving({ logs: {} as never }),
         proving({ canonical: HASH }),
         proving({ logs: [{ ...executed(HASH), removed: true }] }),
         proving({ logs: [{ ...executed(HASH), data: "0x12" }] }),

@@ -19,6 +19,7 @@ import { uniswapV4Deployment } from "../v6/uniswapV4Deployments.js";
 import { encodeMultiSend, MULTI_SEND_CALL_ONLY } from "../safe.js";
 import { submitReviewedContractWrite } from "./contractWrite.js";
 import {
+  browserLocks,
   checkReviewedWrite,
   createBrowserWriteRecovery,
   readReviewedWriteNonce,
@@ -948,6 +949,9 @@ describe("stable action namespace and read-only opener", () => {
     await journal.withLock(async () => journal.clear(saved));
     expect(options.values.has(legacy)).toBe(false);
     expect(journal.read()).toBeNull();
+    // An unreadable old record names no call, so it holds none.
+    options.values.set(legacy, "{");
+    expect(journal.read()).toBeNull();
   });
   it("allows independent projects on the same terminal and selector without replacing either", async () => {
     const options = browser();
@@ -1132,6 +1136,7 @@ describe("releasing a write with no confirmed result", () => {
       value: 17n,
     } as Record<string, unknown>,
     canonical = BLOCK,
+    shifted = false,
   } = {}) {
     return {
       getBlockNumber: vi.fn(async () => 100n),
@@ -1153,7 +1158,7 @@ describe("releasing a write with no confirmed result", () => {
             ? { number: finalized, hash: BLOCK, timestamp: 1n }
             : args.includeTransactions
               ? {
-                  number: args.blockNumber,
+                  number: shifted ? 0n : args.blockNumber,
                   hash: BLOCK,
                   transactions: args.blockNumber === crossing ? [tx] : [],
                 }
@@ -1235,6 +1240,8 @@ describe("releasing a write with no confirmed result", () => {
       nonceChain({ crossing: 300n }),
       nonceChain({ canonical: PROPOSAL }),
       nonceChain({ tx: { hash: SENT, from: WRAPPER, nonce: 7 } }),
+      nonceChain({ tx: { hash: "0x12", from: ACCOUNT, nonce: 7 } }),
+      nonceChain({ shifted: true }),
     ])
       await expect(
         checkReviewedWrite(client as never, record),
@@ -1306,6 +1313,16 @@ describe("releasing a write with no confirmed result", () => {
       }),
     );
     expect(ran.journal.read()).toBeNull();
+  });
+
+  it("resolves nothing when nothing is saved, and prefers native Web Locks", async () => {
+    const journal = createBrowserWriteRecovery(input, browser());
+    await expect(
+      journal.withLock(() => journal.resolve(nonceChain() as never)),
+    ).resolves.toBeNull();
+    const locks = browser().locks;
+    vi.stubGlobal("navigator", { locks });
+    expect(browserLocks()).toBe(locks);
   });
 
   it("lets the user end a held write only after confirming they checked their wallet", async () => {
