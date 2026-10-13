@@ -52,8 +52,6 @@ const START = 1_900_000_000;
 const PAY_DEADLINE = START + 585;
 /** Requests signed at START run until here: the 2-hour default. */
 const REQUEST_DEADLINE = START + 2 * 60 * 60;
-/** How far before the saved quote time the payment search starts. */
-const CLOCK_SLACK = 10 * 60;
 
 type ChainState = {
   /** The finalized block's number. */
@@ -68,9 +66,12 @@ type ChainState = {
   canonical: Hex;
   /** A block holding a payment for the bundle. */
   paidIn?: bigint;
+  /** Each block's timestamp, when not evenly spaced. */
+  timestamps?: (block: bigint) => bigint;
 };
 
 const timestampOf = (state: ChainState, block: bigint) =>
+  state.timestamps?.(block) ??
   BigInt(
     Math.floor(
       state.finalizedAt - Number(state.finalized - block) * state.blockTime,
@@ -222,7 +223,6 @@ const settings = (overrides: Record<string, unknown> = {}) => ({
   bundleUuid: BUNDLE_UUID,
   options: [option(1), option(10)],
   expectedTransactions: bindings,
-  quotedAt: START,
   destinationChainIds: [1, 10],
   paymentAttempted: false,
   launch: false,
@@ -265,7 +265,8 @@ describe("superseding an unpaid Relayr session", () => {
     await expect(
       relayrSupersede(clientFor, requests(), settings()),
     ).resolves.toEqual(supersede);
-    expect(fetchBundle).toHaveBeenCalledTimes(1);
+    // Once for the quote's time before the search, once more after it.
+    expect(fetchBundle).toHaveBeenCalledTimes(2);
     expect(fetchBundle).toHaveBeenCalledWith(
       `${RELAYR_API}/v1/bundle/${BUNDLE_UUID}`,
       { cache: "no-store", signal: expect.any(AbortSignal) },
@@ -273,12 +274,13 @@ describe("superseding an unpaid Relayr session", () => {
   });
 
   it("searches every finalized block from before the quote to its deadline for a payment, 500 at a time", async () => {
+    chains[10].blockTime = 1;
     await relayrSupersede(clientFor, requests(), settings());
     for (const chainId of [1, 10]) {
       const calls = clients[chainId]!.getLogs.mock.calls.map(
         ([args]) => args as unknown as Record<string, unknown>,
       );
-      const first = lastBlockAtOrBefore(chainId, START - CLOCK_SLACK);
+      const first = lastBlockAtOrBefore(chainId, START - 1) + 1n;
       const last = lastBlockAtOrBefore(chainId, PAY_DEADLINE);
       expect(calls[0].fromBlock).toBe(first);
       expect(calls[calls.length - 1].toBlock).toBe(last);
@@ -312,11 +314,11 @@ describe("superseding an unpaid Relayr session", () => {
     await expect(
       relayrSupersede(clientFor, requests(), settings()),
     ).resolves.toEqual(hold);
-    chains[10].paidIn = lastBlockAtOrBefore(10, START - CLOCK_SLACK);
+    chains[10].paidIn = lastBlockAtOrBefore(10, START - 1) + 1n;
     await expect(
       relayrSupersede(clientFor, requests(), settings()),
     ).resolves.toEqual(hold);
-    expect(fetchBundle).not.toHaveBeenCalled();
+    expect(fetchBundle).toHaveBeenCalledTimes(2);
   });
 
   it("waits until a finalized block on every payment chain is past the quote's deadline", async () => {
@@ -382,11 +384,11 @@ describe("superseding an unpaid Relayr session", () => {
     await expect(
       relayrSupersede(clientFor, requests(), settings()),
     ).resolves.toEqual(hold);
-    expect(fetchBundle).not.toHaveBeenCalled();
+    expect(fetchBundle).toHaveBeenCalledTimes(4);
   });
 
   it("holds rather than search more than 10,000 blocks on a chain", async () => {
-    chains[10].blockTime = 0.1;
+    chains[10].blockTime = 0.05;
     await expect(
       relayrSupersede(clientFor, requests(), settings()),
     ).resolves.toEqual(hold);
@@ -452,8 +454,6 @@ describe("superseding an unpaid Relayr session", () => {
         expectedTransactions: [bindings[0], { ...bindings[1], txUuid: IDS[0] }],
       },
     ],
-    ["a session without its quote time", { quotedAt: undefined }],
-    ["a quote time that is not a time", { quotedAt: Number.NaN }],
   ])("holds %s", async (_name, overrides) => {
     await expect(
       relayrSupersede(clientFor, requests(), settings(overrides)),
@@ -503,7 +503,7 @@ describe("superseding an unpaid Relayr session", () => {
     await expect(
       relayrSupersede(clientFor, requests(), settings()),
     ).resolves.toEqual(hold);
-    expect(fetchBundle).not.toHaveBeenCalled();
+    expect(fetchBundle).toHaveBeenCalledTimes(1);
   });
 
   it("holds when a payment chain or a destination chain can't be read", async () => {
@@ -526,7 +526,7 @@ describe("superseding an unpaid Relayr session", () => {
     await expect(
       relayrSupersede(clientFor, requests(["4"], [1]), settings()),
     ).resolves.toEqual(hold);
-    expect(fetchBundle).not.toHaveBeenCalled();
+    expect(fetchBundle).toHaveBeenCalledTimes(3);
   });
 
   it("holds when a destination has no forwarder, no client or no latest block", async () => {
@@ -550,7 +550,7 @@ describe("superseding an unpaid Relayr session", () => {
     await expect(
       relayrSupersede(clientFor, requests(), onlyMainnet),
     ).resolves.toEqual(hold);
-    expect(fetchBundle).not.toHaveBeenCalled();
+    expect(fetchBundle).toHaveBeenCalledTimes(3);
   });
 
   it("holds when a latest block has no number or the nonce read is malformed", async () => {
@@ -575,7 +575,7 @@ describe("superseding an unpaid Relayr session", () => {
     await expect(
       relayrSupersede(clientFor, requests(), settings()),
     ).resolves.toEqual(hold);
-    expect(fetchBundle).not.toHaveBeenCalled();
+    expect(fetchBundle).toHaveBeenCalledTimes(2);
   });
 
   it.each<[string, Record<string, unknown>]>([
@@ -647,12 +647,6 @@ describe("superseding an unpaid Relayr session", () => {
       "Relayr quotes a later deadline",
       { payment: [option(1), option(10, PAY_DEADLINE + 3_600)] },
     ],
-    [
-      "Relayr's quote predates the search window",
-      {
-        created_at: new Date((START - CLOCK_SLACK - 1) * 1_000).toISOString(),
-      },
-    ],
   ])("holds when %s", async (_name, overrides) => {
     fetchBundle.mockImplementation(async () => bundle(overrides));
     await expect(
@@ -660,10 +654,9 @@ describe("superseding an unpaid Relayr session", () => {
     ).resolves.toEqual(hold);
   });
 
-  it("accepts Relayr's options in any order and case, and a quote time it doesn't give", async () => {
+  it("accepts Relayr's options in any order and case", async () => {
     fetchBundle.mockImplementation(async () =>
       bundle({
-        created_at: undefined,
         payment: [
           {
             ...option(10),
@@ -706,22 +699,75 @@ describe("superseding an unpaid Relayr session", () => {
     );
   });
 
-  it("searches the deadline's block when the quote time is after it", async () => {
+  it("holds without Relayr's quote time, whatever the device saved", async () => {
+    // Codex's case: the device's quote time is long after the deadline, and
+    // the payment is minutes before it.
+    chains[1].paidIn = lastBlockAtOrBefore(1, PAY_DEADLINE - 500);
+    for (const created_at of [undefined, null, "yesterday", "2030-01-01"]) {
+      fetchBundle.mockImplementation(async () => bundle({ created_at }));
+      await expect(
+        relayrSupersede(
+          clientFor,
+          requests(),
+          settings({ quotedAt: PAY_DEADLINE + 700 }),
+        ),
+      ).resolves.toEqual(hold);
+    }
+    expect(clients[1]!.getLogs).not.toHaveBeenCalled();
+  });
+
+  it("holds when Relayr's later record gives another quote time", async () => {
+    fetchBundle
+      .mockImplementationOnce(async () => bundle())
+      .mockImplementationOnce(async () =>
+        bundle({ created_at: new Date((START + 1) * 1_000).toISOString() }),
+      );
+    await expect(
+      relayrSupersede(clientFor, requests(), settings()),
+    ).resolves.toEqual(hold);
+  });
+
+  it("holds when Relayr's quote time is after its deadline", async () => {
     fetchBundle.mockImplementation(async () =>
-      bundle({ created_at: undefined }),
+      bundle({
+        created_at: new Date((PAY_DEADLINE + 100) * 1_000).toISOString(),
+      }),
     );
     await expect(
-      relayrSupersede(
-        clientFor,
-        requests(),
-        settings({ quotedAt: PAY_DEADLINE + 700 }),
-      ),
-    ).resolves.toEqual(supersede);
-    const [[call]] = clients[1]!.getLogs.mock.calls;
-    expect(call).toMatchObject({
-      fromBlock: lastBlockAtOrBefore(1, PAY_DEADLINE),
-      toBlock: lastBlockAtOrBefore(1, PAY_DEADLINE),
+      relayrSupersede(clientFor, requests(), settings()),
+    ).resolves.toEqual(hold);
+  });
+
+  it("searches every block that shares the quote's timestamp", async () => {
+    // Arbitrum's case: blocks 5000 to 5003 share the quote's second, and the
+    // payment is in the first of them.
+    Object.assign(chains[10], {
+      finalized: 6_000n,
+      timestamps: (block: bigint) =>
+        BigInt(START) +
+        (block < 5_000n
+          ? block - 5_000n
+          : block > 5_003n
+            ? block - 5_003n
+            : 0n),
+      paidIn: 5_000n,
     });
+    await expect(
+      relayrSupersede(clientFor, requests(), settings()),
+    ).resolves.toEqual(hold);
+    expect(clients[10]!.getLogs.mock.calls[0][0]).toMatchObject({
+      fromBlock: 5_000n,
+    });
+  });
+
+  it("holds when Relayr can't be read after the search", async () => {
+    fetchBundle
+      .mockImplementationOnce(async () => bundle())
+      .mockImplementationOnce(async () => json({ error: "down" }, 503));
+    await expect(
+      relayrSupersede(clientFor, requests(), settings()),
+    ).resolves.toEqual(hold);
+    expect(fetchBundle).toHaveBeenCalledTimes(2);
   });
 
   it("holds when Relayr can't be read", async () => {
@@ -740,7 +786,7 @@ describe("superseding an unpaid Relayr session", () => {
       await expect(
         relayrSupersede(clientFor, requests(), settings({ fetch: undefined })),
       ).resolves.toEqual(supersede);
-      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(fetch).toHaveBeenCalledTimes(2);
     } finally {
       vi.unstubAllGlobals();
     }

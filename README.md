@@ -631,7 +631,6 @@ const outcome = await relayrSupersede(
     bundleUuid: session.bundleUuid,
     options: session.quote?.payment_info,
     expectedTransactions: session.quote?.expectedTransactions,
-    quotedAt: session.quotedAt, // seconds, when the quote came back
     destinationChainIds,
     paymentAttempted: session.payments.length > 0,
     launch: sessionLaunches || newCallsLaunch,
@@ -650,12 +649,15 @@ It supersedes only when the app says neither session launches a project
 request is live with none moved and each saved nonce known, and the chain
 proves the quote unpaid: on each payment chain a canonical finalized block is
 past the option's deadline (the payment contract refuses later payments), and
-no `Prepayment` event for the bundle was logged from 10 minutes before
-`quotedAt` to the deadline (500 blocks per read, at most 10,000 blocks). The
-forwarder's latest nonce must still equal the saved one, and Relayr's fresh
-record, read last, must report no payment, quote exactly the saved options,
-and list each saved call once with its exact request, pending, and nothing
-else. Anything unread holds. `released` means every request is dead, and the
+no `Prepayment` event for the bundle was logged from the quote's time to the
+deadline (500 blocks per read, at most 10,000 blocks). The quote's time is
+Relayr's `created_at`, read fresh before the search: no payment can name the
+bundle before Relayr made it. Every block of that second is searched, and a
+record without one holds until the requests' deadline. The device's clock is
+never a bound. The forwarder's latest nonce must still equal the saved one,
+and Relayr's record, read again last, must give the same quote time, report
+no payment, quote exactly the saved options, and list each saved call once
+with its exact request, pending, and nothing else. Anything unread holds. `released` means every request is dead, and the
 session rules above apply.
 
 While it waits only for finality past the quote's deadline (minutes on L2s,

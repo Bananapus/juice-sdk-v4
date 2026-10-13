@@ -2364,11 +2364,6 @@ const PREPAYMENT_EVENT = {
   ],
 } as const;
 
-/**
- * How long before the saved quote time the payment search starts, for a
- * device clock that runs ahead.
- */
-const QUOTE_CLOCK_SLACK_SECONDS = 10 * 60;
 /** The most blocks searched for a payment on one chain; more holds. */
 const MAX_PAYMENT_SEARCH_BLOCKS = 10_000n;
 /** Blocks per log read, within what public nodes and JB Center serve. */
@@ -2480,14 +2475,15 @@ async function lastBlockAtOrBefore(
  * Whether the chain proves no payment for `uuid` can exist on it (`proven`):
  * a canonical finalized block is past `deadline`, so the payment contract
  * refuses any payment carrying it, and no Prepayment event for the bundle was
- * logged from the last block at or before `from` to the last at or before
- * `deadline`. `finality` while the canonical finalized block is not yet past
+ * logged from the first block at `created` (Relayr's quote time, before
+ * which no payment can name the bundle) or later, every block sharing that
+ * second included, to the last block at or before `deadline`. `finality` while the canonical finalized block is not yet past
  * the deadline. Anything else, unread included, is `unproven`.
  */
 async function provenUnpaidOn(
   client: RelayrSupersedeClient,
   uuid: string,
-  from: bigint,
+  created: bigint,
   deadline: bigint,
 ): Promise<"proven" | "finality" | "unproven"> {
   const finalized = await atCanonicalFinalizedBlock(client, async (top) => {
@@ -2502,8 +2498,8 @@ async function provenUnpaidOn(
     };
     if ((await timestampOf(top)) <= deadline) return "finality";
     const end = await lastBlockAtOrBefore(timestampOf, deadline, top);
-    const before = await lastBlockAtOrBefore(timestampOf, from, end);
-    const start = before < 0n ? 0n : before;
+    const start =
+      (await lastBlockAtOrBefore(timestampOf, created - 1n, end)) + 1n;
     if (end < start || end - start >= MAX_PAYMENT_SEARCH_BLOCKS)
       return "unproven";
     for (let low = start; low <= end; low += LOG_RANGE_BLOCKS) {
@@ -2528,24 +2524,21 @@ async function provenUnpaidOn(
  * no payment received, the quote's options exactly (deadlines included, in
  * any order), each saved call's ID on exactly one record that carries its
  * exact request, still pending with no destination hash, and no other
- * record. A quote time Relayr gives must not be before `from`.
+ * record, and the quote time `created` the search started from.
  */
 function bundleMatchesSession(
   bundle: RelayrBundle & { payment?: unknown; created_at?: unknown },
   options: readonly RelayrPayment[],
   bindings: readonly RelayrTransactionBinding[],
-  from: number,
+  created: number,
 ): boolean {
   const { payment_received, transactions, payment, created_at } = bundle;
-  const created =
-    created_at === undefined ? undefined : deadlineSeconds(created_at);
   if (
     payment_received !== false ||
     !Array.isArray(transactions) ||
     transactions.length !== bindings.length ||
     optionKeys(payment) !== optionKeys(options) ||
-    created === null ||
-    (created !== undefined && created < from)
+    deadlineSeconds(created_at) !== created
   ) {
     return false;
   }
@@ -2574,18 +2567,21 @@ function bundleMatchesSession(
  *   each has a saved nonce;
  * - every option of the saved quote (`options`, for `bundleUuid` and
  *   `destinationChainIds`) is authenticated;
+ * - Relayr's record of the bundle, read fresh, gives the quote's time
+ *   (`created_at`): no payment can name the bundle before it. Without one,
+ *   the session holds until its requests' deadline;
  * - on each option's payment chain, a canonical finalized block is past the
  *   option's deadline, so the payment contract refuses a payment, and no
- *   Prepayment event for the bundle was logged from 10 minutes before
- *   `quotedAt` (seconds, when the session received the quote) to the
- *   deadline, searched 500 blocks at a time and at most 10,000 blocks;
+ *   Prepayment event for the bundle was logged from the quote's time (every
+ *   block of that second included) to the deadline, searched 500 blocks at a
+ *   time and at most 10,000 blocks;
  * - at each destination's latest block, the forwarder still expects the
  *   lowest saved nonce of each signer;
  * - read last, with `fetch` (the global one by default) and never from a
  *   cache, Relayr's record of the bundle reports no payment, quotes exactly
  *   the saved options, lists each saved call (`expectedTransactions`) once
- *   with its exact request, pending, and nothing else, and gives no quote
- *   time before the search started.
+ *   with its exact request, pending, and nothing else, and gives the same
+ *   quote time.
  *
  * Anything unread holds. A session that paid, or may have paid, is never
  * superseded. Known limit: anyone holding an old signature can still run it
@@ -2598,7 +2594,6 @@ export async function relayrSupersede(
     bundleUuid,
     options,
     expectedTransactions,
-    quotedAt,
     destinationChainIds,
     paymentAttempted,
     launch,
@@ -2607,7 +2602,6 @@ export async function relayrSupersede(
     bundleUuid?: string | null;
     options?: readonly RelayrPayment[] | null;
     expectedTransactions?: readonly RelayrTransactionBinding[] | null;
-    quotedAt?: number | null;
     destinationChainIds: readonly number[];
     paymentAttempted: boolean;
     launch: boolean;
@@ -2640,10 +2634,7 @@ export async function relayrSupersede(
     !bindings.length ||
     new Set(bindings.map((binding) => uuidOf(binding?.txUuid))).size !==
       bindings.length ||
-    bindings.some((binding) => !uuidOf(binding?.txUuid)) ||
-    typeof quotedAt !== "number" ||
-    !Number.isFinite(quotedAt) ||
-    quotedAt < 0
+    bindings.some((binding) => !uuidOf(binding?.txUuid))
   ) {
     return hold;
   }
@@ -2653,7 +2644,21 @@ export async function relayrSupersede(
   );
   if (quoted.length !== options.length) return hold;
 
-  const from = Math.max(0, Math.floor(quotedAt) - QUOTE_CLOCK_SLACK_SECONDS);
+  // Relayr's quote time bounds the search: no payment names the bundle
+  // before Relayr made it. A device's clock is no bound.
+  let created: number | null;
+  try {
+    created = deadlineSeconds(
+      (
+        (await readRelayrBundle(uuid, { fetch: fetchBundle })) as {
+          created_at?: unknown;
+        }
+      ).created_at,
+    );
+  } catch {
+    return hold;
+  }
+  if (created === null) return hold;
   const deadlines = new Map<number, bigint>();
   for (const { details } of quoted) {
     const latest = deadlines.get(details.chainId);
@@ -2666,7 +2671,7 @@ export async function relayrSupersede(
   for (const [chainId, deadline] of deadlines) {
     const client = clientOn(clientFor, chainId);
     const proof = client
-      ? await provenUnpaidOn(client, uuid, BigInt(from), deadline)
+      ? await provenUnpaidOn(client, uuid, BigInt(created), deadline)
       : "unproven";
     if (proof === "unproven") return hold;
     if (proof === "finality") finality = true;
@@ -2711,7 +2716,7 @@ export async function relayrSupersede(
   } catch {
     return hold;
   }
-  if (!bundleMatchesSession(bundle, options, bindings, from)) return hold;
+  if (!bundleMatchesSession(bundle, options, bindings, created)) return hold;
   if (finality) return { ...hold, reason: "finality" };
   return {
     kind: "supersede",
