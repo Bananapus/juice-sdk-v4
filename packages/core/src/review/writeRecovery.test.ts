@@ -2,6 +2,7 @@ import {
   encodeAbiParameters,
   encodeEventTopics,
   encodeFunctionData,
+  keccak256,
   parseAbi,
   zeroAddress,
   type Address,
@@ -18,7 +19,9 @@ import { uniswapV4Deployment } from "../v6/uniswapV4Deployments.js";
 import { encodeMultiSend, MULTI_SEND_CALL_ONLY } from "../safe.js";
 import { submitReviewedContractWrite } from "./contractWrite.js";
 import {
+  checkReviewedWrite,
   createBrowserWriteRecovery,
+  readReviewedWriteNonce,
   readBrowserWriteRecovery,
   sameReviewedWrite,
   SubmittedWritePersistenceError,
@@ -86,7 +89,7 @@ function ordinaryRecovery(namespace?: string) {
     ...legacyInput,
     ...(namespace === undefined ? {} : { namespace }),
   };
-  it("keeps a lost wallet reply durable through new instances and changed amount/quote", async () => {
+  it("keeps a lost wallet reply durable through new instances; only a namespace holds a changed amount/quote", async () => {
     const options = browser();
     const journal = createBrowserWriteRecovery(input, options);
     const write = vi.fn(async () => {
@@ -116,6 +119,11 @@ function ordinaryRecovery(namespace?: string) {
       },
     ]) {
       const reloaded = createBrowserWriteRecovery(changed, options);
+      // Without a namespace, a hold covers only its exact call.
+      if (namespace === undefined && changed !== input) {
+        expect(reloaded.read()).toBeNull();
+        continue;
+      }
       expect(reloaded.read()).toEqual(journal.read());
       await expect(
         reloaded.withLock(async () => reloaded.reserve()),
@@ -149,12 +157,39 @@ function ordinaryRecovery(namespace?: string) {
     await expect(second.withLock(async () => second.reserve())).rejects.toThrow(
       "still unresolved",
     );
+  });
+
+  it("falls back to a per-tab lock without Web Locks, with one console note", async () => {
+    const options = browser();
     vi.stubGlobal("navigator", undefined);
-    await expect(
-      createBrowserWriteRecovery(input, {
-        storage: options.storage,
-      }).withLock(async () => {}),
-    ).rejects.toThrow("coordinate");
+    const note = vi.spyOn(console, "info").mockImplementation(() => {});
+    const first = createBrowserWriteRecovery(input, {
+      storage: options.storage,
+    });
+    const second = createBrowserWriteRecovery(input, {
+      storage: options.storage,
+    });
+    const order: string[] = [];
+    await first.withLock(async () => {
+      await expect(
+        second.withLock(async () => second.reserve()),
+      ).rejects.toThrow("another tab");
+      const queued = second.withLock(async () => {
+        order.push("second");
+      }, true);
+      first.reserve();
+      order.push("first");
+      await Promise.resolve();
+      expect(order).toEqual(["first"]);
+      void queued;
+    });
+    await second.withLock(async () => {}, true);
+    expect(order).toEqual(["first", "second"]);
+    await expect(second.withLock(async () => second.reserve())).rejects.toThrow(
+      "still unresolved",
+    );
+    expect(note.mock.calls.length).toBeLessThanOrEqual(1);
+    note.mockRestore();
   });
 
   it("fails closed on missing, throwing, silently dropping, malformed and foreign-scope storage", async () => {
@@ -422,15 +457,17 @@ function ordinaryRecovery(namespace?: string) {
       const options = browser();
       const journal = createBrowserWriteRecovery(input, options);
       const wallet = vi.fn();
-      if (persistent)
-        options.storage.getItem.mockImplementation(() => {
-          throw new Error("storage blocked");
-        });
-      options.storage.getItem
-        .mockImplementationOnce(() => null)
-        .mockImplementationOnce(() => {
-          throw new Error("readback failed");
-        });
+      const stored = options.storage.getItem.getMockImplementation()!;
+      let reads = 0;
+      // Reads of this call's own key: absent, then the readback fails.
+      options.storage.getItem.mockImplementation((key: string) => {
+        if (key.endsWith(":0xaabbccdd")) return null;
+        reads += 1;
+        if (reads === 1) return null;
+        if (reads === 2) throw new Error("readback failed");
+        if (persistent) throw new Error("storage blocked");
+        return stored(key);
+      });
       await expect(
         journal.withLock(async () => {
           journal.reserve();
@@ -449,7 +486,7 @@ function ordinaryRecovery(namespace?: string) {
     }
   });
 
-  it("isolates chain/account/target/selector and rejects invalid reviewed inputs", async () => {
+  it("isolates chain/account/target/exact call and rejects invalid reviewed inputs", async () => {
     const options = browser();
     const first = createBrowserWriteRecovery(input, options);
     await first.withLock(async () => first.reserve());
@@ -458,6 +495,8 @@ function ordinaryRecovery(namespace?: string) {
       { ...input, account: WRAPPER },
       { ...input, call: { ...input.call, to: WRAPPER } },
       { ...input, call: { ...input.call, data: "0x11223344" as Hex } },
+      { ...input, call: { ...input.call, data: "0xaabbccdd0002" as Hex } },
+      { ...input, call: { ...input.call, value: 18n } },
     ])
       expect(createBrowserWriteRecovery(changed, options).read()).toEqual(
         namespace !== undefined &&
@@ -881,14 +920,34 @@ describe("stable action namespace and read-only opener", () => {
   const namespace = "defifa:pay:27";
   const scoped = { ...input, namespace };
   const lookup = { chainId: input.chainId, account: input.account, namespace };
-  it("preserves the exact legacy key and record shape", async () => {
+  it("keys an ordinary write by its exact call, with the record shape unchanged", async () => {
     const options = browser();
     const journal = createBrowserWriteRecovery(input, options);
     const reserved = await journal.withLock(async () => journal.reserve());
     expect([...options.values.keys()]).toEqual([
-      `nana-sdk:reviewed-write:v1:10:${ACCOUNT}:${TARGET}:0xaabbccdd`,
+      `nana-sdk:reviewed-write:v2:10:${ACCOUNT}:${TARGET}:17:${keccak256(input.call.data)}`,
     ]);
     expect(reserved).not.toHaveProperty("namespace");
+  });
+
+  it("still honors a record saved under the old selector key, for its exact call only", async () => {
+    const options = browser();
+    const legacy = `nana-sdk:reviewed-write:v1:10:${ACCOUNT}:${TARGET}:0xaabbccdd`;
+    options.values.set(legacy, JSON.stringify(saved));
+    const journal = createBrowserWriteRecovery(input, options);
+    expect(journal.read()).toEqual(saved);
+    await expect(
+      journal.withLock(async () => journal.reserve()),
+    ).rejects.toThrow("still unresolved");
+    const other = createBrowserWriteRecovery(
+      { ...input, call: { ...input.call, value: 18n } },
+      options,
+    );
+    expect(other.read()).toBeNull();
+    await other.withLock(async () => other.reserve());
+    await journal.withLock(async () => journal.clear(saved));
+    expect(options.values.has(legacy)).toBe(false);
+    expect(journal.read()).toBeNull();
   });
   it("allows independent projects on the same terminal and selector without replacing either", async () => {
     const options = browser();
@@ -1054,5 +1113,210 @@ describe("stable action namespace and read-only opener", () => {
       ).rejects.toThrow();
       expect(options.values.get(key)).toBe(raw);
     }
+  });
+});
+
+describe("releasing a write with no confirmed result", () => {
+  const SENT = `0x${"dd".repeat(32)}` as Hex;
+  const evidence = { nonce: 7, blockNumber: 100n };
+  /** The account's nonce reaches 8 at `crossing`; that block holds `tx`. */
+  function nonceChain({
+    crossing = 150n,
+    finalized = 200n,
+    tx = {
+      hash: SENT,
+      from: ACCOUNT,
+      nonce: 7,
+      to: TARGET,
+      input: input.call.data,
+      value: 17n,
+    } as Record<string, unknown>,
+    canonical = BLOCK,
+  } = {}) {
+    return {
+      getBlockNumber: vi.fn(async () => 100n),
+      getTransactionCount: vi.fn(
+        async (args: { blockNumber?: bigint; blockTag?: string }) =>
+          args.blockTag === "pending"
+            ? 7
+            : args.blockNumber! >= crossing
+              ? 8
+              : 7,
+      ),
+      getBlock: vi.fn(
+        async (args: {
+          blockTag?: string;
+          blockNumber?: bigint;
+          includeTransactions?: boolean;
+        }) =>
+          args.blockTag === "finalized"
+            ? { number: finalized, hash: BLOCK, timestamp: 1n }
+            : args.includeTransactions
+              ? {
+                  number: args.blockNumber,
+                  hash: BLOCK,
+                  transactions: args.blockNumber === crossing ? [tx] : [],
+                }
+              : { number: args.blockNumber, hash: canonical },
+      ),
+    };
+  }
+  async function reserved(
+    options = browser(),
+    at: typeof evidence | null = evidence,
+  ) {
+    const journal = createBrowserWriteRecovery(input, options);
+    const record = await journal.withLock(async () =>
+      journal.reserve(undefined, at ?? undefined),
+    );
+    return { journal, record, options };
+  }
+
+  it("records the account's next nonce and the block it was read at", async () => {
+    const client = nonceChain();
+    await expect(
+      readReviewedWriteNonce(client as never, ACCOUNT),
+    ).resolves.toEqual(evidence);
+    const { record, journal } = await reserved();
+    expect(record).toMatchObject({ nonce: "7", fromBlock: "100" });
+    expect(journal.read()).toEqual(record);
+    await expect(
+      reserved(browser(), { nonce: -1, blockNumber: 1n }),
+    ).rejects.toThrow("Invalid");
+  });
+
+  it("finds the exact call at its nonce and returns the hash to track", async () => {
+    const { record } = await reserved();
+    const client = nonceChain();
+    await expect(checkReviewedWrite(client as never, record)).resolves.toEqual({
+      status: "sent",
+      hash: SENT,
+    });
+    // A binary search, not a scan of every block.
+    expect(client.getTransactionCount.mock.calls.length).toBeLessThan(12);
+  });
+
+  it("releases when another transaction used the nonce", async () => {
+    const { record } = await reserved();
+    for (const tx of [
+      {
+        hash: SENT,
+        from: ACCOUNT,
+        nonce: 7,
+        to: WRAPPER,
+        input: input.call.data,
+        value: 17n,
+      },
+      {
+        hash: SENT,
+        from: ACCOUNT,
+        nonce: 7,
+        to: TARGET,
+        input: input.call.data,
+        value: 18n,
+      },
+      {
+        hash: SENT,
+        from: ACCOUNT,
+        nonce: 7,
+        to: TARGET,
+        input: "0xaabbccdd0002",
+        value: 17n,
+      },
+    ])
+      await expect(
+        checkReviewedWrite(nonceChain({ tx }) as never, record),
+      ).resolves.toEqual({ status: "replaced" });
+  });
+
+  it("holds while the nonce has not moved at a finalized block, or the proof is incomplete", async () => {
+    const { record } = await reserved();
+    for (const client of [
+      nonceChain({ crossing: 300n }),
+      nonceChain({ canonical: PROPOSAL }),
+      nonceChain({ tx: { hash: SENT, from: WRAPPER, nonce: 7 } }),
+    ])
+      await expect(
+        checkReviewedWrite(client as never, record),
+      ).resolves.toEqual({ status: "pending" });
+    const failing = nonceChain();
+    failing.getTransactionCount.mockRejectedValue(new Error("no archive"));
+    await expect(checkReviewedWrite(failing as never, record)).resolves.toEqual(
+      { status: "pending" },
+    );
+    const { record: bare } = await reserved(browser(), null);
+    await expect(
+      checkReviewedWrite(nonceChain() as never, bare),
+    ).resolves.toEqual({ status: "pending" });
+    await expect(
+      checkReviewedWrite(nonceChain() as never, { ...record, safe: true }),
+    ).resolves.toEqual({ status: "pending" });
+  });
+
+  it("releases once the call's effect is visible, and ignores a failing effect read", async () => {
+    const { record } = await reserved();
+    const client = nonceChain({ crossing: 300n });
+    await expect(
+      checkReviewedWrite(client as never, record, { effect: async () => true }),
+    ).resolves.toEqual({ status: "ran" });
+    await expect(
+      checkReviewedWrite(client as never, record, {
+        effect: async () => {
+          throw new Error("rpc down");
+        },
+      }),
+    ).resolves.toEqual({ status: "pending" });
+  });
+
+  it("applies each finding to the saved write under the lock", async () => {
+    const replaced = await reserved();
+    await expect(
+      replaced.journal.resolve(nonceChain() as never),
+    ).rejects.toThrow("browser lock");
+    await expect(
+      replaced.journal.withLock(() =>
+        replaced.journal.resolve(
+          nonceChain({
+            tx: {
+              hash: SENT,
+              from: ACCOUNT,
+              nonce: 7,
+              to: WRAPPER,
+              input: "0x",
+              value: 0n,
+            },
+          }) as never,
+        ),
+      ),
+    ).resolves.toEqual({ status: "replaced" });
+    expect(replaced.journal.read()).toBeNull();
+
+    const sent = await reserved();
+    await sent.journal.withLock(async () => sent.journal.submitted(HASH));
+    // The wallet sped it up: the same call landed at its nonce under a new hash.
+    await expect(
+      sent.journal.withLock(() => sent.journal.resolve(nonceChain() as never)),
+    ).resolves.toEqual({ status: "sent", hash: SENT });
+    expect(sent.journal.read()?.hash).toBe(SENT);
+
+    const ran = await reserved();
+    await ran.journal.withLock(() =>
+      ran.journal.resolve(nonceChain({ crossing: 300n }) as never, {
+        effect: async () => true,
+      }),
+    );
+    expect(ran.journal.read()).toBeNull();
+  });
+
+  it("lets the user end a held write only after confirming they checked their wallet", async () => {
+    const { journal, record } = await reserved();
+    await journal.withLock(async () => {
+      expect(() => journal.abandon(record, {} as never)).toThrow(
+        "checked their wallet",
+      );
+      expect(journal.read()).toEqual(record);
+      journal.abandon(record, { checkedWallet: true });
+    });
+    expect(journal.read()).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 import {
   isAddress,
+  keccak256,
   type Address,
   type Hex,
   type PublicClient,
@@ -13,7 +14,10 @@ import {
   type SafeServiceOptions,
 } from "../safeService.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
-import { atCanonicalFinalizedBlock } from "./relayr.js";
+import {
+  atCanonicalFinalizedBlock,
+  type RelayrFinalizedClient,
+} from "./relayr.js";
 
 export type ReviewedWriteRecoveryInput = {
   chainId: number;
@@ -31,8 +35,18 @@ export type ReviewedWriteRecoveryRecord = Omit<
   version: 1;
   id: string;
   call: { to: Address; data: Hex; value: string };
-  /** The identity returned by the wallet, never an inferred historical match. */
+  /** The identity returned by the wallet, or the exact call found at its nonce. */
   hash?: Hex;
+  /** The account's next nonce when the wallet opened, as a decimal string. */
+  nonce?: string;
+  /** The block that nonce was read at, as a decimal string. */
+  fromBlock?: string;
+};
+
+/** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
+export type ReviewedWriteNonceEvidence = {
+  nonce: number | bigint;
+  blockNumber: bigint;
 };
 
 type RecoveryStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -108,7 +122,9 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !record.id ||
     typeof record.call?.value !== "string" ||
     !/^(0|[1-9]\d*)$/.test(record.call.value) ||
-    (record.hash !== undefined && !isBytes32(record.hash))
+    (record.hash !== undefined && !isBytes32(record.hash)) ||
+    !optionalDecimal(record.nonce) ||
+    !optionalDecimal(record.fromBlock)
   )
     throw new Error(
       "Invalid saved write recovery record. Keep this action pending.",
@@ -120,14 +136,31 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.hash === undefined
       ? {}
       : { hash: record.hash.toLowerCase() as Hex }),
+    ...(record.nonce === undefined ? {} : { nonce: record.nonce }),
+    ...(record.fromBlock === undefined ? {} : { fromBlock: record.fromBlock }),
   };
+}
+
+function optionalDecimal(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (typeof value === "string" && /^(0|[1-9]\d*)$/.test(value))
+  );
 }
 
 /** Validate an existing domain journal's recovered record with the shared storage rules. */
 export { recordOf as parseReviewedWriteRecoveryRecord };
 
-/** Amounts and quote changes must not evade an unresolved action. */
+/**
+ * An ordinary write holds only its exact call: a changed amount or quote is a
+ * different call. A namespace holds a whole action instead.
+ */
 function callScope(input: ReviewedWriteRecoveryInput): string {
+  return `nana-sdk:reviewed-write:v2:${input.chainId}:${input.account}:${input.call.to}:${input.call.value ?? 0}:${keccak256(input.call.data)}`;
+}
+
+/** Before 2.30, an ordinary write held its target and selector. Read only, for its exact call. */
+function legacyScope(input: ReviewedWriteRecoveryInput): string {
   return `nana-sdk:reviewed-write:v1:${input.chainId}:${input.account}:${input.call.to}:${input.call.data.slice(0, 10)}`;
 }
 
@@ -188,18 +221,21 @@ export function readBrowserWriteRecovery(
 function readStored(
   raw: string | null,
   key: string,
+  scopeOf = scope,
 ): ReviewedWriteRecoveryRecord | null {
   if (raw === null) return null;
   const record = recordOf(JSON.parse(raw));
-  if (scope(record) !== key)
+  if (scopeOf(record) !== key)
     throw new Error("Saved write recovery scope does not match.");
   return record;
 }
 function readRecovery(
   store: RecoveryStorage,
   key: string,
+  raw = store.getItem(key),
+  scopeOf = scope,
 ): ReviewedWriteRecoveryRecord | null {
-  const record = readStored(store.getItem(key), key);
+  const record = readStored(raw, key, scopeOf);
   const memory = unpersistedSubmissions.get(store)?.get(key);
   if (
     !record ||
@@ -226,14 +262,57 @@ export function sameReviewedWrite(
   );
 }
 
+// Without Web Locks, writes in this tab still run one at a time per action.
+const tabQueues = new Map<string, Promise<void>>();
+let tabLocksNoted = false;
+const tabLocks = {
+  async request<T>(
+    name: string,
+    options: LockOptions,
+    work: (lock: Lock | null) => Promise<T>,
+  ): Promise<T> {
+    const held = tabQueues.get(name);
+    if (held && options.ifAvailable) return work(null);
+    let release!: () => void;
+    const mine = new Promise<void>((resolve) => (release = resolve));
+    const queue = (held ?? Promise.resolve()).then(() => mine);
+    tabQueues.set(name, queue);
+    await held;
+    try {
+      return await work({ name, mode: "exclusive" } as Lock);
+    } finally {
+      release();
+      if (tabQueues.get(name) === queue) tabQueues.delete(name);
+    }
+  },
+} as RecoveryLocks;
+
 /**
- * One ordinary-write reservation per account/chain/target/selector by default,
- * or per account/chain/explicit stable namespace when provided. Use the
- * existing domain journal instead when an action already has one. There is no
- * expiry or nonce-based release: an unknown broadcast remains unknown.
+ * The browser's Web Locks, or, where a browser or wallet webview has none, a
+ * lock within this tab, with a one-time console note. Never refuses.
+ */
+export function browserLocks(): RecoveryLocks {
+  const native = globalThis.navigator?.locks;
+  if (native) return native;
+  if (!tabLocksNoted) {
+    tabLocksNoted = true;
+    console.info(
+      "Web Locks are unavailable, so wallet writes are coordinated within this tab only.",
+    );
+  }
+  return tabLocks;
+}
+
+/**
+ * One ordinary-write reservation per exact call (account, chain, target,
+ * value and calldata) by default, or per account/chain/explicit stable
+ * namespace when provided. Use the existing domain journal instead when an
+ * action already has one. A hold ends on proof ({@link checkReviewedWrite} via
+ * `resolve`) or when the user confirms they checked their wallet (`abandon`).
  *
  * Every mutation must run inside withLock, including receipt-based clearing.
- * Storage and native cross-tab exclusion are mandatory before opening a wallet.
+ * Storage is mandatory before opening a wallet; without Web Locks the lock
+ * holds within the tab ({@link browserLocks}).
  */
 export function createBrowserWriteRecovery(
   input: ReviewedWriteRecoveryInput,
@@ -241,10 +320,40 @@ export function createBrowserWriteRecovery(
 ) {
   const reviewed = normalized(input);
   const key = scope(reviewed);
+  const legacyKey =
+    reviewed.namespace === undefined ? legacyScope(reviewed) : undefined;
   let owned: ReviewedWriteRecoveryRecord | undefined;
   let locked = false;
   let lastStorage: RecoveryStorage | undefined;
 
+  /** An adopted call (a reused Safe proposal) is kept under its reviewed call's key. */
+  function keyOf(record: ReviewedWriteRecoveryInput): string {
+    return record.namespace === undefined &&
+      legacyKey !== undefined &&
+      legacyScope(record) === legacyKey
+      ? key
+      : scope(record);
+  }
+  /**
+   * Where this call's record lives, with its raw value: its own key, or an
+   * exact match saved under the old key. Reads its own key exactly once.
+   */
+  function locate(store: RecoveryStorage): { at: string; raw: string | null } {
+    const raw = store.getItem(key);
+    if (raw !== null || !legacyKey) return { at: key, raw };
+    try {
+      const old = store.getItem(legacyKey);
+      const legacy = readStored(old, legacyKey, legacyScope);
+      if (legacy && sameReviewedWrite(legacy, reviewed))
+        return { at: legacyKey, raw: old };
+    } catch {
+      // An unreadable old record names no call, so it holds none.
+    }
+    return { at: key, raw };
+  }
+  function scopeAt(at: string) {
+    return at === key ? keyOf : legacyScope;
+  }
   function storage(): RecoveryStorage {
     const store = recoveryStorage(options.storage);
     lastStorage = store;
@@ -252,11 +361,12 @@ export function createBrowserWriteRecovery(
   }
   function rememberSubmission(
     record: ReviewedWriteRecoveryRecord,
+    at: string,
     verifiedReservation = false,
   ) {
     if (!lastStorage) return;
     let pending = unpersistedSubmissions.get(lastStorage);
-    const previous = pending?.get(key);
+    const previous = pending?.get(at);
     // An unreadable stale callback cannot replace another attempt's only hash.
     if (
       previous &&
@@ -266,38 +376,41 @@ export function createBrowserWriteRecovery(
       return;
     if (!pending)
       unpersistedSubmissions.set(lastStorage, (pending = new Map()));
-    pending.set(key, recordOf(record));
+    pending.set(at, recordOf(record));
   }
   function requireLock() {
     if (!locked)
       throw new Error("Write recovery changes require the browser lock.");
   }
   function read(): ReviewedWriteRecoveryRecord | null {
-    return readRecovery(storage(), key);
+    const store = storage();
+    const { at, raw } = locate(store);
+    return readRecovery(store, at, raw, scopeAt(at));
   }
-  function persist(record: ReviewedWriteRecoveryRecord) {
+  function persist(record: ReviewedWriteRecoveryRecord, at: string) {
     const raw = JSON.stringify(record);
     const store = storage();
-    store.setItem(key, raw);
-    if (store.getItem(key) !== raw)
+    store.setItem(at, raw);
+    if (store.getItem(at) !== raw)
       throw new Error("Write recovery storage did not retain the action.");
   }
   function clear(expected: ReviewedWriteRecoveryRecord): void {
     requireLock();
     // A volatile returned hash is useful for tracking, but is not a successful
     // durable commit. submitted(hash, record) must retry that commit first.
-    const current = readStored(storage().getItem(key), key);
+    const store = storage();
+    const { at, raw } = locate(store);
+    const current = readStored(raw, at, scopeAt(at));
     if (!current) return;
     if (JSON.stringify(current) !== JSON.stringify(recordOf(expected))) {
       throw new Error(
         "Write recovery changed. Keep the current action pending.",
       );
     }
-    const store = storage();
-    store.removeItem(key);
-    if (store.getItem(key) !== null)
+    store.removeItem(at);
+    if (store.getItem(at) !== null)
       throw new Error("Write recovery storage did not clear the action.");
-    unpersistedSubmissions.get(store)?.delete(key);
+    unpersistedSubmissions.get(store)?.delete(at);
   }
   function rejected(): void {
     requireLock();
@@ -308,11 +421,66 @@ export function createBrowserWriteRecovery(
     clear(owned);
     owned = undefined;
   }
+  /** `replace`: the exact call was found at its nonce under another hash, as after a wallet speed-up. */
+  function record(
+    hash: Hex,
+    expected: ReviewedWriteRecoveryRecord | undefined,
+    replace: boolean,
+  ): ReviewedWriteRecoveryRecord {
+    requireLock();
+    if (!isBytes32(hash))
+      throw new Error("The wallet returned an invalid transaction identity.");
+    const previous = expected && recordOf(expected);
+    const submittedHash = hash.toLowerCase() as Hex;
+    if (
+      !previous ||
+      keyOf(previous) !== key ||
+      (!replace && previous.hash && previous.hash !== submittedHash)
+    ) {
+      throw new Error("Write recovery changed before submission was recorded.");
+    }
+    const submitted = { ...previous, hash: submittedHash };
+    let raw: string | null;
+    let at = key;
+    try {
+      ({ at, raw } = locate(storage()));
+    } catch (cause) {
+      owned = submitted;
+      rememberSubmission(submitted, at);
+      throw new SubmittedWritePersistenceError(submitted, cause);
+    }
+    const current = readStored(raw, at, scopeAt(at));
+    if (
+      !current ||
+      JSON.stringify({ ...current, hash: undefined }) !==
+        JSON.stringify({ ...previous, hash: undefined }) ||
+      (!replace && current.hash && current.hash !== submittedHash)
+    ) {
+      throw new Error("Write recovery changed before submission was recorded.");
+    }
+    owned = recordOf(submitted);
+    if (current.hash !== submittedHash) {
+      try {
+        persist(submitted, at);
+      } catch (cause) {
+        rememberSubmission(submitted, at, true);
+        throw new SubmittedWritePersistenceError(submitted, cause);
+      }
+    }
+    if (lastStorage) unpersistedSubmissions.get(lastStorage)?.delete(at);
+    return submitted;
+  }
 
   return {
     read,
+    /**
+     * Save the attempt before the wallet opens. `evidence`, the account's next
+     * nonce from {@link readReviewedWriteNonce}, lets `resolve` release it
+     * on proof from the chain.
+     */
     reserve(
       actualCall?: ReviewedWriteRecoveryInput["call"],
+      evidence?: ReviewedWriteNonceEvidence,
     ): ReviewedWriteRecoveryRecord {
       requireLock();
       // A reused Safe proposal may have a different, already verified deadline.
@@ -320,8 +488,12 @@ export function createBrowserWriteRecovery(
       const actual = actualCall
         ? normalized({ ...reviewed, call: actualCall })
         : reviewed;
-      if (callScope(actual) !== callScope(reviewed))
+      if (legacyScope(actual) !== legacyScope(reviewed))
         throw new Error("The adopted write has a different recovery scope.");
+      const nonce = evidence && uint256(evidence.nonce);
+      const fromBlock = evidence && uint256(evidence.blockNumber);
+      if (evidence && (nonce === null || fromBlock === null))
+        throw new Error("Invalid write recovery nonce evidence.");
       if (read())
         throw new Error(
           "An earlier wallet write is still unresolved. Check it before trying again.",
@@ -330,10 +502,13 @@ export function createBrowserWriteRecovery(
         version: 1,
         id: globalThis.crypto.randomUUID(),
         ...actual,
+        ...(evidence
+          ? { nonce: nonce!.toString(), fromBlock: fromBlock!.toString() }
+          : {}),
       };
       owned = recordOf(record);
       try {
-        persist(record);
+        persist(record, key);
       } catch (error) {
         // The wallet has not been invoked. A failed readback may still have
         // stored this marker; clean only our exact reservation if readable.
@@ -350,58 +525,42 @@ export function createBrowserWriteRecovery(
       hash: Hex,
       expected: ReviewedWriteRecoveryRecord | undefined = owned,
     ): ReviewedWriteRecoveryRecord {
-      requireLock();
-      if (!isBytes32(hash))
-        throw new Error("The wallet returned an invalid transaction identity.");
-      const previous = expected && recordOf(expected);
-      const submittedHash = hash.toLowerCase() as Hex;
-      if (
-        !previous ||
-        scope(previous) !== key ||
-        (previous.hash && previous.hash !== submittedHash)
-      ) {
-        throw new Error(
-          "Write recovery changed before submission was recorded.",
-        );
-      }
-      const submitted = { ...previous, hash: submittedHash };
-      let raw: string | null;
-      try {
-        raw = storage().getItem(key);
-      } catch (cause) {
-        owned = submitted;
-        rememberSubmission(submitted);
-        throw new SubmittedWritePersistenceError(submitted, cause);
-      }
-      const current = readStored(raw, key);
-      if (
-        !current ||
-        JSON.stringify({ ...current, hash: undefined }) !==
-          JSON.stringify({ ...previous, hash: undefined }) ||
-        (current.hash && current.hash !== submittedHash)
-      ) {
-        throw new Error(
-          "Write recovery changed before submission was recorded.",
-        );
-      }
-      owned = recordOf(submitted);
-      if (!current.hash) {
-        try {
-          persist(submitted);
-        } catch (cause) {
-          rememberSubmission(submitted, true);
-          throw new SubmittedWritePersistenceError(submitted, cause);
-        }
-      }
-      if (lastStorage) unpersistedSubmissions.get(lastStorage)?.delete(key);
-      return submitted;
+      return record(hash, expected, false);
     },
     rejected,
     clear,
+    /**
+     * Check the saved write against the chain ({@link checkReviewedWrite}) and
+     * apply the finding: `sent` records the hash to track, `replaced` and
+     * `ran` release it. Null when nothing is saved.
+     */
+    async resolve(
+      client: ReviewedWriteNonceClient,
+      checkOptions?: { effect?: () => Promise<boolean> },
+    ): Promise<ReviewedWriteCheck | null> {
+      requireLock();
+      const saved = read();
+      if (!saved) return null;
+      const check = await checkReviewedWrite(client, saved, checkOptions);
+      if (check.status === "sent") {
+        if (check.hash !== saved.hash) record(check.hash, saved, true);
+      } else if (check.status !== "pending") clear(saved);
+      return check;
+    },
+    /** The user confirmed they checked their wallet; release the write. */
+    abandon(
+      expected: ReviewedWriteRecoveryRecord,
+      acknowledgement: { checkedWallet: true },
+    ): void {
+      requireLock();
+      if (acknowledgement?.checkedWallet !== true)
+        throw new Error(
+          "Release a held write only after the user confirms they checked their wallet.",
+        );
+      clear(expected);
+    },
     async withLock<T>(work: () => Promise<T>, wait = false): Promise<T> {
-      const locks = options.locks ?? globalThis.navigator?.locks;
-      if (!locks)
-        throw new Error("This browser cannot safely coordinate wallet writes.");
+      const locks = options.locks ?? browserLocks();
       return locks.request(
         key,
         { mode: "exclusive", ...(!wait && { ifAvailable: true }) },
@@ -420,6 +579,106 @@ export function createBrowserWriteRecovery(
       );
     },
   };
+}
+
+/** What the chain shows of a write with no confirmed result. */
+export type ReviewedWriteCheck =
+  /** Nothing proven yet. */
+  | { status: "pending" }
+  /** The exact call is at its nonce under `hash`: track that receipt. */
+  | { status: "sent"; hash: Hex }
+  /** Another transaction used its nonce, so it can never run. */
+  | { status: "replaced" }
+  /** The app's effect read shows the call took effect. */
+  | { status: "ran" };
+
+/** The reads {@link checkReviewedWrite} makes; a viem PublicClient satisfies it. */
+export type ReviewedWriteNonceClient = Pick<
+  PublicClient,
+  "getBlock" | "getTransactionCount"
+>;
+
+/** The account's next nonce, counting its pending transactions, and the block it was read at. Read it right before `reserve`. */
+export async function readReviewedWriteNonce(
+  client: Pick<PublicClient, "getBlockNumber" | "getTransactionCount">,
+  account: Address,
+): Promise<ReviewedWriteNonceEvidence> {
+  const blockNumber = await client.getBlockNumber();
+  const nonce = await client.getTransactionCount({
+    address: account,
+    blockTag: "pending",
+  });
+  return { nonce, blockNumber };
+}
+
+/**
+ * What the chain shows of a saved ordinary write, at a canonical finalized
+ * block. Once the account's nonce is past the one saved at reserve, the block
+ * where it moved holds the transaction that used it: the exact call (`sent`,
+ * with its hash, even after a wallet speed-up) or another one (`replaced`).
+ * `effect`, the app's read of the call's result, ends it as `ran` when true.
+ * Anything unread, a Safe write or a record without nonce evidence stays
+ * `pending`.
+ */
+export async function checkReviewedWrite(
+  client: ReviewedWriteNonceClient,
+  saved: ReviewedWriteRecoveryRecord,
+  { effect }: { effect?: () => Promise<boolean> } = {},
+): Promise<ReviewedWriteCheck> {
+  const record = recordOf(saved);
+  const pending = { status: "pending" } as const;
+  if (effect && (await effect().catch(() => false))) return { status: "ran" };
+  if (
+    record.safe ||
+    record.nonce === undefined ||
+    record.fromBlock === undefined
+  )
+    return pending;
+  const nonce = BigInt(record.nonce);
+  const count = async (blockNumber: bigint) =>
+    BigInt(
+      await client.getTransactionCount({
+        address: record.account,
+        blockNumber,
+      }),
+    );
+  const proof = await atCanonicalFinalizedBlock(
+    client as Pick<RelayrFinalizedClient, "getBlock">,
+    async (finalized): Promise<ReviewedWriteCheck | null> => {
+      let low = BigInt(record.fromBlock!);
+      let high = finalized;
+      if (
+        high <= low ||
+        (await count(high)) <= nonce ||
+        (await count(low)) > nonce
+      )
+        return null;
+      while (high - low > 1n) {
+        const middle = (low + high) / 2n;
+        if ((await count(middle)) > nonce) high = middle;
+        else low = middle;
+      }
+      const block = await client.getBlock({
+        blockNumber: high,
+        includeTransactions: true,
+      });
+      const used =
+        block.number === high
+          ? block.transactions.find(
+              (tx) =>
+                tx.from?.toLowerCase() === record.account &&
+                BigInt(tx.nonce) === nonce,
+            )
+          : undefined;
+      if (!used || !isBytes32(used.hash)) return null;
+      return used.to?.toLowerCase() === record.call.to &&
+        used.input?.toLowerCase() === record.call.data &&
+        BigInt(used.value ?? 0) === BigInt(record.call.value)
+        ? { status: "sent", hash: used.hash.toLowerCase() as Hex }
+        : { status: "replaced" };
+    },
+  );
+  return proof?.value ?? pending;
 }
 
 /** Minimal RPC reads; PublicClient instances for any chain satisfy this shape. */
