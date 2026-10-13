@@ -572,6 +572,123 @@ describe("a proposal awaiting its signers", () => {
     ).resolves.toBe("live");
   });
 
+  describe("proven by the chain once its nonce passed", () => {
+    const FINAL = `0x${"ef".repeat(32)}` as Hex;
+    const SUCCESS =
+      "0x442e715f626346e8c54381002da614f62bee8d27386535b2521ec8540898556e";
+    const FAILURE =
+      "0x23428b18acfb3ea64b08dc0c1d296ea9c09702c09083ca5272e64d115b687d23";
+    const executed = (txHash: Hex, topic = SUCCESS, address = SAFE) => ({
+      address,
+      topics: [topic],
+      data: `0x${txHash.slice(2)}${"0".repeat(64)}`,
+      removed: false,
+    });
+    /** The latest nonce is chainState's; at the finalized block (0x5a), `finalNonce`. */
+    const proving = ({
+      finalNonce = 6n,
+      logs = [] as unknown[],
+      canonical = FINAL,
+    } = {}) => ({
+      request: vi.fn(
+        async ({ method, params }: { method: string; params: unknown[] }) => {
+          if (method === "eth_call")
+            return word(params[1] === "0x5a" ? finalNonce : chainState.nonce);
+          if (method === "eth_getBlockByNumber")
+            return params[0] === "finalized"
+              ? { number: "0x5a", hash: FINAL, timestamp: "0x1" }
+              : { number: params[0], hash: canonical };
+          if (method === "eth_getLogs") return logs;
+          throw new Error(`unexpected ${method}`);
+        },
+      ),
+      getBlock: vi.fn(async () => ({
+        number: 100n,
+        timestamp: chainState.timestamp,
+      })),
+    });
+    const call = () => callOf(authorization(NOW + 600n));
+
+    beforeEach(() => {
+      chainState.nonce = 6n;
+    });
+
+    it("is replaced when another transaction took its nonce at a finalized block", async () => {
+      const client = proving({ logs: [executed(HASH)] });
+      await expect(look(call(), undefined, client as never)).resolves.toBe(
+        "replaced",
+      );
+      const logs = client.request.mock.calls.find(
+        ([args]) => args.method === "eth_getLogs",
+      )![0].params[0] as Record<string, unknown>;
+      expect(logs).toMatchObject({
+        address: SAFE,
+        fromBlock: "0x0",
+        toBlock: "0x5a",
+        topics: [[SUCCESS, FAILURE]],
+      });
+    });
+
+    it.each([SUCCESS, FAILURE])(
+      "is executed when the Safe logged its safeTxHash (%s)",
+      async (topic) => {
+        const { hash } = service(call());
+        await expect(
+          look(
+            call(),
+            undefined,
+            proving({
+              logs: [executed(HASH), executed(hash, topic)],
+            }) as never,
+          ),
+        ).resolves.toBe("executed");
+        // Another contract's event of the same shape proves nothing.
+        await expect(
+          look(
+            call(),
+            undefined,
+            proving({
+              logs: [executed(hash, topic, TARGET)],
+            }) as never,
+          ),
+        ).resolves.toBe("replaced");
+      },
+    );
+
+    it("stays passed while the finalized block is short of the nonce or the proof can't be read", async () => {
+      for (const client of [
+        proving({ finalNonce: 5n }),
+        proving({ canonical: HASH }),
+        proving({ logs: [{ ...executed(HASH), removed: true }] }),
+        proving({ logs: [{ ...executed(HASH), data: "0x12" }] }),
+        chain(),
+      ])
+        await expect(look(call(), undefined, client as never)).resolves.toBe(
+          "passed",
+        );
+    });
+
+    it("ends a watch as replaced or executed instead of holding", async () => {
+      vi.useFakeTimers();
+      const { hash, options } = service(call());
+      for (const [logs, end] of [
+        [[], "replaced"],
+        [[executed(hash)], "executed"],
+      ] as const) {
+        const ended = watchSafeProposal(
+          proving({ logs: [...logs] }) as never,
+          STAMPED_CHAIN,
+          SAFE,
+          hash,
+          new AbortController().signal,
+          options,
+        );
+        await vi.advanceTimersByTimeAsync(60_000);
+        await expect(ended).resolves.toBe(end);
+      }
+    });
+  });
+
   describe("watched", () => {
     const watch = (
       call: SafeAppCall,
@@ -605,7 +722,7 @@ describe("a proposal awaiting its signers", () => {
       ["a value transfer", { to: TARGET, data: "0x" as Hex, value: 5n }],
       ["a swap whose deadline has passed", callOf(sale(NOW - 1n))],
     ])(
-      "keeps %s unresolved when its execution may be missing from the service",
+      "keeps %s unresolved while no finalized block proves who took its nonce",
       async (_, call) => {
         vi.useFakeTimers();
         // This proposal executed and consumed its nonce, but its authenticated
@@ -620,7 +737,11 @@ describe("a proposal awaiting its signers", () => {
 
         await vi.advanceTimersByTimeAsync(31 * 60_000);
         expect(ended).not.toHaveBeenCalled();
-        expect(client.request).toHaveBeenCalledTimes(31);
+        expect(
+          client.request.mock.calls.filter(
+            ([args]) => args.method === "eth_call",
+          ),
+        ).toHaveLength(31);
         controller.abort();
         await expect(watching).rejects.toThrow(/aborted/i);
       },
@@ -654,7 +775,11 @@ describe("a proposal awaiting its signers", () => {
         );
         await vi.advanceTimersByTimeAsync(21 * 60_000);
         expect(ended).not.toHaveBeenCalled();
-        expect(client.request).toHaveBeenCalledTimes(31);
+        expect(
+          client.request.mock.calls.filter(
+            ([args]) => args.method === "eth_call",
+          ),
+        ).toHaveLength(31);
         controller.abort();
         await expect(watching).rejects.toThrow(/aborted/i);
       },
