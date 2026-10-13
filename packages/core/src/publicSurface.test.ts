@@ -274,6 +274,7 @@ describe("published core SDK surfaces", () => {
       "isSafeWalletPeer",
       "listPendingSafeTransactions",
       "lookAtSafeProposal",
+      "lookAtSafeProposalEnd",
       "nextProposalNonce",
       "onchainApprovalStep",
       "parseSafeCreationPayload",
@@ -304,6 +305,7 @@ describe("published core SDK surfaces", () => {
       "usableSafeConfirmations",
       "waitForSafeExecutionHash",
       "watchSafeProposal",
+      "watchSafeProposalEnd",
     ]);
     for (const name of [...Object.keys(safe), ...Object.keys(safeService)]) {
       expect(sdk).not.toHaveProperty(name);

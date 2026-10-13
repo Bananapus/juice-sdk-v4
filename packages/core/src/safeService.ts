@@ -1073,6 +1073,23 @@ export type SafeProposalLook =
   | "passed"
   | "live";
 
+/**
+ * The execution a proven `executed` look found: the transaction whose
+ * canonical ExecutionSuccess or ExecutionFailure log names the proposal's
+ * safeTxHash, at the block where the Safe's nonce moved past it, and which of
+ * the two it logged. Its receipt settles the proposal without Safe's service.
+ */
+export type SafeProposalExecution = {
+  executionHash: Hex;
+  status: "success" | "failed";
+};
+
+/** A {@link SafeProposalLook}, with the execution an `executed` look found when one log names it. */
+export type SafeProposalEnd = {
+  look: SafeProposalLook;
+  execution?: SafeProposalExecution;
+};
+
 /** At most this many nonce reads find the block where a proposal's nonce was used. */
 const SAFE_NONCE_SEARCH_READS = 80;
 
@@ -1089,7 +1106,7 @@ async function provenProposalEnd(
   safe: Address,
   proposalHash: Hex,
   nonce: bigint,
-): Promise<"executed" | "replaced" | null> {
+): Promise<SafeProposalEnd | null> {
   const request = client.request as unknown as (args: {
     method: string;
     params: unknown[];
@@ -1142,11 +1159,13 @@ async function provenProposalEnd(
     if (!Array.isArray(logs)) return null;
     let executed = false;
     let others = false;
+    const executions: (SafeProposalExecution | null)[] = [];
     for (const log of logs as {
       address?: unknown;
       removed?: unknown;
       topics?: unknown;
       data?: unknown;
+      transactionHash?: unknown;
     }[]) {
       if (
         typeof log?.address !== "string" ||
@@ -1155,12 +1174,25 @@ async function provenProposalEnd(
         continue;
       const event = safeExecutionEvent(log);
       if (log.removed === true || typeof event === "string") return null;
-      if (event?.txHash === proposalHash.toLowerCase()) executed = true;
-      else if (event) others = true;
+      if (event?.txHash === proposalHash.toLowerCase()) {
+        executed = true;
+        executions.push(
+          isBytes32(log.transactionHash)
+            ? {
+                executionHash: log.transactionHash.toLowerCase() as Hex,
+                status: event.failed ? "failed" : "success",
+              }
+            : null,
+        );
+      } else if (event) others = true;
     }
     const canonical = await block(hex(number));
     if (canonical?.hash !== finalized.hash) return null;
-    return executed ? "executed" : others ? "replaced" : null;
+    if (!executed) return others ? { look: "replaced" } : null;
+    // One execution event names the transaction; any other count names none.
+    return executions.length === 1 && executions[0]
+      ? { look: "executed", execution: executions[0] }
+      : { look: "executed" };
   } catch {
     return null;
   }
@@ -1178,10 +1210,29 @@ export async function lookAtSafeProposal(
   proposalHash: Hex,
   service?: SafeServiceOptions,
 ): Promise<SafeProposalLook> {
+  return (
+    await lookAtSafeProposalEnd(client, chainId, safe, proposalHash, service)
+  ).look;
+}
+
+/**
+ * {@link lookAtSafeProposal}, with the execution a proven `executed` look
+ * found ({@link SafeProposalExecution}). Where Safe's service already lists
+ * the proposal executed, the chain's proof is still read once the nonce
+ * passed it, so a stale or unreachable report never stands in for the chain.
+ */
+export async function lookAtSafeProposalEnd(
+  client: SafeQueueClient,
+  chainId: number,
+  safe: Address,
+  proposalHash: Hex,
+  service?: SafeServiceOptions,
+): Promise<SafeProposalEnd> {
+  const live: SafeProposalEnd = { look: "live" };
   try {
     const block = await client.getBlock();
     // Without a numbered block, the nonce and deadline have no common snapshot.
-    if (block.number === null) return "live";
+    if (block.number === null) return live;
     const nonce = await readBoundedSafeNonce(client, safe, {
       blockNumber: block.number,
     });
@@ -1191,18 +1242,35 @@ export async function lookAtSafeProposal(
       proposalHash,
       service,
     );
-    if (nonce === null || record.isExecuted) return "live";
+    if (nonce === null) return live;
     const proposalNonce = safeTransactionMessage(record).nonce;
+    if (record.isExecuted)
+      return nonce > proposalNonce
+        ? ((await provenProposalEnd(
+            client,
+            safe,
+            proposalHash,
+            proposalNonce,
+          )) ?? live)
+        : live;
     if (nonce > proposalNonce)
       return (
-        (await provenProposalEnd(client, safe, proposalHash, proposalNonce)) ??
-        "passed"
+        (await provenProposalEnd(
+          client,
+          safe,
+          proposalHash,
+          proposalNonce,
+        )) ?? {
+          look: "passed",
+        }
       );
     const call = proposedCall(record);
     const deadline = call && stampedDeadline(call, chainId);
-    return deadline !== null && block.timestamp > deadline ? "expired" : "live";
+    return deadline !== null && block.timestamp > deadline
+      ? { look: "expired" }
+      : live;
   } catch {
-    return "live";
+    return live;
   }
 }
 
@@ -1225,17 +1293,47 @@ export async function watchSafeProposal(
   signal: AbortSignal,
   service?: SafeServiceOptions,
 ): Promise<"expired" | "executed" | "replaced"> {
+  return (
+    await watchSafeProposalEnd(
+      client,
+      chainId,
+      safe,
+      proposalHash,
+      signal,
+      service,
+    )
+  ).look;
+}
+
+/**
+ * {@link watchSafeProposal}, ending with the execution an `executed` end
+ * found when one canonical log names it ({@link SafeProposalExecution}).
+ */
+export async function watchSafeProposalEnd(
+  client: SafeQueueClient,
+  chainId: number,
+  safe: Address,
+  proposalHash: Hex,
+  signal: AbortSignal,
+  service?: SafeServiceOptions,
+): Promise<SafeProposalEnd & { look: "expired" | "executed" | "replaced" }> {
   for (;;) {
     await pause(SAFE_LOOK_MS, signal, waitAborted);
-    const look = await lookAtSafeProposal(
+    const end = await lookAtSafeProposalEnd(
       client,
       chainId,
       safe,
       proposalHash,
       service,
     );
-    if (look === "expired" || look === "executed" || look === "replaced")
-      return look;
+    if (
+      end.look === "expired" ||
+      end.look === "executed" ||
+      end.look === "replaced"
+    )
+      return end as SafeProposalEnd & {
+        look: "expired" | "executed" | "replaced";
+      };
   }
 }
 

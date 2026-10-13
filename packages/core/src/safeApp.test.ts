@@ -19,6 +19,7 @@ import {
   findPendingSafeAppProposal,
   heldCall,
   lookAtSafeProposal,
+  lookAtSafeProposalEnd,
   readSafeAppExecution,
   reportedSafeExecution,
   requireSafeProposalSuccess,
@@ -30,6 +31,7 @@ import {
   safeTransactionRunsCalls,
   stampedDeadline,
   watchSafeProposal,
+  watchSafeProposalEnd,
   type SafeAppCall,
 } from "./safeService.js";
 
@@ -713,6 +715,109 @@ describe("a proposal awaiting its signers", () => {
         await expect(look(call(), undefined, client as never)).resolves.toBe(
           "passed",
         );
+    });
+
+    describe("names the execution from its canonical log, whatever Safe's service says", () => {
+      const EXECUTION = `0x${"e1".repeat(32)}` as Hex;
+      const logged = (hash: Hex, topic: string, transactionHash: unknown) => ({
+        ...executed(hash, topic),
+        transactionHash,
+      });
+      const lookEnd = (
+        record: Record<string, unknown> | undefined,
+        client: ReturnType<typeof proving>,
+      ) => {
+        const { hash, options } = service(call(), record);
+        return lookAtSafeProposalEnd(
+          client as never,
+          STAMPED_CHAIN,
+          SAFE,
+          hash,
+          options,
+        );
+      };
+
+      it.each([
+        [SUCCESS, "success"],
+        [FAILURE, "failed"],
+      ] as const)(
+        "%s: a stale or lagging service record still yields the execution",
+        async (topic, status) => {
+          const { hash } = service(call());
+          for (const stale of [
+            undefined,
+            { isExecuted: true, transactionHash: null },
+            { isExecuted: true, transactionHash: HASH },
+          ])
+            await expect(
+              lookEnd(
+                stale,
+                proving({
+                  logs: [
+                    logged(
+                      hash,
+                      topic,
+                      EXECUTION.toUpperCase().replace("0X", "0x"),
+                    ),
+                  ],
+                }),
+              ),
+            ).resolves.toEqual({
+              look: "executed",
+              execution: { executionHash: EXECUTION, status },
+            });
+        },
+      );
+
+      it("names none when the log carries no transaction, or two logs name the proposal", async () => {
+        const { hash } = service(call());
+        for (const logs of [
+          [logged(hash, SUCCESS, "0x12")],
+          [logged(hash, SUCCESS, EXECUTION), logged(hash, FAILURE, HASH)],
+          [executed(hash), logged(hash, SUCCESS, EXECUTION)],
+        ])
+          await expect(lookEnd(undefined, proving({ logs }))).resolves.toEqual({
+            look: "executed",
+          });
+      });
+
+      it("keeps a service-reported execution live until the chain proves one", async () => {
+        chainState.nonce = 5n;
+        await expect(
+          lookEnd(
+            { isExecuted: true, transactionHash: HASH },
+            proving({ logs: [] }),
+          ),
+        ).resolves.toEqual({ look: "live" });
+        chainState.nonce = 6n;
+        await expect(
+          lookEnd({ isExecuted: true, transactionHash: HASH }, proving()),
+        ).resolves.toEqual({ look: "live" });
+        await expect(
+          lookEnd(
+            { isExecuted: true, transactionHash: HASH },
+            proving({ logs: [executed(HASH)] }),
+          ),
+        ).resolves.toEqual({ look: "replaced" });
+      });
+
+      it("ends a watch with the execution", async () => {
+        vi.useFakeTimers();
+        const { hash, options } = service(call());
+        const ended = watchSafeProposalEnd(
+          proving({ logs: [logged(hash, FAILURE, EXECUTION)] }) as never,
+          STAMPED_CHAIN,
+          SAFE,
+          hash,
+          new AbortController().signal,
+          options,
+        );
+        await vi.advanceTimersByTimeAsync(60_000);
+        await expect(ended).resolves.toEqual({
+          look: "executed",
+          execution: { executionHash: EXECUTION, status: "failed" },
+        });
+      });
     });
 
     it("ends a watch as replaced or executed instead of holding", async () => {
