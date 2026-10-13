@@ -222,15 +222,26 @@ export function readBrowserWriteRecovery(
   );
 }
 
+/**
+ * The key that marks the record `id` saved at `key` as released by the user.
+ * An exit writes this instead of removing `key`, so it can never remove a
+ * newer record another tab saved there.
+ */
+function releasedKey(key: string, id: string): string {
+  return `${key}:released:${id}`;
+}
+
 function readStored(
   raw: string | null,
   key: string,
   scopeOf = scope,
+  store?: RecoveryStorage,
 ): ReviewedWriteRecoveryRecord | null {
   if (raw === null) return null;
   const record = recordOf(JSON.parse(raw));
   if (scopeOf(record) !== key)
     throw new Error("Saved write recovery scope does not match.");
+  if (store && store.getItem(releasedKey(key, record.id)) !== null) return null;
   return record;
 }
 function readRecovery(
@@ -239,7 +250,7 @@ function readRecovery(
   raw = store.getItem(key),
   scopeOf = scope,
 ): ReviewedWriteRecoveryRecord | null {
-  const record = readStored(raw, key, scopeOf);
+  const record = readStored(raw, key, scopeOf, store);
   const memory = unpersistedSubmissions.get(store)?.get(key);
   if (
     !record ||
@@ -450,7 +461,7 @@ export function createBrowserWriteRecovery(
     if (raw !== null || !legacyKey) return { at: key, raw };
     try {
       const old = store.getItem(legacyKey);
-      const legacy = readStored(old, legacyKey, legacyScope);
+      const legacy = readStored(old, legacyKey, legacyScope, store);
       if (legacy && sameReviewedWrite(legacy, reviewed))
         return { at: legacyKey, raw: old };
     } catch {
@@ -511,7 +522,7 @@ export function createBrowserWriteRecovery(
     // durable commit. submitted(hash, record) must retry that commit first.
     const store = storage();
     const { at, raw } = locate(store);
-    const current = readStored(raw, at, scopeAt(at));
+    const current = readStored(raw, at, scopeAt(at), store);
     if (!current) return;
     if (JSON.stringify(current) !== JSON.stringify(recordOf(expected))) {
       throw new Error(
@@ -581,6 +592,7 @@ export function createBrowserWriteRecovery(
       rememberSubmission(submitted, at);
       throw new SubmittedWritePersistenceError(submitted, cause);
     }
+    // A record the user released keeps its marker: a late hash leaves it released.
     const current = readStored(raw, at, scopeAt(at));
     if (
       !current ||
@@ -626,10 +638,19 @@ export function createBrowserWriteRecovery(
       const fromBlock = evidence && uint256(evidence.blockNumber);
       if (evidence && (nonce === null || fromBlock === null))
         throw new Error("Invalid write recovery nonce evidence.");
-      if (read())
+      const store = storage();
+      const { at, raw } = locate(store);
+      if (readRecovery(store, at, raw, scopeAt(at)))
         throw new Error(
           "An earlier wallet write is still unresolved. Check it before trying again.",
         );
+      // The record this one replaces, if the user released it: its marker goes too.
+      let replaced: unknown;
+      try {
+        replaced = at === key && raw !== null ? JSON.parse(raw)?.id : undefined;
+      } catch {
+        /* An unreadable record leaves no marker to clean. */
+      }
       const record: ReviewedWriteRecoveryRecord = {
         version: 1,
         id: globalThis.crypto.randomUUID(),
@@ -651,6 +672,12 @@ export function createBrowserWriteRecovery(
         }
         throw error;
       }
+      if (typeof replaced === "string" && replaced !== record.id)
+        try {
+          store.removeItem(releasedKey(key, replaced));
+        } catch {
+          /* A leftover marker names only the old record. */
+        }
       return recordOf(record);
     },
     submitted(
@@ -687,8 +714,11 @@ export function createBrowserWriteRecovery(
     },
     /**
      * The user confirmed they checked their wallet; release the write. It
-     * removes only `expected` itself, so it needs no lock and still works when
-     * the cross-tab lock can't be taken. New sends still need `withLock`.
+     * marks only the record `expected` names (by its ID) as released and never
+     * removes the saved key, so a stale exit can't erase a newer write another
+     * tab saved there. It needs no lock and still works when the cross-tab lock
+     * can't be taken; new sends still need `withLock`. `expected` may be what
+     * `read()` showed, including a returned hash kept only in memory.
      */
     abandon(
       expected: ReviewedWriteRecoveryRecord,
@@ -698,7 +728,26 @@ export function createBrowserWriteRecovery(
         throw new Error(
           "Release a held write only after the user confirms they checked their wallet.",
         );
-      release(expected);
+      const wanted = JSON.stringify(recordOf(expected));
+      const store = storage();
+      const { at, raw } = locate(store);
+      const durable = readStored(raw, at, scopeAt(at), store);
+      if (!durable) return;
+      const shown = readRecovery(store, at, raw, scopeAt(at));
+      if (
+        JSON.stringify(durable) !== wanted &&
+        JSON.stringify(shown) !== wanted
+      )
+        throw new Error(
+          "Write recovery changed. Keep the current action pending.",
+        );
+      const marker = releasedKey(at, durable.id);
+      store.setItem(marker, "1");
+      if (store.getItem(marker) !== "1")
+        throw new Error("Write recovery storage did not release the action.");
+      const memory = unpersistedSubmissions.get(store);
+      if (memory?.get(at)?.id === durable.id) memory.delete(at);
+      if (owned?.id === durable.id) owned = undefined;
     },
     async withLock<T>(work: () => Promise<T>, wait = false): Promise<T> {
       const locks = options.locks ?? browserLocks();

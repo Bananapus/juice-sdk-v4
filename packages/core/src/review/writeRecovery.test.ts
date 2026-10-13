@@ -1444,6 +1444,65 @@ describe("releasing a write with no confirmed result", () => {
     });
     expect(journal.read()).toBeNull();
   });
+
+  it("never lets a stale exit in one tab erase a newer write from another", async () => {
+    const options = browser();
+    const b = createBrowserWriteRecovery(input, options);
+    const r = await b.withLock(async () => b.reserve());
+    // Tab A read R before tab B released it and sent S.
+    const staleR = options.values.get([...options.values.keys()][0])!;
+    b.abandon(r, { checkedWallet: true });
+    const s = await b.withLock(async () => {
+      b.reserve();
+      return b.submitted(HASH);
+    });
+    let stale = true;
+    const tabA = {
+      ...options.storage,
+      getItem: (key: string) => {
+        if (stale && options.values.get(key) === JSON.stringify(s)) {
+          stale = false;
+          return staleR;
+        }
+        return options.storage.getItem(key);
+      },
+    };
+    const a = createBrowserWriteRecovery(input, { storage: tabA });
+    a.abandon(r, { checkedWallet: true });
+    expect(b.read()).toEqual(s);
+    expect(createBrowserWriteRecovery(input, options).read()).toEqual(s);
+    // S's own exit still works, and leaves nothing held.
+    b.abandon(s, { checkedWallet: true });
+    expect(b.read()).toBeNull();
+    await b.withLock(async () => b.reserve());
+  });
+
+  it("ends a write whose returned hash only lives in memory", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(input, options);
+    const reservation = await journal.withLock(async () => journal.reserve());
+    options.storage.setItem.mockImplementationOnce(() => {
+      throw new Error("storage offline");
+    });
+    await journal.withLock(async () => {
+      expect(() => journal.submitted(HASH)).toThrow(
+        SubmittedWritePersistenceError,
+      );
+    });
+    const shown = journal.read()!;
+    expect(shown).toMatchObject({ id: reservation.id, hash: HASH });
+    // Another reservation, or a conflicting hash, is still refused.
+    for (const other of [
+      { ...shown, id: "other" },
+      { ...shown, hash: PROPOSAL },
+    ])
+      expect(() => journal.abandon(other, { checkedWallet: true })).toThrow(
+        "changed",
+      );
+    journal.abandon(shown, { checkedWallet: true });
+    expect(journal.read()).toBeNull();
+    expect(createBrowserWriteRecovery(input, options).read()).toBeNull();
+  });
 });
 
 describe("tabs without Web Locks", () => {
