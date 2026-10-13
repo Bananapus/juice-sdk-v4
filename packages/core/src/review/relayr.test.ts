@@ -1391,6 +1391,81 @@ describe("Relayr payment options", () => {
     ).toBe(BigInt(DEADLINE));
   });
 
+  it("derives the requests' deadline from a restored quote's bindings", () => {
+    // Codex's case: a quote saved before requestsDeadline existed, whose
+    // requests expire in 60 seconds while its payment is allowed for 600.
+    const bindingsFor = (entries: RelayrEntry[]) =>
+      relayrBundleRequest(entries).transactions.map((entry, index) => ({
+        txUuid: [BUNDLE_UUID, OTHER_UUID][index],
+        chain: entry.chain,
+        entry,
+      }));
+    const legacy = {
+      bundle_uuid: BUNDLE_UUID,
+      payment_info: [paymentFor()],
+      expectedTransactions: bindingsFor([
+        forwarded(1, { deadline: NOW + 60 }),
+        forwarded(10),
+      ]),
+    };
+    expect(relayrPaymentOptions(legacy, [1, 10], NOW)).toEqual([]);
+    expect(() =>
+      relayrPaymentDetails(paymentFor(), {
+        bundleUuid: BUNDLE_UUID,
+        destinationChainIds: [1, 10],
+        nowSeconds: NOW,
+        expectedTransactions: legacy.expectedTransactions,
+      }),
+    ).toThrow(
+      "This quote's payment window ends too close to when the signed requests expire. Review the action again.",
+    );
+    // A saved requestsDeadline never loosens what the bindings say.
+    expect(
+      relayrPaymentOptions(
+        { ...legacy, requestsDeadline: REQUESTS_DEADLINE },
+        [1, 10],
+        NOW,
+      ),
+    ).toEqual([]);
+    const fresh = {
+      ...legacy,
+      expectedTransactions: bindingsFor([forwarded(1), forwarded(10)]),
+    };
+    expect(relayrPaymentOptions(fresh, [1, 10], NOW)).toEqual([paymentFor()]);
+    const raw = {
+      ...legacy,
+      expectedTransactions: bindingsFor([
+        { chain: 1, target: TARGET, data: "0x01", value: "0" },
+      ]),
+    };
+    expect(relayrPaymentOptions(raw, [1], NOW)).toEqual([paymentFor()]);
+  });
+
+  it("refuses a forwarded quote whose request deadlines can't be recovered", () => {
+    const [binding] = relayrBundleRequest([forwarded(1)]).transactions.map(
+      (entry) => ({ txUuid: BUNDLE_UUID, chain: 1, entry }),
+    );
+    for (const expectedTransactions of [
+      [{ ...binding, entry: { ...binding.entry, data: "0x1234" as Hex } }],
+      [{ txUuid: BUNDLE_UUID, chain: 1 }],
+      [null],
+      "bindings",
+    ]) {
+      expect(
+        relayrPaymentOptions(
+          {
+            bundle_uuid: BUNDLE_UUID,
+            payment_info: [paymentFor()],
+            expectedTransactions:
+              expectedTransactions as unknown as RelayrTransactionBinding[],
+          },
+          [1],
+          NOW,
+        ),
+      ).toEqual([]);
+    }
+  });
+
   it("offers nothing when the requests' deadline can't be read", () => {
     for (const requestsDeadline of [-1, 1.5, "soon", null]) {
       expect(
