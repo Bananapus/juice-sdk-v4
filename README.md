@@ -771,10 +771,12 @@ refuses. `browserLocks()` returns the same lock manager for an app's own locks.
 
 `lookAtSafeProposal` and `watchSafeProposal` end a proposal whose nonce another
 transaction took. Once the Safe's nonce is past the proposal's at a canonical
-finalized block, the Safe's ExecutionSuccess and ExecutionFailure events in the
-500 blocks up to that block decide: `executed` when one names its safeTxHash
-(read its receipt for the result), otherwise `replaced` (propose it again).
-`passed` remains only while the finalized block does not prove it yet.
+finalized block, a search of the Safe's nonce at past blocks finds the block
+where that nonce was used, and the Safe's ExecutionSuccess and ExecutionFailure
+events there decide: `executed` when one names its safeTxHash (read its receipt
+for the result), `replaced` when only others do (propose it again). `passed`
+remains while that can't be proven, as on a node without history; the app
+keeps showing the proposal with a link to the Safe queue.
 
 ### Held and released copy
 

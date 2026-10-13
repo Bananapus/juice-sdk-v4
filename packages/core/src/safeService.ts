@@ -1055,11 +1055,12 @@ export async function findPendingSafeAppProposal(
  *   that block is not past the proposal's, so it never ran, and the contract
  *   refuses it in any later block;
  * - `executed`: the Safe's nonce is past the proposal's at a canonical
- *   finalized block, and the Safe logged ExecutionSuccess or ExecutionFailure
- *   for its safeTxHash in the 500 blocks up to it. Its receipt says which;
- * - `replaced`: the Safe's nonce is past the proposal's at a canonical
- *   finalized block, and the Safe logged no execution of it in those blocks:
- *   another transaction took its nonce, so it can never run. Propose it again;
+ *   finalized block, and in the block where that nonce was used the Safe
+ *   logged ExecutionSuccess or ExecutionFailure for its safeTxHash. Its
+ *   receipt says which;
+ * - `replaced`: as `executed`, but that block's execution events name only
+ *   other safeTxHashes: another transaction took its nonce, so it can never
+ *   run. Propose it again;
  * - `passed`: the Safe's latest nonce is past the proposal's and Safe's service
  *   lists no execution of it, but the finalized block does not prove which
  *   transaction took the nonce yet;
@@ -1072,13 +1073,16 @@ export type SafeProposalLook =
   | "passed"
   | "live";
 
-/** How far back from the finalized block a look searches for the proposal's execution, within one getLogs window. */
-const SAFE_EXECUTION_LOG_BLOCKS = 500n;
+/** At most this many nonce reads find the block where a proposal's nonce was used. */
+const SAFE_NONCE_SEARCH_READS = 80;
 
 /**
  * `executed` or `replaced` for a proposal at `nonce` once the Safe's nonce is
- * past it at a canonical finalized block, from the Safe's execution events in
- * the 500 blocks up to that block. Null while that is unproven or unread.
+ * past it at a canonical finalized block. It searches the Safe's nonce at past
+ * blocks for the block where that nonce was used, and reads the Safe's
+ * execution events there: `executed` when one names `proposalHash`,
+ * `replaced` when only others do. Null while that is unproven or unread, as
+ * with a node that keeps no history or a block with no execution logged.
  */
 async function provenProposalEnd(
   client: Pick<SafeQueueClient, "request">,
@@ -1090,37 +1094,57 @@ async function provenProposalEnd(
     method: string;
     params: unknown[];
   }) => Promise<unknown>;
+  const hex = (value: bigint) => `0x${value.toString(16)}`;
   const block = async (tag: string) =>
     (await request({
       method: "eth_getBlockByNumber",
       params: [tag, false],
     })) as { number?: unknown; hash?: unknown } | null;
+  let reads = 0;
+  const used = async (blockNumber: bigint) => {
+    if ((reads += 1) > SAFE_NONCE_SEARCH_READS)
+      throw new Error("Safe nonce search exhausted");
+    const value = await readBoundedSafeNonce(client, safe, { blockNumber });
+    if (value === null) throw new Error("Unreadable Safe nonce");
+    return value > nonce;
+  };
   try {
     const finalized = await block("finalized");
     if (typeof finalized?.number !== "string" || !isBytes32(finalized.hash))
       return null;
     const number = BigInt(finalized.number);
-    const safeNonce = await readBoundedSafeNonce(client, safe, {
-      blockNumber: number,
-    });
-    if (safeNonce === null || safeNonce <= nonce) return null;
-    const from =
-      number >= SAFE_EXECUTION_LOG_BLOCKS
-        ? number - SAFE_EXECUTION_LOG_BLOCKS + 1n
-        : 0n;
+    if (!(await used(number))) return null;
+    // Step back, doubling, to a block where the nonce was still unused.
+    let high = number;
+    let step = 1n;
+    let low = number - 1n;
+    for (;;) {
+      if (low < 0n) return null;
+      if (!(await used(low))) break;
+      high = low;
+      step *= 2n;
+      low = high - step < 0n ? 0n : high - step;
+      if (high === 0n) return null;
+    }
+    while (high - low > 1n) {
+      const middle = (low + high) / 2n;
+      if (await used(middle)) high = middle;
+      else low = middle;
+    }
     const logs = await request({
       method: "eth_getLogs",
       params: [
         {
           address: safe,
-          fromBlock: `0x${from.toString(16)}`,
-          toBlock: `0x${number.toString(16)}`,
+          fromBlock: hex(high),
+          toBlock: hex(high),
           topics: [[EXECUTION_SUCCESS_TOPIC, EXECUTION_FAILURE_TOPIC]],
         },
       ],
     });
     if (!Array.isArray(logs)) return null;
     let executed = false;
+    let others = false;
     for (const log of logs as {
       address?: unknown;
       removed?: unknown;
@@ -1135,10 +1159,11 @@ async function provenProposalEnd(
       const event = safeExecutionEvent(log);
       if (log.removed === true || typeof event === "string") return null;
       if (event?.txHash === proposalHash.toLowerCase()) executed = true;
+      else if (event) others = true;
     }
-    const canonical = await block(`0x${number.toString(16)}`);
+    const canonical = await block(hex(number));
     if (canonical?.hash !== finalized.hash) return null;
-    return executed ? "executed" : "replaced";
+    return executed ? "executed" : others ? "replaced" : null;
   } catch {
     return null;
   }

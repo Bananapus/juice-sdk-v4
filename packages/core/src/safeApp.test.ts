@@ -584,24 +584,37 @@ describe("a proposal awaiting its signers", () => {
       data: `0x${txHash.slice(2)}${"0".repeat(64)}`,
       removed: false,
     });
-    /** The latest nonce is chainState's; at the finalized block (0x5a), `finalNonce`. */
+    /**
+     * The latest view block (100) reads chainState's nonce. At any other
+     * block the Safe's nonce is 5 before `crossing` and `finalNonce` from it;
+     * the finalized block is `finalNumber`. Logs answer only for the one block
+     * asked about.
+     */
     const proving = ({
       finalNonce = 6n,
-      logs = [] as unknown[],
+      crossing = 0x50,
+      logs = [] as unknown,
       canonical = FINAL,
       finalNumber = "0x5a" as unknown,
     } = {}) => ({
       request: vi.fn(
         async ({ method, params }: { method: string; params: unknown[] }) => {
-          if (method === "eth_call")
-            return word(
-              params[1] === finalNumber ? finalNonce : chainState.nonce,
-            );
+          if (method === "eth_call") {
+            const at = params[1] as string;
+            if (at === "0x64") return word(chainState.nonce);
+            return word(Number(BigInt(at)) >= crossing ? finalNonce : 5n);
+          }
           if (method === "eth_getBlockByNumber")
             return params[0] === "finalized"
               ? { number: finalNumber, hash: FINAL, timestamp: "0x1" }
               : { number: params[0], hash: canonical };
-          if (method === "eth_getLogs") return logs;
+          if (method === "eth_getLogs") {
+            const filter = params[0] as { fromBlock: string; toBlock: string };
+            return filter.fromBlock === `0x${crossing.toString(16)}` &&
+              filter.toBlock === filter.fromBlock
+              ? logs
+              : [];
+          }
           throw new Error(`unexpected ${method}`);
         },
       ),
@@ -611,37 +624,45 @@ describe("a proposal awaiting its signers", () => {
       })),
     });
     const call = () => callOf(authorization(NOW + 600n));
+    const logsAsked = (client: ReturnType<typeof proving>) =>
+      client.request.mock.calls
+        .filter(([args]) => args.method === "eth_getLogs")
+        .map(([args]) => args.params[0]);
 
     beforeEach(() => {
       chainState.nonce = 6n;
     });
 
-    it("is replaced when another transaction took its nonce at a finalized block", async () => {
+    it("is replaced when another execution used its nonce, in the block where the nonce moved", async () => {
       const client = proving({ logs: [executed(HASH)] });
       await expect(look(call(), undefined, client as never)).resolves.toBe(
         "replaced",
       );
-      const logs = client.request.mock.calls.find(
-        ([args]) => args.method === "eth_getLogs",
-      )![0].params[0] as Record<string, unknown>;
-      expect(logs).toMatchObject({
-        address: SAFE,
-        fromBlock: "0x0",
-        toBlock: "0x5a",
-        topics: [[SUCCESS, FAILURE]],
-      });
+      expect(logsAsked(client)).toEqual([
+        {
+          address: SAFE,
+          fromBlock: "0x50",
+          toBlock: "0x50",
+          topics: [[SUCCESS, FAILURE]],
+        },
+      ]);
     });
 
-    it("searches only the 500 blocks up to the finalized block", async () => {
-      const client = proving({ finalNumber: "0x400" });
+    it("finds an execution however long before the finalized block it ran", async () => {
+      const { hash } = service(call());
+      const client = proving({
+        finalNumber: "0x100000",
+        crossing: 0x10,
+        logs: [executed(hash)],
+      });
       await expect(look(call(), undefined, client as never)).resolves.toBe(
-        "replaced",
+        "executed",
       );
+      // A search over the Safe's nonce, not a scan of every block.
       expect(
-        client.request.mock.calls.find(
-          ([args]) => args.method === "eth_getLogs",
-        )![0].params[0],
-      ).toMatchObject({ fromBlock: "0x20d", toBlock: "0x400" });
+        client.request.mock.calls.filter(([args]) => args.method === "eth_call")
+          .length,
+      ).toBeLessThan(50);
     });
 
     it.each([SUCCESS, FAILURE])(
@@ -666,7 +687,7 @@ describe("a proposal awaiting its signers", () => {
               logs: [executed(hash, topic, TARGET)],
             }) as never,
           ),
-        ).resolves.toBe("replaced");
+        ).resolves.toBe("passed");
       },
     );
 
@@ -674,7 +695,9 @@ describe("a proposal awaiting its signers", () => {
       for (const client of [
         proving({ finalNonce: 5n }),
         proving({ finalNumber: null }),
-        proving({ logs: {} as never }),
+        // No execution logged where the nonce moved: nothing proven.
+        proving(),
+        proving({ logs: {} }),
         proving({ canonical: HASH }),
         proving({ logs: [{ ...executed(HASH), removed: true }] }),
         proving({ logs: [{ ...executed(HASH), data: "0x12" }] }),
@@ -689,7 +712,7 @@ describe("a proposal awaiting its signers", () => {
       vi.useFakeTimers();
       const { hash, options } = service(call());
       for (const [logs, end] of [
-        [[], "replaced"],
+        [[executed(HASH)], "replaced"],
         [[executed(hash)], "executed"],
       ] as const) {
         const ended = watchSafeProposal(
