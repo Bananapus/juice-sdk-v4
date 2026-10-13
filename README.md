@@ -579,7 +579,9 @@ What each app replaces:
   `atCanonicalFinalizedBlock`, `finalizedForwarderNonce`, `deadSessionNonces`
   and its recheck failure check, `RelayrDiscardReason` and its guard) and
   `savedForwardRequests` in `src/lib/forwarder-authorization.ts`. Its copy
-  (`relayrHeldMessage`, the discard lines) and storage stay in the app.
+  (`relayrHeldMessage`, `relayrDiscardLine`) now comes from `/review`
+  ([Held and released copy](#held-and-released-copy)); its storage stays in
+  the app.
 - revnet.money: `useReviewedRelayr`'s release of an unpaid quote by the device
   clock (`relayrAuthorizationExpiresAt`) and its signing at the live nonce
   after one. A session holds while one of its requests is live, signs again
@@ -602,9 +604,12 @@ R104):
   again with exactly the option it used (`relayrRetryOption`), once
   `requireRelayrPaymentRetry` clears it.
 - `released`: nothing can fund it any more. Every payment it sent is proven
-  canonically reverted, every deadline of those payments and of the quote's
-  options passed at a canonical finalized block, and one more read finds the
-  bundle unpaid with every call pending. The app then quotes its calls again.
+  canonically reverted (a payment sent through a wallet contract, such as a
+  Safe, counts once its own receipt reverted in a canonical block), every
+  deadline of those payments and of the quote's options passed at a canonical
+  finalized block, and one more read finds the bundle unpaid with every call
+  pending. The app then quotes its calls again. The Safe Relayr controller
+  releases such a session the same way, `single-session` journals included.
 
 Anything else throws, and the quote holds.
 
@@ -708,6 +713,102 @@ What each app replaces:
     `proveSavedRelayrPayment` (:691), `relayrPaymentAttemptOutcome` (:715),
     `relayrPaidQuoteOpen` (:729), `relayrQuotedOptions` (:739),
     `relayrQuoteUnfundable` (:758) and `revertedRelayrQuote` (:800).
+
+## Held writes
+
+User experience comes first: an action is held only where a second run could
+cost money the chain would not refuse, and nothing is held forever.
+
+`createBrowserWriteRecovery` holds a wallet write with no confirmed result by
+its exact call (account, chain, target, value and calldata). A changed amount
+or quote is a different call and is not held; pass a `namespace` to hold a
+whole action. Records saved under the old target-and-selector key still hold
+their exact call.
+
+```ts
+import {
+  createBrowserWriteRecovery,
+  readReviewedWriteNonce,
+  writeExitMessage,
+  writeHeldMessage,
+  WRITE_EXIT_LABEL,
+} from "@bananapus/nana-sdk-core/review";
+
+const journal = createBrowserWriteRecovery({ chainId, account, safe, call });
+await journal.withLock(async () => {
+  const evidence = await readReviewedWriteNonce(publicClient, account);
+  journal.reserve(undefined, evidence); // before the wallet opens
+  // ...send, then journal.submitted(hash) or journal.rejected()
+});
+
+// Later, for a held write:
+const check = await journal.withLock(() =>
+  journal.resolve(publicClient, {
+    effect: async (chainId) => readTheEffect(chainId),
+  }),
+);
+// The user's exit: show writeHeldMessage("payment") and
+// writeExitMessage(record.call, "payment") with a WRITE_EXIT_LABEL button, then
+const record = journal.read()!;
+journal.abandon(record, { checkedWallet: true }); // needs no lock
+```
+
+`resolve` (and the pure `checkReviewedWrite`) reads only the record's chain:
+the client's `getChainId()` must match before any proof, the app's `effect`
+read included, which receives the saved chain ID. A release needs proof:
+
+- The saved hash's own transaction, while the node knows it, is the write:
+  `sent` once mined (its receipt decides, wallet wrappers included), `pending`
+  in the mempool. `resolve` saves the nonce it was sent at (`sentNonce`).
+- Once the account's nonce is past it at a canonical finalized block, the
+  block where it moved holds the transaction that used it. The saved hash or
+  the exact call there is `sent` (a wallet speed-up included). Any other
+  transaction there stays `pending`: a wrapper, or an EIP-7702 wallet that ran
+  code and then cleared its delegation in the same block, may have run the
+  call inside it, so no state at block end proves it didn't. A wallet's cancel
+  therefore costs the user one tap on the exit. A nonce sampled before the
+  wallet opened only locates the exact call.
+- `effect` returning true ends it as `ran`, released.
+
+Anything else stays `pending`: a Safe write, a hashless write the chain
+can't place, or a node without history. The user always keeps the exit:
+`abandon` refuses without their confirmation that they checked their wallet,
+and for a write that carries value `writeExitMessage` says plainly that sending
+again pays twice. `abandon` marks only that exact record (by its ID) as
+released and never removes the saved key, so a stale exit in one tab can't
+erase a newer write another tab saved. It needs no lock, so it works even when
+the cross-tab lock can't be taken, and it accepts what `read()` showed,
+including a returned hash kept only in memory after a failed save. New sends
+still need `withLock`.
+
+`withLock` uses Web Locks across tabs. Where a browser or wallet webview has
+none, the origin's tabs share an IndexedDB lease per action: one readwrite
+transaction claims it atomically, the holder renews it while it works, and a
+closed tab's lease lapses after 15 seconds. It adds no wait unless another tab
+holds the action. With no IndexedDB either, the lock holds within the tab. It
+never refuses, and notes the fallback once in the console. `browserLocks()`
+returns the same lock manager for an app's own locks.
+
+### Safe proposals
+
+`lookAtSafeProposal` and `watchSafeProposal` end a proposal whose nonce another
+transaction took. Once the Safe's nonce is past the proposal's at a canonical
+finalized block, a search of the Safe's nonce at past blocks finds the block
+where that nonce was used, and the Safe's ExecutionSuccess and ExecutionFailure
+events there decide: `executed` when one names its safeTxHash (read its receipt
+for the result), `replaced` when only others do (propose it again). `passed`
+remains while that can't be proven, as on a node without history; the app
+keeps showing the proposal with a link to the Safe queue.
+
+### Held and released copy
+
+`/review` exports the lines these states show, so apps stop copying them:
+`relayrHeldMessage(until, { action, formatTime })`, `relayrDiscardLine(reason,
+{ action, subject, paymentUnmatched })`, `writeHeldMessage`,
+`writeExitMessage`, `WRITE_EXIT_LABEL`, `SAFE_PROPOSAL_REPLACED_LINE`,
+`SAFE_PROPOSAL_EXECUTED_LINE` and `RELAYR_PAYMENT_RELEASED_LINE`. Each names
+the action, never the service, in one short line. `transactionMessage` now
+writes "Relayr's" as "the" and a bare "Relayr" as "the network".
 
 ## Installation
 
@@ -1319,7 +1420,7 @@ amounts and terminal changes. `readBrowserWriteRecovery({ chainId, account,
 namespace })` opens the original record before fresh preparation, without
 inventing calldata or sending again. Reuse its saved call; namespacing does not
 widen the factory's reviewed target/selector adoption checks. Ordinary callers
-without a namespace retain their existing storage keys.
+without a namespace hold only their exact call (see [Held writes](#held-writes)).
 The lower-level `verifyDefifaNftReceipt` checks
 effects only and assumes the engine already authenticated execution. Native
 metadata decoding recognizes pinned lookup IDs but does not prove provenance.

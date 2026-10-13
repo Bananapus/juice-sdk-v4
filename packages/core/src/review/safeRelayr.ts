@@ -281,7 +281,7 @@ export class SafeRelayrRecoveryError extends Error {
   readonly name = "SafeRelayrRecoveryError";
   constructor(
     readonly session: SafeRelayrSession,
-    message = "This Safe execution has an existing Relayr bundle. Check the existing bundle before submitting another payment.",
+    message = "This Safe action already has a payment in progress. Check it before paying again.",
     readonly recovery?: SafeRelayrRecovery,
   ) {
     super(message);
@@ -1100,7 +1100,32 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
               everyReverted = false;
           }
         }
-        if (!everyReverted) return result("pending", session);
+        if (!everyReverted) {
+          // A payment through a wallet contract that reverted is no
+          // RelayrPaymentRevertedError. Once nothing can fund the quote, it
+          // is released like an expired one.
+          const disposition = await revertedRelayrQuote(
+            options.clientFor,
+            {
+              bundleUuid: quote.bundle_uuid,
+              payments: session.payments,
+              options: quote.payment_info,
+              destinationChainIds: chains,
+              account: session.account,
+            },
+            { fetch: fetchRelayr },
+          ).catch(() => null);
+          if (disposition?.state !== "released")
+            return result("pending", session);
+          session = {
+            ...session,
+            state: "released",
+            paymentStatus: "expired",
+            releaseReason: "quote-expired",
+          };
+          await store.save(session);
+          return result("released", session);
+        }
         session = { ...session, paymentStatus: "reverted" };
         await store.save(session);
         const disposition = await revertedRelayrQuote(

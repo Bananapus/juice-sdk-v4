@@ -1054,12 +1054,117 @@ export async function findPendingSafeAppProposal(
  * - `expired`: the latest block is past its deadline and the Safe's nonce in
  *   that block is not past the proposal's, so it never ran, and the contract
  *   refuses it in any later block;
- * - `passed`: the Safe's nonce is past the proposal's and Safe's service lists
- *   no execution of it: another transaction took its nonce, or the service has
- *   yet to list its own execution;
+ * - `executed`: the Safe's nonce is past the proposal's at a canonical
+ *   finalized block, and in the block where that nonce was used the Safe
+ *   logged ExecutionSuccess or ExecutionFailure for its safeTxHash. Its
+ *   receipt says which;
+ * - `replaced`: as `executed`, but that block's execution events name only
+ *   other safeTxHashes: another transaction took its nonce, so it can never
+ *   run. Propose it again;
+ * - `passed`: the Safe's latest nonce is past the proposal's and Safe's service
+ *   lists no execution of it, but the finalized block does not prove which
+ *   transaction took the nonce yet;
  * - `live`: it can still run, it ran, or the look could not tell.
  */
-export type SafeProposalLook = "expired" | "passed" | "live";
+export type SafeProposalLook =
+  | "expired"
+  | "executed"
+  | "replaced"
+  | "passed"
+  | "live";
+
+/** At most this many nonce reads find the block where a proposal's nonce was used. */
+const SAFE_NONCE_SEARCH_READS = 80;
+
+/**
+ * `executed` or `replaced` for a proposal at `nonce` once the Safe's nonce is
+ * past it at a canonical finalized block. It searches the Safe's nonce at past
+ * blocks for the block where that nonce was used, and reads the Safe's
+ * execution events there: `executed` when one names `proposalHash`,
+ * `replaced` when only others do. Null while that is unproven or unread, as
+ * with a node that keeps no history or a block with no execution logged.
+ */
+async function provenProposalEnd(
+  client: Pick<SafeQueueClient, "request">,
+  safe: Address,
+  proposalHash: Hex,
+  nonce: bigint,
+): Promise<"executed" | "replaced" | null> {
+  const request = client.request as unknown as (args: {
+    method: string;
+    params: unknown[];
+  }) => Promise<unknown>;
+  const hex = (value: bigint) => `0x${value.toString(16)}`;
+  const block = async (tag: string) =>
+    (await request({
+      method: "eth_getBlockByNumber",
+      params: [tag, false],
+    })) as { number?: unknown; hash?: unknown } | null;
+  let reads = 0;
+  const used = async (blockNumber: bigint) => {
+    if ((reads += 1) > SAFE_NONCE_SEARCH_READS)
+      throw new Error("Safe nonce search exhausted");
+    const value = await readBoundedSafeNonce(client, safe, { blockNumber });
+    if (value === null) throw new Error("Unreadable Safe nonce");
+    return value > nonce;
+  };
+  try {
+    const finalized = await block("finalized");
+    if (typeof finalized?.number !== "string" || !isBytes32(finalized.hash))
+      return null;
+    const number = BigInt(finalized.number);
+    if (!(await used(number))) return null;
+    // Step back, doubling, to a block where the nonce was still unused.
+    let high = number;
+    let low: bigint;
+    for (let step = 1n; ; step *= 2n) {
+      low = high > step ? high - step : 0n;
+      if (!(await used(low))) break;
+      if (low === 0n) return null;
+      high = low;
+    }
+    while (high - low > 1n) {
+      const middle = (low + high) / 2n;
+      if (await used(middle)) high = middle;
+      else low = middle;
+    }
+    const logs = await request({
+      method: "eth_getLogs",
+      params: [
+        {
+          address: safe,
+          fromBlock: hex(high),
+          toBlock: hex(high),
+          topics: [[EXECUTION_SUCCESS_TOPIC, EXECUTION_FAILURE_TOPIC]],
+        },
+      ],
+    });
+    if (!Array.isArray(logs)) return null;
+    let executed = false;
+    let others = false;
+    for (const log of logs as {
+      address?: unknown;
+      removed?: unknown;
+      topics?: unknown;
+      data?: unknown;
+    }[]) {
+      if (
+        typeof log?.address !== "string" ||
+        log.address.toLowerCase() !== safe.toLowerCase()
+      )
+        continue;
+      const event = safeExecutionEvent(log);
+      if (log.removed === true || typeof event === "string") return null;
+      if (event?.txHash === proposalHash.toLowerCase()) executed = true;
+      else if (event) others = true;
+    }
+    const canonical = await block(hex(number));
+    if (canonical?.hash !== finalized.hash) return null;
+    return executed ? "executed" : others ? "replaced" : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * One look at `safe`'s proposal `proposalHash`: the latest block, the Safe's
@@ -1087,7 +1192,12 @@ export async function lookAtSafeProposal(
       service,
     );
     if (nonce === null || record.isExecuted) return "live";
-    if (nonce > safeTransactionMessage(record).nonce) return "passed";
+    const proposalNonce = safeTransactionMessage(record).nonce;
+    if (nonce > proposalNonce)
+      return (
+        (await provenProposalEnd(client, safe, proposalHash, proposalNonce)) ??
+        "passed"
+      );
     const call = proposedCall(record);
     const deadline = call && stampedDeadline(call, chainId);
     return deadline !== null && block.timestamp > deadline ? "expired" : "live";
@@ -1101,12 +1211,11 @@ const SAFE_LOOK_MS = 60_000;
 
 /**
  * Watches a proposal awaiting its signers, one {@link lookAtSafeProposal} a
- * minute, until `signal` aborts. It ends `expired` at the first look that
- * proves it expired before execution. A passed nonce with no indexed execution
- * remains uncertain however long it lasts: the proposal itself may have run.
- * Execution confirmation belongs to the caller's receipt reader. The return
- * type retains `replaced` for compatibility, but this watch does not infer it
- * from elapsed time or a missing service record.
+ * minute, until `signal` aborts. It ends at the first look that proves an
+ * end: `expired` before execution, `executed` or `replaced` once the Safe's
+ * nonce passed it at a finalized block ({@link SafeProposalLook}). A passed
+ * nonce the finalized block does not prove yet keeps watching. The receipt of
+ * an `executed` proposal belongs to the caller's receipt reader.
  */
 export async function watchSafeProposal(
   client: SafeQueueClient,
@@ -1115,7 +1224,7 @@ export async function watchSafeProposal(
   proposalHash: Hex,
   signal: AbortSignal,
   service?: SafeServiceOptions,
-): Promise<"expired" | "replaced"> {
+): Promise<"expired" | "executed" | "replaced"> {
   for (;;) {
     await pause(SAFE_LOOK_MS, signal, waitAborted);
     const look = await lookAtSafeProposal(
@@ -1125,7 +1234,8 @@ export async function watchSafeProposal(
       proposalHash,
       service,
     );
-    if (look === "expired") return look;
+    if (look === "expired" || look === "executed" || look === "replaced")
+      return look;
   }
 }
 

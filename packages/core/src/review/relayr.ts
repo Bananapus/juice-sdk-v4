@@ -2579,6 +2579,34 @@ async function relayrBundleIfNamed(
  * each option {@link relayrQuotedOptions} keeps, has passed at a canonical
  * finalized block on its chain. Anything unread is false.
  */
+/**
+ * Whether `hash`'s own receipt reverted in a block still canonical. A payment
+ * sent through a wallet contract (a Safe or smart account) reverts there
+ * rather than at the payment contract, and a reverted transaction paid
+ * nothing, whatever it called.
+ */
+async function receiptReverted(
+  client: RelayrReleaseClient,
+  hash: Hex,
+): Promise<boolean> {
+  try {
+    const receipt = await client.getTransactionReceipt({ hash });
+    if (
+      receipt.status !== "reverted" ||
+      receipt.transactionHash?.toLowerCase() !== hash.toLowerCase() ||
+      typeof receipt.blockNumber !== "bigint"
+    )
+      return false;
+    const block = await client.getBlock({ blockNumber: receipt.blockNumber });
+    return (
+      isBytes32(block.hash) &&
+      block.hash.toLowerCase() === receipt.blockHash?.toLowerCase()
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function relayrQuoteUnfundable(
   clientFor: (chainId: number) => RelayrReleaseClient | undefined,
   {
@@ -2608,7 +2636,11 @@ async function relayrQuoteUnfundable(
       });
       return false;
     } catch (error) {
-      if (!(error instanceof RelayrPaymentRevertedError)) return false;
+      if (
+        !(error instanceof RelayrPaymentRevertedError) &&
+        !(await receiptReverted(client, payment.hash))
+      )
+        return false;
     }
     // The proof read the calldata's deadline word; the saved one must be it.
     if (uint256(payment.deadline) !== calldataDeadline(payment.calldata)) {

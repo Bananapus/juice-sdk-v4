@@ -2,12 +2,14 @@ import {
   encodeAbiParameters,
   encodeEventTopics,
   encodeFunctionData,
+  keccak256,
   parseAbi,
   zeroAddress,
   type Address,
   type Hex,
   type TransactionReceipt,
 } from "viem";
+import { IDBDatabase, IDBFactory } from "fake-indexeddb";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   canonicalSafeTxHash,
@@ -18,7 +20,10 @@ import { uniswapV4Deployment } from "../v6/uniswapV4Deployments.js";
 import { encodeMultiSend, MULTI_SEND_CALL_ONLY } from "../safe.js";
 import { submitReviewedContractWrite } from "./contractWrite.js";
 import {
+  browserLocks,
+  checkReviewedWrite,
   createBrowserWriteRecovery,
+  readReviewedWriteNonce,
   readBrowserWriteRecovery,
   sameReviewedWrite,
   SubmittedWritePersistenceError,
@@ -86,7 +91,7 @@ function ordinaryRecovery(namespace?: string) {
     ...legacyInput,
     ...(namespace === undefined ? {} : { namespace }),
   };
-  it("keeps a lost wallet reply durable through new instances and changed amount/quote", async () => {
+  it("keeps a lost wallet reply durable through new instances; only a namespace holds a changed amount/quote", async () => {
     const options = browser();
     const journal = createBrowserWriteRecovery(input, options);
     const write = vi.fn(async () => {
@@ -116,6 +121,11 @@ function ordinaryRecovery(namespace?: string) {
       },
     ]) {
       const reloaded = createBrowserWriteRecovery(changed, options);
+      // Without a namespace, a hold covers only its exact call.
+      if (namespace === undefined && changed !== input) {
+        expect(reloaded.read()).toBeNull();
+        continue;
+      }
       expect(reloaded.read()).toEqual(journal.read());
       await expect(
         reloaded.withLock(async () => reloaded.reserve()),
@@ -149,12 +159,39 @@ function ordinaryRecovery(namespace?: string) {
     await expect(second.withLock(async () => second.reserve())).rejects.toThrow(
       "still unresolved",
     );
+  });
+
+  it("falls back to a per-tab lock without Web Locks, with one console note", async () => {
+    const options = browser();
     vi.stubGlobal("navigator", undefined);
-    await expect(
-      createBrowserWriteRecovery(input, {
-        storage: options.storage,
-      }).withLock(async () => {}),
-    ).rejects.toThrow("coordinate");
+    const note = vi.spyOn(console, "info").mockImplementation(() => {});
+    const first = createBrowserWriteRecovery(input, {
+      storage: options.storage,
+    });
+    const second = createBrowserWriteRecovery(input, {
+      storage: options.storage,
+    });
+    const order: string[] = [];
+    await first.withLock(async () => {
+      await expect(
+        second.withLock(async () => second.reserve()),
+      ).rejects.toThrow("another tab");
+      const queued = second.withLock(async () => {
+        order.push("second");
+      }, true);
+      first.reserve();
+      order.push("first");
+      await Promise.resolve();
+      expect(order).toEqual(["first"]);
+      void queued;
+    });
+    await second.withLock(async () => {}, true);
+    expect(order).toEqual(["first", "second"]);
+    await expect(second.withLock(async () => second.reserve())).rejects.toThrow(
+      "still unresolved",
+    );
+    expect(note.mock.calls.length).toBeLessThanOrEqual(1);
+    note.mockRestore();
   });
 
   it("fails closed on missing, throwing, silently dropping, malformed and foreign-scope storage", async () => {
@@ -422,15 +459,17 @@ function ordinaryRecovery(namespace?: string) {
       const options = browser();
       const journal = createBrowserWriteRecovery(input, options);
       const wallet = vi.fn();
-      if (persistent)
-        options.storage.getItem.mockImplementation(() => {
-          throw new Error("storage blocked");
-        });
-      options.storage.getItem
-        .mockImplementationOnce(() => null)
-        .mockImplementationOnce(() => {
-          throw new Error("readback failed");
-        });
+      const stored = options.storage.getItem.getMockImplementation()!;
+      let reads = 0;
+      // Reads of this call's own key: absent, then the readback fails.
+      options.storage.getItem.mockImplementation((key: string) => {
+        if (key.endsWith(":0xaabbccdd")) return null;
+        reads += 1;
+        if (reads === 1) return null;
+        if (reads === 2) throw new Error("readback failed");
+        if (persistent) throw new Error("storage blocked");
+        return stored(key);
+      });
       await expect(
         journal.withLock(async () => {
           journal.reserve();
@@ -449,7 +488,7 @@ function ordinaryRecovery(namespace?: string) {
     }
   });
 
-  it("isolates chain/account/target/selector and rejects invalid reviewed inputs", async () => {
+  it("isolates chain/account/target/exact call and rejects invalid reviewed inputs", async () => {
     const options = browser();
     const first = createBrowserWriteRecovery(input, options);
     await first.withLock(async () => first.reserve());
@@ -458,6 +497,8 @@ function ordinaryRecovery(namespace?: string) {
       { ...input, account: WRAPPER },
       { ...input, call: { ...input.call, to: WRAPPER } },
       { ...input, call: { ...input.call, data: "0x11223344" as Hex } },
+      { ...input, call: { ...input.call, data: "0xaabbccdd0002" as Hex } },
+      { ...input, call: { ...input.call, value: 18n } },
     ])
       expect(createBrowserWriteRecovery(changed, options).read()).toEqual(
         namespace !== undefined &&
@@ -881,14 +922,37 @@ describe("stable action namespace and read-only opener", () => {
   const namespace = "defifa:pay:27";
   const scoped = { ...input, namespace };
   const lookup = { chainId: input.chainId, account: input.account, namespace };
-  it("preserves the exact legacy key and record shape", async () => {
+  it("keys an ordinary write by its exact call, with the record shape unchanged", async () => {
     const options = browser();
     const journal = createBrowserWriteRecovery(input, options);
     const reserved = await journal.withLock(async () => journal.reserve());
     expect([...options.values.keys()]).toEqual([
-      `nana-sdk:reviewed-write:v1:10:${ACCOUNT}:${TARGET}:0xaabbccdd`,
+      `nana-sdk:reviewed-write:v2:10:${ACCOUNT}:${TARGET}:17:${keccak256(input.call.data)}`,
     ]);
     expect(reserved).not.toHaveProperty("namespace");
+  });
+
+  it("still honors a record saved under the old selector key, for its exact call only", async () => {
+    const options = browser();
+    const legacy = `nana-sdk:reviewed-write:v1:10:${ACCOUNT}:${TARGET}:0xaabbccdd`;
+    options.values.set(legacy, JSON.stringify(saved));
+    const journal = createBrowserWriteRecovery(input, options);
+    expect(journal.read()).toEqual(saved);
+    await expect(
+      journal.withLock(async () => journal.reserve()),
+    ).rejects.toThrow("still unresolved");
+    const other = createBrowserWriteRecovery(
+      { ...input, call: { ...input.call, value: 18n } },
+      options,
+    );
+    expect(other.read()).toBeNull();
+    await other.withLock(async () => other.reserve());
+    await journal.withLock(async () => journal.clear(saved));
+    expect(options.values.has(legacy)).toBe(false);
+    expect(journal.read()).toBeNull();
+    // An unreadable old record names no call, so it holds none.
+    options.values.set(legacy, "{");
+    expect(journal.read()).toBeNull();
   });
   it("allows independent projects on the same terminal and selector without replacing either", async () => {
     const options = browser();
@@ -1054,5 +1118,483 @@ describe("stable action namespace and read-only opener", () => {
       ).rejects.toThrow();
       expect(options.values.get(key)).toBe(raw);
     }
+  });
+});
+
+describe("releasing a write with no confirmed result", () => {
+  const SENT = `0x${"dd".repeat(32)}` as Hex;
+  const evidence = { nonce: 7, blockNumber: 100n };
+  type Tx = Record<string, unknown>;
+  const exact = (hash: Hex): Tx => ({
+    hash,
+    from: ACCOUNT,
+    nonce: 7,
+    to: TARGET,
+    input: input.call.data,
+    value: 17n,
+  });
+  /** A wallet's cancel: a zero transfer to the account itself. */
+  const cancel: Tx = {
+    hash: SENT,
+    from: ACCOUNT,
+    nonce: 7,
+    to: ACCOUNT,
+    input: "0x",
+    value: 0n,
+  };
+  /** A smart wallet or batcher contract running the reviewed call. */
+  const wrapped = (hash: Hex): Tx => ({
+    hash,
+    from: ACCOUNT,
+    nonce: 7,
+    to: WRAPPER,
+    input: "0x1234",
+    value: 0n,
+  });
+  /**
+   * The account's nonce reaches 8 at `crossing`; that block holds `tx`.
+   * `known` answers getTransaction by hash; `code` answers getCode.
+   */
+  function nonceChain({
+    crossing = 150n,
+    finalized = 200n,
+    tx = exact(SENT),
+    canonical = BLOCK,
+    shifted = false,
+    chainId = 10,
+    known = {} as Record<string, { nonce: number; blockNumber: bigint | null }>,
+    code = { [WRAPPER.toLowerCase()]: "0x6080" } as Record<string, Hex>,
+  } = {}) {
+    return {
+      getChainId: vi.fn(async () => chainId),
+      getBlockNumber: vi.fn(async () => 100n),
+      getTransaction: vi.fn(async ({ hash }: { hash: Hex }) => {
+        const found = known[hash];
+        if (!found)
+          throw Object.assign(new Error("not found"), {
+            name: "TransactionNotFoundError",
+          });
+        return { hash, from: ACCOUNT, ...found };
+      }),
+      getCode: vi.fn(
+        async ({ address }: { address: Address }) =>
+          code[address.toLowerCase()],
+      ),
+      getTransactionCount: vi.fn(
+        async (args: { blockNumber?: bigint; blockTag?: string }) =>
+          args.blockTag === "pending"
+            ? 7
+            : args.blockNumber! >= crossing
+              ? 8
+              : 7,
+      ),
+      getBlock: vi.fn(
+        async (args: {
+          blockTag?: string;
+          blockNumber?: bigint;
+          includeTransactions?: boolean;
+        }) =>
+          args.blockTag === "finalized"
+            ? { number: finalized, hash: BLOCK, timestamp: 1n }
+            : args.includeTransactions
+              ? {
+                  number: shifted ? 0n : args.blockNumber,
+                  hash: BLOCK,
+                  transactions: args.blockNumber === crossing ? [tx] : [],
+                }
+              : { number: args.blockNumber, hash: canonical },
+      ),
+    };
+  }
+  async function reserved(
+    options = browser(),
+    at: typeof evidence | null = evidence,
+  ) {
+    const journal = createBrowserWriteRecovery(input, options);
+    const record = await journal.withLock(async () =>
+      journal.reserve(undefined, at ?? undefined),
+    );
+    return { journal, record, options };
+  }
+  const check = (client: unknown, record: ReviewedWriteRecoveryRecord) =>
+    checkReviewedWrite(client as never, record);
+  const pending = { status: "pending" };
+
+  it("records the account's next nonce and the block it was read at", async () => {
+    const client = nonceChain();
+    await expect(
+      readReviewedWriteNonce(client as never, ACCOUNT),
+    ).resolves.toEqual(evidence);
+    const { record, journal } = await reserved();
+    expect(record).toMatchObject({ nonce: "7", fromBlock: "100" });
+    expect(journal.read()).toEqual(record);
+    await expect(
+      reserved(browser(), { nonce: -1, blockNumber: 1n }),
+    ).rejects.toThrow("Invalid");
+  });
+
+  it("finds the exact call at its nonce and returns the hash to track", async () => {
+    const { record } = await reserved();
+    const client = nonceChain();
+    await expect(check(client, record)).resolves.toEqual({
+      status: "sent",
+      hash: SENT,
+    });
+    // A binary search, not a scan of every block.
+    expect(client.getTransactionCount.mock.calls.length).toBeLessThan(12);
+  });
+
+  it("never calls a write replaced from a nonce sampled before the wallet opened", async () => {
+    // The wallet may have sent it at a later nonce than the sample.
+    const { record } = await reserved();
+    for (const tx of [cancel, wrapped(SENT), { ...exact(SENT), value: 18n }])
+      await expect(check(nonceChain({ tx }), record)).resolves.toEqual(pending);
+    const hashed = { ...record, hash: HASH };
+    await expect(check(nonceChain({ tx: cancel }), hashed)).resolves.toEqual(
+      pending,
+    );
+  });
+
+  it("tracks the saved hash wherever it ran, wallet wrappers included", async () => {
+    const { record } = await reserved();
+    const hashed = { ...record, hash: HASH };
+    // The node knows it as mined: its receipt decides.
+    await expect(
+      check(
+        nonceChain({
+          tx: wrapped(HASH),
+          known: { [HASH]: { nonce: 7, blockNumber: 150n } },
+        }),
+        hashed,
+      ),
+    ).resolves.toEqual({ status: "sent", hash: HASH });
+    // The node dropped it from its index, but it is the transaction at the bound nonce.
+    await expect(
+      check(nonceChain({ tx: wrapped(HASH) }), { ...hashed, sentNonce: "7" }),
+    ).resolves.toEqual({ status: "sent", hash: HASH });
+  });
+
+  it("never releases another transaction at the sent nonce on its own", async () => {
+    const { record } = await reserved();
+    const bound = { ...record, hash: HASH, sentNonce: "7" };
+    // Even a cancel to an address with no code at block end: an EIP-7702
+    // wallet can run code, pay and clear its delegation in the same block.
+    // The user's exit (one tap) ends it.
+    await expect(check(nonceChain({ tx: cancel }), bound)).resolves.toEqual(
+      pending,
+    );
+    // A contract could run the reviewed call inside it.
+    await expect(
+      check(nonceChain({ tx: wrapped(SENT) }), bound),
+    ).resolves.toEqual(pending);
+    await expect(
+      check(nonceChain({ tx: { ...cancel, to: null } }), bound),
+    ).resolves.toEqual(pending);
+    // A wallet speed-up: the exact call under a new hash.
+    await expect(check(nonceChain(), bound)).resolves.toEqual({
+      status: "sent",
+      hash: SENT,
+    });
+  });
+
+  it("applies no evidence from another chain", async () => {
+    const { record } = await reserved();
+    const bound = { ...record, hash: HASH, sentNonce: "7" };
+    for (const [tx, saved] of [
+      [exact(SENT), record],
+      [cancel, bound],
+    ] as const)
+      await expect(
+        check(nonceChain({ tx, chainId: 1 }), saved),
+      ).resolves.toEqual(pending);
+    const failing = nonceChain();
+    failing.getChainId.mockRejectedValue(new Error("rpc down"));
+    await expect(check(failing, record)).resolves.toEqual(pending);
+  });
+
+  it("holds while the nonce has not moved at a finalized block, or the proof is incomplete", async () => {
+    const { record } = await reserved();
+    for (const client of [
+      nonceChain({ crossing: 300n }),
+      nonceChain({ canonical: PROPOSAL }),
+      nonceChain({ tx: { ...exact(SENT), from: WRAPPER } }),
+      nonceChain({ tx: { ...exact(SENT), hash: "0x12" } }),
+      nonceChain({ shifted: true }),
+    ])
+      await expect(check(client, record)).resolves.toEqual(pending);
+    const failing = nonceChain();
+    failing.getTransactionCount.mockRejectedValue(new Error("no archive"));
+    await expect(check(failing, record)).resolves.toEqual(pending);
+    const { record: bare } = await reserved(browser(), null);
+    await expect(check(nonceChain(), bare)).resolves.toEqual(pending);
+    await expect(
+      check(nonceChain(), { ...record, safe: true }),
+    ).resolves.toEqual(pending);
+  });
+
+  it("releases once the call's effect is visible, and ignores a failing effect read", async () => {
+    const { record } = await reserved();
+    const client = nonceChain({ crossing: 300n });
+    const effect = vi.fn(async () => true);
+    await expect(
+      checkReviewedWrite(client as never, record, { effect }),
+    ).resolves.toEqual({ status: "ran" });
+    // The effect reads the saved chain.
+    expect(effect).toHaveBeenCalledWith(10);
+    await expect(
+      checkReviewedWrite(client as never, record, {
+        effect: async () => {
+          throw new Error("rpc down");
+        },
+      }),
+    ).resolves.toEqual(pending);
+  });
+
+  it("reads no effect through a client on another chain, and keeps the record", async () => {
+    const { record, journal } = await reserved();
+    const effect = vi.fn(async () => true);
+    await expect(
+      checkReviewedWrite(nonceChain({ chainId: 1 }) as never, record, {
+        effect,
+      }),
+    ).resolves.toEqual(pending);
+    await expect(
+      journal.withLock(() =>
+        journal.resolve(nonceChain({ chainId: 1 }) as never, { effect }),
+      ),
+    ).resolves.toEqual(pending);
+    expect(effect).not.toHaveBeenCalled();
+    expect(journal.read()).toEqual(record);
+  });
+
+  it("binds the sent nonce while the node knows the hash, then applies each finding", async () => {
+    const replaced = await reserved();
+    await expect(
+      replaced.journal.resolve(nonceChain() as never),
+    ).rejects.toThrow("browser lock");
+    await replaced.journal.withLock(async () =>
+      replaced.journal.submitted(HASH),
+    );
+    // Still in the mempool: nothing to decide, but its nonce is now bound.
+    await expect(
+      replaced.journal.withLock(() =>
+        replaced.journal.resolve(
+          nonceChain({
+            crossing: 300n,
+            known: { [HASH]: { nonce: 7, blockNumber: null } },
+          }) as never,
+        ),
+      ),
+    ).resolves.toEqual(pending);
+    expect(replaced.journal.read()).toMatchObject({
+      hash: HASH,
+      sentNonce: "7",
+    });
+    // Then the wallet cancelled it: still held, until the user's exit.
+    await expect(
+      replaced.journal.withLock(() =>
+        replaced.journal.resolve(nonceChain({ tx: cancel }) as never),
+      ),
+    ).resolves.toEqual(pending);
+    expect(replaced.journal.read()?.sentNonce).toBe("7");
+
+    const sent = await reserved();
+    await sent.journal.withLock(async () => sent.journal.submitted(HASH));
+    await sent.journal.withLock(() =>
+      sent.journal.resolve(
+        nonceChain({
+          crossing: 300n,
+          known: { [HASH]: { nonce: 7, blockNumber: null } },
+        }) as never,
+      ),
+    );
+    // The wallet sped it up: the same call landed at its nonce under a new hash.
+    await expect(
+      sent.journal.withLock(() => sent.journal.resolve(nonceChain() as never)),
+    ).resolves.toEqual({ status: "sent", hash: SENT });
+    expect(sent.journal.read()?.hash).toBe(SENT);
+
+    const ran = await reserved();
+    await ran.journal.withLock(() =>
+      ran.journal.resolve(nonceChain({ crossing: 300n }) as never, {
+        effect: async () => true,
+      }),
+    );
+    expect(ran.journal.read()).toBeNull();
+  });
+
+  it("resolves nothing when nothing is saved, and prefers native Web Locks", async () => {
+    const journal = createBrowserWriteRecovery(input, browser());
+    await expect(
+      journal.withLock(() => journal.resolve(nonceChain() as never)),
+    ).resolves.toBeNull();
+    const locks = browser().locks;
+    vi.stubGlobal("navigator", { locks });
+    expect(browserLocks()).toBe(locks);
+  });
+
+  it("lets the user end a held write only after confirming they checked their wallet", async () => {
+    const { journal, record } = await reserved();
+    await journal.withLock(async () => {
+      expect(() => journal.abandon(record, {} as never)).toThrow(
+        "checked their wallet",
+      );
+      expect(journal.read()).toEqual(record);
+      journal.abandon(record, { checkedWallet: true });
+    });
+    expect(journal.read()).toBeNull();
+  });
+
+  it("never lets a stale exit in one tab erase a newer write from another", async () => {
+    const options = browser();
+    const b = createBrowserWriteRecovery(input, options);
+    const r = await b.withLock(async () => b.reserve());
+    // Tab A read R before tab B released it and sent S.
+    const staleR = options.values.get([...options.values.keys()][0])!;
+    b.abandon(r, { checkedWallet: true });
+    const s = await b.withLock(async () => {
+      b.reserve();
+      return b.submitted(HASH);
+    });
+    let stale = true;
+    const tabA = {
+      ...options.storage,
+      getItem: (key: string) => {
+        if (stale && options.values.get(key) === JSON.stringify(s)) {
+          stale = false;
+          return staleR;
+        }
+        return options.storage.getItem(key);
+      },
+    };
+    const a = createBrowserWriteRecovery(input, { storage: tabA });
+    a.abandon(r, { checkedWallet: true });
+    expect(b.read()).toEqual(s);
+    expect(createBrowserWriteRecovery(input, options).read()).toEqual(s);
+    // S's own exit still works, and leaves nothing held.
+    b.abandon(s, { checkedWallet: true });
+    expect(b.read()).toBeNull();
+    await b.withLock(async () => b.reserve());
+  });
+
+  it("ends a write whose returned hash only lives in memory", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(input, options);
+    const reservation = await journal.withLock(async () => journal.reserve());
+    options.storage.setItem.mockImplementationOnce(() => {
+      throw new Error("storage offline");
+    });
+    await journal.withLock(async () => {
+      expect(() => journal.submitted(HASH)).toThrow(
+        SubmittedWritePersistenceError,
+      );
+    });
+    const shown = journal.read()!;
+    expect(shown).toMatchObject({ id: reservation.id, hash: HASH });
+    // Another reservation, or a conflicting hash, is still refused.
+    for (const other of [
+      { ...shown, id: "other" },
+      { ...shown, hash: PROPOSAL },
+    ])
+      expect(() => journal.abandon(other, { checkedWallet: true })).toThrow(
+        "changed",
+      );
+    journal.abandon(shown, { checkedWallet: true });
+    expect(journal.read()).toBeNull();
+    expect(createBrowserWriteRecovery(input, options).read()).toBeNull();
+  });
+});
+
+describe("tabs without Web Locks", () => {
+  /** A tab: its own copy of the module, sharing the origin's storage and IndexedDB. */
+  async function tab() {
+    vi.resetModules();
+    return (await import(
+      "./writeRecovery.js"
+    )) as typeof import("./writeRecovery.js");
+  }
+  function origin() {
+    const shared = browser();
+    vi.stubGlobal("navigator", undefined);
+    vi.stubGlobal("indexedDB", new IDBFactory());
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    return shared.storage;
+  }
+
+  it("lets only one tab hold an action, and the other reserve after it", async () => {
+    const storage = origin();
+    const [first, second] = [await tab(), await tab()];
+    const a = first.createBrowserWriteRecovery(input, { storage });
+    const b = second.createBrowserWriteRecovery(input, { storage });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const holding = a.withLock(async () => {
+      a.reserve();
+      await held;
+    });
+    await vi.waitFor(() => expect(a.read()).not.toBeNull());
+    await expect(b.withLock(async () => b.reserve())).rejects.toThrow(
+      "another tab",
+    );
+    const queued = b.withLock(async () => b.reserve(), true);
+    release();
+    await holding;
+    await expect(queued).rejects.toThrow("still unresolved");
+  });
+
+  it("takes over a lease its tab stopped renewing", async () => {
+    const storage = origin();
+    const [first, second] = [await tab(), await tab()];
+    const a = first.createBrowserWriteRecovery(input, { storage });
+    const b = second.createBrowserWriteRecovery(input, { storage });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const holding = a.withLock(() => held);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + 60_000);
+    await expect(b.withLock(async () => "taken")).resolves.toBe("taken");
+    release();
+    await holding;
+  });
+
+  it("keeps the user's exit when the lease can't be taken, and blocks new sends", async () => {
+    const storage = origin();
+    const module = await tab();
+    const journal = module.createBrowserWriteRecovery(input, { storage });
+    const record = await journal.withLock(async () => journal.reserve());
+    const transaction = vi
+      .spyOn(IDBDatabase.prototype, "transaction")
+      .mockImplementation(() => {
+        throw new Error("IndexedDB transaction failed");
+      });
+    await expect(
+      journal.withLock(async () => journal.reserve()),
+    ).rejects.toThrow("IndexedDB transaction failed");
+    expect(() =>
+      journal.abandon(
+        { ...record, id: "other" },
+        {
+          checkedWallet: true,
+        },
+      ),
+    ).toThrow("changed");
+    expect(() => journal.abandon(record, {} as never)).toThrow(
+      "checked their wallet",
+    );
+    journal.abandon(record, { checkedWallet: true });
+    expect(journal.read()).toBeNull();
+    await expect(
+      journal.withLock(async () => journal.reserve()),
+    ).rejects.toThrow("IndexedDB transaction failed");
+    transaction.mockRestore();
+  });
+
+  it("falls back to a lock within the tab when IndexedDB is unavailable too", async () => {
+    const storage = origin();
+    vi.stubGlobal("indexedDB", undefined);
+    const module = await tab();
+    const journal = module.createBrowserWriteRecovery(input, { storage });
+    await expect(journal.withLock(async () => "ran")).resolves.toBe("ran");
   });
 });

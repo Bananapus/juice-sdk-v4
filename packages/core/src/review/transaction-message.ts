@@ -16,8 +16,8 @@ export function transactionMessage(message: string): string {
       /\bRelayr\s+(?=(?:quotes?|payments?|bundles?|authorizations?|requests?|calls?|actions?|sessions?|funding|confirmations?|entries|entry|options?|polling|launch|destinations?|Safe|multi-chain bundles?|network fees?)\b)/gi,
       "",
     )
-    .replace(/\bRelayr['’]s\b/gi, "the execution service's")
-    .replace(/(?<![\w./:-])Relayr(?![\w./:-])/gi, "the execution service");
+    .replace(/\bRelayr['’]s\s+/gi, "the ")
+    .replace(/(?<![\w./:-])Relayr(?![\w./:-])/gi, "the network");
   return formatted === message
     ? message
     : formatted.replace(/^([a-z])/, (letter) => letter.toUpperCase());
