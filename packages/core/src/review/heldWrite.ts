@@ -293,8 +293,8 @@ export function createHeldWriteView(
     });
   }
 
-  /** A settlement this view saw, still to tell the app: kept across a restart. */
-  let undelivered: { settled: WriteHoldSettled; key: string } | undefined;
+  /** Settlements this view saw, still to tell the app, by reservation: kept across a restart. */
+  const undelivered = new Map<string, WriteHoldSettled>();
 
   /**
    * Tell the app of a settlement it saw held, once, while live. Only once its
@@ -302,13 +302,13 @@ export function createHeldWriteView(
    * before then leaves it to the next start.
    */
   function deliver(settled: WriteHoldSettled, key: string) {
-    undelivered = { settled, key };
+    undelivered.set(key, settled);
     if (!live) return;
     const at = epoch;
     const done = (receipt: TransactionReceipt | null) => {
       if (at !== epoch || delivered.has(key)) return;
       delivered.add(key);
-      undelivered = undefined;
+      undelivered.delete(key);
       options.onSettled?.(settled, receipt);
       // Told: the hold marks it acknowledged, so no later visit asks again.
       if (
@@ -523,8 +523,8 @@ export function createHeldWriteView(
       running = true;
       live = true;
       epoch += 1;
-      // A settlement a stopped lifecycle never told is told now.
-      if (undelivered) deliver(undelivered.settled, undelivered.key);
+      // Every settlement a stopped lifecycle never told is told now.
+      for (const [key, settled] of [...undelivered]) deliver(settled, key);
       const unsubscribe = handle.subscribe(apply);
       // An adoption a stopped lifecycle left unfinished runs again here.
       void adopt()

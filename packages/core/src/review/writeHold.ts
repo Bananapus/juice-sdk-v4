@@ -1815,11 +1815,22 @@ export function createWriteHold(
       ),
     );
     rescan();
+    /** The legacy hold this intent last stood for, with its reservation. */
+    let routed:
+      | { handle: ReturnType<typeof openExact>; reservation: string }
+      | undefined;
     /** A legacy key holding anything but this intent's own mirror. */
     const foreign = (index: number) =>
       holds(journals[index]) && delegates[index].peek().status !== "clear";
     /** The legacy hold the intent stands for right now, from storage alone. */
-    const active = () => delegates.find((_, index) => foreign(index));
+    const active = () => {
+      const index = delegates.findIndex((_, at) => foreign(at));
+      if (index < 0) return undefined;
+      const now = delegates[index].peek();
+      if (now.status !== "clear")
+        routed = { handle: delegates[index], reservation: now.record.id };
+      return delegates[index];
+    };
     /** The first legacy key holding an unresolved write, through its own gate. */
     async function delegated(
       client: WriteHoldClient,
@@ -1828,7 +1839,10 @@ export function createWriteHold(
       for (const [index, handle] of delegates.entries()) {
         if (!foreign(index)) continue;
         const state = await handle.state(client);
-        if (state.status !== "clear") return state;
+        if (state.status !== "clear") {
+          routed = { handle, reservation: state.record.id };
+          return state;
+        }
       }
       return null;
     }
@@ -1844,6 +1858,17 @@ export function createWriteHold(
           state: Extract<WriteHoldState, { status: "clear" }>;
         }
       | undefined {
+      // The legacy reservation this intent was seen standing for owns its
+      // result, whatever the intent reserved before it.
+      if (routed) {
+        const now = routed.handle.peek();
+        if (
+          now.status === "clear" &&
+          now.settled &&
+          now.reservation === routed.reservation
+        )
+          return { handle: routed.handle, state: now };
+      }
       if (ownJournal.latestReservation() !== undefined) return undefined;
       for (const handle of delegates) {
         const now = handle.peek();

@@ -968,4 +968,53 @@ describe("one held write's view", () => {
     await vi.waitFor(() => expect(told).toHaveBeenCalledOnce());
     restarted();
   });
+
+  it("keeps every undelivered settlement across a restart, by reservation", async () => {
+    const onSettled = vi.fn();
+    const { fake, handle } = fakeHandle(pending({ id: "r50" }));
+    fake.answer = pending({ id: "r50" });
+    const view = createHeldWriteView(handle, {
+      client,
+      follow: false,
+      onSettled,
+    });
+    let stop = view.start();
+    await flush();
+    const reads: ((value: unknown) => void)[] = [];
+    client.getTransactionReceipt.mockImplementation(
+      () => new Promise((resolve) => reads.push(resolve)),
+    );
+    // Two settlements of two reservations, both receipts still being read.
+    fake.answer = clear({
+      reservation: "r50",
+      settled: { result: "failed", hash: HASH },
+    });
+    await view.check();
+    fake.answer = pending({ id: "r51" });
+    await view.check();
+    fake.answer = clear({
+      reservation: "r51",
+      settled: { result: "failed", hash: EXECUTION },
+    });
+    await view.check();
+    expect(reads).toHaveLength(2);
+    reads[0]({ transactionHash: HASH });
+    await flush();
+    expect(onSettled).toHaveBeenCalledOnce();
+    stop();
+    reads[1]({ transactionHash: EXECUTION });
+    await flush();
+    client.getTransactionReceipt.mockImplementation(
+      async ({ hash }: { hash: Hex }) => ({
+        transactionHash: hash,
+      }),
+    );
+    stop = view.start();
+    await vi.waitFor(() => expect(onSettled).toHaveBeenCalledTimes(2));
+    expect(onSettled).toHaveBeenLastCalledWith(
+      { result: "failed", hash: EXECUTION },
+      { transactionHash: EXECUTION },
+    );
+    stop();
+  });
 });

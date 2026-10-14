@@ -6077,6 +6077,57 @@ describe("a legacy hold's success, through its intent", () => {
     stop();
   });
 
+  it("keeps the success of a legacy hold it saw held, though the intent reserved before", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const intentCall = {
+      ...ordinary,
+      call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+      namespace: key,
+    };
+    const open = () =>
+      next.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    // The intent once reserved, and the wallet rejected it.
+    await expect(
+      open().send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+        throw new Error("rejected");
+      }),
+    ).rejects.toThrow("rejected");
+    // Then an older version sends its exact call.
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    const settled = vi.fn();
+    const released = vi.fn();
+    const view = createHeldWriteView(open(), {
+      client,
+      follow: false,
+      onSettled: settled,
+      onReleased: released,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(view.get().phase).toBe("settled");
+    expect(released).not.toHaveBeenCalled();
+    stop();
+    // An unrelated old settlement, never seen held, stays unannounced here.
+    const fresh = createHeldWriteView(open(), {
+      client,
+      follow: false,
+      onSettled: settled,
+    });
+    await fresh.check();
+    expect(fresh.get().phase).toBe("clear");
+    expect(settled).toHaveBeenCalledOnce();
+  });
+
   it("reaches a started, subscribed view as the success, never a release", async () => {
     const browser = origin();
     const old = setup({ browser });
