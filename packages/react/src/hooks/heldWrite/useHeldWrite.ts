@@ -80,6 +80,11 @@ const IDLE: HeldWriteView = {
   adopting: false,
 };
 const none = () => () => {};
+/** A value's identity for a memo key, wei amounts (bigints) included. */
+const keyOf = (value: unknown) =>
+  JSON.stringify(value, (_, field) =>
+    typeof field === "bigint" ? `${field}n` : field,
+  );
 const idle = () => IDLE;
 
 /**
@@ -102,10 +107,8 @@ export function useHeldWrite(options: UseHeldWriteOptions): UseHeldWriteResult {
     client,
     pollMs,
   } = options;
-  const callKey = JSON.stringify(options.call ?? null, (_, value) =>
-    typeof value === "bigint" ? value.toString() : value,
-  );
-  const legacyKey = JSON.stringify(options.legacy ?? null);
+  const callKey = keyOf(options.call ?? null);
+  const legacyKey = keyOf(options.legacy ?? null);
   const latest = useRef(options);
   latest.current = options;
   const handle = useMemo(() => {

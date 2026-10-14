@@ -1858,8 +1858,14 @@ export function createWriteHold(
           state: Extract<WriteHoldState, { status: "clear" }>;
         }
       | undefined {
-      // The legacy reservation this intent was seen standing for owns its
-      // result, whatever the intent reserved before it.
+      // Every legacy settlement that may be the intent's: the reservation it
+      // was seen standing for, and any reserved after (or not provably
+      // before) its own latest reservation. Times that can't be compared
+      // count as newer: a false block is the safe side.
+      const eligible: {
+        handle: (typeof delegates)[number];
+        state: Extract<WriteHoldState, { status: "clear" }>;
+      }[] = [];
       if (routed) {
         const now = routed.handle.peek();
         if (
@@ -1867,11 +1873,8 @@ export function createWriteHold(
           now.settled &&
           now.reservation === routed.reservation
         )
-          return { handle: routed.handle, state: now };
+          eligible.push({ handle: routed.handle, state: now });
       }
-      // Otherwise, a legacy settlement reserved after the intent's own latest
-      // reservation is the intent's (an older one is history). Times that
-      // can't be compared count as newer: a false block is the safe side.
       const ownReserved = ownJournal.latestReservation() !== undefined;
       const ownAt = ownJournal.latestReservedAt();
       for (const [index, handle] of delegates.entries()) {
@@ -1886,9 +1889,16 @@ export function createWriteHold(
           // The same moment is no proof of order: counted as newer.
           legacyAt >= ownAt
         )
-          return { handle, state: now };
+          eligible.push({ handle, state: now });
       }
-      return undefined;
+      // An unacknowledged success wins over failures and acknowledged ones.
+      return (
+        eligible.find(
+          ({ state }) =>
+            state.settled!.result === "success" &&
+            !("acknowledged" in state.settled! && state.settled.acknowledged),
+        ) ?? eligible[0]
+      );
     }
     /**
      * `state`, or, when it is a clear, the legacy settlement that owns the

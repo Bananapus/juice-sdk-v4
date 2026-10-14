@@ -6181,6 +6181,73 @@ describe("a legacy hold's success, through its intent", () => {
     stop();
   });
 
+  it.each([false, true])(
+    "lets an unacknowledged legacy success win over another legacy key's failure (swapped %s)",
+    async (swapped) => {
+      const browser = origin();
+      const old = setup({ browser });
+      const next = setup({ browser, locks: old.locks });
+      const { chain, client, receiptOf } = fakeChain();
+      chain.head = 120n;
+      chain.finalized = 110n;
+      const callA = { ...ordinary.call, data: "0xaabbccdd00a1" as Hex };
+      const callB = { ...ordinary.call, data: "0xaabbccdd00b2" as Hex };
+      const [failing, succeeding] = swapped ? [callB, callA] : [callA, callB];
+      // One earlier write reverted, final; another succeeded.
+      await old.hold
+        .open({ ...ordinary, call: failing })
+        .send(client, async (gate) => {
+          await gate.beforeSend();
+          gate.afterSubmit(OTHER);
+          return OTHER;
+        });
+      chain.txs.push({
+        ...sent(OTHER, { block: 100n, status: "reverted" }),
+        input: failing.data,
+      });
+      await old.hold
+        .open({ ...ordinary, call: failing })
+        .onReceipt(receiptOf(chain.txs[0]), client);
+      await old.hold
+        .open({ ...ordinary, call: succeeding })
+        .send(client, async (gate) => {
+          await gate.beforeSend();
+          gate.afterSubmit(HASH);
+          return HASH;
+        });
+      chain.txs.push({
+        ...sent(HASH, { block: 101n, nonce: 8 }),
+        input: succeeding.data,
+      });
+      await old.hold
+        .open({ ...ordinary, call: succeeding })
+        .onReceipt(receiptOf(chain.txs[1]), client);
+      const handle = next.hold.open(
+        {
+          ...ordinary,
+          call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+          namespace: writeIntentKey("pay", { projectId: 4n }),
+        },
+        { legacy: [{ call: callA }, { call: callB }] },
+      );
+      const view = createHeldWriteView(handle, { client, follow: false });
+      const stop = view.start();
+      await vi.waitFor(() =>
+        expect(view.get()).toMatchObject({
+          phase: "succeeded",
+          settled: { hash: HASH },
+        }),
+      );
+      await view.acknowledge();
+      expect(
+        old.hold.open({ ...ordinary, call: succeeding }).peek(),
+      ).toMatchObject({
+        settled: { acknowledged: true },
+      });
+      stop();
+    },
+  );
+
   it("blocks on a legacy reservation made at the same moment as the intent's", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(5_000_000);

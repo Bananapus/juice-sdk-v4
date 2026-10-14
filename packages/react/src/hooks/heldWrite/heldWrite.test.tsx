@@ -15,7 +15,7 @@ import {
   type WriteHoldClient,
   type WriteHoldState,
 } from "@bananapus/nana-sdk-core/review";
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Address, Hex } from "viem";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
@@ -368,6 +368,30 @@ describe("useHeldWrite on a success settled while away", () => {
       await expect(out.current!.send(async () => HASH)).resolves.toBe(HASH);
     });
     expect(onSettled).not.toHaveBeenCalled();
+  });
+});
+
+describe("useHeldWrite with legacy calls that carry a value", () => {
+  test("renders in StrictMode with a bigint value in its legacy keys", async () => {
+    const fake = fakeHold();
+    const out: { current?: UseHeldWriteResult } = {};
+    function Probe() {
+      out.current = useHeldWrite({
+        hold: fake.hold,
+        chainId: 10,
+        account: ACCOUNT,
+        namespace: "intent:valued",
+        legacy: [{ call: { to: ACCOUNT, data: "0x12", value: 5n } }],
+        client,
+      });
+      return null;
+    }
+    await mount(
+      <StrictMode>
+        <Probe />
+      </StrictMode>,
+    );
+    expect(out.current?.phase).toBe("clear");
   });
 });
 
