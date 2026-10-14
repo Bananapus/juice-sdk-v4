@@ -567,10 +567,9 @@ export function createWriteHold(
       ];
       for (const hash of seen) {
         const sent = await client.getTransaction({ hash }).catch(() => null);
-        if (
-          sent?.hash?.toLowerCase() === hash &&
-          !(await client.getTransactionReceipt({ hash }).catch(() => null))
-        )
+        // Only positive pending metadata gates: a mined transaction whose
+        // receipt can't be read yet isn't pending.
+        if (sent?.hash?.toLowerCase() === hash && sent.blockNumber === null)
           return hash;
       }
       return null;
@@ -747,17 +746,6 @@ export function createWriteHold(
       // A hash saved before its clock existed starts it now.
       if (record.hash && record.submittedAt === undefined)
         record = recovery.firstSeen(record);
-      // The app's effect read only changes the line, and offers the exit.
-      if (check?.status === "pending" && check.effect)
-        return {
-          status: "looks-done",
-          record,
-          exit: true,
-          line: WRITE_HOLD_LOOKS_DONE_LINE,
-          ...(record.hash
-            ? { hash: record.hash, warning: WRITE_HOLD_HASHED_EXIT_LINE }
-            : {}),
-        };
       if (
         record.hash &&
         record.sentNonce !== undefined &&
@@ -772,6 +760,18 @@ export function createWriteHold(
           exit: true,
           line: writeHeldMessage(),
           warning: WRITE_HOLD_HASHED_EXIT_LINE,
+        };
+      // The app's effect read only changes the line, and offers the exit;
+      // a proven drop above takes priority.
+      if (check?.status === "pending" && check.effect)
+        return {
+          status: "looks-done",
+          record,
+          exit: true,
+          line: WRITE_HOLD_LOOKS_DONE_LINE,
+          ...(record.hash
+            ? { hash: record.hash, warning: WRITE_HOLD_HASHED_EXIT_LINE }
+            : {}),
         };
       // A hash seen with its sent nonce that the node has since lost.
       if (
@@ -1042,10 +1042,12 @@ export function createWriteHold(
               BigInt(sent.value) === BigInt(record.call.value) &&
               // This attempt, not an earlier identical call: never below the
               // account's next nonce or mined before it was reserved.
-              (record.nonce === undefined ||
-                BigInt(sent.nonce) >= BigInt(record.nonce)) &&
-              (record.fromBlock === undefined ||
-                sent.blockNumber === null ||
+              // With no such evidence, an identical earlier call can't be
+              // told apart: nothing is attached, and the exit stays.
+              record.nonce !== undefined &&
+              record.fromBlock !== undefined &&
+              BigInt(sent.nonce) >= BigInt(record.nonce) &&
+              (sent.blockNumber === null ||
                 sent.blockNumber >= BigInt(record.fromBlock))
             )
               try {

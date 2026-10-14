@@ -647,15 +647,20 @@ describe("a held write", () => {
     });
   });
 
-  it("attaches to a record saved with no nonce evidence, mined or pending", async () => {
+  it("never attaches to a record saved with no nonce evidence: it keeps its exit", async () => {
     const { hold, storage, locks } = setup();
     const { chain, client } = fakeChain();
     const legacy = createBrowserWriteRecovery(ordinary, { storage, locks });
     await legacy.withLock(async () => legacy.reserve());
+    // Codex: an identical historical transaction can't be told from this attempt.
     chain.txs.push(sent(HASH, { block: 40n }));
     await expect(
       hold.open(ordinary).attachHash(client, HASH),
-    ).resolves.toMatchObject({ status: "clear" });
+    ).resolves.toMatchObject({
+      status: "held-no-hash",
+      exit: true,
+      line: WRITE_HOLD_UNCHECKED_LINE,
+    });
   });
 
   it("attaches a hash kept only in memory when saving it fails, and accepts a node that names no chain", async () => {
@@ -1232,6 +1237,31 @@ describe("a held write", () => {
     await expect(
       handle.exit(dropped, { checkedWallet: true }, client),
     ).resolves.toMatchObject({ released: true });
+  });
+
+  it("lets a canonical cancellation win over an effect read that looks done", async () => {
+    const { hold } = setup();
+    const { chain, client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH));
+    await handle.state(client);
+    chain.txs.push({
+      ...sent(OTHER),
+      to: ACCOUNT,
+      input: "0x",
+      value: 0n,
+      block: 105n,
+    });
+    chain.head = 120n;
+    chain.finalized = 110n;
+    await expect(
+      handle.state(client, { effect: async () => true }),
+    ).resolves.toMatchObject({
+      status: "dropped-proven",
+      usedBy: OTHER,
+      exit: true,
+    });
   });
 
   it("calls a hash dropped only once a finalized block shows another transaction used its nonce", async () => {
@@ -3243,6 +3273,35 @@ describe("a held Safe proposal", () => {
           settled: { result: "success", hash: CAND },
         });
       }
+    });
+
+    it("never gates the exit on a mined candidate whose receipt can't be read", async () => {
+      const { handle, fixture, queue } = await proposed();
+      const CAND = `0x${"c5".repeat(32)}` as Hex;
+      fixture.chain.txs.push({
+        hash: CAND,
+        from: RELAYER,
+        nonce: 0,
+        to: SAFE,
+        input: execInput(),
+        value: 0n,
+        block: 95n,
+      });
+      fixture.chain.head = 120n;
+      fixture.chain.finalized = 110n;
+      const receipts =
+        fixture.client.getTransactionReceipt.getMockImplementation()!;
+      fixture.client.getTransactionReceipt.mockImplementation(async (args) => {
+        if (args.hash === CAND) throw new Error("timeout");
+        return receipts(args);
+      });
+      await handle.onExecuted(fixture.client, CAND);
+      // Codex: mined, so not pending; its unread receipt proves nothing.
+      const shown = await handle.onUnproven(fixture.client, queue.hash);
+      expect(shown).toMatchObject({ status: "safe-unproven", exit: true });
+      await expect(
+        handle.exit(shown, { checkedWallet: true }, fixture.client),
+      ).resolves.toMatchObject({ released: true });
     });
 
     it("drops a candidate only on canonical proof it isn't this proposal's execution", async () => {
