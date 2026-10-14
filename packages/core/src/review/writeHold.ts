@@ -1,5 +1,6 @@
 import {
   isAddress,
+  toEventSelector,
   type Hex,
   type PublicClient,
   type TransactionReceipt,
@@ -19,6 +20,7 @@ import {
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
   WRITE_HOLD_LOOKS_DONE_LINE,
+  WRITE_HOLD_MINED_LINE,
   WRITE_HOLD_NONCE_LINE,
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_UNCHECKED_LINE,
@@ -39,6 +41,7 @@ import {
   type ReviewedWriteRecoveryInput,
   type ReviewedWriteRecoveryRecord,
 } from "./writeRecovery.js";
+import { isBytes32 } from "../untrusted.js";
 import { atCanonicalFinalizedBlock } from "./relayr.js";
 
 /** The reads a write hold makes on the call's chain; a viem PublicClient satisfies it. */
@@ -71,7 +74,11 @@ type Held<S extends string, Extra> = {
 /**
  * What a write hold says about one exact call, from {@link WriteHold.state}:
  *
- * - `clear`: nothing is held; `settled` says how a hold just ended;
+ * - `clear`: nothing is held; `settled` says how the call's last write
+ *   ended on authenticated evidence (its receipt or canonical execution),
+ *   saved for every reader until the next write on the call is reserved. A
+ *   proven expiry says so only to the caller that saw it; the user's exit
+ *   leaves none;
  * - `pending-known-hash`: its saved hash (or Safe proposal) can still run. No
  *   exit: the wallet speeds it up or cancels it;
  * - `held-no-hash`: the wallet never returned a hash. The exit is offered;
@@ -165,6 +172,11 @@ export type WriteHoldGate = {
 type Locks = Pick<LockManager, "request">;
 
 const SETTLE_POLL_MS = 15_000;
+/** A Safe's execution events, in its 1.3 and 1.4 layouts alike. */
+const SAFE_EXECUTION_TOPICS = [
+  toEventSelector("ExecutionSuccess(bytes32,uint256)"),
+  toEventSelector("ExecutionFailure(bytes32,uint256)"),
+];
 /** A hash the network still hasn't seen this long after the wallet returned it was almost certainly never broadcast. */
 const UNSEEN_HASH_MS = 30 * 60_000;
 
@@ -230,13 +242,6 @@ function unchecked(record: ReviewedWriteRecoveryRecord): WriteHoldState {
 }
 /** About an hour of polls; a later state() looks again. */
 const SETTLE_POLL_ATTEMPTS = 240;
-
-function listenerKey(call: ReviewedWriteRecoveryInput): string {
-  const scope =
-    call.namespace ??
-    `${call.call.to}:${BigInt(call.call.value ?? 0)}:${call.call.data}`;
-  return `${call.chainId}:${call.account}:${scope}`.toLowerCase();
-}
 
 function clear(settled?: WriteHoldSettled): WriteHoldState {
   return settled ? { status: "clear", settled } : { status: "clear" };
@@ -324,7 +329,10 @@ export function createWriteHold(
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   let onStorage: ((event: StorageEvent) => void) | undefined;
 
+  /** The latest state emitted for each call, replayed to a late subscriber. */
+  const latest = new Map<string, WriteHoldState>();
   function emit(key: string, state: WriteHoldState) {
+    latest.set(key, state);
     for (const listener of listeners.get(key) ?? []) listener(state);
   }
 
@@ -349,10 +357,16 @@ export function createWriteHold(
       storage,
       locks: options.locks,
     });
-    const key = listenerKey(call);
+    // The canonical recovery scope: a namespace and an exact call never share it.
+    const key = recovery.scopeKey;
     /** The effect read the last state() was given: the exit asks it again. */
     let lastEffect: ((chainId: number) => Promise<boolean>) | undefined;
-    const peek = () => classify(recovery.read());
+    /** Nothing held: how the call's last write settled, if saved. */
+    const cleared = () => clear(recovery.settled());
+    const peek = () => {
+      const record = recovery.read();
+      return record ? classify(record) : cleared();
+    };
     const shown = (state: WriteHoldState) => (emit(key, state), state);
 
     async function locked<T>(
@@ -410,11 +424,15 @@ export function createWriteHold(
         receipt,
         proof,
       ).catch(() => null);
-      if (verdict && release(record))
-        return clear({
+      if (verdict && release(record)) {
+        const settled = {
           result: verdict,
           hash: receipt.transactionHash.toLowerCase() as Hex,
-        });
+        };
+        // Kept for any later reader: another tab, a reload, a follow timer.
+        recovery.markSettled(record, settled);
+        return clear(settled);
+      }
       if (
         !record.safe &&
         receipt.status === "reverted" &&
@@ -507,6 +525,114 @@ export function createWriteHold(
       return unchecked(recovery.unexecuted(record));
     }
 
+    /** The first hash the hold has seen that the node knows as a transaction with no receipt yet. */
+    /**
+     * Positive proof that `receipt` isn't the held Safe proposal's
+     * execution: it is in a canonical block, and it reverted or its Safe
+     * logged no execution of the proposal's safeTxHash. A read that fails
+     * proves nothing.
+     */
+    async function disproves(
+      record: ReviewedWriteRecoveryRecord,
+      receipt: TransactionReceipt,
+      client: WriteHoldClient,
+    ): Promise<boolean> {
+      const block = await client
+        .getBlock({ blockNumber: receipt.blockNumber })
+        .catch(() => null);
+      if (
+        !block?.hash ||
+        block.hash.toLowerCase() !== receipt.blockHash?.toLowerCase()
+      )
+        return false;
+      if (receipt.status === "reverted") return true;
+      return !receipt.logs.some(
+        (log) =>
+          log.address?.toLowerCase() === record.account &&
+          SAFE_EXECUTION_TOPICS.includes(log.topics?.[0] as Hex) &&
+          (log.topics.length === 2
+            ? log.topics[1]
+            : log.data?.slice(0, 66)
+          )?.toLowerCase() === record.hash,
+      );
+    }
+
+    /**
+     * A held hash the node shows mined, though its receipt can't be read: it
+     * may have run, so no exit at once, and no "speed it up" either. Once
+     * that has lasted 30 minutes (`minedAt` keeps the clock), the warned exit.
+     * Seen pending again, the clock stops.
+     */
+    async function minedUnread(
+      state: Extract<WriteHoldState, { status: "pending-known-hash" }>,
+      client: WriteHoldClient,
+    ): Promise<WriteHoldState> {
+      const look = await lookAt(state.hash, client);
+      // Only positive pending evidence stops the clock; a read that fails
+      // keeps the one saved.
+      if (look === "pending")
+        return { ...state, record: recovery.mined(state.record, false) };
+      const record =
+        look === "mined" ? recovery.mined(state.record, true) : state.record;
+      if (record.minedAt === undefined) return state;
+      if (Date.now() - Number(record.minedAt) >= UNSEEN_HASH_MS)
+        return unchecked(record);
+      return { ...state, record, line: WRITE_HOLD_MINED_LINE };
+    }
+
+    /** What the node shows of `hash`: positive pending or mined metadata, or nothing it can say. */
+    async function lookAt(
+      hash: Hex,
+      client: WriteHoldClient,
+    ): Promise<"pending" | "mined" | null> {
+      const sent = await client.getTransaction({ hash }).catch(() => null);
+      if (sent?.hash?.toLowerCase() !== hash) return null;
+      return sent.blockNumber === null ? "pending" : "mined";
+    }
+
+    /**
+     * No exit while a hash the hold has seen (its own, unless proven dropped,
+     * or a candidate) is pending, or was seen mined with its receipt
+     * unreadable less than 30 minutes ago: it may have run. Its clock is
+     * kept per hash, survives read failures, and stops only on positive
+     * pending evidence.
+     */
+    async function seenGate(
+      saved: ReviewedWriteRecoveryRecord,
+      client: WriteHoldClient,
+      ownDropped: boolean,
+    ): Promise<WriteHoldState | null> {
+      let record = saved;
+      const seen = [
+        ...(record.hash && !ownDropped ? [record.hash] : []),
+        ...(record.candidates ?? []),
+      ];
+      for (const hash of seen) {
+        const own = hash === record.hash;
+        const look = await lookAt(hash, client);
+        if (look !== null)
+          record = own
+            ? recovery.mined(record, look === "mined")
+            : recovery.candidateMined(record, hash, look === "mined");
+        const at = own ? record.minedAt : record.candidateMinedAt?.[hash];
+        if (
+          look === "pending" ||
+          (at !== undefined && Date.now() - Number(at) < UNSEEN_HASH_MS)
+        )
+          return {
+            status: "pending-known-hash",
+            record,
+            hash,
+            exit: false,
+            line:
+              look === "pending"
+                ? WRITE_HOLD_PENDING_LINE
+                : WRITE_HOLD_MINED_LINE,
+          };
+      }
+      return null;
+    }
+
     async function safeState(
       saved: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
@@ -537,7 +663,24 @@ export function createWriteHold(
             return ranExecuted(record, hash, settled.result);
           }
         }
-      } else if (record.executionHash) {
+      }
+      // An execution hash the app reported settles it only on its own
+      // authenticated receipt; until then it is a candidate, never proof.
+      if (!record.executionHash)
+        for (const candidate of record.candidates ?? []) {
+          const receipt = await client
+            .getTransactionReceipt({ hash: candidate })
+            .catch(() => null);
+          if (!receipt) continue;
+          const settled = await settle(record, receipt, client);
+          if (settled.status === "clear" || settled.status === "ran-executed")
+            return settled;
+          // Only a canonical receipt that names no execution of this
+          // proposal disproves it; anything unread keeps it.
+          if (await disproves(record, receipt, client))
+            record = recovery.disproven(record, candidate);
+        }
+      if (record.executed && record.executionHash) {
         const settled = await execution(record, client);
         if (settled?.status === "clear") return settled;
         if (record.executionHash === hash) {
@@ -582,16 +725,28 @@ export function createWriteHold(
         ).catch(() => false);
         if (expired && release(record)) return clear({ result: "expired" });
       }
-      if (
-        end.look === "executed" &&
-        (!record.executed ||
+      if (end.look === "executed") {
+        if (
+          !record.executed ||
           (end.execution &&
-            end.execution.executionHash !== record.executionHash))
-      ) {
-        record = recovery.executed(record, end.execution?.executionHash);
+            end.execution.executionHash !== record.executionHash)
+        )
+          record = recovery.executed(record, end.execution?.executionHash);
         if (record.executionHash) {
           const settled = await execution(record, client);
-          if (settled) return settled;
+          // Only a settled receipt ends it here; one that can't be verified
+          // leaves the finalized log to decide.
+          if (settled?.status === "clear") return settled;
+        }
+        // It ran: with its receipt unreadable, the canonical log at a
+        // finalized block carries its result. Never a resend exit.
+        if (end.execution && release(record)) {
+          const settled = {
+            result: end.execution.status,
+            hash: end.execution.executionHash,
+          };
+          recovery.markSettled(record, settled);
+          return clear(settled);
         }
       }
       if (
@@ -605,12 +760,36 @@ export function createWriteHold(
       return classify(record);
     }
 
+    /**
+     * The one gate for every exit, offered or taken: no exit while any hash
+     * the hold has seen (its own, or a candidate) is a known pending
+     * transaction, whatever the state says, a replacement included.
+     */
     async function inspect(
       client: WriteHoldClient,
       effect?: (chainId: number) => Promise<boolean>,
     ): Promise<WriteHoldState> {
+      const state = await inspectChain(client, effect);
+      if (state.status === "pending-known-hash")
+        return minedUnread(state, client);
+      if (state.status === "clear" || !state.exit) return state;
+      // A hash proven dropped (another transaction used its sent nonce at a
+      // canonical finalized block) can't run, whatever a node still shows.
+      return (
+        (await seenGate(
+          state.record,
+          client,
+          state.status === "dropped-proven",
+        )) ?? state
+      );
+    }
+
+    async function inspectChain(
+      client: WriteHoldClient,
+      effect?: (chainId: number) => Promise<boolean>,
+    ): Promise<WriteHoldState> {
       let record = recovery.read();
-      if (!record) return clear();
+      if (!record) return cleared();
       // No evidence from another chain.
       if ((await client.getChainId().catch(() => null)) !== record.chainId)
         return classify(record);
@@ -619,7 +798,7 @@ export function createWriteHold(
         .resolve(client, effect ? { effect } : undefined)
         .catch(() => null);
       record = recovery.read();
-      if (!record) return clear();
+      if (!record) return cleared();
       if (check?.status === "sent") {
         // An authenticated hash is seen: any vanished clock stops.
         if (record.vanishedAt !== undefined)
@@ -632,17 +811,6 @@ export function createWriteHold(
       // A hash saved before its clock existed starts it now.
       if (record.hash && record.submittedAt === undefined)
         record = recovery.firstSeen(record);
-      // The app's effect read only changes the line, and offers the exit.
-      if (check?.status === "pending" && check.effect)
-        return {
-          status: "looks-done",
-          record,
-          exit: true,
-          line: WRITE_HOLD_LOOKS_DONE_LINE,
-          ...(record.hash
-            ? { hash: record.hash, warning: WRITE_HOLD_HASHED_EXIT_LINE }
-            : {}),
-        };
       if (
         record.hash &&
         record.sentNonce !== undefined &&
@@ -657,6 +825,18 @@ export function createWriteHold(
           exit: true,
           line: writeHeldMessage(),
           warning: WRITE_HOLD_HASHED_EXIT_LINE,
+        };
+      // The app's effect read only changes the line, and offers the exit;
+      // a proven drop above takes priority.
+      if (check?.status === "pending" && check.effect)
+        return {
+          status: "looks-done",
+          record,
+          exit: true,
+          line: WRITE_HOLD_LOOKS_DONE_LINE,
+          ...(record.hash
+            ? { hash: record.hash, warning: WRITE_HOLD_HASHED_EXIT_LINE }
+            : {}),
         };
       // A hash seen with its sent nonce that the node has since lost.
       if (
@@ -711,13 +891,29 @@ export function createWriteHold(
       state,
       /** What the saved record alone says, without asking the chain. */
       peek,
-      /** Every state this controller reads or makes for the call, and other tabs' changes. */
+      /**
+       * Every state this controller reads or makes for the call, and other
+       * tabs' changes. The latest one, if any, is replayed at once.
+       */
       subscribe(listener: (state: WriteHoldState) => void): () => void {
         let set = listeners.get(key);
         if (!set) listeners.set(key, (set = new Set()));
         set.add(listener);
         peekers.set(key, peek);
         watchTabs();
+        // A subscriber that arrives after the hold spoke hears its latest state.
+        // Only while it still names the call's current record; otherwise
+        // what the saved record says now.
+        const last = latest.get(key);
+        if (last) {
+          const now = peek();
+          // A clear is compared by its settlement's identity, a hold by its record.
+          const identity = (state: WriteHoldState) =>
+            JSON.stringify(
+              state.status === "clear" ? (state.settled ?? null) : state.record,
+            );
+          listener(identity(now) === identity(last) ? last : now);
+        }
         return () => {
           set!.delete(listener);
           if (!set!.size) {
@@ -880,8 +1076,60 @@ export function createWriteHold(
         return shown(result?.value ?? peek());
       },
       /**
-       * The app's own proof that the held Safe proposal ran, with its
-       * execution's transaction when known. Kept until its result settles it.
+       * Attach a hash the chain authenticates as this exact call, sent by the
+       * account on the reservation's chain at or after its next nonce, and
+       * not mined before it was reserved, to the held write that has none: under
+       * one lock, without releasing it. The hold then follows that hash: no
+       * exit while it is pending, and its receipt settles it.
+       */
+      async attachHash(
+        client: WriteHoldClient,
+        hash: Hex,
+      ): Promise<WriteHoldState> {
+        const result = await locked(async () => {
+          const record = recovery.read();
+          if (
+            record &&
+            !record.safe &&
+            !record.hash &&
+            isBytes32(hash) &&
+            (await client.getChainId().catch(() => null)) === record.chainId
+          ) {
+            const sent = await client
+              .getTransaction({ hash })
+              .catch(() => null);
+            if (
+              sent?.hash?.toLowerCase() === hash.toLowerCase() &&
+              sent.from?.toLowerCase() === record.account &&
+              (sent.chainId === undefined || sent.chainId === record.chainId) &&
+              sent.to?.toLowerCase() === record.call.to &&
+              sent.input?.toLowerCase() === record.call.data &&
+              BigInt(sent.value) === BigInt(record.call.value) &&
+              // This attempt, not an earlier identical call: never below the
+              // account's next nonce or mined before it was reserved.
+              // With no such evidence, an identical earlier call can't be
+              // told apart: nothing is attached, and the exit stays.
+              record.nonce !== undefined &&
+              record.fromBlock !== undefined &&
+              BigInt(sent.nonce) >= BigInt(record.nonce) &&
+              (sent.blockNumber === null ||
+                sent.blockNumber >= BigInt(record.fromBlock))
+            )
+              try {
+                recovery.submitted(hash, record);
+              } catch {
+                /* Kept in this tab's memory, it still holds. */
+              }
+          }
+          return inspect(client);
+        }, true);
+        return shown(result?.value ?? peek());
+      },
+      /**
+       * The app's word that the held Safe proposal ran, with its execution's
+       * transaction when known. Nothing is saved as executed on its word:
+       * the hash is kept as a candidate, and settles it only once its own
+       * receipt proves this Safe's execution of the exact proposal or call.
        */
       async onExecuted(
         client: WriteHoldClient,
@@ -890,7 +1138,23 @@ export function createWriteHold(
         const result = await locked(async () => {
           const record = recovery.read();
           if (!record?.safe || !record.hash) return classify(record);
-          recovery.executed(record, executionHash);
+          if (executionHash) {
+            // Authenticated on arrival: its own receipt settles it, or proves
+            // it isn't this write's; only an unresolved one is kept.
+            const receipt = await client
+              .getTransactionReceipt({ hash: executionHash })
+              .catch(() => null);
+            if (receipt) {
+              const settled = await settle(record, receipt, client);
+              if (
+                settled.status === "clear" ||
+                settled.status === "ran-executed"
+              )
+                return settled;
+            }
+            if (!receipt || !(await disproves(record, receipt, client)))
+              recovery.candidate(record, executionHash);
+          }
           return inspect(client);
         }, true);
         return shown(result?.value ?? peek());

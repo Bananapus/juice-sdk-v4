@@ -206,8 +206,23 @@ const budgets = {
     // 2.33.0 changelog entry change existing artifacts only: measured
     // 1,424,541 B packed / 21,611,522 B unpacked and 818 entries, so the
     // margin is raised for the next change.
-    packed: 1_430_000,
-    unpacked: 21_625_000,
+    // The write hold's kept settlement (bound to the reservation it settles),
+    // the known-pending hash check, app-reported execution candidates and
+    // the subscriber replay change existing artifacts only: measured
+    // 1,433,153 B packed / 21,637,566 B unpacked and 818 entries. The review
+    // round (one exit gate over every seen hash, candidates authenticated on
+    // arrival, a verified latest marker, replay checked against the current
+    // record and keyed by scope, and attachHash) measured 1,436,332 B packed
+    // / 21,653,998 B unpacked and 818 entries.
+    // Round 4 (three-valued candidate evidence, no candidate cap, attempt-bound
+    // attachHash, settlement identity through rejection and replay, and the
+    // canonical cancellation past the pending gate) measured 1,438,735 B
+    // packed / 21,665,498 B unpacked and 818 entries; raised for headroom.
+    // Rounds 5 to 7 (attach evidence, the mined clock per seen hash, and a
+    // proven Safe execution settled from its canonical log) measured
+    // 1,441,392 B packed / 21,683,809 B unpacked and 818 entries.
+    packed: 1_447_000,
+    unpacked: 21_695_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

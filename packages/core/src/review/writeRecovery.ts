@@ -71,6 +71,26 @@ export type ReviewedWriteRecoveryRecord = Omit<
    * string. Cleared once it is seen again.
    */
   vanishedAt?: string;
+  /**
+   * Hashes an app reported as this Safe write's execution, not yet
+   * authenticated: each settles it only once its receipt proves this Safe's
+   * execution of the exact proposal or call.
+   */
+  candidates?: Hex[];
+  /**
+   * When the saved hash was first seen mined with its receipt unreadable, in
+   * milliseconds since the epoch, as a decimal string. Cleared once it is
+   * seen pending again.
+   */
+  minedAt?: string;
+  /** The same clock for each candidate seen mined with its receipt unreadable, by hash. */
+  candidateMinedAt?: Record<string, string>;
+};
+
+/** How a held write ended, on authenticated evidence: its result and transaction. */
+export type ReviewedWriteSettlement = {
+  result: "success" | "failed";
+  hash: Hex;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -163,6 +183,16 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.firstSeenAt) ||
     !optionalDecimal(record.safeNonce) ||
     !optionalDecimal(record.vanishedAt) ||
+    !optionalDecimal(record.minedAt) ||
+    (record.candidateMinedAt !== undefined &&
+      (typeof record.candidateMinedAt !== "object" ||
+        record.candidateMinedAt === null ||
+        !Object.entries(record.candidateMinedAt).every(
+          ([hash, at]) => isBytes32(hash) && optionalDecimal(at),
+        ))) ||
+    (record.candidates !== undefined &&
+      (!Array.isArray(record.candidates) ||
+        !record.candidates.every(isBytes32))) ||
     (record.replaced !== undefined && record.replaced !== true) ||
     (record.unproven !== undefined && record.unproven !== true) ||
     (record.sentFrom !== undefined &&
@@ -199,6 +229,17 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.vanishedAt === undefined
       ? {}
       : { vanishedAt: record.vanishedAt }),
+    ...(record.minedAt === undefined ? {} : { minedAt: record.minedAt }),
+    ...(record.candidateMinedAt === undefined
+      ? {}
+      : { candidateMinedAt: { ...record.candidateMinedAt } }),
+    ...(record.candidates === undefined
+      ? {}
+      : {
+          candidates: record.candidates.map(
+            (hash) => hash.toLowerCase() as Hex,
+          ),
+        }),
     ...(record.executed ? { executed: true as const } : {}),
     ...(record.executionHash === undefined
       ? {}
@@ -634,6 +675,8 @@ export function createBrowserWriteRecovery(
 ) {
   const reviewed = normalized(input);
   const key = scope(reviewed);
+  const settledKey = `${key}:settled`;
+  const latestKey = `${key}:latest`;
   const legacyKey =
     reviewed.namespace === undefined ? legacyScope(reviewed) : undefined;
   let owned: ReviewedWriteRecoveryRecord | undefined;
@@ -758,8 +801,27 @@ export function createBrowserWriteRecovery(
     if (!owned || owned.hash) return;
     const current = read();
     if (current?.id === owned.id && current.hash) return;
-    clear(owned);
+    // Removing the record must not uncover a settlement of an earlier
+    // attempt: unless this reservation is the verified latest, it stays as
+    // released instead, which still invalidates that settlement.
+    if (markedLatest(owned.id)) clear(owned);
+    else {
+      const store = storage();
+      const { at } = locate(store);
+      store.setItem(releasedKey(at, owned.id), "1");
+    }
     owned = undefined;
+  }
+  /** Save `id` as the call's latest reservation, verified by reading it back. */
+  function markedLatest(id: string): boolean {
+    const marker = JSON.stringify({ id });
+    try {
+      const store = storage();
+      store.setItem(latestKey, marker);
+      return store.getItem(latestKey) === marker;
+    } catch {
+      return false;
+    }
   }
   /**
    * Save the nonce the chain showed for the saved hash. It is extra evidence:
@@ -809,6 +871,8 @@ export function createBrowserWriteRecovery(
       ...previous,
       hash: submittedHash,
       ...(submittedAt === undefined ? {} : { submittedAt }),
+      // A mined clock belongs to the hash it was seen for.
+      ...(previous.hash === submittedHash ? {} : { minedAt: undefined }),
     });
     let raw: string | null;
     let at = key;
@@ -852,6 +916,8 @@ export function createBrowserWriteRecovery(
 
   return {
     read,
+    /** The canonical recovery scope this call's records are saved under. */
+    scopeKey: key,
     /**
      * Save the attempt before the wallet opens. `evidence`, the account's next
      * nonce from {@link readReviewedWriteNonce}, lets `resolve` release it
@@ -913,6 +979,17 @@ export function createBrowserWriteRecovery(
         } catch {
           /* A leftover marker names only the old record. */
         }
+      // This reservation is the call's latest: a settlement of an earlier one
+      // is no longer read. Kept after a rejection or exit.
+      // The marker is verified by reading it back; where an older one still
+      // shows, the old settlement goes too. Either way the saved record
+      // itself outranks any settlement of another attempt.
+      if (!markedLatest(record.id))
+        try {
+          store.removeItem(settledKey);
+        } catch {
+          /* The saved record still outranks it. */
+        }
       return recordOf(record);
     },
     submitted(
@@ -923,6 +1000,63 @@ export function createBrowserWriteRecovery(
     },
     rejected,
     clear,
+    /**
+     * Save how the call's last write ended, on authenticated evidence (its
+     * verified receipt or canonical execution), for any later reader: another
+     * tab, a reload. The next reservation replaces it. Extra evidence: a
+     * failed save keeps none.
+     */
+    markSettled(
+      expected: ReviewedWriteRecoveryRecord,
+      settlement: ReviewedWriteSettlement,
+    ): void {
+      requireLock();
+      try {
+        storage().setItem(
+          settledKey,
+          JSON.stringify({
+            id: expected.id,
+            result: settlement.result,
+            hash: settlement.hash.toLowerCase(),
+            at: Date.now(),
+          }),
+        );
+      } catch {
+        /* Only the settling caller learns it. */
+      }
+    },
+    /**
+     * How the call's last write ended, if {@link markSettled} saved it for
+     * the call's latest reservation; a settlement of an earlier one reads as
+     * none, wherever it was kept.
+     */
+    settled(): ReviewedWriteSettlement | undefined {
+      try {
+        const store = storage();
+        const latest = JSON.parse(store.getItem(latestKey) ?? "null") as {
+          id?: unknown;
+        } | null;
+        const saved = JSON.parse(store.getItem(settledKey) ?? "null") as {
+          id?: unknown;
+          result?: unknown;
+          hash?: unknown;
+        } | null;
+        // A record saved at the key (held, or released by the user's exit)
+        // belongs to its own attempt; only none, or the settled one, lets the
+        // settlement through.
+        const { raw } = locate(store);
+        return saved &&
+          typeof saved.id === "string" &&
+          saved.id === latest?.id &&
+          (raw === null || idOf(raw) === saved.id) &&
+          (saved.result === "success" || saved.result === "failed") &&
+          isBytes32(saved.hash)
+          ? { result: saved.result, hash: saved.hash as Hex }
+          : undefined;
+      } catch {
+        return undefined;
+      }
+    },
     /**
      * Start the clock of a hash saved before `submittedAt` existed: save now
      * as its `firstSeenAt`, once. Extra evidence: a stale snapshot or a failed
@@ -995,6 +1129,70 @@ export function createBrowserWriteRecovery(
           current.sentNonce !== undefined &&
           (current.vanishedAt === undefined) === gone,
         { vanishedAt: gone ? String(Date.now()) : undefined },
+      );
+    },
+    /**
+     * Keep `hash` as a candidate execution of this Safe write, unproven.
+     * No cap: candidates come only from the app's own wallet replies, bounded
+     * by the user's actions; add one if an outside path ever reports them.
+     * Extra evidence only: a failed save keeps the record as it was.
+     */
+    candidate(
+      expected: ReviewedWriteRecoveryRecord,
+      hash: Hex,
+    ): ReviewedWriteRecoveryRecord {
+      if (!isBytes32(hash)) return recordOf(expected);
+      const wanted = hash.toLowerCase() as Hex;
+      const known = recordOf(expected).candidates ?? [];
+      return amend(
+        expected,
+        (current) => current.safe && !known.includes(wanted),
+        { candidates: [...known, wanted] },
+      );
+    },
+    /** Drop a candidate whose own receipt proved it isn't this write's execution. */
+    disproven(
+      expected: ReviewedWriteRecoveryRecord,
+      hash: Hex,
+    ): ReviewedWriteRecoveryRecord {
+      const known = recordOf(expected).candidates ?? [];
+      const rest = known.filter((candidate) => candidate !== hash);
+      return amend(expected, () => rest.length !== known.length, {
+        candidates: rest.length ? rest : undefined,
+      });
+    },
+    /**
+     * Note whether the saved hash is mined with its receipt unreadable right
+     * now: mined starts the clock once; pending again clears it. Extra
+     * evidence only.
+     */
+    mined(
+      expected: ReviewedWriteRecoveryRecord,
+      seen: boolean,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(
+        expected,
+        (current) => (current.minedAt === undefined) === seen,
+        { minedAt: seen ? String(Date.now()) : undefined },
+      );
+    },
+    /** {@link mined}, for one candidate hash. */
+    candidateMined(
+      expected: ReviewedWriteRecoveryRecord,
+      hash: Hex,
+      seen: boolean,
+    ): ReviewedWriteRecoveryRecord {
+      const clocks = { ...recordOf(expected).candidateMinedAt };
+      if (seen) clocks[hash] ??= String(Date.now());
+      else delete clocks[hash];
+      return amend(
+        expected,
+        (current) =>
+          JSON.stringify(current.candidateMinedAt ?? {}) !==
+          JSON.stringify(clocks),
+        {
+          candidateMinedAt: Object.keys(clocks).length ? clocks : undefined,
+        },
       );
     },
     /**
@@ -1259,12 +1457,20 @@ async function inspectOrdinary(
         (sent.chainId !== undefined && sent.chainId !== record.chainId)
       )
         return pending;
+      const sentNonce = BigInt(sent.nonce).toString();
+      if (sent.blockNumber !== null && sent.blockNumber !== undefined)
+        return { check: { status: "sent", hash: record.hash }, sentNonce };
+      // A node may keep a dropped hash pending: a canonical finalized block
+      // that shows its sent nonce used by another transaction still decides.
       return {
-        check:
-          sent.blockNumber !== null && sent.blockNumber !== undefined
-            ? { status: "sent", hash: record.hash }
-            : { status: "pending" },
-        sentNonce: BigInt(sent.nonce).toString(),
+        check: await atNonce(
+          client,
+          record,
+          BigInt(sentNonce),
+          BigInt(record.fromBlock ?? "0"),
+          true,
+        ),
+        sentNonce,
       };
     }
   }
@@ -1274,27 +1480,39 @@ async function inspectOrdinary(
   // a record saved without a starting block searches from genesis instead.
   const from = record.fromBlock ?? (bound ? "0" : undefined);
   if (target === undefined || from === undefined) return pending;
+  return {
+    check: await atNonce(client, record, BigInt(target), BigInt(from), bound),
+  };
+}
+
+/** What the transaction the account sent at `nonce` says of the saved write; `bound`: the saved hash's own sent nonce. */
+async function atNonce(
+  client: ReviewedWriteNonceClient,
+  record: ReviewedWriteRecoveryRecord,
+  nonce: bigint,
+  fromBlock: bigint,
+  bound: boolean,
+): Promise<ReviewedWriteCheck> {
+  const pending = { status: "pending" } as const;
   const used = await findTransactionAtNonce(
     client,
     record.account,
-    BigInt(target),
-    BigInt(from),
+    nonce,
+    fromBlock,
   );
   if (!used) return pending;
-  if (used.hash === record.hash)
-    return { check: { status: "sent", hash: used.hash } };
+  if (used.hash === record.hash) return { status: "sent", hash: used.hash };
   const sameCall =
     used.to?.toLowerCase() === record.call.to &&
     used.input?.toLowerCase() === record.call.data &&
     BigInt(used.value ?? 0) === BigInt(record.call.value);
   // Another hash is adopted only at the nonce the saved hash's own
   // transaction was sent at; the pre-wallet nonce only locates the call.
-  if (sameCall)
-    return bound ? { check: { status: "sent", hash: used.hash } } : pending;
+  if (sameCall) return bound ? { status: "sent", hash: used.hash } : pending;
   // Another transaction at that nonce may have run the call inside it
   // (a wrapper, or an EIP-7702 wallet that ran code and then cleared its
   // delegation), so it proves nothing. The user's exit ends it.
-  return { check: { status: "pending", usedBy: used.hash } };
+  return { status: "pending", usedBy: used.hash };
 }
 
 /**
