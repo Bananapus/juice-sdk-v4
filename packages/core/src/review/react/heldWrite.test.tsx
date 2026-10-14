@@ -14,18 +14,20 @@ import {
   type WriteHold,
   type WriteHoldClient,
   type WriteHoldState,
-} from "@bananapus/nana-sdk-core/review";
+} from "../index.js";
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Address, Hex } from "viem";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
-import { HeldWritesNotice } from "./HeldWritesNotice";
-import { useHeldWrite, type UseHeldWriteResult } from "./useHeldWrite";
+// Through the entry point itself, as apps import it.
 import {
+  HeldWritesNotice,
   useHeldIntents,
+  useHeldWrite,
   useHeldWrites,
   type HeldWriteItem,
-} from "./useHeldWrites";
+  type UseHeldWriteResult,
+} from "./index.js";
 
 const ACCOUNT = "0x1111111111111111111111111111111111111111" as Address;
 const HASH = `0x${"aa".repeat(32)}` as Hex;

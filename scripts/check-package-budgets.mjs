@@ -256,9 +256,12 @@ const budgets = {
     // artifacts), the rejected-reservation marker, strict storage reads and
     // the check copy measured 1,542,890 B packed / 22,244,040 B unpacked and
     // 866 entries.
-    packed: 1_550_000,
-    unpacked: 22_260_000,
-    entries: 866,
+    // The held-write React hooks, moved from nana-sdk-react to their own
+    // /review/react entry point (five modules, 40 artifacts), measured
+    // 1,554,581 B packed / 22,328,075 B unpacked and 906 entries.
+    packed: 1_562_000,
+    unpacked: 22_345_000,
+    entries: 906,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
@@ -266,9 +269,11 @@ const budgets = {
     // measured 163,145 B packed / 1,805,792 B unpacked and 104 entries.
     // With useSavedAttempt: 168,731 B packed / 1,825,777 B unpacked, 106
     // entries.
-    packed: 172_000,
-    unpacked: 1_835_000,
-    entries: 110,
+    // With the held-write hooks moved to core and re-exported: 154,994 B
+    // packed / 1,780,657 B unpacked, 96 entries.
+    packed: 158_000,
+    unpacked: 1_790_000,
+    entries: 96,
   },
   "@bananapus/nana-sdk-connect": {
     directory: "packages/connect",

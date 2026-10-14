@@ -1072,11 +1072,14 @@ holds.open({
 
 ### One held write, the same in every app
 
-`useHeldWrite` (React, `@bananapus/nana-sdk-react`) runs one held write the
-one way every app does: its send under the hold, the watch, the follower of its
+`useHeldWrite` (React, `@bananapus/nana-sdk-core/review/react`, also
+re-exported by `@bananapus/nana-sdk-react`) runs one held write the one way
+every app does: its send under the hold, the watch, the follower of its
 transaction or Safe proposal, its one line, its exit and the adoption of a
 previous deploy's record. Apps supply the hold controller, the call or intent,
-the account and client, and their domain callbacks.
+the account and client, and their domain callbacks. The entry point imports
+React and no wagmi, so apps on any wagmi version use it; React is an optional
+peer of core.
 
 ```tsx
 const write = useHeldWrite({

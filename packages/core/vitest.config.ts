@@ -15,6 +15,7 @@ export default defineConfig({
         "**/*.d.ts",
         "**/*.config.ts",
         "**/*.test.ts",
+        "**/*.test.tsx",
       ],
       thresholds: {
         statements: 95,
@@ -142,6 +143,30 @@ export default defineConfig({
           lines: 100,
         },
         "src/review/savedAttempt.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/react/useHeldWrite.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/react/useHeldWrites.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/react/useSavedAttempt.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/react/HeldWritesNotice.tsx": {
           statements: 100,
           branches: 100,
           functions: 100,

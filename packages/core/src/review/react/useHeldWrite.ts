@@ -12,7 +12,7 @@ import {
   type WriteHoldHandle,
   type WriteHoldSettled,
   type WriteHoldState,
-} from "@bananapus/nana-sdk-core/review";
+} from "../index.js";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { Address, Hex, TransactionReceipt } from "viem";
 

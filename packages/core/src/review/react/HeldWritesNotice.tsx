@@ -1,6 +1,6 @@
-import { HELD_RELEASE_LABEL } from "@bananapus/nana-sdk-core/review";
+import { HELD_RELEASE_LABEL } from "../index.js";
 import { useState } from "react";
-import type { HeldWriteItem } from "./useHeldWrites";
+import type { HeldWriteItem } from "./useHeldWrites.js";
 
 /**
  * The one app-wide notice of held writes: each with its action's label, its
