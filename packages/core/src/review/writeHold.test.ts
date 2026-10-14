@@ -6131,6 +6131,90 @@ describe("a legacy hold's success, through its intent", () => {
     expect(retry.write).toHaveBeenCalledOnce();
   });
 
+  it("lets a newer legacy success win over the intent's own older settlement, in reads and subscriptions", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    chain.head = 120n;
+    chain.finalized = 110n;
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const intentCall = {
+      ...ordinary,
+      call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+      namespace: key,
+    };
+    const open = () =>
+      next.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    // The intent's own write reverted, final: its settlement is a failure.
+    const own = open();
+    await own.send(client, wallet(async () => OTHER).send);
+    chain.txs.push({
+      ...sent(OTHER, { block: 100n, status: "reverted" }),
+      input: intentCall.call.data,
+    });
+    await own.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(own.peek()).toMatchObject({ settled: { result: "failed" } });
+    // Later, an older version's exact call succeeds.
+    vi.setSystemTime(2_000_000);
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 101n, nonce: 8 }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[1]), client);
+    // A fresh view: the newer success, blocked until acknowledged.
+    const view = createHeldWriteView(open(), { client, follow: false });
+    const stop = view.start();
+    await vi.waitFor(() =>
+      expect(view.get()).toMatchObject({
+        phase: "succeeded",
+        settled: { hash: HASH },
+      }),
+    );
+    // The intent's own key speaks: still the newer success.
+    const heard: WriteHoldState[] = [];
+    const stopHearing = open().subscribe((state) => heard.push(state));
+    await next.hold.open(intentCall).state(client);
+    expect(heard[heard.length - 1]).toMatchObject({ settled: { hash: HASH } });
+    stopHearing();
+    await expect(view.send(wallet(async () => OTHER).send)).rejects.toThrow();
+    stop();
+  });
+
+  it("blocks on a legacy reservation made at the same moment as the intent's", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(5_000_000);
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const open = () =>
+      next.hold.open(
+        {
+          ...ordinary,
+          call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+          namespace: key,
+        },
+        { legacy: [{ call: ordinary.call }] },
+      );
+    await expect(
+      open().send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+        throw new Error("rejected");
+      }),
+    ).rejects.toThrow("rejected");
+    // The same millisecond: order unproven.
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    const view = createHeldWriteView(open(), { client, follow: false });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("succeeded"));
+    stop();
+  });
+
   it("orders by the settlement's time, and blocks when times can't be compared", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(1_000_000);

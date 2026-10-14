@@ -1883,15 +1883,21 @@ export function createWriteHold(
           !ownReserved ||
           ownAt === undefined ||
           legacyAt === undefined ||
-          legacyAt > ownAt
+          // The same moment is no proof of order: counted as newer.
+          legacyAt >= ownAt
         )
           return { handle, state: now };
       }
       return undefined;
     }
-    /** `state`, or, when it is a clear with nothing settled, a legacy hold's settlement. */
+    /**
+     * `state`, or, when it is a clear, the legacy settlement that owns the
+     * intent's result instead: the one it was seen standing for, or one
+     * reserved after its own latest reservation, whatever the intent's own
+     * (older) settlement says. One choice for reads, events and the guard.
+     */
     function withLegacy(state: WriteHoldState): WriteHoldState {
-      if (state.status !== "clear" || state.settled) return state;
+      if (state.status !== "clear") return state;
       const legacy = legacySettled();
       return legacy
         ? {
@@ -2046,7 +2052,7 @@ export function createWriteHold(
       subscribe: (listener: (state: WriteHoldState) => void) =>
         own.subscribe((state) =>
           listener(
-            state.status === "clear" && !state.settled
+            state.status === "clear"
               ? (active()?.peek() ?? withLegacy(state))
               : state,
           ),
