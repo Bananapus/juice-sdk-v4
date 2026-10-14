@@ -372,9 +372,13 @@ export function createHeldWriteView(
       stopFollowing();
       if (next.settled && mine) {
         deliver(next.settled, observed!);
-        // Seen settling here: the app was told, so the hold forgets it, and
-        // no later visit asks again.
-        if ("hash" in next.settled && next.settled.result === "success")
+        // Seen settling here: the app was told, so the hold marks it
+        // acknowledged, and no later visit asks again.
+        if (
+          "hash" in next.settled &&
+          next.settled.result === "success" &&
+          !next.settled.acknowledged
+        )
           void handle.acknowledge(next.settled).catch(() => null);
         set({
           phase: "settled",
@@ -402,7 +406,10 @@ export function createHeldWriteView(
         options.onReleased?.(by);
       } else if (view.phase === "settled" || view.phase === "released") {
         // Already shown: a later read of the same end changes nothing.
-      } else if (next.settled?.result === "success")
+      } else if (
+        next.settled?.result === "success" &&
+        !next.settled.acknowledged
+      )
         // Settled while away: never announced, and never sent past unasked.
         set({
           phase: "succeeded",
@@ -562,7 +569,7 @@ export function createHeldWriteView(
     },
     /**
      * The user saw a success that settled while away and chose to send again:
-     * the hold forgets it, for every reader, and sends are allowed.
+     * the hold marks it acknowledged, for every reader, and sends are allowed.
      */
     async acknowledge(): Promise<void> {
       const settled = view.settled;

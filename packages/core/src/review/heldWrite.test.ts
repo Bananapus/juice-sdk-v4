@@ -819,4 +819,42 @@ describe("one held write's view", () => {
     other.stop();
     stop();
   });
+
+  it("shows another tab's acknowledged success as a success, never a release (two tabs)", async () => {
+    const onSettled = vi.fn();
+    const onReleased = vi.fn();
+    const { view, fake, stop } = started(pending({ id: "r20" }), {
+      onSettled,
+      onReleased,
+    });
+    await flush();
+    expect(view.get().phase).toBe("confirming");
+    // The other tab saw it settle and acknowledged it.
+    fake.answer = clear({
+      reservation: "r20",
+      settled: { result: "success", hash: HASH, acknowledged: true },
+    });
+    await view.check();
+    await flush();
+    expect(view.get()).toMatchObject({
+      phase: "settled",
+      line: HELD_SUCCESS_LINE,
+    });
+    expect(onSettled).toHaveBeenCalledOnce();
+    expect(onReleased).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("blocks nothing on a reload after the success was acknowledged", async () => {
+    const onSettled = vi.fn();
+    const { view, stop } = started(
+      clear({ settled: { result: "success", hash: HASH, acknowledged: true } }),
+      { onSettled },
+    );
+    await flush();
+    expect(view.get()).toMatchObject({ phase: "clear", line: null });
+    await expect(view.send(async () => HASH)).resolves.toBe(HASH);
+    expect(onSettled).not.toHaveBeenCalled();
+    stop();
+  });
 });

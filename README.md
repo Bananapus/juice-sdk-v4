@@ -1109,11 +1109,13 @@ await write.send((gate) => sendThroughWallet(gate));
   settlement or the user's exit, never its own reading of a receipt,
   replacement or expiry.
 - **Settlement:** `onSettled(settled, receipt)` fires once, only for what this
-  view saw held, and the hold then forgets that success. A success that settled
+  view saw held, and the hold then marks that success acknowledged. A success that settled
   while the page was closed is phase `succeeded`, with
   `HELD_AWAY_SUCCESS_LINE` ("This went through while you were away."): every
   send refuses until the user picks `HELD_SEND_AGAIN_LABEL` ("Send it again",
-  `sendAgainAction`), which forgets it for every reader. Sending twice is
+  `sendAgainAction`), which marks it acknowledged for every reader: it keeps
+  its result, blocks nothing, and a tab that saw it held still shows the
+  success, never a release. Sending twice is
   sometimes meant; it just has to be said. It is never announced through
   `onSettled`.
 - **Adoption:** with `adopt`, the hook moves a previous deploy's saved record

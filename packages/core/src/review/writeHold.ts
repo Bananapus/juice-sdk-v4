@@ -96,8 +96,8 @@ export type WriteHoldClient = Pick<
 
 /** How a held write ended, when the hold saw it end. */
 export type WriteHoldSettled =
-  /** Its verified receipt (a revert only once final). */
-  | { result: "success" | "failed"; hash: Hex }
+  /** Its verified receipt (a revert only once final); `acknowledged` once the user saw it. */
+  | { result: "success" | "failed"; hash: Hex; acknowledged?: true }
   /** A Safe proposal's expiry before it ran is proven. */
   | { result: "expired" };
 
@@ -1591,15 +1591,16 @@ export function createWriteHold(
       },
       /**
        * The user acknowledged a success the hold settled while they were
-       * away: its saved settlement is forgotten, for every reader, so the
-       * action can be sent again. Under the call's lock; nothing is sent.
+       * away (or a view saw it settle): its saved settlement is marked
+       * acknowledged, keeping its result for every reader, so it blocks no
+       * send. Under the call's lock; nothing is sent.
        */
       async acknowledge(settled: {
         result: "success" | "failed";
         hash: Hex;
       }): Promise<WriteHoldState> {
         const result = await locked(async () => {
-          recovery.forgetSettled(settled);
+          recovery.acknowledgeSettled(settled);
           return peek();
         }, true);
         return shown(result?.value ?? peek());

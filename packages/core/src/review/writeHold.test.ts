@@ -19,6 +19,7 @@ import {
 import { uniswapV4Deployment } from "../v6/uniswapV4Deployments.js";
 import { submitReviewedContractWrite } from "./contractWrite.js";
 import {
+  HELD_SUCCESS_LINE,
   SAFE_PROPOSAL_EXECUTED_LINE,
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
@@ -34,6 +35,7 @@ import {
   writeHeldMessage,
 } from "./messages.js";
 import { launchIntent } from "./intents.js";
+import { createHeldWriteView } from "./heldWrite.js";
 import { intent, writeIntentKey } from "./writeIntent.js";
 import {
   createWriteHold,
@@ -5927,7 +5929,7 @@ describe("a launch held under its shared intent", () => {
 });
 
 describe("acknowledging a success that settled while away", () => {
-  it("clears the saved settlement for every reader, and only that one", async () => {
+  it("marks the saved settlement acknowledged for every reader, and only that one", async () => {
     const browser = origin();
     const { hold } = setup({ browser });
     const { chain, client, receiptOf } = fakeChain();
@@ -5942,12 +5944,19 @@ describe("acknowledging a success that settled while away", () => {
     await expect(
       handle.acknowledge({ result: "success", hash: OTHER }),
     ).resolves.toMatchObject({ settled: { hash: HASH } });
+    // Acknowledged, never wiped: every reader still sees the success.
+    const acknowledged = {
+      status: "clear",
+      reservation: expect.any(String),
+      settled: { result: "success", hash: HASH, acknowledged: true },
+    };
     await expect(
       handle.acknowledge({ result: "success", hash: HASH }),
-    ).resolves.toEqual({ status: "clear", reservation: expect.any(String) });
-    expect(setup({ browser }).hold.open(ordinary).peek()).not.toHaveProperty(
-      "settled",
-    );
+    ).resolves.toEqual(acknowledged);
+    expect(setup({ browser }).hold.open(ordinary).peek()).toEqual(acknowledged);
+    // The next reservation replaces it, as any settlement.
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    expect(handle.peek().status).not.toBe("clear");
     // Without the lock, nothing is forgotten: the saved record is shown.
     const unlocked = setup({
       locks: {
@@ -5961,6 +5970,56 @@ describe("acknowledging a success that settled while away", () => {
         .open(ordinary)
         .acknowledge({ result: "success", hash: HASH }),
     ).resolves.toMatchObject({ status: "clear" });
+  });
+});
+
+describe("two tabs viewing one write that succeeds", () => {
+  it("shows the success in the tab that didn't see it settle, never a release", async () => {
+    const browser = origin();
+    const tabA = setup({ browser });
+    const tabB = setup({ browser, locks: tabA.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const a = tabA.hold.open(ordinary);
+    await a.send(client, wallet(async () => HASH).send);
+    const settledB = vi.fn();
+    const releasedB = vi.fn();
+    const viewA = createHeldWriteView(a, { client, follow: false });
+    const viewB = createHeldWriteView(tabB.hold.open(ordinary), {
+      client,
+      follow: false,
+      onSettled: settledB,
+      onReleased: releasedB,
+    });
+    await viewA.check();
+    await viewB.check();
+    expect(viewB.get().phase).toBe("confirming");
+    // It mines; tab A sees it settle live, and acknowledges it.
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await a.onReceipt(receiptOf(chain.txs[0]), client);
+    await viewA.check();
+    expect(viewA.get().phase).toBe("settled");
+    await vi.waitFor(() =>
+      expect(tabA.hold.open(ordinary).peek()).toMatchObject({
+        settled: { acknowledged: true },
+      }),
+    );
+    await viewB.check();
+    await vi.waitFor(() => expect(settledB).toHaveBeenCalledOnce());
+    expect(viewB.get()).toMatchObject({
+      phase: "settled",
+      line: HELD_SUCCESS_LINE,
+    });
+    expect(releasedB).not.toHaveBeenCalled();
+    // A reload in either tab blocks nothing.
+    const reloaded = createHeldWriteView(
+      setup({ browser }).hold.open(ordinary),
+      {
+        client,
+        follow: false,
+      },
+    );
+    await reloaded.check();
+    expect(reloaded.get().phase).toBe("clear");
   });
 });
 

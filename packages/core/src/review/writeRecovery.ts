@@ -109,6 +109,12 @@ export type ReviewedWriteRecoveryRecord = Omit<
 export type ReviewedWriteSettlement = {
   result: "success" | "failed";
   hash: Hex;
+  /**
+   * The user saw it (or a view that saw it settle told the app): it blocks
+   * nothing, but every reader still learns the result. One per call key,
+   * replaced by the call's next reservation like any settlement.
+   */
+  acknowledged?: true;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -1279,20 +1285,24 @@ export function createBrowserWriteRecovery(
       }
     },
     /**
-     * Forget the saved settlement `settled` names (its hash), once the user
-     * acknowledged it: no reader sees it again. Another settlement stays.
+     * Mark the saved settlement `settled` names (its hash) acknowledged,
+     * keeping its result and hash for every reader. Another settlement stays.
      */
-    forgetSettled(settled: ReviewedWriteSettlement): void {
+    acknowledgeSettled(settled: ReviewedWriteSettlement): void {
       requireLock();
       const store = storage();
       try {
-        const saved = JSON.parse(store.getItem(settledKey) ?? "null") as {
+        const raw = store.getItem(settledKey);
+        const saved = JSON.parse(raw ?? "null") as {
           hash?: unknown;
         } | null;
         if (saved?.hash === settled.hash.toLowerCase())
-          store.removeItem(settledKey);
+          store.setItem(
+            settledKey,
+            JSON.stringify({ ...saved, acknowledged: true }),
+          );
       } catch {
-        /* An unreadable settlement names none. */
+        /* An unreadable settlement names none; a refused write keeps it unacknowledged. */
       }
     },
     /**
@@ -1310,6 +1320,7 @@ export function createBrowserWriteRecovery(
           id?: unknown;
           result?: unknown;
           hash?: unknown;
+          acknowledged?: unknown;
         } | null;
         // A record saved at the key (held, or released by the user's exit)
         // belongs to its own attempt; only none, or the settled one, lets the
@@ -1321,7 +1332,13 @@ export function createBrowserWriteRecovery(
           (raw === null || idOf(raw) === saved.id) &&
           (saved.result === "success" || saved.result === "failed") &&
           isBytes32(saved.hash)
-          ? { result: saved.result, hash: saved.hash as Hex }
+          ? {
+              result: saved.result,
+              hash: saved.hash as Hex,
+              ...(saved.acknowledged === true
+                ? { acknowledged: true as const }
+                : {}),
+            }
           : undefined;
       } catch {
         return undefined;
