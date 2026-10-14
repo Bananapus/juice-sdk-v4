@@ -77,11 +77,13 @@ function fakeHold() {
     }),
     send: vi.fn(async () => HASH),
     adopt: vi.fn(async () => answer(key)),
-    unacknowledgedSuccess: () => {
+    settlementOf: () => undefined,
+    unacknowledgedSuccess: (skip?: (hash: Hex) => boolean) => {
       const now = answer(key);
       return now.status === "clear" &&
         now.settled?.result === "success" &&
-        !now.settled.acknowledged
+        !now.settled.acknowledged &&
+        !skip?.(now.settled.hash)
         ? {
             result: "success" as const,
             hash: now.settled.hash,

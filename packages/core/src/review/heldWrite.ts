@@ -258,6 +258,8 @@ export function createHeldWriteView(
   let wasHeld = false;
   let exitedHere: string | undefined;
   const delivered = new Set<string>();
+  /** Every reservation this view saw held and hasn't delivered: each is delivered once, whatever is shown. */
+  const seen = new Set<string>();
   let following: { reservation: string; leave: () => void } | undefined;
   let running = false;
   /** Each start and stop begins a new lifecycle: a read or receipt from an earlier one is dropped. */
@@ -391,6 +393,7 @@ export function createHeldWriteView(
       const mine = wasHeld && (!reservation || reservation === observed);
       stopFollowing();
       if (next.settled && mine) {
+        seen.delete(observed!);
         deliver(next.settled, observed!);
         set({
           phase: "settled",
@@ -428,9 +431,11 @@ export function createHeldWriteView(
           exit: false,
           settled: next.settled,
         });
+      if (mine) seen.delete(observed!);
       wasHeld = false;
       observed = undefined;
       exitedHere = undefined;
+      collect();
       present();
       return;
     }
@@ -440,8 +445,21 @@ export function createHeldWriteView(
       exitedHere = undefined;
     }
     wasHeld = true;
+    seen.add(reservation);
     set(heldView(next));
     if (next.record.hash) follow(reservation);
+    collect();
+  }
+
+  /** Deliver the settlement of every other reservation this view saw held. */
+  function collect() {
+    for (const reservation of [...seen]) {
+      if (reservation === observed) continue;
+      const settled = handle.settlementOf(reservation);
+      if (!settled) continue;
+      seen.delete(reservation);
+      deliver(settled, reservation);
+    }
   }
 
   /**
@@ -456,10 +474,7 @@ export function createHeldWriteView(
   const told = new Set<string>();
   /** The gate's success, but for one this view already told the app of. */
   function gate() {
-    const success = handle.unacknowledgedSuccess();
-    return success && !told.has(success.hash.toLowerCase())
-      ? success
-      : undefined;
+    return handle.unacknowledgedSuccess((hash) => told.has(hash.toLowerCase()));
   }
 
   /**
@@ -606,7 +621,20 @@ export function createHeldWriteView(
       try {
         const hash = await handle.send(client, async (gate) => {
           unacknowledged();
-          return run(gate);
+          return run({
+            ...gate,
+            // Asked again at the reservation itself, after any lock retries.
+            async beforeSend(actualCall) {
+              unacknowledged();
+              await gate.beforeSend(actualCall);
+              try {
+                unacknowledged();
+              } catch (error) {
+                gate.onRejected();
+                throw error;
+              }
+            },
+          });
         });
         unsubscribe();
         apply(handle.peek());
@@ -626,8 +654,17 @@ export function createHeldWriteView(
     async acknowledge(): Promise<void> {
       const success = gate();
       if (view.phase !== "succeeded" || !success) return;
+      const at = epoch;
       await handle.acknowledge({ result: success.result, hash: success.hash });
-      set({ phase: "clear", line: null, settled: undefined, state: null });
+      // Only that success's presentation ends: never a newer hold or its exit.
+      if (
+        at === epoch &&
+        view.phase === "succeeded" &&
+        view.settled !== undefined &&
+        "hash" in view.settled &&
+        view.settled.hash === success.hash
+      )
+        set({ phase: "clear", line: null, settled: undefined, state: null });
       // Another success still unacknowledged is shown next.
       present();
     },

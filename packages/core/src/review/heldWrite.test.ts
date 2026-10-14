@@ -22,6 +22,7 @@ import {
   WriteHeldError,
   type WriteHoldClient,
   type WriteHoldHandle,
+  type WriteHoldSettled,
   type WriteHoldState,
 } from "./writeHold.js";
 import type { ReviewedWriteRecoveryRecord } from "./writeRecovery.js";
@@ -103,11 +104,15 @@ function fakeHandle(start: WriteHoldState = clear({ reservation: undefined })) {
     send: vi.fn(async () => HASH),
     adopt: vi.fn(async () => fake.answer),
     acknowledge: vi.fn(async () => fake.answer),
-    unacknowledgedSuccess: vi.fn(() => {
+    settlementOf: vi.fn(
+      (_reservation: string): WriteHoldSettled | undefined => undefined,
+    ),
+    unacknowledgedSuccess: vi.fn((skip?: (hash: Hex) => boolean) => {
       const now = fake.answer;
       return now.status === "clear" &&
         now.settled?.result === "success" &&
-        !now.settled.acknowledged
+        !now.settled.acknowledged &&
+        !skip?.(now.settled.hash)
         ? {
             result: "success" as const,
             hash: now.settled.hash,
@@ -1063,5 +1068,37 @@ describe("one held write's view", () => {
     await flush();
     expect(view.get().phase).toBe("confirming");
     stop();
+  });
+
+  it("asks the gate again at the reservation itself, after any lock retries", async () => {
+    const { fake, handle } = fakeHandle(clear({ reservation: undefined }));
+    fake.answer = clear({ reservation: undefined });
+    const view = createHeldWriteView(handle, { client, follow: false });
+    const onRejected = vi.fn();
+    handle.send.mockImplementationOnce((async (
+      _client: WriteHoldClient,
+      run: (gate: never) => Promise<Hex>,
+    ) =>
+      run({
+        beforeSend: async () => {
+          // While it reserved, a success was saved.
+          handle.unacknowledgedSuccess.mockReturnValue({
+            result: "success",
+            hash: HASH,
+            reservation: "r70",
+          });
+        },
+        afterSubmit: vi.fn(),
+        onRejected,
+      } as never)) as never);
+    const wallet = vi.fn(async () => HASH);
+    await expect(
+      view.send(async (gate) => {
+        await gate.beforeSend();
+        return wallet();
+      }),
+    ).rejects.toThrow(HELD_AWAY_SUCCESS_LINE);
+    expect(onRejected).toHaveBeenCalledOnce();
+    expect(wallet).not.toHaveBeenCalled();
   });
 });

@@ -6299,7 +6299,45 @@ describe("a legacy hold's success, through its intent", () => {
         },
         { legacy: [{ call: calls.A }, { call: calls.B }] },
       );
-    return { fixture, hashes, send, settle, intentHandle };
+    /** Another writer holds `key`'s lock until the returned release. */
+    const lockKey = async (key: "A" | "B") => {
+      let release!: () => void;
+      const holding = legacyOf(key)
+        .send(
+          fixture.client,
+          () => new Promise<void>((resolve) => (release = resolve)),
+        )
+        .catch(() => undefined);
+      await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+      return async () => {
+        release();
+        await holding;
+      };
+    };
+    /** `key`'s call sent with its wallet reply lost: held, no hash. */
+    const lose = (key: "A" | "B") =>
+      legacyOf(key)
+        .send(fixture.client, lostReply().send)
+        .catch(() => undefined);
+    /** Whether `key`'s saved settlement is an unacknowledged success. */
+    const unacknowledged = (key: "A" | "B") => {
+      const now = legacyOf(key).peek();
+      return (
+        now.status === "clear" &&
+        now.settled?.result === "success" &&
+        !("acknowledged" in now.settled && now.settled.acknowledged)
+      );
+    };
+    return {
+      fixture,
+      hashes,
+      send,
+      settle,
+      intentHandle,
+      lockKey,
+      lose,
+      unacknowledged,
+    };
   }
 
   it("lets a later legacy success replace a retained failure, and gates the send on it (Codex :417)", async () => {
@@ -6365,6 +6403,143 @@ describe("a legacy hold's success, through its intent", () => {
     stop();
   });
 
+  it("finds another success past one whose acknowledgement waits on a lock (Codex 1)", async () => {
+    const keys = twoKeys();
+    await keys.send("A");
+    const view = createHeldWriteView(keys.intentHandle(), {
+      client: keys.fixture.client,
+      follow: false,
+      onSettled: vi.fn(),
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    await keys.settle("A", "success");
+    // A's acknowledgement will wait for A's lock.
+    const release = await keys.lockKey("A");
+    await view.check();
+    await vi.waitFor(() => expect(view.get().phase).toBe("settled"));
+    // B succeeds between this view's reads.
+    await keys.send("B");
+    await keys.settle("B", "success");
+    await view.check();
+    expect(view.get()).toMatchObject({
+      phase: "succeeded",
+      settled: { hash: keys.hashes.B },
+    });
+    const retry = wallet(async () => OTHER);
+    await expect(view.send(retry.send)).rejects.toThrow();
+    expect(retry.write).not.toHaveBeenCalled();
+    await release();
+    stop();
+  });
+
+  it("keeps a newer hold and its exit when an acknowledgement completes (Codex 2)", async () => {
+    const keys = twoKeys();
+    await keys.send("A");
+    await keys.settle("A", "success");
+    const view = createHeldWriteView(keys.intentHandle(), {
+      client: keys.fixture.client,
+      follow: false,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("succeeded"));
+    // "Send it again", its acknowledgement waiting on A's lock.
+    const release = await keys.lockKey("A");
+    const acknowledged = view.acknowledge();
+    // Meanwhile B is held, its reply lost: the exit at once.
+    await keys.lose("B");
+    await view.check();
+    expect(view.get()).toMatchObject({ phase: "held", exit: true });
+    await release();
+    await acknowledged;
+    expect(view.get()).toMatchObject({ phase: "held", exit: true });
+    expect(view.get().state).not.toBeNull();
+    stop();
+  });
+
+  it("delivers a reservation it saw held after another becomes the one shown (Codex 3)", async () => {
+    const keys = twoKeys();
+    await keys.send("A");
+    const settled = vi.fn();
+    const view = createHeldWriteView(keys.intentHandle(), {
+      client: keys.fixture.client,
+      follow: false,
+      onSettled: settled,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    // B is held too, before A settles; then A fails.
+    await keys.send("B");
+    await keys.settle("A", "failed");
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(settled).toHaveBeenCalledWith(
+      { result: "failed", hash: keys.hashes.A },
+      expect.anything(),
+    );
+    await keys.settle("B", "failed");
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledTimes(2));
+    stop();
+  });
+
+  it("holds the gate through overlapping holds and acknowledgement contention, whatever the order", async () => {
+    let seed = 7;
+    const random = () =>
+      (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+    for (let run = 0; run < 16; run += 1) {
+      const keys = twoKeys();
+      const told = new Set<string>();
+      const view = createHeldWriteView(keys.intentHandle(), {
+        client: keys.fixture.client,
+        follow: false,
+        onSettled: (settled) => {
+          if ("hash" in settled) told.add(settled.hash.toLowerCase());
+        },
+      });
+      const stop = view.start();
+      // Both keys sent before either settles, in a random order, so their
+      // holds overlap; then each settles, in a random order.
+      const sends: ("A" | "B")[] = random() < 0.5 ? ["A", "B"] : ["B", "A"];
+      const settles: ("A" | "B")[] = random() < 0.5 ? ["A", "B"] : ["B", "A"];
+      for (const key of sends) {
+        await keys.send(key);
+        if (random() < 0.5) await view.check();
+      }
+      const releases: (() => Promise<void>)[] = [];
+      for (const key of settles) {
+        await keys.settle(key, random() < 0.5 ? "success" : "failed");
+        // Sometimes another writer holds a key's lock: acknowledgements wait.
+        if (random() < 0.5 && releases.length === 0)
+          releases.push(await keys.lockKey(key));
+        await view.check();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        // The gate holds while any saved success is unacknowledged and was
+        // never told to the app by this view.
+        const owed = (["A", "B"] as const).some(
+          (each) =>
+            keys.unacknowledged(each) &&
+            !told.has(keys.hashes[each].toLowerCase()),
+        );
+        if (owed) {
+          const retry = wallet(async () => OTHER);
+          await expect(view.send(retry.send)).rejects.toThrow();
+          expect({ run, key, written: retry.write.mock.calls.length }).toEqual({
+            run,
+            key,
+            written: 0,
+          });
+          // A hold still shown comes first; with none, "Send it again".
+          if (view.get().state?.status === "clear")
+            expect(view.get().phase).toBe("succeeded");
+        }
+        if (random() < 0.5) await releases.shift()?.();
+      }
+      for (const release of releases) await release();
+      stop();
+    }
+  });
+
   it("holds the gate whenever any success is unacknowledged, whatever the order of events", async () => {
     // A small seeded generator: the same sequences every run.
     let seed = 42;
@@ -6424,6 +6599,7 @@ describe("a legacy hold's success, through its intent", () => {
       result: "success",
       hash: HASH,
     });
+    expect(handle.settlementOf("no-such-reservation")).toBeUndefined();
   });
 
   it("blocks on a legacy reservation made at the same moment as the intent's", async () => {

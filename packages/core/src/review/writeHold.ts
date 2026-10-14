@@ -1604,15 +1604,27 @@ export function createWriteHold(
        * The send gate's evidence for this key: its saved success, while no
        * record is held and the user hasn't acknowledged it. Pure, from storage.
        */
-      unacknowledgedSuccess(): UnacknowledgedSuccess | undefined {
+      unacknowledgedSuccess(
+        /** A success to look past (one a view already told, its acknowledgement under way). */
+        skip?: (hash: Hex) => boolean,
+      ): UnacknowledgedSuccess | undefined {
         if (recovery.read()) return undefined;
         const settled = recovery.settled();
-        return settled?.result === "success" && !settled.acknowledged
+        return settled?.result === "success" &&
+          !settled.acknowledged &&
+          !skip?.(settled.hash)
           ? {
               result: "success",
               hash: settled.hash,
               reservation: recovery.latestReservation(),
             }
+          : undefined;
+      },
+      /** How `reservation` settled, if it is this key's latest and settled. */
+      settlementOf(reservation: string): WriteHoldSettled | undefined {
+        const now = peek();
+        return now.status === "clear" && now.reservation === reservation
+          ? now.settled
           : undefined;
       },
       /**
@@ -2119,21 +2131,37 @@ export function createWriteHold(
        * The send gate: any unacknowledged success, the intent's own or an
        * eligible legacy hold's. Pure, from storage, whatever a view shows.
        */
-      unacknowledgedSuccess(): UnacknowledgedSuccess | undefined {
-        const mine = own.unacknowledgedSuccess();
+      unacknowledgedSuccess(
+        skip?: (hash: Hex) => boolean,
+      ): UnacknowledgedSuccess | undefined {
+        // Every eligible success is considered: one looked past never hides
+        // another.
+        const mine = own.unacknowledgedSuccess(skip);
         if (mine) return mine;
         for (const { state } of eligibleLegacy()) {
           const settled = state.settled!;
           if (
             settled.result === "success" &&
             "hash" in settled &&
-            !settled.acknowledged
+            !settled.acknowledged &&
+            !skip?.(settled.hash)
           )
             return {
               result: "success",
               hash: settled.hash,
               reservation: state.reservation,
             };
+        }
+        return undefined;
+      },
+      /**
+       * How a reservation this intent stood for settled, on its own key or a
+       * legacy one, whichever hold is shown now.
+       */
+      settlementOf(reservation: string): WriteHoldSettled | undefined {
+        for (const handle of [own, ...delegates]) {
+          const settled = handle.settlementOf(reservation);
+          if (settled) return settled;
         }
         return undefined;
       },
