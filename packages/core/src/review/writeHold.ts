@@ -425,7 +425,7 @@ export function createWriteHold(
           hash: receipt.transactionHash.toLowerCase() as Hex,
         };
         // Kept for any later reader: another tab, a reload, a follow timer.
-        recovery.markSettled(settled);
+        recovery.markSettled(record, settled);
         return clear(settled);
       }
       if (

@@ -87,6 +87,9 @@ function browser() {
 afterEach(() => vi.unstubAllGlobals());
 
 const legacyInput = input;
+/** Saved records only: not the call's latest-reservation or settlement keys. */
+const records = (values: Map<string, string>) =>
+  [...values].filter(([key]) => !/:(latest|settled)$/.test(key));
 /** When the wallet returned a hash. */
 const AT = expect.stringMatching(/^\d+$/);
 function ordinaryRecovery(namespace?: string) {
@@ -246,7 +249,7 @@ function ordinaryRecovery(namespace?: string) {
       journal.rejected();
       expect(journal.read()).toBeNull();
       const reserved = journal.reserve();
-      const [key] = options.values.keys();
+      const [[key]] = records(options.values);
       options.values.set(
         key,
         JSON.stringify({ ...reserved, id: "other-attempt" }),
@@ -387,7 +390,7 @@ function ordinaryRecovery(namespace?: string) {
     const known = current.read()!;
     expect(known).toEqual({ ...reserved, hash: PROPOSAL, submittedAt: AT });
     expect(createBrowserWriteRecovery(input, options).read()).toEqual(known);
-    expect(JSON.parse([...options.values.values()][0])).toEqual(reserved);
+    expect(JSON.parse(records(options.values)[0][1])).toEqual(reserved);
     await current.withLock(async () => {
       current.submitted(PROPOSAL, known);
       current.clear(known);
@@ -462,7 +465,7 @@ function ordinaryRecovery(namespace?: string) {
       hash: PROPOSAL,
       submittedAt: AT,
     });
-    expect(JSON.parse([...options.values.values()][0])).toEqual(reserved);
+    expect(JSON.parse(records(options.values)[0][1])).toEqual(reserved);
   });
 
   it("cleans only its own partial pre-wallet marker after readback failure", async () => {
@@ -990,7 +993,7 @@ describe("stable action namespace and read-only opener", () => {
     const options = browser();
     const journal = createBrowserWriteRecovery(input, options);
     const reserved = await journal.withLock(async () => journal.reserve());
-    expect([...options.values.keys()]).toEqual([
+    expect(records(options.values).map(([key]) => key)).toEqual([
       `nana-sdk:reviewed-write:v2:10:${ACCOUNT}:${TARGET}:17:${keccak256(input.call.data)}`,
     ]);
     expect(reserved).not.toHaveProperty("namespace");
@@ -1029,7 +1032,7 @@ describe("stable action namespace and read-only opener", () => {
       a.reserve();
       await b.withLock(async () => b.reserve());
     });
-    expect(options.values.size).toBe(2);
+    expect(records(options.values)).toHaveLength(2);
     expect(readBrowserWriteRecovery(lookup, options)?.namespace).toBe(
       namespace,
     );
@@ -1747,59 +1750,80 @@ describe("tabs without Web Locks", () => {
 });
 
 describe("a write's saved settlement", () => {
-  it("is saved under the lock, read back exactly, ignored when malformed and dropped on the next reservation", async () => {
+  it("is read only for the call's latest reservation, exactly, and ignored when malformed", async () => {
     const options = browser();
     const journal = createBrowserWriteRecovery(input, options);
     expect(journal.settled()).toBeUndefined();
+    const first = await journal.withLock(async () => journal.reserve());
     expect(() =>
-      journal.markSettled({ result: "success", hash: HASH }),
+      journal.markSettled(first, { result: "success", hash: HASH }),
     ).toThrow("browser lock");
-    await journal.withLock(async () =>
-      journal.markSettled({
+    await journal.withLock(async () => {
+      journal.clear(first);
+      journal.markSettled(first, {
         result: "failed",
         hash: HASH.toUpperCase().replace("0X", "0x") as Hex,
-      }),
-    );
+      });
+    });
     expect(journal.settled()).toEqual({ result: "failed", hash: HASH });
     const [key] = [...options.values.keys()].filter((k) =>
       k.endsWith(":settled"),
     );
-    expect(JSON.parse(options.values.get(key)!)).toMatchObject({
+    const saved = options.values.get(key)!;
+    expect(JSON.parse(saved)).toMatchObject({
+      id: first.id,
       at: expect.any(Number),
     });
     for (const bad of [
       "{",
-      JSON.stringify({ result: "ran", hash: HASH }),
-      JSON.stringify({ result: "success", hash: "0x12" }),
+      JSON.stringify({ id: first.id, result: "ran", hash: HASH }),
+      JSON.stringify({ id: first.id, result: "success", hash: "0x12" }),
+      JSON.stringify({ result: "success", hash: HASH }),
     ]) {
       options.values.set(key, bad);
       expect(journal.settled()).toBeUndefined();
     }
-    // A failed save leaves none, and never throws.
+    options.values.set(key, saved);
+    // A failed save keeps the one already there, and never throws.
     options.storage.setItem.mockImplementationOnce(() => {
       throw new Error("full");
     });
-    options.values.delete(key);
     await journal.withLock(async () =>
-      journal.markSettled({ result: "success", hash: HASH }),
+      journal.markSettled(first, { result: "success", hash: HASH }),
     );
+    expect(journal.settled()).toEqual({ result: "failed", hash: HASH });
+    // A new reservation is the latest: the old settlement reads as none,
+    // even though it was never removed.
+    await journal.withLock(async () => journal.reserve());
+    expect(options.values.get(key)).toBe(saved);
+    await journal.withLock(async () => journal.rejected());
+    expect(journal.read()).toBeNull();
     expect(journal.settled()).toBeUndefined();
-    await journal.withLock(async () =>
-      journal.markSettled({ result: "success", hash: HASH }),
-    );
+  });
+
+  it("drops the old settlement when the latest reservation can't be saved", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(input, options);
+    const first = await journal.withLock(async () => journal.reserve());
+    await journal.withLock(async () => {
+      journal.clear(first);
+      journal.markSettled(first, { result: "success", hash: HASH });
+    });
+    const write = options.storage.setItem.getMockImplementation()!;
+    options.storage.setItem.mockImplementation((k: string, v: string) => {
+      if (k.endsWith(":latest")) throw new Error("refused");
+      write(k, v);
+    });
     await journal.withLock(async () => journal.reserve());
     expect(journal.settled()).toBeUndefined();
-    // A settlement that can't be removed doesn't stop the reservation.
+    // Neither saved nor removed: the reservation still goes ahead.
+    options.storage.removeItem.mockImplementationOnce(() => {
+      throw new Error("refused");
+    });
     const other = createBrowserWriteRecovery(
       { ...input, call: { ...input.call, value: 1n } },
       options,
     );
-    await other.withLock(async () =>
-      other.markSettled({ result: "success", hash: HASH }),
-    );
-    options.storage.removeItem.mockImplementationOnce(() => {
-      throw new Error("refused");
-    });
     await expect(
       other.withLock(async () => other.reserve()),
     ).resolves.toMatchObject({ version: 1 });

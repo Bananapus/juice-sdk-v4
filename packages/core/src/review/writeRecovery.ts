@@ -641,6 +641,7 @@ export function createBrowserWriteRecovery(
   const reviewed = normalized(input);
   const key = scope(reviewed);
   const settledKey = `${key}:settled`;
+  const latestKey = `${key}:latest`;
   const legacyKey =
     reviewed.namespace === undefined ? legacyScope(reviewed) : undefined;
   let owned: ReviewedWriteRecoveryRecord | undefined;
@@ -920,11 +921,16 @@ export function createBrowserWriteRecovery(
         } catch {
           /* A leftover marker names only the old record. */
         }
-      // This write replaces the call's last settlement.
+      // This reservation is the call's latest: a settlement of an earlier one
+      // is no longer read. Kept after a rejection or exit.
       try {
-        store.removeItem(settledKey);
+        store.setItem(latestKey, JSON.stringify({ id: record.id }));
       } catch {
-        /* A stale settlement is read only while nothing is held. */
+        try {
+          store.removeItem(settledKey);
+        } catch {
+          /* Neither saved: an earlier settlement may still be read. */
+        }
       }
       return recordOf(record);
     },
@@ -942,12 +948,16 @@ export function createBrowserWriteRecovery(
      * tab, a reload. The next reservation replaces it. Extra evidence: a
      * failed save keeps none.
      */
-    markSettled(settlement: ReviewedWriteSettlement): void {
+    markSettled(
+      expected: ReviewedWriteRecoveryRecord,
+      settlement: ReviewedWriteSettlement,
+    ): void {
       requireLock();
       try {
         storage().setItem(
           settledKey,
           JSON.stringify({
+            id: expected.id,
             result: settlement.result,
             hash: settlement.hash.toLowerCase(),
             at: Date.now(),
@@ -957,14 +967,25 @@ export function createBrowserWriteRecovery(
         /* Only the settling caller learns it. */
       }
     },
-    /** How the call's last write ended, if {@link markSettled} saved it. */
+    /**
+     * How the call's last write ended, if {@link markSettled} saved it for
+     * the call's latest reservation; a settlement of an earlier one reads as
+     * none, wherever it was kept.
+     */
     settled(): ReviewedWriteSettlement | undefined {
       try {
-        const saved = JSON.parse(storage().getItem(settledKey) ?? "null") as {
+        const store = storage();
+        const latest = JSON.parse(store.getItem(latestKey) ?? "null") as {
+          id?: unknown;
+        } | null;
+        const saved = JSON.parse(store.getItem(settledKey) ?? "null") as {
+          id?: unknown;
           result?: unknown;
           hash?: unknown;
         } | null;
         return saved &&
+          typeof saved.id === "string" &&
+          saved.id === latest?.id &&
           (saved.result === "success" || saved.result === "failed") &&
           isBytes32(saved.hash)
           ? { result: saved.result, hash: saved.hash as Hex }

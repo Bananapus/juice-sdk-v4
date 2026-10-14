@@ -389,7 +389,9 @@ describe("write hold storage", () => {
     // Storage comes back: the next read in this tab moves the hold there.
     browser.state.write = true;
     expect(first.hold.open(ordinary).peek().status).toBe("held-no-hash");
-    expect(first.memory.size).toBe(0);
+    expect(
+      [...first.memory.keys()].filter((k) => !k.endsWith(":latest")),
+    ).toEqual([]);
     // A reload (a new tab memory) still sees it, and refuses a second send.
     const reloaded = setup({ browser });
     const again = wallet(async () => HASH);
@@ -559,7 +561,9 @@ describe("a held write", () => {
       line: WRITE_HOLD_PENDING_LINE,
       record: { nonce: "7", fromBlock: "100" },
     });
-    expect([...browser.values.keys()]).toHaveLength(1);
+    expect(
+      [...browser.values.keys()].filter((k) => !k.endsWith(":latest")),
+    ).toHaveLength(1);
     chain.txs.push(sent(HASH, { block: 95n }));
     await expect(
       handle.onReceipt(receiptOf(chain.txs[0]), client),
@@ -1588,7 +1592,9 @@ describe("a held write", () => {
     const hold = createWriteHold();
     expect(hold.durable()).toBe(true);
     await hold.open(ordinary).send(client, wallet(async () => HASH).send);
-    expect(browser.values.size).toBe(1);
+    expect(
+      [...browser.values.keys()].filter((k) => !k.endsWith(":latest")),
+    ).toHaveLength(1);
     await expect(hold.open(ordinary).state(client)).resolves.toMatchObject({
       status: "pending-known-hash",
     });
@@ -1852,6 +1858,104 @@ describe("a held write's settlement", () => {
     expect(shown.status).toBe("held-no-hash");
     await handle.exit(shown, { checkedWallet: true }, client);
     await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+  });
+
+  const lostReply = () =>
+    wallet(async () => {
+      throw new Error("reply lost");
+    });
+
+  it("never brings an older settlement back after a newer reservation's exit, even when its removal was refused", async () => {
+    const browser = origin();
+    const { hold, locks } = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(handle.peek()).toEqual(success);
+    // Codex: the old settlement can't be removed when B is reserved.
+    const remove = browser.storage.removeItem;
+    browser.storage.removeItem = (key: string) => {
+      if (key.endsWith(":settled")) throw new Error("refused");
+      remove(key);
+    };
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    const shown = await handle.state(client);
+    await expect(
+      handle.exit(shown, { checkedWallet: true }, client),
+    ).resolves.toEqual({ released: true, state: { status: "clear" } });
+    expect(handle.peek()).toEqual({ status: "clear" });
+    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    // After a reload too.
+    const reloaded = setup({ browser, locks }).hold.open(ordinary);
+    expect(reloaded.peek()).toEqual({ status: "clear" });
+    await expect(reloaded.state(client)).resolves.toEqual({ status: "clear" });
+  });
+
+  it("never lets a tab's older settlement kept in memory replace another tab's newer one", async () => {
+    const browser = origin();
+    // Codex: tab A's settlement save falls back to its memory.
+    let refuseSettled = true;
+    const durable = {
+      getItem: (key: string) => browser.storage.getItem(key),
+      setItem: (key: string, value: string) => {
+        if (refuseSettled && key.endsWith(":settled"))
+          throw new Error("QuotaExceededError");
+        browser.storage.setItem(key, value);
+      },
+      removeItem: (key: string) => browser.storage.removeItem(key),
+    };
+    const memoryA = new Map<string, string>();
+    const tabA = setup({
+      storage: createHeldWriteStorage({
+        durable: () => durable,
+        memory: memoryA,
+      }),
+    });
+    const tabB = setup({ browser, locks: tabA.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    await tabA.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await tabA.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    expect([...memoryA.keys()].some((key) => key.endsWith(":settled"))).toBe(
+      true,
+    );
+    // Tab B reserves and settles B.
+    refuseSettled = false;
+    await tabB.hold.open(ordinary).send(client, wallet(async () => OTHER).send);
+    chain.txs.push(sent(OTHER, { nonce: 8, block: 96n }));
+    const settledB = {
+      status: "clear",
+      settled: { result: "success", hash: OTHER },
+    };
+    await expect(
+      tabB.hold.open(ordinary).onReceipt(receiptOf(chain.txs[1]), client),
+    ).resolves.toEqual(settledB);
+    // Tab A's writes recover: its read must not replace B's settlement.
+    expect(tabA.hold.open(ordinary).peek()).toEqual(settledB);
+    await expect(tabB.hold.open(ordinary).state(client)).resolves.toEqual(
+      settledB,
+    );
+    expect(tabB.hold.open(ordinary).peek()).toEqual(settledB);
+  });
+
+  it("brings no old settlement back after an exit and a reload", async () => {
+    const browser = origin();
+    const { hold, locks } = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    const shown = await handle.state(client);
+    await handle.exit(shown, { checkedWallet: true }, client);
+    for (let reload = 0; reload < 2; reload += 1) {
+      const again = setup({ browser, locks }).hold.open(ordinary);
+      expect(again.peek()).toEqual({ status: "clear" });
+      await expect(again.state(client)).resolves.toEqual({ status: "clear" });
+    }
   });
 
   it("holds within the tab while storage is refused", async () => {
