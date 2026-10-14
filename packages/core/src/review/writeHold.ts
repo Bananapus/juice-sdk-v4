@@ -24,6 +24,7 @@ import {
   WRITE_HOLD_UNCHECKED_LINE,
   WRITE_HOLD_REVERTED_LINE,
   WRITE_HOLD_SAFE_REPLACED_LINE,
+  WRITE_HOLD_SAFE_UNPROVEN_LINE,
   writeHeldMessage,
 } from "./messages.js";
 import {
@@ -89,6 +90,9 @@ type Held<S extends string, Extra> = {
  *   the executor's, for an execution returned at once). It may have run the
  *   call too, so it is never released on its own: the exit is offered at
  *   once, with its `warning`;
+ * - `safe-unproven`: the app's Safe follower ended without proof
+ *   ({@link WriteHoldHandle.onUnproven}). The exit is offered at once, with
+ *   its `warning`; authenticated evidence that arrives later still settles it;
  * - `looks-done`: the app's effect read shows the call took effect. Nothing
  *   is released on that alone: its line says so, and the exit is offered at
  *   once (with the `warning` when it has a hash);
@@ -106,6 +110,7 @@ export type WriteHoldState =
     >
   | Held<"held-unchecked", { hash: Hex; exit: true; warning: string }>
   | Held<"safe-replaced", { hash: Hex; exit: true; warning: string }>
+  | Held<"safe-unproven", { hash: Hex; exit: true; warning: string }>
   | Held<"looks-done", { hash?: Hex; exit: true; warning?: string }>
   | Held<
       "ran-executed",
@@ -180,6 +185,18 @@ function safeReplaced(record: ReviewedWriteRecoveryRecord): WriteHoldState {
   };
 }
 
+/** A Safe write whose follower ended without proof: the exit at once. */
+function safeUnproven(record: ReviewedWriteRecoveryRecord): WriteHoldState {
+  return {
+    status: "safe-unproven",
+    record,
+    hash: record.hash!,
+    exit: true,
+    line: WRITE_HOLD_SAFE_UNPROVEN_LINE,
+    warning: WRITE_HOLD_HASHED_EXIT_LINE,
+  };
+}
+
 function unchecked(record: ReviewedWriteRecoveryRecord): WriteHoldState {
   return {
     status: "held-unchecked",
@@ -237,6 +254,7 @@ function classify(record: ReviewedWriteRecoveryRecord | null): WriteHoldState {
   if (!record) return clear();
   if (record.replaced) return safeReplaced(record);
   if (record.executed) return ranExecuted(record);
+  if (record.unproven) return safeUnproven(record);
   if (!record.hash)
     return {
       status: "held-no-hash",
@@ -383,6 +401,23 @@ export function createWriteHold(
       ) {
         follow(client, record.id);
         return ranExecuted(record, record.hash, "failed");
+      }
+      // An authenticated Safe failure that isn't final yet: saved, never an exit.
+      // (A verified success has already settled above.)
+      const ran =
+        record.safe &&
+        (await verifyReviewedWriteReceipt(
+          client as never,
+          record,
+          receipt,
+          proof,
+          { finality: false },
+        ).catch(() => null));
+      if (ran === "failed") {
+        const hash = receipt.transactionHash.toLowerCase() as Hex;
+        const saved = recovery.executed(record, hash);
+        follow(client, saved.id);
+        return ranExecuted(saved, hash, "failed");
       }
       if (record.executed) follow(client, record.id);
       return classify(recovery.read());
@@ -535,6 +570,7 @@ export function createWriteHold(
       }
       if (
         !record.executed &&
+        !record.unproven &&
         record.safeNonce === undefined &&
         unseenTooLong(record)
       )
@@ -768,6 +804,29 @@ export function createWriteHold(
           )
             return classify(record);
           return settle(record, receipt, client, proof);
+        }, true);
+        return shown(result?.value ?? peek());
+      },
+      /**
+       * The app's Safe follower ended without proof (its watch gave up, or
+       * the service lost the proposal). `proposalHash`, when given, must name
+       * the held one. It is held with the exit at once, through reloads;
+       * authenticated evidence that arrives later still settles it.
+       */
+      async onUnproven(
+        client: WriteHoldClient,
+        proposalHash?: Hex,
+      ): Promise<WriteHoldState> {
+        const result = await locked(async () => {
+          const record = recovery.read();
+          if (
+            record?.safe &&
+            record.hash &&
+            (proposalHash === undefined ||
+              proposalHash.toLowerCase() === record.hash)
+          )
+            recovery.unprovenEnd(record);
+          return inspect(client);
         }, true);
         return shown(result?.value ?? peek());
       },

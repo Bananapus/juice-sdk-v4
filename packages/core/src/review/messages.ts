@@ -110,3 +110,7 @@ export const WRITE_HOLD_SAFE_REPLACED_LINE =
 /** A held write the app's effect read shows done. Nothing is released on that alone; the exit is offered. */
 export const WRITE_HOLD_LOOKS_DONE_LINE =
   "This looks done. Check your wallet, then continue.";
+
+/** A held Safe write whose follower ended without proof. The exit is offered. */
+export const WRITE_HOLD_SAFE_UNPROVEN_LINE =
+  "This Safe transaction couldn't be confirmed here. Check your Safe, then send again.";

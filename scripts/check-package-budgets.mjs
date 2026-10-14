@@ -198,8 +198,12 @@ const budgets = {
     // and that nonce bound only from the saved hash's own transaction) left
     // the measure at the edge (1,422,125 B packed / 21,590,464 B unpacked,
     // 818 entries); this margin gives the next fix room.
-    packed: 1_426_000,
-    unpacked: 21_600_000,
+    // Recording a Safe follower's unproven end (onUnproven, the
+    // safe-unproven state and its line) and the 2.32.0 changelog entry
+    // change existing artifacts only. Measured 1,423,114 B packed /
+    // 21,600,393 B unpacked and 818 entries.
+    packed: 1_428_000,
+    unpacked: 21_612_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

@@ -63,6 +63,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
   sentFrom?: Address;
   /** Another Safe transaction used this Safe write's nonce: held for the user's exit, never released on its own. */
   replaced?: true;
+  /** The app's Safe follower ended without proof: held for the user's exit, unless evidence settles it. */
+  unproven?: true;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -155,6 +157,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.firstSeenAt) ||
     !optionalDecimal(record.safeNonce) ||
     (record.replaced !== undefined && record.replaced !== true) ||
+    (record.unproven !== undefined && record.unproven !== true) ||
     (record.sentFrom !== undefined &&
       !isAddress(record.sentFrom, { strict: false })) ||
     (record.executed !== undefined && record.executed !== true) ||
@@ -185,6 +188,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       ? {}
       : { sentFrom: record.sentFrom.toLowerCase() as Address }),
     ...(record.replaced ? { replaced: true as const } : {}),
+    ...(record.unproven ? { unproven: true as const } : {}),
     ...(record.executed ? { executed: true as const } : {}),
     ...(record.executionHash === undefined
       ? {}
@@ -967,6 +971,23 @@ export function createBrowserWriteRecovery(
       });
     },
     /**
+     * Save that the app's follower of this Safe write ended without proof.
+     * A proven execution or replacement keeps its own state.
+     */
+    unprovenEnd(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(
+        expected,
+        (current) =>
+          current.safe &&
+          !current.executed &&
+          !current.replaced &&
+          !current.unproven,
+        { unproven: true },
+      );
+    },
+    /**
      * Save a Safe proposal's nonce from its authenticated record, once. Extra
      * evidence: a stale snapshot or a failed save keeps the record as it was.
      */
@@ -1332,7 +1353,8 @@ export type ReviewedWriteReceiptClient = {
  * Ordinary wallet wrappers are allowed: the wallet's returned hash binds their
  * execution. A wallet-returned Safe proposal hash authenticates its execution
  * event even through a wrapper; an immediate execution hash additionally needs
- * exact reviewed calldata. A failure releases only after finality.
+ * exact reviewed calldata. A failure releases only after finality;
+ * `finality: false` authenticates a canonical failure before it is final.
  * Throws on missing or inconsistent evidence; the caller retains its record.
  */
 export async function verifyReviewedWriteReceipt(
@@ -1343,6 +1365,7 @@ export async function verifyReviewedWriteReceipt(
     calls: readonly ReviewedWriteRecoveryInput["call"][];
     batch?: boolean;
   },
+  { finality = true }: { finality?: boolean } = {},
 ): Promise<"success" | "failed"> {
   const record = recordOf(saved);
   const pending = () =>
@@ -1442,7 +1465,7 @@ export async function verifyReviewedWriteReceipt(
       block.hash?.toLowerCase() === canonical.blockHash.toLowerCase()
     );
   };
-  if (status === "failed") {
+  if (status === "failed" && finality) {
     const finalized = await atCanonicalFinalizedBlock(
       client,
       async (number) =>
