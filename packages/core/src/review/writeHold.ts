@@ -268,8 +268,15 @@ function unchecked(record: ReviewedWriteRecoveryRecord): WriteHoldState {
 /** About an hour of polls; a later state() looks again. */
 const SETTLE_POLL_ATTEMPTS = 240;
 
-function clear(settled?: WriteHoldSettled): WriteHoldState {
-  return settled ? { status: "clear", settled } : { status: "clear" };
+function clear(
+  settled?: WriteHoldSettled,
+  reservation?: string,
+): WriteHoldState {
+  return {
+    status: "clear",
+    ...(settled ? { settled } : {}),
+    ...(reservation === undefined ? {} : { reservation }),
+  };
 }
 
 function ranExecuted(
@@ -377,61 +384,11 @@ export function createWriteHold(
     globalThis.addEventListener("storage", onStorage);
   }
 
-  /**
-   * `legacy`: for a write held under an intent namespace, the keys an earlier
-   * version held it under: old namespaces, or exact calls. The current exact
-   * call is always checked. An unresolved hold found there is moved into the
-   * intent under the lock, its evidence and exit kept, or refuses the send.
-   */
-  function open(
-    call: ReviewedWriteRecoveryInput,
-    {
-      legacy = [],
-    }: {
-      legacy?: (string | { call: ReviewedWriteRecoveryInput["call"] })[];
-    } = {},
-  ) {
+  function openOne(call: ReviewedWriteRecoveryInput) {
     const recovery = createBrowserWriteRecovery(call, {
       storage,
       locks: options.locks,
     });
-    const legacyJournals =
-      call.namespace === undefined
-        ? []
-        : [{ call: call.call }, ...legacy].map((source) =>
-            createBrowserWriteRecovery(
-              typeof source === "string"
-                ? { ...call, namespace: source }
-                : { ...call, namespace: undefined, call: source.call },
-              { storage, locks: options.locks },
-            ),
-          );
-    /**
-     * Move an unresolved legacy hold into this intent, under both locks; or
-     * the legacy hold's own state when it can't be moved. Never a release.
-     */
-    async function adoptLegacy(): Promise<WriteHoldState | null> {
-      if (recovery.read()) return null;
-      for (const journal of legacyJournals) {
-        const outcome = await journal.withLock(async () => {
-          const held = journal.read();
-          if (!held) return undefined;
-          try {
-            recovery.adopt(held);
-          } catch {
-            return ungated(classify(held));
-          }
-          try {
-            journal.handOff(held);
-          } catch {
-            /* Held in both places: never released. */
-          }
-          return null;
-        }, true);
-        if (outcome !== undefined) return outcome;
-      }
-      return null;
-    }
     // The canonical recovery scope: a namespace and an exact call never share it.
     const key = recovery.scopeKey;
     /** The effect read the last state() was given: the exit asks it again. */
@@ -440,6 +397,7 @@ export function createWriteHold(
     const cleared = () => clear(recovery.settled());
     /** Every state leaves with the reservation it belongs to. */
     const tagged = (state: WriteHoldState): WriteHoldState => {
+      if (state.reservation !== undefined) return state;
       const reservation =
         state.status === "clear"
           ? recovery.latestReservation()
@@ -518,7 +476,7 @@ export function createWriteHold(
         };
         // Kept for any later reader: another tab, a reload, a follow timer.
         recovery.markSettled(record, settled);
-        return clear(settled);
+        return clear(settled, record.id);
       }
       if (
         !record.safe &&
@@ -810,7 +768,8 @@ export function createWriteHold(
           record,
           options.safeService,
         ).catch(() => false);
-        if (expired && release(record)) return clear({ result: "expired" });
+        if (expired && release(record))
+          return clear({ result: "expired" }, record.id);
       }
       if (end.look === "executed") {
         if (
@@ -833,7 +792,7 @@ export function createWriteHold(
             hash: end.execution.executionHash,
           };
           recovery.markSettled(record, settled);
-          return clear(settled);
+          return clear(settled, record.id);
         }
       }
       if (
@@ -984,10 +943,7 @@ export function createWriteHold(
       checks: { effect?: (chainId: number) => Promise<boolean> } = {},
     ): Promise<WriteHoldState> {
       lastEffect = checks.effect;
-      const result = await locked(
-        async () => (await adoptLegacy()) ?? inspect(client, checks.effect),
-        false,
-      );
+      const result = await locked(() => inspect(client, checks.effect), false);
       return shown(result ? result.value : peek());
     }
 
@@ -1013,9 +969,10 @@ export function createWriteHold(
           const now = peek();
           // A clear is compared by its settlement's identity, a hold by its record.
           const identity = (state: WriteHoldState) =>
-            JSON.stringify(
+            JSON.stringify([
+              state.reservation ?? null,
               state.status === "clear" ? (state.settled ?? null) : state.record,
-            );
+            ]);
           listener(ungated(identity(now) === identity(last) ? last : now));
         }
         return () => {
@@ -1093,7 +1050,7 @@ export function createWriteHold(
           },
         };
         const result = await locked(async () => {
-          const now = shown((await adoptLegacy()) ?? (await inspect(client)));
+          const now = shown(await inspect(client));
           if (now.status !== "clear") throw new WriteHeldError(now);
           return run(gate);
         }, false);
@@ -1133,7 +1090,10 @@ export function createWriteHold(
               state: await finish(classify(recovery.read()), client),
             };
           }
-          return { released: true, state: clear() };
+          return {
+            released: true,
+            state: clear(undefined, snapshot.record.id),
+          };
         }, true);
         const ended = result?.value ?? { released: false, state: peek() };
         return { ...ended, state: shown(ended.state) };
@@ -1271,6 +1231,110 @@ export function createWriteHold(
     };
   }
 
+  /**
+   * `legacy`: for a write held under an intent namespace, the keys an earlier
+   * version held it under (an old namespace, or `{ call }` for an exact
+   * call); the current exact call is always checked. While any of them holds
+   * an unresolved write, the intent handle *is* that hold: its state, its
+   * refusal and its own exit, in place. Each is checked alone, under its own
+   * lock only, never two at once. Only when all are clear does the intent's
+   * own record apply, and only then can a send reserve; they are checked
+   * again right before it does.
+   */
+  function open(
+    call: ReviewedWriteRecoveryInput,
+    {
+      legacy = [],
+    }: {
+      legacy?: (string | { call: ReviewedWriteRecoveryInput["call"] })[];
+    } = {},
+  ) {
+    const own = openOne(call);
+    if (call.namespace === undefined) return own;
+    const { namespace: _, ...exact } = call;
+    const scopeOf = (input: ReviewedWriteRecoveryInput) =>
+      createBrowserWriteRecovery(input, { storage }).scopeKey;
+    const scopes = new Set([scopeOf(call)]);
+    const delegates = [{ call: call.call }, ...legacy]
+      .map((source) =>
+        typeof source === "string"
+          ? { ...call, namespace: source }
+          : { ...exact, call: source.call },
+      )
+      .filter((input) => {
+        const scope = scopeOf(input);
+        return !scopes.has(scope) && !!scopes.add(scope);
+      })
+      .map(openOne);
+    /** The legacy hold the intent stands for right now, from storage alone. */
+    const active = () =>
+      delegates.find((handle) => handle.peek().status !== "clear");
+    /** The first legacy key holding an unresolved write, through its own gate. */
+    async function delegated(
+      client: WriteHoldClient,
+    ): Promise<WriteHeldState | null> {
+      for (const handle of delegates) {
+        const state = await handle.state(client);
+        if (state.status !== "clear") return state;
+      }
+      return null;
+    }
+    return {
+      ...own,
+      peek: () => active()?.peek() ?? own.peek(),
+      async state(
+        client: WriteHoldClient,
+        checks?: { effect?: (chainId: number) => Promise<boolean> },
+      ): Promise<WriteHoldState> {
+        return (await delegated(client)) ?? own.state(client, checks);
+      },
+      async send<T>(
+        client: WriteHoldClient,
+        run: (gate: WriteHoldGate) => Promise<T>,
+      ): Promise<T> {
+        const held = await delegated(client);
+        if (held) throw new WriteHeldError(held);
+        return own.send(client, (gate) =>
+          run({
+            ...gate,
+            async beforeSend(actualCall) {
+              // Checked again right before the reservation.
+              const now = active()?.peek();
+              if (now && now.status !== "clear") throw new WriteHeldError(now);
+              return gate.beforeSend(actualCall);
+            },
+          }),
+        );
+      },
+      async exit(
+        snapshot: WriteHoldState,
+        acknowledgement: { checkedWallet: true },
+        client: WriteHoldClient,
+      ): Promise<{ released: boolean; state: WriteHoldState }> {
+        const owner =
+          snapshot.status === "clear"
+            ? undefined
+            : delegates.find((handle) => {
+                const now = handle.peek();
+                return (
+                  now.status !== "clear" && now.record.id === snapshot.record.id
+                );
+              });
+        if (owner) return owner.exit(snapshot, acknowledgement, client);
+        const held = await delegated(client);
+        if (held) return { released: false, state: held };
+        return own.exit(snapshot, acknowledgement, client);
+      },
+      onReceipt: (...args: Parameters<typeof own.onReceipt>) =>
+        (active() ?? own).onReceipt(...args),
+      onUnproven: (...args: Parameters<typeof own.onUnproven>) =>
+        (active() ?? own).onUnproven(...args),
+      onExecuted: (...args: Parameters<typeof own.onExecuted>) =>
+        (active() ?? own).onExecuted(...args),
+      attachHash: (...args: Parameters<typeof own.attachHash>) =>
+        (active() ?? own).attachHash(...args),
+    };
+  }
   return {
     open,
     /** Whether holds outlive this tab right now. */

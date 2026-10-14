@@ -63,22 +63,6 @@ const ordinary: ReviewedWriteRecoveryInput = {
   call: { to: TARGET, data: DATA, value: 17n },
 };
 
-// Every state carries its reservation id. The tests written before that
-// compare states without it; the reservation tests below assert it.
-expect.addEqualityTesters([
-  function ignoreUnassertedReservation(a, b, customTesters) {
-    const state = (value: unknown): value is Record<string, unknown> =>
-      typeof value === "object" &&
-      value !== null &&
-      typeof (value as { status?: unknown }).status === "string";
-    if (!state(a) || !state(b) || "reservation" in a === "reservation" in b)
-      return undefined;
-    const strip = ({ reservation: _, ...rest }: Record<string, unknown>) =>
-      rest;
-    return this.equals(strip(a), strip(b), customTesters);
-  },
-]);
-
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -578,10 +562,16 @@ describe("a held write", () => {
     const b = second.hold.open(ordinary);
     await expect(b.send(client, lostReply().send)).rejects.toThrow();
     await b.exit(await b.state(client), { checkedWallet: true }, client);
-    expect(first.hold.open(ordinary).peek()).toEqual({ status: "clear" });
+    expect(first.hold.open(ordinary).peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     const late = vi.fn();
     first.hold.open(ordinary).subscribe(late);
-    expect(late).toHaveBeenCalledWith({ status: "clear" });
+    expect(late).toHaveBeenCalledWith({
+      status: "clear",
+      reservation: expect.any(String),
+    });
   });
 
   it("replays nothing stale once another controller reserved the call", async () => {
@@ -761,6 +751,7 @@ describe("a held write", () => {
     chain.txs[1].block = 95n;
     await expect(handle.state(client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
     // With nothing held, or a Safe write, nothing is attached.
@@ -849,10 +840,12 @@ describe("a held write", () => {
       handle.onReceipt(receiptOf(chain.txs[0]), client),
     ).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
     expect(handle.peek()).toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
     expect(seen).toEqual([
@@ -981,7 +974,10 @@ describe("a held write", () => {
     });
     await expect(
       handle.exit(shown, { checkedWallet: true }, client),
-    ).resolves.toEqual({ released: true, state: { status: "clear" } });
+    ).resolves.toEqual({
+      released: true,
+      state: { status: "clear", reservation: expect.any(String) },
+    });
     const again = wallet(async () => HASH);
     await handle.send(client, again.send);
     expect(again.write).toHaveBeenCalledOnce();
@@ -1115,6 +1111,7 @@ describe("a held write", () => {
         client.getTransactionReceipt.mockImplementation(receipts);
         await expect(handle.state(client)).resolves.toEqual({
           status: "clear",
+          reservation: expect.any(String),
           settled: { result: "success", hash: HASH },
         });
       } else {
@@ -1780,9 +1777,16 @@ describe("a held write", () => {
     ]);
     expect(exit).toEqual({
       released: false,
-      state: { status: "clear", settled: { result: "success", hash: HASH } },
+      state: {
+        status: "clear",
+        reservation: expect.any(String),
+        settled: { result: "success", hash: HASH },
+      },
     });
-    expect(receipt).toEqual({ status: "clear" });
+    expect(receipt).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
   });
 
   it("strands no confirmation behind a pending resolve", async () => {
@@ -1814,10 +1818,12 @@ describe("a held write", () => {
     });
     await expect(landed).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
     await expect(handle.state(client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
   });
@@ -1848,6 +1854,7 @@ describe("a held write", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
     // Only one send ever went out.
@@ -1871,6 +1878,7 @@ describe("a held write", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     const failed = {
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "failed", hash: HASH },
     };
     expect(handle.peek()).toEqual(failed);
@@ -1926,7 +1934,7 @@ describe("a held write", () => {
           return false;
         },
       }),
-    ).resolves.toEqual({ status: "clear" });
+    ).resolves.toEqual({ status: "clear", reservation: expect.any(String) });
     await expect(
       handle.send(
         client,
@@ -2256,10 +2264,11 @@ describe("a write held under an intent", () => {
   });
   const intentCall = { ...ordinary, call: regenerated, namespace: key };
 
-  it("adopts a legacy exact-call hold and refuses the retry with its state", async () => {
+  /** An earlier version's exact-call hold, then this version's intent handle. */
+  async function delegated() {
     const browser = origin();
     const old = setup({ browser });
-    const { client } = fakeChain();
+    const { chain, client, receiptOf } = fakeChain();
     await expect(
       old.hold.open(ordinary).send(client, lostReply().send),
     ).rejects.toThrow();
@@ -2268,28 +2277,76 @@ describe("a write held under an intent", () => {
     const handle = next.hold.open(intentCall, {
       legacy: [{ call: ordinary.call }],
     });
+    return { browser, old, next, chain, client, receiptOf, legacy, handle };
+  }
+
+  it("is the legacy hold while it is unresolved: state() shows it and send() refuses with it", async () => {
+    const { handle, client, legacy, old } = await delegated();
+    const shown = await handle.state(client);
+    expect(shown).toMatchObject({
+      status: "held-no-hash",
+      exit: true,
+      reservation: legacy.record.id,
+      record: { id: legacy.record.id },
+    });
+    expect(handle.peek()).toMatchObject({
+      status: "held-no-hash",
+      exit: false,
+      reservation: legacy.record.id,
+    });
     const retry = wallet(async () => HASH);
     const refused = await handle.send(client, retry.send).catch((e) => e);
     expect(refused).toBeInstanceOf(WriteHeldError);
-    expect(refused.state).toMatchObject({
-      status: "held-no-hash",
-      reservation: legacy.record.id,
-      record: { id: legacy.record.id, nonce: legacy.record.nonce },
-    });
+    expect(refused.state).toMatchObject({ reservation: legacy.record.id });
     expect(retry.write).not.toHaveBeenCalled();
-    // Moved, not released: the legacy key holds nothing, the intent holds it.
-    expect(old.hold.open(ordinary).peek().status).toBe("clear");
+    // Nothing moved: the original exact-call handle still holds it (Codex 4).
+    const again = wallet(async () => HASH);
+    await expect(
+      old.hold.open(ordinary).send(client, again.send),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    expect(again.write).not.toHaveBeenCalled();
+  });
+
+  it("exits through the legacy hold's own exit, in place (Codex 6)", async () => {
+    const { handle, client, old } = await delegated();
     const shown = await handle.state(client);
-    expect(shown).toMatchObject({ status: "held-no-hash", exit: true });
-    // Its exit requirement is kept: only the explicit exit ends it.
     await expect(
       handle.exit(shown, { checkedWallet: true }, client),
     ).resolves.toMatchObject({ released: true });
+    expect(old.hold.open(ordinary).peek().status).toBe("clear");
+    const retry = wallet(async () => HASH);
     await handle.send(client, retry.send);
     expect(retry.write).toHaveBeenCalledOnce();
+    expect(handle.peek()).toMatchObject({
+      status: "pending-known-hash",
+      record: { namespace: key },
+    });
   });
 
-  it("adopts a legacy namespace's pending hash with its evidence, and the current exact call by default", async () => {
+  it("never lets the intent's own settlement skip a legacy hold (Codex 5)", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = next.hold.open(intentCall, {
+      legacy: [{ call: ordinary.call }],
+    });
+    // The intent sends first; then an older version holds the legacy call.
+    await handle.send(client, wallet(async () => HASH).send);
+    await expect(
+      old.hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toThrow();
+    // The intent's own write settles.
+    chain.txs.push({ ...sent(HASH), input: regenerated.data, block: 95n });
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    const retry = wallet(async () => OTHER);
+    await expect(handle.send(client, retry.send)).rejects.toBeInstanceOf(
+      WriteHeldError,
+    );
+    expect(retry.write).not.toHaveBeenCalled();
+  });
+
+  it("checks a legacy namespace too, deduplicated and never its own", async () => {
     const browser = origin();
     const old = setup({ browser });
     const { chain, client } = fakeChain();
@@ -2298,116 +2355,186 @@ describe("a write held under an intent", () => {
       .send(client, wallet(async () => HASH).send);
     chain.txs.push(sent(HASH));
     const next = setup({ browser, locks: old.locks });
-    const handle = next.hold.open(intentCall, { legacy: ["jbm:pay:4"] });
+    const handle = next.hold.open(intentCall, {
+      legacy: ["jbm:pay:4", "jbm:pay:4", key, { call: regenerated }],
+    });
     await expect(handle.state(client)).resolves.toMatchObject({
       status: "pending-known-hash",
       hash: HASH,
       exit: false,
-      record: { namespace: key, hash: HASH, nonce: "7" },
+      record: { namespace: "jbm:pay:4" },
     });
-    expect(
-      old.hold.open({ ...ordinary, namespace: "jbm:pay:4" }).peek().status,
-    ).toBe("clear");
-    // The current exact call is checked without being named.
-    const third = setup();
-    const exact = { ...ordinary, call: regenerated };
-    await expect(
-      third.hold.open(exact).send(client, lostReply().send),
-    ).rejects.toThrow();
-    await expect(
-      third.hold.open(intentCall).state(client),
-    ).resolves.toMatchObject({ status: "held-no-hash" });
     // An exact-call hold takes no legacy keys.
-    expect(third.hold.open(exact, { legacy: ["jbm:pay:4"] }).peek()).toEqual({
+    expect(
+      next.hold
+        .open({ ...ordinary, call: regenerated }, { legacy: ["jbm:pay:4"] })
+        .peek(),
+    ).toEqual({ status: "clear" });
+  });
+
+  it("follows the legacy hold's evidence through the intent handle", async () => {
+    const { handle, client, chain, receiptOf, legacy } = await delegated();
+    // The legacy write's hash turns up: attach it, and its receipt settles it.
+    chain.txs.push(sent(HASH));
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      reservation: legacy.record.id,
+    });
+    chain.txs[0].block = 101n;
+    await expect(
+      handle.onReceipt(receiptOf(chain.txs[0]), client),
+    ).resolves.toMatchObject({
       status: "clear",
-      reservation: expect.any(String),
+      settled: { result: "success", hash: HASH },
+      reservation: legacy.record.id,
+    });
+    await expect(handle.onUnproven(client)).resolves.toMatchObject({
+      status: "clear",
+    });
+    await expect(handle.onExecuted(client)).resolves.toMatchObject({
+      status: "clear",
     });
   });
 
-  it("refuses with the legacy hold's state when it can't be moved", async () => {
+  it("rechecks the legacy keys right before reserving, and routes every method to the hold in charge", async () => {
     const browser = origin();
     const old = setup({ browser });
-    const { client } = fakeChain();
-    await expect(
-      old.hold.open(ordinary).send(client, lostReply().send),
-    ).rejects.toThrow();
-    // The intent key already holds a write of its own.
     const next = setup({ browser, locks: old.locks });
-    await expect(
-      next.hold.open(intentCall).send(client, lostReply().send),
-    ).rejects.toThrow();
+    const { chain, client, receiptOf } = fakeChain();
     const handle = next.hold.open(intentCall, {
       legacy: [{ call: ordinary.call }],
     });
-    const legacy = old.hold.open(ordinary).peek() as WriteHeldState;
-    const refused = await handle.send(client, lostReply().send).catch((e) => e);
-    expect(refused).toBeInstanceOf(WriteHeldError);
-    // Never released: the legacy hold is still there.
-    expect(old.hold.open(ordinary).peek()).toMatchObject({
-      reservation: legacy.record.id,
-    });
-  });
-});
-
-describe("a legacy hold that storage won't let move", () => {
-  const key = writeIntentKey("pay", { projectId: 4n });
-  const intentCall = { ...ordinary, namespace: key };
-  function refusing(match: (key: string) => boolean) {
-    const browser = origin();
-    const base = createHeldWriteStorage({
-      durable: () => browser.storage,
-      memory: new Map(),
-    });
-    let on = false;
-    const storage: HeldWriteStorage = {
-      ...base,
-      setItem: (k, v) => {
-        if (on && match(k)) throw new Error("full");
-        base.setItem(k, v);
-      },
-    };
-    return { ...setup({ storage, browser }), refuse: () => (on = true) };
-  }
-
-  it("refuses the send with the legacy hold's state when it can't be adopted", async () => {
-    const ctx = refusing((k) => k.includes("intent:"));
-    const { client } = fakeChain();
-    await expect(
-      ctx.hold.open(ordinary).send(client, lostReply().send),
-    ).rejects.toThrow();
-    const legacy = ctx.hold.open(ordinary).peek() as WriteHeldState;
-    ctx.refuse();
-    const retry = wallet(async () => HASH);
-    const refused = await ctx.hold
-      .open(intentCall)
-      .send(client, retry.send)
+    // A legacy hold appears while the review is open: the reserve refuses.
+    const write = vi.fn();
+    const refused = await handle
+      .send(client, async (gate) => {
+        await expect(
+          old.hold.open(ordinary).send(client, lostReply().send),
+        ).rejects.toThrow();
+        await gate.beforeSend();
+        write();
+      })
       .catch((e) => e);
     expect(refused).toBeInstanceOf(WriteHeldError);
-    expect(refused.state).toMatchObject({
-      status: "held-no-hash",
-      exit: false,
-      record: { id: legacy.record.id },
+    expect(write).not.toHaveBeenCalled();
+    // While delegated, an exit of another snapshot or a clear one releases nothing.
+    const legacy = await handle.state(client);
+    for (const snapshot of [
+      { status: "clear" } as WriteHoldState,
+      {
+        ...legacy,
+        record: { ...(legacy as WriteHeldState).record, id: "x" },
+      } as WriteHoldState,
+    ])
+      await expect(
+        handle.exit(snapshot, { checkedWallet: true }, client),
+      ).resolves.toMatchObject({
+        released: false,
+        state: { reservation: legacy.reservation },
+      });
+    await expect(handle.onUnproven(client)).resolves.toMatchObject({
+      reservation: legacy.reservation,
     });
-    expect(retry.write).not.toHaveBeenCalled();
-    // Never released: the legacy hold is still there.
-    expect(ctx.hold.open(ordinary).peek().status).toBe("held-no-hash");
+    await expect(handle.onExecuted(client)).resolves.toMatchObject({
+      reservation: legacy.reservation,
+    });
+    await handle.exit(legacy, { checkedWallet: true }, client);
+    // With the legacy keys clear, the intent's own record answers.
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push({ ...sent(HASH), input: regenerated.data });
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      record: { namespace: key },
+    });
+    chain.txs[0].block = 95n;
+    await expect(
+      handle.onReceipt(receiptOf(chain.txs[0]), client),
+    ).resolves.toMatchObject({
+      status: "clear",
+      settled: { result: "success" },
+    });
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "clear",
+      settled: { result: "success", hash: HASH },
+    });
+    await expect(
+      handle.exit({ status: "clear" }, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: false });
   });
 
-  it("keeps the hold in both places when the legacy key can't be handed off", async () => {
-    const ctx = refusing((k) => k.includes(":released:"));
+  it("never deadlocks two tabs whose intents name each other as legacy", async () => {
+    const browser = origin();
+    const locks = lockManager();
+    const a = setup({ browser, locks });
+    const b = setup({ browser, locks });
     const { client } = fakeChain();
-    await expect(
-      ctx.hold.open(ordinary).send(client, lostReply().send),
-    ).rejects.toThrow();
-    ctx.refuse();
-    await expect(
-      ctx.hold.open(intentCall).state(client),
-    ).resolves.toMatchObject({ status: "held-no-hash" });
-    expect(ctx.hold.open(ordinary).peek().status).toBe("held-no-hash");
+    const one = a.hold.open(
+      { ...ordinary, namespace: "intent:a:1" },
+      { legacy: ["intent:b:1"] },
+    );
+    const two = b.hold.open(
+      { ...ordinary, namespace: "intent:b:1" },
+      { legacy: ["intent:a:1"] },
+    );
+    await Promise.all([
+      one.send(client, lostReply().send).catch(() => null),
+      two.send(client, lostReply().send).catch(() => null),
+    ]);
+    const states = await Promise.all([one.state(client), two.state(client)]);
+    for (const state of states) expect(state.status).not.toBe("clear");
   });
 });
 
 describe("a held write's reservation identity", () => {
+  it("names the reservation that ended even when its latest marker was refused (Codex 7)", async () => {
+    const browser = origin();
+    const { hold } = setup({ browser });
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    const first = await handle.state(client);
+    await handle.exit(first, { checkedWallet: true }, client);
+    const write = browser.storage.setItem;
+    browser.storage.setItem = (k: string, v: string) => {
+      if (k.endsWith(":latest")) throw new Error("QuotaExceededError");
+      write(k, v);
+    };
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    const second = (await handle.state(client)) as WriteHeldState;
+    expect(second.reservation).not.toBe((first as WriteHeldState).reservation);
+    const ended = await handle.exit(second, { checkedWallet: true }, client);
+    expect(ended.state).toEqual({
+      status: "clear",
+      reservation: second.reservation,
+    });
+    expect(handle.peek()).toEqual({
+      status: "clear",
+      reservation: second.reservation,
+    });
+  });
+
+  it("replays by reservation, so a late subscriber never hears an older clear (Codex 8)", async () => {
+    const browser = origin();
+    const first = setup({ browser });
+    const second = setup({ browser, locks: first.locks });
+    const { client } = fakeChain();
+    const a = first.hold.open(ordinary);
+    await expect(a.send(client, lostReply().send)).rejects.toThrow();
+    const old = await a.state(client);
+    await a.exit(old, { checkedWallet: true }, client);
+    // Another controller reserves and exits a newer attempt.
+    const b = second.hold.open(ordinary);
+    await expect(b.send(client, lostReply().send)).rejects.toThrow();
+    const newer = (await b.state(client)) as WriteHeldState;
+    await b.exit(newer, { checkedWallet: true }, client);
+    const late = vi.fn();
+    first.hold.open(ordinary).subscribe(late);
+    expect(late).toHaveBeenCalledWith({
+      status: "clear",
+      reservation: newer.reservation,
+    });
+  });
+
   it("is on every emitted, subscribed and returned state", async () => {
     const { hold } = setup();
     const { client } = fakeChain();
@@ -2441,6 +2568,7 @@ describe("a held write's reservation identity", () => {
 describe("a held write's settlement", () => {
   const success = {
     status: "clear",
+    reservation: expect.any(String),
     settled: { result: "success", hash: HASH },
   };
 
@@ -2484,10 +2612,17 @@ describe("a held write's settlement", () => {
     const shown = await handle.state(client);
     await expect(
       handle.exit(shown, { checkedWallet: true }, client),
-    ).resolves.toEqual({ released: true, state: { status: "clear" } });
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    ).resolves.toEqual({
+      released: true,
+      state: { status: "clear", reservation: expect.any(String) },
+    });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     expect(setup({ browser, locks }).hold.open(ordinary).peek()).toEqual({
       status: "clear",
+      reservation: expect.any(String),
     });
   });
 
@@ -2511,7 +2646,10 @@ describe("a held write's settlement", () => {
     const shown = await handle.state(client);
     expect(shown.status).toBe("held-no-hash");
     await handle.exit(shown, { checkedWallet: true }, client);
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
   });
 
   it("never brings an older settlement back after a newer reservation's exit, even when its removal was refused", async () => {
@@ -2533,13 +2671,28 @@ describe("a held write's settlement", () => {
     const shown = await handle.state(client);
     await expect(
       handle.exit(shown, { checkedWallet: true }, client),
-    ).resolves.toEqual({ released: true, state: { status: "clear" } });
-    expect(handle.peek()).toEqual({ status: "clear" });
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    ).resolves.toEqual({
+      released: true,
+      state: { status: "clear", reservation: expect.any(String) },
+    });
+    expect(handle.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     // After a reload too.
     const reloaded = setup({ browser, locks }).hold.open(ordinary);
-    expect(reloaded.peek()).toEqual({ status: "clear" });
-    await expect(reloaded.state(client)).resolves.toEqual({ status: "clear" });
+    expect(reloaded.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
+    await expect(reloaded.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
   });
 
   it("never lets a tab's older settlement kept in memory replace another tab's newer one", async () => {
@@ -2576,6 +2729,7 @@ describe("a held write's settlement", () => {
     chain.txs.push(sent(OTHER, { nonce: 8, block: 96n }));
     const settledB = {
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: OTHER },
     };
     await expect(
@@ -2612,10 +2766,19 @@ describe("a held write's settlement", () => {
       throw Object.assign(new Error("denied"), { code: 4001 });
     });
     await expect(handle.send(client, rejected.send)).rejects.toThrow("denied");
-    expect(handle.peek()).toEqual({ status: "clear" });
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    expect(handle.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     const reloaded = setup({ browser, locks }).hold.open(ordinary);
-    expect(reloaded.peek()).toEqual({ status: "clear" });
+    expect(reloaded.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     // And a later send goes out normally.
     const again = wallet(async () => OTHER);
     await reloaded.send(client, again.send);
@@ -2639,10 +2802,19 @@ describe("a held write's settlement", () => {
     await expect(handle.send(client, lostReply().send)).rejects.toThrow();
     const shown = await handle.state(client);
     await handle.exit(shown, { checkedWallet: true }, client);
-    expect(handle.peek()).toEqual({ status: "clear" });
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    expect(handle.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     const reloaded = setup({ browser, locks }).hold.open(ordinary);
-    expect(reloaded.peek()).toEqual({ status: "clear" });
+    expect(reloaded.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
   });
 
   it("brings no old settlement back after an exit and a reload", async () => {
@@ -2658,8 +2830,14 @@ describe("a held write's settlement", () => {
     await handle.exit(shown, { checkedWallet: true }, client);
     for (let reload = 0; reload < 2; reload += 1) {
       const again = setup({ browser, locks }).hold.open(ordinary);
-      expect(again.peek()).toEqual({ status: "clear" });
-      await expect(again.state(client)).resolves.toEqual({ status: "clear" });
+      expect(again.peek()).toEqual({
+        status: "clear",
+        reservation: expect.any(String),
+      });
+      await expect(again.state(client)).resolves.toEqual({
+        status: "clear",
+        reservation: expect.any(String),
+      });
     }
   });
 
@@ -2806,7 +2984,11 @@ describe("a held Safe proposal", () => {
       });
       executes(fixture, queue.hash, topic);
       // The service still lists it unexecuted.
-      const settled = { status: "clear", settled: { result, hash: EXECUTION } };
+      const settled = {
+        status: "clear",
+        reservation: expect.any(String),
+        settled: { result, hash: EXECUTION },
+      };
       await expect(handle.state(fixture.client)).resolves.toEqual(settled);
       // Another tab learns the same settlement.
       expect(safeSetup(browser).hold.open(safeCall()).peek()).toEqual(settled);
@@ -2865,6 +3047,7 @@ describe("a held Safe proposal", () => {
       reloaded.onExecuted(fixture.client, EXECUTION),
     ).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: EXECUTION },
     });
     hold.dispose();
@@ -2882,6 +3065,7 @@ describe("a held Safe proposal", () => {
     fixture.chain.hidden.add(EXECUTION.toLowerCase());
     await expect(handle.state(fixture.client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: EXECUTION },
     });
     // With no readable proof, a receipt that doesn't verify settles nothing.
@@ -3254,6 +3438,7 @@ describe("a held Safe proposal", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "failed", hash: EXECUTION },
     });
     // A retry is allowed.
@@ -3296,6 +3481,7 @@ describe("a held Safe proposal", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "failed", hash: EXECUTION },
     });
     hold.dispose();
@@ -3320,6 +3506,7 @@ describe("a held Safe proposal", () => {
     executes(fixture, queue.hash, SUCCESS);
     await expect(handle.onExecuted(fixture.client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: EXECUTION },
     });
   });
@@ -3443,6 +3630,7 @@ describe("a held Safe proposal", () => {
       else
         await expect(handle.state(fixture.client)).resolves.toEqual({
           status: "clear",
+          reservation: expect.any(String),
           settled: { result: "failed", hash: second },
         });
       hold.dispose();
@@ -3561,6 +3749,7 @@ describe("a held Safe proposal", () => {
       fixture.chain.finalized = 110n;
       await expect(handle.state(fixture.client)).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "success", hash: EXECUTION },
       });
     });
@@ -3621,6 +3810,7 @@ describe("a held Safe proposal", () => {
         handle.onExecuted(fixture.client, EXECUTION),
       ).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "success", hash: EXECUTION },
       });
     });
@@ -3660,6 +3850,7 @@ describe("a held Safe proposal", () => {
         fixture.client.getTransaction.mockImplementation(lookup);
         await expect(handle.state(fixture.client)).resolves.toEqual({
           status: "clear",
+          reservation: expect.any(String),
           settled: { result: "success", hash: CAND },
         });
       }
@@ -3729,6 +3920,7 @@ describe("a held Safe proposal", () => {
       });
       await expect(handle.state(fixture.client)).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "success", hash: EXECUTION },
       });
     });
@@ -3741,6 +3933,7 @@ describe("a held Safe proposal", () => {
         fixture.chain.hidden.add(EXECUTION.toLowerCase());
         await expect(handle.state(fixture.client)).resolves.toEqual({
           status: "clear",
+          reservation: expect.any(String),
           settled: {
             result: topic === SUCCESS ? "success" : "failed",
             hash: EXECUTION,
@@ -3820,6 +4013,7 @@ describe("a held Safe proposal", () => {
       fixture.chain.finalized = 110n;
       await expect(handle.state(fixture.client)).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "success", hash: CAND },
       });
     });
@@ -4057,7 +4251,10 @@ describe("a held Safe proposal", () => {
       ).resolves.toMatchObject({ released: false });
       await expect(
         reloaded.exit(shown, { checkedWallet: true }, fixture.client),
-      ).resolves.toEqual({ released: true, state: { status: "clear" } });
+      ).resolves.toEqual({
+        released: true,
+        state: { status: "clear", reservation: expect.any(String) },
+      });
       const again = vi.fn();
       await reloaded.send(fixture.client, async (gate) => {
         await gate.beforeSend();
@@ -4073,6 +4270,7 @@ describe("a held Safe proposal", () => {
         executes(fixture, queue.hash, topic);
         await expect(handle.state(fixture.client)).resolves.toEqual({
           status: "clear",
+          reservation: expect.any(String),
           settled: {
             result: topic === SUCCESS ? "success" : "failed",
             hash: EXECUTION,
@@ -4084,6 +4282,7 @@ describe("a held Safe proposal", () => {
       executes(fixture, queue.hash, SUCCESS);
       await expect(handle.onUnproven(fixture.client)).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "success", hash: EXECUTION },
       });
     });
@@ -4117,6 +4316,7 @@ describe("a held Safe proposal", () => {
       fixture.chain.finalized = 110n;
       await expect(handle.state(fixture.client)).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "failed", hash: EXECUTION },
       });
       hold.dispose();
@@ -4214,6 +4414,7 @@ describe("a held Safe proposal", () => {
     fixture.chain.finalized = 96n;
     await expect(handle.state(fixture.client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "expired" },
     });
   });
@@ -4241,6 +4442,7 @@ describe("a held Safe proposal", () => {
     executes(fixture, OTHER, SUCCESS);
     await expect(handle.state(fixture.client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: EXECUTION },
     });
   });

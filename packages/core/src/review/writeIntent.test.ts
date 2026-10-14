@@ -34,7 +34,7 @@ describe("writeIntentKey", () => {
 
   it("encodes canonically: sorted keys, decimal integers, nested values", () => {
     expect(writeIntentKey("pay", { a: 1, b: 2n })).toBe(
-      writeIntentKey("pay", { b: 2, a: 1n }),
+      writeIntentKey("pay", { b: 2n, a: 1 }),
     );
     const nested = {
       ids: [1n, 2n],
@@ -47,8 +47,8 @@ describe("writeIntentKey", () => {
       writeIntentKey("pay", {
         none: null,
         on: true,
-        split: { percent: 5n, beneficiary: intent.address(TOKEN) },
-        ids: [1, 2],
+        split: { percent: 5, beneficiary: intent.address(TOKEN) },
+        ids: [1n, 2n],
       }),
     );
     // Order in an array matters; booleans, null and strings never alias.
@@ -61,6 +61,16 @@ describe("writeIntentKey", () => {
       [{ v: false }, { v: true }],
     ] as const)
       expect(writeIntentKey("pay", x)).not.toBe(writeIntentKey("pay", y));
+  });
+
+  it("never aliases a number with a bigint, or a sparse array with an empty one", () => {
+    expect(writeIntentKey("pay", { v: 1 })).not.toBe(
+      writeIntentKey("pay", { v: 1n }),
+    );
+    // eslint-disable-next-line no-sparse-arrays
+    expect(() => writeIntentKey("pay", { v: new Array(1) as never })).toThrow(
+      "sparse",
+    );
   });
 
   it("refuses ambiguous values", () => {

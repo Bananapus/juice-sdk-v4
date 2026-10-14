@@ -1000,59 +1000,25 @@ export function createBrowserWriteRecovery(
     },
     rejected,
     clear,
-    /** The call's latest reservation id, when one was saved. */
+    /**
+     * The call's latest reservation id: the record saved at the key (held,
+     * or released by its exit), or else the saved latest marker.
+     */
     latestReservation(): string | undefined {
       try {
-        const id = (
-          JSON.parse(storage().getItem(latestKey) ?? "null") as {
-            id?: unknown;
-          } | null
-        )?.id;
+        const store = storage();
+        const raw = locate(store).raw;
+        const id =
+          (raw === null ? undefined : idOf(raw)) ??
+          (
+            JSON.parse(store.getItem(latestKey) ?? "null") as {
+              id?: unknown;
+            } | null
+          )?.id;
         return typeof id === "string" ? id : undefined;
       } catch {
         return undefined;
       }
-    },
-    /**
-     * Take over `held`, an unresolved record saved under another key (a
-     * legacy key of the same write), keeping its identity and evidence, as
-     * this key's latest reservation. Refuses while this key holds its own.
-     */
-    adopt(held: ReviewedWriteRecoveryRecord): ReviewedWriteRecoveryRecord {
-      requireLock();
-      if (read())
-        throw new Error(
-          "An earlier wallet write is still unresolved. Check it before trying again.",
-        );
-      const adopted = recordOf({
-        ...recordOf(held),
-        ...(reviewed.namespace === undefined
-          ? {}
-          : { namespace: reviewed.namespace }),
-      });
-      persist(adopted, key);
-      if (!markedLatest(adopted.id))
-        try {
-          storage().removeItem(settledKey);
-        } catch {
-          /* The saved record still outranks it. */
-        }
-      return adopted;
-    },
-    /**
-     * Mark `expected`, now held under another key, as no longer held here.
-     * Not a release: the hold lives on where it moved.
-     */
-    handOff(expected: ReviewedWriteRecoveryRecord): void {
-      requireLock();
-      const store = storage();
-      const { at, raw } = locate(store);
-      const current = readStored(raw, at, scopeAt(at), store);
-      if (current?.id !== expected.id) return;
-      const marker = releasedKey(at, current.id);
-      store.setItem(marker, "1");
-      if (store.getItem(marker) !== "1")
-        throw new Error("Write recovery storage did not hand off the action.");
     },
     /**
      * Save how the call's last write ended, on authenticated evidence (its

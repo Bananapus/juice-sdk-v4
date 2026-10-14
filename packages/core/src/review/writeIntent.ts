@@ -10,9 +10,11 @@ export type IntentTagged = {
 
 /**
  * A value the user chose for an intent: a string (compared exactly, case
- * included), a safe integer or bigint, a boolean, null, an address or hex
+ * included), a safe integer, a bigint, a boolean, null, an address or hex
  * tagged with {@link intent}, or an array or record of these. An undefined
- * record field is left out.
+ * record field is left out. A number and a bigint are different values: pass
+ * amounts (wei, token units) as bigint, and counts or ids that fit as number,
+ * consistently.
  */
 export type IntentValue =
   | string
@@ -39,16 +41,21 @@ export const intent = {
 };
 
 function canonical(value: unknown): string {
-  if (value === null) return "n";
+  if (value === null) return "z";
   if (typeof value === "boolean") return value ? "t" : "f";
   if (typeof value === "string") return `s${JSON.stringify(value)}`;
   if (typeof value === "bigint") return `i${value.toString()}`;
   if (typeof value === "number") {
     if (!Number.isSafeInteger(value))
       throw new Error(`An intent number must be a safe integer: ${value}.`);
-    return `i${value}`;
+    return `d${value}`;
   }
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1)
+      if (!(index in value))
+        throw new Error("An intent array can't be sparse.");
+    return `[${value.map(canonical).join(",")}]`;
+  }
   if (typeof value === "object") {
     const tag = (value as Partial<IntentTagged>)[TAG];
     if (tag)
@@ -69,7 +76,8 @@ function canonical(value: unknown): string {
  * The write hold namespace for a write whose calldata regenerates on retry:
  * the action and the parameters the user chose, canonically encoded (sorted
  * keys, decimal integers, exact strings) and hashed, behind a readable action
- * prefix. A retry of the same intent is held by the first attempt until it
+ * prefix (every value type its own tag: a number never equals a bigint, and
+ * an array may not be sparse). A retry of the same intent is held by the first attempt until it
  * settles or the user takes its explicit exit.
  *
  * Include the user's chosen inputs and the identity of what is acted on

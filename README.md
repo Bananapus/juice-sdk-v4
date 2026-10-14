@@ -925,16 +925,17 @@ Include the user's chosen inputs and the identity of what is acted on
 (project, pool, collection, position, loan). Leave out what restamps on every
 review: deadlines, expirations, signatures, nonces and derived quotes. Tag
 addresses and hex with `intent.address` and `intent.hex`; plain strings stay
-case-sensitive, and a non-integer number is refused.
+case-sensitive. A number and a bigint are different values (pass amounts as
+bigint), and a non-integer number or a sparse array is refused.
 
 When a hold is opened under an intent, the current exact call and every
 `legacy` key (an old namespace, or `{ call }` for an old exact call) are
-checked too. An unresolved hold found there is moved into the intent under the
-lock, keeping its identity, evidence and exit requirement; where it can't be
-moved, the send is refused with its state. It is never released. Every state
-carries `reservation`, the id of the reservation it belongs to (on a clear,
-the one that ended), so an observer can ignore a newer reservation it didn't
-start.
+checked too, each alone under its own lock. While one holds an unresolved
+write, the intent handle is that hold: its state, its refusal and its own exit,
+in place; nothing moves, so an older version's handle keeps working. Only when
+all are clear does the intent's own record apply. Every state carries
+`reservation`, the id of the reservation it belongs to (on a clear, the one
+that ended), so an observer can ignore a newer reservation it didn't start.
 
 ### Safe proposals
 
