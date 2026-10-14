@@ -352,6 +352,55 @@ describe("memory-only mode", () => {
     browser.state.write = true;
     expect(handle.peek()).not.toHaveProperty("notice");
   });
+
+  it("refreshes the notice on a replayed state", async () => {
+    const browser = origin();
+    const { hold } = setup({ browser });
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    await handle.state(client);
+    // Storage is refused after the state was emitted.
+    browser.state.write = false;
+    const late = vi.fn();
+    hold.open(ordinary).subscribe(late);
+    expect(late.mock.calls[0][0]).toMatchObject({
+      notice: WRITE_HOLD_IN_TAB_LINE,
+    });
+    browser.state.write = true;
+    const later = vi.fn();
+    hold.open(ordinary).subscribe(later);
+    expect(later.mock.calls[0][0]).not.toHaveProperty("notice");
+  });
+
+  it("puts the notice on the state a final reserve refuses with", async () => {
+    const browser = origin();
+    browser.state.write = false;
+    const memory = new Map<string, string>();
+    const locks = lockManager();
+    const intentTab = setup({ browser, memory, locks });
+    const exactTab = setup({ browser, memory, locks });
+    const { client } = fakeChain();
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const handle = intentTab.hold.open(
+      {
+        ...ordinary,
+        call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+        namespace: key,
+      },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    const refused = await handle
+      .send(client, async (gate) => {
+        await expect(
+          exactTab.hold.open(ordinary).send(client, lostReply().send),
+        ).rejects.toThrow();
+        await gate.beforeSend();
+      })
+      .catch((e) => e);
+    expect(refused).toBeInstanceOf(WriteHeldError);
+    expect(refused.state).toMatchObject({ notice: WRITE_HOLD_IN_TAB_LINE });
+  });
 });
 
 describe("write hold storage", () => {
@@ -1387,7 +1436,7 @@ describe("a held write", () => {
       vi.useRealTimers();
     });
 
-    it("never offers it while the node can't answer, or once the finalized nonce passed it unread", async () => {
+    it("offers only the warned exit, 30 minutes after it was last seen pending, when its nonce can't be proven", async () => {
       const { handle, client, chain } = await seenThenGone();
       // A node that can't answer starts no clock.
       client.getTransaction.mockRejectedValue(new Error("timeout"));
@@ -1413,8 +1462,8 @@ describe("a held write", () => {
         } as never;
       });
       await handle.state(client);
-      vi.setSystemTime(1_000_000 + 31 * 60_000);
-      // The finalized block can't be read: no exit.
+      // Not found, and the finalized block can't be read: no exit yet.
+      vi.setSystemTime(1_000_000 + 29 * 60_000);
       const blocks = client.getBlock.getMockImplementation()!;
       client.getBlock.mockImplementation(async (args = {}) => {
         if (args.blockTag === "finalized") throw new Error("unsupported");
@@ -1424,7 +1473,9 @@ describe("a held write", () => {
         status: "pending-known-hash",
         exit: false,
       });
-      // Another transaction used the nonce, but the history behind it can't be read.
+      // Codex: another transaction used the nonce, but the history behind it
+      // can't be read. 30 minutes after it was last seen pending: the warned
+      // exit, never a release on its own.
       client.getBlock.mockImplementation(async (args = {}) => {
         if (args.includeTransactions) throw new Error("history unavailable");
         return blocks(args);
@@ -1432,10 +1483,13 @@ describe("a held write", () => {
       chain.txs.push({ ...sent(OTHER), block: 105n });
       chain.head = 120n;
       chain.finalized = 110n;
+      vi.setSystemTime(1_000_000 + 31 * 60_000);
       await expect(handle.state(client)).resolves.toMatchObject({
-        status: "pending-known-hash",
-        exit: false,
+        status: "held-unchecked",
+        exit: true,
+        warning: WRITE_HOLD_HASHED_EXIT_LINE,
       });
+      expect(handle.peek().status).not.toBe("clear");
       vi.useRealTimers();
     });
   });
@@ -1578,13 +1632,10 @@ describe("a held write", () => {
       status: "pending-known-hash",
       exit: false,
     });
-    // A node that can't answer proves nothing, however long it has been.
+    // Unknown or not found is not pending: 30 minutes on, the warned exit.
     vi.setSystemTime(1_000_000 + 31 * 60_000);
     client.getTransaction.mockRejectedValueOnce(new Error("timeout"));
     client.getTransaction.mockRejectedValueOnce(new Error("timeout"));
-    await expect(handle.state(client)).resolves.toMatchObject({
-      status: "pending-known-hash",
-    });
     const unchecked = await handle.state(client);
     expect(unchecked).toMatchObject({
       status: "held-unchecked",

@@ -378,6 +378,18 @@ export function createWriteHold(
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   let onStorage: ((event: StorageEvent) => void) | undefined;
 
+  /**
+   * The one decorator every state leaves through for its storage notice:
+   * while holds last in this tab alone, a held state carries
+   * {@link WRITE_HOLD_IN_TAB_LINE}; otherwise none.
+   */
+  function noticed(state: WriteHoldState): WriteHoldState {
+    const { notice: _, ...rest } = state;
+    return state.status !== "clear" && !storage.durable()
+      ? ({ ...rest, notice: WRITE_HOLD_IN_TAB_LINE } as WriteHoldState)
+      : (rest as WriteHoldState);
+  }
+
   /** The latest state emitted for each call, replayed to a late subscriber. */
   const latest = new Map<string, WriteHoldState>();
   function emit(key: string, state: WriteHoldState) {
@@ -443,16 +455,10 @@ export function createWriteHold(
         (state.status === "clear"
           ? recovery.latestReservation()
           : state.record.id);
-      // While holds last in this tab alone, every held state says so.
-      const notice =
-        state.status !== "clear" && !storage.durable()
-          ? { notice: WRITE_HOLD_IN_TAB_LINE }
-          : {};
-      return {
+      return noticed({
         ...state,
-        ...notice,
         ...(reservation === undefined ? {} : { reservation }),
-      };
+      });
     };
     const peek = () => {
       const record = recovery.read();
@@ -672,11 +678,12 @@ export function createWriteHold(
         };
       const record =
         look === "mined" ? recovery.mined(state.record, true) : state.record;
-      // Unknown is not pending: with no read showing it pending or mined for
-      // 30 minutes (since it was last seen pending, or else submitted), the
-      // warned exit. A Safe proposal's hash isn't a transaction to read.
+      // Unknown or not found is not pending: with no read showing it pending
+      // or mined for 30 minutes (since it was last seen pending, or else
+      // submitted), the warned explicit exit, never a release on its own. A
+      // Safe proposal's hash isn't a transaction to read.
       if (
-        look === "unknown" &&
+        (look === "unknown" || look === null) &&
         !record.safe &&
         record.minedAt === undefined &&
         Date.now() -
@@ -1048,7 +1055,9 @@ export function createWriteHold(
               state.reservation ?? null,
               state.status === "clear" ? (state.settled ?? null) : state.record,
             ]);
-          listener(ungated(identity(now) === identity(last) ? last : now));
+          listener(
+            noticed(ungated(identity(now) === identity(last) ? last : now)),
+          );
         }
         return () => {
           set!.delete(listener);
@@ -1466,10 +1475,12 @@ export function createWriteHold(
           for (const journal of journals) {
             const held = journal.read();
             if (held && held.mirrorOf !== namespace)
-              throw new WriteHeldError({
-                ...(ungated(classify(held)) as WriteHeldState),
-                reservation: held.id,
-              });
+              throw new WriteHeldError(
+                noticed({
+                  ...ungated(classify(held)),
+                  reservation: held.id,
+                }) as WriteHeldState,
+              );
           }
           // Another attempt since this review opened: review it again.
           if (generations() !== reviewed)
