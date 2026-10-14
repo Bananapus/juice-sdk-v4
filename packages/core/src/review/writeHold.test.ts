@@ -34,6 +34,7 @@ import {
 import { intent, writeIntentKey } from "./writeIntent.js";
 import {
   createWriteHold,
+  resetWriteHoldsForTests,
   WriteHeldError,
   WriteHoldBusyError,
   WriteHoldNonceError,
@@ -79,6 +80,11 @@ function origin() {
   const values = new Map<string, string>();
   const state = { read: true, write: true, drop: false };
   const storage = {
+    get length() {
+      if (!state.read) throw new Error("SecurityError");
+      return values.size;
+    },
+    key: (index: number) => [...values.keys()][index] ?? null,
     getItem: (key: string) => {
       if (!state.read) throw new Error("SecurityError");
       return values.get(key) ?? null;
@@ -5055,6 +5061,282 @@ describe("a held Safe proposal", () => {
       status: "clear",
       reservation: expect.any(String),
       settled: { result: "success", hash: EXECUTION },
+    });
+  });
+});
+
+describe("a write held under an intent, found by a legacy match", () => {
+  const OTHER_ACCOUNT = "0x3333333333333333333333333333333333333333" as Address;
+  /** A cash-out whose minimum is quoted again on every retry. */
+  const cashOut = (minimum: number, account = ACCOUNT) => ({
+    ...ordinary,
+    account,
+    call: {
+      to: TARGET,
+      data: `0xaabbccdd${minimum.toString(16).padStart(4, "0")}` as Hex,
+      value: 0n,
+    },
+  });
+  const key = writeIntentKey("cash-out", { projectId: 4n });
+  const match = (selector: Hex = "0xaabbccdd") => ({
+    match: { to: TARGET, selector },
+  });
+
+  /** An earlier version's exact-call hold for `saved`, its lost reply held. */
+  async function heldBefore(saved = cashOut(1)) {
+    const browser = origin();
+    const old = setup({ browser });
+    const { client } = fakeChain();
+    await expect(
+      old.hold.open(saved).send(client, lostReply().send),
+    ).rejects.toThrow();
+    const held = old.hold.open(saved).peek() as WriteHeldState;
+    const next = setup({ browser, locks: old.locks });
+    return { browser, old, next, client, held };
+  }
+
+  it("refuses a retry quoted with a new minimum until the old hold's explicit exit", async () => {
+    const { next, client, held } = await heldBefore(cashOut(1));
+    const handle = next.hold.open(
+      { ...cashOut(2), namespace: key },
+      { legacy: [match()] },
+    );
+    const shown = await handle.state(client);
+    expect(shown).toMatchObject({
+      status: "held-no-hash",
+      reservation: held.record.id,
+    });
+    const retry = wallet(async () => HASH);
+    await expect(handle.send(client, retry.send)).rejects.toBeInstanceOf(
+      WriteHeldError,
+    );
+    expect(retry.write).not.toHaveBeenCalled();
+    await expect(
+      handle.exit(shown, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+    await handle.send(client, retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+  });
+
+  it("is not blocked by another selector, another account or chain, or another intent's mirror", async () => {
+    const { next, client } = await heldBefore(cashOut(1, OTHER_ACCOUNT));
+    // Another account's hold at the same target and selector.
+    const mine = wallet(async () => HASH);
+    await next.hold
+      .open({ ...cashOut(2), namespace: key }, { legacy: [match()] })
+      .send(client, mine.send);
+    expect(mine.write).toHaveBeenCalledOnce();
+    // Its own hold under another selector.
+    const other = await heldBefore(cashOut(1));
+    const elsewhere = wallet(async () => HASH);
+    await other.next.hold
+      .open(
+        { ...cashOut(2), namespace: key },
+        { legacy: [match("0x11223344")] },
+      )
+      .send(other.client, elsewhere.send);
+    expect(elsewhere.write).toHaveBeenCalledOnce();
+    // Another chain: the same account, target and selector on chain 1.
+    const chain = await heldBefore({ ...cashOut(1), chainId: 1 });
+    const there = wallet(async () => HASH);
+    await chain.next.hold
+      .open({ ...cashOut(2), namespace: key }, { legacy: [match()] })
+      .send(chain.client, there.send);
+    expect(there.write).toHaveBeenCalledOnce();
+    // Another intent's mirror is found by its own namespace, not the match.
+    const browser = origin();
+    const first = setup({ browser });
+    const { client: c } = fakeChain();
+    await first.hold
+      .open(
+        {
+          ...cashOut(1),
+          namespace: writeIntentKey("cash-out", { projectId: 5n }),
+        },
+        { legacy: [{ call: cashOut(1).call }] },
+      )
+      .send(c, wallet(async () => OTHER).send);
+    const second = setup({ browser, locks: first.locks });
+    const free = wallet(async () => HASH);
+    await second.hold
+      .open({ ...cashOut(2), namespace: key }, { legacy: [match()] })
+      .send(c, free.send);
+    expect(free.write).toHaveBeenCalledOnce();
+  });
+
+  it("checks again at the final reserve, for a matching hold saved after it opened", async () => {
+    const browser = origin();
+    const next = setup({ browser });
+    const { client } = fakeChain();
+    const handle = next.hold.open(
+      { ...cashOut(2), namespace: key },
+      { legacy: [match()] },
+    );
+    expect(handle.peek().status).toBe("clear");
+    // An older version, in another tab, holds its own exact call.
+    const old = setup({ browser, locks: next.locks });
+    await expect(
+      old.hold.open(cashOut(1)).send(client, lostReply().send),
+    ).rejects.toThrow();
+    const retry = wallet(async () => HASH);
+    await expect(handle.send(client, retry.send)).rejects.toBeInstanceOf(
+      WriteHeldError,
+    );
+    expect(retry.write).not.toHaveBeenCalled();
+  });
+
+  it("refuses a malformed match", () => {
+    const { hold } = setup();
+    for (const bad of [
+      { to: "0x12" as Address, selector: "0xaabbccdd" as Hex },
+      { to: TARGET, selector: "0xaabb" as Hex },
+    ])
+      expect(() =>
+        hold.open(
+          { ...cashOut(2), namespace: key },
+          { legacy: [{ match: bad }] },
+        ),
+      ).toThrow("Invalid write hold match.");
+  });
+});
+
+describe("resetting write holds between tests", () => {
+  it("stops every controller's followers and drops the tab's lock queues and memory", async () => {
+    // Earlier tests' controllers are stopped first.
+    resetWriteHoldsForTests();
+    vi.stubGlobal("addEventListener", vi.fn());
+    const removed = vi.fn();
+    vi.stubGlobal("removeEventListener", removed);
+    const tab = globalThis as Record<symbol, unknown>;
+    const memory = new Map([["nana-sdk:reviewed-write:v1:kept", "{}"]]);
+    tab[Symbol.for("nana-sdk:held-writes")] = memory;
+    const { hold } = setup();
+    hold.open(ordinary).subscribe(() => {});
+    const queues = tab[Symbol.for("nana-sdk:write-lock-queues")] as Map<
+      string,
+      unknown
+    >;
+    queues.set("stuck", Promise.resolve());
+    resetWriteHoldsForTests();
+    expect(removed).toHaveBeenCalledOnce();
+    expect(queues.size).toBe(0);
+    expect(tab[Symbol.for("nana-sdk:held-writes")]).toBeUndefined();
+    // A disposed controller is let go: a second reset stops nothing again.
+    resetWriteHoldsForTests();
+    expect(removed).toHaveBeenCalledOnce();
+  });
+});
+
+describe("adopting a previous deploy's hashless write", () => {
+  it("keeps another tab's settlement made after the app's read, and creates no hold", async () => {
+    const browser = origin();
+    const app = setup({ browser });
+    const other = setup({ browser, locks: app.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = app.hold.open(ordinary);
+    const snapshot = await handle.state(client);
+    expect(snapshot.status).toBe("clear");
+    // Another tab sends the write, and it settles.
+    const elsewhere = other.hold.open(ordinary);
+    await elsewhere.send(client, wallet(async () => HASH).send);
+    chain.txs.push({ ...sent(HASH), block: 95n });
+    const settled = await elsewhere.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(settled).toMatchObject({ status: "clear", settled: { hash: HASH } });
+    const adopted = await handle.adopt(snapshot, { nonce: 7, fromBlock: 90n });
+    expect(adopted).toEqual(settled);
+    expect(handle.peek()).toEqual(settled);
+  });
+
+  it("holds once with its evidence, however often it is adopted, and never over a hold", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    const snapshot = await handle.state(client);
+    const first = await handle.adopt(snapshot, {
+      sentNonce: 7n,
+      fromBlock: 90n,
+      submittedAt: 1_700_000_000_000,
+    });
+    expect(first).toMatchObject({
+      status: "held-no-hash",
+      record: { nonce: "7", fromBlock: "90", submittedAt: "1700000000000" },
+    });
+    const again = await handle.adopt(snapshot, { nonce: 8, fromBlock: 91n });
+    expect(again).toEqual(first);
+    // Without nonce evidence, it is held for the user's check.
+    const bare = hold.open({
+      ...ordinary,
+      call: { ...ordinary.call, data: "0xaabbccdd0002" },
+    });
+    await expect(
+      bare.adopt(await bare.state(client), { nonce: 7 }),
+    ).resolves.toMatchObject({
+      status: "held-no-hash",
+      line: WRITE_HOLD_UNCHECKED_LINE,
+    });
+    const retry = wallet(async () => HASH);
+    await expect(handle.send(client, retry.send)).rejects.toBeInstanceOf(
+      WriteHeldError,
+    );
+    expect(retry.write).not.toHaveBeenCalled();
+  });
+
+  it("adopts under an intent once its legacy keys are clear, and shows the state when the lock can't be taken", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(
+      { ...ordinary, namespace: writeIntentKey("pay", { projectId: 4n }) },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    await expect(
+      handle.adopt(await handle.state(client)),
+    ).resolves.toMatchObject({ status: "held-no-hash" });
+    const unlocked = setup({
+      locks: {
+        request: async () => {
+          throw new Error("locks unavailable");
+        },
+      } as never,
+    });
+    const refused = unlocked.hold.open(ordinary);
+    await expect(refused.adopt({ status: "clear" })).resolves.toMatchObject({
+      status: "clear",
+    });
+  });
+
+  it("adopts nothing where a legacy hold or an intent's mirror already holds it", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const { client } = fakeChain();
+    await expect(
+      old.hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toThrow();
+    const held = old.hold.open(ordinary).peek() as WriteHeldState;
+    const next = setup({ browser, locks: old.locks });
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const intentHandle = next.hold.open(
+      {
+        ...ordinary,
+        call: { ...ordinary.call, data: "0xaabbccdd0002" },
+        namespace: key,
+      },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    await expect(
+      intentHandle.adopt({ status: "clear" }, { nonce: 7, fromBlock: 90n }),
+    ).resolves.toMatchObject({ reservation: held.record.id });
+    // The intent sends elsewhere; its mirror's exact handle adopts nothing.
+    const fresh = setup();
+    const mirrored = fresh.hold.open(
+      { ...ordinary, namespace: key },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    await mirrored.send(client, wallet(async () => HASH).send);
+    const exact = fresh.hold.open(ordinary);
+    const shown = await exact.adopt({ status: "clear" });
+    expect(shown).toMatchObject({
+      status: "pending-known-hash",
+      record: { namespace: key },
     });
   });
 });

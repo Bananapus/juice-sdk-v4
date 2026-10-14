@@ -1,0 +1,11 @@
+---
+"@bananapus/nana-sdk-core": minor
+---
+
+Find old exact-call holds by target and selector, and reset holds between tests.
+
+- `open(call, { legacy: [{ match: { to, selector } }] })` finds every exact-call write this account saved on this chain to `to` whose calldata starts with `selector`, and delegates to it exactly like a `{ call }` legacy key (one lock at a time, mirrors and the ordered reserve all apply). It is looked up when the handle opens and again at the final reserve. For a hold an earlier version saved under calldata a retry can't rebuild, such as an old minimum, expiration or deadline; pass one only for writes whose calldata is volatile. An intent's mirror is never matched: it is found by its namespace.
+- `findReviewedWrites({ chainId, account, to, selector })` is that lookup. It lists the storage's keys (`HeldWriteStorage.keys()`, or Web Storage's `length` and `key()`); a store that can't list them finds none.
+- `resetWriteHoldsForTests()` stops every controller's settle polls and tab listeners and drops this tab's lock queues and held-write memory. `resetSafeRelayrForTests()` stops every Safe Relayr watch (it rejects with an AbortError) and forgets remembered reviews.
+- `handle.adopt(snapshot, { nonce | sentNonce, fromBlock, submittedAt })` moves a hashless write a previous deploy kept outside these holds (such as Sticky's main-era bridge reservations) into the hold. Under the call's lock it reserves a hashless held record with that evidence only while nothing is held and no reservation came since `snapshot`, the state the app read: another tab's hold or settlement wins, and the current state is returned unchanged. It never sends or releases, and adopting twice holds once.
+- A Safe hold may now hold a whole batch: its call is `{ to: MULTI_SEND_CALL_ONLY, data: encodeMultiSend(calls), value: 0 }`, so two batches that share a first approval no longer collide. `verifyReviewedWriteReceipt` proves such a hold by the calls it encodes: an execution at once settles only when the Safe ran exactly those calls, in order, by DELEGATECALL to MultiSendCallOnly, and a proof must give them with `batch: true`. Its expiry proof matches the proposal's DELEGATECALL. A single-call hold is unchanged.

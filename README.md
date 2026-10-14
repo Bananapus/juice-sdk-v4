@@ -946,6 +946,44 @@ all are clear does the intent's own record apply. Every state carries
 `reservation`, the id of the reservation it belongs to (on a clear, the one
 that ended), so an observer can ignore a newer reservation it didn't start.
 
+A hold an earlier version saved under calldata the retry can't rebuild (an
+old minimum, expiration or deadline) is found with
+`{ match: { to, selector } }`: every exact-call write this account saved on
+this chain to `to` whose calldata starts with that 4-byte selector, delegated
+to exactly like a `{ call }` key. It is looked up when the handle opens and
+again at the final reserve. Pass a match only for writes whose calldata is
+volatile: it holds every such call, and a write saved under an intent is
+found by its namespace, never by the match.
+
+```ts
+holds.open(
+  {
+    chainId,
+    account,
+    safe,
+    call,
+    namespace: writeIntentKey("cash-out", { projectId }),
+  },
+  {
+    legacy: [
+      { match: { to: terminal, selector: toFunctionSelector(cashOutAbi) } },
+    ],
+  },
+);
+```
+
+To move a hashless write a previous deploy kept outside these holds into
+one, read its state, then `handle.adopt(snapshot, { nonce, fromBlock,
+submittedAt })`. It reserves only while nothing is held and no reservation
+came since that read (another tab's hold or settlement wins); otherwise it
+returns the current state. It never sends or releases, and adopting twice
+holds once.
+
+In tests, `resetWriteHoldsForTests()` stops every controller's settle polls
+and tab listeners and drops this tab's lock queues and held-write memory;
+`resetSafeRelayrForTests()` stops every Safe Relayr watch and forgets its
+remembered reviews. Call them in `afterEach`.
+
 ### Safe proposals
 
 `lookAtSafeProposal` and `watchSafeProposal` end a proposal whose nonce another

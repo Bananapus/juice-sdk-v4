@@ -235,8 +235,10 @@ const budgets = {
     // Stale-review generations, kept last records, the memory-only notice and
     // the unknown-read clock measured 1,464,159 B packed / 21,782,309 B
     // unpacked and 826 entries.
-    packed: 1_470_000,
-    unpacked: 21_795_000,
+    // Legacy matches, test resets, adoption and MultiSend batch holds
+    // measured 1,472,905 B packed / 21,818,178 B unpacked and 826 entries.
+    packed: 1_480_000,
+    unpacked: 21_840_000,
     entries: 826,
   },
   "@bananapus/nana-sdk-react": {

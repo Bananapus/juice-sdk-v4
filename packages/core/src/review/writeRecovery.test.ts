@@ -23,6 +23,8 @@ import {
   browserLocks,
   checkReviewedWrite,
   createBrowserWriteRecovery,
+  createHeldWriteStorage,
+  findReviewedWrites,
   parseReviewedWriteRecoveryRecord,
   readReviewedWriteNonce,
   readBrowserWriteRecovery,
@@ -889,6 +891,95 @@ describe("reviewed receipt recovery proof", () => {
         verifyReviewedWriteReceipt(run.client, record, run.receipt, proof),
       ).rejects.toThrow("pending");
     }
+  });
+});
+
+describe("a Safe hold whose call is its MultiSend batch", () => {
+  const calls = [
+    { ...input.call, value: 17n },
+    { to: WRAPPER, data: "0x11223344" as Hex, value: 2n },
+  ];
+  const batchCall = {
+    to: MULTI_SEND_CALL_ONLY,
+    data: encodeMultiSend(calls),
+    value: 0n,
+  };
+  const record: ReviewedWriteRecoveryRecord = {
+    ...saved,
+    safe: true,
+    call: { ...batchCall, value: "0" },
+  };
+  /** The Safe executed `ran` at once, through MultiSend with `operation`. */
+  function executed(ran = calls, operation = 1) {
+    const run = safeChain();
+    run.transaction.input = encodeFunctionData({
+      abi: SAFE_EXEC_ABI,
+      functionName: "execTransaction",
+      args: [
+        MULTI_SEND_CALL_ONLY,
+        0n,
+        encodeMultiSend(ran),
+        operation,
+        0n,
+        0n,
+        0n,
+        zeroAddress,
+        zeroAddress,
+        "0x",
+      ],
+    });
+    return run;
+  }
+
+  it("settles an execution at once only when it ran exactly the batch's calls, by DELEGATECALL", async () => {
+    const run = executed();
+    await expect(
+      verifyReviewedWriteReceipt(run.client, record, run.receipt),
+    ).resolves.toBe("success");
+    // The same proof, given as the batch it encodes.
+    await expect(
+      verifyReviewedWriteReceipt(run.client, record, run.receipt, {
+        calls,
+        batch: true,
+      }),
+    ).resolves.toBe("success");
+    for (const proof of [
+      { calls, batch: false },
+      { calls },
+      { calls: [batchCall], batch: true },
+      { calls: [...calls].reverse(), batch: true },
+    ]) {
+      await expect(
+        verifyReviewedWriteReceipt(run.client, record, run.receipt, proof),
+      ).rejects.toThrow("pending");
+    }
+    for (const other of [
+      executed([calls[0]]),
+      executed([...calls].reverse()),
+      executed([calls[0], { ...calls[1], value: 3n }]),
+      executed(calls, 0),
+    ])
+      await expect(
+        verifyReviewedWriteReceipt(other.client, record, other.receipt),
+      ).rejects.toThrow("pending");
+  });
+
+  it("keeps two batches that share a first approval apart", () => {
+    const other = encodeMultiSend([
+      calls[0],
+      { to: WRAPPER, data: "0x55667788" as Hex, value: 0n },
+    ]);
+    const first = createBrowserWriteRecovery({
+      ...input,
+      safe: true,
+      call: batchCall,
+    });
+    const second = createBrowserWriteRecovery({
+      ...input,
+      safe: true,
+      call: { ...batchCall, data: other },
+    });
+    expect(first.scopeKey).not.toBe(second.scopeKey);
   });
 });
 
@@ -2007,5 +2098,106 @@ describe("a write the chain proved ran", () => {
       expect(() =>
         parseReviewedWriteRecoveryRecord({ ...saved, ...bad }),
       ).toThrow("Invalid saved write recovery record");
+  });
+});
+
+describe("finding the exact-call writes a selector matches", () => {
+  const ACCOUNT_KEY = ACCOUNT.toLowerCase();
+  const TARGET_KEY = TARGET.toLowerCase();
+  const match = {
+    chainId: 10,
+    account: ACCOUNT,
+    to: TARGET,
+    selector: "0xAABBCCDD" as Hex,
+  };
+  /** Web Storage over `values`, enumerable unless `plain`. */
+  function webStorage(values: Map<string, string>, plain = false) {
+    return {
+      ...(plain
+        ? {}
+        : {
+            get length() {
+              return values.size;
+            },
+            key: (index: number) => [...values.keys()][index] ?? null,
+          }),
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => void values.set(key, value),
+      removeItem: (key: string) => void values.delete(key),
+    };
+  }
+  const at = (call: ReviewedWriteRecoveryInput["call"]) =>
+    createBrowserWriteRecovery({ ...input, call }).scopeKey;
+  const record = (
+    data: Hex,
+    extra: Partial<ReviewedWriteRecoveryRecord> = {},
+  ) =>
+    JSON.stringify({
+      ...saved,
+      id: data,
+      call: { ...saved.call, data },
+      ...extra,
+    });
+
+  it("finds a v2 or pre-2.30 exact call, skipping mirrors, releases, unreadable records and other keys", () => {
+    const values = new Map<string, string>();
+    const found = "0xaabbccdd0001" as Hex;
+    values.set(at({ ...input.call, data: found }), record(found));
+    const old = "0xaabbccdd0002" as Hex;
+    values.set(
+      `nana-sdk:reviewed-write:v1:10:${ACCOUNT_KEY}:${TARGET_KEY}:0xaabbccdd`,
+      record(old),
+    );
+    const mirror = "0xaabbccdd0003" as Hex;
+    values.set(
+      at({ ...input.call, data: mirror }),
+      record(mirror, { mirrorOf: "jbm:cash-out:4" }),
+    );
+    const released = "0xaabbccdd0004" as Hex;
+    const releasedKey = at({ ...input.call, data: released });
+    values.set(releasedKey, record(released));
+    values.set(`${releasedKey}:released:${released}`, "1");
+    values.set(at({ ...input.call, data: "0xaabbccdd0005" }), "{");
+    const elsewhere = "0x112233440001" as Hex;
+    values.set(at({ ...input.call, data: elsewhere }), record(elsewhere));
+    values.set(`${at({ ...input.call, data: found })}:latest`, "{}");
+    values.set("unrelated", "1");
+    const ids = (
+      storage: NonNullable<Parameters<typeof findReviewedWrites>[1]>["storage"],
+    ) =>
+      findReviewedWrites(match, { storage })
+        .map(({ id }) => id)
+        .sort();
+    expect(ids(webStorage(values))).toEqual([found, old]);
+    // A store that can't be listed finds none.
+    expect(ids(webStorage(values, true))).toEqual([]);
+    // The held-write store lists its browser storage and its memory, and
+    // what it last saw while the browser's storage can't be read.
+    const memory = new Map([
+      [at({ ...input.call, data: elsewhere }), record(elsewhere)],
+    ]);
+    let refused = false;
+    const browserStore = webStorage(values);
+    const held = createHeldWriteStorage({
+      durable: () => {
+        if (refused) throw new Error("SecurityError");
+        return browserStore as never;
+      },
+      memory,
+    });
+    expect(held.getItem(at({ ...input.call, data: found }))).not.toBeNull();
+    expect(new Set(held.keys!())).toEqual(
+      new Set([...values.keys(), ...memory.keys()]),
+    );
+    refused = true;
+    expect(held.keys!()).toEqual(
+      expect.arrayContaining([at({ ...input.call, data: found })]),
+    );
+    expect(() =>
+      findReviewedWrites(
+        { ...match, selector: "0xaabb" as Hex },
+        { storage: webStorage(values) },
+      ),
+    ).toThrow("Invalid write hold match.");
   });
 });

@@ -1,6 +1,7 @@
 import {
   isAddress,
   toEventSelector,
+  type Address,
   type Hex,
   type PublicClient,
   type TransactionReceipt,
@@ -33,8 +34,10 @@ import {
 import {
   createBrowserWriteRecovery,
   createHeldWriteStorage,
+  findReviewedWrites,
   findTransactionAtNonce,
   readReviewedWriteNonce,
+  resetWriteRecoveryForTests,
   SubmittedWritePersistenceError,
   verifyReviewedWriteExpiry,
   verifyReviewedWriteReceipt,
@@ -44,6 +47,19 @@ import {
 } from "./writeRecovery.js";
 import { isBytes32 } from "../untrusted.js";
 import { atCanonicalFinalizedBlock } from "./relayr.js";
+
+/** The stop of every controller with a follower or tab listener running. */
+const liveHolds = new Set<() => void>();
+
+/**
+ * Stop every write hold's followers and tab listeners, and drop this tab's
+ * lock queues and held-write memory, so nothing leaks from one test into
+ * the next. For tests only.
+ */
+export function resetWriteHoldsForTests(): void {
+  for (const stop of [...liveHolds]) stop();
+  resetWriteRecoveryForTests();
+}
 
 /** The reads a write hold makes on the call's chain; a viem PublicClient satisfies it. */
 export type WriteHoldClient = Pick<
@@ -416,6 +432,16 @@ export function createWriteHold(
       }
     };
     globalThis.addEventListener("storage", onStorage);
+    liveHolds.add(dispose);
+  }
+
+  /** Stop every settle poll and the tab listener. */
+  function dispose() {
+    for (const timer of timers.values()) clearTimeout(timer);
+    timers.clear();
+    if (onStorage) globalThis.removeEventListener?.("storage", onStorage);
+    onStorage = undefined;
+    liveHolds.delete(dispose);
   }
 
   function openOne(
@@ -500,6 +526,7 @@ export function createWriteHold(
 
     function follow(client: WriteHoldClient, id: string, left = attempts) {
       if (timers.has(id) || left <= 0) return;
+      liveHolds.add(dispose);
       timers.set(
         id,
         setTimeout(() => {
@@ -1287,6 +1314,46 @@ export function createWriteHold(
        * one lock, without releasing it. The hold then follows that hash: no
        * exit while it is pending, and its receipt settles it.
        */
+      /**
+       * Move a hashless write a previous deploy kept (outside these holds)
+       * into this hold. `snapshot` is the state the app read before
+       * deciding. Under the call's lock, it reserves a hashless held record
+       * with `evidence` (the account's next nonce, or the nonce it was sent
+       * at, with the block it was read at; when it was sent) only while
+       * nothing is held and no reservation came since `snapshot`: another
+       * tab's hold or settlement wins. Otherwise it returns the current
+       * state, unchanged. It never sends or releases; adopting twice holds
+       * once.
+       */
+      async adopt(
+        snapshot: WriteHoldState,
+        evidence: {
+          nonce?: number | bigint;
+          sentNonce?: number | bigint;
+          fromBlock?: bigint;
+          submittedAt?: number;
+        } = {},
+      ): Promise<WriteHoldState> {
+        const nonce = evidence.nonce ?? evidence.sentNonce;
+        const result = await locked(async () => {
+          if (
+            snapshot.status === "clear" &&
+            !recovery.read() &&
+            recovery.latestReservation() === snapshot.reservation
+          )
+            recovery.reserve(
+              undefined,
+              nonce !== undefined && evidence.fromBlock !== undefined
+                ? { nonce, blockNumber: evidence.fromBlock }
+                : undefined,
+              evidence.submittedAt === undefined
+                ? undefined
+                : String(evidence.submittedAt),
+            );
+          return peek();
+        }, true);
+        return shown(result?.value ?? peek());
+      },
       async attachHash(
         client: WriteHoldClient,
         hash: Hex,
@@ -1372,7 +1439,13 @@ export function createWriteHold(
   /**
    * `legacy`: for a write held under an intent namespace, the keys an earlier
    * version held it under (an old namespace, or `{ call }` for an exact
-   * call); the current exact call is always checked. While any of them holds
+   * call); the current exact call is always checked. `{ match: { to,
+   * selector } }` finds them instead: every exact-call write this account
+   * saved on this chain to `to` with that 4-byte selector, for a hold saved
+   * before the intent key existed under calldata the retry can't rebuild (an
+   * old minimum, expiration or deadline). Pass one only for a write whose
+   * calldata is volatile: it holds every such call. It is found when the
+   * handle opens, and again right before a send reserves. While any of them holds
    * an unresolved write, the intent handle *is* that hold: its state, its
    * refusal and its own exit, in place. Each is checked alone, under its own
    * lock only, never two at once. Only when all are clear does the intent's
@@ -1384,10 +1457,25 @@ export function createWriteHold(
     {
       legacy = [],
     }: {
-      legacy?: (string | { call: ReviewedWriteRecoveryInput["call"] })[];
+      legacy?: (
+        | string
+        | { call: ReviewedWriteRecoveryInput["call"] }
+        | { match: { to: Address; selector: Hex } }
+      )[];
     } = {},
   ) {
     if (call.namespace === undefined) return openExact(call);
+    const matches = legacy.flatMap((source) =>
+      typeof source === "object" && "match" in source ? [source.match] : [],
+    );
+    /** Every exact-call write the matches find in storage now. */
+    const matched = () =>
+      matches.flatMap((match) =>
+        findReviewedWrites(
+          { chainId: call.chainId, account: call.account, ...match },
+          { storage },
+        ),
+      );
     const namespace = call.namespace;
     const own = openOne(call, {
       across: reserveAcross,
@@ -1403,12 +1491,21 @@ export function createWriteHold(
     const scopeOf = (input: ReviewedWriteRecoveryInput) =>
       createBrowserWriteRecovery(input, { storage }).scopeKey;
     const scopes = new Set([scopeOf(call)]);
-    const inputs = [{ call: call.call }, ...legacy]
-      .map((source) =>
+    const inputs = [
+      ...[{ call: call.call }, ...legacy].flatMap((source) =>
         typeof source === "string"
-          ? { ...call, namespace: source }
-          : { ...exact, call: source.call },
-      )
+          ? [{ ...call, namespace: source }]
+          : "call" in source
+            ? [{ ...exact, call: source.call }]
+            : [],
+      ),
+      // A found write keeps its own Safe flag: its record is matched exactly.
+      ...matched().map((record) => ({
+        ...exact,
+        safe: record.safe,
+        call: record.call,
+      })),
+    ]
       .filter((input) => {
         const scope = scopeOf(input);
         return !scopes.has(scope) && !!scopes.add(scope);
@@ -1472,16 +1569,21 @@ export function createWriteHold(
               entered += 1;
               return acquire(index + 1);
             });
+          const refuse = (held: ReviewedWriteRecoveryRecord) =>
+            new WriteHeldError(
+              noticed({
+                ...ungated(classify(held)),
+                reservation: held.id,
+              }) as WriteHeldState,
+            );
           for (const journal of journals) {
             const held = journal.read();
-            if (held && held.mirrorOf !== namespace)
-              throw new WriteHeldError(
-                noticed({
-                  ...ungated(classify(held)),
-                  reservation: held.id,
-                }) as WriteHeldState,
-              );
+            if (held && held.mirrorOf !== namespace) throw refuse(held);
           }
+          // A matching write saved since the handle opened holds it too.
+          for (const held of matched())
+            if (!scopes.has(scopeOf({ ...exact, call: held.call })))
+              throw refuse(held);
           // Another attempt since this review opened: review it again.
           if (generations() !== reviewed)
             throw new WriteHoldStaleReviewError(ownJournal.settled());
@@ -1610,6 +1712,9 @@ export function createWriteHold(
         active()?.onExecuted(...args) ?? after(await own.onExecuted(...args)),
       attachHash: async (...args: Parameters<typeof own.attachHash>) =>
         active()?.attachHash(...args) ?? after(await own.attachHash(...args)),
+      // A legacy hold already holds it: nothing is adopted.
+      adopt: async (...args: Parameters<typeof own.adopt>) =>
+        active()?.peek() ?? own.adopt(...args),
     };
   }
 
@@ -1703,6 +1808,9 @@ export function createWriteHold(
         (route() ?? own).onExecuted(...args),
       attachHash: (...args: Parameters<typeof own.attachHash>) =>
         (route() ?? own).attachHash(...args),
+      // An intent's mirror already holds it: nothing is adopted.
+      adopt: async (...args: Parameters<typeof own.adopt>) =>
+        route()?.peek() ?? own.adopt(...args),
     };
   }
   return {
@@ -1712,12 +1820,7 @@ export function createWriteHold(
     /** The review's line while holds last only in this tab, or null. */
     reviewLine: () => (storage.durable() ? null : WRITE_HOLD_IN_TAB_LINE),
     /** Stop every settle poll and the tab listener (tests, teardown). */
-    dispose() {
-      for (const timer of timers.values()) clearTimeout(timer);
-      timers.clear();
-      if (onStorage) globalThis.removeEventListener?.("storage", onStorage);
-      onStorage = undefined;
-    },
+    dispose,
   };
 }
 

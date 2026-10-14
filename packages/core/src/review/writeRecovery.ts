@@ -13,6 +13,7 @@ import {
   safeTransactionMatchesCall,
   type SafeServiceOptions,
 } from "../safeService.js";
+import { multiSendCallsOf } from "../safe.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import {
   atCanonicalFinalizedBlock,
@@ -320,7 +321,27 @@ function recoveryStorage(store?: RecoveryStorage): RecoveryStorage {
 export type HeldWriteStorage = RecoveryStorage & {
   /** Whether records are kept by the browser (shared by tabs, kept across reloads) right now. */
   durable(): boolean;
+  /** Every key it holds, for {@link findReviewedWrites}; without it, none are found. */
+  keys?(): string[];
 };
+
+/** Every key `store` holds: its own `keys()`, or Web Storage's `length` and `key()`. */
+function storedKeys(store: unknown): string[] {
+  const keyed = store as {
+    keys?: () => string[];
+    length?: number;
+    key?: (index: number) => string | null;
+  };
+  if (typeof keyed?.keys === "function") return keyed.keys();
+  if (typeof keyed?.length !== "number" || typeof keyed.key !== "function")
+    return [];
+  const keys: string[] = [];
+  for (let index = 0; index < keyed.length; index += 1) {
+    const key = keyed.key(index);
+    if (key !== null) keys.push(key);
+  }
+  return keys;
+}
 
 const PROBE_KEY = "nana-sdk:reviewed-write:probe";
 
@@ -434,6 +455,15 @@ export function createHeldWriteStorage(
       }
       if (read(key) === null) seen.delete(key);
     },
+    keys() {
+      let saved: string[];
+      try {
+        saved = storedKeys(durable());
+      } catch {
+        saved = [...seen.keys()];
+      }
+      return [...new Set([...saved, ...memory.keys()])];
+    },
     durable() {
       const probe = String(Date.now());
       if (!write(PROBE_KEY, probe)) return false;
@@ -446,6 +476,74 @@ export function createHeldWriteStorage(
       return true;
     },
   };
+}
+
+/**
+ * Every exact-call write saved for `account` on `chainId` to `to` whose
+ * calldata starts with `selector` (a 4-byte hex), from its key in `storage`:
+ * holds saved before an intent key existed, under calldata a retry can't
+ * rebuild. A mirror of an intent's write is never one: its intent is found
+ * by its namespace. Unreadable and released records are skipped.
+ */
+export function findReviewedWrites(
+  input: Pick<ReviewedWriteRecoveryInput, "chainId" | "account"> & {
+    to: Address;
+    selector: Hex;
+  },
+  options: { storage?: RecoveryStorage } = {},
+): ReviewedWriteRecoveryRecord[] {
+  const identity = normalizedIdentity(input);
+  if (
+    !isAddress(input.to, { strict: false }) ||
+    !/^0x[0-9a-fA-F]{8}$/.test(input.selector)
+  )
+    throw new Error("Invalid write hold match.");
+  const to = input.to.toLowerCase();
+  const selector = input.selector.toLowerCase();
+  const store = recoveryStorage(options.storage);
+  const prefix = `nana-sdk:reviewed-write:v2:${identity.chainId}:${identity.account}:${to}:`;
+  const legacy = `nana-sdk:reviewed-write:v1:${identity.chainId}:${identity.account}:${to}:${selector}`;
+  const found: ReviewedWriteRecoveryRecord[] = [];
+  for (const key of storedKeys(store)) {
+    const exact =
+      key.startsWith(prefix) &&
+      /^\d+:0x[0-9a-f]{64}$/.test(key.slice(prefix.length));
+    if (!exact && key !== legacy) continue;
+    try {
+      const record = readStored(
+        store.getItem(key),
+        key,
+        exact ? scope : legacyScope,
+        store,
+      );
+      if (
+        record &&
+        record.namespace === undefined &&
+        record.mirrorOf === undefined &&
+        record.call.data.slice(0, 10) === selector
+      )
+        found.push(record);
+    } catch {
+      // An unreadable record names no call, so it holds none.
+    }
+  }
+  return found;
+}
+
+/**
+ * Drop this tab's lock queues, held-write memory and lock fallback, for
+ * tests: {@link resetWriteHoldsForTests} calls it.
+ */
+export function resetWriteRecoveryForTests(): void {
+  tabQueues.clear();
+  const tab = globalThis as {
+    [TAB_MEMORY]?: unknown;
+    [TAB_SEEN]?: unknown;
+  };
+  delete tab[TAB_MEMORY];
+  delete tab[TAB_SEEN];
+  fallbackLocks = undefined;
+  tabLocksNoted = false;
 }
 
 export type ReviewedWriteRecoveryScope = Pick<
@@ -947,11 +1045,13 @@ export function createBrowserWriteRecovery(
     /**
      * Save the attempt before the wallet opens. `evidence`, the account's next
      * nonce from {@link readReviewedWriteNonce}, lets `resolve` release it
-     * on proof from the chain.
+     * on proof from the chain. `submittedAt` is kept for an adopted write
+     * a previous deploy saw sent.
      */
     reserve(
       actualCall?: ReviewedWriteRecoveryInput["call"],
       evidence?: ReviewedWriteNonceEvidence,
+      submittedAt?: string,
     ): ReviewedWriteRecoveryRecord {
       requireLock();
       // A reused Safe proposal may have a different, already verified deadline.
@@ -985,6 +1085,7 @@ export function createBrowserWriteRecovery(
         ...(evidence
           ? { nonce: nonce!.toString(), fromBlock: fromBlock!.toString() }
           : {}),
+        ...(submittedAt === undefined ? {} : { submittedAt }),
       };
       owned = recordOf(record);
       try {
@@ -1678,6 +1779,21 @@ export type ReviewedWriteReceiptClient = {
 };
 
 /**
+ * The calls a Safe hold's call encodes when it is a MultiSend batch (a
+ * zero-value call to MultiSendCallOnly, which the Safe runs by DELEGATECALL),
+ * normalized; null for any other call.
+ */
+function heldBatch(
+  record: ReviewedWriteRecoveryRecord,
+): ReviewedWriteRecoveryRecord["call"][] | null {
+  const inner =
+    record.safe && record.call.value === "0"
+      ? multiSendCallsOf({ ...record.call, operation: 1 })
+      : null;
+  return inner && inner.map((call) => normalized({ ...record, call }).call);
+}
+
+/**
  * Authenticate the saved wallet identity, canonical inclusion and Safe effect.
  * Ordinary wallet wrappers are allowed: the wallet's returned hash binds their
  * execution. A wallet-returned Safe proposal hash authenticates its execution
@@ -1701,7 +1817,9 @@ export async function verifyReviewedWriteReceipt(
     new Error(
       "The saved wallet write is not yet proven. Keep this action pending.",
     );
-  let calls = [record.call];
+  // A batch hold's call is its MultiSend: its proof is the calls it encodes.
+  const batch = heldBatch(record);
+  let calls = batch ?? [record.call];
   if (proof) {
     if (
       !record.safe ||
@@ -1710,9 +1828,17 @@ export async function verifyReviewedWriteReceipt(
       (proof.batch !== undefined && typeof proof.batch !== "boolean")
     )
       throw pending();
-    calls = proof.calls.map((call) => normalized({ ...record, call }).call);
-    if (JSON.stringify(calls[0]) !== JSON.stringify(record.call))
+    const proven = proof.calls.map(
+      (call) => normalized({ ...record, call }).call,
+    );
+    if (
+      batch
+        ? proof.batch !== true ||
+          JSON.stringify(proven) !== JSON.stringify(batch)
+        : JSON.stringify(proven[0]) !== JSON.stringify(record.call)
+    )
       throw pending();
+    calls = proven;
   }
   if (
     !record.hash ||
@@ -1780,7 +1906,7 @@ export async function verifyReviewedWriteReceipt(
       safe: record.account,
       proposalHash: record.hash,
       calls,
-      batch: proof?.batch,
+      batch: batch ? true : proof?.batch,
     });
     // A reverted outer executor has not consumed the Safe proposal's nonce.
     if (result.status !== "success" && result.status !== "failed")
@@ -1835,6 +1961,7 @@ export async function verifyReviewedWriteExpiry(
     !safeTransactionMatchesCall(proposal, {
       ...record.call,
       value: BigInt(record.call.value),
+      ...(heldBatch(record) ? { operation: 1 as const } : {}),
     })
   )
     throw pending();

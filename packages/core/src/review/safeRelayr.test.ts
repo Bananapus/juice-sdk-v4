@@ -24,6 +24,7 @@ import {
   createSafeRelayrController,
   canReplaceSafeRelayrQuote,
   requireSafeRelayrExecution,
+  resetSafeRelayrForTests,
   SafeRelayrRecoveryError,
   safeRelayrPreconditions,
   safeRelayrReservationKey,
@@ -3852,5 +3853,48 @@ describe("Safe Relayr read-only progress polling", () => {
     ).rejects.toThrow("positive interval");
     expect(h.store.list).not.toHaveBeenCalled();
     expect(h.fetchRelayr).not.toHaveBeenCalled();
+  });
+});
+
+describe("resetting Safe Relayr between tests", () => {
+  it("stops every watch and forgets every review", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.sessions.get(ready.session.id)!.paymentStatus = "sending";
+    const first = deferred();
+    const watched = h.controller
+      .watch({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        intervalMs: 60_000,
+        timeoutMs: 600_000,
+        onUpdate: () => first.resolve(),
+      })
+      .catch((e) => e);
+    await first.promise;
+    resetSafeRelayrForTests();
+    expect((await watched).name).toBe("AbortError");
+    // The review is asked again before funding.
+    h.sessions.get(ready.session.id)!.paymentStatus = "unfunded";
+    h.review.mockClear();
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    expect(h.review).toHaveBeenCalledWith([execution()], { resumed: true });
+    // A signal aborted before the watch starts stops it with its reason.
+    const aborted = new AbortController();
+    aborted.abort(new Error("left the page"));
+    await expect(
+      h.controller.watch({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        signal: aborted.signal,
+      }),
+    ).rejects.toThrow("left the page");
   });
 });
