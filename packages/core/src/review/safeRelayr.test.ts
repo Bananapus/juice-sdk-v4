@@ -4422,6 +4422,36 @@ describe("Safe Relayr status reads that stay unknown", () => {
       fundingObserved: true,
       fundingObservedAt: 5,
     });
+    // It re-read the saved record before the wallet: nothing was paid.
+    expect(h.sendPayment).toHaveBeenCalledOnce();
+    expect(h.sessions.get(ready.session.id)).toMatchObject({
+      paymentStatus: "unfunded",
+      payments: [],
+    });
+  });
+
+  it("opens no wallet once the saved record changed in a way that blocks payment", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.revalidate.mockImplementationOnce(async () => {
+      h.sessions.set(ready.session.id, {
+        ...h.sessions.get(ready.session.id)!,
+        paymentStatus: "sending",
+      });
+    });
+    const refused = await h.controller
+      .fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      })
+      .catch((e) => e);
+    expect(refused).toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(refused.session.paymentStatus).toBe("sending");
+    expect(h.sessions.get(ready.session.id)?.payments).toEqual([]);
   });
 
   it("offers no exit when the payment's reads fail rather than find nothing", async () => {

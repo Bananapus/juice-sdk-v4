@@ -1776,6 +1776,22 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         checkAccount(account, signal);
         if (!verified || sending)
           throw new Error("Recheck the Safe execution before funding it.");
+        // The saved record, read again just before the wallet opens: funding
+        // another flow reported, or any change to its payment, refuses.
+        const stored = await load(account, session.id);
+        if (
+          hasObservedFunding(stored) ||
+          stored.state !== session.state ||
+          stored.paymentStatus !== session.paymentStatus ||
+          stored.bundleUuid !== session.bundleUuid ||
+          JSON.stringify(stored.payments) !== JSON.stringify(session.payments)
+        )
+          throw new SafeRelayrRecoveryError(
+            stored,
+            hasObservedFunding(stored)
+              ? SAFE_RELAYR_FUNDING_EXIT_LINE
+              : "This saved selection changed while it was being paid. Check it again before paying.",
+          );
         session = { ...session, paymentStatus: "sending" };
         await store.save(session);
         try {
