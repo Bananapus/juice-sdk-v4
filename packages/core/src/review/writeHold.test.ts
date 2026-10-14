@@ -4603,6 +4603,42 @@ describe("a held Safe proposal", () => {
   );
 
   describe("whose follower ends without proof", () => {
+    it("lets the service listing this proposal unexecuted again override its unproven end", async () => {
+      const { hold, queue } = safeSetup();
+      const fixture = fakeChain();
+      const handle = hold.open(safeCall());
+      await handle.send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(queue.hash);
+      });
+      // The service lost it: unproven, with its exit.
+      queue.options.fetch.mockResolvedValue(new Response("", { status: 404 }));
+      const view = createHeldWriteView(handle, {
+        client: fixture.client,
+        follow: false,
+      });
+      const stop = view.start();
+      await handle.onUnproven(fixture.client, queue.hash);
+      await view.check();
+      expect(view.get()).toMatchObject({ phase: "held", exit: true });
+      // It lists this exact proposal unexecuted again: truly pending.
+      queue.options.fetch.mockImplementation(
+        async () => new Response(JSON.stringify(queue.answer.current)),
+      );
+      const now = Date.now();
+      vi.spyOn(Date, "now").mockReturnValue(now + 60 * 60_000);
+      await view.check();
+      expect(view.get()).toMatchObject({
+        exit: false,
+        state: { checked: true },
+      });
+      expect((handle.peek() as WriteHeldState).record).toMatchObject({
+        pendingSeenAt: String(now + 60 * 60_000),
+      });
+      expect((handle.peek() as WriteHeldState).record.unproven).toBeUndefined();
+      stop();
+    });
+
     const unprovenState = {
       status: "safe-unproven",
       exit: true,
@@ -4619,9 +4655,16 @@ describe("a held Safe proposal", () => {
       });
       return { ...setup, fixture, handle };
     }
+    /** Safe's service answers it has no such proposal. */
+    const lost = (queue: ReturnType<typeof service>) =>
+      queue.options.fetch.mockImplementation(
+        async () => new Response("", { status: 404 }),
+      );
 
     it("keeps a reported execution's unseen window through failing reads, then offers the exit", async () => {
-      const { handle, fixture } = await proposed();
+      const { handle, fixture, queue } = await proposed();
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       const candidate = `0x${"c4".repeat(32)}` as Hex;
       await handle.onExecuted(fixture.client, candidate);
       // Every read of that hash fails before the chain ever showed it.
@@ -4809,6 +4852,8 @@ describe("a held Safe proposal", () => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(1_000_000);
       const { handle, fixture, queue } = await proposed();
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       const CAND = `0x${"c5".repeat(32)}` as Hex;
       fixture.chain.txs.push({
         hash: CAND,
@@ -5005,6 +5050,8 @@ describe("a held Safe proposal", () => {
     it("keeps an unauthenticated execution hash as a candidate only, so the exit stays reachable", async () => {
       const browser = origin();
       const { handle, fixture, queue } = await proposed(browser);
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       // Codex: the hash ran different calldata.
       fixture.chain.txs.push({
         hash: EXECUTION,
@@ -5031,7 +5078,9 @@ describe("a held Safe proposal", () => {
       const unproven = await handle.onUnproven(fixture.client, queue.hash);
       expect(unproven).toMatchObject(unprovenState);
       // After a reload too.
-      const reloaded = safeSetup(browser).hold.open(safeCall());
+      const reloadedSetup = safeSetup(browser);
+      lost(reloadedSetup.queue);
+      const reloaded = reloadedSetup.hold.open(safeCall());
       expect(reloaded.peek()).toMatchObject({ ...unprovenState, exit: false });
       const shown = await reloaded.state(fixture.client);
       expect(shown).toMatchObject(unprovenState);
@@ -5161,6 +5210,8 @@ describe("a held Safe proposal", () => {
 
     it("offers the unproven exit through state(), never through peek()", async () => {
       const { handle, fixture, queue } = await proposed();
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       await handle.onUnproven(fixture.client, queue.hash);
       expect(handle.peek()).toMatchObject({
         status: "safe-unproven",
@@ -5176,6 +5227,8 @@ describe("a held Safe proposal", () => {
     it("offers the exit at once, durably through a reload", async () => {
       const browser = origin();
       const { handle, fixture, queue } = await proposed(browser);
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       const ended = await handle.onUnproven(fixture.client, queue.hash);
       expect(ended).toMatchObject({
         ...unprovenState,
@@ -5183,7 +5236,9 @@ describe("a held Safe proposal", () => {
         record: { unproven: true },
       });
       // A reload: a new controller and tab memory, the same browser.
-      const reloaded = safeSetup(browser).hold.open(safeCall());
+      const reloadedSetup = safeSetup(browser);
+      lost(reloadedSetup.queue);
+      const reloaded = reloadedSetup.hold.open(safeCall());
       expect(reloaded.peek()).toMatchObject({ ...unprovenState, exit: false });
       const shown = await reloaded.state(fixture.client);
       expect(shown).toMatchObject(unprovenState);
@@ -5246,6 +5301,8 @@ describe("a held Safe proposal", () => {
 
     it("saves an authenticated execution before it is final, so an earlier unproven snapshot can't exit", async () => {
       const { handle, fixture, queue, hold } = await proposed();
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       const unproven = await handle.onUnproven(fixture.client, queue.hash);
       expect(unproven.status).toBe("safe-unproven");
       // Codex: the execution lands at block 95 while the finalized block is 90.
@@ -5299,6 +5356,8 @@ describe("a held Safe proposal", () => {
 
     it("ignores another proposal, an ordinary write, nothing held and a busy lock", async () => {
       const { handle, fixture, queue } = await proposed();
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       await expect(
         handle.onUnproven(fixture.client, OTHER),
       ).resolves.toMatchObject({
@@ -5999,6 +6058,73 @@ describe("acknowledging a success that settled while away", () => {
 });
 
 describe("a legacy hold's success, through its intent", () => {
+  it("passes the intent's own settlement to its subscribers as it is", async () => {
+    const { hold } = setup();
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(
+      { ...ordinary, namespace: writeIntentKey("pay", { projectId: 7n }) },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    const heard: WriteHoldState[] = [];
+    const stop = handle.subscribe((state) => heard.push(state));
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(heard[heard.length - 1]).toMatchObject({
+      status: "clear",
+      settled: { result: "success", hash: HASH },
+    });
+    stop();
+  });
+
+  it("reaches a started, subscribed view as the success, never a release", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    const next = setup({ browser, locks: old.locks });
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const handle = next.hold.open(
+      {
+        ...ordinary,
+        call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+        namespace: key,
+      },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    const settled = vi.fn();
+    const released = vi.fn();
+    const view = createHeldWriteView(handle, {
+      client,
+      follow: false,
+      onSettled: settled,
+      onReleased: released,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    // The intent's own key speaks (another handle reads it): still the legacy hold.
+    const heard: WriteHoldState[] = [];
+    const stopHearing = handle.subscribe((state) => heard.push(state));
+    await next.hold
+      .open({
+        ...ordinary,
+        call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+        namespace: key,
+      })
+      .state(client);
+    expect(heard[heard.length - 1]).toMatchObject({
+      status: "pending-known-hash",
+    });
+    stopHearing();
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(view.get().phase).toBe("settled");
+    expect(released).not.toHaveBeenCalled();
+    stop();
+  });
+
   it("is the intent's settlement: delivered once, never a release, and blocks until acknowledged", async () => {
     const browser = origin();
     const old = setup({ browser });

@@ -899,8 +899,9 @@ unexecuted: each such read restarts its 30-minute clock and keeps the exit
 away. A Safe nonce that still waits shows only that nothing ran at it, so it
 restarts nothing. Once 30 minutes pass since the proposal was sent, adopted or
 last listed, with nothing proving it ran, it gets the warned exit
-(`held-unchecked`), even when the chain can't be read at all; a follower's
-unproven end (the service can't find it) gets its own warned exit. The same
+(`held-unchecked`), even when the chain can't be read at all. A follower's
+unproven end (the service can't find it) gets its own warned exit, until the
+service lists this exact proposal unexecuted again, which undoes it. The same
 nonce makes a double execution impossible, so the exit costs little, and a
 proposal the service can't find never becomes a dead end.
 

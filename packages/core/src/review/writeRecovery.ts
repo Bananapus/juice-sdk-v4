@@ -1516,6 +1516,19 @@ export function createBrowserWriteRecovery(
       );
     },
     /**
+     * Safe's service lists the proposal unexecuted again: it is truly
+     * pending, so an unproven end is undone and its unseen clock restarts.
+     * Extra evidence: a stale snapshot keeps the record as it was.
+     */
+    listedAgain(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(expected, (current) => current.safe && !current.executed, {
+        unproven: undefined,
+        pendingSeenAt: String(Date.now()),
+      });
+    },
+    /**
      * Save a Safe proposal's nonce from its authenticated record, once. Extra
      * evidence: a stale snapshot or a failed save keeps the record as it was.
      */

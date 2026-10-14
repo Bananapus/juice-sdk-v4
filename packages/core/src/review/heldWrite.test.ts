@@ -907,4 +907,65 @@ describe("one held write's view", () => {
     await vi.waitFor(() => expect(handle.adopt).toHaveBeenCalledOnce());
     stop();
   });
+
+  it("acknowledges a success only once its callback ran, and delivers it after a restart", async () => {
+    const onSettled = vi.fn();
+    const { fake, handle } = fakeHandle(pending({ id: "r40" }));
+    fake.answer = pending({ id: "r40" });
+    const view = createHeldWriteView(handle, {
+      client,
+      follow: false,
+      onSettled,
+    });
+    let stop = view.start();
+    await flush();
+    let receipt!: (value: unknown) => void;
+    client.getTransactionReceipt.mockImplementationOnce(
+      () => new Promise((resolve) => (receipt = resolve)),
+    );
+    fake.answer = clear({
+      reservation: "r40",
+      settled: { result: "success", hash: HASH },
+    });
+    await view.check();
+    // Unmounted while the receipt is read: nothing acknowledged, nothing told.
+    stop();
+    receipt({ transactionHash: HASH });
+    await flush();
+    expect(onSettled).not.toHaveBeenCalled();
+    expect(handle.acknowledge).not.toHaveBeenCalled();
+    // A read after the stop is kept for the next start too.
+    await view.check();
+    expect(onSettled).not.toHaveBeenCalled();
+    // The same controller starts again: the success is delivered, then acknowledged.
+    stop = view.start();
+    await vi.waitFor(() => expect(onSettled).toHaveBeenCalledOnce());
+    expect(handle.acknowledge).toHaveBeenCalledWith({
+      result: "success",
+      hash: HASH,
+    });
+    stop();
+    // A settlement first read after a stop waits for the next start.
+    const later = fakeHandle(pending({ id: "r41" }));
+    later.fake.answer = pending({ id: "r41" });
+    const told = vi.fn();
+    const other = createHeldWriteView(later.handle, {
+      client,
+      follow: false,
+      onSettled: told,
+    });
+    const stopOther = other.start();
+    await flush();
+    stopOther();
+    later.fake.answer = clear({
+      reservation: "r41",
+      settled: { result: "success", hash: HASH },
+    });
+    await other.check();
+    await flush();
+    expect(told).not.toHaveBeenCalled();
+    const restarted = other.start();
+    await vi.waitFor(() => expect(told).toHaveBeenCalledOnce());
+    restarted();
+  });
 });

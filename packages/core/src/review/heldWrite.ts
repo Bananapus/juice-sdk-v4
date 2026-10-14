@@ -293,21 +293,39 @@ export function createHeldWriteView(
     });
   }
 
+  /** A settlement this view saw, still to tell the app: kept across a restart. */
+  let undelivered: { settled: WriteHoldSettled; key: string } | undefined;
+
+  /**
+   * Tell the app of a settlement it saw held, once, while live. Only once its
+   * callback ran is it done, and a success acknowledged: a lifecycle change
+   * before then leaves it to the next start.
+   */
   function deliver(settled: WriteHoldSettled, key: string) {
-    if (!live || delivered.has(key) || !options.onSettled) return;
-    delivered.add(key);
-    const onSettled = options.onSettled;
+    undelivered = { settled, key };
+    if (!live) return;
     const at = epoch;
-    void (
-      "hash" in settled
-        ? client.getTransactionReceipt({ hash: settled.hash }).then(
-            (receipt) => receipt as TransactionReceipt,
-            () => null,
-          )
-        : Promise.resolve(null)
-    ).then((receipt) => {
-      if (at === epoch) onSettled(settled, receipt);
-    });
+    const done = (receipt: TransactionReceipt | null) => {
+      if (at !== epoch || delivered.has(key)) return;
+      delivered.add(key);
+      undelivered = undefined;
+      options.onSettled?.(settled, receipt);
+      // Told: the hold marks it acknowledged, so no later visit asks again.
+      if (
+        "hash" in settled &&
+        settled.result === "success" &&
+        !settled.acknowledged
+      )
+        void handle.acknowledge(settled).catch(() => null);
+    };
+    if (!options.onSettled || !("hash" in settled)) {
+      done(null);
+      return;
+    }
+    void client.getTransactionReceipt({ hash: settled.hash }).then(
+      (receipt) => done(receipt as TransactionReceipt),
+      () => done(null),
+    );
   }
 
   /** The phase and line a held state shows, monotonic once confirming. */
@@ -372,15 +390,6 @@ export function createHeldWriteView(
       stopFollowing();
       if (next.settled && mine) {
         deliver(next.settled, observed!);
-        // Seen settling here, while live: the app was told, so the hold
-        // marks it acknowledged, and no later visit asks again.
-        if (
-          live &&
-          "hash" in next.settled &&
-          next.settled.result === "success" &&
-          !next.settled.acknowledged
-        )
-          void handle.acknowledge(next.settled).catch(() => null);
         set({
           phase: "settled",
           state: next,
@@ -514,6 +523,8 @@ export function createHeldWriteView(
       running = true;
       live = true;
       epoch += 1;
+      // A settlement a stopped lifecycle never told is told now.
+      if (undelivered) deliver(undelivered.settled, undelivered.key);
       const unsubscribe = handle.subscribe(apply);
       // An adoption a stopped lifecycle left unfinished runs again here.
       void adopt()

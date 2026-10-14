@@ -985,8 +985,9 @@ export function createWriteHold(
           record,
           safeTransactionMessage(proposal).nonce,
         );
-      // An unproven end keeps its own exit, and its snapshot.
-      if (listed && !record.unproven) record = recovery.seenPending(record);
+      // Listed: truly pending, an unproven end included. The fresh record
+      // carries the new stamp, so the checked answer below removes any exit.
+      if (listed) record = recovery.listedAgain(record);
       const end =
         (record.safeNonce !== undefined &&
           (await provenSafeProposalEnd(
@@ -2000,6 +2001,19 @@ export function createWriteHold(
     return {
       ...own,
       peek: () => active()?.peek() ?? withLegacy(own.peek()),
+      /**
+       * The intent's events, through the same owner as its state(): while a
+       * legacy hold stands for it, its own empty clear is that hold's state
+       * (or its settlement), never a release.
+       */
+      subscribe: (listener: (state: WriteHoldState) => void) =>
+        own.subscribe((state) =>
+          listener(
+            state.status === "clear" && !state.settled
+              ? (active()?.peek() ?? withLegacy(state))
+              : state,
+          ),
+        ),
       async state(
         client: WriteHoldClient,
         checks?: { effect?: (chainId: number) => Promise<boolean> },
