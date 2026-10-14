@@ -898,6 +898,44 @@ releases, a proven execution is settled from the receipt its canonical log
 names, without Safe's service, and a nonce another Safe transaction used is
 `safe-replaced`: never released on its own, the exit offered at once.
 
+### Write intents
+
+A write whose calldata regenerates on every retry (a fresh deadline, Permit2
+expiration, signature or quote) is held by its intent, not its exact call.
+`writeIntentKey(action, params)` is that hold's namespace: the action and the
+parameters the user chose, canonically encoded (sorted keys, decimal integers,
+exact strings) and hashed behind a readable prefix.
+
+```ts
+import { intent, writeIntentKey } from "@bananapus/nana-sdk-core/review";
+
+const namespace = writeIntentKey("pay", {
+  projectId: 4n,
+  token: intent.address(token), // compared case-blind
+  amount,
+  memo, // compared exactly: "ABC" and "abc" are different intents
+});
+const hold = holds.open(
+  { chainId, account, safe, call, namespace },
+  { legacy: ["jbm:pay:4"] }, // keys an earlier version held it under
+);
+```
+
+Include the user's chosen inputs and the identity of what is acted on
+(project, pool, collection, position, loan). Leave out what restamps on every
+review: deadlines, expirations, signatures, nonces and derived quotes. Tag
+addresses and hex with `intent.address` and `intent.hex`; plain strings stay
+case-sensitive, and a non-integer number is refused.
+
+When a hold is opened under an intent, the current exact call and every
+`legacy` key (an old namespace, or `{ call }` for an old exact call) are
+checked too. An unresolved hold found there is moved into the intent under the
+lock, keeping its identity, evidence and exit requirement; where it can't be
+moved, the send is refused with its state. It is never released. Every state
+carries `reservation`, the id of the reservation it belongs to (on a clear,
+the one that ended), so an observer can ignore a newer reservation it didn't
+start.
+
 ### Safe proposals
 
 `lookAtSafeProposal` and `watchSafeProposal` end a proposal whose nonce another

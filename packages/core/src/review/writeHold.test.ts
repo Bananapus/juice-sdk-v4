@@ -30,6 +30,7 @@ import {
   WRITE_HOLD_SAFE_REPLACED_LINE,
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
 } from "./messages.js";
+import { intent, writeIntentKey } from "./writeIntent.js";
 import {
   createWriteHold,
   WriteHeldError,
@@ -61,6 +62,22 @@ const ordinary: ReviewedWriteRecoveryInput = {
   safe: false,
   call: { to: TARGET, data: DATA, value: 17n },
 };
+
+// Every state carries its reservation id. The tests written before that
+// compare states without it; the reservation tests below assert it.
+expect.addEqualityTesters([
+  function ignoreUnassertedReservation(a, b, customTesters) {
+    const state = (value: unknown): value is Record<string, unknown> =>
+      typeof value === "object" &&
+      value !== null &&
+      typeof (value as { status?: unknown }).status === "string";
+    if (!state(a) || !state(b) || "reservation" in a === "reservation" in b)
+      return undefined;
+    const strip = ({ reservation: _, ...rest }: Record<string, unknown>) =>
+      rest;
+    return this.equals(strip(a), strip(b), customTesters);
+  },
+]);
 
 afterEach(() => {
   vi.useRealTimers();
@@ -2227,6 +2244,197 @@ describe("a held write", () => {
       ),
     ).resolves.toMatchObject({ released: false });
     expect(handle.peek().status).toBe("held-no-hash");
+  });
+});
+
+describe("a write held under an intent", () => {
+  const regenerated = { ...ordinary.call, data: "0xaabbccdd0002" as Hex };
+  const key = writeIntentKey("pay", {
+    projectId: 4n,
+    memo: "ABC",
+    token: intent.address(TARGET),
+  });
+  const intentCall = { ...ordinary, call: regenerated, namespace: key };
+
+  it("adopts a legacy exact-call hold and refuses the retry with its state", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const { client } = fakeChain();
+    await expect(
+      old.hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toThrow();
+    const legacy = old.hold.open(ordinary).peek() as WriteHeldState;
+    const next = setup({ browser, locks: old.locks });
+    const handle = next.hold.open(intentCall, {
+      legacy: [{ call: ordinary.call }],
+    });
+    const retry = wallet(async () => HASH);
+    const refused = await handle.send(client, retry.send).catch((e) => e);
+    expect(refused).toBeInstanceOf(WriteHeldError);
+    expect(refused.state).toMatchObject({
+      status: "held-no-hash",
+      reservation: legacy.record.id,
+      record: { id: legacy.record.id, nonce: legacy.record.nonce },
+    });
+    expect(retry.write).not.toHaveBeenCalled();
+    // Moved, not released: the legacy key holds nothing, the intent holds it.
+    expect(old.hold.open(ordinary).peek().status).toBe("clear");
+    const shown = await handle.state(client);
+    expect(shown).toMatchObject({ status: "held-no-hash", exit: true });
+    // Its exit requirement is kept: only the explicit exit ends it.
+    await expect(
+      handle.exit(shown, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+    await handle.send(client, retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+  });
+
+  it("adopts a legacy namespace's pending hash with its evidence, and the current exact call by default", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const { chain, client } = fakeChain();
+    await old.hold
+      .open({ ...ordinary, namespace: "jbm:pay:4" })
+      .send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH));
+    const next = setup({ browser, locks: old.locks });
+    const handle = next.hold.open(intentCall, { legacy: ["jbm:pay:4"] });
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: HASH,
+      exit: false,
+      record: { namespace: key, hash: HASH, nonce: "7" },
+    });
+    expect(
+      old.hold.open({ ...ordinary, namespace: "jbm:pay:4" }).peek().status,
+    ).toBe("clear");
+    // The current exact call is checked without being named.
+    const third = setup();
+    const exact = { ...ordinary, call: regenerated };
+    await expect(
+      third.hold.open(exact).send(client, lostReply().send),
+    ).rejects.toThrow();
+    await expect(
+      third.hold.open(intentCall).state(client),
+    ).resolves.toMatchObject({ status: "held-no-hash" });
+    // An exact-call hold takes no legacy keys.
+    expect(third.hold.open(exact, { legacy: ["jbm:pay:4"] }).peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
+  });
+
+  it("refuses with the legacy hold's state when it can't be moved", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const { client } = fakeChain();
+    await expect(
+      old.hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toThrow();
+    // The intent key already holds a write of its own.
+    const next = setup({ browser, locks: old.locks });
+    await expect(
+      next.hold.open(intentCall).send(client, lostReply().send),
+    ).rejects.toThrow();
+    const handle = next.hold.open(intentCall, {
+      legacy: [{ call: ordinary.call }],
+    });
+    const legacy = old.hold.open(ordinary).peek() as WriteHeldState;
+    const refused = await handle.send(client, lostReply().send).catch((e) => e);
+    expect(refused).toBeInstanceOf(WriteHeldError);
+    // Never released: the legacy hold is still there.
+    expect(old.hold.open(ordinary).peek()).toMatchObject({
+      reservation: legacy.record.id,
+    });
+  });
+});
+
+describe("a legacy hold that storage won't let move", () => {
+  const key = writeIntentKey("pay", { projectId: 4n });
+  const intentCall = { ...ordinary, namespace: key };
+  function refusing(match: (key: string) => boolean) {
+    const browser = origin();
+    const base = createHeldWriteStorage({
+      durable: () => browser.storage,
+      memory: new Map(),
+    });
+    let on = false;
+    const storage: HeldWriteStorage = {
+      ...base,
+      setItem: (k, v) => {
+        if (on && match(k)) throw new Error("full");
+        base.setItem(k, v);
+      },
+    };
+    return { ...setup({ storage, browser }), refuse: () => (on = true) };
+  }
+
+  it("refuses the send with the legacy hold's state when it can't be adopted", async () => {
+    const ctx = refusing((k) => k.includes("intent:"));
+    const { client } = fakeChain();
+    await expect(
+      ctx.hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toThrow();
+    const legacy = ctx.hold.open(ordinary).peek() as WriteHeldState;
+    ctx.refuse();
+    const retry = wallet(async () => HASH);
+    const refused = await ctx.hold
+      .open(intentCall)
+      .send(client, retry.send)
+      .catch((e) => e);
+    expect(refused).toBeInstanceOf(WriteHeldError);
+    expect(refused.state).toMatchObject({
+      status: "held-no-hash",
+      exit: false,
+      record: { id: legacy.record.id },
+    });
+    expect(retry.write).not.toHaveBeenCalled();
+    // Never released: the legacy hold is still there.
+    expect(ctx.hold.open(ordinary).peek().status).toBe("held-no-hash");
+  });
+
+  it("keeps the hold in both places when the legacy key can't be handed off", async () => {
+    const ctx = refusing((k) => k.includes(":released:"));
+    const { client } = fakeChain();
+    await expect(
+      ctx.hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toThrow();
+    ctx.refuse();
+    await expect(
+      ctx.hold.open(intentCall).state(client),
+    ).resolves.toMatchObject({ status: "held-no-hash" });
+    expect(ctx.hold.open(ordinary).peek().status).toBe("held-no-hash");
+  });
+});
+
+describe("a held write's reservation identity", () => {
+  it("is on every emitted, subscribed and returned state", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    const heard: WriteHoldState[] = [];
+    handle.subscribe((state) => heard.push(state));
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    const id = (handle.peek() as WriteHeldState).record.id;
+    expect(handle.peek()).toMatchObject({ reservation: id });
+    const shown = await handle.state(client);
+    expect(shown).toMatchObject({ reservation: id });
+    expect(heard.length).toBeGreaterThan(0);
+    for (const state of heard.filter((state) => state.status !== "clear"))
+      expect(state.reservation).toBe(id);
+    const late = vi.fn();
+    hold.open(ordinary).subscribe(late);
+    expect(late.mock.calls[0][0]).toMatchObject({ reservation: id });
+    const refused = await handle.send(client, lostReply().send).catch((e) => e);
+    expect(refused.state).toMatchObject({ reservation: id });
+    // A clear names the reservation it ended.
+    const ended = await handle.exit(shown, { checkedWallet: true }, client);
+    expect(ended.state).toEqual({ status: "clear", reservation: id });
+    expect(handle.peek()).toEqual({ status: "clear", reservation: id });
+    // Nothing reserved yet: no reservation to name.
+    expect(
+      hold.open({ ...ordinary, call: { ...ordinary.call, value: 3n } }).peek(),
+    ).toEqual({ status: "clear" });
   });
 });
 

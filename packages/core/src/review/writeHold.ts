@@ -114,7 +114,15 @@ type Held<S extends string, Extra> = {
  *   not final yet). It is kept until its result settles it, and never offered
  *   a resend.
  */
-export type WriteHoldState =
+export type WriteHoldState = WriteHoldStateOf & {
+  /**
+   * The reservation this state belongs to (on a clear, the one that ended),
+   * so an observer can ignore a newer reservation it didn't start.
+   */
+  reservation?: string;
+};
+
+type WriteHoldStateOf =
   | { status: "clear"; settled?: WriteHoldSettled }
   | Held<"pending-known-hash", { hash: Hex; exit: false }>
   | Held<"held-no-hash", { exit: boolean }>
@@ -143,7 +151,9 @@ function ungated(state: WriteHoldState): WriteHoldState {
 }
 
 /** Any state but `clear`. */
-export type WriteHeldState = Exclude<WriteHoldState, { status: "clear" }>;
+export type WriteHeldState = Exclude<WriteHoldStateOf, { status: "clear" }> & {
+  reservation?: string;
+};
 
 /** A send was refused because the exact call is held; `state` says how. */
 export class WriteHeldError extends Error {
@@ -367,22 +377,84 @@ export function createWriteHold(
     globalThis.addEventListener("storage", onStorage);
   }
 
-  function open(call: ReviewedWriteRecoveryInput) {
+  /**
+   * `legacy`: for a write held under an intent namespace, the keys an earlier
+   * version held it under: old namespaces, or exact calls. The current exact
+   * call is always checked. An unresolved hold found there is moved into the
+   * intent under the lock, its evidence and exit kept, or refuses the send.
+   */
+  function open(
+    call: ReviewedWriteRecoveryInput,
+    {
+      legacy = [],
+    }: {
+      legacy?: (string | { call: ReviewedWriteRecoveryInput["call"] })[];
+    } = {},
+  ) {
     const recovery = createBrowserWriteRecovery(call, {
       storage,
       locks: options.locks,
     });
+    const legacyJournals =
+      call.namespace === undefined
+        ? []
+        : [{ call: call.call }, ...legacy].map((source) =>
+            createBrowserWriteRecovery(
+              typeof source === "string"
+                ? { ...call, namespace: source }
+                : { ...call, namespace: undefined, call: source.call },
+              { storage, locks: options.locks },
+            ),
+          );
+    /**
+     * Move an unresolved legacy hold into this intent, under both locks; or
+     * the legacy hold's own state when it can't be moved. Never a release.
+     */
+    async function adoptLegacy(): Promise<WriteHoldState | null> {
+      if (recovery.read()) return null;
+      for (const journal of legacyJournals) {
+        const outcome = await journal.withLock(async () => {
+          const held = journal.read();
+          if (!held) return undefined;
+          try {
+            recovery.adopt(held);
+          } catch {
+            return ungated(classify(held));
+          }
+          try {
+            journal.handOff(held);
+          } catch {
+            /* Held in both places: never released. */
+          }
+          return null;
+        }, true);
+        if (outcome !== undefined) return outcome;
+      }
+      return null;
+    }
     // The canonical recovery scope: a namespace and an exact call never share it.
     const key = recovery.scopeKey;
     /** The effect read the last state() was given: the exit asks it again. */
     let lastEffect: ((chainId: number) => Promise<boolean>) | undefined;
     /** Nothing held: how the call's last write settled, if saved. */
     const cleared = () => clear(recovery.settled());
+    /** Every state leaves with the reservation it belongs to. */
+    const tagged = (state: WriteHoldState): WriteHoldState => {
+      const reservation =
+        state.status === "clear"
+          ? recovery.latestReservation()
+          : state.record.id;
+      return reservation === undefined ? state : { ...state, reservation };
+    };
     const peek = () => {
       const record = recovery.read();
-      return record ? ungated(classify(record)) : cleared();
+      return tagged(record ? ungated(classify(record)) : cleared());
     };
-    const shown = (state: WriteHoldState) => (emit(key, state), state);
+    const shown = (state: WriteHoldState) => {
+      const out = tagged(state);
+      emit(key, out);
+      return out;
+    };
 
     async function locked<T>(
       work: () => Promise<T>,
@@ -912,7 +984,10 @@ export function createWriteHold(
       checks: { effect?: (chainId: number) => Promise<boolean> } = {},
     ): Promise<WriteHoldState> {
       lastEffect = checks.effect;
-      const result = await locked(() => inspect(client, checks.effect), false);
+      const result = await locked(
+        async () => (await adoptLegacy()) ?? inspect(client, checks.effect),
+        false,
+      );
       return shown(result ? result.value : peek());
     }
 
@@ -980,8 +1055,9 @@ export function createWriteHold(
             try {
               attempt = recovery.reserve(actualCall, evidence);
             } catch (error) {
-              const now = await finish(classify(recovery.read()), client);
-              shown(now);
+              const now = shown(
+                await finish(classify(recovery.read()), client),
+              );
               if (now.status !== "clear") throw new WriteHeldError(now);
               throw error;
             }
@@ -1017,7 +1093,7 @@ export function createWriteHold(
           },
         };
         const result = await locked(async () => {
-          const now = shown(await inspect(client));
+          const now = shown((await adoptLegacy()) ?? (await inspect(client)));
           if (now.status !== "clear") throw new WriteHeldError(now);
           return run(gate);
         }, false);
@@ -1060,8 +1136,7 @@ export function createWriteHold(
           return { released: true, state: clear() };
         }, true);
         const ended = result?.value ?? { released: false, state: peek() };
-        shown(ended.state);
-        return ended;
+        return { ...ended, state: shown(ended.state) };
       },
       /**
        * A receipt for the held write: an ordinary write's own hash, or a Safe

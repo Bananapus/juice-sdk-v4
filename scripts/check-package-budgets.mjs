@@ -221,9 +221,12 @@ const budgets = {
     // Rounds 5 to 7 (attach evidence, the mined clock per seen hash, and a
     // proven Safe execution settled from its canonical log) measured
     // 1,441,392 B packed / 21,683,809 B unpacked and 818 entries.
-    packed: 1_447_000,
-    unpacked: 21_695_000,
-    entries: 818,
+    // Write intents (writeIntentKey and its tags, one module and eight
+    // artifacts), legacy-hold adoption and the reservation id on every state
+    // measured 1,447,165 B packed / 21,722,125 B unpacked and 826 entries.
+    packed: 1_452_000,
+    unpacked: 21_735_000,
+    entries: 826,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
