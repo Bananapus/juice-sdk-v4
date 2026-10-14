@@ -232,8 +232,11 @@ const budgets = {
     // The reserve taking every lock in order, mirror-aware delegates and
     // evidence-free mirrors measured 1,461,348 B packed / 21,766,711 B
     // unpacked and 826 entries.
-    packed: 1_466_000,
-    unpacked: 21_780_000,
+    // Stale-review generations, kept last records, the memory-only notice and
+    // the unknown-read clock measured 1,464,159 B packed / 21,782,309 B
+    // unpacked and 826 entries.
+    packed: 1_470_000,
+    unpacked: 21_795_000,
     entries: 826,
   },
   "@bananapus/nana-sdk-react": {

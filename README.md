@@ -891,9 +891,12 @@ with `exit: false`. Every state carries the record it was read from; `exit` refu
 snapshot that changed, and asks the chain once more, so a confirmation that
 lands meanwhile wins.
 
-Holds live in the browser's storage, or this tab's memory where storage is
-refused; `holds.reviewLine()` then returns `WRITE_HOLD_IN_TAB_LINE` for the
-review. Both stores are always read, and a memory hold moves into the browser's
+Cross-tab protection needs shared storage. Holds live in the browser's storage,
+or this tab's memory where storage is refused (private browsing, some
+webviews): there, tabs can't see each other's holds, sends are never refused
+for it, and every held state carries `notice` (`WRITE_HOLD_IN_TAB_LINE`, also
+`holds.reviewLine()` for the review) so the user checks their wallet before
+repeating one. Both stores are always read, and a memory hold moves into the browser's
 storage once it can be written. A send checks, reserves and hands the call to
 the wallet under one lock per exact call, so two flows or tabs never both send
 it. For a Safe write, `state` follows the proposal itself: a proven expiry

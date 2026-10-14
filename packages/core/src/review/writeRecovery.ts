@@ -77,6 +77,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
    * string. Cleared once it is seen again.
    */
   vanishedAt?: string;
+  /** When a read last showed the saved hash pending, in milliseconds since the epoch, as a decimal string. */
+  pendingSeenAt?: string;
   /**
    * Hashes an app reported as this Safe write's execution, not yet
    * authenticated: each settles it only once its receipt proves this Safe's
@@ -189,6 +191,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.firstSeenAt) ||
     !optionalDecimal(record.safeNonce) ||
     !optionalDecimal(record.vanishedAt) ||
+    !optionalDecimal(record.pendingSeenAt) ||
     !optionalDecimal(record.minedAt) ||
     (record.candidateMinedAt !== undefined &&
       (typeof record.candidateMinedAt !== "object" ||
@@ -239,6 +242,9 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.vanishedAt === undefined
       ? {}
       : { vanishedAt: record.vanishedAt }),
+    ...(record.pendingSeenAt === undefined
+      ? {}
+      : { pendingSeenAt: record.pendingSeenAt }),
     ...(record.minedAt === undefined ? {} : { minedAt: record.minedAt }),
     ...(record.candidateMinedAt === undefined
       ? {}
@@ -778,6 +784,16 @@ export function createBrowserWriteRecovery(
         "Write recovery changed. Keep the current action pending.",
       );
     }
+    // The last record of an attempt goes only once its generation is the
+    // committed latest marker; otherwise it stays, released, and carries it.
+    if (!markedLatest(current.id)) {
+      const marker = releasedKey(at, current.id);
+      store.setItem(marker, "1");
+      if (store.getItem(marker) !== "1")
+        throw new Error("Write recovery storage did not clear the action.");
+      unpersistedSubmissions.get(store)?.delete(at);
+      return;
+    }
     store.removeItem(at);
     if (store.getItem(at) !== null)
       throw new Error("Write recovery storage did not clear the action.");
@@ -1219,6 +1235,14 @@ export function createBrowserWriteRecovery(
       const rest = known.filter((candidate) => candidate !== hash);
       return amend(expected, () => rest.length !== known.length, {
         candidates: rest.length ? rest : undefined,
+      });
+    },
+    /** Note that a read just showed the saved hash pending. Extra evidence only. */
+    seenPending(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(expected, () => true, {
+        pendingSeenAt: String(Date.now()),
       });
     },
     /**

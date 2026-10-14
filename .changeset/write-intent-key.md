@@ -10,3 +10,6 @@ One home for write intents, in place of each app's `write-intent.ts`.
 - Low level: `createBrowserWriteRecovery(...).latestReservation()`.
 - Each involved key's generation (its latest reservation id, kept after settlement and mirror removal) is read when the review opens and checked under the reserve locks. If another window's attempt came in between, the send throws `WriteHoldStaleReviewError` (`WRITE_HOLD_STALE_REVIEW_LINE`, with `settled` when known) and needs a fresh review; the next review sends normally.
 - `exit()` never waits behind another send's wallet prompt: on contention it returns `released: false` with the current state, without an exit.
+- An attempt's last record is removed only once its generation is the committed latest marker; otherwise it stays at its key, released, and carries the generation. A send is never blocked on this.
+- In memory-only mode (storage refused) tabs can't see each other's holds; sends are never refused for it, and every held state carries `notice` (`WRITE_HOLD_IN_TAB_LINE`). The README states that cross-tab protection needs shared storage.
+- Unknown is not pending: when every read of a returned hash fails, with none showing it pending or mined, the warned exit comes 30 minutes after it was submitted or last seen pending (`pendingSeenAt`).

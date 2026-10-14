@@ -331,6 +331,29 @@ function setup(
   return { hold, browser, memory, storage, locks };
 }
 
+describe("memory-only mode", () => {
+  it("carries the storage-refused line on the review and on every held state", async () => {
+    const browser = origin();
+    browser.state.write = false;
+    const { hold } = setup({ browser });
+    const { client } = fakeChain();
+    expect(hold.reviewLine()).toBe(WRITE_HOLD_IN_TAB_LINE);
+    const handle = hold.open(ordinary);
+    const heard: WriteHoldState[] = [];
+    handle.subscribe((state) => heard.push(state));
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    for (const state of [
+      handle.peek(),
+      await handle.state(client),
+      ...heard.filter((state) => state.status !== "clear"),
+    ])
+      expect(state).toMatchObject({ notice: WRITE_HOLD_IN_TAB_LINE });
+    // With shared storage, no notice.
+    browser.state.write = true;
+    expect(handle.peek()).not.toHaveProperty("notice");
+  });
+});
+
 describe("write hold storage", () => {
   it("keeps holds in the tab's memory while storage is refused, with the review's line", () => {
     const browser = origin();
@@ -1066,6 +1089,81 @@ describe("a held write", () => {
       released: false,
       state: { status: "pending-known-hash", hash: HASH },
     });
+  });
+
+  it("offers the warned exit 30 minutes after submission when every transaction read fails", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    client.getTransaction.mockRejectedValue(new Error("timeout"));
+    client.getTransactionReceipt.mockRejectedValue(new Error("timeout"));
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      exit: false,
+    });
+    vi.setSystemTime(1_000_000 + 31 * 60_000);
+    const unchecked = await handle.state(client);
+    expect(unchecked).toMatchObject({
+      status: "held-unchecked",
+      hash: HASH,
+      exit: true,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
+    });
+    await expect(
+      handle.exit(unchecked, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+    vi.useRealTimers();
+  });
+
+  it("restarts the unknown-read clock on positive pending evidence", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const { hold } = setup();
+    const { chain, client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH));
+    vi.setSystemTime(1_000_000 + 20 * 60_000);
+    await handle.state(client);
+    client.getTransaction.mockRejectedValue(new Error("timeout"));
+    vi.setSystemTime(1_000_000 + 31 * 60_000);
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      exit: false,
+    });
+    vi.setSystemTime(1_000_000 + 51 * 60_000);
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "held-unchecked",
+      exit: true,
+    });
+    vi.useRealTimers();
+  });
+
+  it("times a record saved before its clock existed from when it was first read", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const { hold, browser } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    const [key] = [...browser.values.keys()].filter(
+      (k) => !k.endsWith(":latest"),
+    );
+    const { submittedAt: _, ...legacy } = JSON.parse(browser.values.get(key)!);
+    browser.values.set(key, JSON.stringify(legacy));
+    client.getTransaction.mockRejectedValue(new Error("timeout"));
+    vi.setSystemTime(1_000_000 + 10 * 60_000);
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+    });
+    vi.setSystemTime(1_000_000 + 41 * 60_000);
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "held-unchecked",
+    });
+    vi.useRealTimers();
   });
 
   describe("a mined hash whose receipt can't be read", () => {

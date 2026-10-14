@@ -116,6 +116,8 @@ type Held<S extends string, Extra> = {
  *   a resend.
  */
 export type WriteHoldState = WriteHoldStateOf & {
+  /** Only while holds last in this tab alone: {@link WRITE_HOLD_IN_TAB_LINE}. */
+  notice?: string;
   /**
    * The reservation this state belongs to (on a clear, the one that ended),
    * so an observer can ignore a newer reservation it didn't start.
@@ -387,7 +389,12 @@ export function createWriteHold(
   function watchTabs() {
     if (onStorage || typeof globalThis.addEventListener !== "function") return;
     onStorage = (event) => {
-      if (event.key && !event.key.startsWith("nana-sdk:reviewed-write")) return;
+      if (
+        event.key &&
+        (!event.key.startsWith("nana-sdk:reviewed-write") ||
+          event.key === "nana-sdk:reviewed-write:probe")
+      )
+        return;
       for (const [key, peek] of peekers) {
         try {
           emit(key, peek());
@@ -431,12 +438,21 @@ export function createWriteHold(
     const cleared = () => clear(recovery.settled());
     /** Every state leaves with the reservation it belongs to. */
     const tagged = (state: WriteHoldState): WriteHoldState => {
-      if (state.reservation !== undefined) return state;
       const reservation =
-        state.status === "clear"
+        state.reservation ??
+        (state.status === "clear"
           ? recovery.latestReservation()
-          : state.record.id;
-      return reservation === undefined ? state : { ...state, reservation };
+          : state.record.id);
+      // While holds last in this tab alone, every held state says so.
+      const notice =
+        state.status !== "clear" && !storage.durable()
+          ? { notice: WRITE_HOLD_IN_TAB_LINE }
+          : {};
+      return {
+        ...state,
+        ...notice,
+        ...(reservation === undefined ? {} : { reservation }),
+      };
     };
     const peek = () => {
       const record = recovery.read();
@@ -650,9 +666,26 @@ export function createWriteHold(
       // Only positive pending evidence stops the clock; a read that fails
       // keeps the one saved.
       if (look === "pending")
-        return { ...state, record: recovery.mined(state.record, false) };
+        return {
+          ...state,
+          record: recovery.seenPending(recovery.mined(state.record, false)),
+        };
       const record =
         look === "mined" ? recovery.mined(state.record, true) : state.record;
+      // Unknown is not pending: with no read showing it pending or mined for
+      // 30 minutes (since it was last seen pending, or else submitted), the
+      // warned exit. A Safe proposal's hash isn't a transaction to read.
+      if (
+        look === "unknown" &&
+        !record.safe &&
+        record.minedAt === undefined &&
+        Date.now() -
+          Number(
+            record.pendingSeenAt ?? record.submittedAt ?? record.firstSeenAt,
+          ) >=
+          UNSEEN_HASH_MS
+      )
+        return unchecked(record);
       if (record.minedAt === undefined) return state;
       if (Date.now() - Number(record.minedAt) >= UNSEEN_HASH_MS)
         return unchecked(record);
@@ -663,8 +696,13 @@ export function createWriteHold(
     async function lookAt(
       hash: Hex,
       client: WriteHoldClient,
-    ): Promise<"pending" | "mined" | null> {
-      const sent = await client.getTransaction({ hash }).catch(() => null);
+    ): Promise<"pending" | "mined" | "unknown" | null> {
+      const sent = await client.getTransaction({ hash }).then(
+        (tx) => tx,
+        (error: { name?: unknown } | null) =>
+          error?.name === "TransactionNotFoundError" ? null : undefined,
+      );
+      if (sent === undefined) return "unknown";
       if (sent?.hash?.toLowerCase() !== hash) return null;
       return sent.blockNumber === null ? "pending" : "mined";
     }
@@ -689,7 +727,8 @@ export function createWriteHold(
       for (const hash of seen) {
         const own = hash === record.hash;
         const look = await lookAt(hash, client);
-        if (look !== null)
+        // Unknown changes nothing: only positive metadata moves a clock.
+        if (look === "pending" || look === "mined")
           record = own
             ? recovery.mined(record, look === "mined")
             : recovery.candidateMined(record, hash, look === "mined");
