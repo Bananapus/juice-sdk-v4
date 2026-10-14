@@ -1017,7 +1017,8 @@ export function createBrowserWriteRecovery(
   }
   /** Save `id` as the call's latest reservation, verified by reading it back. */
   function markedLatest(id: string): boolean {
-    const marker = JSON.stringify({ id });
+    // When it was reserved too, so another key's settlement can be ordered against it.
+    const marker = JSON.stringify({ id, at: Date.now() });
     try {
       const store = storage();
       store.setItem(latestKey, marker);
@@ -1238,6 +1239,36 @@ export function createBrowserWriteRecovery(
       // Its generation stays readable after the mirror is removed.
       markedLatest(mirrored.id);
       return mirrored;
+    },
+    /**
+     * When the call's latest reservation was made, in milliseconds since the
+     * epoch, from its latest marker; undefined when unknown (none, or one an
+     * earlier version saved without a time).
+     */
+    latestReservedAt(): number | undefined {
+      try {
+        const at = (
+          JSON.parse(storage().getItem(latestKey) ?? "null") as {
+            at?: unknown;
+          } | null
+        )?.at;
+        return typeof at === "number" ? at : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    /** When the call's saved settlement was saved, or undefined. */
+    settledAt(): number | undefined {
+      try {
+        const at = (
+          JSON.parse(storage().getItem(settledKey) ?? "null") as {
+            at?: unknown;
+          } | null
+        )?.at;
+        return typeof at === "number" ? at : undefined;
+      } catch {
+        return undefined;
+      }
     },
     /**
      * The call's latest reservation id: the record saved at the key (held,

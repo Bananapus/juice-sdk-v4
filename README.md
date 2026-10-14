@@ -908,7 +908,10 @@ proposal the service can't find never becomes a dead end.
 A legacy hold an intent stood for keeps its settlement through the intent: a
 view that saw it held shows its result (`onSettled`, never a release), and an
 unacknowledged success still blocks the intent's sends until the user
-acknowledges it, which marks it where it was saved.
+acknowledges it, which marks it where it was saved. On a fresh load, a legacy
+settlement reserved after the intent's own latest reservation counts as the
+intent's; an older one stays unannounced, and times that can't be compared
+block.
 
 A result of `state()` or `exit()` carries `checked`: `true` when the gate read
 the chain under the call's lock, `false` when another tab or flow held the

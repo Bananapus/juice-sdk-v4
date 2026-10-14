@@ -1869,10 +1869,22 @@ export function createWriteHold(
         )
           return { handle: routed.handle, state: now };
       }
-      if (ownJournal.latestReservation() !== undefined) return undefined;
-      for (const handle of delegates) {
+      // Otherwise, a legacy settlement reserved after the intent's own latest
+      // reservation is the intent's (an older one is history). Times that
+      // can't be compared count as newer: a false block is the safe side.
+      const ownReserved = ownJournal.latestReservation() !== undefined;
+      const ownAt = ownJournal.latestReservedAt();
+      for (const [index, handle] of delegates.entries()) {
         const now = handle.peek();
-        if (now.status === "clear" && now.settled)
+        if (now.status !== "clear" || !now.settled) continue;
+        const legacyAt =
+          journals[index].latestReservedAt() ?? journals[index].settledAt();
+        if (
+          !ownReserved ||
+          ownAt === undefined ||
+          legacyAt === undefined ||
+          legacyAt > ownAt
+        )
           return { handle, state: now };
       }
       return undefined;

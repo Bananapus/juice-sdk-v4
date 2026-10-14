@@ -6077,6 +6077,109 @@ describe("a legacy hold's success, through its intent", () => {
     stop();
   });
 
+  it("blocks a fresh load on a legacy success reserved after the intent's own attempt, never on an older one", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const open = () =>
+      next.hold.open(
+        {
+          ...ordinary,
+          call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+          namespace: key,
+        },
+        { legacy: [{ call: ordinary.call }] },
+      );
+    // An older version's write that settled before the intent ever reserved.
+    await old.hold.open(ordinary).send(client, wallet(async () => OTHER).send);
+    chain.txs.push(sent(OTHER, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    vi.setSystemTime(2_000_000);
+    // The intent reserves; the wallet rejects it.
+    await expect(
+      open().send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+        throw new Error("rejected");
+      }),
+    ).rejects.toThrow("rejected");
+    // The older settlement stays unannounced.
+    const before = createHeldWriteView(open(), { client, follow: false });
+    await before.check();
+    expect(before.get().phase).toBe("clear");
+    // Later, with every page closed, the older version sends again and it settles.
+    vi.setSystemTime(3_000_000);
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 96n, nonce: 8 }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[1]), client);
+    // A fresh load sees a success it never told: blocked until acknowledged.
+    const view = createHeldWriteView(open(), { client, follow: false });
+    await view.check();
+    expect(view.get()).toMatchObject({
+      phase: "succeeded",
+      settled: { hash: HASH },
+    });
+    const retry = wallet(async () => OTHER);
+    await expect(view.send(retry.send)).rejects.toThrow();
+    expect(retry.write).not.toHaveBeenCalled();
+    await view.acknowledge();
+    await view.send(retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+  });
+
+  it("orders by the settlement's time, and blocks when times can't be compared", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const open = () =>
+      next.hold.open(
+        {
+          ...ordinary,
+          call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+          namespace: key,
+        },
+        { legacy: [{ call: ordinary.call }] },
+      );
+    await expect(
+      open().send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+        throw new Error("rejected");
+      }),
+    ).rejects.toThrow("rejected");
+    vi.setSystemTime(2_000_000);
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    /** Latest markers as an earlier version saved them: no time. */
+    const untimed = (scope: (key: string) => boolean) => {
+      for (const [stored, value] of browser.values)
+        if (stored.endsWith(":latest") && scope(stored))
+          browser.values.set(
+            stored,
+            JSON.stringify({ id: JSON.parse(value).id }),
+          );
+    };
+    // The legacy marker has no time: its settlement's time orders it.
+    untimed((stored) => !stored.includes("namespace"));
+    const view = createHeldWriteView(open(), { client, follow: false });
+    await view.check();
+    expect(view.get().phase).toBe("succeeded");
+    // Neither side has a time: blocked.
+    untimed(() => true);
+    const blind = createHeldWriteView(open(), { client, follow: false });
+    await blind.check();
+    expect(blind.get().phase).toBe("succeeded");
+  });
+
   it("keeps the success of a legacy hold it saw held, though the intent reserved before", async () => {
     const browser = origin();
     const old = setup({ browser });
