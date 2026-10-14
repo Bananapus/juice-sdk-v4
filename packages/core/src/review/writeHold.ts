@@ -39,6 +39,7 @@ import {
   type ReviewedWriteRecoveryInput,
   type ReviewedWriteRecoveryRecord,
 } from "./writeRecovery.js";
+import { isBytes32 } from "../untrusted.js";
 import { atCanonicalFinalizedBlock } from "./relayr.js";
 
 /** The reads a write hold makes on the call's chain; a viem PublicClient satisfies it. */
@@ -235,13 +236,6 @@ function unchecked(record: ReviewedWriteRecoveryRecord): WriteHoldState {
 /** About an hour of polls; a later state() looks again. */
 const SETTLE_POLL_ATTEMPTS = 240;
 
-function listenerKey(call: ReviewedWriteRecoveryInput): string {
-  const scope =
-    call.namespace ??
-    `${call.call.to}:${BigInt(call.call.value ?? 0)}:${call.call.data}`;
-  return `${call.chainId}:${call.account}:${scope}`.toLowerCase();
-}
-
 function clear(settled?: WriteHoldSettled): WriteHoldState {
   return settled ? { status: "clear", settled } : { status: "clear" };
 }
@@ -356,7 +350,8 @@ export function createWriteHold(
       storage,
       locks: options.locks,
     });
-    const key = listenerKey(call);
+    // The canonical recovery scope: a namespace and an exact call never share it.
+    const key = recovery.scopeKey;
     /** The effect read the last state() was given: the exit asks it again. */
     let lastEffect: ((chainId: number) => Promise<boolean>) | undefined;
     /** Nothing held: how the call's last write settled, if saved. */
@@ -528,7 +523,11 @@ export function createWriteHold(
       record: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
     ): Promise<Hex | null> {
-      for (const hash of [record.hash!, ...(record.candidates ?? [])]) {
+      const seen = [
+        ...(record.hash ? [record.hash] : []),
+        ...(record.candidates ?? []),
+      ];
+      for (const hash of seen) {
         const sent = await client.getTransaction({ hash }).catch(() => null);
         if (
           sent?.hash?.toLowerCase() === hash &&
@@ -581,6 +580,8 @@ export function createWriteHold(
           const settled = await settle(record, receipt, client);
           if (settled.status === "clear" || settled.status === "ran-executed")
             return settled;
+          // Mined as something else: no longer a candidate.
+          record = recovery.disproven(record, candidate);
         }
       if (record.executed && record.executionHash) {
         const settled = await execution(record, client);
@@ -639,19 +640,6 @@ export function createWriteHold(
           if (settled) return settled;
         }
       }
-      // A hash the hold has seen that is a known pending transaction: the
-      // wallet ends it, never the exit.
-      const pending = record.executed
-        ? null
-        : await knownPending(record, client);
-      if (pending)
-        return {
-          status: "pending-known-hash",
-          record,
-          hash: pending,
-          exit: false,
-          line: WRITE_HOLD_PENDING_LINE,
-        };
       if (
         !record.executed &&
         !record.unproven &&
@@ -663,7 +651,30 @@ export function createWriteHold(
       return classify(record);
     }
 
+    /**
+     * The one gate for every exit, offered or taken: no exit while any hash
+     * the hold has seen (its own, or a candidate) is a known pending
+     * transaction, whatever the state says, a replacement included.
+     */
     async function inspect(
+      client: WriteHoldClient,
+      effect?: (chainId: number) => Promise<boolean>,
+    ): Promise<WriteHoldState> {
+      const state = await inspectChain(client, effect);
+      if (state.status === "clear" || !state.exit) return state;
+      const pending = await knownPending(state.record, client);
+      return pending
+        ? {
+            status: "pending-known-hash",
+            record: state.record,
+            hash: pending,
+            exit: false,
+            line: WRITE_HOLD_PENDING_LINE,
+          }
+        : state;
+    }
+
+    async function inspectChain(
       client: WriteHoldClient,
       effect?: (chainId: number) => Promise<boolean>,
     ): Promise<WriteHoldState> {
@@ -780,8 +791,18 @@ export function createWriteHold(
         peekers.set(key, peek);
         watchTabs();
         // A subscriber that arrives after the hold spoke hears its latest state.
+        // Only while it still names the call's current record; otherwise
+        // what the saved record says now.
         const last = latest.get(key);
-        if (last) listener(last);
+        if (last) {
+          const now = peek();
+          listener(
+            JSON.stringify(now.status === "clear" ? null : now.record) ===
+              JSON.stringify(last.status === "clear" ? null : last.record)
+              ? last
+              : now,
+          );
+        }
         return () => {
           set!.delete(listener);
           if (!set!.size) {
@@ -944,6 +965,40 @@ export function createWriteHold(
         return shown(result?.value ?? peek());
       },
       /**
+       * Attach a hash the chain authenticates as this exact call, sent by the
+       * account on the call's chain, to the held write that has none: under
+       * one lock, without releasing it. The hold then follows that hash: no
+       * exit while it is pending, and its receipt settles it.
+       */
+      async attachHash(
+        client: WriteHoldClient,
+        hash: Hex,
+      ): Promise<WriteHoldState> {
+        const result = await locked(async () => {
+          const record = recovery.read();
+          if (record && !record.safe && !record.hash && isBytes32(hash)) {
+            const sent = await client
+              .getTransaction({ hash })
+              .catch(() => null);
+            if (
+              sent?.hash?.toLowerCase() === hash.toLowerCase() &&
+              sent.from?.toLowerCase() === record.account &&
+              (sent.chainId === undefined || sent.chainId === record.chainId) &&
+              sent.to?.toLowerCase() === record.call.to &&
+              sent.input?.toLowerCase() === record.call.data &&
+              BigInt(sent.value) === BigInt(record.call.value)
+            )
+              try {
+                recovery.submitted(hash, record);
+              } catch {
+                /* Kept in this tab's memory, it still holds. */
+              }
+          }
+          return inspect(client);
+        }, true);
+        return shown(result?.value ?? peek());
+      },
+      /**
        * The app's word that the held Safe proposal ran, with its execution's
        * transaction when known. Nothing is saved as executed on its word:
        * the hash is kept as a candidate, and settles it only once its own
@@ -956,7 +1011,21 @@ export function createWriteHold(
         const result = await locked(async () => {
           const record = recovery.read();
           if (!record?.safe || !record.hash) return classify(record);
-          if (executionHash) recovery.candidate(record, executionHash);
+          if (executionHash) {
+            // Authenticated on arrival: its own receipt settles it, or proves
+            // it isn't this write's; only an unresolved one is kept.
+            const receipt = await client
+              .getTransactionReceipt({ hash: executionHash })
+              .catch(() => null);
+            if (receipt) {
+              const settled = await settle(record, receipt, client);
+              if (
+                settled.status === "clear" ||
+                settled.status === "ran-executed"
+              )
+                return settled;
+            } else recovery.candidate(record, executionHash);
+          }
           return inspect(client);
         }, true);
         return shown(result?.value ?? peek());

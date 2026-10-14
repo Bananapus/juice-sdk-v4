@@ -94,8 +94,12 @@ export type ReviewedWriteNonceEvidence = {
 type RecoveryStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type RecoveryLocks = Pick<LockManager, "request">;
 const TAB_MEMORY = Symbol.for("nana-sdk:held-writes");
-/** At most this many unauthenticated execution hashes are kept per write. */
-const MAX_CANDIDATES = 8;
+/**
+ * At most this many unauthenticated, unresolved execution hashes are kept per
+ * write: an app never reports this many, and a reported hash is
+ * authenticated on arrival, so the cap only bounds a hostile caller.
+ */
+const MAX_CANDIDATES = 64;
 const TAB_QUEUES = Symbol.for("nana-sdk:write-lock-queues");
 const TAB_SEEN = Symbol.for("nana-sdk:held-writes-seen");
 // A returned hash must survive a component remount even when its durable update
@@ -879,6 +883,8 @@ export function createBrowserWriteRecovery(
 
   return {
     read,
+    /** The canonical recovery scope this call's records are saved under. */
+    scopeKey: key,
     /**
      * Save the attempt before the wallet opens. `evidence`, the account's next
      * nonce from {@link readReviewedWriteNonce}, lets `resolve` release it
@@ -942,15 +948,23 @@ export function createBrowserWriteRecovery(
         }
       // This reservation is the call's latest: a settlement of an earlier one
       // is no longer read. Kept after a rejection or exit.
+      // The marker is verified by reading it back; where an older one still
+      // shows, the old settlement goes too. Either way the saved record
+      // itself outranks any settlement of another attempt.
+      const marker = JSON.stringify({ id: record.id });
+      let marked = false;
       try {
-        store.setItem(latestKey, JSON.stringify({ id: record.id }));
+        store.setItem(latestKey, marker);
+        marked = store.getItem(latestKey) === marker;
       } catch {
+        /* Not marked: the settlement is removed below. */
+      }
+      if (!marked)
         try {
           store.removeItem(settledKey);
         } catch {
-          /* Neither saved: an earlier settlement may still be read. */
+          /* The saved record still outranks it. */
         }
-      }
       return recordOf(record);
     },
     submitted(
@@ -1002,9 +1016,14 @@ export function createBrowserWriteRecovery(
           result?: unknown;
           hash?: unknown;
         } | null;
+        // A record saved at the key (held, or released by the user's exit)
+        // belongs to its own attempt; only none, or the settled one, lets the
+        // settlement through.
+        const { raw } = locate(store);
         return saved &&
           typeof saved.id === "string" &&
           saved.id === latest?.id &&
+          (raw === null || idOf(raw) === saved.id) &&
           (saved.result === "success" || saved.result === "failed") &&
           isBytes32(saved.hash)
           ? { result: saved.result, hash: saved.hash as Hex }
@@ -1106,6 +1125,17 @@ export function createBrowserWriteRecovery(
           known.length < MAX_CANDIDATES,
         { candidates: [...known, wanted] },
       );
+    },
+    /** Drop a candidate whose own receipt proved it isn't this write's execution. */
+    disproven(
+      expected: ReviewedWriteRecoveryRecord,
+      hash: Hex,
+    ): ReviewedWriteRecoveryRecord {
+      const known = recordOf(expected).candidates ?? [];
+      const rest = known.filter((candidate) => candidate !== hash);
+      return amend(expected, () => rest.length !== known.length, {
+        candidates: rest.length ? rest : undefined,
+      });
     },
     /**
      * Save that the app's follower of this Safe write ended without proof.

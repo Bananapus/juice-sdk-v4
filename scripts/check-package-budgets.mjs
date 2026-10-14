@@ -209,9 +209,13 @@ const budgets = {
     // The write hold's kept settlement (bound to the reservation it settles),
     // the known-pending hash check, app-reported execution candidates and
     // the subscriber replay change existing artifacts only: measured
-    // 1,433,153 B packed / 21,637,566 B unpacked and 818 entries.
-    packed: 1_437_000,
-    unpacked: 21_650_000,
+    // 1,433,153 B packed / 21,637,566 B unpacked and 818 entries. The review
+    // round (one exit gate over every seen hash, candidates authenticated on
+    // arrival, a verified latest marker, replay checked against the current
+    // record and keyed by scope, and attachHash) measured 1,436,332 B packed
+    // / 21,653,998 B unpacked and 818 entries.
+    packed: 1_441_000,
+    unpacked: 21_668_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

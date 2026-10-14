@@ -855,6 +855,8 @@ try {
 await hold.onReceipt(receipt, publicClient);
 // A Safe follower may report a proven execution (with its transaction):
 await hold.onExecuted(publicClient, executionHash);
+// A hash found for a held write with none (the exact call, authenticated):
+await hold.attachHash(publicClient, hash); // followed; no exit while pending
 // Or that it ended without proof (it gave up, or the service lost it):
 await hold.onUnproven(publicClient, proposalHash); // safe-unproven: the exit
 
