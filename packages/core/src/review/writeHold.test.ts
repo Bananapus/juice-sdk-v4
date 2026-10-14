@@ -33,6 +33,7 @@ import {
   WRITE_HOLD_STALE_REVIEW_LINE,
   writeHeldMessage,
 } from "./messages.js";
+import { launchIntent } from "./intents.js";
 import { intent, writeIntentKey } from "./writeIntent.js";
 import {
   createWriteHold,
@@ -4564,13 +4565,18 @@ describe("a held Safe proposal", () => {
       });
       const now = Date.now();
       vi.spyOn(Date, "now").mockReturnValue(now + 29 * 60_000);
-      await expect(handle.state(fixture.client)).resolves.toMatchObject({
-        exit: false,
-      });
+      const early = await handle.state(fixture.client);
+      expect(early).toMatchObject({ exit: false });
+      // The exit is refused inside the window, even from an older snapshot.
+      await expect(
+        handle.exit(unproven, { checkedWallet: true }, fixture.client),
+      ).resolves.toMatchObject({ released: false });
       vi.spyOn(Date, "now").mockReturnValue(now + 31 * 60_000);
-      await expect(handle.state(fixture.client)).resolves.toMatchObject(
-        unprovenState,
-      );
+      const late = await handle.state(fixture.client);
+      expect(late).toMatchObject(unprovenState);
+      await expect(
+        handle.exit(late, { checkedWallet: true }, fixture.client),
+      ).resolves.toMatchObject({ released: true });
     });
 
     it("refuses the exit while the returned hash is a known pending transaction, then settles it", async () => {
@@ -5698,6 +5704,32 @@ describe("resetting a controller made before the reset", () => {
     await hold.open(ordinary).send(client, retry.send);
     expect(retry.write).toHaveBeenCalledOnce();
     resetWriteHoldsForTests();
+  });
+});
+
+describe("a launch held under its shared intent", () => {
+  it("refuses a retry whose config holds a number where the first held a bigint", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    // Each review regenerates its calldata (a new salt or deadline).
+    const launch = (reserved: number | bigint, data: Hex) =>
+      hold.open({
+        ...ordinary,
+        call: { ...ordinary.call, data },
+        namespace: launchIntent({
+          chainId: 10,
+          account: ACCOUNT,
+          config: { name: "Banny", reserved },
+        }),
+      });
+    await expect(
+      launch(1000, "0xaabbccdd0001").send(client, lostReply().send),
+    ).rejects.toThrow();
+    const retry = wallet(async () => HASH);
+    await expect(
+      launch(1000n, "0xaabbccdd0002").send(client, retry.send),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    expect(retry.write).not.toHaveBeenCalled();
   });
 });
 

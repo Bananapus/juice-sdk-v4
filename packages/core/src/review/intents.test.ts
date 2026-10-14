@@ -9,6 +9,7 @@ import {
   loanIntent,
   payIntent,
 } from "./intents.js";
+import { intent } from "./writeIntent.js";
 
 const A = "0x1111111111111111111111111111111111111111";
 const B = "0x2222222222222222222222222222222222222222";
@@ -160,6 +161,63 @@ describe("shared write intents", () => {
       lp,
     );
     expect(liquidityIntent({ chainId: 1, pool, positions: [1n] })).not.toBe(lp);
+  });
+
+  it("keys a launch config the same whatever integer type or hex case it holds", () => {
+    const typed = {
+      name: "Banny",
+      reserved: 1000,
+      owner: A.toUpperCase().replace("0X", "0x"),
+      salt: "0xABCDEF",
+      splits: [{ percent: 50, beneficiary: B }],
+    };
+    const key = launchIntent({ chainId: 1, account: A, config: typed });
+    expect(
+      launchIntent({
+        chainId: 1,
+        account: A,
+        config: {
+          name: "Banny",
+          reserved: 1000n,
+          owner: A,
+          salt: "0xabcdef",
+          splits: [
+            { percent: 50n, beneficiary: B.toUpperCase().replace("0X", "0x") },
+          ],
+        },
+      }),
+    ).toBe(key);
+    // Already tagged, left out, or null: the same canonical form.
+    expect(
+      launchIntent({
+        chainId: 1,
+        account: A,
+        config: { ...typed, owner: intent.address(A), memo: undefined },
+      }),
+    ).toBe(key);
+    expect(
+      launchIntent({
+        chainId: 1,
+        account: A,
+        config: { ...typed, owner: null },
+      }),
+    ).not.toBe(key);
+    // A non-integer number is refused, as everywhere.
+    expect(() =>
+      launchIntent({
+        chainId: 1,
+        account: A,
+        config: { ...typed, reserved: 0.5 },
+      }),
+    ).toThrow("safe integer");
+    // Strings stay as typed.
+    expect(
+      launchIntent({
+        chainId: 1,
+        account: A,
+        config: { ...typed, name: "banny" },
+      }),
+    ).not.toBe(key);
   });
 
   it("refuses an identity it can't key", () => {

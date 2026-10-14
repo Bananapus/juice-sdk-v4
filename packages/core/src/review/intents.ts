@@ -15,11 +15,46 @@ import { intent, writeIntentKey, type IntentValue } from "./writeIntent.js";
 type Id = bigint | number;
 
 /**
+ * The one canonical form of what a builder keys: a safe integer becomes a
+ * bigint (1000 and 1000n are one value), an address or other 0x hex string
+ * is tagged to compare case-blind, and every other string stays as typed.
+ * Arrays and records are normalized throughout; anything else is left for
+ * {@link writeIntentKey} to accept or refuse.
+ */
+function canonicalValue(value: IntentValue): IntentValue {
+  if (typeof value === "number")
+    return Number.isSafeInteger(value) ? BigInt(value) : value;
+  if (typeof value === "string")
+    return /^0x[0-9a-fA-F]*$/.test(value)
+      ? value.length === 42
+        ? intent.address(value)
+        : intent.hex(value)
+      : value;
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (value && typeof value === "object" && !isTagged(value))
+    return Object.fromEntries(
+      Object.entries(value).map(([name, field]) => [
+        name,
+        field === undefined ? field : canonicalValue(field),
+      ]),
+    );
+  return value;
+}
+
+/** An address or hex already tagged with {@link intent}. */
+function isTagged(value: object): boolean {
+  return Object.getOwnPropertySymbols(value).length > 0;
+}
+
+/** One id in its canonical form. */
+const id = (value: Id) => canonicalValue(value) as bigint;
+
+/**
  * A list of ids as a set: sorted ascending and without repeats, so every app
  * keys the same set the same way, whatever order it holds them in.
  */
 function canonicalIds(ids: readonly Id[]): bigint[] {
-  return [...new Set(ids.map((id) => BigInt(id)))].sort(
+  return [...new Set(ids.map(id))].sort(
     // Unique after the Set: never equal.
     (a, b) => (a < b ? -1 : 1),
   );
@@ -37,7 +72,7 @@ export function payIntent({
 }): string {
   return writeIntentKey("pay", {
     chainId,
-    project: BigInt(project),
+    project: id(project),
     beneficiary: intent.address(beneficiary),
   });
 }
@@ -56,7 +91,7 @@ export function cashOutIntent({
 }): string {
   return writeIntentKey("cash-out", {
     chainId,
-    project: BigInt(project),
+    project: id(project),
     holder: intent.address(holder),
     beneficiary: intent.address(beneficiary),
   });
@@ -70,7 +105,7 @@ export function loanIntent({
   chainId: number;
   loanId: Id;
 }): string {
-  return writeIntentKey("loan", { chainId, loanId: BigInt(loanId) });
+  return writeIntentKey("loan", { chainId, loanId: id(loanId) });
 }
 
 /** Borrowing against a project's token. No amount or collateral. */
@@ -85,7 +120,7 @@ export function borrowIntent({
 }): string {
   return writeIntentKey("borrow", {
     chainId,
-    project: BigInt(project),
+    project: id(project),
     holder: intent.address(holder),
   });
 }
@@ -141,7 +176,7 @@ export function launchIntent({
   return writeIntentKey("launch", {
     chainId,
     account: intent.address(account),
-    config,
+    config: canonicalValue(config),
   });
 }
 

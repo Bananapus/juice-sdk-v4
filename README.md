@@ -862,6 +862,9 @@ await hold.onExecuted(publicClient, executionHash);
 await hold.attachHash(publicClient, hash); // followed; no exit while pending
 // Or that it ended without proof (it gave up, or the service lost it):
 await hold.onUnproven(publicClient, proposalHash); // safe-unproven: the exit
+// ...but an execution hash reported with onExecuted that the chain can't be
+// read for yet (reads fail, before it was ever seen pending or mined) keeps
+// the hold, with no exit, for 30 minutes from when it was reported.
 
 // The exit, only on a state with `exit: true`, given the state the user saw:
 const { released } = await hold.exit(
