@@ -166,9 +166,41 @@ const budgets = {
     // or dependencies. With the 2.30.0 changelog entry and the binding checks
     // (each entry's chain, forwarder calls told apart by function): measured
     // 1,388,807 B packed / 21,398,286 B unpacked and 810 entries.
-    packed: 1_390_000,
-    unpacked: 21_400_000,
-    entries: 810,
+    // The write hold controller every app's send hook adopts (ruling R119:
+    // one owner for held writes, replacing four app copies) adds one module
+    // (writeHold) and eight artifacts. The tab-shared held-write storage, the
+    // proven-execution record fields, the dropped-nonce evidence and the
+    // Safe proposal end with its execution's transaction change existing
+    // artifacts. No dependencies: +23,245 B packed / +132,407 B unpacked.
+    // Measured 1,412,052 B packed / 21,530,693 B unpacked and 818 entries.
+    // The rulings on its two dead ends (a hash unseen 30 minutes after the
+    // wallet returned it gets the exit; an at-once Safe execution whose own
+    // transaction reverted settles as failed once final) change existing
+    // artifacts only: +1,071 B packed / +5,286 B unpacked. Measured
+    // 1,413,123 B packed / 21,535,979 B unpacked and 818 entries. The repair
+    // paths (a record without a starting block, and a first-seen clock for
+    // hashes saved by 2.31, which Homerun already shipped) add 1,264 B packed
+    // and 6,820 B unpacked to existing artifacts. Measured 1,414,387 B packed /
+    // 21,542,799 B unpacked and 818 entries. The review's fixes (tab-shared
+    // durable evidence, the saved Safe proposal nonce and its service-free
+    // proof, execution logs bound to the canonical block, rechecked saved
+    // executions and the hashed exit's warning) change existing artifacts
+    // only: +3,469 B packed / +20,317 B unpacked. Measured 1,417,856 B packed
+    // / 21,563,116 B unpacked and 818 entries. Reconciling a direct Safe
+    // execution reorganized away (its sender and nonce saved, the shared
+    // nonce search) adds +2,418 B packed / +14,694 B unpacked to existing
+    // artifacts. Measured 1,420,274 B packed / 21,577,810 B unpacked, 818.
+    // Settling from what that replacement did (its own Safe execution of the
+    // reviewed call) adds +967 B packed / +8,570 B unpacked. Measured
+    // 1,421,241 B packed / 21,586,380 B unpacked and 818 entries. Rounds 4
+    // to 6 (no automatic release of a replaced Safe write, no release on an
+    // effect read, speed-ups adopted only at the authenticated sent nonce,
+    // and that nonce bound only from the saved hash's own transaction) left
+    // the measure at the edge (1,422,125 B packed / 21,590,464 B unpacked,
+    // 818 entries); this margin gives the next fix room.
+    packed: 1_426_000,
+    unpacked: 21_600_000,
+    entries: 818,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

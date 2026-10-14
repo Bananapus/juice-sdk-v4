@@ -43,6 +43,26 @@ export type ReviewedWriteRecoveryRecord = Omit<
   fromBlock?: string;
   /** The nonce the chain showed for `hash`'s own transaction: the nonce it was actually sent at. */
   sentNonce?: string;
+  /**
+   * The chain proved the write ran (a Safe proposal whose nonce its own
+   * execution used). It is never offered a resend; its result settles it.
+   */
+  executed?: true;
+  /** The transaction the proven execution ran in, when known. */
+  executionHash?: Hex;
+  /** When the wallet returned `hash`, in milliseconds since the epoch, as a decimal string. */
+  submittedAt?: string;
+  /**
+   * For a hash saved before `submittedAt` existed: when this record was
+   * first read with it, in milliseconds since the epoch, as a decimal string.
+   */
+  firstSeenAt?: string;
+  /** A Safe proposal's nonce, from its authenticated record: proof of its end needs no Safe service. */
+  safeNonce?: string;
+  /** For a Safe execution the wallet returned at once: the account that sent it (its nonce is `sentNonce`). */
+  sentFrom?: Address;
+  /** Another Safe transaction used this Safe write's nonce: held for the user's exit, never released on its own. */
+  replaced?: true;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -53,6 +73,9 @@ export type ReviewedWriteNonceEvidence = {
 
 type RecoveryStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type RecoveryLocks = Pick<LockManager, "request">;
+const TAB_MEMORY = Symbol.for("nana-sdk:held-writes");
+const TAB_QUEUES = Symbol.for("nana-sdk:write-lock-queues");
+const TAB_SEEN = Symbol.for("nana-sdk:held-writes-seen");
 // A returned hash must survive a component remount even when its durable update
 // failed. It is visible only while the exact durable reservation still exists.
 const unpersistedSubmissions = new WeakMap<
@@ -127,7 +150,16 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     (record.hash !== undefined && !isBytes32(record.hash)) ||
     !optionalDecimal(record.nonce) ||
     !optionalDecimal(record.fromBlock) ||
-    !optionalDecimal(record.sentNonce)
+    !optionalDecimal(record.sentNonce) ||
+    !optionalDecimal(record.submittedAt) ||
+    !optionalDecimal(record.firstSeenAt) ||
+    !optionalDecimal(record.safeNonce) ||
+    (record.replaced !== undefined && record.replaced !== true) ||
+    (record.sentFrom !== undefined &&
+      !isAddress(record.sentFrom, { strict: false })) ||
+    (record.executed !== undefined && record.executed !== true) ||
+    (record.executionHash !== undefined &&
+      (record.executed !== true || !isBytes32(record.executionHash)))
   )
     throw new Error(
       "Invalid saved write recovery record. Keep this action pending.",
@@ -142,6 +174,21 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.nonce === undefined ? {} : { nonce: record.nonce }),
     ...(record.fromBlock === undefined ? {} : { fromBlock: record.fromBlock }),
     ...(record.sentNonce === undefined ? {} : { sentNonce: record.sentNonce }),
+    ...(record.submittedAt === undefined
+      ? {}
+      : { submittedAt: record.submittedAt }),
+    ...(record.firstSeenAt === undefined
+      ? {}
+      : { firstSeenAt: record.firstSeenAt }),
+    ...(record.safeNonce === undefined ? {} : { safeNonce: record.safeNonce }),
+    ...(record.sentFrom === undefined
+      ? {}
+      : { sentFrom: record.sentFrom.toLowerCase() as Address }),
+    ...(record.replaced ? { replaced: true as const } : {}),
+    ...(record.executed ? { executed: true as const } : {}),
+    ...(record.executionHash === undefined
+      ? {}
+      : { executionHash: record.executionHash.toLowerCase() as Hex }),
   };
 }
 
@@ -196,6 +243,138 @@ function recoveryStorage(store?: RecoveryStorage): RecoveryStorage {
   const result = store ?? globalThis.localStorage;
   if (!result) throw new Error("Write recovery storage is unavailable.");
   return result;
+}
+
+/** Recovery storage that also says whether its records outlive this tab. */
+export type HeldWriteStorage = RecoveryStorage & {
+  /** Whether records are kept by the browser (shared by tabs, kept across reloads) right now. */
+  durable(): boolean;
+};
+
+const PROBE_KEY = "nana-sdk:reviewed-write:probe";
+
+function idOf(raw: string): string | undefined {
+  try {
+    const id = (JSON.parse(raw) as { id?: unknown } | null)?.id;
+    return typeof id === "string" ? id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The browser's storage, shared by its tabs and kept across reloads, while it
+ * can be written; this tab's memory while it can't (private browsing, a
+ * sandboxed frame, some wallet webviews), so a write is held either way and
+ * never refused. Every read looks at both. A record kept in memory moves into
+ * the browser's storage as soon as it can be written there, after any other
+ * live record saved at the same key ends. While the browser's storage can't
+ * be read, what this tab last read or wrote there still holds.
+ *
+ * `memory` defaults to one map per tab, shared by every copy of this module
+ * loaded there.
+ */
+export function createHeldWriteStorage(
+  options: {
+    durable?: () => RecoveryStorage | undefined;
+    memory?: Map<string, string>;
+  } = {},
+): HeldWriteStorage {
+  const durable =
+    options.durable ??
+    (() => globalThis.localStorage as RecoveryStorage | undefined);
+  const tab = globalThis as { [TAB_MEMORY]?: Map<string, string> };
+  const memory = options.memory ?? (tab[TAB_MEMORY] ??= new Map());
+  /**
+   * What this tab last saw in, or wrote to, durable storage (records,
+   * releases and deletions), shared by every controller and copy of this
+   * module using the same tab memory.
+   */
+  const registry = ((
+    globalThis as {
+      [TAB_SEEN]?: WeakMap<Map<string, string>, Map<string, string>>;
+    }
+  )[TAB_SEEN] ??= new WeakMap());
+  let seen = registry.get(memory);
+  if (!seen) registry.set(memory, (seen = new Map()));
+  const read = (key: string): string | null | undefined => {
+    try {
+      const store = durable();
+      if (!store) return undefined;
+      const value = store.getItem(key);
+      if (value === null) seen.delete(key);
+      else seen.set(key, value);
+      return value;
+    } catch {
+      return undefined;
+    }
+  };
+  const write = (key: string, value: string): boolean => {
+    try {
+      const store = durable();
+      if (!store) return false;
+      store.setItem(key, value);
+      if (store.getItem(key) !== value) return false;
+      seen.set(key, value);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const getItem = (key: string): string | null => {
+    const saved = read(key);
+    const kept = memory.get(key);
+    if (saved === undefined) return kept ?? seen.get(key) ?? null;
+    if (kept === undefined) return saved;
+    if (saved === kept) {
+      memory.delete(key);
+      return saved;
+    }
+    const savedId = saved === null ? undefined : idOf(saved);
+    // Another live record saved there first is held first; this one waits.
+    if (
+      saved !== null &&
+      savedId !== idOf(kept) &&
+      !(savedId !== undefined && getItem(releasedKey(key, savedId)) !== null)
+    )
+      return saved;
+    if (write(key, kept)) memory.delete(key);
+    return kept;
+  };
+  return {
+    getItem,
+    setItem(key, value) {
+      const kept = memory.get(key);
+      if (write(key, value)) {
+        if (kept === value || (kept && idOf(kept) === idOf(value)))
+          memory.delete(key);
+      } else memory.set(key, value);
+    },
+    removeItem(key) {
+      const shown = getItem(key);
+      if (shown !== null && memory.get(key) === shown) {
+        memory.delete(key);
+        if (read(key) !== shown) return;
+      }
+      try {
+        durable()?.removeItem(key);
+      } catch {
+        /* The readback below decides. */
+      }
+      if (read(key) === null) seen.delete(key);
+    },
+    durable() {
+      const probe = String(Date.now());
+      if (!write(PROBE_KEY, probe)) return false;
+      try {
+        durable()!.removeItem(PROBE_KEY);
+      } catch {
+        /* A leftover probe names no write. */
+      }
+      seen.delete(PROBE_KEY);
+      return true;
+    },
+  };
 }
 
 export type ReviewedWriteRecoveryScope = Pick<
@@ -255,8 +434,8 @@ function readRecovery(
   if (
     !record ||
     !memory ||
-    JSON.stringify({ ...record, hash: undefined }) !==
-      JSON.stringify({ ...memory, hash: undefined }) ||
+    JSON.stringify({ ...record, hash: undefined, submittedAt: undefined }) !==
+      JSON.stringify({ ...memory, hash: undefined, submittedAt: undefined }) ||
     (record.hash && record.hash !== memory.hash)
   ) {
     // A readable durable snapshot also proves whether cached evidence is stale.
@@ -277,8 +456,11 @@ export function sameReviewedWrite(
   );
 }
 
-// Without Web Locks, writes in this tab still run one at a time per action.
-const tabQueues = new Map<string, Promise<void>>();
+// Without Web Locks, writes in this tab still run one at a time per action,
+// across every copy of this module loaded in the tab.
+const tabQueues = ((
+  globalThis as { [TAB_QUEUES]?: Map<string, Promise<void>> }
+)[TAB_QUEUES] ??= new Map<string, Promise<void>>());
 let tabLocksNoted = false;
 const tabLocks = {
   async request<T>(
@@ -534,6 +716,28 @@ export function createBrowserWriteRecovery(
       throw new Error("Write recovery storage did not clear the action.");
     unpersistedSubmissions.get(store)?.delete(at);
   }
+  /** Add `fields` to exactly `expected`, a hashed record `when` allows; extra evidence only. */
+  function amend(
+    expected: ReviewedWriteRecoveryRecord,
+    when: (current: ReviewedWriteRecoveryRecord) => boolean,
+    fields: Partial<ReviewedWriteRecoveryRecord>,
+  ): ReviewedWriteRecoveryRecord {
+    requireLock();
+    const current = read();
+    if (
+      !current?.hash ||
+      !when(current) ||
+      JSON.stringify(current) !== JSON.stringify(recordOf(expected))
+    )
+      return current ?? recordOf(expected);
+    const next = recordOf({ ...current, ...fields });
+    try {
+      persist(next, locate(storage()).at);
+      return next;
+    } catch {
+      return current;
+    }
+  }
   function rejected(): void {
     requireLock();
     // A rejection callback from another attempt must never release this one.
@@ -582,7 +786,16 @@ export function createBrowserWriteRecovery(
     ) {
       throw new Error("Write recovery changed before submission was recorded.");
     }
-    const submitted = { ...previous, hash: submittedHash };
+    // A hash the wallet returns now starts its clock; a speed-up found at its nonce keeps it.
+    const submittedAt =
+      replace || previous.hash === submittedHash
+        ? previous.submittedAt
+        : String(Date.now());
+    const submitted = recordOf({
+      ...previous,
+      hash: submittedHash,
+      ...(submittedAt === undefined ? {} : { submittedAt }),
+    });
     let raw: string | null;
     let at = key;
     try {
@@ -596,8 +809,16 @@ export function createBrowserWriteRecovery(
     const current = readStored(raw, at, scopeAt(at));
     if (
       !current ||
-      JSON.stringify({ ...current, hash: undefined }) !==
-        JSON.stringify({ ...previous, hash: undefined }) ||
+      JSON.stringify({
+        ...current,
+        hash: undefined,
+        submittedAt: undefined,
+      }) !==
+        JSON.stringify({
+          ...previous,
+          hash: undefined,
+          submittedAt: undefined,
+        }) ||
       (!replace && current.hash && current.hash !== submittedHash)
     ) {
       throw new Error("Write recovery changed before submission was recorded.");
@@ -689,9 +910,115 @@ export function createBrowserWriteRecovery(
     rejected,
     clear,
     /**
+     * Start the clock of a hash saved before `submittedAt` existed: save now
+     * as its `firstSeenAt`, once. Extra evidence: a stale snapshot or a failed
+     * save keeps the record as it was.
+     */
+    firstSeen(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(
+        expected,
+        (current) =>
+          current.submittedAt === undefined &&
+          current.firstSeenAt === undefined,
+        { firstSeenAt: String(Date.now()) },
+      );
+    },
+    /**
+     * Save who sent a Safe execution the wallet returned at once, and at which
+     * nonce, from its authenticated transaction, once: its canonical
+     * replacement can then be proven. Extra evidence only.
+     */
+    sentBy(
+      expected: ReviewedWriteRecoveryRecord,
+      from: Address,
+      nonce: bigint,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(
+        expected,
+        (current) => current.safe && current.sentFrom === undefined,
+        { sentFrom: from, sentNonce: nonce.toString() },
+      );
+    },
+    /**
+     * Drop the proof that `expected` ran, once its execution is gone from the
+     * chain: it is held again as an unproven write. Extra evidence only.
+     */
+    unexecuted(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(expected, (current) => current.executed === true, {
+        executed: undefined,
+        executionHash: undefined,
+      });
+    },
+    /**
+     * Save that another Safe transaction used this Safe write's nonce. Any
+     * saved execution goes: the user's exit, not the chain, ends it.
+     */
+    replacedOnChain(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(expected, (current) => current.safe && !current.replaced, {
+        executed: undefined,
+        executionHash: undefined,
+        replaced: true,
+      });
+    },
+    /**
+     * Save a Safe proposal's nonce from its authenticated record, once. Extra
+     * evidence: a stale snapshot or a failed save keeps the record as it was.
+     */
+    proposalNonce(
+      expected: ReviewedWriteRecoveryRecord,
+      nonce: bigint,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(
+        expected,
+        (current) => current.safe && current.safeNonce === undefined,
+        { safeNonce: nonce.toString() },
+      );
+    },
+    /**
+     * Save the chain's proof that `expected` ran, with the transaction it ran
+     * in when known. From then on the user's exit refuses it: only its result
+     * ({@link verifyReviewedWriteReceipt}) releases it.
+     */
+    executed(
+      expected: ReviewedWriteRecoveryRecord,
+      executionHash?: Hex,
+    ): ReviewedWriteRecoveryRecord {
+      requireLock();
+      if (executionHash !== undefined && !isBytes32(executionHash))
+        throw new Error("Invalid execution transaction identity.");
+      const store = storage();
+      const { at, raw } = locate(store);
+      const current = readRecovery(store, at, raw, scopeAt(at));
+      const wanted = recordOf(expected);
+      if (
+        !current?.hash ||
+        current.id !== wanted.id ||
+        current.hash !== wanted.hash
+      )
+        throw new Error(
+          "Write recovery changed. Keep the current action pending.",
+        );
+      const next = recordOf({
+        ...current,
+        executed: true,
+        ...((executionHash ?? current.executionHash)
+          ? { executionHash: executionHash ?? current.executionHash }
+          : {}),
+      });
+      persist(next, at);
+      unpersistedSubmissions.get(store)?.delete(at);
+      return next;
+    },
+    /**
      * Check the saved write against the chain ({@link checkReviewedWrite}) and
-     * apply the finding: `sent` records the hash to track, `ran` releases it.
-     * Null when nothing is saved.
+     * apply the finding: `sent` records the hash to track. Nothing here
+     * releases a write; null when nothing is saved.
      */
     async resolve(
       client: ReviewedWriteNonceClient,
@@ -707,9 +1034,8 @@ export function createBrowserWriteRecovery(
       );
       if (sentNonce !== undefined && saved.sentNonce !== sentNonce)
         saved = bind(saved, sentNonce);
-      if (check.status === "sent") {
-        if (check.hash !== saved.hash) record(check.hash, saved, true);
-      } else if (check.status !== "pending") clear(saved);
+      if (check.status === "sent" && check.hash !== saved.hash)
+        record(check.hash, saved, true);
       return check;
     },
     /**
@@ -733,6 +1059,10 @@ export function createBrowserWriteRecovery(
       const { at, raw } = locate(store);
       const durable = readStored(raw, at, scopeAt(at), store);
       if (!durable) return;
+      if (durable.executed)
+        throw new Error(
+          "This write ran onchain. Keep it held until its result is known.",
+        );
       const shown = readRecovery(store, at, raw, scopeAt(at));
       if (
         JSON.stringify(durable) !== wanted &&
@@ -773,12 +1103,24 @@ export function createBrowserWriteRecovery(
 
 /** What the chain shows of a write with no confirmed result. */
 export type ReviewedWriteCheck =
-  /** Nothing proven yet. The user's exit (`abandon`) stays open. */
-  | { status: "pending" }
-  /** The saved hash, or the exact call, is the transaction at its nonce: track that receipt. */
-  | { status: "sent"; hash: Hex }
-  /** The app's effect read shows the call took effect. */
-  | { status: "ran" };
+  /**
+   * Nothing proven yet. The user's exit (`abandon`) stays open. `usedBy`:
+   * the node doesn't know the saved hash, and a canonical finalized block
+   * shows this other transaction used the nonce the write was sent at, so
+   * the saved hash can never run (a wrapper may still have run the call).
+   */
+  | {
+      status: "pending";
+      usedBy?: Hex;
+      /** The app's effect read shows the call took effect. It releases nothing: the user's exit decides. */
+      effect?: true;
+    }
+  /**
+   * The saved hash is the transaction at its nonce, or the exact call is,
+   * under another hash, at the nonce the saved hash was sent at (a wallet
+   * speed-up): track that receipt.
+   */
+  | { status: "sent"; hash: Hex };
 
 /** The reads {@link checkReviewedWrite} makes; a viem PublicClient satisfies it. */
 export type ReviewedWriteNonceClient = Pick<
@@ -832,13 +1174,28 @@ async function inspectWrite(
   effect: ((chainId: number) => Promise<boolean>) | undefined,
 ): Promise<{ check: ReviewedWriteCheck; sentNonce?: string }> {
   const record = recordOf(saved);
+  // No proof, the app's effect read included, from another chain, and none
+  // here for a Safe write.
+  if (
+    record.safe ||
+    (await client.getChainId().catch(() => null)) !== record.chainId
+  )
+    return { check: { status: "pending" } };
+  const found = await inspectOrdinary(client, record);
+  if (
+    found.check.status === "pending" &&
+    effect &&
+    (await effect(record.chainId).catch(() => false))
+  )
+    return { ...found, check: { ...found.check, effect: true } };
+  return found;
+}
+
+async function inspectOrdinary(
+  client: ReviewedWriteNonceClient,
+  record: ReviewedWriteRecoveryRecord,
+): Promise<{ check: ReviewedWriteCheck; sentNonce?: string }> {
   const pending = { check: { status: "pending" } as const };
-  // No proof, the app's effect read included, from another chain.
-  if ((await client.getChainId().catch(() => null)) !== record.chainId)
-    return pending;
-  if (effect && (await effect(record.chainId).catch(() => false)))
-    return { check: { status: "ran" } };
-  if (record.safe) return pending;
   if (record.hash) {
     const sent = await client.getTransaction({ hash: record.hash }).then(
       (tx) => tx,
@@ -847,7 +1204,13 @@ async function inspectWrite(
     );
     if (sent === undefined) return pending;
     if (sent) {
-      if (sent.from?.toLowerCase() !== record.account) return pending;
+      // Only the saved hash's own transaction, on the saved chain, is evidence.
+      if (
+        sent.from?.toLowerCase() !== record.account ||
+        sent.hash?.toLowerCase() !== record.hash ||
+        (sent.chainId !== undefined && sent.chainId !== record.chainId)
+      )
+        return pending;
       return {
         check:
           sent.blockNumber !== null && sent.blockNumber !== undefined
@@ -859,19 +1222,57 @@ async function inspectWrite(
   }
   const bound = record.hash !== undefined && record.sentNonce !== undefined;
   const target = bound ? record.sentNonce : record.nonce;
-  if (target === undefined || record.fromBlock === undefined) return pending;
-  const nonce = BigInt(target);
+  // The nonce a hash was sent at is authenticated by its own transaction, so
+  // a record saved without a starting block searches from genesis instead.
+  const from = record.fromBlock ?? (bound ? "0" : undefined);
+  if (target === undefined || from === undefined) return pending;
+  const used = await findTransactionAtNonce(
+    client,
+    record.account,
+    BigInt(target),
+    BigInt(from),
+  );
+  if (!used) return pending;
+  if (used.hash === record.hash)
+    return { check: { status: "sent", hash: used.hash } };
+  const sameCall =
+    used.to?.toLowerCase() === record.call.to &&
+    used.input?.toLowerCase() === record.call.data &&
+    BigInt(used.value ?? 0) === BigInt(record.call.value);
+  // Another hash is adopted only at the nonce the saved hash's own
+  // transaction was sent at; the pre-wallet nonce only locates the call.
+  if (sameCall)
+    return bound ? { check: { status: "sent", hash: used.hash } } : pending;
+  // Another transaction at that nonce may have run the call inside it
+  // (a wrapper, or an EIP-7702 wallet that ran code and then cleared its
+  // delegation), so it proves nothing. The user's exit ends it.
+  return { check: { status: "pending", usedBy: used.hash } };
+}
+
+/**
+ * The transaction `account` sent at `nonce`, once the account's nonce is past
+ * it at a canonical finalized block: a search of its nonce from `fromBlock`
+ * finds the block where it moved. Null while that is unproven or the node
+ * can't say (no history, a reorganized answer).
+ */
+export async function findTransactionAtNonce(
+  client: Pick<ReviewedWriteNonceClient, "getBlock" | "getTransactionCount">,
+  account: Address,
+  nonce: bigint,
+  fromBlock = 0n,
+): Promise<{
+  hash: Hex;
+  to?: Address | null;
+  input?: Hex;
+  value?: bigint;
+} | null> {
+  const from = account.toLowerCase();
   const count = async (blockNumber: bigint) =>
-    BigInt(
-      await client.getTransactionCount({
-        address: record.account,
-        blockNumber,
-      }),
-    );
+    BigInt(await client.getTransactionCount({ address: account, blockNumber }));
   const proof = await atCanonicalFinalizedBlock(
     client as Pick<RelayrFinalizedClient, "getBlock">,
-    async (finalized): Promise<ReviewedWriteCheck | null> => {
-      let low = BigInt(record.fromBlock!);
+    async (finalized) => {
+      let low = fromBlock;
       let high = finalized;
       if (
         high <= low ||
@@ -892,26 +1293,14 @@ async function inspectWrite(
         block.number === high
           ? block.transactions.find(
               (tx) =>
-                tx.from?.toLowerCase() === record.account &&
-                BigInt(tx.nonce) === nonce,
+                tx.from?.toLowerCase() === from && BigInt(tx.nonce) === nonce,
             )
           : undefined;
       if (!used || !isBytes32(used.hash)) return null;
-      const hash = used.hash.toLowerCase() as Hex;
-      if (hash === record.hash) return { status: "sent", hash };
-      if (
-        used.to?.toLowerCase() === record.call.to &&
-        used.input?.toLowerCase() === record.call.data &&
-        BigInt(used.value ?? 0) === BigInt(record.call.value)
-      )
-        return { status: "sent", hash };
-      // Another transaction at that nonce may have run the call inside it
-      // (a wrapper, or an EIP-7702 wallet that ran code and then cleared its
-      // delegation), so it proves nothing. The user's exit ends it.
-      return null;
+      return { ...used, hash: used.hash.toLowerCase() as Hex };
     },
   );
-  return { check: proof?.value ?? pending.check };
+  return proof?.value ?? null;
 }
 
 /** Minimal RPC reads; PublicClient instances for any chain satisfy this shape. */
@@ -1012,7 +1401,15 @@ export async function verifyReviewedWriteReceipt(
 
   let status: "success" | "failed" =
     canonical.status === "success" ? "success" : "failed";
-  if (record.safe) {
+  // An execution the wallet returned at once whose own transaction reverted
+  // ran nothing on the Safe: a failure, once final, when it was sent to it.
+  const atOnceReverted =
+    record.safe &&
+    canonical.status === "reverted" &&
+    hash.toLowerCase() === record.hash;
+  if (atOnceReverted) {
+    if (transaction.to?.toLowerCase() !== record.account) throw pending();
+  } else if (record.safe) {
     if (
       !Array.isArray(canonical.logs) ||
       canonical.logs.some(

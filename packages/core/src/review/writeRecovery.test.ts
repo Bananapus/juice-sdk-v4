@@ -23,6 +23,7 @@ import {
   browserLocks,
   checkReviewedWrite,
   createBrowserWriteRecovery,
+  parseReviewedWriteRecoveryRecord,
   readReviewedWriteNonce,
   readBrowserWriteRecovery,
   sameReviewedWrite,
@@ -86,6 +87,8 @@ function browser() {
 afterEach(() => vi.unstubAllGlobals());
 
 const legacyInput = input;
+/** When the wallet returned a hash. */
+const AT = expect.stringMatching(/^\d+$/);
 function ordinaryRecovery(namespace?: string) {
   const input = {
     ...legacyInput,
@@ -381,8 +384,8 @@ function ordinaryRecovery(namespace?: string) {
     await expect(
       older.withLock(async () => older.submitted(HASH, previous)),
     ).rejects.toThrow(SubmittedWritePersistenceError);
-    const known = { ...reserved, hash: PROPOSAL };
-    expect(current.read()).toEqual(known);
+    const known = current.read()!;
+    expect(known).toEqual({ ...reserved, hash: PROPOSAL, submittedAt: AT });
     expect(createBrowserWriteRecovery(input, options).read()).toEqual(known);
     expect(JSON.parse([...options.values.values()][0])).toEqual(reserved);
     await current.withLock(async () => {
@@ -421,7 +424,11 @@ function ordinaryRecovery(namespace?: string) {
       expect(() => current.submitted(PROPOSAL)).toThrow(
         SubmittedWritePersistenceError,
       );
-      expect(current.read()).toEqual({ ...reserved, hash: PROPOSAL });
+      expect(current.read()).toEqual({
+        ...reserved,
+        hash: PROPOSAL,
+        submittedAt: AT,
+      });
     });
   });
 
@@ -450,7 +457,11 @@ function ordinaryRecovery(namespace?: string) {
         SubmittedWritePersistenceError,
       );
     });
-    expect(current.read()).toEqual({ ...reserved, hash: PROPOSAL });
+    expect(current.read()).toEqual({
+      ...reserved,
+      hash: PROPOSAL,
+      submittedAt: AT,
+    });
     expect(JSON.parse([...options.values.values()][0])).toEqual(reserved);
   });
 
@@ -703,6 +714,38 @@ describe("reviewed receipt recovery proof", () => {
     });
     await expect(
       verifyReviewedWriteReceipt(run.client, saved, run.receipt),
+    ).rejects.toThrow("pending");
+  });
+
+  it("settles an immediate execution whose outer transaction reverted as failed, only at finality and only to the Safe", async () => {
+    const run = safeChain();
+    run.receipt.status = "reverted";
+    run.receipt.logs = [];
+    const record = { ...saved, safe: true, hash: HASH };
+    run.client.getBlock.mockResolvedValueOnce({
+      hash: BLOCK,
+      number: 6n,
+      timestamp: 100n,
+    });
+    await expect(
+      verifyReviewedWriteReceipt(run.client, record, run.receipt),
+    ).rejects.toThrow("pending");
+    await expect(
+      verifyReviewedWriteReceipt(run.client, record, run.receipt),
+    ).resolves.toBe("failed");
+    // A reverted executor of a proposal has not consumed its nonce: still held.
+    await expect(
+      verifyReviewedWriteReceipt(
+        run.client,
+        { ...record, hash: PROPOSAL },
+        run.receipt,
+      ),
+    ).rejects.toThrow("pending");
+    // A reverted transaction to another contract is not the Safe's execution.
+    run.transaction.to = WRAPPER;
+    run.receipt.to = WRAPPER;
+    await expect(
+      verifyReviewedWriteReceipt(run.client, record, run.receipt),
     ).rejects.toThrow("pending");
   });
 
@@ -1219,6 +1262,8 @@ describe("releasing a write with no confirmed result", () => {
   const check = (client: unknown, record: ReviewedWriteRecoveryRecord) =>
     checkReviewedWrite(client as never, record);
   const pending = { status: "pending" };
+  /** Another transaction used the nonce at a finalized block: still held, with its evidence. */
+  const usedBy = { status: "pending", usedBy: SENT.toLowerCase() };
 
   it("records the account's next nonce and the block it was read at", async () => {
     const client = nonceChain();
@@ -1233,25 +1278,35 @@ describe("releasing a write with no confirmed result", () => {
     ).rejects.toThrow("Invalid");
   });
 
-  it("finds the exact call at its nonce and returns the hash to track", async () => {
+  it("adopts another hash only at the nonce its own transaction was sent at", async () => {
     const { record } = await reserved();
+    // Codex: the exact call at the pre-wallet nonce, under a hash nobody returned.
     const client = nonceChain();
-    await expect(check(client, record)).resolves.toEqual({
-      status: "sent",
-      hash: SENT,
-    });
+    await expect(check(client, record)).resolves.toEqual(pending);
+    await expect(check(client, { ...record, hash: HASH })).resolves.toEqual(
+      pending,
+    );
+    // Its own hash there is this transaction.
+    await expect(
+      check(nonceChain({ tx: exact(HASH) }), { ...record, hash: HASH }),
+    ).resolves.toEqual({ status: "sent", hash: HASH });
+    // At the authenticated sent nonce, a speed-up of the exact call is adopted.
+    const bound = nonceChain();
+    await expect(
+      check(bound, { ...record, hash: HASH, sentNonce: "7" }),
+    ).resolves.toEqual({ status: "sent", hash: SENT });
     // A binary search, not a scan of every block.
-    expect(client.getTransactionCount.mock.calls.length).toBeLessThan(12);
+    expect(bound.getTransactionCount.mock.calls.length).toBeLessThan(12);
   });
 
   it("never calls a write replaced from a nonce sampled before the wallet opened", async () => {
     // The wallet may have sent it at a later nonce than the sample.
     const { record } = await reserved();
     for (const tx of [cancel, wrapped(SENT), { ...exact(SENT), value: 18n }])
-      await expect(check(nonceChain({ tx }), record)).resolves.toEqual(pending);
+      await expect(check(nonceChain({ tx }), record)).resolves.toEqual(usedBy);
     const hashed = { ...record, hash: HASH };
     await expect(check(nonceChain({ tx: cancel }), hashed)).resolves.toEqual(
-      pending,
+      usedBy,
     );
   });
 
@@ -1281,15 +1336,15 @@ describe("releasing a write with no confirmed result", () => {
     // wallet can run code, pay and clear its delegation in the same block.
     // The user's exit (one tap) ends it.
     await expect(check(nonceChain({ tx: cancel }), bound)).resolves.toEqual(
-      pending,
+      usedBy,
     );
     // A contract could run the reviewed call inside it.
     await expect(
       check(nonceChain({ tx: wrapped(SENT) }), bound),
-    ).resolves.toEqual(pending);
+    ).resolves.toEqual(usedBy);
     await expect(
       check(nonceChain({ tx: { ...cancel, to: null } }), bound),
-    ).resolves.toEqual(pending);
+    ).resolves.toEqual(usedBy);
     // A wallet speed-up: the exact call under a new hash.
     await expect(check(nonceChain(), bound)).resolves.toEqual({
       status: "sent",
@@ -1332,15 +1387,41 @@ describe("releasing a write with no confirmed result", () => {
     ).resolves.toEqual(pending);
   });
 
-  it("releases once the call's effect is visible, and ignores a failing effect read", async () => {
-    const { record } = await reserved();
+  it("reports a visible effect without releasing, and ignores a failing effect read", async () => {
+    const { record, journal } = await reserved();
     const client = nonceChain({ crossing: 300n });
     const effect = vi.fn(async () => true);
     await expect(
       checkReviewedWrite(client as never, record, { effect }),
-    ).resolves.toEqual({ status: "ran" });
+    ).resolves.toEqual({ status: "pending", effect: true });
     // The effect reads the saved chain.
     expect(effect).toHaveBeenCalledWith(10);
+    // Codex: the original is still pending in the mempool; nothing is released.
+    await journal.withLock(async () => journal.submitted(HASH));
+    await expect(
+      journal.withLock(() =>
+        journal.resolve(
+          nonceChain({
+            crossing: 300n,
+            known: { [HASH]: { nonce: 7, blockNumber: null } },
+          }) as never,
+          { effect },
+        ),
+      ),
+    ).resolves.toEqual({ status: "pending", effect: true });
+    expect(journal.read()).toMatchObject({ hash: HASH });
+    // A Safe write is guarded first: no effect is read for it.
+    const safeEffect = vi.fn(async () => true);
+    await expect(
+      checkReviewedWrite(
+        client as never,
+        { ...record, safe: true },
+        {
+          effect: safeEffect,
+        },
+      ),
+    ).resolves.toEqual(pending);
+    expect(safeEffect).not.toHaveBeenCalled();
     await expect(
       checkReviewedWrite(client as never, record, {
         effect: async () => {
@@ -1365,6 +1446,46 @@ describe("releasing a write with no confirmed result", () => {
     ).resolves.toEqual(pending);
     expect(effect).not.toHaveBeenCalled();
     expect(journal.read()).toEqual(record);
+  });
+
+  it("binds a sent nonce only from the saved hash's own transaction on the saved chain", async () => {
+    const { journal } = await reserved();
+    await journal.withLock(async () => journal.submitted(HASH));
+    // Codex: the node answers for HASH with another transaction U.
+    for (const answer of [
+      { hash: SENT, nonce: 9, blockNumber: null },
+      { hash: SENT, nonce: 9, blockNumber: 150n },
+      { hash: HASH, chainId: 1, nonce: 9, blockNumber: 150n },
+    ]) {
+      await expect(
+        journal.withLock(() =>
+          journal.resolve(
+            nonceChain({
+              crossing: 300n,
+              known: { [HASH]: answer } as never,
+            }) as never,
+          ),
+        ),
+      ).resolves.toEqual(pending);
+      expect(journal.read()?.sentNonce).toBeUndefined();
+    }
+    // Its own transaction, on the saved chain, binds.
+    await journal.withLock(() =>
+      journal.resolve(
+        nonceChain({
+          crossing: 300n,
+          known: {
+            [HASH]: {
+              hash: HASH.toUpperCase().replace("0X", "0x"),
+              chainId: 10,
+              nonce: 7,
+              blockNumber: null,
+            },
+          } as never,
+        }) as never,
+      ),
+    );
+    expect(journal.read()?.sentNonce).toBe("7");
   });
 
   it("binds the sent nonce while the node knows the hash, then applies each finding", async () => {
@@ -1395,7 +1516,7 @@ describe("releasing a write with no confirmed result", () => {
       replaced.journal.withLock(() =>
         replaced.journal.resolve(nonceChain({ tx: cancel }) as never),
       ),
-    ).resolves.toEqual(pending);
+    ).resolves.toEqual(usedBy);
     expect(replaced.journal.read()?.sentNonce).toBe("7");
 
     const sent = await reserved();
@@ -1420,7 +1541,8 @@ describe("releasing a write with no confirmed result", () => {
         effect: async () => true,
       }),
     );
-    expect(ran.journal.read()).toBeNull();
+    // An effect never releases on its own: the user's exit does.
+    expect(ran.journal.read()).not.toBeNull();
   });
 
   it("resolves nothing when nothing is saved, and prefers native Web Locks", async () => {
@@ -1508,6 +1630,10 @@ describe("releasing a write with no confirmed result", () => {
 describe("tabs without Web Locks", () => {
   /** A tab: its own copy of the module, sharing the origin's storage and IndexedDB. */
   async function tab() {
+    // Each tab has its own globals; copies of the module in one tab share them.
+    delete (globalThis as Record<symbol, unknown>)[
+      Symbol.for("nana-sdk:write-lock-queues")
+    ];
     vi.resetModules();
     return (await import(
       "./writeRecovery.js"
@@ -1596,5 +1722,87 @@ describe("tabs without Web Locks", () => {
     const module = await tab();
     const journal = module.createBrowserWriteRecovery(input, { storage });
     await expect(journal.withLock(async () => "ran")).resolves.toBe("ran");
+  });
+});
+
+describe("a record saved before its hash had a clock", () => {
+  it("saves when it was first seen, once, and only on a hashed record", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(input, options);
+    await journal.withLock(async () => {
+      const reserved = journal.reserve();
+      expect(() => journal.firstSeen(reserved)).not.toThrow();
+      expect(journal.firstSeen(reserved)).toEqual(reserved);
+      const [key] = options.values.keys();
+      options.values.set(key, JSON.stringify({ ...reserved, hash: HASH }));
+      const legacy = journal.read()!;
+      const seen = journal.firstSeen(legacy);
+      expect(seen).toEqual({ ...legacy, firstSeenAt: AT });
+      expect(journal.read()).toEqual(seen);
+      expect(journal.firstSeen(seen)).toEqual(seen);
+      // A stale snapshot changes nothing.
+      expect(journal.firstSeen({ ...legacy, id: "other" })).toEqual(seen);
+      // A failed save keeps the record as it was.
+      options.storage.setItem.mockImplementationOnce(() => {
+        throw new Error("full");
+      });
+      options.values.set(key, JSON.stringify(legacy));
+      expect(journal.firstSeen(legacy)).toEqual(legacy);
+    });
+    expect(() => journal.firstSeen(saved)).toThrow("browser lock");
+    expect(() =>
+      parseReviewedWriteRecoveryRecord({ ...saved, firstSeenAt: "soon" }),
+    ).toThrow("Invalid saved write recovery record");
+    expect(() =>
+      parseReviewedWriteRecoveryRecord({ ...saved, sentFrom: "0x12" }),
+    ).toThrow("Invalid saved write recovery record");
+    expect(() =>
+      parseReviewedWriteRecoveryRecord({ ...saved, replaced: false }),
+    ).toThrow("Invalid saved write recovery record");
+  });
+});
+
+describe("a write the chain proved ran", () => {
+  it("keeps its execution evidence, refuses the exit and rejects malformed evidence", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(
+      { ...input, safe: true },
+      options,
+    );
+    const reserved = await journal.withLock(async () => journal.reserve());
+    expect(() => journal.executed(reserved)).toThrow("browser lock");
+    await journal.withLock(async () => {
+      // Nothing proven runs without a hash to name it.
+      expect(() => journal.executed(reserved)).toThrow("changed");
+      const sent = journal.submitted(PROPOSAL);
+      expect(() => journal.executed(sent, "0x12" as Hex)).toThrow(
+        "Invalid execution",
+      );
+      expect(() => journal.executed({ ...sent, id: "other" })).toThrow(
+        "changed",
+      );
+      expect(() => journal.executed({ ...sent, hash: HASH })).toThrow(
+        "changed",
+      );
+      const ran = journal.executed(
+        sent,
+        HASH.toUpperCase().replace("0X", "0x") as Hex,
+      );
+      expect(ran).toMatchObject({ executed: true, executionHash: HASH });
+      // Later evidence without a hash keeps the one already saved.
+      expect(journal.executed(ran)).toEqual(ran);
+      expect(journal.read()).toEqual(ran);
+    });
+    expect(() =>
+      journal.abandon(journal.read()!, { checkedWallet: true }),
+    ).toThrow("ran onchain");
+    for (const bad of [
+      { executed: false },
+      { executionHash: HASH },
+      { executed: true, executionHash: "0x12" },
+    ])
+      expect(() =>
+        parseReviewedWriteRecoveryRecord({ ...saved, ...bad }),
+      ).toThrow("Invalid saved write recovery record");
   });
 });
