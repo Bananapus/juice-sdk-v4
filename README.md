@@ -878,8 +878,8 @@ the next write is reserved; never after the user's exit), `pending-known-hash` (
 `held-no-hash` and `dropped-proven` (the exit, with `WRITE_EXIT_LABEL` and
 `writeExitMessage(state.record.call)`), `looks-done` (the app's `effect` read
 shows it done: the exit at once, nothing released), `held-unchecked` (a hash the node
-doesn't know, saved without a nonce or unseen 30 minutes after the wallet
-returned it: the exit, with `WRITE_HOLD_UNCHECKED_LINE`), and
+doesn't know 30 minutes after the wallet returned it: the exit, with
+`WRITE_HOLD_UNCHECKED_LINE`), and
 `ran-executed` (kept through reload until its result settles it, never a
 resend). A hash is dropped only when the node doesn't know it and a canonical
 finalized block shows another transaction ran at the nonce it was sent at
@@ -890,6 +890,11 @@ subscriber's replay and every other emitted state keep the status and line
 with `exit: false`. Every state carries the record it was read from; `exit` refuses a
 snapshot that changed, and asks the chain once more, so a confirmation that
 lands meanwhile wins.
+
+A result of `state()` or `exit()` carries `checked`: `true` when the gate read
+the chain under the call's lock, `false` when another tab or flow held the
+lock and the result is only the saved record, with its exit hidden. Never let
+a `checked: false` result hide an exit you're already showing; ask again.
 
 Cross-tab protection needs shared storage. Holds live in the browser's storage,
 or this tab's memory where storage is refused (private browsing, some
@@ -945,6 +950,64 @@ handle see it held until it settles or exits. Only when
 all are clear does the intent's own record apply. Every state carries
 `reservation`, the id of the reservation it belongs to (on a clear, the one
 that ended), so an observer can ignore a newer reservation it didn't start.
+
+A hold an earlier version saved under calldata the retry can't rebuild (an
+old minimum, expiration or deadline) is found with
+`{ match: { to, selector } }`: every exact-call write this account saved on
+this chain to `to` whose calldata starts with that 4-byte selector, delegated
+to exactly like a `{ call }` key. It is looked up when the handle opens, on
+every `state()`, `send()` and `exit()`, and again at the final reserve; a
+match found there refuses the send and is reached by `state()` and `exit()`
+from then on. Pass a match only for writes whose calldata is volatile: it
+holds every such call, and a write saved under an intent is found by its
+namespace, never by the match. Matching covers holds saved before the
+deploy, not a tab still running the old version: one that reserves its own
+exact call while this send's wallet is open, with other calldata, isn't
+seen. That tab could already send twice before this change; new code never
+writes exact-call holds for intent-keyed writes.
+
+```ts
+holds.open(
+  {
+    chainId,
+    account,
+    safe,
+    call,
+    namespace: writeIntentKey("cash-out", { projectId }),
+  },
+  {
+    legacy: [
+      { match: { to: terminal, selector: toFunctionSelector(cashOutAbi) } },
+    ],
+  },
+);
+```
+
+To move a write a previous deploy kept outside these holds into one, read
+its state, then `handle.adopt(snapshot, { nonce, fromBlock, submittedAt,
+hash }, client)` (a Safe write passes `safe: { safeTxHash }`). A hash is
+checked on the chain first: one that is another call, from another account
+or on another chain (or a Safe proposal of another call) is refused, adopting
+nothing; one the chain can't show is held, with the warned exit 30 minutes
+after `submittedAt` (or adoption); a mined one settles on its verified
+receipt. It reserves only while nothing is held and no reservation
+came since that read (another tab's hold or settlement wins); otherwise it
+returns the current state. Under an intent it reserves like a send, under
+every legacy key's lock, and mirrors itself at each, so an older version's
+handle sees it held. It never sends, settles only on authenticated evidence,
+and adopting twice holds once. A Safe proposal adopted before its nonce was known
+takes it later with `handle.attachSafeNonce(client, { safeTxHash, nonce })`,
+saved only when the call's proposal at that nonce hashes to `safeTxHash`, so
+a replacement can be proven. Every Safe-service read inside the hold, body included, is
+bounded to 8 seconds; one that times out is unknown, which never releases or
+settles.
+
+In tests, import the resets from the test-only entry,
+`@bananapus/nana-sdk-core/testing` (never from production code; no other
+entry exports them): `resetWriteHoldsForTests()` stops every controller's
+settle polls and tab listeners and drops this tab's lock queues and
+held-write memory; `resetSafeRelayrForTests()` stops every Safe Relayr watch
+and forgets its remembered reviews. Call them in `afterEach`.
 
 ### Safe proposals
 

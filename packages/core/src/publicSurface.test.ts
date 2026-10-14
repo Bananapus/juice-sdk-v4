@@ -6,6 +6,7 @@ import * as review from "./review/index.js";
 import * as reviewRelayr from "./review/relayr.js";
 import * as safe from "./safe.js";
 import * as safeService from "./safeService.js";
+import * as testing from "./testing.js";
 import * as feeBuyback from "./v6/feeBuyback.js";
 import * as v6 from "./v6/index.js";
 
@@ -314,5 +315,26 @@ describe("published core SDK surfaces", () => {
     expect(v6.verifyPayoutReceipt).toBeTypeOf("function");
     expect(v6.verifyReservedDistributionReceipt).toBeTypeOf("function");
     expect(sdk).not.toHaveProperty("verifyPayoutReceipt");
+  });
+
+  test("keeps the test resets on their own test-only entry", async () => {
+    const resets = [
+      "resetSafeRelayrForTests",
+      "resetWriteHoldsForTests",
+      "resetWriteRecoveryForTests",
+    ];
+    expect(Object.keys(testing).sort()).toEqual(resets);
+    const reviewSafeRelayr = await import("./review/safeRelayr.js");
+    for (const entry of [sdk, review, reviewRelayr, reviewSafeRelayr])
+      for (const name of resets) expect(entry).not.toHaveProperty(name);
+    const { readFileSync } = await import("node:fs");
+    const manifest = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+    );
+    expect(manifest.exports["./testing"]).toEqual({
+      types: "./dist/esm/testing.d.ts",
+      import: "./dist/esm/testing.js",
+      require: "./dist/cjs/testing.js",
+    });
   });
 });

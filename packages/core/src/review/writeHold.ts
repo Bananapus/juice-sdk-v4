@@ -1,6 +1,7 @@
 import {
   isAddress,
   toEventSelector,
+  type Address,
   type Hex,
   type PublicClient,
   type TransactionReceipt,
@@ -33,8 +34,11 @@ import {
 import {
   createBrowserWriteRecovery,
   createHeldWriteStorage,
+  findReviewedWrites,
+  heldSafeProposal,
   findTransactionAtNonce,
   readReviewedWriteNonce,
+  safeProposalIsHeldCall,
   SubmittedWritePersistenceError,
   verifyReviewedWriteExpiry,
   verifyReviewedWriteReceipt,
@@ -44,6 +48,37 @@ import {
 } from "./writeRecovery.js";
 import { isBytes32 } from "../untrusted.js";
 import { atCanonicalFinalizedBlock } from "./relayr.js";
+import { TAB, tabShared } from "./tabState.js";
+
+/** `sent` is the transaction at `hash`, exactly `record`'s call, from its account, on its chain. */
+function sentIsCall(
+  sent: {
+    hash?: Hex;
+    from?: Address;
+    chainId?: number;
+    to?: Address | null;
+    input?: Hex;
+    value: bigint;
+  },
+  hash: Hex,
+  record: {
+    account: string;
+    chainId: number;
+    call: { to: string; data: string; value: string };
+  },
+): boolean {
+  return (
+    sent.hash?.toLowerCase() === hash.toLowerCase() &&
+    sent.from?.toLowerCase() === record.account &&
+    (sent.chainId === undefined || sent.chainId === record.chainId) &&
+    sent.to?.toLowerCase() === record.call.to &&
+    sent.input?.toLowerCase() === record.call.data &&
+    BigInt(sent.value) === BigInt(record.call.value)
+  );
+}
+
+/** The stop of every controller with a follower or tab listener running, for the test-only reset. */
+const liveHolds = tabShared(TAB.holds, () => new Set<() => void>());
 
 /** The reads a write hold makes on the call's chain; a viem PublicClient satisfies it. */
 export type WriteHoldClient = Pick<
@@ -92,9 +127,9 @@ type Held<S extends string, Extra> = {
  *   actually sent at (`sentNonce`, from its authenticated transaction; the
  *   nonce read before the wallet opened only locates the call). The exit is
  *   offered;
- * - `held-unchecked`: a saved hash the node doesn't know, on a record saved
- *   with no nonce to check, or 30 minutes after the wallet returned it (or,
- *   for a record saved before that time was kept, after it was first read). The
+ * - `held-unchecked`: a saved hash the node doesn't know 30 minutes after
+ *   the wallet returned it (or, for a record saved before that time was
+ *   kept or adopted without it, after it was first read). The
  *   exit is offered, with a line that says so; a hash that shows up later is
  *   followed as usual. A hash seen with its sent nonce that the node has not
  *   known for 30 minutes, with that nonce unused at a canonical finalized
@@ -123,6 +158,13 @@ export type WriteHoldState = WriteHoldStateOf & {
    * so an observer can ignore a newer reservation it didn't start.
    */
   reservation?: string;
+  /**
+   * On a result of state() or exit(): true when the gate read the chain
+   * under the call's lock; false when the lock was busy and this is only the
+   * saved record (its exit hidden). Never let a false one hide an exit
+   * already shown.
+   */
+  checked?: boolean;
 };
 
 type WriteHoldStateOf =
@@ -221,6 +263,9 @@ const SAFE_EXECUTION_TOPICS = [
 ];
 /** A hash the network still hasn't seen this long after the wallet returned it was almost certainly never broadcast. */
 const UNSEEN_HASH_MS = 30 * 60_000;
+
+/** The longest one request to Safe's service may take inside the hold. */
+const SAFE_SERVICE_READ_MS = 8_000;
 
 /** The 30 minutes have passed since the wallet returned the hash, or since it was first read. A clock that couldn't be saved (NaN) never runs out. */
 function unseenTooLong(record: ReviewedWriteRecoveryRecord): boolean {
@@ -371,6 +416,36 @@ export function createWriteHold(
   } = {},
 ) {
   const storage = options.storage ?? createHeldWriteStorage();
+  /**
+   * Safe's service, every request and its body bounded together to
+   * {@link SAFE_SERVICE_READ_MS} whatever its fetch does with the signal: a read that times out is
+   * unknown, which never releases or settles, so a hung service can't hold
+   * a send or the call's lock.
+   */
+  const service: SafeServiceOptions = {
+    ...options.safeService,
+    fetch: (url, init) => {
+      const request = options.safeService?.fetch ?? globalThis.fetch;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      return Promise.race([
+        // The whole read, its body included, under the one deadline.
+        request(url, init).then(
+          async (response) =>
+            new Response(await response.arrayBuffer(), {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+            }),
+        ),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("Safe's service did not answer in time.")),
+            SAFE_SERVICE_READ_MS,
+          );
+        }),
+      ]).finally(() => clearTimeout(timer));
+    },
+  };
   const interval = options.settle?.intervalMs ?? SETTLE_POLL_MS;
   const attempts = options.settle?.attempts ?? SETTLE_POLL_ATTEMPTS;
   const listeners = new Map<string, Set<(state: WriteHoldState) => void>>();
@@ -416,6 +491,16 @@ export function createWriteHold(
       }
     };
     globalThis.addEventListener("storage", onStorage);
+    liveHolds.add(dispose);
+  }
+
+  /** Stop every settle poll and the tab listener. */
+  function dispose() {
+    for (const timer of timers.values()) clearTimeout(timer);
+    timers.clear();
+    if (onStorage) globalThis.removeEventListener?.("storage", onStorage);
+    onStorage = undefined;
+    liveHolds.delete(dispose);
   }
 
   function openOne(
@@ -437,10 +522,13 @@ export function createWriteHold(
       /** Every involved key's generation, read when the review opens. */
       generations?: () => string;
     } = {},
+    /** The key a found write was saved under, when it isn't its call's own. */
+    at?: string,
   ) {
     const recovery = createBrowserWriteRecovery(call, {
       storage,
       locks: options.locks,
+      at,
     });
     // The canonical recovery scope: a namespace and an exact call never share it.
     const key = recovery.scopeKey;
@@ -500,6 +588,7 @@ export function createWriteHold(
 
     function follow(client: WriteHoldClient, id: string, left = attempts) {
       if (timers.has(id) || left <= 0) return;
+      liveHolds.add(dispose);
       timers.set(
         id,
         setTimeout(() => {
@@ -563,6 +652,44 @@ export function createWriteHold(
       return classify(recovery.read());
     }
 
+    /**
+     * Whether a previous deploy's `hash` may be this call's: a valid hash
+     * read on the call's chain that isn't shown to be another write. A
+     * transaction must be the exact call from the account; a Safe proposal,
+     * exactly this call. One that can't be read is unknown, not refused.
+     */
+    async function adoptable(
+      hash: Hex,
+      client: WriteHoldClient | undefined,
+    ): Promise<boolean> {
+      if (
+        !isBytes32(hash) ||
+        !client ||
+        (await client.getChainId().catch(() => null)) !== call.chainId
+      )
+        return false;
+      const reviewed = {
+        account: call.account.toLowerCase(),
+        chainId: call.chainId,
+        call: {
+          to: call.call.to.toLowerCase(),
+          data: call.call.data.toLowerCase(),
+          value: String(call.call.value ?? 0),
+        },
+      };
+      if (call.safe) {
+        const proposal = await readSafeTransaction(
+          call.chainId,
+          call.account,
+          hash,
+          service,
+        ).catch(() => null);
+        return !proposal || safeProposalIsHeldCall(proposal, call);
+      }
+      const sent = await client.getTransaction({ hash }).catch(() => null);
+      return !sent || sentIsCall(sent, hash, reviewed);
+    }
+
     /** The authenticated nonce of a Safe proposal, from Safe's service. */
     async function proposalNonceOf(
       record: ReviewedWriteRecoveryRecord,
@@ -572,7 +699,7 @@ export function createWriteHold(
           record.chainId,
           record.account,
           record.hash!,
-          options.safeService,
+          service,
         );
         return safeTransactionMessage(proposal).nonce;
       } catch {
@@ -836,7 +963,7 @@ export function createWriteHold(
           record.chainId,
           record.account,
           hash,
-          options.safeService,
+          service,
         ));
       // Another Safe transaction took its nonce, even after a saved execution
       // was reorganized away. It may have run the call too: the exit, never a release.
@@ -846,7 +973,7 @@ export function createWriteHold(
         const expired = await verifyReviewedWriteExpiry(
           client,
           record,
-          options.safeService,
+          service,
         ).catch(() => false);
         if (expired && release(record))
           return clear({ result: "expired" }, record.id);
@@ -1003,9 +1130,7 @@ export function createWriteHold(
       if (
         record.hash &&
         record.sentNonce === undefined &&
-        (record.nonce === undefined ||
-          record.fromBlock === undefined ||
-          unseenTooLong(record)) &&
+        unseenTooLong(record) &&
         (await client.getTransaction({ hash: record.hash }).then(
           () => false,
           (error: { name?: unknown } | null) =>
@@ -1026,7 +1151,7 @@ export function createWriteHold(
     ): Promise<WriteHoldState> {
       lastEffect = checks.effect;
       const result = await locked(() => inspect(client, checks.effect), false);
-      return shown(result ? result.value : peek());
+      return { ...shown(result ? result.value : peek()), checked: !!result };
     }
 
     return {
@@ -1232,7 +1357,10 @@ export function createWriteHold(
           // what the saved record says, with no exit.
         }, false);
         const ended = result?.value ?? { released: false, state: peek() };
-        return { ...ended, state: shown(ended.state) };
+        return {
+          ...ended,
+          state: { ...shown(ended.state), checked: !!result },
+        };
       },
       /**
        * A receipt for the held write: an ordinary write's own hash, or a Safe
@@ -1287,6 +1415,128 @@ export function createWriteHold(
        * one lock, without releasing it. The hold then follows that hash: no
        * exit while it is pending, and its receipt settles it.
        */
+      /**
+       * Move a write a previous deploy kept (outside these holds) into this
+       * hold. `snapshot` is the state the app read before deciding. Under
+       * the call's lock, it reserves a held record with `evidence` (the
+       * account's next nonce, or the nonce it was sent at, with the block it
+       * was read at; when it was sent; and its `hash`, or for a Safe write
+       * `safe.safeTxHash`) only while nothing is held and no reservation
+       * came since `snapshot`: another tab's hold or settlement wins, and
+       * the current state is returned unchanged. A hash is checked first
+       * with `client`: a transaction that is another call, from another
+       * account or on another chain (or a Safe proposal of another call) is
+       * refused, adopting nothing. One the chain can't show is held, with
+       * the warned exit 30 minutes after it was sent (or adopted). Then the
+       * gate reads it: a mined one settles on its verified receipt. It never
+       * sends or releases; adopting twice holds once.
+       */
+      async adopt(
+        snapshot: WriteHoldState,
+        evidence: {
+          nonce?: number | bigint;
+          sentNonce?: number | bigint;
+          fromBlock?: bigint;
+          submittedAt?: number;
+          hash?: Hex;
+          safe?: { safeTxHash: Hex };
+        } = {},
+        client?: WriteHoldClient,
+      ): Promise<WriteHoldState> {
+        const nonce = evidence.nonce ?? evidence.sentNonce;
+        const hash = (
+          call.safe ? evidence.safe?.safeTxHash : evidence.hash
+        )?.toLowerCase() as Hex | undefined;
+        /** Nothing held, and no reservation since the app's read. */
+        const free = () =>
+          snapshot.status === "clear" &&
+          !recovery.read() &&
+          recovery.latestReservation() === snapshot.reservation;
+        const reserve = () =>
+          recovery.reserve(
+            undefined,
+            nonce !== undefined && evidence.fromBlock !== undefined
+              ? { nonce, blockNumber: evidence.fromBlock }
+              : undefined,
+            {
+              hash,
+              submittedAt:
+                evidence.submittedAt === undefined
+                  ? undefined
+                  : String(evidence.submittedAt),
+            },
+          );
+        if (hooks.across) {
+          // Under an intent: the same atomic reserve as a send, under every
+          // legacy key's lock, mirrored at each so older versions see it.
+          if (
+            !free() ||
+            (hash !== undefined && !(await adoptable(hash, client)))
+          )
+            return shown(peek());
+          let adopted = false;
+          try {
+            const { released } = await hooks.across(
+              (work) => recovery.withLock(work),
+              () => {
+                if (!free()) throw new Error("Held since the app's read.");
+                reserve();
+                adopted = true;
+              },
+              recovery.rejected,
+              Promise.resolve(),
+              hooks.generations!(),
+            );
+            await released;
+          } catch {
+            /* Held elsewhere, busy, or no longer free: nothing adopted. */
+          }
+          // A mined hash settles on its verified receipt, through the gate.
+          return adopted && hash && client ? state(client) : shown(peek());
+        }
+        const result = await locked(async () => {
+          if (!free()) return peek();
+          if (hash !== undefined && !(await adoptable(hash, client)))
+            return peek();
+          reserve();
+          return hash && client ? inspect(client) : peek();
+        }, true);
+        return shown(result?.value ?? peek());
+      },
+      /**
+       * Save the Safe nonce of a held Safe proposal adopted before it was
+       * known, so a replacement can be proven later. Under the call's lock,
+       * only while the held proposal is `safeTxHash` with no nonce yet, and
+       * only when the call's proposal at `nonce` hashes to it: the hash is
+       * the proof. Then the gate reads it. Never sends or releases.
+       */
+      async attachSafeNonce(
+        client: WriteHoldClient,
+        { safeTxHash, nonce }: { safeTxHash: Hex; nonce: number },
+      ): Promise<WriteHoldState> {
+        const result = await locked(async () => {
+          const record = recovery.read();
+          if (
+            record?.safe &&
+            !record.mirrorOf &&
+            record.safeNonce === undefined &&
+            record.hash === safeTxHash.toLowerCase()
+          )
+            try {
+              canonicalSafeTxHash(
+                call.chainId,
+                call.account,
+                heldSafeProposal(call, nonce),
+                safeTxHash,
+              );
+              recovery.proposalNonce(record, BigInt(nonce));
+            } catch {
+              /* Not this proposal at that nonce: nothing saved. */
+            }
+          return inspect(client);
+        }, true);
+        return shown(result?.value ?? peek());
+      },
       async attachHash(
         client: WriteHoldClient,
         hash: Hex,
@@ -1305,12 +1555,8 @@ export function createWriteHold(
               .getTransaction({ hash })
               .catch(() => null);
             if (
-              sent?.hash?.toLowerCase() === hash.toLowerCase() &&
-              sent.from?.toLowerCase() === record.account &&
-              (sent.chainId === undefined || sent.chainId === record.chainId) &&
-              sent.to?.toLowerCase() === record.call.to &&
-              sent.input?.toLowerCase() === record.call.data &&
-              BigInt(sent.value) === BigInt(record.call.value) &&
+              sent &&
+              sentIsCall(sent, hash, record) &&
               // This attempt, not an earlier identical call: never below the
               // account's next nonce or mined before it was reserved.
               // With no such evidence, an identical earlier call can't be
@@ -1372,7 +1618,13 @@ export function createWriteHold(
   /**
    * `legacy`: for a write held under an intent namespace, the keys an earlier
    * version held it under (an old namespace, or `{ call }` for an exact
-   * call); the current exact call is always checked. While any of them holds
+   * call); the current exact call is always checked. `{ match: { to,
+   * selector } }` finds them instead: every exact-call write this account
+   * saved on this chain to `to` with that 4-byte selector, for a hold saved
+   * before the intent key existed under calldata the retry can't rebuild (an
+   * old minimum, expiration or deadline). Pass one only for a write whose
+   * calldata is volatile: it holds every such call. It is found when the
+   * handle opens, and again right before a send reserves. While any of them holds
    * an unresolved write, the intent handle *is* that hold: its state, its
    * refusal and its own exit, in place. Each is checked alone, under its own
    * lock only, never two at once. Only when all are clear does the intent's
@@ -1384,10 +1636,25 @@ export function createWriteHold(
     {
       legacy = [],
     }: {
-      legacy?: (string | { call: ReviewedWriteRecoveryInput["call"] })[];
+      legacy?: (
+        | string
+        | { call: ReviewedWriteRecoveryInput["call"] }
+        | { match: { to: Address; selector: Hex } }
+      )[];
     } = {},
   ) {
     if (call.namespace === undefined) return openExact(call);
+    const matches = legacy.flatMap((source) =>
+      typeof source === "object" && "match" in source ? [source.match] : [],
+    );
+    /** Every exact-call write the matches find in storage now. */
+    const matched = () =>
+      matches.flatMap((match) =>
+        findReviewedWrites(
+          { chainId: call.chainId, account: call.account, ...match },
+          { storage },
+        ),
+      );
     const namespace = call.namespace;
     const own = openOne(call, {
       across: reserveAcross,
@@ -1403,26 +1670,64 @@ export function createWriteHold(
     const scopeOf = (input: ReviewedWriteRecoveryInput) =>
       createBrowserWriteRecovery(input, { storage }).scopeKey;
     const scopes = new Set([scopeOf(call)]);
-    const inputs = [{ call: call.call }, ...legacy]
-      .map((source) =>
-        typeof source === "string"
-          ? { ...call, namespace: source }
-          : { ...exact, call: source.call },
-      )
-      .filter((input) => {
-        const scope = scopeOf(input);
-        return !scopes.has(scope) && !!scopes.add(scope);
-      })
-      // One canonical order, by scope, for every writer's locks.
-      .sort(
-        (a, b) =>
-          Number(scopeOf(a) > scopeOf(b)) - Number(scopeOf(a) < scopeOf(b)),
-      );
     // Mirror-aware: evidence and exits always act on the source attempt.
-    const delegates = inputs.map((input) => openExact(input));
-    const journals = inputs.map((input) =>
-      createBrowserWriteRecovery(input, { storage, locks: options.locks }),
+    const delegates: ReturnType<typeof openExact>[] = [];
+    const journals: ReturnType<typeof createBrowserWriteRecovery>[] = [];
+    /** Hold `inputs` too, each once, in one canonical order by scope for every writer's locks. */
+    function include(
+      inputs: { input: ReviewedWriteRecoveryInput; at?: string }[],
+    ) {
+      const added = inputs.filter(({ input, at }) => {
+        const scope = at ?? scopeOf(input);
+        return !scopes.has(scope) && !!scopes.add(scope);
+      });
+      if (!added.length) return;
+      const keyed = [
+        ...delegates.map((delegate, index) => ({
+          delegate,
+          journal: journals[index],
+        })),
+        ...added.map(({ input, at }) => ({
+          delegate: openExact(input, at),
+          journal: createBrowserWriteRecovery(input, {
+            storage,
+            locks: options.locks,
+            at,
+          }),
+        })),
+      ].sort(
+        (a, b) =>
+          Number(a.journal.scopeKey > b.journal.scopeKey) -
+          Number(a.journal.scopeKey < b.journal.scopeKey),
+      );
+      delegates.splice(0, delegates.length, ...keyed.map((k) => k.delegate));
+      journals.splice(0, journals.length, ...keyed.map((k) => k.journal));
+    }
+    /**
+     * Look for matching writes again (on every state(), send() and exit());
+     * those found since are held too, each at the exact key it was found
+     * under, with its own Safe flag. Returns the ones that are new.
+     */
+    function rescan(): ReviewedWriteRecoveryRecord[] {
+      const found = matched().filter(({ key }) => !scopes.has(key));
+      include(
+        found.map(({ key, record }) => ({
+          input: { ...exact, safe: record.safe, call: record.call },
+          at: key,
+        })),
+      );
+      return found.map(({ record }) => record);
+    }
+    include(
+      [{ call: call.call }, ...legacy].flatMap((source) =>
+        typeof source === "string"
+          ? [{ input: { ...call, namespace: source } }]
+          : "call" in source
+            ? [{ input: { ...exact, call: source.call } }]
+            : [],
+      ),
     );
+    rescan();
     /** A legacy key holding anything but this intent's own mirror. */
     const foreign = (index: number) =>
       journals[index].read()?.mirrorOf !== namespace &&
@@ -1433,6 +1738,7 @@ export function createWriteHold(
     async function delegated(
       client: WriteHoldClient,
     ): Promise<WriteHeldState | null> {
+      rescan();
       for (const [index, handle] of delegates.entries()) {
         if (!foreign(index)) continue;
         const state = await handle.state(client);
@@ -1472,16 +1778,21 @@ export function createWriteHold(
               entered += 1;
               return acquire(index + 1);
             });
+          const refuse = (held: ReviewedWriteRecoveryRecord) =>
+            new WriteHeldError(
+              noticed({
+                ...ungated(classify(held)),
+                reservation: held.id,
+              }) as WriteHeldState,
+            );
           for (const journal of journals) {
             const held = journal.read();
-            if (held && held.mirrorOf !== namespace)
-              throw new WriteHeldError(
-                noticed({
-                  ...ungated(classify(held)),
-                  reservation: held.id,
-                }) as WriteHeldState,
-              );
+            if (held && held.mirrorOf !== namespace) throw refuse(held);
           }
+          // A matching write saved since the last look holds it too, and
+          // its own state() and exit() are reached from now on.
+          const [late] = rescan();
+          if (late) throw refuse(late);
           // Another attempt since this review opened: review it again.
           if (generations() !== reviewed)
             throw new WriteHoldStaleReviewError(ownJournal.settled());
@@ -1584,6 +1895,7 @@ export function createWriteHold(
         acknowledgement: { checkedWallet: true },
         client: WriteHoldClient,
       ): Promise<{ released: boolean; state: WriteHoldState }> {
+        rescan();
         const owner =
           snapshot.status === "clear"
             ? undefined
@@ -1610,6 +1922,14 @@ export function createWriteHold(
         active()?.onExecuted(...args) ?? after(await own.onExecuted(...args)),
       attachHash: async (...args: Parameters<typeof own.attachHash>) =>
         active()?.attachHash(...args) ?? after(await own.attachHash(...args)),
+      attachSafeNonce: async (
+        ...args: Parameters<typeof own.attachSafeNonce>
+      ) =>
+        active()?.attachSafeNonce(...args) ??
+        after(await own.attachSafeNonce(...args)),
+      // A legacy hold already holds it: nothing is adopted.
+      adopt: async (...args: Parameters<typeof own.adopt>) =>
+        active()?.peek() ?? after(await own.adopt(...args)),
     };
   }
 
@@ -1618,11 +1938,12 @@ export function createWriteHold(
    * it is that intent's hold: it never sends or releases on its own, and its
    * exit is the intent's. A mirror left after the intent ended is removed.
    */
-  function openExact(call: ReviewedWriteRecoveryInput) {
-    const own = openOne(call);
+  function openExact(call: ReviewedWriteRecoveryInput, at?: string) {
+    const own = openOne(call, {}, at);
     const journal = createBrowserWriteRecovery(call, {
       storage,
       locks: options.locks,
+      at,
     });
     /** The intent this key mirrors, from storage alone. */
     const mirrored = () => {
@@ -1703,6 +2024,11 @@ export function createWriteHold(
         (route() ?? own).onExecuted(...args),
       attachHash: (...args: Parameters<typeof own.attachHash>) =>
         (route() ?? own).attachHash(...args),
+      attachSafeNonce: (...args: Parameters<typeof own.attachSafeNonce>) =>
+        (route() ?? own).attachSafeNonce(...args),
+      // An intent's mirror already holds it: nothing is adopted.
+      adopt: async (...args: Parameters<typeof own.adopt>) =>
+        route()?.peek() ?? own.adopt(...args),
     };
   }
   return {
@@ -1712,12 +2038,7 @@ export function createWriteHold(
     /** The review's line while holds last only in this tab, or null. */
     reviewLine: () => (storage.durable() ? null : WRITE_HOLD_IN_TAB_LINE),
     /** Stop every settle poll and the tab listener (tests, teardown). */
-    dispose() {
-      for (const timer of timers.values()) clearTimeout(timer);
-      timers.clear();
-      if (onStorage) globalThis.removeEventListener?.("storage", onStorage);
-      onStorage = undefined;
-    },
+    dispose,
   };
 }
 

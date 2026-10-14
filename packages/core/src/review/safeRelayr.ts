@@ -55,6 +55,7 @@ import {
   type RelayrProofClient,
   type RelayrVerifiedDestination,
 } from "./relayr.js";
+import { TAB, tabShared } from "./tabState.js";
 
 /** Exact frozen calldata plus the Safe intent it executes. Context belongs to the app. */
 export type SafeRelayrExecution = {
@@ -291,7 +292,9 @@ export class SafeRelayrRecoveryError extends Error {
 // Review is a page-lifetime capability, never a local-storage claim. Multiple
 // hook instances can share it; reloading, changing exact bytes, or eviction
 // requires explicit review again. Eviction only adds a review, never a write.
-const reviewedIntents = new Set<Hex>();
+const reviewedIntents = tabShared(TAB.reviews, () => new Set<Hex>());
+/** The stop of every running watch, for the test-only reset. */
+const watching = tabShared(TAB.watches, () => new Set<() => void>());
 function reviewKey(session: SafeRelayrSession): Hex {
   return keccak256(
     toHex(
@@ -1620,30 +1623,46 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       throw new Error(
         "Safe Relayr polling needs a positive interval and a finite timeout.",
       );
-    const started = Date.now();
-    while (true) {
-      signal?.throwIfAborted();
-      const next = await check({ account, sessionId, signal });
-      signal?.throwIfAborted();
-      await onUpdate?.(next);
-      const remaining = timeoutMs - (Date.now() - started);
-      if (next.state !== "pending" || remaining <= 0) return next;
-      await new Promise<void>((resolve, reject) => {
-        const aborted = () => {
-          clearTimeout(timer);
-          signal?.removeEventListener("abort", aborted);
-          reject(signal?.reason ?? new DOMException("Aborted", "AbortError"));
-        };
-        const timer = setTimeout(
-          () => {
-            signal?.removeEventListener("abort", aborted);
-            resolve();
-          },
-          Math.min(intervalMs, remaining),
-        );
-        signal?.addEventListener("abort", aborted, { once: true });
-        if (signal?.aborted) aborted();
-      });
+    // The caller's signal, or a test reset, stops it.
+    const halt = new AbortController();
+    const stop = () =>
+      halt.abort(
+        signal?.aborted
+          ? signal.reason
+          : new DOMException("Aborted", "AbortError"),
+      );
+    watching.add(stop);
+    signal?.addEventListener("abort", stop, { once: true });
+    if (signal?.aborted) stop();
+    const halted = halt.signal;
+    try {
+      const started = Date.now();
+      while (true) {
+        halted.throwIfAborted();
+        const next = await check({ account, sessionId, signal: halted });
+        halted.throwIfAborted();
+        await onUpdate?.(next);
+        const remaining = timeoutMs - (Date.now() - started);
+        if (next.state !== "pending" || remaining <= 0) return next;
+        await new Promise<void>((resolve, reject) => {
+          const aborted = () => {
+            clearTimeout(timer);
+            reject(halted.reason);
+          };
+          const timer = setTimeout(
+            () => {
+              halted.removeEventListener("abort", aborted);
+              resolve();
+            },
+            Math.min(intervalMs, remaining),
+          );
+          halted.addEventListener("abort", aborted, { once: true });
+          if (halted.aborted) aborted();
+        });
+      }
+    } finally {
+      watching.delete(stop);
+      signal?.removeEventListener("abort", stop);
     }
   }
 

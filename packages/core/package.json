@@ -115,6 +115,11 @@
       "types": "./dist/esm/review/safeRelayr.d.ts",
       "import": "./dist/esm/review/safeRelayr.js",
       "require": "./dist/cjs/review/safeRelayr.js"
+    },
+    "./testing": {
+      "types": "./dist/esm/testing.d.ts",
+      "import": "./dist/esm/testing.js",
+      "require": "./dist/cjs/testing.js"
     }
   },
   "files": [
