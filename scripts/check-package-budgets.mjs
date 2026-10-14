@@ -236,7 +236,7 @@ const budgets = {
     // the unknown-read clock measured 1,464,159 B packed / 21,782,309 B
     // unpacked and 826 entries.
     // Legacy matches, test resets, adoption and MultiSend batch holds
-    // measured 1,472,905 B packed / 21,818,178 B unpacked and 826 entries.
+    // measured 1,475,092 B packed / 21,830,136 B unpacked and 826 entries.
     packed: 1_480_000,
     unpacked: 21_840_000,
     entries: 826,

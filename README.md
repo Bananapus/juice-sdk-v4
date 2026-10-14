@@ -878,8 +878,8 @@ the next write is reserved; never after the user's exit), `pending-known-hash` (
 `held-no-hash` and `dropped-proven` (the exit, with `WRITE_EXIT_LABEL` and
 `writeExitMessage(state.record.call)`), `looks-done` (the app's `effect` read
 shows it done: the exit at once, nothing released), `held-unchecked` (a hash the node
-doesn't know, saved without a nonce or unseen 30 minutes after the wallet
-returned it: the exit, with `WRITE_HOLD_UNCHECKED_LINE`), and
+doesn't know 30 minutes after the wallet returned it: the exit, with
+`WRITE_HOLD_UNCHECKED_LINE`), and
 `ran-executed` (kept through reload until its result settles it, never a
 resend). A hash is dropped only when the node doesn't know it and a canonical
 finalized block shows another transaction ran at the nonce it was sent at
@@ -890,6 +890,11 @@ subscriber's replay and every other emitted state keep the status and line
 with `exit: false`. Every state carries the record it was read from; `exit` refuses a
 snapshot that changed, and asks the chain once more, so a confirmation that
 lands meanwhile wins.
+
+A result of `state()` or `exit()` carries `checked`: `true` when the gate read
+the chain under the call's lock, `false` when another tab or flow held the
+lock and the result is only the saved record, with its exit hidden. Never let
+a `checked: false` result hide an exit you're already showing; ask again.
 
 Cross-tab protection needs shared storage. Holds live in the browser's storage,
 or this tab's memory where storage is refused (private browsing, some
@@ -972,9 +977,14 @@ holds.open(
 );
 ```
 
-To move a hashless write a previous deploy kept outside these holds into
-one, read its state, then `handle.adopt(snapshot, { nonce, fromBlock,
-submittedAt })`. It reserves only while nothing is held and no reservation
+To move a write a previous deploy kept outside these holds into one, read
+its state, then `handle.adopt(snapshot, { nonce, fromBlock, submittedAt,
+hash }, client)` (a Safe write passes `safe: { safeTxHash }`). A hash is
+checked on the chain first: one that is another call, from another account
+or on another chain (or a Safe proposal of another call) is refused, adopting
+nothing; one the chain can't show is held, with the warned exit 30 minutes
+after `submittedAt` (or adoption); a mined one settles on its verified
+receipt. It reserves only while nothing is held and no reservation
 came since that read (another tab's hold or settlement wins); otherwise it
 returns the current state. It never sends or releases, and adopting twice
 holds once.

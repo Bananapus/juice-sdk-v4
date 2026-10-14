@@ -1045,13 +1045,13 @@ export function createBrowserWriteRecovery(
     /**
      * Save the attempt before the wallet opens. `evidence`, the account's next
      * nonce from {@link readReviewedWriteNonce}, lets `resolve` release it
-     * on proof from the chain. `submittedAt` is kept for an adopted write
-     * a previous deploy saw sent.
+     * on proof from the chain. `adopted` is what a previous deploy saved of
+     * a write it saw sent: its hash, and when it was sent.
      */
     reserve(
       actualCall?: ReviewedWriteRecoveryInput["call"],
       evidence?: ReviewedWriteNonceEvidence,
-      submittedAt?: string,
+      adopted: { hash?: Hex; submittedAt?: string } = {},
     ): ReviewedWriteRecoveryRecord {
       requireLock();
       // A reused Safe proposal may have a different, already verified deadline.
@@ -1085,7 +1085,10 @@ export function createBrowserWriteRecovery(
         ...(evidence
           ? { nonce: nonce!.toString(), fromBlock: fromBlock!.toString() }
           : {}),
-        ...(submittedAt === undefined ? {} : { submittedAt }),
+        ...(adopted.hash === undefined ? {} : { hash: adopted.hash }),
+        ...(adopted.submittedAt === undefined
+          ? {}
+          : { submittedAt: adopted.submittedAt }),
       };
       owned = recordOf(record);
       try {
@@ -1794,6 +1797,24 @@ function heldBatch(
 }
 
 /**
+ * Whether Safe's `proposal` is exactly the held Safe write's call: a batch
+ * hold's MultiSend by DELEGATECALL, any other call by CALL.
+ */
+export function safeProposalIsHeldCall(
+  proposal: Parameters<typeof safeTransactionMatchesCall>[0],
+  input: ReviewedWriteRecoveryInput,
+): boolean {
+  const record = normalized(input);
+  return safeTransactionMatchesCall(proposal, {
+    ...record.call,
+    value: BigInt(record.call.value),
+    ...(heldBatch({ ...record, version: 1, id: "" })
+      ? { operation: 1 as const }
+      : {}),
+  });
+}
+
+/**
  * Authenticate the saved wallet identity, canonical inclusion and Safe effect.
  * Ordinary wallet wrappers are allowed: the wallet's returned hash binds their
  * execution. A wallet-returned Safe proposal hash authenticates its execution
@@ -1957,14 +1978,7 @@ export async function verifyReviewedWriteExpiry(
     record.hash,
     service,
   );
-  if (
-    !safeTransactionMatchesCall(proposal, {
-      ...record.call,
-      value: BigInt(record.call.value),
-      ...(heldBatch(record) ? { operation: 1 as const } : {}),
-    })
-  )
-    throw pending();
+  if (!safeProposalIsHeldCall(proposal, record)) throw pending();
   const proof = await atCanonicalFinalizedBlock(client, async (blockNumber) => {
     const block = await client.getBlock({ blockNumber });
     if (block.number !== blockNumber) return false;

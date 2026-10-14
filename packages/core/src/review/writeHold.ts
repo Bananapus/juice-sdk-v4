@@ -38,6 +38,7 @@ import {
   findTransactionAtNonce,
   readReviewedWriteNonce,
   resetWriteRecoveryForTests,
+  safeProposalIsHeldCall,
   SubmittedWritePersistenceError,
   verifyReviewedWriteExpiry,
   verifyReviewedWriteReceipt,
@@ -47,6 +48,33 @@ import {
 } from "./writeRecovery.js";
 import { isBytes32 } from "../untrusted.js";
 import { atCanonicalFinalizedBlock } from "./relayr.js";
+
+/** `sent` is the transaction at `hash`, exactly `record`'s call, from its account, on its chain. */
+function sentIsCall(
+  sent: {
+    hash?: Hex;
+    from?: Address;
+    chainId?: number;
+    to?: Address | null;
+    input?: Hex;
+    value: bigint;
+  },
+  hash: Hex,
+  record: {
+    account: string;
+    chainId: number;
+    call: { to: string; data: string; value: string };
+  },
+): boolean {
+  return (
+    sent.hash?.toLowerCase() === hash.toLowerCase() &&
+    sent.from?.toLowerCase() === record.account &&
+    (sent.chainId === undefined || sent.chainId === record.chainId) &&
+    sent.to?.toLowerCase() === record.call.to &&
+    sent.input?.toLowerCase() === record.call.data &&
+    BigInt(sent.value) === BigInt(record.call.value)
+  );
+}
 
 /** The stop of every controller with a follower or tab listener running. */
 const liveHolds = new Set<() => void>();
@@ -108,9 +136,9 @@ type Held<S extends string, Extra> = {
  *   actually sent at (`sentNonce`, from its authenticated transaction; the
  *   nonce read before the wallet opened only locates the call). The exit is
  *   offered;
- * - `held-unchecked`: a saved hash the node doesn't know, on a record saved
- *   with no nonce to check, or 30 minutes after the wallet returned it (or,
- *   for a record saved before that time was kept, after it was first read). The
+ * - `held-unchecked`: a saved hash the node doesn't know 30 minutes after
+ *   the wallet returned it (or, for a record saved before that time was
+ *   kept or adopted without it, after it was first read). The
  *   exit is offered, with a line that says so; a hash that shows up later is
  *   followed as usual. A hash seen with its sent nonce that the node has not
  *   known for 30 minutes, with that nonce unused at a canonical finalized
@@ -139,6 +167,13 @@ export type WriteHoldState = WriteHoldStateOf & {
    * so an observer can ignore a newer reservation it didn't start.
    */
   reservation?: string;
+  /**
+   * On a result of state() or exit(): true when the gate read the chain
+   * under the call's lock; false when the lock was busy and this is only the
+   * saved record (its exit hidden). Never let a false one hide an exit
+   * already shown.
+   */
+  checked?: boolean;
 };
 
 type WriteHoldStateOf =
@@ -590,6 +625,44 @@ export function createWriteHold(
       return classify(recovery.read());
     }
 
+    /**
+     * Whether a previous deploy's `hash` may be this call's: a valid hash
+     * read on the call's chain that isn't shown to be another write. A
+     * transaction must be the exact call from the account; a Safe proposal,
+     * exactly this call. One that can't be read is unknown, not refused.
+     */
+    async function adoptable(
+      hash: Hex,
+      client: WriteHoldClient | undefined,
+    ): Promise<boolean> {
+      if (
+        !isBytes32(hash) ||
+        !client ||
+        (await client.getChainId().catch(() => null)) !== call.chainId
+      )
+        return false;
+      const reviewed = {
+        account: call.account.toLowerCase(),
+        chainId: call.chainId,
+        call: {
+          to: call.call.to.toLowerCase(),
+          data: call.call.data.toLowerCase(),
+          value: String(call.call.value ?? 0),
+        },
+      };
+      if (call.safe) {
+        const proposal = await readSafeTransaction(
+          call.chainId,
+          call.account,
+          hash,
+          options.safeService,
+        ).catch(() => null);
+        return !proposal || safeProposalIsHeldCall(proposal, call);
+      }
+      const sent = await client.getTransaction({ hash }).catch(() => null);
+      return !sent || sentIsCall(sent, hash, reviewed);
+    }
+
     /** The authenticated nonce of a Safe proposal, from Safe's service. */
     async function proposalNonceOf(
       record: ReviewedWriteRecoveryRecord,
@@ -1030,9 +1103,7 @@ export function createWriteHold(
       if (
         record.hash &&
         record.sentNonce === undefined &&
-        (record.nonce === undefined ||
-          record.fromBlock === undefined ||
-          unseenTooLong(record)) &&
+        unseenTooLong(record) &&
         (await client.getTransaction({ hash: record.hash }).then(
           () => false,
           (error: { name?: unknown } | null) =>
@@ -1053,7 +1124,7 @@ export function createWriteHold(
     ): Promise<WriteHoldState> {
       lastEffect = checks.effect;
       const result = await locked(() => inspect(client, checks.effect), false);
-      return shown(result ? result.value : peek());
+      return { ...shown(result ? result.value : peek()), checked: !!result };
     }
 
     return {
@@ -1259,7 +1330,10 @@ export function createWriteHold(
           // what the saved record says, with no exit.
         }, false);
         const ended = result?.value ?? { released: false, state: peek() };
-        return { ...ended, state: shown(ended.state) };
+        return {
+          ...ended,
+          state: { ...shown(ended.state), checked: !!result },
+        };
       },
       /**
        * A receipt for the held write: an ordinary write's own hash, or a Safe
@@ -1315,15 +1389,20 @@ export function createWriteHold(
        * exit while it is pending, and its receipt settles it.
        */
       /**
-       * Move a hashless write a previous deploy kept (outside these holds)
-       * into this hold. `snapshot` is the state the app read before
-       * deciding. Under the call's lock, it reserves a hashless held record
-       * with `evidence` (the account's next nonce, or the nonce it was sent
-       * at, with the block it was read at; when it was sent) only while
-       * nothing is held and no reservation came since `snapshot`: another
-       * tab's hold or settlement wins. Otherwise it returns the current
-       * state, unchanged. It never sends or releases; adopting twice holds
-       * once.
+       * Move a write a previous deploy kept (outside these holds) into this
+       * hold. `snapshot` is the state the app read before deciding. Under
+       * the call's lock, it reserves a held record with `evidence` (the
+       * account's next nonce, or the nonce it was sent at, with the block it
+       * was read at; when it was sent; and its `hash`, or for a Safe write
+       * `safe.safeTxHash`) only while nothing is held and no reservation
+       * came since `snapshot`: another tab's hold or settlement wins, and
+       * the current state is returned unchanged. A hash is checked first
+       * with `client`: a transaction that is another call, from another
+       * account or on another chain (or a Safe proposal of another call) is
+       * refused, adopting nothing. One the chain can't show is held, with
+       * the warned exit 30 minutes after it was sent (or adopted). Then the
+       * gate reads it: a mined one settles on its verified receipt. It never
+       * sends or releases; adopting twice holds once.
        */
       async adopt(
         snapshot: WriteHoldState,
@@ -1332,25 +1411,37 @@ export function createWriteHold(
           sentNonce?: number | bigint;
           fromBlock?: bigint;
           submittedAt?: number;
+          hash?: Hex;
+          safe?: { safeTxHash: Hex };
         } = {},
+        client?: WriteHoldClient,
       ): Promise<WriteHoldState> {
         const nonce = evidence.nonce ?? evidence.sentNonce;
+        const hash = (
+          call.safe ? evidence.safe?.safeTxHash : evidence.hash
+        )?.toLowerCase() as Hex | undefined;
         const result = await locked(async () => {
-          if (
+          const free =
             snapshot.status === "clear" &&
             !recovery.read() &&
-            recovery.latestReservation() === snapshot.reservation
-          )
-            recovery.reserve(
-              undefined,
-              nonce !== undefined && evidence.fromBlock !== undefined
-                ? { nonce, blockNumber: evidence.fromBlock }
-                : undefined,
-              evidence.submittedAt === undefined
-                ? undefined
-                : String(evidence.submittedAt),
-            );
-          return peek();
+            recovery.latestReservation() === snapshot.reservation;
+          if (!free) return peek();
+          if (hash !== undefined && !(await adoptable(hash, client)))
+            return peek();
+          recovery.reserve(
+            undefined,
+            nonce !== undefined && evidence.fromBlock !== undefined
+              ? { nonce, blockNumber: evidence.fromBlock }
+              : undefined,
+            {
+              hash,
+              submittedAt:
+                evidence.submittedAt === undefined
+                  ? undefined
+                  : String(evidence.submittedAt),
+            },
+          );
+          return hash && client ? inspect(client) : peek();
         }, true);
         return shown(result?.value ?? peek());
       },
@@ -1372,12 +1463,8 @@ export function createWriteHold(
               .getTransaction({ hash })
               .catch(() => null);
             if (
-              sent?.hash?.toLowerCase() === hash.toLowerCase() &&
-              sent.from?.toLowerCase() === record.account &&
-              (sent.chainId === undefined || sent.chainId === record.chainId) &&
-              sent.to?.toLowerCase() === record.call.to &&
-              sent.input?.toLowerCase() === record.call.data &&
-              BigInt(sent.value) === BigInt(record.call.value) &&
+              sent &&
+              sentIsCall(sent, hash, record) &&
               // This attempt, not an earlier identical call: never below the
               // account's next nonce or mined before it was reserved.
               // With no such evidence, an identical earlier call can't be
