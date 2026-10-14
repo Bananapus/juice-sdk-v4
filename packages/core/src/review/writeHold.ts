@@ -525,7 +525,7 @@ export function createWriteHold(
       record: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
     ): Promise<Hex | null> {
-      for (const hash of [record.hash!]) {
+      for (const hash of [record.hash!, ...(record.candidates ?? [])]) {
         const sent = await client.getTransaction({ hash }).catch(() => null);
         if (
           sent?.hash?.toLowerCase() === hash &&
@@ -566,7 +566,20 @@ export function createWriteHold(
             return ranExecuted(record, hash, settled.result);
           }
         }
-      } else if (record.executionHash) {
+      }
+      // An execution hash the app reported settles it only on its own
+      // authenticated receipt; until then it is a candidate, never proof.
+      if (!record.executionHash)
+        for (const candidate of record.candidates ?? []) {
+          const receipt = await client
+            .getTransactionReceipt({ hash: candidate })
+            .catch(() => null);
+          if (!receipt) continue;
+          const settled = await settle(record, receipt, client);
+          if (settled.status === "clear" || settled.status === "ran-executed")
+            return settled;
+        }
+      if (record.executed && record.executionHash) {
         const settled = await execution(record, client);
         if (settled?.status === "clear") return settled;
         if (record.executionHash === hash) {
@@ -922,8 +935,10 @@ export function createWriteHold(
         return shown(result?.value ?? peek());
       },
       /**
-       * The app's own proof that the held Safe proposal ran, with its
-       * execution's transaction when known. Kept until its result settles it.
+       * The app's word that the held Safe proposal ran, with its execution's
+       * transaction when known. Nothing is saved as executed on its word:
+       * the hash is kept as a candidate, and settles it only once its own
+       * receipt proves this Safe's execution of the exact proposal or call.
        */
       async onExecuted(
         client: WriteHoldClient,
@@ -932,7 +947,7 @@ export function createWriteHold(
         const result = await locked(async () => {
           const record = recovery.read();
           if (!record?.safe || !record.hash) return classify(record);
-          recovery.executed(record, executionHash);
+          if (executionHash) recovery.candidate(record, executionHash);
           return inspect(client);
         }, true);
         return shown(result?.value ?? peek());

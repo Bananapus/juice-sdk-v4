@@ -71,6 +71,12 @@ export type ReviewedWriteRecoveryRecord = Omit<
    * string. Cleared once it is seen again.
    */
   vanishedAt?: string;
+  /**
+   * Hashes an app reported as this Safe write's execution, not yet
+   * authenticated: each settles it only once its receipt proves this Safe's
+   * execution of the exact proposal or call.
+   */
+  candidates?: Hex[];
 };
 
 /** How a held write ended, on authenticated evidence: its result and transaction. */
@@ -88,6 +94,8 @@ export type ReviewedWriteNonceEvidence = {
 type RecoveryStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type RecoveryLocks = Pick<LockManager, "request">;
 const TAB_MEMORY = Symbol.for("nana-sdk:held-writes");
+/** At most this many unauthenticated execution hashes are kept per write. */
+const MAX_CANDIDATES = 8;
 const TAB_QUEUES = Symbol.for("nana-sdk:write-lock-queues");
 const TAB_SEEN = Symbol.for("nana-sdk:held-writes-seen");
 // A returned hash must survive a component remount even when its durable update
@@ -169,6 +177,10 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.firstSeenAt) ||
     !optionalDecimal(record.safeNonce) ||
     !optionalDecimal(record.vanishedAt) ||
+    (record.candidates !== undefined &&
+      (!Array.isArray(record.candidates) ||
+        record.candidates.length > MAX_CANDIDATES ||
+        !record.candidates.every(isBytes32))) ||
     (record.replaced !== undefined && record.replaced !== true) ||
     (record.unproven !== undefined && record.unproven !== true) ||
     (record.sentFrom !== undefined &&
@@ -205,6 +217,13 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.vanishedAt === undefined
       ? {}
       : { vanishedAt: record.vanishedAt }),
+    ...(record.candidates === undefined
+      ? {}
+      : {
+          candidates: record.candidates.map(
+            (hash) => hash.toLowerCase() as Hex,
+          ),
+        }),
     ...(record.executed ? { executed: true as const } : {}),
     ...(record.executionHash === undefined
       ? {}
@@ -1066,6 +1085,26 @@ export function createBrowserWriteRecovery(
           current.sentNonce !== undefined &&
           (current.vanishedAt === undefined) === gone,
         { vanishedAt: gone ? String(Date.now()) : undefined },
+      );
+    },
+    /**
+     * Keep `hash` as a candidate execution of this Safe write, unproven.
+     * Extra evidence only: a full list or a failed save keeps it as it was.
+     */
+    candidate(
+      expected: ReviewedWriteRecoveryRecord,
+      hash: Hex,
+    ): ReviewedWriteRecoveryRecord {
+      if (!isBytes32(hash)) return recordOf(expected);
+      const wanted = hash.toLowerCase() as Hex;
+      const known = recordOf(expected).candidates ?? [];
+      return amend(
+        expected,
+        (current) =>
+          current.safe &&
+          !known.includes(wanted) &&
+          known.length < MAX_CANDIDATES,
+        { candidates: [...known, wanted] },
       );
     },
     /**

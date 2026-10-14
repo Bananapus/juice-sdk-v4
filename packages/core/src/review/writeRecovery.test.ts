@@ -1749,6 +1749,46 @@ describe("tabs without Web Locks", () => {
   });
 });
 
+describe("a Safe write's candidate executions", () => {
+  it("keeps valid, distinct hashes only, at most eight, on a Safe write", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(
+      { ...input, safe: true },
+      options,
+    );
+    await journal.withLock(async () => {
+      let record = journal.reserve();
+      record = journal.submitted(PROPOSAL, record);
+      expect(() => journal.candidate(record, HASH)).not.toThrow();
+      record = journal.read()!;
+      expect(record.candidates).toEqual([HASH]);
+      expect(journal.candidate(record, HASH)).toEqual(record);
+      expect(journal.candidate(record, "0x12" as Hex)).toEqual(record);
+      for (let i = 1; i < 10; i += 1)
+        record = journal.candidate(
+          record,
+          `0x${i.toString(16).padStart(64, "0")}` as Hex,
+        );
+      expect(record.candidates).toHaveLength(8);
+    });
+    const ordinaryJournal = createBrowserWriteRecovery(input, browser());
+    await ordinaryJournal.withLock(async () => {
+      const record = ordinaryJournal.submitted(HASH, ordinaryJournal.reserve());
+      expect(
+        ordinaryJournal.candidate(record, PROPOSAL).candidates,
+      ).toBeUndefined();
+    });
+    for (const bad of [
+      { candidates: "0x" },
+      { candidates: ["0x12"] },
+      { candidates: Array.from({ length: 9 }, () => HASH) },
+    ])
+      expect(() =>
+        parseReviewedWriteRecoveryRecord({ ...saved, ...bad }),
+      ).toThrow("Invalid saved write recovery record");
+  });
+});
+
 describe("a write's saved settlement", () => {
   it("is read only for the call's latest reservation, exactly, and ignored when malformed", async () => {
     const options = browser();

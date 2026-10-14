@@ -2847,7 +2847,7 @@ describe("a held Safe proposal", () => {
       });
     });
 
-    it.skip("keeps an unauthenticated execution hash as a candidate only, so the exit stays reachable", async () => {
+    it("keeps an unauthenticated execution hash as a candidate only, so the exit stays reachable", async () => {
       const browser = origin();
       const { handle, fixture, queue } = await proposed(browser);
       // Codex: the hash ran different calldata.
@@ -2863,11 +2863,13 @@ describe("a held Safe proposal", () => {
       });
       fixture.chain.head = 120n;
       fixture.chain.finalized = 110n;
+      // A hash the node doesn't know yet stays a candidate too.
+      await handle.onExecuted(fixture.client, OTHER);
       const reported = await handle.onExecuted(fixture.client, EXECUTION);
       expect(reported).toMatchObject({
         status: "pending-known-hash",
         hash: queue.hash,
-        record: { candidates: [EXECUTION] },
+        record: { candidates: [OTHER, EXECUTION] },
       });
       expect((reported as WriteHeldState).record.executed).toBeUndefined();
       const unproven = await handle.onUnproven(fixture.client, queue.hash);

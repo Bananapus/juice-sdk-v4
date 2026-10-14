@@ -8,3 +8,4 @@ Keep a held write's settlement for every reader, not just the caller that saw it
 - A clear released by the user's exit never carries `settled`, and a proven expiry reports it only to the caller that saw it. Holding and exits are unchanged.
 - Low level: `createBrowserWriteRecovery(...).markSettled(record, settlement)` and `.settled()`, with the `ReviewedWriteSettlement` type.
 - A Safe write whose returned hash, or any candidate hash the hold has seen, is a known pending transaction reads as `pending-known-hash` with no exit, in `state()` and in the exit's recheck, so a second submission can't follow while the first is still pending.
+- `onExecuted(client, hash)` no longer saves `executed` on the app's word. The hash is kept as a candidate (`candidates` on the record) and settles the write only once its own receipt proves this Safe's execution of the exact proposal or call. A candidate that fails verification leaves the hold free to reach `onUnproven` and its exit.
