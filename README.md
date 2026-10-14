@@ -932,7 +932,10 @@ When a hold is opened under an intent, the current exact call and every
 `legacy` key (an old namespace, or `{ call }` for an old exact call) are
 checked too, each alone under its own lock. While one holds an unresolved
 write, the intent handle is that hold: its state, its refusal and its own exit,
-in place; nothing moves, so an older version's handle keeps working. Only when
+in place; nothing moves, so an older version's handle keeps working. When the
+intent reserves, under every key's lock in one sorted order, it leaves a held
+mirror (`mirrorOf`) at each legacy key, so older versions and the exact-call
+handle see it held until it settles or exits. Only when
 all are clear does the intent's own record apply. Every state carries
 `reservation`, the id of the reservation it belongs to (on a clear, the one
 that ended), so an observer can ignore a newer reservation it didn't start.

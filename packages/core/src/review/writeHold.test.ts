@@ -2331,11 +2331,17 @@ describe("a write held under an intent", () => {
     const handle = next.hold.open(intentCall, {
       legacy: [{ call: ordinary.call }],
     });
-    // The intent sends first; then an older version holds the legacy call.
+    // The intent sends first. A new exact-call handle sees the mirror and refuses.
     await handle.send(client, wallet(async () => HASH).send);
     await expect(
       old.hold.open(ordinary).send(client, lostReply().send),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    // An older version exits the mirror, its explicit choice, and holds its own.
+    const older = createBrowserWriteRecovery(ordinary, {
+      storage: old.storage,
+    });
+    older.abandon(older.read()!, { checkedWallet: true });
+    await older.withLock(async () => older.reserve());
     // The intent's own write settles.
     chain.txs.push({ ...sent(HASH), input: regenerated.data, block: 95n });
     await handle.onReceipt(receiptOf(chain.txs[0]), client);
@@ -2462,6 +2468,199 @@ describe("a write held under an intent", () => {
     ).resolves.toMatchObject({ released: false });
   });
 
+  describe("excludes the exact-call writer", () => {
+    function pair() {
+      const browser = origin();
+      const locks = lockManager();
+      const intentTab = setup({ browser, locks });
+      const exactTab = setup({ browser, locks });
+      const handle = intentTab.hold.open(intentCall, {
+        legacy: [{ call: ordinary.call }],
+      });
+      const exact = exactTab.hold.open(ordinary);
+      return { browser, locks, intentTab, exactTab, handle, exact };
+    }
+
+    it("Codex (a): never reserves after the exact call reserved during its nonce read", async () => {
+      const { handle, exact } = pair();
+      const { client } = fakeChain();
+      let resume!: () => void;
+      const gate = new Promise<void>((resolve) => (resume = resolve));
+      const block = client.getBlockNumber.getMockImplementation()!;
+      client.getBlockNumber.mockImplementationOnce(async () => {
+        await gate;
+        return block();
+      });
+      const intentWrite = wallet(async () => HASH);
+      const sending = handle.send(client, intentWrite.send).catch((e) => e);
+      await vi.waitFor(() => expect(client.getBlockNumber).toHaveBeenCalled());
+      const exactWrite = wallet(async () => OTHER);
+      const exactSent = exact.send(client, exactWrite.send).catch((e) => e);
+      resume();
+      const [one, two] = await Promise.all([sending, exactSent]);
+      // Exactly one of them reached the wallet.
+      expect(
+        intentWrite.write.mock.calls.length +
+          exactWrite.write.mock.calls.length,
+      ).toBe(1);
+      expect([one, two].some((r) => r instanceof Error)).toBe(true);
+    });
+
+    it("Codex (b): the exact-call handle can't send once the intent sent", async () => {
+      const { handle, exact } = pair();
+      const { client } = fakeChain();
+      await handle.send(client, wallet(async () => HASH).send);
+      const again = wallet(async () => OTHER);
+      const refused = await exact.send(client, again.send).catch((e) => e);
+      expect(refused).toBeInstanceOf(WriteHeldError);
+      expect(refused.state).toMatchObject({
+        status: "pending-known-hash",
+        record: { namespace: key },
+      });
+      expect(again.write).not.toHaveBeenCalled();
+    });
+
+    it("leaves a held mirror for an old exact-call reader while the intent holds", async () => {
+      const { handle, intentTab } = pair();
+      const { client } = fakeChain();
+      await handle.send(client, wallet(async () => HASH).send);
+      // The previous SDK reads only its exact-call key.
+      const old = createBrowserWriteRecovery(ordinary, {
+        storage: intentTab.storage,
+        locks: intentTab.locks,
+      });
+      const mirror = old.read();
+      expect(mirror).toMatchObject({
+        id: (handle.peek() as WriteHeldState).record.id,
+        mirrorOf: key,
+      });
+      await expect(old.withLock(async () => old.reserve())).rejects.toThrow(
+        "still unresolved",
+      );
+    });
+
+    it("delegates an exact-call exit on a mirror to the intent, and clears the mirror", async () => {
+      const { handle, exact, intentTab } = pair();
+      const { client } = fakeChain();
+      await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+      const shown = await exact.state(client);
+      expect(shown).toMatchObject({
+        status: "held-no-hash",
+        exit: true,
+        record: { namespace: key },
+      });
+      await expect(
+        exact.exit(shown, { checkedWallet: true }, client),
+      ).resolves.toMatchObject({ released: true });
+      expect(handle.peek().status).toBe("clear");
+      expect(
+        createBrowserWriteRecovery(ordinary, {
+          storage: intentTab.storage,
+        }).read(),
+      ).toBeNull();
+      await exact.send(client, wallet(async () => OTHER).send);
+    });
+
+    it("clears the mirror when the intent settles, and when it exits", async () => {
+      const { handle, intentTab } = pair();
+      const { chain, client, receiptOf } = fakeChain();
+      const mirrorAt = () =>
+        createBrowserWriteRecovery(ordinary, {
+          storage: intentTab.storage,
+        }).read();
+      await handle.send(client, wallet(async () => HASH).send);
+      expect(mirrorAt()).toMatchObject({ mirrorOf: key });
+      chain.txs.push({ ...sent(HASH), input: regenerated.data, block: 95n });
+      await expect(
+        handle.onReceipt(receiptOf(chain.txs[0]), client),
+      ).resolves.toMatchObject({ status: "clear" });
+      expect(mirrorAt()).toBeNull();
+      await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+      expect(mirrorAt()).toMatchObject({ mirrorOf: key });
+      const shown = await handle.state(client);
+      await handle.exit(shown, { checkedWallet: true }, client);
+      expect(mirrorAt()).toBeNull();
+    });
+
+    it("shows the intent through the exact-call handle, and drops a mirror its intent left behind", async () => {
+      const { handle, exact, intentTab } = pair();
+      const { client } = fakeChain();
+      await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+      expect(exact.peek()).toMatchObject({
+        status: "held-no-hash",
+        record: { namespace: key },
+      });
+      // A stale snapshot's exit releases nothing, and the mirror stays.
+      const shown = await exact.state(client);
+      await expect(
+        exact.exit(
+          {
+            ...shown,
+            record: { ...(shown as WriteHeldState).record, id: "x" },
+          } as WriteHoldState,
+          { checkedWallet: true },
+          client,
+        ),
+      ).resolves.toMatchObject({ released: false });
+      const mirrorAt = () =>
+        createBrowserWriteRecovery(ordinary, {
+          storage: intentTab.storage,
+        }).read();
+      expect(mirrorAt()).toMatchObject({ mirrorOf: key });
+      // The intent ends without its handle cleaning up (another version).
+      const intentJournal = createBrowserWriteRecovery(intentCall, {
+        storage: intentTab.storage,
+      });
+      intentJournal.abandon(intentJournal.read()!, { checkedWallet: true });
+      await expect(exact.state(client)).resolves.toMatchObject({
+        status: "clear",
+      });
+      expect(mirrorAt()).toBeNull();
+      // With no mirror, the exact-call handle is itself.
+      await expect(
+        exact.exit({ status: "clear" }, { checkedWallet: true }, client),
+      ).resolves.toMatchObject({ released: false });
+      await exact.send(client, wallet(async () => OTHER).send);
+    });
+
+    it("still sends the intent when a mirror can't be saved", async () => {
+      const browser = origin();
+      const base = createHeldWriteStorage({
+        durable: () => browser.storage,
+        memory: new Map(),
+      });
+      const storage: HeldWriteStorage = {
+        ...base,
+        setItem: (k, v) => {
+          if (k.startsWith("nana-sdk:reviewed-write:v2:"))
+            throw new Error("full");
+          base.setItem(k, v);
+        },
+      };
+      const { hold } = setup({ storage, browser });
+      const { client } = fakeChain();
+      const write = wallet(async () => HASH);
+      await hold
+        .open(intentCall, { legacy: [{ call: ordinary.call }] })
+        .send(client, write.send);
+      expect(write.write).toHaveBeenCalledOnce();
+    });
+
+    it("never deadlocks the intent and the exact call reserving in crossed order", async () => {
+      const { handle, exact } = pair();
+      const { client } = fakeChain();
+      const writes = [wallet(async () => HASH), wallet(async () => OTHER)];
+      const results = await Promise.all([
+        handle.send(client, writes[0].send).catch((e) => e),
+        exact.send(client, writes[1].send).catch((e) => e),
+      ]);
+      expect(
+        writes[0].write.mock.calls.length + writes[1].write.mock.calls.length,
+      ).toBe(1);
+      expect(results.filter((r) => r instanceof Error)).toHaveLength(1);
+    });
+  });
+
   it("never deadlocks two tabs whose intents name each other as legacy", async () => {
     const browser = origin();
     const locks = lockManager();
@@ -2476,12 +2675,18 @@ describe("a write held under an intent", () => {
       { ...ordinary, namespace: "intent:b:1" },
       { legacy: ["intent:a:1"] },
     );
-    await Promise.all([
-      one.send(client, lostReply().send).catch(() => null),
-      two.send(client, lostReply().send).catch(() => null),
+    const writes = [lostReply(), lostReply()];
+    // Both finish: a key the other holds refuses as busy, it never waits.
+    const results = await Promise.all([
+      one.send(client, writes[0].send).catch((e) => e),
+      two.send(client, writes[1].send).catch((e) => e),
     ]);
-    const states = await Promise.all([one.state(client), two.state(client)]);
-    for (const state of states) expect(state.status).not.toBe("clear");
+    expect(results).toHaveLength(2);
+    expect(
+      writes[0].write.mock.calls.length + writes[1].write.mock.calls.length,
+    ).toBeLessThanOrEqual(1);
+    // Afterwards, one at a time, each sends.
+    await expect(one.state(client)).resolves.toBeDefined();
   });
 });
 

@@ -226,8 +226,11 @@ const budgets = {
     // measured 1,447,165 B packed / 21,722,125 B unpacked and 826 entries.
     // Delegating to legacy holds in place, in place of adopting them,
     // measured 1,453,822 B packed / 21,726,999 B unpacked and 826 entries.
-    packed: 1_458_000,
-    unpacked: 21_735_000,
+    // Mutual exclusion with the legacy keys (sorted locks for the reserve,
+    // mirror records, the exact-call handle's delegation) measured
+    // 1,458,340 B packed / 21,752,155 B unpacked and 826 entries.
+    packed: 1_463_000,
+    unpacked: 21_765_000,
     entries: 826,
   },
   "@bananapus/nana-sdk-react": {

@@ -63,6 +63,12 @@ export type ReviewedWriteRecoveryRecord = Omit<
   sentFrom?: Address;
   /** Another Safe transaction used this Safe write's nonce: held for the user's exit, never released on its own. */
   replaced?: true;
+  /**
+   * This record mirrors the write held under this intent namespace (same
+   * reservation id), so a reader of this key sees it held. It never settles
+   * anything; the intent's own record does.
+   */
+  mirrorOf?: string;
   /** The app's Safe follower ended without proof: held for the user's exit, unless evidence settles it. */
   unproven?: true;
   /**
@@ -194,6 +200,9 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       (!Array.isArray(record.candidates) ||
         !record.candidates.every(isBytes32))) ||
     (record.replaced !== undefined && record.replaced !== true) ||
+    (record.mirrorOf !== undefined &&
+      (typeof record.mirrorOf !== "string" ||
+        !/^[a-z0-9][a-z0-9:._/-]{0,127}$/.test(record.mirrorOf))) ||
     (record.unproven !== undefined && record.unproven !== true) ||
     (record.sentFrom !== undefined &&
       !isAddress(record.sentFrom, { strict: false })) ||
@@ -225,6 +234,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       ? {}
       : { sentFrom: record.sentFrom.toLowerCase() as Address }),
     ...(record.replaced ? { replaced: true as const } : {}),
+    ...(record.mirrorOf === undefined ? {} : { mirrorOf: record.mirrorOf }),
     ...(record.unproven ? { unproven: true as const } : {}),
     ...(record.vanishedAt === undefined
       ? {}
@@ -1000,6 +1010,34 @@ export function createBrowserWriteRecovery(
     },
     rejected,
     clear,
+    /**
+     * Hold this key with a mirror of `source`, the write reserved under the
+     * intent namespace `of`: its id and nonce evidence, this key's call and
+     * scope. Replaces only an earlier mirror of the same intent.
+     */
+    mirror(
+      source: ReviewedWriteRecoveryRecord,
+      of: string,
+    ): ReviewedWriteRecoveryRecord {
+      requireLock();
+      const current = read();
+      if (current && current.mirrorOf !== of)
+        throw new Error(
+          "An earlier wallet write is still unresolved. Check it before trying again.",
+        );
+      const mirrored = recordOf({
+        version: 1,
+        id: source.id,
+        ...reviewed,
+        ...(source.nonce === undefined ? {} : { nonce: source.nonce }),
+        ...(source.fromBlock === undefined
+          ? {}
+          : { fromBlock: source.fromBlock }),
+        mirrorOf: of,
+      });
+      persist(mirrored, key);
+      return mirrored;
+    },
     /**
      * The call's latest reservation id: the record saved at the key (held,
      * or released by its exit), or else the saved latest marker.

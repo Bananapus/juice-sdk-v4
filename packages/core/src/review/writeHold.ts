@@ -384,7 +384,13 @@ export function createWriteHold(
     globalThis.addEventListener("storage", onStorage);
   }
 
-  function openOne(call: ReviewedWriteRecoveryInput) {
+  function openOne(
+    call: ReviewedWriteRecoveryInput,
+    hooks: {
+      /** Runs the final reservation, synchronous, under any further locks the caller needs. */
+      aroundReserve?: (reserve: () => void) => Promise<void>;
+    } = {},
+  ) {
     const recovery = createBrowserWriteRecovery(call, {
       storage,
       locks: options.locks,
@@ -1009,9 +1015,18 @@ export function createWriteHold(
                 throw new WriteHoldNonceError(cause);
               }
             }
-            try {
+            const reserve = () => {
               attempt = recovery.reserve(actualCall, evidence);
+            };
+            try {
+              if (hooks.aroundReserve) await hooks.aroundReserve(reserve);
+              else reserve();
             } catch (error) {
+              if (
+                error instanceof WriteHeldError ||
+                error instanceof WriteHoldBusyError
+              )
+                throw error;
               const now = shown(
                 await finish(classify(recovery.read()), client),
               );
@@ -1249,13 +1264,14 @@ export function createWriteHold(
       legacy?: (string | { call: ReviewedWriteRecoveryInput["call"] })[];
     } = {},
   ) {
-    const own = openOne(call);
-    if (call.namespace === undefined) return own;
+    if (call.namespace === undefined) return openExact(call);
+    const namespace = call.namespace;
+    const own = openOne(call, { aroundReserve: reserveAcross });
     const { namespace: _, ...exact } = call;
     const scopeOf = (input: ReviewedWriteRecoveryInput) =>
       createBrowserWriteRecovery(input, { storage }).scopeKey;
     const scopes = new Set([scopeOf(call)]);
-    const delegates = [{ call: call.call }, ...legacy]
+    const inputs = [{ call: call.call }, ...legacy]
       .map((source) =>
         typeof source === "string"
           ? { ...call, namespace: source }
@@ -1265,20 +1281,95 @@ export function createWriteHold(
         const scope = scopeOf(input);
         return !scopes.has(scope) && !!scopes.add(scope);
       })
-      .map(openOne);
+      // One canonical order, by scope, for every writer's locks.
+      .sort(
+        (a, b) =>
+          Number(scopeOf(a) > scopeOf(b)) - Number(scopeOf(a) < scopeOf(b)),
+      );
+    const delegates = inputs.map((input) => openOne(input));
+    const journals = inputs.map((input) =>
+      createBrowserWriteRecovery(input, { storage, locks: options.locks }),
+    );
+    /** A legacy hold that isn't this intent's own mirror. */
+    const foreign = (state: WriteHoldState) =>
+      state.status !== "clear" && state.record.mirrorOf !== namespace;
     /** The legacy hold the intent stands for right now, from storage alone. */
-    const active = () =>
-      delegates.find((handle) => handle.peek().status !== "clear");
+    const active = () => delegates.find((handle) => foreign(handle.peek()));
     /** The first legacy key holding an unresolved write, through its own gate. */
     async function delegated(
       client: WriteHoldClient,
     ): Promise<WriteHeldState | null> {
       for (const handle of delegates) {
+        if (!foreign(handle.peek())) continue;
         const state = await handle.state(client);
         if (state.status !== "clear") return state;
       }
       return null;
     }
+    /**
+     * The final check and reservation, under every legacy key's lock taken
+     * in one sorted order (the intent's own is held by its send), each
+     * without waiting: a key another writer holds refuses as busy. A legacy
+     * hold refuses; otherwise the intent reserves, and mirrors itself at each
+     * legacy key so its readers, older versions included, see it held.
+     */
+    async function reserveAcross(reserve: () => void): Promise<void> {
+      let entered = 0;
+      const acquire = async (index: number): Promise<void> => {
+        if (index < journals.length)
+          return journals[index].withLock(async () => {
+            entered += 1;
+            return acquire(index + 1);
+          });
+        for (const journal of journals) {
+          const held = journal.read();
+          if (held && held.mirrorOf !== namespace)
+            throw new WriteHeldError({
+              ...(ungated(classify(held)) as WriteHeldState),
+              reservation: held.id,
+            });
+        }
+        reserve();
+        const reserved = own.peek() as WriteHeldState;
+        for (const journal of journals)
+          try {
+            journal.mirror(reserved.record, namespace);
+          } catch {
+            /* Its own lock refuses the exact-call writer either way. */
+          }
+      };
+      try {
+        await acquire(0);
+      } catch (error) {
+        if (entered < journals.length && !(error instanceof WriteHeldError))
+          throw new WriteHoldBusyError();
+        throw error;
+      }
+    }
+    /** Remove this intent's mirrors of a reservation it no longer holds. */
+    async function clearMirrors(): Promise<void> {
+      const now = own.peek();
+      for (const journal of journals) {
+        const mirror = journal.read();
+        if (
+          mirror?.mirrorOf !== namespace ||
+          (now.status !== "clear" && now.record.id === mirror.id)
+        )
+          continue;
+        await journal
+          .withLock(async () => {
+            const current = journal.read();
+            if (current?.id === mirror.id) journal.clear(current);
+          })
+          .catch(() => {
+            /* Kept for old readers until their explicit exit. */
+          });
+      }
+    }
+    const after = async <T>(value: T): Promise<T> => {
+      await clearMirrors();
+      return value;
+    };
     return {
       ...own,
       peek: () => active()?.peek() ?? own.peek(),
@@ -1286,7 +1377,9 @@ export function createWriteHold(
         client: WriteHoldClient,
         checks?: { effect?: (chainId: number) => Promise<boolean> },
       ): Promise<WriteHoldState> {
-        return (await delegated(client)) ?? own.state(client, checks);
+        return (
+          (await delegated(client)) ?? after(await own.state(client, checks))
+        );
       },
       async send<T>(
         client: WriteHoldClient,
@@ -1294,17 +1387,7 @@ export function createWriteHold(
       ): Promise<T> {
         const held = await delegated(client);
         if (held) throw new WriteHeldError(held);
-        return own.send(client, (gate) =>
-          run({
-            ...gate,
-            async beforeSend(actualCall) {
-              // Checked again right before the reservation.
-              const now = active()?.peek();
-              if (now && now.status !== "clear") throw new WriteHeldError(now);
-              return gate.beforeSend(actualCall);
-            },
-          }),
-        );
+        return own.send(client, run);
       },
       async exit(
         snapshot: WriteHoldState,
@@ -1317,22 +1400,117 @@ export function createWriteHold(
             : delegates.find((handle) => {
                 const now = handle.peek();
                 return (
-                  now.status !== "clear" && now.record.id === snapshot.record.id
+                  foreign(now) &&
+                  now.status !== "clear" &&
+                  now.record.id === snapshot.record.id
                 );
               });
         if (owner) return owner.exit(snapshot, acknowledgement, client);
         const held = await delegated(client);
         if (held) return { released: false, state: held };
-        return own.exit(snapshot, acknowledgement, client);
+        return after(await own.exit(snapshot, acknowledgement, client));
+      },
+      onReceipt: async (...args: Parameters<typeof own.onReceipt>) =>
+        active()?.onReceipt(...args) ?? after(await own.onReceipt(...args)),
+      onUnproven: async (...args: Parameters<typeof own.onUnproven>) =>
+        active()?.onUnproven(...args) ?? after(await own.onUnproven(...args)),
+      onExecuted: async (...args: Parameters<typeof own.onExecuted>) =>
+        active()?.onExecuted(...args) ?? after(await own.onExecuted(...args)),
+      attachHash: async (...args: Parameters<typeof own.attachHash>) =>
+        active()?.attachHash(...args) ?? after(await own.attachHash(...args)),
+    };
+  }
+
+  /**
+   * An exact-call handle. When its key holds a mirror of an intent's write,
+   * it is that intent's hold: it never sends or releases on its own, and its
+   * exit is the intent's. A mirror left after the intent ended is removed.
+   */
+  function openExact(call: ReviewedWriteRecoveryInput) {
+    const own = openOne(call);
+    const journal = createBrowserWriteRecovery(call, {
+      storage,
+      locks: options.locks,
+    });
+    /** The intent this key mirrors, from storage alone. */
+    const mirrored = () => {
+      const record = journal.read();
+      return record?.mirrorOf
+        ? { record, intent: openOne({ ...call, namespace: record.mirrorOf }) }
+        : undefined;
+    };
+    /** Remove a mirror whose intent holds nothing any more. */
+    async function clearStale(found: {
+      record: ReviewedWriteRecoveryRecord;
+    }): Promise<void> {
+      await journal
+        .withLock(async () => {
+          const current = journal.read();
+          if (current?.id === found.record.id) journal.clear(current);
+        })
+        .catch(() => {
+          /* The stale mirror still holds; its intent is clear. */
+        });
+    }
+    /** The intent's state while it holds anything: this key is its mirror. */
+    async function intentState(
+      client: WriteHoldClient,
+    ): Promise<WriteHeldState | null> {
+      const found = mirrored();
+      if (!found) return null;
+      const state = await found.intent.state(client);
+      if (state.status !== "clear") return state;
+      await clearStale(found);
+      return null;
+    }
+    /** The intent in charge, from storage alone. */
+    const route = () => {
+      const found = mirrored();
+      return found && found.intent.peek().status !== "clear"
+        ? found.intent
+        : undefined;
+    };
+    return {
+      ...own,
+      peek: () => route()?.peek() ?? own.peek(),
+      async state(
+        client: WriteHoldClient,
+        checks?: { effect?: (chainId: number) => Promise<boolean> },
+      ): Promise<WriteHoldState> {
+        return (await intentState(client)) ?? own.state(client, checks);
+      },
+      async send<T>(
+        client: WriteHoldClient,
+        run: (gate: WriteHoldGate) => Promise<T>,
+      ): Promise<T> {
+        const held = await intentState(client);
+        if (held) throw new WriteHeldError(held);
+        return own.send(client, run);
+      },
+      async exit(
+        snapshot: WriteHoldState,
+        acknowledgement: { checkedWallet: true },
+        client: WriteHoldClient,
+      ): Promise<{ released: boolean; state: WriteHoldState }> {
+        const found = mirrored();
+        if (!found || found.intent.peek().status === "clear")
+          return own.exit(snapshot, acknowledgement, client);
+        const ended = await found.intent.exit(
+          snapshot,
+          acknowledgement,
+          client,
+        );
+        if (ended.released) await clearStale(found);
+        return ended;
       },
       onReceipt: (...args: Parameters<typeof own.onReceipt>) =>
-        (active() ?? own).onReceipt(...args),
+        (route() ?? own).onReceipt(...args),
       onUnproven: (...args: Parameters<typeof own.onUnproven>) =>
-        (active() ?? own).onUnproven(...args),
+        (route() ?? own).onUnproven(...args),
       onExecuted: (...args: Parameters<typeof own.onExecuted>) =>
-        (active() ?? own).onExecuted(...args),
+        (route() ?? own).onExecuted(...args),
       attachHash: (...args: Parameters<typeof own.attachHash>) =>
-        (active() ?? own).attachHash(...args),
+        (route() ?? own).attachHash(...args),
     };
   }
   return {
