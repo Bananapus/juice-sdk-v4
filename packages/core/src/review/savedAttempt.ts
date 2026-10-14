@@ -187,6 +187,8 @@ export function createSavedAttemptRecovery(options: {
   const storage = options.storage ?? createHeldWriteStorage();
   /** Retirements the warned exit kept in this tab while storage couldn't be read. */
   const tabRetired = new Map<string, string>();
+  /** Successes a check proved in this tab, kept whatever storage does: the warned exit never retires one. */
+  const tabProven = new Set<string>();
 
   function inputOf(attempt: SavedAttemptScope, namespace: string) {
     return {
@@ -328,6 +330,15 @@ export function createSavedAttemptRecovery(options: {
       return outcome;
     }
     if (outcome.status !== "check") return outcome;
+    // The warned exit retired it in this tab while storage couldn't be read.
+    const kept = JSON.parse(tabRetired.get(retiredKey(attempt)) ?? "null") as {
+      evidence?: string;
+    } | null;
+    if (
+      kept?.evidence === outcome.evidence &&
+      !tabProven.has(successKey(attempt))
+    )
+      return { status: "none", retired: "check" };
     // A success that settled while the passes ran, or that another tab's
     // check proved, still wins, by its hash alone.
     try {
@@ -356,6 +367,7 @@ export function createSavedAttemptRecovery(options: {
    * namespaces' locks; a busy lock writes it anyway (it only ever refuses).
    */
   async function markProven(attempt: SavedAttemptScope, hash?: Hex) {
+    tabProven.add(successKey(attempt));
     try {
       const write = async () => {
         const value = JSON.stringify({
@@ -484,7 +496,8 @@ export function createSavedAttemptRecovery(options: {
             (state) =>
               state.reservation === undefined ||
               rejected.has(state.reservation),
-          )
+          ) &&
+          readable(attempt)
         )
           return { status: "none", retired: "rejected" };
       }
@@ -554,7 +567,11 @@ export function createSavedAttemptRecovery(options: {
           locks,
         }),
       )
-      .sort((a, b) => (a.scopeKey < b.scopeKey ? -1 : 1));
+      .sort(
+        // The hold's own lock order.
+        (a, b) =>
+          Number(a.scopeKey > b.scopeKey) - Number(a.scopeKey < b.scopeKey),
+      );
   }
   /**
    * Read every hold record, settlement and marker of the attempt fresh,
@@ -566,6 +583,15 @@ export function createSavedAttemptRecovery(options: {
     for (const key of [retiredKey(attempt), successKey(attempt)]) {
       const raw = readKey(key, true);
       if (raw !== null) JSON.parse(raw);
+    }
+  }
+  /** Whether every namespace's records, settlements and markers read strictly now. */
+  function readable(attempt: SavedAttemptScope): boolean {
+    try {
+      readStrictly(attempt);
+      return true;
+    } catch {
+      return false;
     }
   }
   /** Strict reads prove no namespace ever reserved the attempt. */
@@ -625,6 +651,21 @@ export function createSavedAttemptRecovery(options: {
           }
           forced = true;
         }
+        if (forced && reason.by === "check") {
+          // Storage can't be read: only what this tab knows and the app's
+          // journal decide. A success proved here is never retired.
+          if (tabProven.has(successKey(attempt))) return false;
+          if (
+            typeof attempt.confirmRetirable !== "function" ||
+            (await attempt.confirmRetirable()) !== true
+          )
+            return false;
+          tabRetired.set(
+            retiredKey(attempt),
+            JSON.stringify({ by: "check", evidence: reason.outcome.evidence }),
+          );
+          return true;
+        }
         const states = handles.map((handle) => handle.peek());
         if (states.some((state) => state.status !== "clear")) return false;
         const evidence = evidenceOf(attempt, states);
@@ -652,10 +693,6 @@ export function createSavedAttemptRecovery(options: {
             ? { hash: lower(reason.hash) }
             : {}),
         });
-        if (forced) {
-          tabRetired.set(key, value);
-          return true;
-        }
         storage.setItem(key, value);
         if (storage.getItem(key) !== value) return false;
         settled = states.flatMap((state, index) =>

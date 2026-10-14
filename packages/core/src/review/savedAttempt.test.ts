@@ -1901,3 +1901,132 @@ describe("review round 4: rule E under concurrency, strict reads for none and di
     );
   });
 });
+
+describe("final round: strict C' across namespaces, the warned exit over throwing storage", () => {
+  // 2: an unreadable legacy reservation is never read as absent.
+  it("is check, not rejected none, when another namespace's reservation can't be read", async () => {
+    const page = browser();
+    const { client } = fakeChain();
+    const { hold } = page.load();
+    await hold
+      .open({
+        chainId: 10,
+        account: ACCOUNT,
+        safe: false,
+        namespace: NAMESPACE,
+        call: CALL,
+      })
+      .send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+      });
+    await sendUnder(hold, client, undefined, LEGACY);
+    const getItem = page.site.storage.getItem;
+    page.site.storage.getItem = (key: string) => {
+      if (key.includes(LEGACY)) throw new Error("SecurityError");
+      return getItem(key);
+    };
+    const outcome = await page.load(new Map()).recovery.recover(
+      attemptOf(async () => ({ result: "unknown" }), {
+        namespaces: [NAMESPACE, LEGACY],
+        saved: { started: true },
+      }),
+      client,
+    );
+    expect(outcome.status).not.toBe("none");
+  });
+
+  /** Custom storage whose reads throw while `broken` is set. */
+  function throwing() {
+    const values = new Map<string, string>();
+    const state = { broken: false };
+    const storage = {
+      getItem: (key: string) => {
+        if (state.broken) throw new Error("SecurityError");
+        return values.get(key) ?? null;
+      },
+      setItem: (key: string, value: string) => void values.set(key, value),
+      removeItem: (key: string) => void values.delete(key),
+      durable: () => true,
+    };
+    const locks = lockManager();
+    const hold = createWriteHold({ storage, locks });
+    const recovery = createSavedAttemptRecovery({ hold, storage, locks });
+    return { state, recovery };
+  }
+
+  // 3: the warned exit works over custom storage whose reads keep throwing.
+  it("retires in this tab on the warned exit even when every later read throws", async () => {
+    const { state, recovery } = throwing();
+    state.broken = true;
+    const { client } = fakeChain();
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    const outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(await recovery.retire(attempt, { by: "check", outcome })).toEqual({
+      retired: false,
+      reason: "unreadable",
+    });
+    expect(
+      await recovery.retire(attempt, {
+        by: "check",
+        outcome,
+        force: "unreadable",
+      }),
+    ).toEqual({ retired: true, durable: false });
+    expect(attempt.confirmRetirable).toHaveBeenCalled();
+    expect(await recovery.recover(attempt, client)).toEqual({
+      status: "none",
+      retired: "check",
+    });
+  });
+
+  it("still refuses the warned exit for a success proved in this tab, or the app's no", async () => {
+    const { state, recovery } = throwing();
+    const { client } = fakeChain();
+    const attempt = attemptOf(async () => proven("here"), {
+      saved: { started: true },
+    });
+    expect(await recovery.recover(attempt, client)).toMatchObject({
+      status: "done",
+      authenticated: true,
+    });
+    state.broken = true;
+    const outcome = await recovery.recover(
+      attemptOf(async () => ({ result: "unknown" }), {
+        saved: { started: true },
+      }),
+      client,
+    );
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(
+      (
+        await recovery.retire(attempt, {
+          by: "check",
+          outcome,
+          force: "unreadable",
+        })
+      ).retired,
+    ).toBe(false);
+    const other = throwing();
+    other.state.broken = true;
+    const no = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+      confirmRetirable: vi.fn(async () => false),
+    });
+    const seen = await other.recovery.recover(no, client);
+    if (seen.status !== "check") throw new Error("expected check");
+    expect(
+      (
+        await other.recovery.retire(no, {
+          by: "check",
+          outcome: seen,
+          force: "unreadable",
+        })
+      ).retired,
+    ).toBe(false);
+    expect(no.confirmRetirable).toHaveBeenCalled();
+  });
+});

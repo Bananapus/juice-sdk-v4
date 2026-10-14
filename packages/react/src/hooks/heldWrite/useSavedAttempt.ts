@@ -83,6 +83,9 @@ export function useSavedAttempt<T>(
   const { recovery, client, checkNext } = options;
   const key = keyOf(options.attempt);
   const attempt = options.attempt;
+  /** The attempt as last rendered: the same saved fields, with the app's newest callbacks. */
+  const latest = useRef(attempt);
+  latest.current = attempt;
   /** One lifecycle per attempt, recovery and client, with its latest request. */
   const lifecycle = useMemo(
     () => ({ attempt, recovery, client, request: 0 }),
@@ -117,7 +120,8 @@ export function useSavedAttempt<T>(
   const [unreadable, setUnreadable] = useState<Lifecycle | undefined>();
 
   const recover = useCallback(async () => {
-    const { attempt, recovery, client } = lifecycle;
+    const { recovery, client } = lifecycle;
+    const attempt = latest.current;
     if (!attempt || !client || !current(lifecycle)) return null;
     const request = ++lifecycle.request;
     setShown((now) => ({
@@ -138,7 +142,8 @@ export function useSavedAttempt<T>(
 
   const retire = useCallback(
     async (reason: SavedAttemptRetirement): Promise<Retired> => {
-      const { attempt, recovery } = lifecycle;
+      const { recovery } = lifecycle;
+      const attempt = latest.current;
       if (!attempt || !current(lifecycle)) return { retired: false };
       const retired = await recovery.retire(attempt, reason);
       if (!current(lifecycle)) return retired;

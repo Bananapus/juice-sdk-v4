@@ -252,16 +252,22 @@ const budgets = {
     // settlements through intents and listing-only Safe clocks, 1,521,404 B
     // packed / 22,090,603 B unpacked; with the separate send gate, 22,113,761 B
     // unpacked.
-    packed: 1_535_000,
-    unpacked: 22_130_000,
-    entries: 858,
+    // The saved-attempt recovery engine (review/savedAttempt, its 8
+    // artifacts), the rejected-reservation marker, strict storage reads and
+    // the check copy measured 1,542,890 B packed / 22,244,040 B unpacked and
+    // 866 entries.
+    packed: 1_550_000,
+    unpacked: 22_260_000,
+    entries: 866,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
     // useHeldWrite, useHeldIntents, useHeldWrites and HeldWritesNotice
     // measured 163,145 B packed / 1,805,792 B unpacked and 104 entries.
-    packed: 170_000,
-    unpacked: 1_820_000,
+    // With useSavedAttempt: 168,731 B packed / 1,825,777 B unpacked, 106
+    // entries.
+    packed: 172_000,
+    unpacked: 1_835_000,
     entries: 110,
   },
   "@bananapus/nana-sdk-connect": {

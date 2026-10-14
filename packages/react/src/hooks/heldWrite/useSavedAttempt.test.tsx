@@ -480,4 +480,36 @@ describe("useSavedAttempt", () => {
     await answer(check);
     expect(seen.current!.unreadableAction).toBeNull();
   });
+
+  // Final round: the same saved attempt rerendered with new callbacks uses the newest.
+  test("recovers and retires with the latest callbacks of the same attempt", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const first = attemptOf();
+    const { seen, start, render } = harness({
+      recovery,
+      attempt: first,
+      client,
+    });
+    await start();
+    await answer(check);
+    const latest = {
+      ...attemptOf(),
+      authenticate: async () => ({ result: "proven" as const, value: "now" }),
+      confirmRetirable: async () => false,
+    };
+    await render({ recovery, attempt: latest, client });
+    // Same saved fields: the lifecycle (and its answer) stays.
+    expect(recovery.recover).toHaveBeenCalledTimes(1);
+    expect(seen.current!.outcome).toEqual(check);
+    await act(async () => {
+      void seen.current!.checkAction!.run();
+    });
+    expect((recovery.retire.mock.calls[0] as unknown[] | undefined)?.[0]).toBe(
+      latest,
+    );
+    await act(async () => {
+      void seen.current!.recover();
+    });
+    expect(recovery.recover).toHaveBeenLastCalledWith(latest, client);
+  });
 });
