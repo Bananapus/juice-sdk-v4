@@ -351,6 +351,12 @@ export type HeldWriteStorage = RecoveryStorage & {
   keys?(): string[];
   /** Whether the browser's storage itself holds `key`'s value now, not only this tab's memory. */
   durableAt?(key: string): boolean;
+  /**
+   * `key`'s value read fresh, throwing when the browser's storage is there
+   * but its read fails (never a cached or memory stand-in for it): for a
+   * decision that must not act on an unresolved read, like a retirement.
+   */
+  getItemStrict?(key: string): string | null;
 };
 
 /** Every key `store` holds: its own `keys()`, or Web Storage's `length` and `key()`. */
@@ -493,6 +499,17 @@ export function createHeldWriteStorage(
       // What this tab last saw too, as getItem() still shows it while the
       // browser's storage can't be read; a read of each drops what ended.
       return [...new Set([...saved, ...seen.keys(), ...memory.keys()])];
+    },
+    getItemStrict(key) {
+      let store: RecoveryStorage | undefined;
+      try {
+        store = durable();
+      } catch {
+        /* No browser storage at all: this tab's memory is the store. */
+      }
+      if (!store) return memory.get(key) ?? null;
+      const saved = store.getItem(key);
+      return memory.get(key) ?? saved;
     },
     durableAt(key) {
       const saved = read(key);
@@ -1302,6 +1319,26 @@ export function createBrowserWriteRecovery(
         return typeof id === "string" ? id : undefined;
       } catch {
         return undefined;
+      }
+    },
+    /**
+     * Read this call's record, settlement and latest marker fresh, throwing
+     * when any can't be read or parsed: what a decision that must not act on
+     * an unresolved read (a retirement) checks before trusting read() and
+     * settled(), which read an unreadable value as none.
+     */
+    assertReadable(): void {
+      const store = storage() as HeldWriteStorage;
+      const strict = (at: string) =>
+        store.getItemStrict ? store.getItemStrict(at) : store.getItem(at);
+      for (const at of [key, settledKey, latestKey, legacyKey]) {
+        if (at === undefined) continue;
+        const raw = strict(at);
+        if (raw === null) continue;
+        const id = (JSON.parse(raw) as { id?: unknown } | null)?.id;
+        // A record's release marker decides whether it still holds.
+        if ((at === key || at === legacyKey) && typeof id === "string")
+          strict(releasedKey(at, id));
       }
     },
     /**

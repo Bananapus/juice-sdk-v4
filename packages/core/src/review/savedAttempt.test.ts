@@ -355,10 +355,12 @@ describe("the shared check copy", () => {
 });
 
 describe("none: only on the hold's proof that nothing was sent", () => {
-  it("is none for an attempt never reserved, with nothing saved of a send", async () => {
+  it("is none for an attempt never reserved that the app saved as unsent", async () => {
     const { recovery } = browser().load();
     const { client } = fakeChain();
-    const attempt = attemptOf(async () => ({ result: "unknown" }));
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: false },
+    });
     expect(await recovery.recover(attempt, client)).toEqual({ status: "none" });
     expect(attempt.authenticate).not.toHaveBeenCalled();
     expect(recovery.canDiscard(attempt)).toBe(true);
@@ -912,7 +914,7 @@ describe("check: every failure reaches the one explicit action", () => {
     expect(outcome.status).toBe("check");
   });
 
-  it("is check when storage can't be read, and its check action lasts in this tab", async () => {
+  it("is check when storage can't be read, and its check action waits until the hold can be read", async () => {
     const page = browser();
     const { recovery } = page.load();
     const { client } = fakeChain();
@@ -926,10 +928,16 @@ describe("check: every failure reaches the one explicit action", () => {
     if (outcome.status !== "check") throw new Error("unreachable");
     expect(
       (await recovery.retire(attempt, { by: "check", outcome })).retired,
-    ).toBe(true);
-    expect(await recovery.recover(attempt, client)).toEqual({
-      status: "none",
-      retired: "check",
+    ).toBe(false);
+    // Readable again (holds kept in this tab), its check action retires it there.
+    page.site.state.read = true;
+    const again = await recovery.recover(attempt, client);
+    if (again.status !== "check") throw new Error("expected check");
+    expect(
+      await recovery.retire(attempt, { by: "check", outcome: again }),
+    ).toEqual({
+      retired: true,
+      durable: false,
     });
   });
 
@@ -1508,7 +1516,7 @@ describe("review round 2: one snapshot, a success after exhausted passes, per-co
     });
   });
 
-  it("falls back to the storage's own probe for a storage that can't say where a key lives", async () => {
+  it("reports a retirement in storage that can't say where a key lives as not durable", async () => {
     const values = new Map<string, string>();
     const storage = {
       getItem: (key: string) => values.get(key) ?? null,
@@ -1530,7 +1538,197 @@ describe("review round 2: one snapshot, a success after exhausted passes, per-co
     if (outcome.status !== "check") throw new Error("expected check");
     expect(await recovery.retire(attempt, { by: "check", outcome })).toEqual({
       retired: true,
-      durable: true,
+      durable: false,
+    });
+  });
+});
+
+describe("review round 3: rule E across tabs, unreadable settlements, and positive proof of unsent", () => {
+  // 1: a success one tab's check proved can't be retired by another tab's stale check.
+  it("persists an authenticated success so no tab's check or exit retires it", async () => {
+    const page = browser();
+    const a = page.load().recovery;
+    const b = page.load().recovery;
+    const { client } = fakeChain();
+    const unknown = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    const outcome = await a.recover(unknown, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    const provenAttempt = attemptOf(async () => proven("launched"), {
+      saved: { started: true },
+    });
+    expect(await b.recover(provenAttempt, client)).toMatchObject({
+      status: "done",
+      authenticated: true,
+      value: "launched",
+    });
+    expect((await a.retire(unknown, { by: "check", outcome })).retired).toBe(
+      false,
+    );
+    expect((await a.retire(unknown, { by: "exit" })).retired).toBe(false);
+    expect(a.canDiscard(unknown)).toBe(false);
+    // A tab whose own check can't show it still follows it.
+    expect(await a.recover(unknown, client)).toMatchObject({
+      status: "done",
+      result: "success",
+      authenticated: false,
+    });
+    // Followed, it retires.
+    expect((await b.retire(provenAttempt, { by: "settled" })).retired).toBe(
+      true,
+    );
+    expect(a.canDiscard(unknown)).toBe(true);
+    expect(await a.recover(unknown, client)).toEqual({
+      status: "none",
+      retired: "settled",
+    });
+  });
+
+  it("gives the app's journal a final say under the lock", async () => {
+    const { recovery } = browser().load();
+    const { client } = fakeChain();
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    const outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    const refused = { ...attempt, confirmRetirable: vi.fn(async () => false) };
+    expect(
+      (await recovery.retire(refused, { by: "check", outcome })).retired,
+    ).toBe(false);
+    const throws = {
+      ...attempt,
+      confirmRetirable: vi.fn(async () => {
+        throw new Error("journal unreadable");
+      }),
+    };
+    expect((await recovery.retire(throws, { by: "exit" })).retired).toBe(false);
+    const allowed = { ...attempt, confirmRetirable: vi.fn(async () => true) };
+    expect(
+      (await recovery.retire(allowed, { by: "check", outcome })).retired,
+    ).toBe(true);
+    expect(allowed.confirmRetirable).toHaveBeenCalledTimes(1);
+  });
+
+  // 2: a settlement that can't be read is never "clear" to a retirement.
+  it("refuses retirement while a settlement, the marker or the record can't be read", async () => {
+    const page = browser();
+    const { chain, client } = fakeChain();
+    await sendUnder(page.load().hold, client, HASH);
+    chain.txs.push(sent(HASH, { block: 50n }));
+    const { recovery } = page.load();
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    await recovery.recover(attempt, client);
+    const getItem = page.site.storage.getItem;
+    page.site.storage.getItem = (key: string) => {
+      if (key.endsWith(":settled")) throw new Error("SecurityError");
+      return getItem(key);
+    };
+    expect((await recovery.retire(attempt, { by: "exit" })).retired).toBe(
+      false,
+    );
+    page.site.storage.getItem = (key: string) => {
+      if (key.startsWith("nana-sdk:saved-attempt:"))
+        throw new Error("SecurityError");
+      return getItem(key);
+    };
+    expect((await recovery.retire(attempt, { by: "exit" })).retired).toBe(
+      false,
+    );
+    page.site.storage.getItem = getItem;
+    // A corrupted settlement is unresolved too.
+    for (const key of page.site.values.keys())
+      if (key.endsWith(":settled")) page.site.values.set(key, "{");
+    expect((await recovery.retire(attempt, { by: "exit" })).retired).toBe(
+      false,
+    );
+  });
+
+  // 4: none needs positive evidence that nothing was sent.
+  it("is check, after the app's check, for an attempt saved without saying it was unsent", async () => {
+    const { recovery } = browser().load();
+    const { client } = fakeChain();
+    for (const saved of [
+      undefined,
+      {},
+      { nonce: 7, fromBlock: 1n },
+      { started: false, nonce: 7, fromBlock: 1n },
+      { started: false, submittedAt: 1 },
+    ]) {
+      const attempt = attemptOf(async () => ({ result: "unknown" }), { saved });
+      expect((await recovery.recover(attempt, client)).status).toBe("check");
+      expect(attempt.authenticate).toHaveBeenCalledWith(undefined);
+    }
+  });
+
+  it("follows another tab's proven success by its saved hash, and keeps a done when the marker can't be saved", async () => {
+    const page = browser();
+    const a = page.load().recovery;
+    const b = page.load().recovery;
+    const { client } = fakeChain();
+    const saved = { started: true, hash: HASH };
+    expect(
+      await b.recover(
+        attemptOf(async () => proven("b"), { call: undefined, saved }),
+        client,
+      ),
+    ).toMatchObject({ status: "done", authenticated: true, hash: HASH });
+    expect(
+      await a.recover(
+        attemptOf(async () => ({ result: "unknown" }), {
+          call: undefined,
+          saved,
+        }),
+        client,
+      ),
+    ).toMatchObject({ status: "done", authenticated: false, hash: HASH });
+    // Storage that refuses the marker: the outcome is still done.
+    const base = createHeldWriteStorage({ memory: new Map() });
+    const storage = {
+      ...base,
+      setItem: (key: string, value: string) => {
+        if (key.startsWith("nana-sdk:saved-attempt:success:"))
+          throw new Error("QuotaExceededError");
+        base.setItem(key, value);
+      },
+    };
+    const refusing = createSavedAttemptRecovery({
+      hold: createWriteHold({ storage, locks: lockManager() }),
+      storage,
+      locks: lockManager(),
+    });
+    expect(
+      await refusing.recover(
+        attemptOf(async () => proven("c"), { call: undefined, saved }),
+        client,
+      ),
+    ).toMatchObject({ status: "done", authenticated: true });
+  });
+
+  it("retires in this tab alone when there is no browser storage at all", async () => {
+    const storage = createHeldWriteStorage({
+      durable: () => {
+        throw new Error("SecurityError");
+      },
+      memory: new Map(),
+    });
+    const recovery = createSavedAttemptRecovery({
+      hold: createWriteHold({ storage, locks: lockManager() }),
+      storage,
+      locks: lockManager(),
+    });
+    const { client } = fakeChain();
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    const outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(await recovery.retire(attempt, { by: "check", outcome })).toEqual({
+      retired: true,
+      durable: false,
     });
   });
 });

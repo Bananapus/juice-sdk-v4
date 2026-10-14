@@ -37,8 +37,17 @@ export type SavedAttemptScope = {
   namespaces: readonly string[];
   /** The exact saved call, when kept: a saved hash is adopted into the hold against it. */
   call?: ReviewedWriteRecoveryInput["call"];
+  /**
+   * The app's domain journal's final say on a check or exit retirement,
+   * awaited under the hold's locks: false or a throw refuses it (for
+   * example, when the journal now records the attempt's success).
+   */
+  confirmRetirable?(): Promise<boolean>;
   saved?: {
-    /** The app's send began: the wallet may have opened. */
+    /**
+     * The app's send began: the wallet may have opened. Only an explicit
+     * `false`, with no hash or nonce evidence, is proof that nothing was sent.
+     */
     started?: boolean;
     /** The transaction hash the wallet returned. */
     hash?: Hex;
@@ -113,7 +122,8 @@ export type SavedAttemptOutcome<T> =
       status: "done";
       result: "success";
       authenticated: false;
-      hash: Hex;
+      /** The settled transaction; absent when another tab's check proved it without one. */
+      hash?: Hex;
       reason: string;
     }
   | { status: "done"; result: "failed"; hash: Hex }
@@ -126,6 +136,8 @@ const NO_CALL = {
   data: "0x" as Hex,
 };
 const RETIRED_PREFIX = "nana-sdk:saved-attempt:retired:";
+/** A success some tab's check proved for the attempt: no check or exit retires it. */
+const SUCCESS_PREFIX = "nana-sdk:saved-attempt:success:";
 /** How many times a check the hold moved under is evaluated again. */
 const PASSES = 3;
 
@@ -173,8 +185,36 @@ export function createSavedAttemptRecovery(options: {
       hold.open(inputOf(attempt, namespace)),
     );
   }
+  const scopeOf = (attempt: SavedAttemptScope) =>
+    JSON.stringify([
+      attempt.chainId,
+      attempt.account.toLowerCase(),
+      attempt.namespaces,
+    ]);
   const retiredKey = (attempt: SavedAttemptScope) =>
-    `${RETIRED_PREFIX}${JSON.stringify([attempt.chainId, attempt.account.toLowerCase(), attempt.namespaces])}`;
+    `${RETIRED_PREFIX}${scopeOf(attempt)}`;
+  const successKey = (attempt: SavedAttemptScope) =>
+    `${SUCCESS_PREFIX}${scopeOf(attempt)}`;
+  /** `key`'s value, read strictly (a failed read throws) when `strict`. */
+  const readKey = (key: string, strict = false) =>
+    strict && storage.getItemStrict
+      ? storage.getItemStrict(key)
+      : storage.getItem(key);
+  /** The success a tab's check proved on exactly this hold evidence, if saved. */
+  function provenOf(
+    attempt: SavedAttemptScope,
+    evidence: string,
+    strict = false,
+  ): { hash?: Hex } | undefined {
+    const saved = JSON.parse(
+      readKey(successKey(attempt), strict) ?? "null",
+    ) as { evidence?: string; hash?: Hex } | null;
+    return saved?.evidence === evidence
+      ? saved.hash
+        ? { hash: saved.hash }
+        : {}
+      : undefined;
+  }
   /** What the hold shows of the attempt now, from storage: what a retirement is bound to. */
   function evidenceOf(attempt: SavedAttemptScope, states: WriteHoldState[]) {
     return JSON.stringify({
@@ -192,9 +232,10 @@ export function createSavedAttemptRecovery(options: {
   function retirementOf(
     attempt: SavedAttemptScope,
     evidence: string,
+    strict = false,
   ): SavedAttemptRetirement["by"] | undefined {
     const saved = JSON.parse(
-      storage.getItem(retiredKey(attempt)) ?? "null",
+      readKey(retiredKey(attempt), strict) ?? "null",
     ) as {
       by?: SavedAttemptRetirement["by"];
       evidence?: string;
@@ -262,25 +303,51 @@ export function createSavedAttemptRecovery(options: {
       if (evidenceNow(attempt, handles) === outcome.evidence) break;
       outcome = await pass(attempt, client);
     }
+    if (outcome.status === "done" && outcome.result === "success") {
+      if (outcome.authenticated) await markProven(attempt, outcome.hash);
+      return outcome;
+    }
     if (outcome.status !== "check") return outcome;
-    // A success that settled while the passes ran still wins, by its hash alone.
+    // A success that settled while the passes ran, or that another tab's
+    // check proved, still wins, by its hash alone.
     try {
-      const { success } = settlementsOf(
-        attempt,
-        handlesOf(attempt).map((handle) => handle.peek()),
-      );
-      if (success.length)
+      const states = handlesOf(attempt).map((handle) => handle.peek());
+      const { success } = settlementsOf(attempt, states);
+      const proven = success.length
+        ? { hash: success[0] }
+        : provenOf(attempt, evidenceOf(attempt, states));
+      if (proven)
         return {
           status: "done",
           result: "success",
           authenticated: false,
-          hash: success[0],
+          ...proven,
           reason: outcome.reason,
         };
     } catch {
       /* Unreadable: the check stands. */
     }
     return outcome;
+  }
+
+  /**
+   * Save that the app's check proved this attempt's success on the hold
+   * evidence now, so no tab's stale check or exit retires it. Under the
+   * namespaces' locks; a busy lock writes it anyway (it only ever refuses).
+   */
+  async function markProven(attempt: SavedAttemptScope, hash?: Hex) {
+    try {
+      const write = async () => {
+        const value = JSON.stringify({
+          evidence: evidenceNow(attempt, handlesOf(attempt)),
+          ...(hash ? { hash: lower(hash) } : {}),
+        });
+        storage.setItem(successKey(attempt), value);
+      };
+      await underLocks(attempt, write).catch(write);
+    } catch {
+      /* Unsaved: this tab's outcome still says done. */
+    }
   }
 
   async function pass<T>(
@@ -367,10 +434,14 @@ export function createSavedAttemptRecovery(options: {
       const saved = attempt.saved ?? {};
       const identity = saved.safeTxHash ?? saved.hash;
       if (!identity) {
-        // Nothing reserved, with nothing saved of a send; or every reservation
+        // Nothing reserved, and the app saved it as unsent; or every reservation
         // dropped on a definite rejection (or an abort before the wallet opened).
         if (
-          !saved.started &&
+          saved.started === false &&
+          saved.nonce === undefined &&
+          saved.sentNonce === undefined &&
+          saved.fromBlock === undefined &&
+          saved.submittedAt === undefined &&
           hold.durable() &&
           states.every((state) => state.reservation === undefined)
         )
@@ -453,7 +524,9 @@ export function createSavedAttemptRecovery(options: {
   /** Under every namespace key's hold lock, in one order, never waiting on a busy one. */
   async function underLocks<R>(
     attempt: SavedAttemptScope,
-    work: () => Promise<R>,
+    work: (
+      journals: ReturnType<typeof createBrowserWriteRecovery>[],
+    ) => Promise<R>,
   ): Promise<R> {
     const journals = attempt.namespaces
       .map((namespace) =>
@@ -465,7 +538,7 @@ export function createSavedAttemptRecovery(options: {
       .sort((a, b) => (a.scopeKey < b.scopeKey ? -1 : 1));
     const run = (index: number): Promise<R> =>
       index === journals.length
-        ? work()
+        ? work(journals)
         : journals[index].withLock(() => run(index + 1));
     return run(0);
   }
@@ -487,17 +560,26 @@ export function createSavedAttemptRecovery(options: {
     let settled: { handle: WriteHoldHandle; state: WriteHoldState }[] = [];
     try {
       const handles = handlesOf(attempt);
-      const done = await underLocks(attempt, async () => {
+      const done = await underLocks(attempt, async (journals) => {
+        // Fresh and error-aware: an unreadable record, settlement or marker
+        // refuses (it throws), never reads as clear.
+        for (const journal of journals) journal.assertReadable();
         const states = handles.map((handle) => handle.peek());
         if (states.some((state) => state.status !== "clear")) return false;
         const evidence = evidenceOf(attempt, states);
+        retirementOf(attempt, evidence, true);
         if (reason.by === "check" && reason.outcome.evidence !== evidence)
           return false;
-        if (
-          reason.by !== "settled" &&
-          settlementsOf(attempt, states).success.length
-        )
-          return false;
+        if (reason.by !== "settled") {
+          // Rule E: only a followed settlement retires a success.
+          if (
+            settlementsOf(attempt, states).success.length ||
+            provenOf(attempt, evidence, true)
+          )
+            return false;
+          if (attempt.confirmRetirable && !(await attempt.confirmRetirable()))
+            return false;
+        }
         const key = retiredKey(attempt);
         const value = JSON.stringify({
           by: reason.by,
@@ -531,9 +613,8 @@ export function createSavedAttemptRecovery(options: {
       return done
         ? {
             retired: true,
-            durable: storage.durableAt
-              ? storage.durableAt(retiredKey(attempt))
-              : storage.durable(),
+            // Only commit-specific evidence says it outlives the tab.
+            durable: storage.durableAt?.(retiredKey(attempt)) ?? false,
           }
         : { retired: false };
     } catch {
@@ -550,8 +631,11 @@ export function createSavedAttemptRecovery(options: {
     try {
       const states = handlesOf(attempt).map((handle) => handle.peek());
       if (states.some((state) => state.status !== "clear")) return false;
-      const unfollowed = settlementsOf(attempt, states).success.length > 0;
-      const retired = retirementOf(attempt, evidenceOf(attempt, states));
+      const evidence = evidenceOf(attempt, states);
+      const unfollowed =
+        settlementsOf(attempt, states).success.length > 0 ||
+        !!provenOf(attempt, evidence);
+      const retired = retirementOf(attempt, evidence);
       return unfollowed ? retired === "settled" : true;
     } catch {
       return false;

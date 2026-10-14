@@ -1171,6 +1171,7 @@ const attempt = {
   namespaces: [launchNamespace, ...legacyNamespaces],
   call: savedCall, // when kept: a saved hash is adopted against it
   saved: { started: true, hash, safeTxHash, submittedAt, before },
+  confirmRetirable: async () => !journalRecordsSuccess(), // optional final say
   authenticate: async (hash) =>
     // The app's domain check of one transaction (or, given none, its search):
     (await launchedBy(hash))
@@ -1196,8 +1197,9 @@ It returns exactly one outcome:
   `SAVED_ATTEMPT_CHECK_WARNING` and one action labelled
   `checkedItLabel("Create again")` ("I checked it. Create again."). That action,
   and only it, runs `retire(attempt, { by: "check", outcome })`.
-- `none`: the hold proves no reservation was ever made and nothing saved says
-  it was sent, or the attempt was retired (`retired`). `retired: "rejected"`
+- `none`: the hold proves no reservation was ever made and the app saved the
+  attempt as unsent (`saved.started === false`, with no hash or nonce
+  evidence; an omitted field proves nothing), or the attempt was retired (`retired`). `retired: "rejected"`
   means the SDK dropped every reservation of it (and its legacy mirrors, which
   share its id) on a definite wallet rejection or an abort before the wallet
   opened: nothing can have been sent.
@@ -1222,10 +1224,17 @@ false`), never a check or a send. Only `{ by: "settled" }` retires it.
   while a lock is busy: recover again. A later reservation or settlement is
   never covered by it. It returns `{ retired: true, durable }`: `durable:
 false` means this retirement was kept only in this tab's memory (the
-  storage's `durableAt` says so for its own commit); the app decides whether
-  to say so.
+  storage's `durableAt` says so for its own commit; storage without it reports
+  `false`); the app decides whether to say so.
+- **Rule E:** only a followed settlement (`{ by: "settled" }`) retires a
+  success. An authenticated `done` is saved for every tab, so another tab's
+  stale check or exit is refused, and a tab whose own check can't show it gets
+  `done` with `authenticated: false`. Check and exit retirements read the
+  hold fresh and error-aware under the locks (an unreadable record, settlement
+  or marker refuses), then await the attempt's optional `confirmRetirable()`:
+  false or a throw refuses.
 - **Discard:** `canDiscard(attempt)` is false while the attempt is held, or
-  while a success it settled hasn't been followed.
+  while a success it settled, or another tab proved, hasn't been followed.
 
 `useSavedAttempt({ recovery, attempt, client, checkNext })` (React) recovers on
 mount and whenever the attempt or client changes. Only the latest request of
