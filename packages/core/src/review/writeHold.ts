@@ -518,7 +518,7 @@ export function createWriteHold(
         unreserve: () => void,
         until: Promise<void>,
         reviewed: string,
-      ) => Promise<{ released: Promise<void> }>;
+      ) => Promise<{ released: Promise<void>; unsent: () => void }>;
       /** Every involved key's generation, read when the review opens. */
       generations?: () => string;
     } = {},
@@ -1216,6 +1216,8 @@ export function createWriteHold(
         let ended!: () => void;
         const until = new Promise<void>((resolve) => (ended = resolve));
         let released: Promise<void> | undefined;
+        /** Under an intent: removes the reservation's mirrors, never sent. */
+        let unsent: (() => void) | undefined;
         let reviewed = "";
         const gate: WriteHoldGate = {
           async beforeSend(actualCall) {
@@ -1236,7 +1238,7 @@ export function createWriteHold(
             };
             try {
               if (hooks.across)
-                ({ released } = await hooks.across(
+                ({ released, unsent } = await hooks.across(
                   (work) => recovery.withLock(work),
                   reserve,
                   () => {
@@ -1293,6 +1295,8 @@ export function createWriteHold(
           },
           onRejected() {
             recovery.rejected();
+            // Nothing was sent: no mirror holds it for older readers.
+            if (attempt && !recovery.read()) unsent?.();
             attempt = undefined;
             shown(peek());
           },
@@ -1783,7 +1787,7 @@ export function createWriteHold(
       unreserve: () => void,
       until: Promise<void>,
       reviewed: string,
-    ): Promise<{ released: Promise<void> }> {
+    ): Promise<{ released: Promise<void>; unsent: () => void }> {
       const locks = [
         { scope: scopeOf(call), take: ownLock },
         ...journals.map((journal) => ({
@@ -1792,6 +1796,12 @@ export function createWriteHold(
         })),
       ].sort((a, b) => Number(a.scope > b.scope) - Number(a.scope < b.scope));
       const deadline = Date.now() + RESERVE_RETRY_MS;
+      /**
+       * Removes this reservation's mirrors, each by its id, while its locks
+       * are held: after a failed mirror write, or once the app reports the
+       * send never reached the wallet.
+       */
+      let unsent!: () => void;
       for (;;) {
         let entered = 0;
         let reserved!: () => void;
@@ -1829,17 +1839,20 @@ export function createWriteHold(
             (typeof journals)[number],
             ReviewedWriteRecoveryRecord,
           ][] = [];
-          try {
-            for (const journal of journals)
-              if (!matchedKeys.has(journal.scopeKey))
-                mirrors.push([journal, journal.mirror(record, namespace)]);
-          } catch (error) {
-            for (const [journal, mirror] of mirrors)
+          unsent = () => {
+            for (const [journal, mirror] of mirrors.splice(0))
               try {
                 journal.clear(mirror);
               } catch {
                 /* Held for old readers until their explicit exit. */
               }
+          };
+          try {
+            for (const journal of journals)
+              if (!matchedKeys.has(journal.scopeKey))
+                mirrors.push([journal, journal.mirror(record, namespace)]);
+          } catch (error) {
+            unsent();
             try {
               unreserve();
             } catch {
@@ -1859,7 +1872,7 @@ export function createWriteHold(
             (error: unknown) => ({ error }),
           ),
         ]);
-        if (!failed) return { released: holding.catch(() => {}) };
+        if (!failed) return { released: holding.catch(() => {}), unsent };
         // Not reserved: every lock, its own included, is let go before any
         // retry; the checks run again each time.
         const { error } = failed;

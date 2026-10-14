@@ -5807,6 +5807,51 @@ describe("resetting a controller made before the reset", () => {
   });
 });
 
+describe("an intent's send that never reaches the wallet", () => {
+  const key = writeIntentKey("pay", { projectId: 4n });
+  const intentCall = { ...ordinary, namespace: key };
+
+  it("leaves no mirror when it is reset during the review, and the next send works", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(intentCall);
+    const reset = new Error("reset");
+    await expect(
+      handle.send(client, async (gate) => {
+        await gate.beforeSend();
+        // The app resets while the review is open: nothing was sent.
+        gate.onRejected();
+        throw reset;
+      }),
+    ).rejects.toBe(reset);
+    expect(handle.peek().status).toBe("clear");
+    expect(hold.open(ordinary).peek().status).toBe("clear");
+    const exact = wallet(async () => HASH);
+    await hold.open(ordinary).send(client, exact.send);
+    expect(exact.write).toHaveBeenCalledOnce();
+  });
+
+  it("leaves no mirror after a wallet rejection, and keeps it once the wallet may have sent", async () => {
+    const { hold, storage } = setup();
+    const mirror = () =>
+      createBrowserWriteRecovery(ordinary, { storage }).read();
+    const { client } = fakeChain();
+    const handle = hold.open(intentCall);
+    const rejected = wallet(async () => {
+      throw Object.assign(new Error("User rejected the request."), {
+        code: 4001,
+      });
+    });
+    await expect(handle.send(client, rejected.send)).rejects.toThrow();
+    expect(mirror()).toBeNull();
+    expect(hold.open(ordinary).peek().status).toBe("clear");
+    // The wallet opened and its reply was lost: the mirror holds.
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    expect(mirror()).toMatchObject({ mirrorOf: key });
+    expect(hold.open(ordinary).peek().status).toBe("held-no-hash");
+  });
+});
+
 describe("a launch held under its shared intent", () => {
   it("refuses a retry whose config holds a number where the first held a bigint", async () => {
     const { hold } = setup();
