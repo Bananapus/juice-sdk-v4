@@ -23,6 +23,7 @@ import {
   relayrWalletPaymentError,
   relayrPaymentDetails,
   relayrQuotedOptions,
+  relayrQuoteUnfundable,
   relayrRetryOption,
   relayrSentPaymentsSnapshot,
   requireRelayrRetry,
@@ -645,10 +646,6 @@ describe("a quote whose own payments reverted (ruling R104)", () => {
       () => (reads = [bundle({ payment_received: null })]),
     ],
     [
-      "Relayr reports it paid on the second read",
-      () => (reads = [bundle(), bundle({ payment_received: true })]),
-    ],
-    [
       "Relayr cannot be read",
       () => (reads = [() => Promise.reject(new TypeError("Failed to fetch"))]),
     ],
@@ -697,6 +694,58 @@ describe("a quote whose own payments reverted (ruling R104)", () => {
     ["its account is not an address", { account: "0x1234" }],
   ])("keeps the quote when %s", async (_, overrides) => {
     await expect(reverted(overrides)).rejects.toThrow(UNRELEASED);
+  });
+
+  it("is funded when Relayr reports it paid on its last read before release", async () => {
+    reads = [bundle(), bundle({ payment_received: true })];
+    await expect(reverted()).resolves.toMatchObject({ state: "funded" });
+  });
+
+  it("tells a quote nothing can fund from one something can, and both from unknown", async () => {
+    const unfundable = (
+      overrides: Partial<Parameters<typeof revertedRelayrQuote>[1]> = {},
+      unseen = false,
+    ) =>
+      relayrQuoteUnfundable((chainId) => clients[chainId], quote(overrides), {
+        unseen,
+      });
+    const twoChains = {
+      options: [paymentFor(), paymentFor({ chain: 10 })],
+      destinationChainIds: [1, 10],
+    };
+    await expect(unfundable(twoChains)).resolves.toBe(true);
+    // An open deadline, or a payment that funded it: something can.
+    finalized[10] = DEADLINE;
+    await expect(unfundable(twoChains)).resolves.toBe(false);
+    finalized[10] = DEADLINE + 3_601;
+    // A deadline or a payment that can't be read: unknown.
+    finalized[10] = null;
+    await expect(unfundable(twoChains)).resolves.toBeNull();
+    finalized[10] = DEADLINE + 3_601;
+    clients[10] = undefined;
+    await expect(unfundable(twoChains)).resolves.toBeNull();
+    clients[10] = chainClient(10);
+    mined.clear();
+    await expect(unfundable()).resolves.toBeNull();
+    // Unseen, for the user's warned exit: a payment the node says it doesn't
+    // have, or none. A read that fails, or a payment still pending, is unknown.
+    await expect(unfundable({}, true)).resolves.toBeNull();
+    const notFound = Object.assign(new Error("not found"), {
+      name: "TransactionNotFoundError",
+    });
+    vi.mocked(clients[1]!.getTransaction).mockRejectedValue(notFound);
+    await expect(unfundable({}, true)).resolves.toBe(true);
+    vi.mocked(clients[1]!.getTransaction).mockResolvedValue({
+      hash: HASH,
+    } as never);
+    await expect(unfundable({}, true)).resolves.toBeNull();
+    await expect(unfundable({ payments: [] }, true)).resolves.toBe(true);
+    await expect(unfundable({ payments: [] })).resolves.toBe(false);
+    clients[1] = chainClient(1);
+    mined.set(HASH, { payment: sent(), status: "success" });
+    await expect(unfundable({}, true)).resolves.toBe(false);
+    clients[1] = undefined;
+    await expect(unfundable({}, true)).resolves.toBeNull();
   });
 
   it("waits for each payment's own deadline, with no options to wait for", async () => {

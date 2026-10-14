@@ -171,6 +171,7 @@ describe("published core SDK surfaces", () => {
       "relayrPaymentDetails",
       "relayrPaymentOptions",
       "relayrProgress",
+      "relayrQuoteUnfundable",
       "relayrQuotedOptions",
       "relayrRecordChain",
       "relayrRequestStates",

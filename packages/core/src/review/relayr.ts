@@ -2242,20 +2242,21 @@ export async function relayrRequestsDead(
 
 /**
  * Whether the chain's finalized block, still canonical, is past `deadline`
- * (seconds, as a safe integer, decimal or 0x-hex digits, or a bigint): its
- * timestamp is later. False while that is unknown, or the deadline can't be
- * read.
+ * (seconds, as a safe integer, decimal or 0x-hex digits, or a bigint), three
+ * valued: true once its timestamp is later, false while it isn't, and null
+ * while either can't be read. Null is unknown: never passed, never open.
  */
 export async function relayrDeadlinePassed(
   client: Pick<RelayrFinalizedClient, "getBlock">,
   deadline: number | string | bigint,
-): Promise<boolean> {
+): Promise<boolean | null> {
+  const end = uint256(deadline);
+  if (end === null) return null;
   const finalized = await atCanonicalFinalizedBlock(
     client,
     async () => undefined,
   );
-  const end = uint256(deadline);
-  return !!finalized && end !== null && finalized.timestamp > end;
+  return finalized ? finalized.timestamp > end : null;
 }
 
 /** Whether `value` is a {@link RelayrDiscardReason}, for a reason read back from storage. */
@@ -2689,14 +2690,14 @@ type RevertedQuote = {
 async function relayrBundleIfNamed(
   bundleUuid: string,
   fetchBundle: typeof globalThis.fetch,
+  statusRead: <T>(read: () => Promise<T>) => Promise<T>,
 ): Promise<{
   paymentReceived: unknown;
   records: RelayrTransactionRecord[];
 } | null> {
   try {
-    const { payment_received, transactions } = await readRelayrBundle(
-      bundleUuid,
-      { fetch: fetchBundle },
+    const { payment_received, transactions } = await statusRead(() =>
+      readRelayrBundle(bundleUuid, { fetch: fetchBundle }),
     );
     return Array.isArray(transactions)
       ? { paymentReceived: payment_received, records: transactions }
@@ -2706,12 +2707,18 @@ async function relayrBundleIfNamed(
   }
 }
 
-/**
- * Nothing can fund the quote any more: every payment it sent is proven
- * canonically reverted, and the deadline of each of those payments, and of
- * each option {@link relayrQuotedOptions} keeps, has passed at a canonical
- * finalized block on its chain. Anything unread is false.
- */
+/** The node answered that it has no transaction at `hash` (viem's TransactionNotFoundError), not that it couldn't say. */
+async function transactionMissing(
+  client: RelayrReleaseClient,
+  hash: Hex,
+): Promise<boolean> {
+  return client.getTransaction({ hash }).then(
+    () => false,
+    (error: { name?: unknown } | null) =>
+      error?.name === "TransactionNotFoundError",
+  );
+}
+
 /**
  * Whether `hash`'s own receipt reverted in a block still canonical. A payment
  * sent through a wallet contract (a Safe or smart account) reverts there
@@ -2740,7 +2747,19 @@ async function receiptReverted(
   }
 }
 
-async function relayrQuoteUnfundable(
+/**
+ * Whether nothing can fund the quote any more, three valued: true once every
+ * payment it sent is proven canonically reverted, and the deadline of each of
+ * those payments, and of each option {@link relayrQuotedOptions} keeps, has
+ * passed at a canonical finalized block on its chain; false once a payment is
+ * proven to have funded it, or is another transaction, or a deadline is
+ * open; null while any of it can't be read. With `unseen`, a payment the
+ * node answers it has no transaction for counts as spent too, once its
+ * deadline is final: only for an exit the user takes, warned that a payment
+ * their wallet shows may still be in flight. No node can prove a
+ * transaction doesn't exist, so it never releases a quote on its own.
+ */
+export async function relayrQuoteUnfundable(
   clientFor: (chainId: number) => RelayrReleaseClient | undefined,
   {
     payments,
@@ -2749,18 +2768,20 @@ async function relayrQuoteUnfundable(
     destinationChainIds,
     account,
   }: RevertedQuote,
-): Promise<boolean> {
+  { unseen = false }: { unseen?: boolean } = {},
+): Promise<boolean | null> {
   if (
     !Array.isArray(payments) ||
-    !payments.length ||
+    (!unseen && !payments.length) ||
     !Array.isArray(options) ||
     !isStrictAddress(account)
   ) {
     return false;
   }
+  let unknown = false;
   for (const payment of payments) {
     const client = clientOn(clientFor, payment.chainId);
-    if (!client) return false;
+    if (!client) return null;
     try {
       await verifyRelayrPayment(client, {
         hash: payment.hash,
@@ -2772,8 +2793,13 @@ async function relayrQuoteUnfundable(
       if (
         !(error instanceof RelayrPaymentRevertedError) &&
         !(await receiptReverted(client, payment.hash))
-      )
-        return false;
+      ) {
+        if (error instanceof RelayrProofError) return false;
+        // Only the node's own answer that it has no such transaction: a
+        // failed read, or one still pending, stays unknown.
+        if (!unseen || !(await transactionMissing(client, payment.hash)))
+          unknown = true;
+      }
     }
     // The proof read the calldata's deadline word; the saved one must be it.
     if (uint256(payment.deadline) !== calldataDeadline(payment.calldata)) {
@@ -2797,11 +2823,11 @@ async function relayrQuoteUnfundable(
   }
   for (const { chainId, deadline } of deadlines.values()) {
     const client = clientOn(clientFor, chainId);
-    if (!client || !(await relayrDeadlinePassed(client, deadline))) {
-      return false;
-    }
+    const passed = client ? await relayrDeadlinePassed(client, deadline) : null;
+    if (passed === false) return false;
+    if (passed === null) unknown = true;
   }
-  return true;
+  return unknown ? null : true;
 }
 
 /**
@@ -2831,12 +2857,22 @@ export async function revertedRelayrQuote(
   {
     fetch: fetchBundle = globalThis.fetch,
     nowMs,
-  }: { fetch?: typeof globalThis.fetch; nowMs?: number } = {},
+    statusRead = (read) => read(),
+  }: {
+    fetch?: typeof globalThis.fetch;
+    nowMs?: number;
+    /** Runs each of its bundle reads: a caller with its own retries passes them here. */
+    statusRead?: <T>(read: () => Promise<T>) => Promise<T>;
+  } = {},
 ): Promise<{
   state: "funded" | "payable" | "released";
   records: RelayrTransactionRecord[] | null;
 }> {
-  const bundle = await relayrBundleIfNamed(quote.bundleUuid, fetchBundle);
+  const bundle = await relayrBundleIfNamed(
+    quote.bundleUuid,
+    fetchBundle,
+    statusRead,
+  );
   const records = bundle?.records ?? null;
   if (
     bundle &&
@@ -2854,17 +2890,20 @@ export async function revertedRelayrQuote(
     if (relayrPaidQuoteOpen(quote.payments, now)) {
       return { state: "payable", records };
     }
-    if (
-      bundle &&
-      (await relayrQuoteUnfundable(clientFor, quote)) &&
-      (await requireRelayrBundleUnpaid(quote.bundleUuid, {
-        fetch: fetchBundle,
-      }).then(
+    if (bundle && (await relayrQuoteUnfundable(clientFor, quote)) === true) {
+      const unpaid = await statusRead(() =>
+        requireRelayrBundleUnpaid(quote.bundleUuid, { fetch: fetchBundle }),
+      ).then(
         () => true,
-        () => false,
-      ))
-    ) {
-      return { state: "released", records };
+        (error: unknown) =>
+          // Relayr reporting it paid or running is funding, never unproven.
+          error instanceof RelayrPaymentRetryError &&
+          (error.reason === "paid" || error.reason === "running")
+            ? null
+            : false,
+      );
+      if (unpaid === null) return { state: "funded", records };
+      if (unpaid) return { state: "released", records };
     }
   }
   throw new Error(
