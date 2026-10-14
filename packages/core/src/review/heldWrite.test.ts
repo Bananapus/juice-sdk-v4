@@ -1101,4 +1101,96 @@ describe("one held write's view", () => {
     expect(onRejected).toHaveBeenCalledOnce();
     expect(wallet).not.toHaveBeenCalled();
   });
+
+  it("refuses a send whose own check first finds an earlier success, though the view saw it held (revnet)", async () => {
+    // No onSettled: delivery inside the send must not exempt it.
+    const { fake, handle } = fakeHandle(pending({ id: "r80" }));
+    fake.answer = pending({ id: "r80" });
+    const view = createHeldWriteView(handle, { client, follow: false });
+    const stop = view.start();
+    await flush();
+    expect(view.get().phase).toBe("confirming");
+    handle.send.mockImplementationOnce((async (
+      _client: WriteHoldClient,
+      run: (gate: never) => Promise<Hex>,
+    ) => {
+      // The send's own pre-wallet check finds it settled, and says so.
+      fake.answer = clear({
+        reservation: "r80",
+        settled: { result: "success", hash: HASH },
+      });
+      fake.emit(fake.answer);
+      return run({} as never);
+    }) as never);
+    const wallet = vi.fn(async () => HASH);
+    await expect(view.send(wallet)).rejects.toThrow(HELD_AWAY_SUCCESS_LINE);
+    expect(wallet).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("refuses a send when an earlier success is delivered during its first yield", async () => {
+    const { fake, handle } = fakeHandle(pending({ id: "r81" }));
+    fake.answer = pending({ id: "r81" });
+    const view = createHeldWriteView(handle, { client, follow: false });
+    const stop = view.start();
+    await flush();
+    handle.send.mockImplementationOnce((async (
+      _client: WriteHoldClient,
+      run: (gate: never) => Promise<Hex>,
+    ) =>
+      run({ beforeSend: async () => {}, onRejected() {} } as never)) as never);
+    const wallet = vi.fn(async (gate: { beforeSend(): Promise<void> }) => {
+      await gate.beforeSend();
+      return HASH;
+    });
+    const sending = view.send(wallet as never);
+    // Settles before send's first await resolves.
+    fake.answer = clear({
+      reservation: "r81",
+      settled: { result: "success", hash: HASH },
+    });
+    fake.emit(fake.answer);
+    await expect(sending).rejects.toThrow(HELD_AWAY_SUCCESS_LINE);
+    expect(wallet).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("refuses a send whose delivered success is acknowledged before a later guard", async () => {
+    const { fake, handle } = fakeHandle(pending({ id: "r82" }));
+    fake.answer = pending({ id: "r82" });
+    handle.acknowledge.mockImplementation(async () => {
+      // The acknowledgement lands: the success leaves the unacknowledged query.
+      if (fake.answer.status === "clear" && fake.answer.settled)
+        fake.answer = {
+          ...fake.answer,
+          settled: { ...fake.answer.settled, acknowledged: true },
+        } as WriteHoldState;
+      return fake.answer;
+    });
+    const view = createHeldWriteView(handle, { client, follow: false });
+    const stop = view.start();
+    await flush();
+    handle.send.mockImplementationOnce((async (
+      _client: WriteHoldClient,
+      run: (gate: never) => Promise<Hex>,
+    ) => {
+      fake.answer = clear({
+        reservation: "r82",
+        settled: { result: "success", hash: HASH },
+      });
+      fake.emit(fake.answer);
+      await flush();
+      return run({ beforeSend: async () => {}, onRejected() {} } as never);
+    }) as never);
+    const wallet = vi.fn(async (gate: { beforeSend(): Promise<void> }) => {
+      await gate.beforeSend();
+      return HASH;
+    });
+    await expect(view.send(wallet as never)).rejects.toThrow(
+      HELD_AWAY_SUCCESS_LINE,
+    );
+    expect(handle.acknowledge).toHaveBeenCalled();
+    expect(wallet).not.toHaveBeenCalled();
+    stop();
+  });
 });

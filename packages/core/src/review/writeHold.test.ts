@@ -6636,7 +6636,7 @@ describe("a legacy hold's success, through its intent", () => {
     stop();
   });
 
-  it("orders by the settlement's time, and blocks when times can't be compared", async () => {
+  it("orders by the settlement's time, and reads a success saved before 2.39 as acknowledged", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(1_000_000);
     const browser = origin();
@@ -6664,25 +6664,21 @@ describe("a legacy hold's success, through its intent", () => {
     await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
     chain.txs.push(sent(HASH, { block: 95n }));
     await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
-    /** Latest markers as an earlier version saved them: no time. */
-    const untimed = (scope: (key: string) => boolean) => {
-      for (const [stored, value] of browser.values)
-        if (stored.endsWith(":latest") && scope(stored))
-          browser.values.set(
-            stored,
-            JSON.stringify({ id: JSON.parse(value).id }),
-          );
-    };
-    // The legacy marker has no time: its settlement's time orders it.
-    untimed((stored) => !stored.includes("namespace"));
+    // The legacy success came after the intent reserved: it blocks.
     const view = createHeldWriteView(open(), { client, follow: false });
     await view.check();
     expect(view.get().phase).toBe("succeeded");
-    // Neither side has a time: blocked.
-    untimed(() => true);
-    const blind = createHeldWriteView(open(), { client, follow: false });
-    await blind.check();
-    expect(blind.get().phase).toBe("succeeded");
+    // A legacy marker with no time was saved before 2.39: its success was
+    // shown then, so it reads as acknowledged and lets the intent send.
+    for (const [stored, value] of browser.values)
+      if (stored.endsWith(":latest") && !stored.includes("namespace"))
+        browser.values.set(
+          stored,
+          JSON.stringify({ id: JSON.parse(value).id }),
+        );
+    const migrated = createHeldWriteView(open(), { client, follow: false });
+    await migrated.check();
+    expect(migrated.get().phase).toBe("clear");
   });
 
   it("keeps the success of a legacy hold it saw held, though the intent reserved before", async () => {
@@ -6916,6 +6912,36 @@ describe("two tabs viewing one write that succeeds", () => {
     );
     await reloaded.check();
     expect(reloaded.get().phase).toBe("clear");
+  });
+});
+
+describe("settlements saved before 2.39", () => {
+  it("are read as acknowledged, so a returning user meets no extra prompt", async () => {
+    const browser = origin();
+    const { hold } = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    // As an earlier version saved them: no acknowledged key, and a latest
+    // marker with no time.
+    for (const [key, value] of browser.values) {
+      if (key.endsWith(":latest"))
+        browser.values.set(key, JSON.stringify({ id: JSON.parse(value).id }));
+      if (key.endsWith(":settled")) {
+        const { acknowledged: _, ...old } = JSON.parse(value);
+        browser.values.set(key, JSON.stringify(old));
+      }
+    }
+    const reloaded = setup({ browser }).hold.open(ordinary);
+    expect(reloaded.peek()).toMatchObject({
+      settled: { result: "success", hash: HASH, acknowledged: true },
+    });
+    expect(reloaded.unacknowledgedSuccess()).toBeUndefined();
+    const view = createHeldWriteView(reloaded, { client, follow: false });
+    await view.check();
+    expect(view.get().phase).toBe("clear");
   });
 });
 

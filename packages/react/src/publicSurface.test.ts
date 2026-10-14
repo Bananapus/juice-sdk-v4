@@ -1,3 +1,4 @@
+import * as held from "@bananapus/nana-sdk-core/review/react";
 import { describe, expect, test } from "vitest";
 import * as sdk from "./index";
 
@@ -41,5 +42,16 @@ describe("published React SDK surface", () => {
     for (const exportName of publicFunctions) {
       expect(sdk[exportName], exportName).toBeTypeOf("function");
     }
+  });
+
+  test("re-exports the held-write hooks from their one home in core", () => {
+    for (const name of [
+      "useHeldWrite",
+      "useHeldIntents",
+      "useHeldWrites",
+      "HeldWritesNotice",
+      "useSavedAttempt",
+    ] as const)
+      expect(sdk[name], name).toBe(held[name]);
   });
 });

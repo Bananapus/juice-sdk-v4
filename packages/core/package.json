@@ -116,6 +116,11 @@
       "import": "./dist/esm/review/safeRelayr.js",
       "require": "./dist/cjs/review/safeRelayr.js"
     },
+    "./review/react": {
+      "types": "./dist/esm/review/react/index.d.ts",
+      "import": "./dist/esm/review/react/index.js",
+      "require": "./dist/cjs/review/react/index.js"
+    },
     "./testing": {
       "types": "./dist/esm/testing.d.ts",
       "import": "./dist/esm/testing.js",
@@ -134,10 +139,14 @@
     "fpnum": "^1.0.0"
   },
   "peerDependencies": {
-    "graphql": "^16.0.0 || ^17.0.0"
+    "graphql": "^16.0.0 || ^17.0.0",
+    "react": "^18.3.1 || ^19.0.0"
   },
   "peerDependenciesMeta": {
     "graphql": {
+      "optional": true
+    },
+    "react": {
       "optional": true
     }
   },
@@ -167,10 +176,15 @@
     "@rev-net/core": "^1.0.1",
     "@rev-net/core-v5": "^0.0.3",
     "@rev-net/core-v6": "^1.1.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.3.0",
     "@vitest/coverage-v8": "^3.2.6",
     "@wagmi/cli": "^2.10.0",
     "fake-indexeddb": "6.2.5",
     "graphql": "^17.0.2",
+    "jsdom": "^26.1.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "tsx": "^4.20.5",
     "typescript": "^5.4.5",
     "viem": "^2.12.0",

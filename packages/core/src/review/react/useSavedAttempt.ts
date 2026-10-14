@@ -7,7 +7,7 @@ import {
   type SavedAttemptRecovery,
   type SavedAttemptRetirement,
   type WriteHoldClient,
-} from "@bananapus/nana-sdk-core/review";
+} from "../index.js";
 import {
   useCallback,
   useEffect,

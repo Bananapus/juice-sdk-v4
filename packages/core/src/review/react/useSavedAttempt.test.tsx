@@ -8,7 +8,7 @@ import {
   type SavedAttemptOutcome,
   type SavedAttemptRecovery,
   type WriteHoldClient,
-} from "@bananapus/nana-sdk-core/review";
+} from "../index.js";
 import { act, StrictMode, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Address } from "viem";
@@ -17,7 +17,7 @@ import {
   useSavedAttempt,
   type UseSavedAttemptOptions,
   type UseSavedAttemptResult,
-} from "./useSavedAttempt";
+} from "./useSavedAttempt.js";
 
 const ACCOUNT = "0x1111111111111111111111111111111111111111" as Address;
 const check: SavedAttemptOutcome<string> = {

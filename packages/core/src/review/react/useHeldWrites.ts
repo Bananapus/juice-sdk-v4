@@ -5,7 +5,7 @@ import {
   type WriteHold,
   type WriteHoldClient,
   type WriteHoldHandle,
-} from "@bananapus/nana-sdk-core/review";
+} from "../index.js";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { Address, Hex } from "viem";
 

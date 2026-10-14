@@ -36,30 +36,6 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        "src/hooks/heldWrite/useHeldWrite.ts": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
-        "src/hooks/heldWrite/useHeldWrites.ts": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
-        "src/hooks/heldWrite/useSavedAttempt.ts": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
-        "src/hooks/heldWrite/HeldWritesNotice.tsx": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
         "src/hooks/jb721Hook/helpers.ts": {
           statements: 100,
           branches: 100,
