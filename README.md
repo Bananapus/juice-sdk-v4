@@ -1211,17 +1211,19 @@ The rules it keeps:
   through `authenticate`; one it can't show is still `done` (`authenticated:
 false`), never a check or a send. Only `{ by: "settled" }` retires it.
   Settlements listed in `saved.before` are never this attempt's.
-- **Checks are bound to what they evaluated:** a check whose hold evidence
-  moved while `authenticate` ran is evaluated again; one that keeps moving
-  can't be retired by its stale action.
+- **Checks are bound to what they evaluated:** a check fingerprints the very
+  hold snapshot it evaluated. One whose hold moved while `authenticate` ran is
+  evaluated again; one that keeps moving can't be retired by its stale
+  action, and a success that settled meanwhile still returns `done`.
 - **Retirement lasts:** `retire` is saved under every namespace's hold lock, for
   every tab and reload, and binds to the hold evidence it saw. It is refused
   while anything holds the attempt, when the hold changed since a check was
   shown, while an unfollowed success shows (by anything but `settled`), or
   while a lock is busy: recover again. A later reservation or settlement is
   never covered by it. It returns `{ retired: true, durable }`: `durable:
-false` means holds last only in this tab's memory, so it does too; the app
-  decides whether to say so.
+false` means this retirement was kept only in this tab's memory (the
+  storage's `durableAt` says so for its own commit); the app decides whether
+  to say so.
 - **Discard:** `canDiscard(attempt)` is false while the attempt is held, or
   while a success it settled hasn't been followed.
 

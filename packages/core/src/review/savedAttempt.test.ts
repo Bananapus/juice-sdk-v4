@@ -1414,3 +1414,123 @@ describe("review round: success, mirrors, ordering and tab-only retirement", () 
     });
   });
 });
+
+describe("review round 2: one snapshot, a success after exhausted passes, per-commit durability", () => {
+  const client = {} as WriteHoldClient;
+
+  // 2: a success that lands between the hold's read and the fingerprint is not hidden.
+  it("fingerprints the snapshot it evaluated, and returns a success found after the last pass", async () => {
+    const landed = {
+      status: "clear",
+      reservation: "r1",
+      settled: { result: "success", hash: HASH },
+    } as WriteHoldState;
+    const { hold } = stubHold({
+      state: (async () =>
+        ({ status: "clear", reservation: "r1" }) as WriteHoldState) as never,
+      peek: (() => landed) as never,
+    });
+    const recovery = createSavedAttemptRecovery({
+      hold,
+      storage: createHeldWriteStorage({ memory: new Map() }),
+      locks: lockManager(),
+    });
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    expect(await recovery.recover(attempt, client)).toEqual({
+      status: "done",
+      result: "success",
+      authenticated: false,
+      hash: HASH,
+      reason: "Its transaction could not be shown here.",
+    });
+  });
+
+  it("returns the success that lands on the last pass of a moving check", async () => {
+    const page = browser();
+    const { hold, recovery } = page.load();
+    const { chain, client } = fakeChain();
+    const open = () =>
+      hold.open({
+        chainId: 10,
+        account: ACCOUNT,
+        safe: false,
+        namespace: NAMESPACE,
+        call: CALL,
+      });
+    let calls = 0;
+    const attempt = attemptOf(
+      async (hash) => {
+        if (hash !== OTHER) return { result: "unknown" };
+        calls += 1;
+        if (calls < 3)
+          await open().send(client, async (gate) => {
+            await gate.beforeSend();
+            gate.onRejected();
+          });
+        else {
+          await sendUnder(hold, client, HASH);
+          chain.txs.push(sent(HASH, { block: 50n }));
+          await open().state(client);
+        }
+        return { result: "unknown" };
+      },
+      { saved: { started: true, hash: OTHER }, call: undefined },
+    );
+    expect(await recovery.recover(attempt, client)).toMatchObject({
+      status: "done",
+      result: "success",
+      authenticated: false,
+      hash: HASH,
+    });
+  });
+
+  // 3: a retirement kept only in memory says so, even while the probe still writes.
+  it("reports the durability of the retirement's own commit", async () => {
+    const page = browser();
+    const setItem = page.site.storage.setItem;
+    page.site.storage.setItem = (key: string, value: string) => {
+      if (key.startsWith("nana-sdk:saved-attempt:retired:"))
+        throw new Error("QuotaExceededError");
+      setItem(key, value);
+    };
+    const { recovery } = page.load();
+    const { client } = fakeChain();
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    const outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(await recovery.retire(attempt, { by: "check", outcome })).toEqual({
+      retired: true,
+      durable: false,
+    });
+  });
+
+  it("falls back to the storage's own probe for a storage that can't say where a key lives", async () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => void values.set(key, value),
+      removeItem: (key: string) => void values.delete(key),
+      durable: () => true,
+    };
+    const hold = createWriteHold({ storage, locks: lockManager() });
+    const recovery = createSavedAttemptRecovery({
+      hold,
+      storage,
+      locks: lockManager(),
+    });
+    const { client } = fakeChain();
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    const outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(await recovery.retire(attempt, { by: "check", outcome })).toEqual({
+      retired: true,
+      durable: true,
+    });
+  });
+});

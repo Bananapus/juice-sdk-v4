@@ -349,6 +349,8 @@ export type HeldWriteStorage = RecoveryStorage & {
   durable(): boolean;
   /** Every key it holds, for {@link findReviewedWrites}; without it, none are found. */
   keys?(): string[];
+  /** Whether the browser's storage itself holds `key`'s value now, not only this tab's memory. */
+  durableAt?(key: string): boolean;
 };
 
 /** Every key `store` holds: its own `keys()`, or Web Storage's `length` and `key()`. */
@@ -491,6 +493,10 @@ export function createHeldWriteStorage(
       // What this tab last saw too, as getItem() still shows it while the
       // browser's storage can't be read; a read of each drops what ended.
       return [...new Set([...saved, ...seen.keys(), ...memory.keys()])];
+    },
+    durableAt(key) {
+      const saved = read(key);
+      return !memory.has(key) && typeof saved === "string";
     },
     durable() {
       const probe = String(Date.now());

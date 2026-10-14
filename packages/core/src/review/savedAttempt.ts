@@ -262,6 +262,24 @@ export function createSavedAttemptRecovery(options: {
       if (evidenceNow(attempt, handles) === outcome.evidence) break;
       outcome = await pass(attempt, client);
     }
+    if (outcome.status !== "check") return outcome;
+    // A success that settled while the passes ran still wins, by its hash alone.
+    try {
+      const { success } = settlementsOf(
+        attempt,
+        handlesOf(attempt).map((handle) => handle.peek()),
+      );
+      if (success.length)
+        return {
+          status: "done",
+          result: "success",
+          authenticated: false,
+          hash: success[0],
+          reason: outcome.reason,
+        };
+    } catch {
+      /* Unreadable: the check stands. */
+    }
     return outcome;
   }
 
@@ -334,7 +352,8 @@ export function createSavedAttemptRecovery(options: {
         if (state.status !== "clear") return { status: "held", state, handle };
         states.push(state);
       }
-      evidence = evidenceNow(attempt, handles);
+      // The snapshot evaluated is the one fingerprinted.
+      evidence = evidenceOf(attempt, states);
       const retired = retirementOf(attempt, evidence);
       if (
         retired &&
@@ -510,7 +529,12 @@ export function createSavedAttemptRecovery(options: {
         )
           await handle.acknowledge(state.settled).catch(() => undefined);
       return done
-        ? { retired: true, durable: storage.durable() }
+        ? {
+            retired: true,
+            durable: storage.durableAt
+              ? storage.durableAt(retiredKey(attempt))
+              : storage.durable(),
+          }
         : { retired: false };
     } catch {
       return { retired: false };

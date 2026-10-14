@@ -7,7 +7,7 @@ import {
   type SavedAttemptRecovery,
   type WriteHoldClient,
 } from "@bananapus/nana-sdk-core/review";
-import { act, StrictMode } from "react";
+import { act, StrictMode, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Address } from "viem";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
@@ -345,6 +345,73 @@ describe("useSavedAttempt", () => {
     expect(recovery.retire).toHaveBeenCalledWith(attempt, {
       by: "check",
       outcome: check,
+    });
+  });
+
+  // Review round 2: a child's layout effect runs in B's commit, before any hook effect of B.
+  test("refuses a stale retire called from the next attempt's commit phase", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const seen: { current?: UseSavedAttemptResult<string> } = {};
+    let retained: UseSavedAttemptResult<string>["retire"] | undefined;
+    const results: Promise<unknown>[] = [];
+    function Child({ name }: { name: string }) {
+      useLayoutEffect(() => {
+        if (name === "launch:b" && retained)
+          results.push(retained({ by: "settled" }));
+      }, [name]);
+      return null;
+    }
+    function Probe({ name }: { name: string }) {
+      seen.current = useSavedAttempt({
+        recovery,
+        attempt: attemptOf(name),
+        client,
+      });
+      return <Child name={name} />;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Probe name="launch:a" />));
+    await answer({
+      status: "done",
+      result: "success",
+      authenticated: true,
+      value: "a",
+    });
+    retained = seen.current!.retire;
+    await act(async () => root!.render(<Probe name="launch:b" />));
+    expect(await Promise.all(results)).toEqual([{ retired: false }]);
+    expect(recovery.retire).not.toHaveBeenCalled();
+  });
+
+  test("lets the current attempt retire from its own commit phase", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const seen: { current?: UseSavedAttemptResult<string> } = {};
+    const results: Promise<unknown>[] = [];
+    function Child({
+      retire,
+    }: {
+      retire: UseSavedAttemptResult<string>["retire"];
+    }) {
+      useLayoutEffect(() => {
+        results.push(retire({ by: "exit" }));
+      }, [retire]);
+      return null;
+    }
+    function Probe({ name }: { name: string }) {
+      seen.current = useSavedAttempt({
+        recovery,
+        attempt: attemptOf(name),
+        client,
+      });
+      return <Child retire={seen.current.retire} />;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Probe name="launch:a" />));
+    await answer(check);
+    await act(async () => root!.render(<Probe name="launch:b" />));
+    expect(recovery.retire).toHaveBeenCalledTimes(1);
+    expect((recovery.retire.mock.calls[0] as unknown[])[0]).toMatchObject({
+      namespaces: ["launch:b"],
     });
   });
 });

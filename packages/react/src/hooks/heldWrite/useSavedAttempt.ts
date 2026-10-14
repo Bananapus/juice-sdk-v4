@@ -6,7 +6,14 @@ import {
   type SavedAttemptRetirement,
   type WriteHoldClient,
 } from "@bananapus/nana-sdk-core/review";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 export type UseSavedAttemptOptions<T> = {
   /** The app's one saved-attempt recovery (createSavedAttemptRecovery()). */
@@ -70,8 +77,24 @@ export function useSavedAttempt<T>(
     [key, recovery, client],
   );
   type Lifecycle = typeof lifecycle;
-  /** The lifecycle mounted now; none between a cleanup and the next mount. */
-  const active = useRef<Lifecycle | undefined>(undefined);
+  /** Whether `of` is the mounted hook's lifecycle now. */
+  const current = (of: Lifecycle) => mounted.current && rendered.current === of;
+  /**
+   * The lifecycle last rendered: set during render, so a callback of an
+   * earlier one is refused from the next commit's first layout effect on. A
+   * render React then discards leaves the shown callbacks refused (fail
+   * closed) until the next commit.
+   */
+  const rendered = useRef<Lifecycle | undefined>(undefined);
+  rendered.current = lifecycle;
+  /** Whether the hook is mounted: no callback or answer acts after unmount. */
+  const mounted = useRef(false);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [shown, setShown] = useState<{
     of?: Lifecycle;
     outcome: SavedAttemptOutcome<T> | null;
@@ -80,7 +103,7 @@ export function useSavedAttempt<T>(
 
   const recover = useCallback(async () => {
     const { attempt, recovery, client } = lifecycle;
-    if (!attempt || !client || active.current !== lifecycle) return null;
+    if (!attempt || !client || !current(lifecycle)) return null;
     const request = ++lifecycle.request;
     setShown((now) => ({
       of: lifecycle,
@@ -89,26 +112,21 @@ export function useSavedAttempt<T>(
     }));
     const outcome = await recovery.recover(attempt, client);
     // Only the latest request of the mounted lifecycle shows.
-    if (active.current !== lifecycle || lifecycle.request !== request)
-      return null;
+    if (!current(lifecycle) || lifecycle.request !== request) return null;
     setShown({ of: lifecycle, outcome, recovering: false });
     return outcome;
   }, [lifecycle]);
 
   useEffect(() => {
-    active.current = lifecycle;
     void recover();
-    return () => {
-      if (active.current === lifecycle) active.current = undefined;
-    };
-  }, [lifecycle, recover]);
+  }, [recover]);
 
   const retire = useCallback(
     async (reason: SavedAttemptRetirement): Promise<Retired> => {
       const { attempt, recovery } = lifecycle;
-      if (!attempt || active.current !== lifecycle) return { retired: false };
+      if (!attempt || !current(lifecycle)) return { retired: false };
       const retired = await recovery.retire(attempt, reason);
-      if (active.current === lifecycle) await recover();
+      if (current(lifecycle)) await recover();
       return retired;
     },
     [lifecycle, recover],
