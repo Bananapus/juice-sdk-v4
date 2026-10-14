@@ -92,7 +92,7 @@ afterEach(() => vi.unstubAllGlobals());
 const legacyInput = input;
 /** Saved records only: not the call's latest-reservation or settlement keys. */
 const records = (values: Map<string, string>) =>
-  [...values].filter(([key]) => !/:(latest|settled)$/.test(key));
+  [...values].filter(([key]) => !/:(latest|settled|rejected)$/.test(key));
 /** When the wallet returned a hash. */
 const AT = expect.stringMatching(/^\d+$/);
 function ordinaryRecovery(namespace?: string) {

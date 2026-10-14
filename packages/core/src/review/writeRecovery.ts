@@ -349,6 +349,14 @@ export type HeldWriteStorage = RecoveryStorage & {
   durable(): boolean;
   /** Every key it holds, for {@link findReviewedWrites}; without it, none are found. */
   keys?(): string[];
+  /** Whether the browser's storage itself holds `key`'s value now, not only this tab's memory. */
+  durableAt?(key: string): boolean;
+  /**
+   * `key`'s value read fresh, throwing when the browser's storage is there
+   * but its read fails (never a cached or memory stand-in for it): for a
+   * decision that must not act on an unresolved read, like a retirement.
+   */
+  getItemStrict?(key: string): string | null;
 };
 
 /** Every key `store` holds: its own `keys()`, or Web Storage's `length` and `key()`. */
@@ -491,6 +499,21 @@ export function createHeldWriteStorage(
       // What this tab last saw too, as getItem() still shows it while the
       // browser's storage can't be read; a read of each drops what ended.
       return [...new Set([...saved, ...seen.keys(), ...memory.keys()])];
+    },
+    getItemStrict(key) {
+      let store: RecoveryStorage | undefined;
+      try {
+        store = durable();
+      } catch {
+        /* No browser storage at all: this tab's memory is the store. */
+      }
+      if (!store) return memory.get(key) ?? null;
+      const saved = store.getItem(key);
+      return memory.get(key) ?? saved;
+    },
+    durableAt(key) {
+      const saved = read(key);
+      return !memory.has(key) && typeof saved === "string";
     },
     durable() {
       const probe = String(Date.now());
@@ -870,6 +893,8 @@ export function createBrowserWriteRecovery(
     options.at === undefined ? scope(reviewed) : foundAt(reviewed, options.at);
   const settledKey = `${key}:settled`;
   const latestKey = `${key}:latest`;
+  /** The last reservation dropped on a definite wallet rejection or an abort before the wallet opened. */
+  const rejectedKey = `${key}:rejected`;
   const legacyKey =
     reviewed.namespace === undefined ? legacyScope(reviewed) : undefined;
   let owned: ReviewedWriteRecoveryRecord | undefined;
@@ -1012,6 +1037,12 @@ export function createBrowserWriteRecovery(
       const store = storage();
       const { at } = locate(store);
       store.setItem(releasedKey(at, owned.id), "1");
+    }
+    // Nothing was sent: kept so a saved attempt of it retires instead of asking for a check.
+    try {
+      storage().setItem(rejectedKey, JSON.stringify({ id: owned.id }));
+    } catch {
+      /* Unsaved, its saved attempt asks for the user's check. */
     }
     owned = undefined;
   }
@@ -1285,6 +1316,42 @@ export function createBrowserWriteRecovery(
               id?: unknown;
             } | null
           )?.id;
+        return typeof id === "string" ? id : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    /**
+     * Read this call's record, settlement and latest marker fresh, throwing
+     * when any can't be read or parsed: what a decision that must not act on
+     * an unresolved read (a retirement) checks before trusting read() and
+     * settled(), which read an unreadable value as none.
+     */
+    assertReadable(): void {
+      const store = storage() as HeldWriteStorage;
+      const strict = (at: string) =>
+        store.getItemStrict ? store.getItemStrict(at) : store.getItem(at);
+      for (const at of [key, settledKey, latestKey, legacyKey]) {
+        if (at === undefined) continue;
+        const raw = strict(at);
+        if (raw === null) continue;
+        const id = (JSON.parse(raw) as { id?: unknown } | null)?.id;
+        // A record's release marker decides whether it still holds.
+        if ((at === key || at === legacyKey) && typeof id === "string")
+          strict(releasedKey(at, id));
+      }
+    },
+    /**
+     * The reservation the SDK last dropped because nothing was sent (the
+     * wallet refused, or the send aborted before it opened), if saved.
+     */
+    rejectedReservation(): string | undefined {
+      try {
+        const id = (
+          JSON.parse(storage().getItem(rejectedKey) ?? "null") as {
+            id?: unknown;
+          } | null
+        )?.id;
         return typeof id === "string" ? id : undefined;
       } catch {
         return undefined;

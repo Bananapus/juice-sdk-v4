@@ -150,3 +150,27 @@ export const HELD_AWAY_SUCCESS_LINE = "This went through while you were away.";
 
 /** The one action on a success settled while away: acknowledge it, then send. */
 export const HELD_SEND_AGAIN_LABEL = "Send it again";
+
+/** A saved attempt that can't be shown here: absence of evidence is never permission to send. */
+export const SAVED_ATTEMPT_CHECK_LINE =
+  "This transaction may already be in your wallet, and it cannot be confirmed from here.";
+
+/** The warning under it. */
+export const SAVED_ATTEMPT_CHECK_WARNING =
+  "Check your wallet and the explorer first. Continuing can send it twice.";
+
+/** The one check action's label: "I checked it. Review it again." or the flow's next step ("Create again"). */
+export function checkedItLabel(next = "Review it again"): string {
+  return `I checked it. ${next.replace(/\.+$/, "")}.`;
+}
+
+/** Under a retirement that lasts in this tab alone (`durable: false`). */
+export const SAVED_ATTEMPT_TAB_ONLY_LINE = "This applies to this tab only.";
+
+/** When the browser has storage but can't read it: the warned exit's line. */
+export const SAVED_ATTEMPT_UNREADABLE_LINE =
+  "This browser can't read its saved transactions. Check your wallet before sending again.";
+
+/** The warned exit's label, offered only after a check action found storage unreadable. */
+export const SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL =
+  "I checked my wallet. Continue anyway";

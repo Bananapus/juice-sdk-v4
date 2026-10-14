@@ -35,6 +35,7 @@ describe("published React SDK surface", () => {
       "useHeldIntents",
       "useHeldWrites",
       "HeldWritesNotice",
+      "useSavedAttempt",
     ] as const;
 
     for (const exportName of publicFunctions) {
