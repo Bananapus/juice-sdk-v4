@@ -61,6 +61,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
   safeNonce?: string;
   /** For a Safe execution the wallet returned at once: the account that sent it (its nonce is `sentNonce`). */
   sentFrom?: Address;
+  /** Another Safe transaction used this Safe write's nonce: held for the user's exit, never released on its own. */
+  replaced?: true;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -152,6 +154,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.submittedAt) ||
     !optionalDecimal(record.firstSeenAt) ||
     !optionalDecimal(record.safeNonce) ||
+    (record.replaced !== undefined && record.replaced !== true) ||
     (record.sentFrom !== undefined &&
       !isAddress(record.sentFrom, { strict: false })) ||
     (record.executed !== undefined && record.executed !== true) ||
@@ -181,6 +184,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.sentFrom === undefined
       ? {}
       : { sentFrom: record.sentFrom.toLowerCase() as Address }),
+    ...(record.replaced ? { replaced: true as const } : {}),
     ...(record.executed ? { executed: true as const } : {}),
     ...(record.executionHash === undefined
       ? {}
@@ -950,6 +954,19 @@ export function createBrowserWriteRecovery(
       });
     },
     /**
+     * Save that another Safe transaction used this Safe write's nonce. Any
+     * saved execution goes: the user's exit, not the chain, ends it.
+     */
+    replacedOnChain(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(expected, (current) => current.safe && !current.replaced, {
+        executed: undefined,
+        executionHash: undefined,
+        replaced: true,
+      });
+    },
+    /**
      * Save a Safe proposal's nonce from its authenticated record, once. Extra
      * evidence: a stale snapshot or a failed save keeps the record as it was.
      */
@@ -1216,7 +1233,6 @@ export async function findTransactionAtNonce(
   fromBlock = 0n,
 ): Promise<{
   hash: Hex;
-  blockHash?: Hex | null;
   to?: Address | null;
   input?: Hex;
   value?: bigint;

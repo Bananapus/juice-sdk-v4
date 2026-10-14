@@ -25,6 +25,7 @@ import {
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_UNCHECKED_LINE,
   WRITE_HOLD_REVERTED_LINE,
+  WRITE_HOLD_SAFE_REPLACED_LINE,
 } from "./messages.js";
 import {
   createWriteHold,
@@ -1919,10 +1920,17 @@ describe("a held Safe proposal", () => {
       fixture.chain.head = 120n;
       fixture.chain.finalized = 110n;
       if (history === "readable") {
-        await expect(handle.state(fixture.client)).resolves.toEqual({
-          status: "clear",
-          settled: { result: "replaced" },
+        // Never released on its own: the explicit exit, at once.
+        const replaced = await handle.state(fixture.client);
+        expect(replaced).toMatchObject({
+          status: "safe-replaced",
+          exit: true,
+          line: WRITE_HOLD_SAFE_REPLACED_LINE,
+          warning: WRITE_HOLD_HASHED_EXIT_LINE,
         });
+        await expect(
+          handle.exit(replaced, { checkedWallet: true }, fixture.client),
+        ).resolves.toMatchObject({ released: true });
       } else {
         const blocks = fixture.client.getBlock.getMockImplementation()!;
         fixture.client.getBlock.mockImplementation(async (args = {}) => {
@@ -1950,24 +1958,22 @@ describe("a held Safe proposal", () => {
     }
   });
 
-  it("settles from what a replacement at the executor's nonce did, before calling it replaced", async () => {
+  it("never settles or releases a direct execution from another transaction at its nonce", async () => {
     const SAFE_TX = `0x${"5a".repeat(32)}` as Hex;
+    const exitAtOnce = {
+      status: "safe-replaced",
+      exit: true,
+      line: WRITE_HOLD_SAFE_REPLACED_LINE,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
+    };
     for (const [kind, expected] of [
-      [
-        "the same execution, succeeding",
-        { status: "clear", settled: { result: "success", hash: OTHER } },
-      ],
-      [
-        "the same execution, failing",
-        { status: "clear", settled: { result: "failed", hash: OTHER } },
-      ],
-      ["a wrapper running a Safe execution", { status: "ran-executed" }],
-      [
-        "a reverted transaction",
-        { status: "clear", settled: { result: "replaced" } },
-      ],
-      ["an unreadable receipt", { status: "ran-executed" }],
-      ["a receipt off the canonical chain", { status: "ran-executed" }],
+      // Codex: identical Safe execution calldata in the replacement.
+      ["the same execution, succeeding", exitAtOnce],
+      ["the same execution, failing", exitAtOnce],
+      ["a wrapper running a Safe execution", exitAtOnce],
+      ["a reverted transaction", exitAtOnce],
+      ["an unreadable receipt", exitAtOnce],
+      ["a receipt off the canonical chain", exitAtOnce],
     ] as const) {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(1_000_000);
@@ -2030,17 +2036,12 @@ describe("a held Safe proposal", () => {
           }),
         );
       }
-      await expect(handle.state(fixture.client)).resolves.toMatchObject(
-        expected,
-      );
-      if (expected.status === "ran-executed") {
-        // Unproven: the explicit exit after 30 minutes.
-        vi.setSystemTime(1_000_000 + 31 * 60_000);
-        await expect(handle.state(fixture.client)).resolves.toMatchObject({
-          status: "held-unchecked",
-          exit: true,
-        });
-      }
+      const shown = await handle.state(fixture.client);
+      expect(shown).toMatchObject(expected);
+      expect(handle.peek().status).toBe("safe-replaced");
+      await expect(
+        handle.exit(shown, { checkedWallet: true }, fixture.client),
+      ).resolves.toMatchObject({ released: true });
       hold.dispose();
       vi.useRealTimers();
     }
@@ -2266,11 +2267,19 @@ describe("a held Safe proposal", () => {
       if (replacement === "replaced")
         executes(fixture, OTHER, SUCCESS, { block: 97n, hash: second });
       else executes(fixture, queue.hash, FAILURE, { block: 97n, hash: second });
-      await expect(handle.state(fixture.client)).resolves.toEqual(
-        replacement === "replaced"
-          ? { status: "clear", settled: { result: "replaced" } }
-          : { status: "clear", settled: { result: "failed", hash: second } },
-      );
+      // Its own canonical log settles it; another proposal's only offers the exit.
+      if (replacement === "replaced")
+        await expect(handle.state(fixture.client)).resolves.toMatchObject({
+          status: "safe-replaced",
+          exit: true,
+          line: WRITE_HOLD_SAFE_REPLACED_LINE,
+          warning: WRITE_HOLD_HASHED_EXIT_LINE,
+        });
+      else
+        await expect(handle.state(fixture.client)).resolves.toEqual({
+          status: "clear",
+          settled: { result: "failed", hash: second },
+        });
       hold.dispose();
     }
   });
@@ -2294,20 +2303,38 @@ describe("a held Safe proposal", () => {
     ).toBeUndefined();
   });
 
-  it("releases a proposal another transaction replaced", async () => {
-    const { hold, queue } = safeSetup();
-    const fixture = fakeChain();
-    const handle = hold.open(safeCall());
-    await handle.send(fixture.client, async (gate) => {
-      await gate.beforeSend();
-      gate.afterSubmit(queue.hash);
-    });
-    executes(fixture, OTHER, SUCCESS);
-    await expect(handle.state(fixture.client)).resolves.toEqual({
-      status: "clear",
-      settled: { result: "replaced" },
-    });
-  });
+  it.each([
+    ["another proposal", `0x${"0d".repeat(32)}`],
+    // Codex: a module ran the call while another transaction took the nonce.
+    ["a module execution of the call", `0x${"0e".repeat(32)}`],
+    // Codex: the same call proposed again with a different safeTxGas.
+    ["the same call with a different safeTxGas", `0x${"0f".repeat(32)}`],
+  ] as const)(
+    "never releases a proposal whose nonce %s used: the explicit exit, at once",
+    async (_, other) => {
+      const { hold, queue } = safeSetup();
+      const fixture = fakeChain();
+      const handle = hold.open(safeCall());
+      await handle.send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(queue.hash);
+      });
+      executes(fixture, other as Hex, SUCCESS);
+      const replaced = await handle.state(fixture.client);
+      expect(replaced).toMatchObject({
+        status: "safe-replaced",
+        exit: true,
+        line: WRITE_HOLD_SAFE_REPLACED_LINE,
+        warning: WRITE_HOLD_HASHED_EXIT_LINE,
+      });
+      await expect(
+        handle.send(fixture.client, async () => {}),
+      ).rejects.toBeInstanceOf(WriteHeldError);
+      await expect(
+        handle.exit(replaced, { checkedWallet: true }, fixture.client),
+      ).resolves.toMatchObject({ released: true });
+    },
+  );
 
   it("releases a stamped proposal only once its expiry is proven at a finalized block", async () => {
     const router = uniswapV4Deployment(10)!.universalRouter!;

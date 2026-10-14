@@ -879,9 +879,10 @@ refused; `holds.reviewLine()` then returns `WRITE_HOLD_IN_TAB_LINE` for the
 review. Both stores are always read, and a memory hold moves into the browser's
 storage once it can be written. A send checks, reserves and hands the call to
 the wallet under one lock per exact call, so two flows or tabs never both send
-it. For a Safe write, `state` follows the proposal itself: replaced or expired
-releases, and a proven execution is settled from the receipt its canonical log
-names, without Safe's service.
+it. For a Safe write, `state` follows the proposal itself: a proven expiry
+releases, a proven execution is settled from the receipt its canonical log
+names, without Safe's service, and a nonce another Safe transaction used is
+`safe-replaced`: never released on its own, the exit offered at once.
 
 ### Safe proposals
 

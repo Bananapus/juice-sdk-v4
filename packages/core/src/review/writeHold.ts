@@ -1,6 +1,5 @@
 import {
   isAddress,
-  toEventSelector,
   type Hex,
   type PublicClient,
   type TransactionReceipt,
@@ -9,7 +8,6 @@ import {
   canonicalSafeTxHash,
   lookAtSafeProposalEnd,
   provenSafeProposalEnd,
-  readSafeAppExecution,
   readSafeTransaction,
   SAFE_PROPOSAL_AWAITING,
   safeTransactionMessage,
@@ -24,6 +22,7 @@ import {
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_UNCHECKED_LINE,
   WRITE_HOLD_REVERTED_LINE,
+  WRITE_HOLD_SAFE_REPLACED_LINE,
   writeHeldMessage,
 } from "./messages.js";
 import {
@@ -55,8 +54,8 @@ export type WriteHoldClient = Pick<
 export type WriteHoldSettled =
   /** Its verified receipt (a revert only once final). */
   | { result: "success" | "failed"; hash: Hex }
-  /** The app's effect read showed it ran; a Safe proposal another transaction replaced, or that expired unrun. */
-  | { result: "ran" | "replaced" | "expired" };
+  /** The app's effect read showed it ran, or a Safe proposal's expiry before it ran is proven. */
+  | { result: "ran" | "expired" };
 
 type Held<S extends string, Extra> = {
   status: S;
@@ -85,6 +84,10 @@ type Held<S extends string, Extra> = {
  *   followed as usual. A Safe proposal Safe's service never authenticates
  *   gets it after the same 30 minutes. Its `warning` says a resend can run it
  *   twice;
+ * - `safe-replaced`: another Safe transaction used a Safe write's nonce (or
+ *   the executor's, for an execution returned at once). It may have run the
+ *   call too, so it is never released on its own: the exit is offered at
+ *   once, with its `warning`;
  * - `ran-executed`: the chain shows it ran (a Safe execution, or a revert
  *   not final yet). It is kept until its result settles it, and never offered
  *   a resend.
@@ -98,6 +101,7 @@ export type WriteHoldState =
       { hash: Hex; usedBy: Hex; exit: true; warning: string }
     >
   | Held<"held-unchecked", { hash: Hex; exit: true; warning: string }>
+  | Held<"safe-replaced", { hash: Hex; exit: true; warning: string }>
   | Held<
       "ran-executed",
       { executionHash?: Hex; result?: "failed"; exit: false }
@@ -148,11 +152,6 @@ export type WriteHoldGate = {
 type Locks = Pick<LockManager, "request">;
 
 const SETTLE_POLL_MS = 15_000;
-/** A Safe's execution events, in both its 1.3 and 1.4 layouts. */
-const SAFE_EXECUTION_TOPICS = [
-  toEventSelector("ExecutionSuccess(bytes32,uint256)"),
-  toEventSelector("ExecutionFailure(bytes32,uint256)"),
-];
 /** A hash the network still hasn't seen this long after the wallet returned it was almost certainly never broadcast. */
 const UNSEEN_HASH_MS = 30 * 60_000;
 
@@ -162,6 +161,18 @@ function unseenTooLong(record: ReviewedWriteRecoveryRecord): boolean {
     Date.now() - Number(record.submittedAt ?? record.firstSeenAt) >=
     UNSEEN_HASH_MS
   );
+}
+
+/** A Safe write whose nonce another Safe transaction used: never released on its own. */
+function safeReplaced(record: ReviewedWriteRecoveryRecord): WriteHoldState {
+  return {
+    status: "safe-replaced",
+    record,
+    hash: record.hash!,
+    exit: true,
+    line: WRITE_HOLD_SAFE_REPLACED_LINE,
+    warning: WRITE_HOLD_HASHED_EXIT_LINE,
+  };
 }
 
 function unchecked(record: ReviewedWriteRecoveryRecord): WriteHoldState {
@@ -219,6 +230,7 @@ function pendingHash(record: ReviewedWriteRecoveryRecord): WriteHoldState {
 /** What the saved record alone says, without asking the chain. */
 function classify(record: ReviewedWriteRecoveryRecord | null): WriteHoldState {
   if (!record) return clear();
+  if (record.replaced) return safeReplaced(record);
   if (record.executed) return ranExecuted(record);
   if (!record.hash)
     return {
@@ -248,7 +260,8 @@ function classify(record: ReviewedWriteRecoveryRecord | null): WriteHoldState {
  * - A verified successful receipt releases at once. A revert holds until a
  *   canonical finalized block includes it. A Safe proposal proven executed
  *   is kept through reload until its execution's receipt settles it; one
- *   proven replaced, or expired, releases.
+ *   proven expired releases. One another Safe transaction replaced is never
+ *   released on its own: the user's exit ends it.
  */
 export function createWriteHold(
   options: {
@@ -402,54 +415,6 @@ export function createWriteHold(
      * never ran. History that can't be read keeps it held, and after 30
      * minutes with the transaction unknown it gets the unchecked exit.
      */
-    /**
-     * What the canonical transaction at a direct execution's nonce did: its
-     * own execution of the reviewed call (`success` or `failed`), or
-     * `replaced` when it reverted or the Safe logged no execution in it. Null
-     * while unproven, as through a wrapper or with no canonical receipt.
-     */
-    async function replacementOutcome(
-      record: ReviewedWriteRecoveryRecord,
-      used: { hash: Hex; blockHash?: Hex | null },
-      client: WriteHoldClient,
-    ): Promise<"success" | "failed" | "replaced" | null> {
-      try {
-        const receipt = await client.getTransactionReceipt({ hash: used.hash });
-        const block = await client.getBlock({
-          blockNumber: receipt.blockNumber,
-        });
-        if (
-          receipt.transactionHash.toLowerCase() !== used.hash ||
-          receipt.blockHash?.toLowerCase() !== block.hash?.toLowerCase() ||
-          receipt.blockHash?.toLowerCase() !== used.blockHash?.toLowerCase()
-        )
-          return null;
-        if (
-          receipt.status === "reverted" ||
-          !receipt.logs.some(
-            (log) =>
-              log.address?.toLowerCase() === record.account &&
-              SAFE_EXECUTION_TOPICS.includes(log.topics?.[0] as Hex),
-          )
-        )
-          return "replaced";
-        const result = await readSafeAppExecution({
-          client: {
-            getTransaction: () => client.getTransaction({ hash: used.hash }),
-          },
-          receipt,
-          safe: record.account,
-          proposalHash: used.hash,
-          calls: [record.call as never],
-        });
-        return result.status === "success" || result.status === "failed"
-          ? result.status
-          : null;
-      } catch {
-        return null;
-      }
-    }
-
     async function reconcileDirect(
       record: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
@@ -462,19 +427,9 @@ export function createWriteHold(
               BigInt(record.sentNonce),
             )
           : null;
-      if (used && used.hash !== record.hash) {
-        // The transaction at that nonce may itself have run the call.
-        const outcome = await replacementOutcome(record, used, client);
-        if (outcome && release(record))
-          return clear(
-            outcome === "replaced"
-              ? { result: "replaced" }
-              : { result: outcome, hash: used.hash },
-          );
-        return unseenTooLong(record)
-          ? unchecked(recovery.unexecuted(record))
-          : null;
-      }
+      // Another transaction at that nonce may have run the call too.
+      if (used && used.hash !== record.hash)
+        return safeReplaced(recovery.replacedOnChain(record));
       if (
         used ||
         !unseenTooLong(record) ||
@@ -495,7 +450,7 @@ export function createWriteHold(
     ): Promise<WriteHoldState> {
       let record = saved;
       const hash = record.hash;
-      if (!hash) return classify(record);
+      if (!hash || record.replaced) return classify(record);
       if (record.submittedAt === undefined) record = recovery.firstSeen(record);
       // The wallet's reply may be the execution itself (run at once).
       if (!record.executed) {
@@ -547,9 +502,10 @@ export function createWriteHold(
           hash,
           options.safeService,
         ));
-      // A canonical replacement ends it, even a saved execution reorganized away.
-      if (end.look === "replaced" && release(record))
-        return clear({ result: "replaced" });
+      // Another Safe transaction took its nonce, even after a saved execution
+      // was reorganized away. It may have run the call too: the exit, never a release.
+      if (end.look === "replaced")
+        return safeReplaced(recovery.replacedOnChain(record));
       if (end.look === "expired" && !record.executed) {
         const expired = await verifyReviewedWriteExpiry(
           client,

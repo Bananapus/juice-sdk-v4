@@ -102,3 +102,7 @@ export const WRITE_HOLD_NONCE_LINE =
 /** The warning on the exit of a held write that has a hash. */
 export const WRITE_HOLD_HASHED_EXIT_LINE =
   "If that transaction is still in your wallet, sending again can run it twice.";
+
+/** A held Safe write whose nonce another Safe transaction used. The exit is offered. */
+export const WRITE_HOLD_SAFE_REPLACED_LINE =
+  "Another Safe transaction used this nonce. Check your Safe, then send again.";
