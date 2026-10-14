@@ -19,6 +19,7 @@ import { uniswapV4Deployment } from "../v6/uniswapV4Deployments.js";
 import { submitReviewedContractWrite } from "./contractWrite.js";
 import {
   SAFE_PROPOSAL_EXECUTED_LINE,
+  WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
   WRITE_HOLD_NONCE_LINE,
   WRITE_HOLD_PENDING_LINE,
@@ -419,6 +420,50 @@ describe("write hold storage", () => {
     storage.removeItem("never");
   });
 
+  it("shares what the tab last read from storage across controllers and module copies", async () => {
+    const browser = origin();
+    const { client } = fakeChain();
+    const first = createWriteHold({
+      storage: createHeldWriteStorage({ durable: () => browser.storage }),
+      locks: lockManager(),
+    });
+    await expect(
+      first.open(ordinary).send(
+        client,
+        wallet(async () => {
+          throw new Error("reply lost");
+        }).send,
+      ),
+    ).rejects.toThrow();
+    // Another tab releases a different call: its deletion is seen here too.
+    const other = { ...ordinary, call: { ...ordinary.call, value: 1n } };
+    await first.open(other).send(client, wallet(async () => HASH).send);
+    browser.values.delete(
+      [...browser.values.keys()].find((key) => key.includes(":1:"))!,
+    );
+    expect(first.open(other).peek().status).toBe("clear");
+    browser.state.read = false;
+    vi.resetModules();
+    const copy = (await import(
+      "./writeHold.js"
+    )) as typeof import("./writeHold.js");
+    const recovery = (await import(
+      "./writeRecovery.js"
+    )) as typeof import("./writeRecovery.js");
+    const second = copy.createWriteHold({
+      storage: recovery.createHeldWriteStorage({
+        durable: () => browser.storage,
+      }),
+      locks: lockManager(),
+    });
+    const again = wallet(async () => OTHER);
+    await expect(
+      second.open(ordinary).send(client, again.send),
+    ).rejects.toMatchObject({ name: "WriteHeldError" });
+    expect(again.write).not.toHaveBeenCalled();
+    expect(second.open(other).peek().status).toBe("clear");
+  });
+
   it("holds a live record saved in storage first, then the one kept in memory", () => {
     const browser = origin();
     const memory = new Map<string, string>();
@@ -789,6 +834,7 @@ describe("a held write", () => {
       hash: HASH,
       usedBy: OTHER,
       exit: true,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
     });
     await expect(
       handle.exit(dropped, { checkedWallet: true }, client),
@@ -823,6 +869,7 @@ describe("a held write", () => {
       hash: HASH,
       exit: true,
       line: WRITE_HOLD_UNCHECKED_LINE,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
     });
     // It shows up later: it is followed as usual, and the old exit is refused.
     chain.txs.push(sent(HASH));
@@ -1617,27 +1664,29 @@ describe("a held Safe proposal", () => {
     fixture: ReturnType<typeof fakeChain>,
     proposal: Hex,
     topic: Hex,
-    { named = true } = {},
+    { named = true, block = 95n, hash = EXECUTION } = {},
   ) {
     const log = event(proposal, topic);
     fixture.chain.txs.push({
-      hash: EXECUTION,
+      hash,
       from: RELAYER,
       nonce: 0,
       to: SAFE,
       input: execInput(),
       value: 0n,
-      block: 95n,
+      block,
       logs: [log],
     });
-    fixture.chain.safeCrossing = 95n;
+    fixture.chain.safeCrossing = block;
     fixture.chain.head = 120n;
     fixture.chain.finalized = 110n;
     fixture.chain.safeLogs = [
       {
         ...log,
         removed: false,
-        ...(named ? { transactionHash: EXECUTION } : {}),
+        blockNumber: `0x${block.toString(16)}`,
+        blockHash: pad(block + 1n),
+        ...(named ? { transactionHash: hash } : {}),
       },
     ];
   }
@@ -1840,6 +1889,13 @@ describe("a held Safe proposal", () => {
       executionHash: EXECUTION,
       exit: false,
     });
+    // The node loses its receipt for a while: still held.
+    fixture.chain.hidden.add(EXECUTION.toLowerCase());
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      status: "ran-executed",
+      exit: false,
+    });
+    fixture.chain.hidden.clear();
     await expect(
       handle.exit(
         { ...held, exit: true } as WriteHoldState,
@@ -1898,6 +1954,159 @@ describe("a held Safe proposal", () => {
       settled: { result: "failed", hash: EXECUTION },
     });
     hold.dispose();
+  });
+
+  it("saves the proposal's authenticated nonce, then settles from the canonical log while Safe's service is down", async () => {
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      record: { safeNonce: "5" },
+    });
+    queue.options.fetch.mockImplementation(
+      async () => new Response("not found", { status: 404 }),
+    );
+    // The app learned it ran, with no execution named.
+    executes(fixture, queue.hash, SUCCESS);
+    await expect(handle.onExecuted(fixture.client)).resolves.toEqual({
+      status: "clear",
+      settled: { result: "success", hash: EXECUTION },
+    });
+  });
+
+  it("takes an authenticated proposal from the reply, and ignores one that isn't it", async () => {
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    queue.options.fetch.mockImplementation(
+      async () => new Response("not found", { status: 404 }),
+    );
+    const proposal = safeProposalFor({ ...ordinary.call, value: 17n }, 5);
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(
+        queue.hash,
+        safeProposalFor({ ...ordinary.call, value: 17n }, 6),
+      );
+    });
+    expect(handle.peek()).toMatchObject({ record: { hash: queue.hash } });
+    expect(
+      (handle.peek() as { record: { safeNonce?: string } }).record.safeNonce,
+    ).toBeUndefined();
+    const second = safeSetup().hold.open(safeCall());
+    await second.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash, proposal);
+    });
+    expect(second.peek()).toMatchObject({ record: { safeNonce: "5" } });
+  });
+
+  it("offers the exit, with the honest line, for a proposal Safe's service never authenticates", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    queue.options.fetch.mockImplementation(
+      async () => new Response("not found", { status: 404 }),
+    );
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      exit: false,
+    });
+    vi.setSystemTime(1_000_000 + 31 * 60_000);
+    const unchecked = await handle.state(fixture.client);
+    expect(unchecked).toMatchObject({
+      status: "held-unchecked",
+      hash: queue.hash,
+      exit: true,
+      line: WRITE_HOLD_UNCHECKED_LINE,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
+    });
+    await expect(
+      handle.exit(unchecked, { checkedWallet: true }, fixture.client),
+    ).resolves.toMatchObject({ released: true });
+  });
+
+  it("starts the clock of a Safe proposal saved before it existed", async () => {
+    const browser = origin();
+    const { hold, queue } = safeSetup(browser);
+    const fixture = fakeChain();
+    queue.options.fetch.mockImplementation(
+      async () => new Response("not found", { status: 404 }),
+    );
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    const [key] = browser.values.keys();
+    const { submittedAt: _, ...legacy } = JSON.parse(browser.values.get(key)!);
+    browser.values.set(key, JSON.stringify(legacy));
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      record: { firstSeenAt: expect.stringMatching(/^\d+$/) },
+    });
+  });
+
+  it("rechecks a saved execution whose block was reorganized away", async () => {
+    for (const replacement of ["replaced", "failed"] as const) {
+      const { hold, queue } = safeSetup();
+      const fixture = fakeChain();
+      const handle = hold.open(safeCall());
+      await handle.send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(queue.hash);
+      });
+      executes(fixture, queue.hash, SUCCESS);
+      fixture.chain.hidden.add(EXECUTION.toLowerCase());
+      await expect(handle.state(fixture.client)).resolves.toMatchObject({
+        status: "ran-executed",
+        executionHash: EXECUTION,
+      });
+      // Block 95 is orphaned; the nonce passed at 97 instead.
+      fixture.chain.txs.length = 0;
+      fixture.chain.hidden.clear();
+      fixture.chain.reorged.set(95n, OTHER);
+      const second = `0x${"e2".repeat(32)}` as Hex;
+      if (replacement === "replaced")
+        executes(fixture, OTHER, SUCCESS, { block: 97n, hash: second });
+      else executes(fixture, queue.hash, FAILURE, { block: 97n, hash: second });
+      await expect(handle.state(fixture.client)).resolves.toEqual(
+        replacement === "replaced"
+          ? { status: "clear", settled: { result: "replaced" } }
+          : { status: "clear", settled: { result: "failed", hash: second } },
+      );
+      hold.dispose();
+    }
+  });
+
+  it("never saves a proof from a log outside the canonical block where the nonce passed", async () => {
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    executes(fixture, queue.hash, SUCCESS);
+    fixture.chain.safeLogs = [
+      { ...(fixture.chain.safeLogs[0] as object), blockHash: OTHER },
+    ];
+    const state = await handle.state(fixture.client);
+    expect(state).toMatchObject({ status: "pending-known-hash" });
+    expect(
+      (state as { record: { executed?: true } }).record.executed,
+    ).toBeUndefined();
   });
 
   it("releases a proposal another transaction replaced", async () => {

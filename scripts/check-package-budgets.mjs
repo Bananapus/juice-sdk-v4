@@ -181,9 +181,14 @@ const budgets = {
     // paths (a record without a starting block, and a first-seen clock for
     // hashes saved by 2.31, which Homerun already shipped) add 1,264 B packed
     // and 6,820 B unpacked to existing artifacts. Measured 1,414,387 B packed /
-    // 21,542,799 B unpacked and 818 entries.
-    packed: 1_416_000,
-    unpacked: 21_546_000,
+    // 21,542,799 B unpacked and 818 entries. The review's fixes (tab-shared
+    // durable evidence, the saved Safe proposal nonce and its service-free
+    // proof, execution logs bound to the canonical block, rechecked saved
+    // executions and the hashed exit's warning) change existing artifacts
+    // only: +3,469 B packed / +20,317 B unpacked. Measured 1,417,856 B packed
+    // / 21,563,116 B unpacked and 818 entries.
+    packed: 1_420_000,
+    unpacked: 21_567_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

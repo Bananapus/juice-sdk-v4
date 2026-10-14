@@ -57,6 +57,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
    * first read with it, in milliseconds since the epoch, as a decimal string.
    */
   firstSeenAt?: string;
+  /** A Safe proposal's nonce, from its authenticated record: proof of its end needs no Safe service. */
+  safeNonce?: string;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -69,6 +71,7 @@ type RecoveryStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type RecoveryLocks = Pick<LockManager, "request">;
 const TAB_MEMORY = Symbol.for("nana-sdk:held-writes");
 const TAB_QUEUES = Symbol.for("nana-sdk:write-lock-queues");
+const TAB_SEEN = Symbol.for("nana-sdk:held-writes-seen");
 // A returned hash must survive a component remount even when its durable update
 // failed. It is visible only while the exact durable reservation still exists.
 const unpersistedSubmissions = new WeakMap<
@@ -146,6 +149,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.sentNonce) ||
     !optionalDecimal(record.submittedAt) ||
     !optionalDecimal(record.firstSeenAt) ||
+    !optionalDecimal(record.safeNonce) ||
     (record.executed !== undefined && record.executed !== true) ||
     (record.executionHash !== undefined &&
       (record.executed !== true || !isBytes32(record.executionHash)))
@@ -169,6 +173,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.firstSeenAt === undefined
       ? {}
       : { firstSeenAt: record.firstSeenAt }),
+    ...(record.safeNonce === undefined ? {} : { safeNonce: record.safeNonce }),
     ...(record.executed ? { executed: true as const } : {}),
     ...(record.executionHash === undefined
       ? {}
@@ -269,8 +274,18 @@ export function createHeldWriteStorage(
     (() => globalThis.localStorage as RecoveryStorage | undefined);
   const tab = globalThis as { [TAB_MEMORY]?: Map<string, string> };
   const memory = options.memory ?? (tab[TAB_MEMORY] ??= new Map());
-  /** What this tab last saw in, or wrote to, durable storage. */
-  const seen = new Map<string, string>();
+  /**
+   * What this tab last saw in, or wrote to, durable storage (records,
+   * releases and deletions), shared by every controller and copy of this
+   * module using the same tab memory.
+   */
+  const registry = ((
+    globalThis as {
+      [TAB_SEEN]?: WeakMap<Map<string, string>, Map<string, string>>;
+    }
+  )[TAB_SEEN] ??= new WeakMap());
+  let seen = registry.get(memory);
+  if (!seen) registry.set(memory, (seen = new Map()));
   const read = (key: string): string | null | undefined => {
     try {
       const store = durable();
@@ -690,6 +705,28 @@ export function createBrowserWriteRecovery(
       throw new Error("Write recovery storage did not clear the action.");
     unpersistedSubmissions.get(store)?.delete(at);
   }
+  /** Add `fields` to exactly `expected`, a hashed record `when` allows; extra evidence only. */
+  function amend(
+    expected: ReviewedWriteRecoveryRecord,
+    when: (current: ReviewedWriteRecoveryRecord) => boolean,
+    fields: Partial<ReviewedWriteRecoveryRecord>,
+  ): ReviewedWriteRecoveryRecord {
+    requireLock();
+    const current = read();
+    if (
+      !current?.hash ||
+      !when(current) ||
+      JSON.stringify(current) !== JSON.stringify(recordOf(expected))
+    )
+      return current ?? recordOf(expected);
+    const next = recordOf({ ...current, ...fields });
+    try {
+      persist(next, locate(storage()).at);
+      return next;
+    } catch {
+      return current;
+    }
+  }
   function rejected(): void {
     requireLock();
     // A rejection callback from another attempt must never release this one.
@@ -869,23 +906,27 @@ export function createBrowserWriteRecovery(
     firstSeen(
       expected: ReviewedWriteRecoveryRecord,
     ): ReviewedWriteRecoveryRecord {
-      requireLock();
-      const current = read();
-      if (
-        !current?.hash ||
-        current.submittedAt !== undefined ||
-        current.firstSeenAt !== undefined ||
-        JSON.stringify(current) !== JSON.stringify(recordOf(expected))
-      )
-        return current ?? recordOf(expected);
-      const next = recordOf({ ...current, firstSeenAt: String(Date.now()) });
-      try {
-        const { at } = locate(storage());
-        persist(next, at);
-        return next;
-      } catch {
-        return current;
-      }
+      return amend(
+        expected,
+        (current) =>
+          current.submittedAt === undefined &&
+          current.firstSeenAt === undefined,
+        { firstSeenAt: String(Date.now()) },
+      );
+    },
+    /**
+     * Save a Safe proposal's nonce from its authenticated record, once. Extra
+     * evidence: a stale snapshot or a failed save keeps the record as it was.
+     */
+    proposalNonce(
+      expected: ReviewedWriteRecoveryRecord,
+      nonce: bigint,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(
+        expected,
+        (current) => current.safe && current.safeNonce === undefined,
+        { safeNonce: nonce.toString() },
+      );
     },
     /**
      * Save the chain's proof that `expected` ran, with the transaction it ran

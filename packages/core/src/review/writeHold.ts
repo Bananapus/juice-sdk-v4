@@ -1,11 +1,17 @@
 import type { Hex, PublicClient, TransactionReceipt } from "viem";
 import {
+  canonicalSafeTxHash,
   lookAtSafeProposalEnd,
+  provenSafeProposalEnd,
+  readSafeTransaction,
   SAFE_PROPOSAL_AWAITING,
+  safeTransactionMessage,
+  type SafeQueuedTransaction,
   type SafeServiceOptions,
 } from "../safeService.js";
 import {
   SAFE_PROPOSAL_EXECUTED_LINE,
+  WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
   WRITE_HOLD_NONCE_LINE,
   WRITE_HOLD_PENDING_LINE,
@@ -68,7 +74,9 @@ type Held<S extends string, Extra> = {
  *   with no nonce to check, or 30 minutes after the wallet returned it (or,
  *   for a record saved before that time was kept, after it was first read). The
  *   exit is offered, with a line that says so; a hash that shows up later is
- *   followed as usual;
+ *   followed as usual. A Safe proposal Safe's service never authenticates
+ *   gets it after the same 30 minutes. Its `warning` says a resend can run it
+ *   twice;
  * - `ran-executed`: the chain shows it ran (a Safe execution, or a revert
  *   not final yet). It is kept until its result settles it, and never offered
  *   a resend.
@@ -77,8 +85,11 @@ export type WriteHoldState =
   | { status: "clear"; settled?: WriteHoldSettled }
   | Held<"pending-known-hash", { hash: Hex; exit: false }>
   | Held<"held-no-hash", { exit: true }>
-  | Held<"dropped-proven", { hash: Hex; usedBy: Hex; exit: true }>
-  | Held<"held-unchecked", { hash: Hex; exit: true }>
+  | Held<
+      "dropped-proven",
+      { hash: Hex; usedBy: Hex; exit: true; warning: string }
+    >
+  | Held<"held-unchecked", { hash: Hex; exit: true; warning: string }>
   | Held<
       "ran-executed",
       { executionHash?: Hex; result?: "failed"; exit: false }
@@ -121,7 +132,7 @@ export type WriteHoldGate = {
    */
   beforeSend(actualCall?: ReviewedWriteRecoveryInput["call"]): Promise<void>;
   /** The wallet returned this hash (a Safe proposal's safeTxHash): `onWriteSubmitted`. */
-  afterSubmit(hash: Hex): void;
+  afterSubmit(hash: Hex, proposal?: SafeQueuedTransaction): void;
   /** Nothing reached the wallet, or it refused: `onWriteRejected` and `onBeforeWriteAborted`. */
   onRejected(): void;
 };
@@ -131,6 +142,25 @@ type Locks = Pick<LockManager, "request">;
 const SETTLE_POLL_MS = 15_000;
 /** A hash the network still hasn't seen this long after the wallet returned it was almost certainly never broadcast. */
 const UNSEEN_HASH_MS = 30 * 60_000;
+
+/** The 30 minutes have passed since the wallet returned the hash, or since it was first read. A clock that couldn't be saved (NaN) never runs out. */
+function unseenTooLong(record: ReviewedWriteRecoveryRecord): boolean {
+  return (
+    Date.now() - Number(record.submittedAt ?? record.firstSeenAt) >=
+    UNSEEN_HASH_MS
+  );
+}
+
+function unchecked(record: ReviewedWriteRecoveryRecord): WriteHoldState {
+  return {
+    status: "held-unchecked",
+    record,
+    hash: record.hash!,
+    exit: true,
+    line: WRITE_HOLD_UNCHECKED_LINE,
+    warning: WRITE_HOLD_HASHED_EXIT_LINE,
+  };
+}
 /** About an hour of polls; a later state() looks again. */
 const SETTLE_POLL_ATTEMPTS = 240;
 
@@ -325,57 +355,115 @@ export function createWriteHold(
       return classify(recovery.read());
     }
 
+    /** The authenticated nonce of a Safe proposal, from Safe's service. */
+    async function proposalNonceOf(
+      record: ReviewedWriteRecoveryRecord,
+    ): Promise<bigint | null> {
+      try {
+        const proposal = await readSafeTransaction(
+          record.chainId,
+          record.account,
+          record.hash!,
+          options.safeService,
+        );
+        return safeTransactionMessage(proposal).nonce;
+      } catch {
+        return null;
+      }
+    }
+
+    /** Follow a saved execution's receipt; null while the node has none. */
+    async function execution(
+      record: ReviewedWriteRecoveryRecord,
+      client: WriteHoldClient,
+    ): Promise<WriteHoldState | null> {
+      const receipt = await client
+        .getTransactionReceipt({ hash: record.executionHash! })
+        .catch(() => null);
+      return receipt ? settle(record, receipt, client) : null;
+    }
+
     async function safeState(
       saved: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
     ): Promise<WriteHoldState> {
       let record = saved;
-      if (!record.hash) return classify(record);
-      if (!record.executionHash) {
-        // The wallet's reply may be the execution itself (run at once).
-        const atOnce = record.executed
-          ? null
-          : await client
-              .getTransactionReceipt({ hash: record.hash })
-              .catch(() => null);
+      const hash = record.hash;
+      if (!hash) return classify(record);
+      if (record.submittedAt === undefined) record = recovery.firstSeen(record);
+      // The wallet's reply may be the execution itself (run at once).
+      if (!record.executed) {
+        const atOnce = await client
+          .getTransactionReceipt({ hash })
+          .catch(() => null);
         if (atOnce) {
           const settled = await settle(record, atOnce, client);
           if (settled.status === "clear") return settled;
           // It ran; only its verified result (a failure at finality) ends it.
-          record = recovery.executed(record, record.hash);
+          record = recovery.executed(record, hash);
           follow(client, record.id);
           return ranExecuted(record);
         }
-        const end = await lookAtSafeProposalEnd(
+      } else if (record.executionHash) {
+        const settled = await execution(record, client);
+        if (settled?.status === "clear") return settled;
+        if (record.executionHash === hash) {
+          follow(client, record.id);
+          return settled ?? ranExecuted(record);
+        }
+      }
+      // The chain's proof, from the proposal's nonce: Safe's service is asked
+      // only for the nonce, once, and for an expiry.
+      if (record.safeNonce === undefined) {
+        const nonce = await proposalNonceOf(record);
+        if (nonce !== null) record = recovery.proposalNonce(record, nonce);
+      }
+      const end =
+        (record.safeNonce !== undefined &&
+          (await provenSafeProposalEnd(
+            client,
+            record.account,
+            hash,
+            BigInt(record.safeNonce),
+          ))) ||
+        (await lookAtSafeProposalEnd(
           client as never,
           record.chainId,
           record.account,
-          record.hash,
+          hash,
           options.safeService,
-        );
-        if (end.look === "replaced" && !record.executed && release(record))
-          return clear({ result: "replaced" });
-        if (end.look === "expired" && !record.executed) {
-          const expired = await verifyReviewedWriteExpiry(
-            client,
-            record,
-            options.safeService,
-          ).catch(() => false);
-          if (expired && release(record)) return clear({ result: "expired" });
-        }
-        if (end.look === "executed")
-          record = recovery.executed(record, end.execution?.executionHash);
-        if (!record.executionHash) {
-          if (record.executed) follow(client, record.id);
-          return classify(record);
+        ));
+      // A canonical replacement ends it, even a saved execution reorganized away.
+      if (end.look === "replaced" && release(record))
+        return clear({ result: "replaced" });
+      if (end.look === "expired" && !record.executed) {
+        const expired = await verifyReviewedWriteExpiry(
+          client,
+          record,
+          options.safeService,
+        ).catch(() => false);
+        if (expired && release(record)) return clear({ result: "expired" });
+      }
+      if (
+        end.look === "executed" &&
+        (!record.executed ||
+          (end.execution &&
+            end.execution.executionHash !== record.executionHash))
+      ) {
+        record = recovery.executed(record, end.execution?.executionHash);
+        if (record.executionHash) {
+          const settled = await execution(record, client);
+          if (settled) return settled;
         }
       }
-      const receipt = await client
-        .getTransactionReceipt({ hash: record.executionHash })
-        .catch(() => null);
-      if (receipt) return settle(record, receipt, client);
-      follow(client, record.id);
-      return ranExecuted(record);
+      if (
+        !record.executed &&
+        record.safeNonce === undefined &&
+        unseenTooLong(record)
+      )
+        return unchecked(record);
+      if (record.executed) follow(client, record.id);
+      return classify(record);
     }
 
     async function inspect(
@@ -416,28 +504,21 @@ export function createWriteHold(
           usedBy: check.usedBy,
           exit: true,
           line: writeHeldMessage(),
+          warning: WRITE_HOLD_HASHED_EXIT_LINE,
         };
       if (
         record.hash &&
         record.sentNonce === undefined &&
         (record.nonce === undefined ||
           record.fromBlock === undefined ||
-          // A clock that couldn't be saved (NaN) never runs out.
-          Date.now() - Number(record.submittedAt ?? record.firstSeenAt) >=
-            UNSEEN_HASH_MS) &&
+          unseenTooLong(record)) &&
         (await client.getTransaction({ hash: record.hash }).then(
           () => false,
           (error: { name?: unknown } | null) =>
             error?.name === "TransactionNotFoundError",
         ))
       )
-        return {
-          status: "held-unchecked",
-          record,
-          hash: record.hash,
-          exit: true,
-          line: WRITE_HOLD_UNCHECKED_LINE,
-        };
+        return unchecked(record);
       return classify(record);
     }
 
@@ -507,7 +588,7 @@ export function createWriteHold(
             }
             shown(peek());
           },
-          afterSubmit(hash) {
+          afterSubmit(hash, proposal) {
             if (!attempt)
               throw new Error("Hold the write before the wallet opens.");
             try {
@@ -517,6 +598,17 @@ export function createWriteHold(
                 throw error;
               attempt = error.record;
             }
+            // The proposal the app made, if it hashes to the reply: its nonce.
+            if (call.safe && proposal)
+              try {
+                canonicalSafeTxHash(call.chainId, call.account, proposal, hash);
+                attempt = recovery.proposalNonce(
+                  attempt,
+                  safeTransactionMessage(proposal).nonce,
+                );
+              } catch {
+                /* Not this proposal: the service is asked later. */
+              }
             shown(classify(attempt));
           },
           onRejected() {

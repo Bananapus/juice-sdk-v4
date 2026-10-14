@@ -98,3 +98,7 @@ export const WRITE_HOLD_UNCHECKED_LINE =
 /** A send stopped before the wallet because the account's nonce couldn't be read. */
 export const WRITE_HOLD_NONCE_LINE =
   "Couldn't read your account from the network, so nothing was sent. Try again in a moment.";
+
+/** The warning on the exit of a held write that has a hash. */
+export const WRITE_HOLD_HASHED_EXIT_LINE =
+  "If that transaction is still in your wallet, sending again can run it twice.";
