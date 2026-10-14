@@ -6,11 +6,19 @@ import { TAB } from "./review/tabState.js";
 
 const tab = globalThis as Record<symbol, unknown>;
 
-/** Drop this tab's write lock queues and held-write memory. */
+/**
+ * Empty this tab's write lock queues and held-write memory in place, so a
+ * controller made before the reset (at module scope) shares the empty ones.
+ */
 export function resetWriteRecoveryForTests(): void {
   (tab[TAB.queues] as Map<string, unknown> | undefined)?.clear();
-  delete tab[TAB.memory];
-  delete tab[TAB.seen];
+  const memory = tab[TAB.memory] as Map<string, string> | undefined;
+  if (!memory) return;
+  // What each tab memory last saw in durable storage, by memory.
+  (tab[TAB.seen] as WeakMap<object, Map<string, string>> | undefined)
+    ?.get(memory)
+    ?.clear();
+  memory.clear();
 }
 
 /** Stop every write hold's followers and tab listeners, then {@link resetWriteRecoveryForTests}. */
