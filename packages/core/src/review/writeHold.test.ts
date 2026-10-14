@@ -5559,6 +5559,48 @@ describe("a write held under an intent, found by a legacy match", () => {
     );
   });
 
+  it("finds a reused Safe proposal saved under its reviewed call's key, and exits it through the intent", async () => {
+    const browser = origin();
+    const next = setup({ browser });
+    const { client } = fakeChain();
+    // An older version reviewed one deadline and reused a proposal with
+    // another: its record keeps the actual call under the reviewed key.
+    const reviewed = { ...cashOut(1), safe: true };
+    const old = createBrowserWriteRecovery(reviewed, {
+      storage: next.storage,
+      locks: next.locks,
+    });
+    const saved = await old.withLock(async () => old.reserve(cashOut(3).call));
+    expect(saved.call.data).toBe(cashOut(3).call.data.toLowerCase());
+    const handle = next.hold.open(
+      { ...cashOut(2), safe: true, namespace: key },
+      { legacy: [match()] },
+    );
+    const shown = await handle.state(client);
+    expect(shown).toMatchObject({
+      status: "held-no-hash",
+      exit: true,
+      reservation: saved.id,
+    });
+    const retry = wallet(async () => HASH);
+    await expect(
+      handle.send(client, async (gate) => {
+        await gate.beforeSend();
+        retry.write();
+      }),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    expect(retry.write).not.toHaveBeenCalled();
+    await expect(
+      handle.exit(shown, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+    expect(old.read()).toBeNull();
+    await handle.send(client, async (gate) => {
+      await gate.beforeSend();
+      retry.write();
+    });
+    expect(retry.write).toHaveBeenCalledOnce();
+  });
+
   it("refuses a malformed match", () => {
     const { hold } = setup();
     for (const bad of [

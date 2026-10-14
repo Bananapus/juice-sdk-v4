@@ -486,7 +486,9 @@ export function createHeldWriteStorage(
 
 /**
  * Every exact-call write saved for `account` on `chainId` to `to` whose
- * calldata starts with `selector` (a 4-byte hex), from its key in `storage`:
+ * calldata starts with `selector` (a 4-byte hex), with the key it was saved
+ * under (a reused Safe proposal keeps its actual call under its reviewed
+ * call's key, so the key is never rebuilt from the record), from `storage`:
  * holds saved before an intent key existed, under calldata a retry can't
  * rebuild. A mirror of an intent's write is never one: its intent is found
  * by its namespace. Unreadable and released records are skipped.
@@ -497,7 +499,7 @@ export function findReviewedWrites(
     selector: Hex;
   },
   options: { storage?: RecoveryStorage } = {},
-): ReviewedWriteRecoveryRecord[] {
+): { key: string; record: ReviewedWriteRecoveryRecord }[] {
   const identity = normalizedIdentity(input);
   if (
     !isAddress(input.to, { strict: false }) ||
@@ -509,31 +511,43 @@ export function findReviewedWrites(
   const store = recoveryStorage(options.storage);
   const prefix = `nana-sdk:reviewed-write:v2:${identity.chainId}:${identity.account}:${to}:`;
   const legacy = `nana-sdk:reviewed-write:v1:${identity.chainId}:${identity.account}:${to}:${selector}`;
-  const found: ReviewedWriteRecoveryRecord[] = [];
+  const found: { key: string; record: ReviewedWriteRecoveryRecord }[] = [];
   for (const key of storedKeys(store)) {
     const exact =
       key.startsWith(prefix) &&
       /^\d+:0x[0-9a-f]{64}$/.test(key.slice(prefix.length));
     if (!exact && key !== legacy) continue;
     try {
-      const record = readStored(
-        store.getItem(key),
-        key,
-        exact ? scope : legacyScope,
-        store,
-      );
+      // Its identity is checked against the match, not its full scope.
+      const record = readStored(store.getItem(key), key, () => key, store);
       if (
         record &&
         record.namespace === undefined &&
         record.mirrorOf === undefined &&
+        record.chainId === identity.chainId &&
+        record.account === identity.account &&
+        record.call.to === to &&
         record.call.data.slice(0, 10) === selector
       )
-        found.push(record);
+        found.push({ key, record });
     } catch {
       // An unreadable record names no call, so it holds none.
     }
   }
   return found;
+}
+
+/** `at`, when it is a key an exact call to `input`'s target by its account on its chain may be saved under. */
+function foundAt(input: ReviewedWriteRecoveryInput, at: string): string {
+  const prefix = `nana-sdk:reviewed-write:v2:${input.chainId}:${input.account}:${input.call.to}:`;
+  if (
+    input.namespace === undefined &&
+    (at === legacyScope(input) ||
+      (at.startsWith(prefix) &&
+        /^\d+:0x[0-9a-f]{64}$/.test(at.slice(prefix.length))))
+  )
+    return at;
+  throw new Error("Invalid write recovery key.");
 }
 
 export type ReviewedWriteRecoveryScope = Pick<
@@ -775,10 +789,19 @@ export function browserLocks(): RecoveryLocks {
  */
 export function createBrowserWriteRecovery(
   input: ReviewedWriteRecoveryInput,
-  options: { storage?: RecoveryStorage; locks?: RecoveryLocks } = {},
+  options: {
+    storage?: RecoveryStorage;
+    locks?: RecoveryLocks;
+    /**
+     * For an exact call: the key {@link findReviewedWrites} found its record
+     * under, which a reused Safe proposal doesn't share with its call.
+     */
+    at?: string;
+  } = {},
 ) {
   const reviewed = normalized(input);
-  const key = scope(reviewed);
+  const key =
+    options.at === undefined ? scope(reviewed) : foundAt(reviewed, options.at);
   const settledKey = `${key}:settled`;
   const latestKey = `${key}:latest`;
   const legacyKey =

@@ -986,6 +986,24 @@ describe("a Safe hold whose call is its MultiSend batch", () => {
     ).resolves.toBe("success");
   });
 
+  it("opens an exact call only at a key its account, chain and target may own", () => {
+    for (const bad of [
+      "elsewhere",
+      `nana-sdk:reviewed-write:v2:1:${ACCOUNT.toLowerCase()}:${TARGET.toLowerCase()}:17:${HASH}`,
+    ])
+      expect(() => createBrowserWriteRecovery(input, { at: bad })).toThrow(
+        "Invalid write recovery key.",
+      );
+    expect(() =>
+      createBrowserWriteRecovery(
+        { ...input, namespace: "jbm:pay:4" },
+        {
+          at: `nana-sdk:reviewed-write:v1:10:${ACCOUNT.toLowerCase()}:${TARGET.toLowerCase()}:0xaabbccdd`,
+        },
+      ),
+    ).toThrow("Invalid write recovery key.");
+  });
+
   it("keeps two batches that share a first approval apart", () => {
     const other = encodeMultiSend([
       calls[0],
@@ -2242,11 +2260,21 @@ describe("finding the exact-call writes a selector matches", () => {
     values.set(at({ ...input.call, data: elsewhere }), record(elsewhere));
     values.set(`${at({ ...input.call, data: found })}:latest`, "{}");
     values.set("unrelated", "1");
+    // Saved under a matching key, but naming another target: not this match.
+    const stray = "0xaabbccdd0006" as Hex;
+    values.set(
+      at({ ...input.call, data: stray }),
+      JSON.stringify({
+        ...saved,
+        id: stray,
+        call: { ...saved.call, to: WRAPPER, data: stray },
+      }),
+    );
     const ids = (
       storage: NonNullable<Parameters<typeof findReviewedWrites>[1]>["storage"],
     ) =>
       findReviewedWrites(match, { storage })
-        .map(({ id }) => id)
+        .map(({ record }) => record.id)
         .sort();
     expect(ids(webStorage(values))).toEqual([found, old]);
     // A store that can't be listed finds none.

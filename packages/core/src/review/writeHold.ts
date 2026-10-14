@@ -522,10 +522,13 @@ export function createWriteHold(
       /** Every involved key's generation, read when the review opens. */
       generations?: () => string;
     } = {},
+    /** The key a found write was saved under, when it isn't its call's own. */
+    at?: string,
   ) {
     const recovery = createBrowserWriteRecovery(call, {
       storage,
       locks: options.locks,
+      at,
     });
     // The canonical recovery scope: a namespace and an exact call never share it.
     const key = recovery.scopeKey;
@@ -1671,9 +1674,11 @@ export function createWriteHold(
     const delegates: ReturnType<typeof openExact>[] = [];
     const journals: ReturnType<typeof createBrowserWriteRecovery>[] = [];
     /** Hold `inputs` too, each once, in one canonical order by scope for every writer's locks. */
-    function include(inputs: ReviewedWriteRecoveryInput[]) {
-      const added = inputs.filter((input) => {
-        const scope = scopeOf(input);
+    function include(
+      inputs: { input: ReviewedWriteRecoveryInput; at?: string }[],
+    ) {
+      const added = inputs.filter(({ input, at }) => {
+        const scope = at ?? scopeOf(input);
         return !scopes.has(scope) && !!scopes.add(scope);
       });
       if (!added.length) return;
@@ -1682,11 +1687,12 @@ export function createWriteHold(
           delegate,
           journal: journals[index],
         })),
-        ...added.map((input) => ({
-          delegate: openExact(input),
+        ...added.map(({ input, at }) => ({
+          delegate: openExact(input, at),
           journal: createBrowserWriteRecovery(input, {
             storage,
             locks: options.locks,
+            at,
           }),
         })),
       ].sort(
@@ -1697,29 +1703,27 @@ export function createWriteHold(
       delegates.splice(0, delegates.length, ...keyed.map((k) => k.delegate));
       journals.splice(0, journals.length, ...keyed.map((k) => k.journal));
     }
-    /** A found write as a key: its own Safe flag, since its record is matched exactly. */
-    const keyOfFound = (record: ReviewedWriteRecoveryRecord) => ({
-      ...exact,
-      safe: record.safe,
-      call: record.call,
-    });
     /**
      * Look for matching writes again (on every state(), send() and exit());
-     * those found since are held too. Returns the ones that are new.
+     * those found since are held too, each at the exact key it was found
+     * under, with its own Safe flag. Returns the ones that are new.
      */
     function rescan(): ReviewedWriteRecoveryRecord[] {
-      const found = matched().filter(
-        (record) => !scopes.has(scopeOf(keyOfFound(record))),
+      const found = matched().filter(({ key }) => !scopes.has(key));
+      include(
+        found.map(({ key, record }) => ({
+          input: { ...exact, safe: record.safe, call: record.call },
+          at: key,
+        })),
       );
-      include(found.map(keyOfFound));
-      return found;
+      return found.map(({ record }) => record);
     }
     include(
       [{ call: call.call }, ...legacy].flatMap((source) =>
         typeof source === "string"
-          ? [{ ...call, namespace: source }]
+          ? [{ input: { ...call, namespace: source } }]
           : "call" in source
-            ? [{ ...exact, call: source.call }]
+            ? [{ input: { ...exact, call: source.call } }]
             : [],
       ),
     );
@@ -1934,11 +1938,12 @@ export function createWriteHold(
    * it is that intent's hold: it never sends or releases on its own, and its
    * exit is the intent's. A mirror left after the intent ended is removed.
    */
-  function openExact(call: ReviewedWriteRecoveryInput) {
-    const own = openOne(call);
+  function openExact(call: ReviewedWriteRecoveryInput, at?: string) {
+    const own = openOne(call, {}, at);
     const journal = createBrowserWriteRecovery(call, {
       storage,
       locks: options.locks,
+      at,
     });
     /** The intent this key mirrors, from storage alone. */
     const mirrored = () => {
