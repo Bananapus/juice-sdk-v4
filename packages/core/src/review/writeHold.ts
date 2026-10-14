@@ -1,5 +1,6 @@
 import {
   isAddress,
+  toEventSelector,
   type Hex,
   type PublicClient,
   type TransactionReceipt,
@@ -8,6 +9,7 @@ import {
   canonicalSafeTxHash,
   lookAtSafeProposalEnd,
   provenSafeProposalEnd,
+  readSafeAppExecution,
   readSafeTransaction,
   SAFE_PROPOSAL_AWAITING,
   safeTransactionMessage,
@@ -146,6 +148,11 @@ export type WriteHoldGate = {
 type Locks = Pick<LockManager, "request">;
 
 const SETTLE_POLL_MS = 15_000;
+/** A Safe's execution events, in both its 1.3 and 1.4 layouts. */
+const SAFE_EXECUTION_TOPICS = [
+  toEventSelector("ExecutionSuccess(bytes32,uint256)"),
+  toEventSelector("ExecutionFailure(bytes32,uint256)"),
+];
 /** A hash the network still hasn't seen this long after the wallet returned it was almost certainly never broadcast. */
 const UNSEEN_HASH_MS = 30 * 60_000;
 
@@ -395,6 +402,54 @@ export function createWriteHold(
      * never ran. History that can't be read keeps it held, and after 30
      * minutes with the transaction unknown it gets the unchecked exit.
      */
+    /**
+     * What the canonical transaction at a direct execution's nonce did: its
+     * own execution of the reviewed call (`success` or `failed`), or
+     * `replaced` when it reverted or the Safe logged no execution in it. Null
+     * while unproven, as through a wrapper or with no canonical receipt.
+     */
+    async function replacementOutcome(
+      record: ReviewedWriteRecoveryRecord,
+      used: { hash: Hex; blockHash?: Hex | null },
+      client: WriteHoldClient,
+    ): Promise<"success" | "failed" | "replaced" | null> {
+      try {
+        const receipt = await client.getTransactionReceipt({ hash: used.hash });
+        const block = await client.getBlock({
+          blockNumber: receipt.blockNumber,
+        });
+        if (
+          receipt.transactionHash.toLowerCase() !== used.hash ||
+          receipt.blockHash?.toLowerCase() !== block.hash?.toLowerCase() ||
+          receipt.blockHash?.toLowerCase() !== used.blockHash?.toLowerCase()
+        )
+          return null;
+        if (
+          receipt.status === "reverted" ||
+          !receipt.logs.some(
+            (log) =>
+              log.address?.toLowerCase() === record.account &&
+              SAFE_EXECUTION_TOPICS.includes(log.topics?.[0] as Hex),
+          )
+        )
+          return "replaced";
+        const result = await readSafeAppExecution({
+          client: {
+            getTransaction: () => client.getTransaction({ hash: used.hash }),
+          },
+          receipt,
+          safe: record.account,
+          proposalHash: used.hash,
+          calls: [record.call as never],
+        });
+        return result.status === "success" || result.status === "failed"
+          ? result.status
+          : null;
+      } catch {
+        return null;
+      }
+    }
+
     async function reconcileDirect(
       record: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
@@ -407,8 +462,19 @@ export function createWriteHold(
               BigInt(record.sentNonce),
             )
           : null;
-      if (used && used.hash !== record.hash && release(record))
-        return clear({ result: "replaced" });
+      if (used && used.hash !== record.hash) {
+        // The transaction at that nonce may itself have run the call.
+        const outcome = await replacementOutcome(record, used, client);
+        if (outcome && release(record))
+          return clear(
+            outcome === "replaced"
+              ? { result: "replaced" }
+              : { result: outcome, hash: used.hash },
+          );
+        return unseenTooLong(record)
+          ? unchecked(recovery.unexecuted(record))
+          : null;
+      }
       if (
         used ||
         !unseenTooLong(record) ||

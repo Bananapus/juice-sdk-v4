@@ -190,8 +190,11 @@ const budgets = {
     // execution reorganized away (its sender and nonce saved, the shared
     // nonce search) adds +2,418 B packed / +14,694 B unpacked to existing
     // artifacts. Measured 1,420,274 B packed / 21,577,810 B unpacked, 818.
-    packed: 1_423_000,
-    unpacked: 21_582_000,
+    // Settling from what that replacement did (its own Safe execution of the
+    // reviewed call) adds +967 B packed / +8,570 B unpacked. Measured
+    // 1,421,241 B packed / 21,586,380 B unpacked and 818 entries.
+    packed: 1_424_000,
+    unpacked: 21_590_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

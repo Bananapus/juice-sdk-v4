@@ -1216,6 +1216,7 @@ export async function findTransactionAtNonce(
   fromBlock = 0n,
 ): Promise<{
   hash: Hex;
+  blockHash?: Hex | null;
   to?: Address | null;
   input?: Hex;
   value?: bigint;

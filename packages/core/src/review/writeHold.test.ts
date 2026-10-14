@@ -1950,6 +1950,102 @@ describe("a held Safe proposal", () => {
     }
   });
 
+  it("settles from what a replacement at the executor's nonce did, before calling it replaced", async () => {
+    const SAFE_TX = `0x${"5a".repeat(32)}` as Hex;
+    for (const [kind, expected] of [
+      [
+        "the same execution, succeeding",
+        { status: "clear", settled: { result: "success", hash: OTHER } },
+      ],
+      [
+        "the same execution, failing",
+        { status: "clear", settled: { result: "failed", hash: OTHER } },
+      ],
+      ["a wrapper running a Safe execution", { status: "ran-executed" }],
+      [
+        "a reverted transaction",
+        { status: "clear", settled: { result: "replaced" } },
+      ],
+      ["an unreadable receipt", { status: "ran-executed" }],
+      ["a receipt off the canonical chain", { status: "ran-executed" }],
+    ] as const) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(1_000_000);
+      const { hold, queue } = safeSetup();
+      queue.options.fetch.mockImplementation(
+        async () => new Response("not found", { status: 404 }),
+      );
+      const fixture = fakeChain();
+      const handle = hold.open(safeCall());
+      await handle.send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(EXECUTION);
+      });
+      fixture.chain.txs.push({
+        hash: EXECUTION,
+        from: ACCOUNT,
+        nonce: 7,
+        to: SAFE,
+        input: execInput(),
+        value: 0n,
+        block: 95n,
+        status: "reverted",
+      });
+      fixture.chain.head = 100n;
+      fixture.chain.finalized = 90n;
+      await expect(handle.state(fixture.client)).resolves.toMatchObject({
+        status: "ran-executed",
+        record: { sentFrom: ACCOUNT },
+      });
+      fixture.chain.txs.length = 0;
+      fixture.chain.reorged.set(95n, EXECUTION);
+      const wrapped = kind.startsWith("a wrapper");
+      fixture.chain.txs.push({
+        hash: OTHER,
+        from: ACCOUNT,
+        nonce: 7,
+        to: wrapped ? RELAYER : SAFE,
+        input: wrapped ? "0x1234" : execInput(),
+        value: 0n,
+        block: 97n,
+        status: kind === "a reverted transaction" ? "reverted" : "success",
+        logs:
+          kind === "a reverted transaction"
+            ? []
+            : [event(SAFE_TX, kind.endsWith("failing") ? FAILURE : SUCCESS)],
+      });
+      fixture.chain.head = 120n;
+      fixture.chain.finalized = 110n;
+      if (kind === "an unreadable receipt")
+        fixture.client.getTransactionReceipt.mockRejectedValue(
+          new Error("busy"),
+        );
+      if (kind === "a receipt off the canonical chain") {
+        const receipts =
+          fixture.client.getTransactionReceipt.getMockImplementation()!;
+        fixture.client.getTransactionReceipt.mockImplementation(
+          async (args) => ({
+            ...(await receipts(args)),
+            blockHash: OTHER,
+          }),
+        );
+      }
+      await expect(handle.state(fixture.client)).resolves.toMatchObject(
+        expected,
+      );
+      if (expected.status === "ran-executed") {
+        // Unproven: the explicit exit after 30 minutes.
+        vi.setSystemTime(1_000_000 + 31 * 60_000);
+        await expect(handle.state(fixture.client)).resolves.toMatchObject({
+          status: "held-unchecked",
+          exit: true,
+        });
+      }
+      hold.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("settles an execution returned at once whose outer transaction reverted as failed, once final", async () => {
     vi.useFakeTimers();
     const { hold } = safeSetup();
