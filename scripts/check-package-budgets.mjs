@@ -218,8 +218,11 @@ const budgets = {
     // attachHash, settlement identity through rejection and replay, and the
     // canonical cancellation past the pending gate) measured 1,438,735 B
     // packed / 21,665,498 B unpacked and 818 entries; raised for headroom.
-    packed: 1_445_000,
-    unpacked: 21_680_000,
+    // Rounds 5 to 7 (attach evidence, the mined clock per seen hash, and a
+    // proven Safe execution settled from its canonical log) measured
+    // 1,441,392 B packed / 21,683,809 B unpacked and 818 entries.
+    packed: 1_447_000,
+    unpacked: 21_695_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

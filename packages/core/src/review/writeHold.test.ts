@@ -1050,6 +1050,14 @@ describe("a held write", () => {
         status: "pending-known-hash",
         exit: false,
       });
+      if (path === "returned" && !settles) {
+        // Codex: once the clock is saved, read failures can't stop it.
+        const lookup = client.getTransaction.getMockImplementation()!;
+        client.getTransaction.mockImplementation(async (args) => {
+          if (args.hash === HASH) throw new Error("timeout");
+          return lookup(args);
+        });
+      }
       if (settles) {
         client.getTransactionReceipt.mockImplementation(receipts);
         await expect(handle.state(client)).resolves.toEqual({
@@ -2577,8 +2585,7 @@ describe("a held Safe proposal", () => {
     hold.dispose();
   });
 
-  it("follows a named execution whose receipt the node doesn't have yet", async () => {
-    vi.useFakeTimers();
+  it("settles a named execution from its canonical log while its receipt is missing, and holds on an unverified receipt", async () => {
     const { hold, queue } = safeSetup();
     const fixture = fakeChain();
     const handle = hold.open(safeCall());
@@ -2588,16 +2595,11 @@ describe("a held Safe proposal", () => {
     });
     executes(fixture, queue.hash, SUCCESS);
     fixture.chain.hidden.add(EXECUTION.toLowerCase());
-    await expect(handle.state(fixture.client)).resolves.toMatchObject({
-      status: "ran-executed",
-      executionHash: EXECUTION,
+    await expect(handle.state(fixture.client)).resolves.toEqual({
+      status: "clear",
+      settled: { result: "success", hash: EXECUTION },
     });
-    fixture.chain.hidden.clear();
-    const seen: WriteHoldState[] = [];
-    handle.subscribe((state) => seen.push(state));
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(seen[seen.length - 1]).toMatchObject({ status: "clear" });
-    // A receipt that doesn't verify keeps an execution held.
+    // With no readable proof, a receipt that doesn't verify settles nothing.
     const again = safeSetup();
     const other = again.hold.open(safeCall());
     const second = fakeChain();
@@ -2606,6 +2608,7 @@ describe("a held Safe proposal", () => {
       gate.afterSubmit(again.queue.hash);
     });
     executes(second, again.queue.hash, SUCCESS);
+    second.chain.safeLogs = {} as never;
     second.chain.hidden.add(EXECUTION.toLowerCase());
     await other.state(second.client);
     await expect(
@@ -2613,8 +2616,37 @@ describe("a held Safe proposal", () => {
         { transactionHash: EXECUTION, status: "success" } as never,
         second.client,
       ),
-    ).resolves.toMatchObject({ status: "ran-executed" });
+    ).resolves.toMatchObject({ status: "pending-known-hash" });
     again.hold.dispose();
+    hold.dispose();
+  });
+
+  it("keeps following a saved execution whose receipt can't be verified yet", async () => {
+    vi.useFakeTimers();
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    executes(fixture, queue.hash, FAILURE);
+    fixture.chain.finalized = 90n;
+    await handle.onReceipt(
+      fixture.receiptOf(fixture.chain.txs[0]),
+      fixture.client,
+    );
+    // Its transaction can't be read, nor its history: still held, no exit.
+    fixture.chain.safeLogs = {} as never;
+    const lookup = fixture.client.getTransaction.getMockImplementation()!;
+    fixture.client.getTransaction.mockImplementation(async (args) => {
+      if (args.hash === EXECUTION) throw new Error("timeout");
+      return lookup(args);
+    });
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      status: "ran-executed",
+      exit: false,
+    });
     hold.dispose();
   });
 
@@ -3095,9 +3127,15 @@ describe("a held Safe proposal", () => {
         await gate.beforeSend();
         gate.afterSubmit(queue.hash);
       });
-      executes(fixture, queue.hash, SUCCESS);
-      fixture.chain.hidden.add(EXECUTION.toLowerCase());
-      await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      // A failure seen before it is final is saved as executed.
+      executes(fixture, queue.hash, FAILURE);
+      fixture.chain.finalized = 90n;
+      await expect(
+        handle.onReceipt(
+          fixture.receiptOf(fixture.chain.txs[0]),
+          fixture.client,
+        ),
+      ).resolves.toMatchObject({
         status: "ran-executed",
         executionHash: EXECUTION,
       });
@@ -3342,7 +3380,9 @@ describe("a held Safe proposal", () => {
       }
     });
 
-    it("never gates the exit on a mined candidate whose receipt can't be read", async () => {
+    it("holds a mined candidate whose receipt can't be read for 30 minutes, then offers the exit", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(1_000_000);
       const { handle, fixture, queue } = await proposed();
       const CAND = `0x${"c5".repeat(32)}` as Hex;
       fixture.chain.txs.push({
@@ -3363,12 +3403,50 @@ describe("a held Safe proposal", () => {
         return receipts(args);
       });
       await handle.onExecuted(fixture.client, CAND);
-      // Codex: mined, so not pending; its unread receipt proves nothing.
-      const shown = await handle.onUnproven(fixture.client, queue.hash);
+      // Codex: mined, it may have run; its history can't be read either.
+      const held = await handle.onUnproven(fixture.client, queue.hash);
+      expect(held).toMatchObject({
+        status: "pending-known-hash",
+        hash: CAND,
+        exit: false,
+        line: WRITE_HOLD_MINED_LINE,
+      });
+      await expect(
+        handle.exit(
+          { ...held, status: "safe-unproven", exit: true } as WriteHoldState,
+          { checkedWallet: true },
+          fixture.client,
+        ),
+      ).resolves.toMatchObject({ released: false });
+      // The clock holds through read failures.
+      vi.setSystemTime(1_000_000 + 31 * 60_000);
+      const lookup = fixture.client.getTransaction.getMockImplementation()!;
+      fixture.client.getTransaction.mockImplementation(async (args) => {
+        if (args.hash === CAND) throw new Error("timeout");
+        return lookup(args);
+      });
+      const shown = await handle.state(fixture.client);
       expect(shown).toMatchObject({ status: "safe-unproven", exit: true });
       await expect(
         handle.exit(shown, { checkedWallet: true }, fixture.client),
       ).resolves.toMatchObject({ released: true });
+      vi.useRealTimers();
+    });
+
+    it("settles a canonical execution from its Safe log when its receipt can't be read", async () => {
+      for (const topic of [SUCCESS, FAILURE]) {
+        const { handle, fixture, queue } = await proposed();
+        executes(fixture, queue.hash, topic);
+        // Codex: the execution is known, but its receipt stays unreadable.
+        fixture.chain.hidden.add(EXECUTION.toLowerCase());
+        await expect(handle.state(fixture.client)).resolves.toEqual({
+          status: "clear",
+          settled: {
+            result: topic === SUCCESS ? "success" : "failed",
+            hash: EXECUTION,
+          },
+        });
+      }
     });
 
     it("drops a candidate only on canonical proof it isn't this proposal's execution", async () => {

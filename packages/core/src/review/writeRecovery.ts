@@ -83,6 +83,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
    * seen pending again.
    */
   minedAt?: string;
+  /** The same clock for each candidate seen mined with its receipt unreadable, by hash. */
+  candidateMinedAt?: Record<string, string>;
 };
 
 /** How a held write ended, on authenticated evidence: its result and transaction. */
@@ -182,6 +184,12 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.safeNonce) ||
     !optionalDecimal(record.vanishedAt) ||
     !optionalDecimal(record.minedAt) ||
+    (record.candidateMinedAt !== undefined &&
+      (typeof record.candidateMinedAt !== "object" ||
+        record.candidateMinedAt === null ||
+        !Object.entries(record.candidateMinedAt).every(
+          ([hash, at]) => isBytes32(hash) && optionalDecimal(at),
+        ))) ||
     (record.candidates !== undefined &&
       (!Array.isArray(record.candidates) ||
         !record.candidates.every(isBytes32))) ||
@@ -222,6 +230,9 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       ? {}
       : { vanishedAt: record.vanishedAt }),
     ...(record.minedAt === undefined ? {} : { minedAt: record.minedAt }),
+    ...(record.candidateMinedAt === undefined
+      ? {}
+      : { candidateMinedAt: { ...record.candidateMinedAt } }),
     ...(record.candidates === undefined
       ? {}
       : {
@@ -1161,6 +1172,25 @@ export function createBrowserWriteRecovery(
         expected,
         (current) => (current.minedAt === undefined) === seen,
         { minedAt: seen ? String(Date.now()) : undefined },
+      );
+    },
+    /** {@link mined}, for one candidate hash. */
+    candidateMined(
+      expected: ReviewedWriteRecoveryRecord,
+      hash: Hex,
+      seen: boolean,
+    ): ReviewedWriteRecoveryRecord {
+      const clocks = { ...recordOf(expected).candidateMinedAt };
+      if (seen) clocks[hash] ??= String(Date.now());
+      else delete clocks[hash];
+      return amend(
+        expected,
+        (current) =>
+          JSON.stringify(current.candidateMinedAt ?? {}) !==
+          JSON.stringify(clocks),
+        {
+          candidateMinedAt: Object.keys(clocks).length ? clocks : undefined,
+        },
       );
     },
     /**

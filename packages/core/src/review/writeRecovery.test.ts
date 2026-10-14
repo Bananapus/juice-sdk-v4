@@ -1916,6 +1916,15 @@ describe("a record saved before its hash had a clock", () => {
     expect(() =>
       parseReviewedWriteRecoveryRecord({ ...saved, minedAt: "soon" }),
     ).toThrow("Invalid saved write recovery record");
+    for (const candidateMinedAt of [
+      "x",
+      null,
+      { "0x12": "1" },
+      { [HASH]: "soon" },
+    ])
+      expect(() =>
+        parseReviewedWriteRecoveryRecord({ ...saved, candidateMinedAt }),
+      ).toThrow("Invalid saved write recovery record");
   });
 });
 

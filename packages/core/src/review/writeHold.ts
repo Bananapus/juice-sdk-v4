@@ -567,35 +567,68 @@ export function createWriteHold(
       state: Extract<WriteHoldState, { status: "pending-known-hash" }>,
       client: WriteHoldClient,
     ): Promise<WriteHoldState> {
-      const sent = await client
-        .getTransaction({ hash: state.hash })
-        .catch(() => null);
-      if (sent?.hash?.toLowerCase() !== state.hash) return state;
-      if (sent.blockNumber === null) {
-        const record = recovery.mined(state.record, false);
-        return { ...state, record };
-      }
-      const record = recovery.mined(state.record, true);
+      const look = await lookAt(state.hash, client);
+      // Only positive pending evidence stops the clock; a read that fails
+      // keeps the one saved.
+      if (look === "pending")
+        return { ...state, record: recovery.mined(state.record, false) };
+      const record =
+        look === "mined" ? recovery.mined(state.record, true) : state.record;
+      if (record.minedAt === undefined) return state;
       if (Date.now() - Number(record.minedAt) >= UNSEEN_HASH_MS)
         return unchecked(record);
       return { ...state, record, line: WRITE_HOLD_MINED_LINE };
     }
 
-    async function knownPending(
-      record: ReviewedWriteRecoveryRecord,
+    /** What the node shows of `hash`: positive pending or mined metadata, or nothing it can say. */
+    async function lookAt(
+      hash: Hex,
+      client: WriteHoldClient,
+    ): Promise<"pending" | "mined" | null> {
+      const sent = await client.getTransaction({ hash }).catch(() => null);
+      if (sent?.hash?.toLowerCase() !== hash) return null;
+      return sent.blockNumber === null ? "pending" : "mined";
+    }
+
+    /**
+     * No exit while a hash the hold has seen (its own, unless proven dropped,
+     * or a candidate) is pending, or was seen mined with its receipt
+     * unreadable less than 30 minutes ago: it may have run. Its clock is
+     * kept per hash, survives read failures, and stops only on positive
+     * pending evidence.
+     */
+    async function seenGate(
+      saved: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
       ownDropped: boolean,
-    ): Promise<Hex | null> {
+    ): Promise<WriteHoldState | null> {
+      let record = saved;
       const seen = [
         ...(record.hash && !ownDropped ? [record.hash] : []),
         ...(record.candidates ?? []),
       ];
       for (const hash of seen) {
-        const sent = await client.getTransaction({ hash }).catch(() => null);
-        // Only positive pending metadata gates: a mined transaction whose
-        // receipt can't be read yet isn't pending.
-        if (sent?.hash?.toLowerCase() === hash && sent.blockNumber === null)
-          return hash;
+        const own = hash === record.hash;
+        const look = await lookAt(hash, client);
+        if (look !== null)
+          record = own
+            ? recovery.mined(record, look === "mined")
+            : recovery.candidateMined(record, hash, look === "mined");
+        const at = own ? record.minedAt : record.candidateMinedAt?.[hash];
+        if (
+          look === "pending" ||
+          (at !== undefined && Date.now() - Number(at) < UNSEEN_HASH_MS)
+        )
+          return {
+            status: "pending-known-hash",
+            record,
+            hash,
+            exit: false,
+            line:
+              look === "pending"
+                ? WRITE_HOLD_PENDING_LINE
+                : WRITE_HOLD_MINED_LINE,
+          };
       }
       return null;
     }
@@ -692,16 +725,26 @@ export function createWriteHold(
         ).catch(() => false);
         if (expired && release(record)) return clear({ result: "expired" });
       }
-      if (
-        end.look === "executed" &&
-        (!record.executed ||
+      if (end.look === "executed") {
+        if (
+          !record.executed ||
           (end.execution &&
-            end.execution.executionHash !== record.executionHash))
-      ) {
-        record = recovery.executed(record, end.execution?.executionHash);
+            end.execution.executionHash !== record.executionHash)
+        )
+          record = recovery.executed(record, end.execution?.executionHash);
         if (record.executionHash) {
           const settled = await execution(record, client);
           if (settled) return settled;
+        }
+        // It ran: with its receipt unreadable, the canonical log at a
+        // finalized block carries its result. Never a resend exit.
+        if (end.execution && release(record)) {
+          const settled = {
+            result: end.execution.status,
+            hash: end.execution.executionHash,
+          };
+          recovery.markSettled(record, settled);
+          return clear(settled);
         }
       }
       if (
@@ -730,20 +773,13 @@ export function createWriteHold(
       if (state.status === "clear" || !state.exit) return state;
       // A hash proven dropped (another transaction used its sent nonce at a
       // canonical finalized block) can't run, whatever a node still shows.
-      const pending = await knownPending(
-        state.record,
-        client,
-        state.status === "dropped-proven",
+      return (
+        (await seenGate(
+          state.record,
+          client,
+          state.status === "dropped-proven",
+        )) ?? state
       );
-      return pending
-        ? {
-            status: "pending-known-hash",
-            record: state.record,
-            hash: pending,
-            exit: false,
-            line: WRITE_HOLD_PENDING_LINE,
-          }
-        : state;
     }
 
     async function inspectChain(
