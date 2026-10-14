@@ -5363,6 +5363,106 @@ describe("a write held under an intent, found by a legacy match", () => {
     return { browser, old, next, client, held };
   }
 
+  it("lets two intents through one target and selector send side by side", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const projectA = writeIntentKey("pay", { projectId: 1n });
+    const projectB = writeIntentKey("pay", { projectId: 2n });
+    // A pays project A (its reply lost: held), mirrored at its exact call.
+    const a = hold.open(
+      { ...cashOut(1), namespace: projectA },
+      { legacy: [match()] },
+    );
+    await expect(a.send(client, lostReply().send)).rejects.toThrow();
+    expect(a.peek().status).not.toBe("clear");
+    // B pays project B through the same terminal and selector.
+    const b = hold.open(
+      { ...cashOut(2), namespace: projectB },
+      { legacy: [match()] },
+    );
+    await expect(b.state(client)).resolves.toMatchObject({ status: "clear" });
+    const retry = wallet(async () => HASH);
+    await b.send(client, retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+    // And A, still held by its own namespace, isn't blocked by B's mirror.
+    const again = hold.open(
+      { ...cashOut(1), namespace: projectA },
+      { legacy: [match()] },
+    );
+    const shown = await again.state(client);
+    expect(shown).toMatchObject({
+      status: "held-no-hash",
+      record: { namespace: projectA },
+    });
+    await expect(
+      again.exit(shown, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+  });
+
+  it("lets two intents that both matched one old hold send side by side once it ends", async () => {
+    const { next, client } = await heldBefore(cashOut(1));
+    const projectA = writeIntentKey("pay", { projectId: 1n });
+    const projectB = writeIntentKey("pay", { projectId: 2n });
+    const a = next.hold.open(
+      { ...cashOut(2), namespace: projectA },
+      { legacy: [match()] },
+    );
+    const b = next.hold.open(
+      { ...cashOut(3), namespace: projectB },
+      { legacy: [match()] },
+    );
+    // The old hold ends by its explicit exit, through A.
+    const shown = await a.state(client);
+    await a.exit(shown, { checkedWallet: true }, client);
+    // A sends (reply lost: held under A).
+    await expect(a.send(client, lostReply().send)).rejects.toThrow();
+    // B, which matched the same old hold, isn't held by A's write.
+    await expect(b.state(client)).resolves.toMatchObject({ status: "clear" });
+    const retry = wallet(async () => HASH);
+    await b.send(client, retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+  });
+
+  it("skips another held intent's mirror at a matched key", async () => {
+    const { next, client } = await heldBefore(cashOut(1));
+    const b = next.hold.open(
+      { ...cashOut(3), namespace: writeIntentKey("pay", { projectId: 2n }) },
+      { legacy: [match()] },
+    );
+    const shown = await b.state(client);
+    await b.exit(shown, { checkedWallet: true }, client);
+    // Intent A names that old call as its own legacy key, as an older
+    // version did: it sends, held, and mirrors itself there.
+    const a = next.hold.open(
+      { ...cashOut(2), namespace: writeIntentKey("pay", { projectId: 1n }) },
+      { legacy: [{ call: cashOut(1).call }] },
+    );
+    await expect(a.send(client, lostReply().send)).rejects.toThrow();
+    expect(next.hold.open(cashOut(1)).peek().status).not.toBe("clear");
+    await expect(b.state(client)).resolves.toMatchObject({ status: "clear" });
+    const retry = wallet(async () => HASH);
+    await b.send(client, retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+  });
+
+  it("still holds a real pre-intent exact call through the match, and never its own mirror", async () => {
+    const { next, client, held } = await heldBefore(cashOut(1));
+    const intentCall = { ...cashOut(2), namespace: key };
+    const handle = next.hold.open(intentCall, { legacy: [match()] });
+    await expect(handle.state(client)).resolves.toMatchObject({
+      reservation: held.record.id,
+    });
+    // Once released, the intent sends; its own mirror never holds it.
+    const shown = await handle.state(client);
+    await handle.exit(shown, { checkedWallet: true }, client);
+    await handle.send(client, wallet(async () => HASH).send);
+    const reopened = next.hold.open(intentCall, { legacy: [match()] });
+    await expect(reopened.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      record: { namespace: key },
+    });
+  });
+
   it("refuses a retry quoted with a new minimum until the old hold's explicit exit", async () => {
     const { next, client, held } = await heldBefore(cashOut(1));
     const handle = next.hold.open(
