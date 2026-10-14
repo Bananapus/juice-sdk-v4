@@ -5532,6 +5532,33 @@ describe("a write held under an intent, found by a legacy match", () => {
     expect((shown as WriteHeldState).record.hash).toBeUndefined();
   });
 
+  it("still finds a matching hold this tab saw once the browser's storage goes away", async () => {
+    const browser = origin();
+    let available = true;
+    const memory = new Map<string, string>();
+    const storage = createHeldWriteStorage({
+      durable: () => (available ? browser.storage : undefined),
+      memory,
+    });
+    const tab = setup({ storage });
+    const { client } = fakeChain();
+    const first = lostReply();
+    await expect(
+      tab.hold.open(cashOut(1)).send(client, first.send),
+    ).rejects.toThrow();
+    // The browser's storage stops answering; this tab still holds what it saw.
+    available = false;
+    const retry = wallet(async () => HASH);
+    await expect(
+      tab.hold
+        .open({ ...cashOut(2), namespace: key }, { legacy: [match()] })
+        .send(client, retry.send),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    expect(first.write.mock.calls.length + retry.write.mock.calls.length).toBe(
+      1,
+    );
+  });
+
   it("refuses a malformed match", () => {
     const { hold } = setup();
     for (const bad of [

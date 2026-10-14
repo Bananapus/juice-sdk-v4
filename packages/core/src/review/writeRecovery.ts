@@ -460,13 +460,15 @@ export function createHeldWriteStorage(
       if (read(key) === null) seen.delete(key);
     },
     keys() {
-      let saved: string[];
+      let saved: string[] = [];
       try {
         saved = storedKeys(durable());
       } catch {
-        saved = [...seen.keys()];
+        /* What this tab last saw still holds. */
       }
-      return [...new Set([...saved, ...memory.keys()])];
+      // What this tab last saw too, as getItem() still shows it while the
+      // browser's storage can't be read; a read of each drops what ended.
+      return [...new Set([...saved, ...seen.keys(), ...memory.keys()])];
     },
     durable() {
       const probe = String(Date.now());
