@@ -520,6 +520,22 @@ export function createWriteHold(
       return unchecked(recovery.unexecuted(record));
     }
 
+    /** The first hash the hold has seen that the node knows as a transaction with no receipt yet. */
+    async function knownPending(
+      record: ReviewedWriteRecoveryRecord,
+      client: WriteHoldClient,
+    ): Promise<Hex | null> {
+      for (const hash of [record.hash!]) {
+        const sent = await client.getTransaction({ hash }).catch(() => null);
+        if (
+          sent?.hash?.toLowerCase() === hash &&
+          !(await client.getTransactionReceipt({ hash }).catch(() => null))
+        )
+          return hash;
+      }
+      return null;
+    }
+
     async function safeState(
       saved: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
@@ -607,6 +623,19 @@ export function createWriteHold(
           if (settled) return settled;
         }
       }
+      // A hash the hold has seen that is a known pending transaction: the
+      // wallet ends it, never the exit.
+      const pending = record.executed
+        ? null
+        : await knownPending(record, client);
+      if (pending)
+        return {
+          status: "pending-known-hash",
+          record,
+          hash: pending,
+          exit: false,
+          line: WRITE_HOLD_PENDING_LINE,
+        };
       if (
         !record.executed &&
         !record.unproven &&

@@ -542,6 +542,23 @@ describe("write hold storage", () => {
 });
 
 describe("a held write", () => {
+  it.skip("replays the latest state to a subscriber that arrives late", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    const early = vi.fn();
+    handle.subscribe(early);
+    expect(early).not.toHaveBeenCalled();
+    await handle.send(client, wallet(async () => HASH).send);
+    const late = vi.fn();
+    hold.open(ordinary).subscribe(late);
+    expect(late).toHaveBeenCalledOnce();
+    expect(late.mock.calls[0][0]).toMatchObject({
+      status: "pending-known-hash",
+      hash: HASH,
+    });
+  });
+
   it("reserves before the wallet, saves its hash and releases on a verified success at once", async () => {
     const { hold, browser } = setup();
     const { chain, client, receiptOf } = fakeChain();
@@ -2783,6 +2800,87 @@ describe("a held Safe proposal", () => {
       });
       return { ...setup, fixture, handle };
     }
+
+    it("refuses the exit while the returned hash is a known pending transaction, then settles it", async () => {
+      const { hold } = safeSetup();
+      const fixture = fakeChain();
+      const handle = hold.open(safeCall());
+      // The wallet returned an execution hash at once.
+      await handle.send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(EXECUTION);
+      });
+      const unproven = await handle.onUnproven(fixture.client);
+      expect(unproven).toMatchObject(unprovenState);
+      // Codex: that hash then shows up pending in the mempool.
+      fixture.chain.txs.push({
+        hash: EXECUTION,
+        from: ACCOUNT,
+        nonce: 7,
+        to: SAFE,
+        input: execInput(),
+        value: 0n,
+        logs: [event(`0x${"5d".repeat(32)}` as Hex, SUCCESS)],
+      });
+      await expect(handle.state(fixture.client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        hash: EXECUTION,
+        exit: false,
+        line: WRITE_HOLD_PENDING_LINE,
+      });
+      await expect(
+        handle.exit(unproven, { checkedWallet: true }, fixture.client),
+      ).resolves.toMatchObject({
+        released: false,
+        state: { status: "pending-known-hash", exit: false },
+      });
+      await expect(
+        handle.send(fixture.client, async () => {}),
+      ).rejects.toBeInstanceOf(WriteHeldError);
+      // It mines and verifies: settled.
+      fixture.chain.txs[0].block = 95n;
+      fixture.chain.head = 120n;
+      fixture.chain.finalized = 110n;
+      await expect(handle.state(fixture.client)).resolves.toEqual({
+        status: "clear",
+        settled: { result: "success", hash: EXECUTION },
+      });
+    });
+
+    it.skip("keeps an unauthenticated execution hash as a candidate only, so the exit stays reachable", async () => {
+      const browser = origin();
+      const { handle, fixture, queue } = await proposed(browser);
+      // Codex: the hash ran different calldata.
+      fixture.chain.txs.push({
+        hash: EXECUTION,
+        from: ACCOUNT,
+        nonce: 7,
+        to: SAFE,
+        input: execInput({ to: TARGET, data: "0xdeadbeef" as Hex, value: 0n }),
+        value: 0n,
+        block: 95n,
+        logs: [event(`0x${"5e".repeat(32)}` as Hex, SUCCESS)],
+      });
+      fixture.chain.head = 120n;
+      fixture.chain.finalized = 110n;
+      const reported = await handle.onExecuted(fixture.client, EXECUTION);
+      expect(reported).toMatchObject({
+        status: "pending-known-hash",
+        hash: queue.hash,
+        record: { candidates: [EXECUTION] },
+      });
+      expect((reported as WriteHeldState).record.executed).toBeUndefined();
+      const unproven = await handle.onUnproven(fixture.client, queue.hash);
+      expect(unproven).toMatchObject(unprovenState);
+      // After a reload too.
+      const reloaded = safeSetup(browser).hold.open(safeCall());
+      expect(reloaded.peek()).toMatchObject(unprovenState);
+      const shown = await reloaded.state(fixture.client);
+      expect(shown).toMatchObject(unprovenState);
+      await expect(
+        reloaded.exit(shown, { checkedWallet: true }, fixture.client),
+      ).resolves.toMatchObject({ released: true });
+    });
 
     it("offers the exit at once, durably through a reload", async () => {
       const browser = origin();
