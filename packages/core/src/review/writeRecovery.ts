@@ -1413,6 +1413,7 @@ export function createBrowserWriteRecovery(
         const store = storage();
         const latest = JSON.parse(store.getItem(latestKey) ?? "null") as {
           id?: unknown;
+          at?: unknown;
         } | null;
         const saved = JSON.parse(store.getItem(settledKey) ?? "null") as {
           id?: unknown;
@@ -1433,7 +1434,9 @@ export function createBrowserWriteRecovery(
           ? {
               result: saved.result,
               hash: saved.hash as Hex,
-              ...(saved.acknowledged === true
+              // Saved before 2.39 (a latest marker with no time): the user
+              // saw it then, so it reads as acknowledged.
+              ...(saved.acknowledged === true || typeof latest.at !== "number"
                 ? { acknowledged: true as const }
                 : {}),
             }

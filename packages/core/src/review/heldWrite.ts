@@ -466,15 +466,17 @@ export function createHeldWriteView(
    * The send gate, from current evidence alone: any unacknowledged success
    * of the intent or an eligible legacy hold. It holds whatever is shown.
    */
-  function unacknowledged() {
-    if (gate()) throw new Error(HELD_AWAY_SUCCESS_LINE);
+  function unacknowledged(exempt: ReadonlySet<string> = told) {
+    if (gate(exempt)) throw new Error(HELD_AWAY_SUCCESS_LINE);
   }
 
   /** Successes this view told the app of: their acknowledgement is under way. */
   const told = new Set<string>();
   /** The gate's success, but for one this view already told the app of. */
-  function gate() {
-    return handle.unacknowledgedSuccess((hash) => told.has(hash.toLowerCase()));
+  function gate(exempt: ReadonlySet<string> = told) {
+    return handle.unacknowledgedSuccess((hash) =>
+      exempt.has(hash.toLowerCase()),
+    );
   }
 
   /**
@@ -615,20 +617,23 @@ export function createHeldWriteView(
         throw new Error(
           "Saved transactions are still being checked. Try again in a moment.",
         );
-      unacknowledged();
+      // Only a success told before this send is exempt: one this send's own
+      // check finds (and tells) was never seen, so it blocks.
+      const exempt = new Set(told);
+      unacknowledged(exempt);
       // The send's own check may find one too: it says so before the wallet.
       const unsubscribe = handle.subscribe(apply);
       try {
         const hash = await handle.send(client, async (gate) => {
-          unacknowledged();
+          unacknowledged(exempt);
           return run({
             ...gate,
             // Asked again at the reservation itself, after any lock retries.
             async beforeSend(actualCall) {
-              unacknowledged();
+              unacknowledged(exempt);
               await gate.beforeSend(actualCall);
               try {
-                unacknowledged();
+                unacknowledged(exempt);
               } catch (error) {
                 gate.onRejected();
                 throw error;

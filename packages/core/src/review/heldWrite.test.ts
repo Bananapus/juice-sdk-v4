@@ -1101,4 +1101,30 @@ describe("one held write's view", () => {
     expect(onRejected).toHaveBeenCalledOnce();
     expect(wallet).not.toHaveBeenCalled();
   });
+
+  it("refuses a send whose own check first finds an earlier success, though the view saw it held (revnet)", async () => {
+    // No onSettled: delivery inside the send must not exempt it.
+    const { fake, handle } = fakeHandle(pending({ id: "r80" }));
+    fake.answer = pending({ id: "r80" });
+    const view = createHeldWriteView(handle, { client, follow: false });
+    const stop = view.start();
+    await flush();
+    expect(view.get().phase).toBe("confirming");
+    handle.send.mockImplementationOnce((async (
+      _client: WriteHoldClient,
+      run: (gate: never) => Promise<Hex>,
+    ) => {
+      // The send's own pre-wallet check finds it settled, and says so.
+      fake.answer = clear({
+        reservation: "r80",
+        settled: { result: "success", hash: HASH },
+      });
+      fake.emit(fake.answer);
+      return run({} as never);
+    }) as never);
+    const wallet = vi.fn(async () => HASH);
+    await expect(view.send(wallet)).rejects.toThrow(HELD_AWAY_SUCCESS_LINE);
+    expect(wallet).not.toHaveBeenCalled();
+    stop();
+  });
 });
