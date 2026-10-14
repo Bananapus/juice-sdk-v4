@@ -63,6 +63,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
   sentFrom?: Address;
   /** Another Safe transaction used this Safe write's nonce: held for the user's exit, never released on its own. */
   replaced?: true;
+  /** The app's Safe follower ended without proof: held for the user's exit, unless evidence settles it. */
+  unproven?: true;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -155,6 +157,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.firstSeenAt) ||
     !optionalDecimal(record.safeNonce) ||
     (record.replaced !== undefined && record.replaced !== true) ||
+    (record.unproven !== undefined && record.unproven !== true) ||
     (record.sentFrom !== undefined &&
       !isAddress(record.sentFrom, { strict: false })) ||
     (record.executed !== undefined && record.executed !== true) ||
@@ -185,6 +188,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       ? {}
       : { sentFrom: record.sentFrom.toLowerCase() as Address }),
     ...(record.replaced ? { replaced: true as const } : {}),
+    ...(record.unproven ? { unproven: true as const } : {}),
     ...(record.executed ? { executed: true as const } : {}),
     ...(record.executionHash === undefined
       ? {}
@@ -965,6 +969,23 @@ export function createBrowserWriteRecovery(
         executionHash: undefined,
         replaced: true,
       });
+    },
+    /**
+     * Save that the app's follower of this Safe write ended without proof.
+     * A proven execution or replacement keeps its own state.
+     */
+    unprovenEnd(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(
+        expected,
+        (current) =>
+          current.safe &&
+          !current.executed &&
+          !current.replaced &&
+          !current.unproven,
+        { unproven: true },
+      );
     },
     /**
      * Save a Safe proposal's nonce from its authenticated record, once. Extra

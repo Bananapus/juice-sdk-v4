@@ -855,6 +855,8 @@ try {
 await hold.onReceipt(receipt, publicClient);
 // A Safe follower may report a proven execution (with its transaction):
 await hold.onExecuted(publicClient, executionHash);
+// Or that it ended without proof (it gave up, or the service lost it):
+await hold.onUnproven(publicClient, proposalHash); // safe-unproven: the exit
 
 // The exit, only on a state with `exit: true`, given the state the user saw:
 const { released } = await hold.exit(

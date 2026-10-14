@@ -27,6 +27,7 @@ import {
   WRITE_HOLD_UNCHECKED_LINE,
   WRITE_HOLD_REVERTED_LINE,
   WRITE_HOLD_SAFE_REPLACED_LINE,
+  WRITE_HOLD_SAFE_UNPROVEN_LINE,
 } from "./messages.js";
 import {
   createWriteHold,
@@ -2343,6 +2344,143 @@ describe("a held Safe proposal", () => {
       ).resolves.toMatchObject({ released: true });
     },
   );
+
+  describe("whose follower ends without proof", () => {
+    const unprovenState = {
+      status: "safe-unproven",
+      exit: true,
+      line: WRITE_HOLD_SAFE_UNPROVEN_LINE,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
+    };
+    async function proposed(browser = origin()) {
+      const setup = safeSetup(browser);
+      const fixture = fakeChain();
+      const handle = setup.hold.open(safeCall());
+      await handle.send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(setup.queue.hash);
+      });
+      return { ...setup, fixture, handle };
+    }
+
+    it("offers the exit at once, durably through a reload", async () => {
+      const browser = origin();
+      const { handle, fixture, queue } = await proposed(browser);
+      const ended = await handle.onUnproven(fixture.client, queue.hash);
+      expect(ended).toMatchObject({
+        ...unprovenState,
+        hash: queue.hash,
+        record: { unproven: true },
+      });
+      // A reload: a new controller and tab memory, the same browser.
+      const reloaded = safeSetup(browser).hold.open(safeCall());
+      expect(reloaded.peek()).toMatchObject(unprovenState);
+      const shown = await reloaded.state(fixture.client);
+      expect(shown).toMatchObject(unprovenState);
+      await expect(
+        reloaded.send(fixture.client, async () => {}),
+      ).rejects.toBeInstanceOf(WriteHeldError);
+      // A stale snapshot is refused; the one shown releases.
+      await expect(
+        reloaded.exit(
+          {
+            ...shown,
+            record: { ...(shown as WriteHeldState).record, id: "other" },
+          } as WriteHoldState,
+          { checkedWallet: true },
+          fixture.client,
+        ),
+      ).resolves.toMatchObject({ released: false });
+      await expect(
+        reloaded.exit(shown, { checkedWallet: true }, fixture.client),
+      ).resolves.toEqual({ released: true, state: { status: "clear" } });
+      const again = vi.fn();
+      await reloaded.send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        again();
+      });
+      expect(again).toHaveBeenCalledOnce();
+    });
+
+    it("lets authenticated evidence that arrives later settle it", async () => {
+      for (const topic of [SUCCESS, FAILURE]) {
+        const { handle, fixture, queue } = await proposed();
+        await handle.onUnproven(fixture.client);
+        executes(fixture, queue.hash, topic);
+        await expect(handle.state(fixture.client)).resolves.toEqual({
+          status: "clear",
+          settled: {
+            result: topic === SUCCESS ? "success" : "failed",
+            hash: EXECUTION,
+          },
+        });
+      }
+      // Evidence already in hand when the follower gives up wins at once.
+      const { handle, fixture, queue } = await proposed();
+      executes(fixture, queue.hash, SUCCESS);
+      await expect(handle.onUnproven(fixture.client)).resolves.toEqual({
+        status: "clear",
+        settled: { result: "success", hash: EXECUTION },
+      });
+    });
+
+    it("keeps a proven execution or replacement as it is", async () => {
+      const ran = await proposed();
+      executes(ran.fixture, ran.queue.hash, SUCCESS, { named: false });
+      ran.fixture.chain.hidden.add(EXECUTION.toLowerCase());
+      await ran.handle.state(ran.fixture.client);
+      await expect(
+        ran.handle.onUnproven(ran.fixture.client),
+      ).resolves.toMatchObject({ status: "ran-executed", exit: false });
+      ran.hold.dispose();
+      const replaced = await proposed();
+      executes(replaced.fixture, OTHER, SUCCESS);
+      await replaced.handle.state(replaced.fixture.client);
+      await expect(
+        replaced.handle.onUnproven(replaced.fixture.client),
+      ).resolves.toMatchObject({ status: "safe-replaced" });
+    });
+
+    it("ignores another proposal, an ordinary write, nothing held and a busy lock", async () => {
+      const { handle, fixture, queue } = await proposed();
+      await expect(
+        handle.onUnproven(fixture.client, OTHER),
+      ).resolves.toMatchObject({
+        status: "pending-known-hash",
+        hash: queue.hash,
+      });
+      // The proposal's hash in any case still names it.
+      await expect(
+        handle.onUnproven(
+          fixture.client,
+          queue.hash.toUpperCase().replace("0X", "0x") as Hex,
+        ),
+      ).resolves.toMatchObject({ status: "safe-unproven" });
+      const plain = safeSetup().hold;
+      await expect(
+        plain.open(safeCall()).onUnproven(fixture.client),
+      ).resolves.toEqual({ status: "clear" });
+      const ordinaryHold = plain.open(ordinary);
+      await ordinaryHold.send(fixture.client, wallet(async () => HASH).send);
+      await expect(
+        ordinaryHold.onUnproven(fixture.client),
+      ).resolves.toMatchObject({ status: "pending-known-hash" });
+      const busy = createWriteHold({
+        storage: createHeldWriteStorage({
+          durable: () => origin().storage,
+          memory: new Map(),
+        }),
+        locks: {
+          request: async () => {
+            throw new Error("locks unavailable");
+          },
+        } as never,
+      });
+      await expect(
+        busy.open(safeCall()).onUnproven(fixture.client),
+      ).resolves.toEqual({ status: "clear" });
+    });
+  });
 
   it("releases a stamped proposal only once its expiry is proven at a finalized block", async () => {
     const router = uniswapV4Deployment(10)!.universalRouter!;
