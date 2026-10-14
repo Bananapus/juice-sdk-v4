@@ -65,6 +65,12 @@ export type ReviewedWriteRecoveryRecord = Omit<
   replaced?: true;
   /** The app's Safe follower ended without proof: held for the user's exit, unless evidence settles it. */
   unproven?: true;
+  /**
+   * When the node first answered that the saved hash, already seen with its
+   * sent nonce, is unknown, in milliseconds since the epoch, as a decimal
+   * string. Cleared once it is seen again.
+   */
+  vanishedAt?: string;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -156,6 +162,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.submittedAt) ||
     !optionalDecimal(record.firstSeenAt) ||
     !optionalDecimal(record.safeNonce) ||
+    !optionalDecimal(record.vanishedAt) ||
     (record.replaced !== undefined && record.replaced !== true) ||
     (record.unproven !== undefined && record.unproven !== true) ||
     (record.sentFrom !== undefined &&
@@ -189,6 +196,9 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       : { sentFrom: record.sentFrom.toLowerCase() as Address }),
     ...(record.replaced ? { replaced: true as const } : {}),
     ...(record.unproven ? { unproven: true as const } : {}),
+    ...(record.vanishedAt === undefined
+      ? {}
+      : { vanishedAt: record.vanishedAt }),
     ...(record.executed ? { executed: true as const } : {}),
     ...(record.executionHash === undefined
       ? {}
@@ -969,6 +979,23 @@ export function createBrowserWriteRecovery(
         executionHash: undefined,
         replaced: true,
       });
+    },
+    /**
+     * Note whether the node knows the saved hash (seen with its sent nonce)
+     * right now: unknown starts the clock once; known clears it. Extra
+     * evidence only.
+     */
+    vanished(
+      expected: ReviewedWriteRecoveryRecord,
+      gone: boolean,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(
+        expected,
+        (current) =>
+          current.sentNonce !== undefined &&
+          (current.vanishedAt === undefined) === gone,
+        { vanishedAt: gone ? String(Date.now()) : undefined },
+      );
     },
     /**
      * Save that the app's follower of this Safe write ended without proof.
