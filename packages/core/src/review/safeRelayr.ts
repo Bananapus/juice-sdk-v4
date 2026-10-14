@@ -55,6 +55,7 @@ import {
   type RelayrProofClient,
   type RelayrVerifiedDestination,
 } from "./relayr.js";
+import { TAB, tabShared } from "./tabState.js";
 
 /** Exact frozen calldata plus the Safe intent it executes. Context belongs to the app. */
 export type SafeRelayrExecution = {
@@ -291,19 +292,9 @@ export class SafeRelayrRecoveryError extends Error {
 // Review is a page-lifetime capability, never a local-storage claim. Multiple
 // hook instances can share it; reloading, changing exact bytes, or eviction
 // requires explicit review again. Eviction only adds a review, never a write.
-const reviewedIntents = new Set<Hex>();
-/** The stop of every running watch. */
-const watching = new Set<() => void>();
-
-/**
- * Stop every Safe Relayr watch (it rejects with an AbortError) and forget
- * every remembered review, so nothing leaks from one test into the next.
- * For tests only.
- */
-export function resetSafeRelayrForTests(): void {
-  for (const stop of [...watching]) stop();
-  reviewedIntents.clear();
-}
+const reviewedIntents = tabShared(TAB.reviews, () => new Set<Hex>());
+/** The stop of every running watch, for the test-only reset. */
+const watching = tabShared(TAB.watches, () => new Set<() => void>());
 function reviewKey(session: SafeRelayrSession): Hex {
   return keccak256(
     toHex(

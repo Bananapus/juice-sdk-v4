@@ -955,10 +955,16 @@ A hold an earlier version saved under calldata the retry can't rebuild (an
 old minimum, expiration or deadline) is found with
 `{ match: { to, selector } }`: every exact-call write this account saved on
 this chain to `to` whose calldata starts with that 4-byte selector, delegated
-to exactly like a `{ call }` key. It is looked up when the handle opens and
-again at the final reserve. Pass a match only for writes whose calldata is
-volatile: it holds every such call, and a write saved under an intent is
-found by its namespace, never by the match.
+to exactly like a `{ call }` key. It is looked up when the handle opens, on
+every `state()`, `send()` and `exit()`, and again at the final reserve; a
+match found there refuses the send and is reached by `state()` and `exit()`
+from then on. Pass a match only for writes whose calldata is volatile: it
+holds every such call, and a write saved under an intent is found by its
+namespace, never by the match. Matching covers holds saved before the
+deploy, not a tab still running the old version: one that reserves its own
+exact call while this send's wallet is open, with other calldata, isn't
+seen. That tab could already send twice before this change; new code never
+writes exact-call holds for intent-keyed writes.
 
 ```ts
 holds.open(
@@ -986,13 +992,22 @@ nothing; one the chain can't show is held, with the warned exit 30 minutes
 after `submittedAt` (or adoption); a mined one settles on its verified
 receipt. It reserves only while nothing is held and no reservation
 came since that read (another tab's hold or settlement wins); otherwise it
-returns the current state. It never sends or releases, and adopting twice
-holds once.
+returns the current state. Under an intent it reserves like a send, under
+every legacy key's lock, and mirrors itself at each, so an older version's
+handle sees it held. It never sends, settles only on authenticated evidence,
+and adopting twice holds once. A Safe proposal adopted before its nonce was known
+takes it later with `handle.attachSafeNonce(client, { safeTxHash, nonce })`,
+saved only when the call's proposal at that nonce hashes to `safeTxHash`, so
+a replacement can be proven. Every Safe-service request inside the hold is
+bounded to 8 seconds; one that times out is unknown, which never releases or
+settles.
 
-In tests, `resetWriteHoldsForTests()` stops every controller's settle polls
-and tab listeners and drops this tab's lock queues and held-write memory;
-`resetSafeRelayrForTests()` stops every Safe Relayr watch and forgets its
-remembered reviews. Call them in `afterEach`.
+In tests, import the resets from the test-only entry,
+`@bananapus/nana-sdk-core/testing` (never from production code; no other
+entry exports them): `resetWriteHoldsForTests()` stops every controller's
+settle polls and tab listeners and drops this tab's lock queues and
+held-write memory; `resetSafeRelayrForTests()` stops every Safe Relayr watch
+and forgets its remembered reviews. Call them in `afterEach`.
 
 ### Safe proposals
 

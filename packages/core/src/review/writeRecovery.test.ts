@@ -965,6 +965,27 @@ describe("a Safe hold whose call is its MultiSend batch", () => {
       ).rejects.toThrow("pending");
   });
 
+  it("never settles a one-call batch on a direct CALL of that call", async () => {
+    const single = [calls[0]];
+    const one: ReviewedWriteRecoveryRecord = {
+      ...record,
+      call: {
+        to: MULTI_SEND_CALL_ONLY,
+        data: encodeMultiSend(single),
+        value: "0",
+      },
+    };
+    // The Safe ran the inner call itself, not the batch.
+    const direct = safeChain();
+    await expect(
+      verifyReviewedWriteReceipt(direct.client, one, direct.receipt),
+    ).rejects.toThrow("pending");
+    const batched = executed(single);
+    await expect(
+      verifyReviewedWriteReceipt(batched.client, one, batched.receipt),
+    ).resolves.toBe("success");
+  });
+
   it("keeps two batches that share a first approval apart", () => {
     const other = encodeMultiSend([
       calls[0],

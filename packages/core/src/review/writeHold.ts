@@ -35,9 +35,9 @@ import {
   createBrowserWriteRecovery,
   createHeldWriteStorage,
   findReviewedWrites,
+  heldSafeProposal,
   findTransactionAtNonce,
   readReviewedWriteNonce,
-  resetWriteRecoveryForTests,
   safeProposalIsHeldCall,
   SubmittedWritePersistenceError,
   verifyReviewedWriteExpiry,
@@ -48,6 +48,7 @@ import {
 } from "./writeRecovery.js";
 import { isBytes32 } from "../untrusted.js";
 import { atCanonicalFinalizedBlock } from "./relayr.js";
+import { TAB, tabShared } from "./tabState.js";
 
 /** `sent` is the transaction at `hash`, exactly `record`'s call, from its account, on its chain. */
 function sentIsCall(
@@ -76,18 +77,8 @@ function sentIsCall(
   );
 }
 
-/** The stop of every controller with a follower or tab listener running. */
-const liveHolds = new Set<() => void>();
-
-/**
- * Stop every write hold's followers and tab listeners, and drop this tab's
- * lock queues and held-write memory, so nothing leaks from one test into
- * the next. For tests only.
- */
-export function resetWriteHoldsForTests(): void {
-  for (const stop of [...liveHolds]) stop();
-  resetWriteRecoveryForTests();
-}
+/** The stop of every controller with a follower or tab listener running, for the test-only reset. */
+const liveHolds = tabShared(TAB.holds, () => new Set<() => void>());
 
 /** The reads a write hold makes on the call's chain; a viem PublicClient satisfies it. */
 export type WriteHoldClient = Pick<
@@ -273,6 +264,9 @@ const SAFE_EXECUTION_TOPICS = [
 /** A hash the network still hasn't seen this long after the wallet returned it was almost certainly never broadcast. */
 const UNSEEN_HASH_MS = 30 * 60_000;
 
+/** The longest one request to Safe's service may take inside the hold. */
+const SAFE_SERVICE_READ_MS = 8_000;
+
 /** The 30 minutes have passed since the wallet returned the hash, or since it was first read. A clock that couldn't be saved (NaN) never runs out. */
 function unseenTooLong(record: ReviewedWriteRecoveryRecord): boolean {
   return (
@@ -422,6 +416,28 @@ export function createWriteHold(
   } = {},
 ) {
   const storage = options.storage ?? createHeldWriteStorage();
+  /**
+   * Safe's service, every request bounded to {@link SAFE_SERVICE_READ_MS}
+   * whatever its fetch does with the signal: a read that times out is
+   * unknown, which never releases or settles, so a hung service can't hold
+   * a send or the call's lock.
+   */
+  const service: SafeServiceOptions = {
+    ...options.safeService,
+    fetch: (url, init) => {
+      const request = options.safeService?.fetch ?? globalThis.fetch;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      return Promise.race([
+        request(url, init),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("Safe's service did not answer in time.")),
+            SAFE_SERVICE_READ_MS,
+          );
+        }),
+      ]).finally(() => clearTimeout(timer));
+    },
+  };
   const interval = options.settle?.intervalMs ?? SETTLE_POLL_MS;
   const attempts = options.settle?.attempts ?? SETTLE_POLL_ATTEMPTS;
   const listeners = new Map<string, Set<(state: WriteHoldState) => void>>();
@@ -655,7 +671,7 @@ export function createWriteHold(
           call.chainId,
           call.account,
           hash,
-          options.safeService,
+          service,
         ).catch(() => null);
         return !proposal || safeProposalIsHeldCall(proposal, call);
       }
@@ -672,7 +688,7 @@ export function createWriteHold(
           record.chainId,
           record.account,
           record.hash!,
-          options.safeService,
+          service,
         );
         return safeTransactionMessage(proposal).nonce;
       } catch {
@@ -936,7 +952,7 @@ export function createWriteHold(
           record.chainId,
           record.account,
           hash,
-          options.safeService,
+          service,
         ));
       // Another Safe transaction took its nonce, even after a saved execution
       // was reorganized away. It may have run the call too: the exit, never a release.
@@ -946,7 +962,7 @@ export function createWriteHold(
         const expired = await verifyReviewedWriteExpiry(
           client,
           record,
-          options.safeService,
+          service,
         ).catch(() => false);
         if (expired && release(record))
           return clear({ result: "expired" }, record.id);
@@ -1420,14 +1436,12 @@ export function createWriteHold(
         const hash = (
           call.safe ? evidence.safe?.safeTxHash : evidence.hash
         )?.toLowerCase() as Hex | undefined;
-        const result = await locked(async () => {
-          const free =
-            snapshot.status === "clear" &&
-            !recovery.read() &&
-            recovery.latestReservation() === snapshot.reservation;
-          if (!free) return peek();
-          if (hash !== undefined && !(await adoptable(hash, client)))
-            return peek();
+        /** Nothing held, and no reservation since the app's read. */
+        const free = () =>
+          snapshot.status === "clear" &&
+          !recovery.read() &&
+          recovery.latestReservation() === snapshot.reservation;
+        const reserve = () =>
           recovery.reserve(
             undefined,
             nonce !== undefined && evidence.fromBlock !== undefined
@@ -1441,7 +1455,74 @@ export function createWriteHold(
                   : String(evidence.submittedAt),
             },
           );
+        if (hooks.across) {
+          // Under an intent: the same atomic reserve as a send, under every
+          // legacy key's lock, mirrored at each so older versions see it.
+          if (
+            !free() ||
+            (hash !== undefined && !(await adoptable(hash, client)))
+          )
+            return shown(peek());
+          let adopted = false;
+          try {
+            const { released } = await hooks.across(
+              (work) => recovery.withLock(work),
+              () => {
+                if (!free()) throw new Error("Held since the app's read.");
+                reserve();
+                adopted = true;
+              },
+              recovery.rejected,
+              Promise.resolve(),
+              hooks.generations!(),
+            );
+            await released;
+          } catch {
+            /* Held elsewhere, busy, or no longer free: nothing adopted. */
+          }
+          // A mined hash settles on its verified receipt, through the gate.
+          return adopted && hash && client ? state(client) : shown(peek());
+        }
+        const result = await locked(async () => {
+          if (!free()) return peek();
+          if (hash !== undefined && !(await adoptable(hash, client)))
+            return peek();
+          reserve();
           return hash && client ? inspect(client) : peek();
+        }, true);
+        return shown(result?.value ?? peek());
+      },
+      /**
+       * Save the Safe nonce of a held Safe proposal adopted before it was
+       * known, so a replacement can be proven later. Under the call's lock,
+       * only while the held proposal is `safeTxHash` with no nonce yet, and
+       * only when the call's proposal at `nonce` hashes to it: the hash is
+       * the proof. Then the gate reads it. Never sends or releases.
+       */
+      async attachSafeNonce(
+        client: WriteHoldClient,
+        { safeTxHash, nonce }: { safeTxHash: Hex; nonce: number },
+      ): Promise<WriteHoldState> {
+        const result = await locked(async () => {
+          const record = recovery.read();
+          if (
+            record?.safe &&
+            !record.mirrorOf &&
+            record.safeNonce === undefined &&
+            record.hash === safeTxHash.toLowerCase()
+          )
+            try {
+              canonicalSafeTxHash(
+                call.chainId,
+                call.account,
+                heldSafeProposal(call, nonce),
+                safeTxHash,
+              );
+              recovery.proposalNonce(record, BigInt(nonce));
+            } catch {
+              /* Not this proposal at that nonce: nothing saved. */
+            }
+          return inspect(client);
         }, true);
         return shown(result?.value ?? peek());
       },
@@ -1578,35 +1659,63 @@ export function createWriteHold(
     const scopeOf = (input: ReviewedWriteRecoveryInput) =>
       createBrowserWriteRecovery(input, { storage }).scopeKey;
     const scopes = new Set([scopeOf(call)]);
-    const inputs = [
-      ...[{ call: call.call }, ...legacy].flatMap((source) =>
+    // Mirror-aware: evidence and exits always act on the source attempt.
+    const delegates: ReturnType<typeof openExact>[] = [];
+    const journals: ReturnType<typeof createBrowserWriteRecovery>[] = [];
+    /** Hold `inputs` too, each once, in one canonical order by scope for every writer's locks. */
+    function include(inputs: ReviewedWriteRecoveryInput[]) {
+      const added = inputs.filter((input) => {
+        const scope = scopeOf(input);
+        return !scopes.has(scope) && !!scopes.add(scope);
+      });
+      if (!added.length) return;
+      const keyed = [
+        ...delegates.map((delegate, index) => ({
+          delegate,
+          journal: journals[index],
+        })),
+        ...added.map((input) => ({
+          delegate: openExact(input),
+          journal: createBrowserWriteRecovery(input, {
+            storage,
+            locks: options.locks,
+          }),
+        })),
+      ].sort(
+        (a, b) =>
+          Number(a.journal.scopeKey > b.journal.scopeKey) -
+          Number(a.journal.scopeKey < b.journal.scopeKey),
+      );
+      delegates.splice(0, delegates.length, ...keyed.map((k) => k.delegate));
+      journals.splice(0, journals.length, ...keyed.map((k) => k.journal));
+    }
+    /** A found write as a key: its own Safe flag, since its record is matched exactly. */
+    const keyOfFound = (record: ReviewedWriteRecoveryRecord) => ({
+      ...exact,
+      safe: record.safe,
+      call: record.call,
+    });
+    /**
+     * Look for matching writes again (on every state(), send() and exit());
+     * those found since are held too. Returns the ones that are new.
+     */
+    function rescan(): ReviewedWriteRecoveryRecord[] {
+      const found = matched().filter(
+        (record) => !scopes.has(scopeOf(keyOfFound(record))),
+      );
+      include(found.map(keyOfFound));
+      return found;
+    }
+    include(
+      [{ call: call.call }, ...legacy].flatMap((source) =>
         typeof source === "string"
           ? [{ ...call, namespace: source }]
           : "call" in source
             ? [{ ...exact, call: source.call }]
             : [],
       ),
-      // A found write keeps its own Safe flag: its record is matched exactly.
-      ...matched().map((record) => ({
-        ...exact,
-        safe: record.safe,
-        call: record.call,
-      })),
-    ]
-      .filter((input) => {
-        const scope = scopeOf(input);
-        return !scopes.has(scope) && !!scopes.add(scope);
-      })
-      // One canonical order, by scope, for every writer's locks.
-      .sort(
-        (a, b) =>
-          Number(scopeOf(a) > scopeOf(b)) - Number(scopeOf(a) < scopeOf(b)),
-      );
-    // Mirror-aware: evidence and exits always act on the source attempt.
-    const delegates = inputs.map((input) => openExact(input));
-    const journals = inputs.map((input) =>
-      createBrowserWriteRecovery(input, { storage, locks: options.locks }),
     );
+    rescan();
     /** A legacy key holding anything but this intent's own mirror. */
     const foreign = (index: number) =>
       journals[index].read()?.mirrorOf !== namespace &&
@@ -1617,6 +1726,7 @@ export function createWriteHold(
     async function delegated(
       client: WriteHoldClient,
     ): Promise<WriteHeldState | null> {
+      rescan();
       for (const [index, handle] of delegates.entries()) {
         if (!foreign(index)) continue;
         const state = await handle.state(client);
@@ -1667,10 +1777,10 @@ export function createWriteHold(
             const held = journal.read();
             if (held && held.mirrorOf !== namespace) throw refuse(held);
           }
-          // A matching write saved since the handle opened holds it too.
-          for (const held of matched())
-            if (!scopes.has(scopeOf({ ...exact, call: held.call })))
-              throw refuse(held);
+          // A matching write saved since the last look holds it too, and
+          // its own state() and exit() are reached from now on.
+          const [late] = rescan();
+          if (late) throw refuse(late);
           // Another attempt since this review opened: review it again.
           if (generations() !== reviewed)
             throw new WriteHoldStaleReviewError(ownJournal.settled());
@@ -1773,6 +1883,7 @@ export function createWriteHold(
         acknowledgement: { checkedWallet: true },
         client: WriteHoldClient,
       ): Promise<{ released: boolean; state: WriteHoldState }> {
+        rescan();
         const owner =
           snapshot.status === "clear"
             ? undefined
@@ -1799,9 +1910,14 @@ export function createWriteHold(
         active()?.onExecuted(...args) ?? after(await own.onExecuted(...args)),
       attachHash: async (...args: Parameters<typeof own.attachHash>) =>
         active()?.attachHash(...args) ?? after(await own.attachHash(...args)),
+      attachSafeNonce: async (
+        ...args: Parameters<typeof own.attachSafeNonce>
+      ) =>
+        active()?.attachSafeNonce(...args) ??
+        after(await own.attachSafeNonce(...args)),
       // A legacy hold already holds it: nothing is adopted.
       adopt: async (...args: Parameters<typeof own.adopt>) =>
-        active()?.peek() ?? own.adopt(...args),
+        active()?.peek() ?? after(await own.adopt(...args)),
     };
   }
 
@@ -1895,6 +2011,8 @@ export function createWriteHold(
         (route() ?? own).onExecuted(...args),
       attachHash: (...args: Parameters<typeof own.attachHash>) =>
         (route() ?? own).attachHash(...args),
+      attachSafeNonce: (...args: Parameters<typeof own.attachSafeNonce>) =>
+        (route() ?? own).attachSafeNonce(...args),
       // An intent's mirror already holds it: nothing is adopted.
       adopt: async (...args: Parameters<typeof own.adopt>) =>
         route()?.peek() ?? own.adopt(...args),

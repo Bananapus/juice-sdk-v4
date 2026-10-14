@@ -237,9 +237,12 @@ const budgets = {
     // unpacked and 826 entries.
     // Legacy matches, test resets, adoption and MultiSend batch holds
     // measured 1,475,092 B packed / 21,830,136 B unpacked and 826 entries.
-    packed: 1_480_000,
-    unpacked: 21_840_000,
-    entries: 826,
+    // The test-only entry and its shared tab state, Safe nonce attachment and
+    // bounded Safe-service reads measured 1,480,925 B packed / 21,861,181 B
+    // unpacked and 842 entries.
+    packed: 1_488_000,
+    unpacked: 21_875_000,
+    entries: 842,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

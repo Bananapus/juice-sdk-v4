@@ -1,4 +1,5 @@
 import {
+  decodeFunctionData,
   isAddress,
   keccak256,
   type Address,
@@ -10,10 +11,13 @@ import {
   lookAtSafeProposal,
   readSafeAppExecution,
   readSafeTransaction,
+  SAFE_EXEC_ABI,
+  safeProposalFor,
   safeTransactionMatchesCall,
   type SafeServiceOptions,
 } from "../safeService.js";
 import { multiSendCallsOf } from "../safe.js";
+import { TAB } from "./tabState.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import {
   atCanonicalFinalizedBlock,
@@ -110,9 +114,9 @@ export type ReviewedWriteNonceEvidence = {
 
 type RecoveryStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type RecoveryLocks = Pick<LockManager, "request">;
-const TAB_MEMORY = Symbol.for("nana-sdk:held-writes");
-const TAB_QUEUES = Symbol.for("nana-sdk:write-lock-queues");
-const TAB_SEEN = Symbol.for("nana-sdk:held-writes-seen");
+const TAB_MEMORY = TAB.memory;
+const TAB_QUEUES = TAB.queues;
+const TAB_SEEN = TAB.seen;
 // A returned hash must survive a component remount even when its durable update
 // failed. It is visible only while the exact durable reservation still exists.
 const unpersistedSubmissions = new WeakMap<
@@ -528,22 +532,6 @@ export function findReviewedWrites(
     }
   }
   return found;
-}
-
-/**
- * Drop this tab's lock queues, held-write memory and lock fallback, for
- * tests: {@link resetWriteHoldsForTests} calls it.
- */
-export function resetWriteRecoveryForTests(): void {
-  tabQueues.clear();
-  const tab = globalThis as {
-    [TAB_MEMORY]?: unknown;
-    [TAB_SEEN]?: unknown;
-  };
-  delete tab[TAB_MEMORY];
-  delete tab[TAB_SEEN];
-  fallbackLocks = undefined;
-  tabLocksNoted = false;
 }
 
 export type ReviewedWriteRecoveryScope = Pick<
@@ -1796,6 +1784,47 @@ function heldBatch(
   return inner && inner.map((call) => normalized({ ...record, call }).call);
 }
 
+/** Whether `transaction` is the Safe's execTransaction of exactly the held batch: its MultiSend target, calldata, zero value and DELEGATECALL. */
+function runsHeldBatch(
+  transaction: { to?: Address | null; input?: Hex },
+  record: ReviewedWriteRecoveryRecord,
+): boolean {
+  try {
+    const { functionName, args } = decodeFunctionData({
+      abi: SAFE_EXEC_ABI,
+      data: transaction.input!,
+    });
+    if (functionName !== "execTransaction") return false;
+    const [to, value, data, operation] = args;
+    return (
+      to.toLowerCase() === record.call.to &&
+      value === 0n &&
+      data.toLowerCase() === record.call.data &&
+      operation === 1
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The Safe proposal of the held Safe write's call at `nonce`, as SDK writes
+ * propose it (no refund): a batch hold's MultiSend by DELEGATECALL.
+ */
+export function heldSafeProposal(
+  input: ReviewedWriteRecoveryInput,
+  nonce: number,
+): ReturnType<typeof safeProposalFor> {
+  const record = normalized(input);
+  return {
+    ...safeProposalFor(
+      { ...record.call, value: BigInt(record.call.value) },
+      nonce,
+    ),
+    ...(heldBatch({ ...record, version: 1, id: "" }) ? { operation: 1 } : {}),
+  };
+}
+
 /**
  * Whether Safe's `proposal` is exactly the held Safe write's call: a batch
  * hold's MultiSend by DELEGATECALL, any other call by CALL.
@@ -1919,6 +1948,14 @@ export async function verifyReviewedWriteReceipt(
           log.blockNumber !== canonical.blockNumber ||
           log.transactionIndex !== canonical.transactionIndex,
       )
+    )
+      throw pending();
+    // Run at once, a batch hold's execution must be its exact MultiSend by
+    // DELEGATECALL: a direct CALL of a one-call batch's call is not it.
+    if (
+      batch &&
+      hash.toLowerCase() === record.hash &&
+      !runsHeldBatch(transaction, record)
     )
       throw pending();
     const result = await readSafeAppExecution({

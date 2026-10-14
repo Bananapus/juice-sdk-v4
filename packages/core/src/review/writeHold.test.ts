@@ -1,3 +1,4 @@
+import { resetWriteHoldsForTests } from "../testing.js";
 import {
   encodeAbiParameters,
   encodeEventTopics,
@@ -34,7 +35,6 @@ import {
 import { intent, writeIntentKey } from "./writeIntent.js";
 import {
   createWriteHold,
-  resetWriteHoldsForTests,
   WriteHeldError,
   WriteHoldBusyError,
   WriteHoldNonceError,
@@ -2372,6 +2372,9 @@ describe("a held write", () => {
       status: "clear",
     });
     await expect(
+      handle.attachSafeNonce(client, { safeTxHash: HASH, nonce: 5 }),
+    ).resolves.toEqual({ status: "clear" });
+    await expect(
       handle.exit(
         { status: "held-no-hash" } as WriteHoldState,
         { checkedWallet: true },
@@ -2472,6 +2475,9 @@ describe("a write held under an intent", () => {
 
   it("is the legacy hold while it is unresolved: state() shows it and send() refuses with it", async () => {
     const { handle, client, legacy, old } = await delegated();
+    await expect(
+      handle.attachSafeNonce(client, { safeTxHash: HASH, nonce: 5 }),
+    ).resolves.toMatchObject({ reservation: legacy.record.id });
     const shown = await handle.state(client);
     expect(shown).toMatchObject({
       status: "held-no-hash",
@@ -3634,6 +3640,101 @@ describe("a held Safe proposal", () => {
     });
     return { hold, queue, browser, storage };
   }
+
+  it("keeps a held proposal, unreleased, when Safe's service never answers", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    // The service hangs, whatever signal it is given.
+    queue.options.fetch.mockImplementation(() => new Promise(() => {}));
+    const read = handle.state(fixture.client);
+    await vi.advanceTimersByTimeAsync(8_000 * 4);
+    await expect(read).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: queue.hash,
+      checked: true,
+    });
+    vi.useRealTimers();
+  });
+
+  it("bounds Safe-service reads made with the browser's own fetch", async () => {
+    const { queue } = safeSetup();
+    vi.stubGlobal("fetch", queue.options.fetch);
+    const browser = origin();
+    const hold = createWriteHold({
+      storage: createHeldWriteStorage({
+        durable: () => browser.storage,
+        memory: new Map(),
+      }),
+      locks: lockManager(),
+    });
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.adopt(
+      { status: "clear" },
+      { safe: { safeTxHash: queue.hash } },
+      fixture.client,
+    );
+    expect(queue.options.fetch).toHaveBeenCalled();
+    expect((handle.peek() as WriteHeldState).record.safeNonce).toBe("5");
+  });
+
+  it("attaches an adopted proposal's Safe nonce only when it hashes to its safeTxHash", async () => {
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    // Safe's service is unreachable: the hash alone proves the nonce.
+    queue.options.fetch.mockRejectedValue(new Error("offline"));
+    await handle.adopt(
+      { status: "clear" },
+      { safe: { safeTxHash: queue.hash } },
+      fixture.client,
+    );
+    const nonceOf = () => (handle.peek() as WriteHeldState).record.safeNonce;
+    const attach = (safeTxHash: Hex, nonce: number) =>
+      handle.attachSafeNonce(fixture.client, { safeTxHash, nonce });
+    await expect(attach(queue.hash, 6)).resolves.toMatchObject({
+      status: "pending-known-hash",
+    });
+    expect(nonceOf()).toBeUndefined();
+    await attach(OTHER, 5);
+    expect(nonceOf()).toBeUndefined();
+    await attach(queue.hash, 5);
+    expect(nonceOf()).toBe("5");
+    // Once known, it is never replaced.
+    await attach(queue.hash, 5);
+    expect(nonceOf()).toBe("5");
+    // Under an intent, the same.
+    const other = safeSetup();
+    other.queue.options.fetch.mockRejectedValue(new Error("offline"));
+    const intentHandle = other.hold.open({
+      ...safeCall(),
+      namespace: writeIntentKey("pay", { projectId: 4n }),
+    });
+    await intentHandle.adopt(
+      { status: "clear" },
+      { safe: { safeTxHash: other.queue.hash } },
+      fixture.client,
+    );
+    await intentHandle.attachSafeNonce(fixture.client, {
+      safeTxHash: other.queue.hash,
+      nonce: 5,
+    });
+    expect((intentHandle.peek() as WriteHeldState).record.safeNonce).toBe("5");
+    // An ordinary hold has no Safe nonce to attach.
+    const plain = setup().hold.open(ordinary);
+    await expect(
+      plain.attachSafeNonce(fixture.client, {
+        safeTxHash: queue.hash,
+        nonce: 5,
+      }),
+    ).resolves.toMatchObject({ status: "clear" });
+  });
 
   it("adopts a previous deploy's Safe proposal by its safeTxHash, only for this exact call", async () => {
     const { hold, queue } = safeSetup();
@@ -5280,11 +5381,126 @@ describe("a write held under an intent, found by a legacy match", () => {
     await expect(
       old.hold.open(cashOut(1)).send(client, lostReply().send),
     ).rejects.toThrow();
+    // Found on the next read: state() and exit() reach it.
+    const shown = await handle.state(client);
+    expect(shown).toMatchObject({ status: "held-no-hash", exit: true });
     const retry = wallet(async () => HASH);
     await expect(handle.send(client, retry.send)).rejects.toBeInstanceOf(
       WriteHeldError,
     );
     expect(retry.write).not.toHaveBeenCalled();
+    await expect(
+      handle.exit(shown, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+    await handle.send(client, retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+  });
+
+  it("refuses a matching hold saved during the review at the final reserve, then reaches it", async () => {
+    const browser = origin();
+    const next = setup({ browser });
+    const old = setup({ browser, locks: next.locks });
+    const { client } = fakeChain();
+    const handle = next.hold.open(
+      { ...cashOut(2), namespace: key },
+      { legacy: [match()] },
+    );
+    const opened = vi.fn();
+    const refused = await handle
+      .send(client, async (gate) => {
+        // While the review is open, an older version holds its own call.
+        await expect(
+          old.hold.open(cashOut(1)).send(client, lostReply().send),
+        ).rejects.toThrow();
+        await gate.beforeSend();
+        opened();
+      })
+      .catch((e) => e);
+    expect(refused).toBeInstanceOf(WriteHeldError);
+    expect(opened).not.toHaveBeenCalled();
+    const held = old.hold.open(cashOut(1)).peek() as WriteHeldState;
+    const shown = await handle.state(client);
+    expect(shown).toMatchObject({
+      status: "held-no-hash",
+      reservation: held.record.id,
+    });
+    await expect(
+      handle.exit(shown, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+  });
+
+  it("mirrors an adopted intent write at every legacy key, so an older version sees it held", async () => {
+    const browser = origin();
+    const next = setup({ browser });
+    const { client } = fakeChain();
+    const handle = next.hold.open(
+      { ...cashOut(2), namespace: key },
+      { legacy: [{ call: cashOut(1).call }] },
+    );
+    await expect(
+      handle.adopt(await handle.state(client), { nonce: 7, fromBlock: 90n }),
+    ).resolves.toMatchObject({ status: "held-no-hash" });
+    const old = setup({ browser, locks: next.locks });
+    const retry = wallet(async () => HASH);
+    await expect(
+      old.hold.open(cashOut(1)).send(client, retry.send),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    expect(retry.write).not.toHaveBeenCalled();
+  });
+
+  it("settles an adopted mined hash under an intent, and adopts nothing once another reservation came", async () => {
+    const browser = origin();
+    const next = setup({ browser });
+    const { chain, client } = fakeChain();
+    const intentCall = { ...cashOut(2), namespace: key };
+    chain.txs.push({
+      ...sent(HASH),
+      input: intentCall.call.data,
+      value: 0n,
+      block: 95n,
+    });
+    const handle = next.hold.open(intentCall, {
+      legacy: [{ call: cashOut(1).call }],
+    });
+    const snapshot = await handle.state(client);
+    await expect(
+      handle.adopt(snapshot, { hash: HASH }, client),
+    ).resolves.toMatchObject({
+      status: "clear",
+      settled: { result: "success", hash: HASH },
+    });
+    // The settled reservation is newer than that read: nothing is adopted.
+    await expect(
+      handle.adopt(snapshot, { nonce: 7, fromBlock: 90n }),
+    ).resolves.toMatchObject({ status: "clear", settled: { hash: HASH } });
+    // An older version's exact handle is clear again: its mirror went.
+    expect(next.hold.open(cashOut(1)).peek().status).toBe("clear");
+  });
+
+  it("adopts nothing under an intent when another tab reserves while the hash is checked", async () => {
+    const browser = origin();
+    const next = setup({ browser });
+    const other = setup({ browser, locks: next.locks });
+    const { chain, client } = fakeChain();
+    const intentCall = { ...cashOut(2), namespace: key };
+    chain.txs.push({ ...sent(HASH), input: intentCall.call.data, value: 0n });
+    const handle = next.hold.open(intentCall, {
+      legacy: [{ call: cashOut(1).call }],
+    });
+    const snapshot = await handle.state(client);
+    const read = client.getTransaction.getMockImplementation()!;
+    client.getTransaction.mockImplementationOnce(async (args) => {
+      // Another tab sends the intent meanwhile, and its reply is lost.
+      await expect(
+        other.hold
+          .open(intentCall, { legacy: [{ call: cashOut(1).call }] })
+          .send(client, lostReply().send),
+      ).rejects.toThrow();
+      return read(args);
+    });
+    const shown = await handle.adopt(snapshot, { hash: HASH }, client);
+    expect(shown).toMatchObject({ status: "held-no-hash" });
+    expect((shown as WriteHeldState).record.hash).toBeUndefined();
   });
 
   it("refuses a malformed match", () => {

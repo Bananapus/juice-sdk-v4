@@ -1,3 +1,4 @@
+import { resetSafeRelayrForTests } from "../testing.js";
 import {
   encodeAbiParameters,
   encodeEventTopics,
@@ -24,7 +25,6 @@ import {
   createSafeRelayrController,
   canReplaceSafeRelayrQuote,
   requireSafeRelayrExecution,
-  resetSafeRelayrForTests,
   SafeRelayrRecoveryError,
   safeRelayrPreconditions,
   safeRelayrReservationKey,
