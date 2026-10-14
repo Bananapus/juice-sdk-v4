@@ -27,6 +27,7 @@ import {
   WRITE_HOLD_REVERTED_LINE,
   WRITE_HOLD_SAFE_REPLACED_LINE,
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
+  WRITE_HOLD_STALE_REVIEW_LINE,
   writeHeldMessage,
 } from "./messages.js";
 import {
@@ -114,7 +115,17 @@ type Held<S extends string, Extra> = {
  *   not final yet). It is kept until its result settles it, and never offered
  *   a resend.
  */
-export type WriteHoldState =
+export type WriteHoldState = WriteHoldStateOf & {
+  /** Only while holds last in this tab alone: {@link WRITE_HOLD_IN_TAB_LINE}. */
+  notice?: string;
+  /**
+   * The reservation this state belongs to (on a clear, the one that ended),
+   * so an observer can ignore a newer reservation it didn't start.
+   */
+  reservation?: string;
+};
+
+type WriteHoldStateOf =
   | { status: "clear"; settled?: WriteHoldSettled }
   | Held<"pending-known-hash", { hash: Hex; exit: false }>
   | Held<"held-no-hash", { exit: boolean }>
@@ -143,7 +154,9 @@ function ungated(state: WriteHoldState): WriteHoldState {
 }
 
 /** Any state but `clear`. */
-export type WriteHeldState = Exclude<WriteHoldState, { status: "clear" }>;
+export type WriteHeldState = Exclude<WriteHoldStateOf, { status: "clear" }> & {
+  reservation?: string;
+};
 
 /** A send was refused because the exact call is held; `state` says how. */
 export class WriteHeldError extends Error {
@@ -158,6 +171,18 @@ export class WriteHoldNonceError extends Error {
   readonly name = "WriteHoldNonceError";
   constructor(readonly cause: unknown) {
     super(WRITE_HOLD_NONCE_LINE);
+  }
+}
+
+/**
+ * The review went stale: another window's attempt of the same write was
+ * reserved, and maybe settled (`settled`), while it was open. Review again;
+ * the next review sends normally.
+ */
+export class WriteHoldStaleReviewError extends Error {
+  readonly name = "WriteHoldStaleReviewError";
+  constructor(readonly settled?: WriteHoldSettled) {
+    super(WRITE_HOLD_STALE_REVIEW_LINE);
   }
 }
 
@@ -187,6 +212,8 @@ export type WriteHoldGate = {
 type Locks = Pick<LockManager, "request">;
 
 const SETTLE_POLL_MS = 15_000;
+/** How long a reservation retries a lock another writer briefly holds. */
+const RESERVE_RETRY_MS = 2_000;
 /** A Safe's execution events, in its 1.3 and 1.4 layouts alike. */
 const SAFE_EXECUTION_TOPICS = [
   toEventSelector("ExecutionSuccess(bytes32,uint256)"),
@@ -258,8 +285,15 @@ function unchecked(record: ReviewedWriteRecoveryRecord): WriteHoldState {
 /** About an hour of polls; a later state() looks again. */
 const SETTLE_POLL_ATTEMPTS = 240;
 
-function clear(settled?: WriteHoldSettled): WriteHoldState {
-  return settled ? { status: "clear", settled } : { status: "clear" };
+function clear(
+  settled?: WriteHoldSettled,
+  reservation?: string,
+): WriteHoldState {
+  return {
+    status: "clear",
+    ...(settled ? { settled } : {}),
+    ...(reservation === undefined ? {} : { reservation }),
+  };
 }
 
 function ranExecuted(
@@ -344,6 +378,18 @@ export function createWriteHold(
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   let onStorage: ((event: StorageEvent) => void) | undefined;
 
+  /**
+   * The one decorator every state leaves through for its storage notice:
+   * while holds last in this tab alone, a held state carries
+   * {@link WRITE_HOLD_IN_TAB_LINE}; otherwise none.
+   */
+  function noticed(state: WriteHoldState): WriteHoldState {
+    const { notice: _, ...rest } = state;
+    return state.status !== "clear" && !storage.durable()
+      ? ({ ...rest, notice: WRITE_HOLD_IN_TAB_LINE } as WriteHoldState)
+      : (rest as WriteHoldState);
+  }
+
   /** The latest state emitted for each call, replayed to a late subscriber. */
   const latest = new Map<string, WriteHoldState>();
   function emit(key: string, state: WriteHoldState) {
@@ -355,7 +401,12 @@ export function createWriteHold(
   function watchTabs() {
     if (onStorage || typeof globalThis.addEventListener !== "function") return;
     onStorage = (event) => {
-      if (event.key && !event.key.startsWith("nana-sdk:reviewed-write")) return;
+      if (
+        event.key &&
+        (!event.key.startsWith("nana-sdk:reviewed-write") ||
+          event.key === "nana-sdk:reviewed-write:probe")
+      )
+        return;
       for (const [key, peek] of peekers) {
         try {
           emit(key, peek());
@@ -367,7 +418,26 @@ export function createWriteHold(
     globalThis.addEventListener("storage", onStorage);
   }
 
-  function open(call: ReviewedWriteRecoveryInput) {
+  function openOne(
+    call: ReviewedWriteRecoveryInput,
+    hooks: {
+      /**
+       * Takes this key's lock (`ownLock`) and any others the caller needs,
+       * runs the final reservation (`unreserve` undoes it while nothing was
+       * sent), resolves once reserved, and keeps every lock until the send
+       * ends (`until`). With it, the send holds no lock while it reviews.
+       */
+      across?: (
+        ownLock: <T>(work: () => Promise<T>) => Promise<T>,
+        reserve: () => void,
+        unreserve: () => void,
+        until: Promise<void>,
+        reviewed: string,
+      ) => Promise<{ released: Promise<void> }>;
+      /** Every involved key's generation, read when the review opens. */
+      generations?: () => string;
+    } = {},
+  ) {
     const recovery = createBrowserWriteRecovery(call, {
       storage,
       locks: options.locks,
@@ -378,11 +448,27 @@ export function createWriteHold(
     let lastEffect: ((chainId: number) => Promise<boolean>) | undefined;
     /** Nothing held: how the call's last write settled, if saved. */
     const cleared = () => clear(recovery.settled());
+    /** Every state leaves with the reservation it belongs to. */
+    const tagged = (state: WriteHoldState): WriteHoldState => {
+      const reservation =
+        state.reservation ??
+        (state.status === "clear"
+          ? recovery.latestReservation()
+          : state.record.id);
+      return noticed({
+        ...state,
+        ...(reservation === undefined ? {} : { reservation }),
+      });
+    };
     const peek = () => {
       const record = recovery.read();
-      return record ? ungated(classify(record)) : cleared();
+      return tagged(record ? ungated(classify(record)) : cleared());
     };
-    const shown = (state: WriteHoldState) => (emit(key, state), state);
+    const shown = (state: WriteHoldState) => {
+      const out = tagged(state);
+      emit(key, out);
+      return out;
+    };
 
     async function locked<T>(
       work: () => Promise<T>,
@@ -446,7 +532,7 @@ export function createWriteHold(
         };
         // Kept for any later reader: another tab, a reload, a follow timer.
         recovery.markSettled(record, settled);
-        return clear(settled);
+        return clear(settled, record.id);
       }
       if (
         !record.safe &&
@@ -586,9 +672,27 @@ export function createWriteHold(
       // Only positive pending evidence stops the clock; a read that fails
       // keeps the one saved.
       if (look === "pending")
-        return { ...state, record: recovery.mined(state.record, false) };
+        return {
+          ...state,
+          record: recovery.seenPending(recovery.mined(state.record, false)),
+        };
       const record =
         look === "mined" ? recovery.mined(state.record, true) : state.record;
+      // Unknown or not found is not pending: with no read showing it pending
+      // or mined for 30 minutes (since it was last seen pending, or else
+      // submitted), the warned explicit exit, never a release on its own. A
+      // Safe proposal's hash isn't a transaction to read.
+      if (
+        (look === "unknown" || look === null) &&
+        !record.safe &&
+        record.minedAt === undefined &&
+        Date.now() -
+          Number(
+            record.pendingSeenAt ?? record.submittedAt ?? record.firstSeenAt,
+          ) >=
+          UNSEEN_HASH_MS
+      )
+        return unchecked(record);
       if (record.minedAt === undefined) return state;
       if (Date.now() - Number(record.minedAt) >= UNSEEN_HASH_MS)
         return unchecked(record);
@@ -599,8 +703,13 @@ export function createWriteHold(
     async function lookAt(
       hash: Hex,
       client: WriteHoldClient,
-    ): Promise<"pending" | "mined" | null> {
-      const sent = await client.getTransaction({ hash }).catch(() => null);
+    ): Promise<"pending" | "mined" | "unknown" | null> {
+      const sent = await client.getTransaction({ hash }).then(
+        (tx) => tx,
+        (error: { name?: unknown } | null) =>
+          error?.name === "TransactionNotFoundError" ? null : undefined,
+      );
+      if (sent === undefined) return "unknown";
       if (sent?.hash?.toLowerCase() !== hash) return null;
       return sent.blockNumber === null ? "pending" : "mined";
     }
@@ -625,7 +734,8 @@ export function createWriteHold(
       for (const hash of seen) {
         const own = hash === record.hash;
         const look = await lookAt(hash, client);
-        if (look !== null)
+        // Unknown changes nothing: only positive metadata moves a clock.
+        if (look === "pending" || look === "mined")
           record = own
             ? recovery.mined(record, look === "mined")
             : recovery.candidateMined(record, hash, look === "mined");
@@ -738,7 +848,8 @@ export function createWriteHold(
           record,
           options.safeService,
         ).catch(() => false);
-        if (expired && release(record)) return clear({ result: "expired" });
+        if (expired && release(record))
+          return clear({ result: "expired" }, record.id);
       }
       if (end.look === "executed") {
         if (
@@ -761,7 +872,7 @@ export function createWriteHold(
             hash: end.execution.executionHash,
           };
           recovery.markSettled(record, settled);
-          return clear(settled);
+          return clear(settled, record.id);
         }
       }
       if (
@@ -819,6 +930,8 @@ export function createWriteHold(
     ): Promise<WriteHoldState> {
       let record = recovery.read();
       if (!record) return cleared();
+      // A mirror carries no evidence of its own: its source attempt does.
+      if (record.mirrorOf) return classify(record);
       // No evidence from another chain.
       if ((await client.getChainId().catch(() => null)) !== record.chainId)
         return classify(record);
@@ -938,10 +1051,13 @@ export function createWriteHold(
           const now = peek();
           // A clear is compared by its settlement's identity, a hold by its record.
           const identity = (state: WriteHoldState) =>
-            JSON.stringify(
+            JSON.stringify([
+              state.reservation ?? null,
               state.status === "clear" ? (state.settled ?? null) : state.record,
-            );
-          listener(ungated(identity(now) === identity(last) ? last : now));
+            ]);
+          listener(
+            noticed(ungated(identity(now) === identity(last) ? last : now)),
+          );
         }
         return () => {
           set!.delete(listener);
@@ -963,6 +1079,10 @@ export function createWriteHold(
         run: (gate: WriteHoldGate) => Promise<T>,
       ): Promise<T> {
         let attempt: ReviewedWriteRecoveryRecord | undefined;
+        let ended!: () => void;
+        const until = new Promise<void>((resolve) => (ended = resolve));
+        let released: Promise<void> | undefined;
+        let reviewed = "";
         const gate: WriteHoldGate = {
           async beforeSend(actualCall) {
             let evidence:
@@ -977,11 +1097,38 @@ export function createWriteHold(
                 throw new WriteHoldNonceError(cause);
               }
             }
-            try {
+            const reserve = () => {
               attempt = recovery.reserve(actualCall, evidence);
+            };
+            try {
+              if (hooks.across)
+                ({ released } = await hooks.across(
+                  (work) => recovery.withLock(work),
+                  reserve,
+                  () => {
+                    recovery.rejected();
+                    attempt = undefined;
+                  },
+                  until,
+                  reviewed,
+                ));
+              else reserve();
             } catch (error) {
-              const now = await finish(classify(recovery.read()), client);
-              shown(now);
+              if (
+                error instanceof WriteHeldError ||
+                error instanceof WriteHoldBusyError ||
+                error instanceof WriteHoldStaleReviewError
+              )
+                throw error;
+              if (hooks.across) {
+                // No lock is held here: what the saved record says.
+                const now = shown(peek());
+                if (now.status !== "clear") throw new WriteHeldError(now);
+                throw error;
+              }
+              const now = shown(
+                await finish(classify(recovery.read()), client),
+              );
               if (now.status !== "clear") throw new WriteHeldError(now);
               throw error;
             }
@@ -1016,6 +1163,26 @@ export function createWriteHold(
             shown(peek());
           },
         };
+        if (hooks.across) {
+          // Checked under this key's lock, which is then let go: the final
+          // check and reservation take every lock again, in order.
+          const checked = await locked(
+            async () => shown(await inspect(client)),
+            false,
+          );
+          if (!checked) throw new WriteHoldBusyError();
+          if (checked.value.status !== "clear")
+            throw new WriteHeldError(checked.value);
+          // Given with `across`: the generations the review is checked against.
+          reviewed = hooks.generations!();
+          try {
+            return await run(gate);
+          } finally {
+            // The send ends: every lock it reserved under is let go first.
+            ended();
+            await released;
+          }
+        }
         const result = await locked(async () => {
           const now = shown(await inspect(client));
           if (now.status !== "clear") throw new WriteHeldError(now);
@@ -1057,11 +1224,15 @@ export function createWriteHold(
               state: await finish(classify(recovery.read()), client),
             };
           }
-          return { released: true, state: clear() };
-        }, true);
+          return {
+            released: true,
+            state: clear(undefined, snapshot.record.id),
+          };
+          // Never waits behind another send's wallet prompt: on contention,
+          // what the saved record says, with no exit.
+        }, false);
         const ended = result?.value ?? { released: false, state: peek() };
-        shown(ended.state);
-        return ended;
+        return { ...ended, state: shown(ended.state) };
       },
       /**
        * A receipt for the held write: an ordinary write's own hash, or a Safe
@@ -1077,6 +1248,7 @@ export function createWriteHold(
           const record = recovery.read();
           if (
             !record ||
+            record.mirrorOf ||
             (!record.safe &&
               record.hash !== receipt?.transactionHash?.toLowerCase())
           )
@@ -1125,6 +1297,7 @@ export function createWriteHold(
             record &&
             !record.safe &&
             !record.hash &&
+            !record.mirrorOf &&
             isBytes32(hash) &&
             (await client.getChainId().catch(() => null)) === record.chainId
           ) {
@@ -1196,6 +1369,342 @@ export function createWriteHold(
     };
   }
 
+  /**
+   * `legacy`: for a write held under an intent namespace, the keys an earlier
+   * version held it under (an old namespace, or `{ call }` for an exact
+   * call); the current exact call is always checked. While any of them holds
+   * an unresolved write, the intent handle *is* that hold: its state, its
+   * refusal and its own exit, in place. Each is checked alone, under its own
+   * lock only, never two at once. Only when all are clear does the intent's
+   * own record apply, and only then can a send reserve; they are checked
+   * again right before it does.
+   */
+  function open(
+    call: ReviewedWriteRecoveryInput,
+    {
+      legacy = [],
+    }: {
+      legacy?: (string | { call: ReviewedWriteRecoveryInput["call"] })[];
+    } = {},
+  ) {
+    if (call.namespace === undefined) return openExact(call);
+    const namespace = call.namespace;
+    const own = openOne(call, {
+      across: reserveAcross,
+      generations: () => generations(),
+    });
+    const ownJournal = createBrowserWriteRecovery(call, { storage });
+    /** Every involved key's latest reservation id, its generation. */
+    const generations = () =>
+      JSON.stringify(
+        [ownJournal, ...journals].map((journal) => journal.latestReservation()),
+      );
+    const { namespace: _, ...exact } = call;
+    const scopeOf = (input: ReviewedWriteRecoveryInput) =>
+      createBrowserWriteRecovery(input, { storage }).scopeKey;
+    const scopes = new Set([scopeOf(call)]);
+    const inputs = [{ call: call.call }, ...legacy]
+      .map((source) =>
+        typeof source === "string"
+          ? { ...call, namespace: source }
+          : { ...exact, call: source.call },
+      )
+      .filter((input) => {
+        const scope = scopeOf(input);
+        return !scopes.has(scope) && !!scopes.add(scope);
+      })
+      // One canonical order, by scope, for every writer's locks.
+      .sort(
+        (a, b) =>
+          Number(scopeOf(a) > scopeOf(b)) - Number(scopeOf(a) < scopeOf(b)),
+      );
+    // Mirror-aware: evidence and exits always act on the source attempt.
+    const delegates = inputs.map((input) => openExact(input));
+    const journals = inputs.map((input) =>
+      createBrowserWriteRecovery(input, { storage, locks: options.locks }),
+    );
+    /** A legacy key holding anything but this intent's own mirror. */
+    const foreign = (index: number) =>
+      journals[index].read()?.mirrorOf !== namespace &&
+      delegates[index].peek().status !== "clear";
+    /** The legacy hold the intent stands for right now, from storage alone. */
+    const active = () => delegates.find((_, index) => foreign(index));
+    /** The first legacy key holding an unresolved write, through its own gate. */
+    async function delegated(
+      client: WriteHoldClient,
+    ): Promise<WriteHeldState | null> {
+      for (const [index, handle] of delegates.entries()) {
+        if (!foreign(index)) continue;
+        const state = await handle.state(client);
+        if (state.status !== "clear") return state;
+      }
+      return null;
+    }
+    /**
+     * The final check and reservation, under every legacy key's lock taken
+     * in one sorted order (the intent's own is held by its send), each
+     * without waiting: a key another writer holds refuses as busy. A legacy
+     * hold refuses; otherwise the intent reserves, and mirrors itself at each
+     * legacy key so its readers, older versions included, see it held.
+     */
+    async function reserveAcross(
+      ownLock: <T>(work: () => Promise<T>) => Promise<T>,
+      reserve: () => void,
+      unreserve: () => void,
+      until: Promise<void>,
+      reviewed: string,
+    ): Promise<{ released: Promise<void> }> {
+      const locks = [
+        { scope: scopeOf(call), take: ownLock },
+        ...journals.map((journal) => ({
+          scope: journal.scopeKey,
+          take: <T>(work: () => Promise<T>) => journal.withLock(work),
+        })),
+      ].sort((a, b) => Number(a.scope > b.scope) - Number(a.scope < b.scope));
+      const deadline = Date.now() + RESERVE_RETRY_MS;
+      for (;;) {
+        let entered = 0;
+        let reserved!: () => void;
+        const done = new Promise<void>((resolve) => (reserved = resolve));
+        const acquire = async (index: number): Promise<void> => {
+          if (index < locks.length)
+            return locks[index].take(async () => {
+              entered += 1;
+              return acquire(index + 1);
+            });
+          for (const journal of journals) {
+            const held = journal.read();
+            if (held && held.mirrorOf !== namespace)
+              throw new WriteHeldError(
+                noticed({
+                  ...ungated(classify(held)),
+                  reservation: held.id,
+                }) as WriteHeldState,
+              );
+          }
+          // Another attempt since this review opened: review it again.
+          if (generations() !== reviewed)
+            throw new WriteHoldStaleReviewError(ownJournal.settled());
+          reserve();
+          const record = (own.peek() as WriteHeldState).record;
+          // Every mirror is saved, in the store the hold itself uses (its
+          // memory fallback included), before the wallet opens; otherwise
+          // this unsent reservation and its partial mirrors are undone.
+          const mirrors: [
+            (typeof journals)[number],
+            ReviewedWriteRecoveryRecord,
+          ][] = [];
+          try {
+            for (const journal of journals)
+              mirrors.push([journal, journal.mirror(record, namespace)]);
+          } catch (error) {
+            for (const [journal, mirror] of mirrors)
+              try {
+                journal.clear(mirror);
+              } catch {
+                /* Held for old readers until their explicit exit. */
+              }
+            try {
+              unreserve();
+            } catch {
+              /* Unsent, it stays held with its explicit exit. */
+            }
+            throw error;
+          }
+          // Reserved: every lock is kept until the send ends.
+          reserved();
+          await until;
+        };
+        const holding = acquire(0);
+        const failed = await Promise.race([
+          done.then(() => null),
+          holding.then(
+            () => null,
+            (error: unknown) => ({ error }),
+          ),
+        ]);
+        if (!failed) return { released: holding.catch(() => {}) };
+        // Not reserved: every lock, its own included, is let go before any
+        // retry; the checks run again each time.
+        const { error } = failed;
+        if (
+          entered === locks.length ||
+          error instanceof WriteHeldError ||
+          error instanceof WriteHoldStaleReviewError
+        )
+          throw error;
+        if (Date.now() >= deadline) throw new WriteHoldBusyError();
+        await new Promise((resolve) =>
+          setTimeout(resolve, 25 + Math.random() * 75),
+        );
+      }
+    }
+    /** Remove this intent's mirrors of the reservation that ended, by its id only. */
+    async function clearMirrors(ended: string): Promise<void> {
+      for (const journal of journals) {
+        if (journal.read()?.id !== ended) continue;
+        await journal
+          .withLock(async () => {
+            const current = journal.read();
+            if (current?.mirrorOf === namespace && current.id === ended)
+              journal.clear(current);
+          })
+          .catch(() => {
+            /* Kept for old readers until their explicit exit. */
+          });
+      }
+    }
+    /** After a call that ended this intent's reservation, its mirrors go. */
+    const after = async <T extends WriteHoldState>(value: T): Promise<T> => {
+      if (value.status === "clear" && value.reservation)
+        await clearMirrors(value.reservation);
+      return value;
+    };
+    return {
+      ...own,
+      peek: () => active()?.peek() ?? own.peek(),
+      async state(
+        client: WriteHoldClient,
+        checks?: { effect?: (chainId: number) => Promise<boolean> },
+      ): Promise<WriteHoldState> {
+        return (
+          (await delegated(client)) ?? after(await own.state(client, checks))
+        );
+      },
+      async send<T>(
+        client: WriteHoldClient,
+        run: (gate: WriteHoldGate) => Promise<T>,
+      ): Promise<T> {
+        const held = await delegated(client);
+        if (held) throw new WriteHeldError(held);
+        return own.send(client, run);
+      },
+      async exit(
+        snapshot: WriteHoldState,
+        acknowledgement: { checkedWallet: true },
+        client: WriteHoldClient,
+      ): Promise<{ released: boolean; state: WriteHoldState }> {
+        const owner =
+          snapshot.status === "clear"
+            ? undefined
+            : delegates.find((handle, index) => {
+                const now = handle.peek();
+                return (
+                  foreign(index) &&
+                  now.status !== "clear" &&
+                  now.record.id === snapshot.record.id
+                );
+              });
+        if (owner) return owner.exit(snapshot, acknowledgement, client);
+        const held = await delegated(client);
+        if (held) return { released: false, state: held };
+        const ended = await own.exit(snapshot, acknowledgement, client);
+        await after(ended.state);
+        return ended;
+      },
+      onReceipt: async (...args: Parameters<typeof own.onReceipt>) =>
+        active()?.onReceipt(...args) ?? after(await own.onReceipt(...args)),
+      onUnproven: async (...args: Parameters<typeof own.onUnproven>) =>
+        active()?.onUnproven(...args) ?? after(await own.onUnproven(...args)),
+      onExecuted: async (...args: Parameters<typeof own.onExecuted>) =>
+        active()?.onExecuted(...args) ?? after(await own.onExecuted(...args)),
+      attachHash: async (...args: Parameters<typeof own.attachHash>) =>
+        active()?.attachHash(...args) ?? after(await own.attachHash(...args)),
+    };
+  }
+
+  /**
+   * An exact-call handle. When its key holds a mirror of an intent's write,
+   * it is that intent's hold: it never sends or releases on its own, and its
+   * exit is the intent's. A mirror left after the intent ended is removed.
+   */
+  function openExact(call: ReviewedWriteRecoveryInput) {
+    const own = openOne(call);
+    const journal = createBrowserWriteRecovery(call, {
+      storage,
+      locks: options.locks,
+    });
+    /** The intent this key mirrors, from storage alone. */
+    const mirrored = () => {
+      const record = journal.read();
+      return record?.mirrorOf
+        ? { record, intent: openOne({ ...call, namespace: record.mirrorOf }) }
+        : undefined;
+    };
+    /** Remove a mirror whose intent holds nothing any more. */
+    async function clearStale(found: {
+      record: ReviewedWriteRecoveryRecord;
+    }): Promise<void> {
+      await journal
+        .withLock(async () => {
+          const current = journal.read();
+          if (current?.id === found.record.id) journal.clear(current);
+        })
+        .catch(() => {
+          /* The stale mirror still holds; its intent is clear. */
+        });
+    }
+    /** The intent's state while it holds anything: this key is its mirror. */
+    async function intentState(
+      client: WriteHoldClient,
+    ): Promise<WriteHeldState | null> {
+      const found = mirrored();
+      if (!found) return null;
+      const state = await found.intent.state(client);
+      if (state.status !== "clear") return state;
+      await clearStale(found);
+      return null;
+    }
+    /** The intent in charge, from storage alone. */
+    const route = () => {
+      const found = mirrored();
+      return found && found.intent.peek().status !== "clear"
+        ? found.intent
+        : undefined;
+    };
+    return {
+      ...own,
+      peek: () => route()?.peek() ?? own.peek(),
+      async state(
+        client: WriteHoldClient,
+        checks?: { effect?: (chainId: number) => Promise<boolean> },
+      ): Promise<WriteHoldState> {
+        return (await intentState(client)) ?? own.state(client, checks);
+      },
+      async send<T>(
+        client: WriteHoldClient,
+        run: (gate: WriteHoldGate) => Promise<T>,
+      ): Promise<T> {
+        const held = await intentState(client);
+        if (held) throw new WriteHeldError(held);
+        return own.send(client, run);
+      },
+      async exit(
+        snapshot: WriteHoldState,
+        acknowledgement: { checkedWallet: true },
+        client: WriteHoldClient,
+      ): Promise<{ released: boolean; state: WriteHoldState }> {
+        const found = mirrored();
+        if (!found || found.intent.peek().status === "clear")
+          return own.exit(snapshot, acknowledgement, client);
+        const ended = await found.intent.exit(
+          snapshot,
+          acknowledgement,
+          client,
+        );
+        if (ended.released) await clearStale(found);
+        return ended;
+      },
+      onReceipt: (...args: Parameters<typeof own.onReceipt>) =>
+        (route() ?? own).onReceipt(...args),
+      onUnproven: (...args: Parameters<typeof own.onUnproven>) =>
+        (route() ?? own).onUnproven(...args),
+      onExecuted: (...args: Parameters<typeof own.onExecuted>) =>
+        (route() ?? own).onExecuted(...args),
+      attachHash: (...args: Parameters<typeof own.attachHash>) =>
+        (route() ?? own).attachHash(...args),
+    };
+  }
   return {
     open,
     /** Whether holds outlive this tab right now. */

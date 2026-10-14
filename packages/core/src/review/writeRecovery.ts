@@ -63,6 +63,12 @@ export type ReviewedWriteRecoveryRecord = Omit<
   sentFrom?: Address;
   /** Another Safe transaction used this Safe write's nonce: held for the user's exit, never released on its own. */
   replaced?: true;
+  /**
+   * This record mirrors the write held under this intent namespace (same
+   * reservation id), so a reader of this key sees it held. It never settles
+   * anything; the intent's own record does.
+   */
+  mirrorOf?: string;
   /** The app's Safe follower ended without proof: held for the user's exit, unless evidence settles it. */
   unproven?: true;
   /**
@@ -71,6 +77,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
    * string. Cleared once it is seen again.
    */
   vanishedAt?: string;
+  /** When a read last showed the saved hash pending, in milliseconds since the epoch, as a decimal string. */
+  pendingSeenAt?: string;
   /**
    * Hashes an app reported as this Safe write's execution, not yet
    * authenticated: each settles it only once its receipt proves this Safe's
@@ -183,6 +191,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.firstSeenAt) ||
     !optionalDecimal(record.safeNonce) ||
     !optionalDecimal(record.vanishedAt) ||
+    !optionalDecimal(record.pendingSeenAt) ||
     !optionalDecimal(record.minedAt) ||
     (record.candidateMinedAt !== undefined &&
       (typeof record.candidateMinedAt !== "object" ||
@@ -194,6 +203,9 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       (!Array.isArray(record.candidates) ||
         !record.candidates.every(isBytes32))) ||
     (record.replaced !== undefined && record.replaced !== true) ||
+    (record.mirrorOf !== undefined &&
+      (typeof record.mirrorOf !== "string" ||
+        !/^[a-z0-9][a-z0-9:._/-]{0,127}$/.test(record.mirrorOf))) ||
     (record.unproven !== undefined && record.unproven !== true) ||
     (record.sentFrom !== undefined &&
       !isAddress(record.sentFrom, { strict: false })) ||
@@ -225,10 +237,14 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       ? {}
       : { sentFrom: record.sentFrom.toLowerCase() as Address }),
     ...(record.replaced ? { replaced: true as const } : {}),
+    ...(record.mirrorOf === undefined ? {} : { mirrorOf: record.mirrorOf }),
     ...(record.unproven ? { unproven: true as const } : {}),
     ...(record.vanishedAt === undefined
       ? {}
       : { vanishedAt: record.vanishedAt }),
+    ...(record.pendingSeenAt === undefined
+      ? {}
+      : { pendingSeenAt: record.pendingSeenAt }),
     ...(record.minedAt === undefined ? {} : { minedAt: record.minedAt }),
     ...(record.candidateMinedAt === undefined
       ? {}
@@ -768,6 +784,16 @@ export function createBrowserWriteRecovery(
         "Write recovery changed. Keep the current action pending.",
       );
     }
+    // The last record of an attempt goes only once its generation is the
+    // committed latest marker; otherwise it stays, released, and carries it.
+    if (!markedLatest(current.id)) {
+      const marker = releasedKey(at, current.id);
+      store.setItem(marker, "1");
+      if (store.getItem(marker) !== "1")
+        throw new Error("Write recovery storage did not clear the action.");
+      unpersistedSubmissions.get(store)?.delete(at);
+      return;
+    }
     store.removeItem(at);
     if (store.getItem(at) !== null)
       throw new Error("Write recovery storage did not clear the action.");
@@ -1001,6 +1027,56 @@ export function createBrowserWriteRecovery(
     rejected,
     clear,
     /**
+     * Hold this key with a mirror of `source`, the write reserved under the
+     * intent namespace `of`: its id and nonce evidence, this key's call and
+     * scope. Replaces only an earlier mirror of the same intent.
+     */
+    mirror(
+      source: ReviewedWriteRecoveryRecord,
+      of: string,
+    ): ReviewedWriteRecoveryRecord {
+      requireLock();
+      const current = read();
+      if (current && current.mirrorOf !== of)
+        throw new Error(
+          "An earlier wallet write is still unresolved. Check it before trying again.",
+        );
+      const mirrored = recordOf({
+        version: 1,
+        id: source.id,
+        ...reviewed,
+        ...(source.nonce === undefined ? {} : { nonce: source.nonce }),
+        ...(source.fromBlock === undefined
+          ? {}
+          : { fromBlock: source.fromBlock }),
+        mirrorOf: of,
+      });
+      persist(mirrored, key);
+      // Its generation stays readable after the mirror is removed.
+      markedLatest(mirrored.id);
+      return mirrored;
+    },
+    /**
+     * The call's latest reservation id: the record saved at the key (held,
+     * or released by its exit), or else the saved latest marker.
+     */
+    latestReservation(): string | undefined {
+      try {
+        const store = storage();
+        const raw = locate(store).raw;
+        const id =
+          (raw === null ? undefined : idOf(raw)) ??
+          (
+            JSON.parse(store.getItem(latestKey) ?? "null") as {
+              id?: unknown;
+            } | null
+          )?.id;
+        return typeof id === "string" ? id : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    /**
      * Save how the call's last write ended, on authenticated evidence (its
      * verified receipt or canonical execution), for any later reader: another
      * tab, a reload. The next reservation replaces it. Extra evidence: a
@@ -1159,6 +1235,14 @@ export function createBrowserWriteRecovery(
       const rest = known.filter((candidate) => candidate !== hash);
       return amend(expected, () => rest.length !== known.length, {
         candidates: rest.length ? rest : undefined,
+      });
+    },
+    /** Note that a read just showed the saved hash pending. Extra evidence only. */
+    seenPending(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(expected, () => true, {
+        pendingSeenAt: String(Date.now()),
       });
     },
     /**

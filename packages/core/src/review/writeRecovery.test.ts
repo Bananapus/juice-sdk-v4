@@ -1798,6 +1798,37 @@ describe("a Safe write's candidate executions", () => {
   });
 });
 
+describe("an attempt's generation", () => {
+  it("keeps the last record, released, when its latest marker can't be committed", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(input, options);
+    const first = await journal.withLock(async () => journal.reserve());
+    const write = options.storage.setItem.getMockImplementation()!;
+    options.storage.setItem.mockImplementation((k: string, v: string) => {
+      if (k.endsWith(":latest")) throw new Error("QuotaExceededError");
+      write(k, v);
+    });
+    const second = await journal.withLock(async () => {
+      journal.clear(first);
+      return journal.reserve();
+    });
+    // Codex: settle B while its marker can't be saved.
+    await journal.withLock(async () => journal.clear(second));
+    expect(journal.read()).toBeNull();
+    expect(journal.latestReservation()).toBe(second.id);
+    // With the marker committed, the record goes.
+    options.storage.setItem.mockImplementation(write);
+    const third = await journal.withLock(async () => journal.reserve());
+    await journal.withLock(async () => journal.clear(third));
+    expect(journal.latestReservation()).toBe(third.id);
+    expect(
+      [...options.values.keys()].filter(
+        (k) => !/:(latest|released:.*)$/.test(k),
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe("a write's saved settlement", () => {
   it("is read only for the call's latest reservation, exactly, and ignored when malformed", async () => {
     const options = browser();

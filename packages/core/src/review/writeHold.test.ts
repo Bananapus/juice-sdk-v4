@@ -29,12 +29,15 @@ import {
   WRITE_HOLD_REVERTED_LINE,
   WRITE_HOLD_SAFE_REPLACED_LINE,
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
+  WRITE_HOLD_STALE_REVIEW_LINE,
 } from "./messages.js";
+import { intent, writeIntentKey } from "./writeIntent.js";
 import {
   createWriteHold,
   WriteHeldError,
   WriteHoldBusyError,
   WriteHoldNonceError,
+  WriteHoldStaleReviewError,
   type WriteHoldClient,
   type WriteHoldGate,
   type WriteHeldState,
@@ -328,6 +331,78 @@ function setup(
   return { hold, browser, memory, storage, locks };
 }
 
+describe("memory-only mode", () => {
+  it("carries the storage-refused line on the review and on every held state", async () => {
+    const browser = origin();
+    browser.state.write = false;
+    const { hold } = setup({ browser });
+    const { client } = fakeChain();
+    expect(hold.reviewLine()).toBe(WRITE_HOLD_IN_TAB_LINE);
+    const handle = hold.open(ordinary);
+    const heard: WriteHoldState[] = [];
+    handle.subscribe((state) => heard.push(state));
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    for (const state of [
+      handle.peek(),
+      await handle.state(client),
+      ...heard.filter((state) => state.status !== "clear"),
+    ])
+      expect(state).toMatchObject({ notice: WRITE_HOLD_IN_TAB_LINE });
+    // With shared storage, no notice.
+    browser.state.write = true;
+    expect(handle.peek()).not.toHaveProperty("notice");
+  });
+
+  it("refreshes the notice on a replayed state", async () => {
+    const browser = origin();
+    const { hold } = setup({ browser });
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    await handle.state(client);
+    // Storage is refused after the state was emitted.
+    browser.state.write = false;
+    const late = vi.fn();
+    hold.open(ordinary).subscribe(late);
+    expect(late.mock.calls[0][0]).toMatchObject({
+      notice: WRITE_HOLD_IN_TAB_LINE,
+    });
+    browser.state.write = true;
+    const later = vi.fn();
+    hold.open(ordinary).subscribe(later);
+    expect(later.mock.calls[0][0]).not.toHaveProperty("notice");
+  });
+
+  it("puts the notice on the state a final reserve refuses with", async () => {
+    const browser = origin();
+    browser.state.write = false;
+    const memory = new Map<string, string>();
+    const locks = lockManager();
+    const intentTab = setup({ browser, memory, locks });
+    const exactTab = setup({ browser, memory, locks });
+    const { client } = fakeChain();
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const handle = intentTab.hold.open(
+      {
+        ...ordinary,
+        call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+        namespace: key,
+      },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    const refused = await handle
+      .send(client, async (gate) => {
+        await expect(
+          exactTab.hold.open(ordinary).send(client, lostReply().send),
+        ).rejects.toThrow();
+        await gate.beforeSend();
+      })
+      .catch((e) => e);
+    expect(refused).toBeInstanceOf(WriteHeldError);
+    expect(refused.state).toMatchObject({ notice: WRITE_HOLD_IN_TAB_LINE });
+  });
+});
+
 describe("write hold storage", () => {
   it("keeps holds in the tab's memory while storage is refused, with the review's line", () => {
     const browser = origin();
@@ -561,10 +636,16 @@ describe("a held write", () => {
     const b = second.hold.open(ordinary);
     await expect(b.send(client, lostReply().send)).rejects.toThrow();
     await b.exit(await b.state(client), { checkedWallet: true }, client);
-    expect(first.hold.open(ordinary).peek()).toEqual({ status: "clear" });
+    expect(first.hold.open(ordinary).peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     const late = vi.fn();
     first.hold.open(ordinary).subscribe(late);
-    expect(late).toHaveBeenCalledWith({ status: "clear" });
+    expect(late).toHaveBeenCalledWith({
+      status: "clear",
+      reservation: expect.any(String),
+    });
   });
 
   it("replays nothing stale once another controller reserved the call", async () => {
@@ -744,6 +825,7 @@ describe("a held write", () => {
     chain.txs[1].block = 95n;
     await expect(handle.state(client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
     // With nothing held, or a Safe write, nothing is attached.
@@ -832,10 +914,12 @@ describe("a held write", () => {
       handle.onReceipt(receiptOf(chain.txs[0]), client),
     ).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
     expect(handle.peek()).toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
     expect(seen).toEqual([
@@ -964,7 +1048,10 @@ describe("a held write", () => {
     });
     await expect(
       handle.exit(shown, { checkedWallet: true }, client),
-    ).resolves.toEqual({ released: true, state: { status: "clear" } });
+    ).resolves.toEqual({
+      released: true,
+      state: { status: "clear", reservation: expect.any(String) },
+    });
     const again = wallet(async () => HASH);
     await handle.send(client, again.send);
     expect(again.write).toHaveBeenCalledOnce();
@@ -1053,6 +1140,81 @@ describe("a held write", () => {
     });
   });
 
+  it("offers the warned exit 30 minutes after submission when every transaction read fails", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    client.getTransaction.mockRejectedValue(new Error("timeout"));
+    client.getTransactionReceipt.mockRejectedValue(new Error("timeout"));
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      exit: false,
+    });
+    vi.setSystemTime(1_000_000 + 31 * 60_000);
+    const unchecked = await handle.state(client);
+    expect(unchecked).toMatchObject({
+      status: "held-unchecked",
+      hash: HASH,
+      exit: true,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
+    });
+    await expect(
+      handle.exit(unchecked, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+    vi.useRealTimers();
+  });
+
+  it("restarts the unknown-read clock on positive pending evidence", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const { hold } = setup();
+    const { chain, client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH));
+    vi.setSystemTime(1_000_000 + 20 * 60_000);
+    await handle.state(client);
+    client.getTransaction.mockRejectedValue(new Error("timeout"));
+    vi.setSystemTime(1_000_000 + 31 * 60_000);
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      exit: false,
+    });
+    vi.setSystemTime(1_000_000 + 51 * 60_000);
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "held-unchecked",
+      exit: true,
+    });
+    vi.useRealTimers();
+  });
+
+  it("times a record saved before its clock existed from when it was first read", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const { hold, browser } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    const [key] = [...browser.values.keys()].filter(
+      (k) => !k.endsWith(":latest"),
+    );
+    const { submittedAt: _, ...legacy } = JSON.parse(browser.values.get(key)!);
+    browser.values.set(key, JSON.stringify(legacy));
+    client.getTransaction.mockRejectedValue(new Error("timeout"));
+    vi.setSystemTime(1_000_000 + 10 * 60_000);
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+    });
+    vi.setSystemTime(1_000_000 + 41 * 60_000);
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "held-unchecked",
+    });
+    vi.useRealTimers();
+  });
+
   describe("a mined hash whose receipt can't be read", () => {
     async function mined(path: "attached" | "returned", settles: boolean) {
       vi.useFakeTimers({ toFake: ["Date"] });
@@ -1098,6 +1260,7 @@ describe("a held write", () => {
         client.getTransactionReceipt.mockImplementation(receipts);
         await expect(handle.state(client)).resolves.toEqual({
           status: "clear",
+          reservation: expect.any(String),
           settled: { result: "success", hash: HASH },
         });
       } else {
@@ -1273,7 +1436,7 @@ describe("a held write", () => {
       vi.useRealTimers();
     });
 
-    it("never offers it while the node can't answer, or once the finalized nonce passed it unread", async () => {
+    it("offers only the warned exit, 30 minutes after it was last seen pending, when its nonce can't be proven", async () => {
       const { handle, client, chain } = await seenThenGone();
       // A node that can't answer starts no clock.
       client.getTransaction.mockRejectedValue(new Error("timeout"));
@@ -1299,8 +1462,8 @@ describe("a held write", () => {
         } as never;
       });
       await handle.state(client);
-      vi.setSystemTime(1_000_000 + 31 * 60_000);
-      // The finalized block can't be read: no exit.
+      // Not found, and the finalized block can't be read: no exit yet.
+      vi.setSystemTime(1_000_000 + 29 * 60_000);
       const blocks = client.getBlock.getMockImplementation()!;
       client.getBlock.mockImplementation(async (args = {}) => {
         if (args.blockTag === "finalized") throw new Error("unsupported");
@@ -1310,7 +1473,9 @@ describe("a held write", () => {
         status: "pending-known-hash",
         exit: false,
       });
-      // Another transaction used the nonce, but the history behind it can't be read.
+      // Codex: another transaction used the nonce, but the history behind it
+      // can't be read. 30 minutes after it was last seen pending: the warned
+      // exit, never a release on its own.
       client.getBlock.mockImplementation(async (args = {}) => {
         if (args.includeTransactions) throw new Error("history unavailable");
         return blocks(args);
@@ -1318,10 +1483,13 @@ describe("a held write", () => {
       chain.txs.push({ ...sent(OTHER), block: 105n });
       chain.head = 120n;
       chain.finalized = 110n;
+      vi.setSystemTime(1_000_000 + 31 * 60_000);
       await expect(handle.state(client)).resolves.toMatchObject({
-        status: "pending-known-hash",
-        exit: false,
+        status: "held-unchecked",
+        exit: true,
+        warning: WRITE_HOLD_HASHED_EXIT_LINE,
       });
+      expect(handle.peek().status).not.toBe("clear");
       vi.useRealTimers();
     });
   });
@@ -1464,13 +1632,10 @@ describe("a held write", () => {
       status: "pending-known-hash",
       exit: false,
     });
-    // A node that can't answer proves nothing, however long it has been.
+    // Unknown or not found is not pending: 30 minutes on, the warned exit.
     vi.setSystemTime(1_000_000 + 31 * 60_000);
     client.getTransaction.mockRejectedValueOnce(new Error("timeout"));
     client.getTransaction.mockRejectedValueOnce(new Error("timeout"));
-    await expect(handle.state(client)).resolves.toMatchObject({
-      status: "pending-known-hash",
-    });
     const unchecked = await handle.state(client);
     expect(unchecked).toMatchObject({
       status: "held-unchecked",
@@ -1763,9 +1928,16 @@ describe("a held write", () => {
     ]);
     expect(exit).toEqual({
       released: false,
-      state: { status: "clear", settled: { result: "success", hash: HASH } },
+      state: {
+        status: "clear",
+        reservation: expect.any(String),
+        settled: { result: "success", hash: HASH },
+      },
     });
-    expect(receipt).toEqual({ status: "clear" });
+    expect(receipt).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
   });
 
   it("strands no confirmation behind a pending resolve", async () => {
@@ -1797,10 +1969,12 @@ describe("a held write", () => {
     });
     await expect(landed).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
     await expect(handle.state(client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
   });
@@ -1831,6 +2005,7 @@ describe("a held write", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
     // Only one send ever went out.
@@ -1854,6 +2029,7 @@ describe("a held write", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     const failed = {
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "failed", hash: HASH },
     };
     expect(handle.peek()).toEqual(failed);
@@ -1909,7 +2085,7 @@ describe("a held write", () => {
           return false;
         },
       }),
-    ).resolves.toEqual({ status: "clear" });
+    ).resolves.toEqual({ status: "clear", reservation: expect.any(String) });
     await expect(
       handle.send(
         client,
@@ -2230,9 +2406,780 @@ describe("a held write", () => {
   });
 });
 
+describe("a write held under an intent", () => {
+  const regenerated = { ...ordinary.call, data: "0xaabbccdd0002" as Hex };
+  const key = writeIntentKey("pay", {
+    projectId: 4n,
+    memo: "ABC",
+    token: intent.address(TARGET),
+  });
+  const intentCall = { ...ordinary, call: regenerated, namespace: key };
+
+  /** An earlier version's exact-call hold, then this version's intent handle. */
+  async function delegated() {
+    const browser = origin();
+    const old = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    await expect(
+      old.hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toThrow();
+    const legacy = old.hold.open(ordinary).peek() as WriteHeldState;
+    const next = setup({ browser, locks: old.locks });
+    const handle = next.hold.open(intentCall, {
+      legacy: [{ call: ordinary.call }],
+    });
+    return { browser, old, next, chain, client, receiptOf, legacy, handle };
+  }
+
+  it("is the legacy hold while it is unresolved: state() shows it and send() refuses with it", async () => {
+    const { handle, client, legacy, old } = await delegated();
+    const shown = await handle.state(client);
+    expect(shown).toMatchObject({
+      status: "held-no-hash",
+      exit: true,
+      reservation: legacy.record.id,
+      record: { id: legacy.record.id },
+    });
+    expect(handle.peek()).toMatchObject({
+      status: "held-no-hash",
+      exit: false,
+      reservation: legacy.record.id,
+    });
+    const retry = wallet(async () => HASH);
+    const refused = await handle.send(client, retry.send).catch((e) => e);
+    expect(refused).toBeInstanceOf(WriteHeldError);
+    expect(refused.state).toMatchObject({ reservation: legacy.record.id });
+    expect(retry.write).not.toHaveBeenCalled();
+    // Nothing moved: the original exact-call handle still holds it (Codex 4).
+    const again = wallet(async () => HASH);
+    await expect(
+      old.hold.open(ordinary).send(client, again.send),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    expect(again.write).not.toHaveBeenCalled();
+  });
+
+  it("exits through the legacy hold's own exit, in place (Codex 6)", async () => {
+    const { handle, client, old } = await delegated();
+    const shown = await handle.state(client);
+    await expect(
+      handle.exit(shown, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+    expect(old.hold.open(ordinary).peek().status).toBe("clear");
+    const retry = wallet(async () => HASH);
+    await handle.send(client, retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+    expect(handle.peek()).toMatchObject({
+      status: "pending-known-hash",
+      record: { namespace: key },
+    });
+  });
+
+  it("never lets the intent's own settlement skip a legacy hold (Codex 5)", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = next.hold.open(intentCall, {
+      legacy: [{ call: ordinary.call }],
+    });
+    // The intent sends first. A new exact-call handle sees the mirror and refuses.
+    await handle.send(client, wallet(async () => HASH).send);
+    await expect(
+      old.hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    // An older version exits the mirror, its explicit choice, and holds its own.
+    const older = createBrowserWriteRecovery(ordinary, {
+      storage: old.storage,
+    });
+    older.abandon(older.read()!, { checkedWallet: true });
+    await older.withLock(async () => older.reserve());
+    // The intent's own write settles.
+    chain.txs.push({ ...sent(HASH), input: regenerated.data, block: 95n });
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    const retry = wallet(async () => OTHER);
+    await expect(handle.send(client, retry.send)).rejects.toBeInstanceOf(
+      WriteHeldError,
+    );
+    expect(retry.write).not.toHaveBeenCalled();
+  });
+
+  it("checks a legacy namespace too, deduplicated and never its own", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const { chain, client } = fakeChain();
+    await old.hold
+      .open({ ...ordinary, namespace: "jbm:pay:4" })
+      .send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH));
+    const next = setup({ browser, locks: old.locks });
+    const handle = next.hold.open(intentCall, {
+      legacy: ["jbm:pay:4", "jbm:pay:4", key, { call: regenerated }],
+    });
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: HASH,
+      exit: false,
+      record: { namespace: "jbm:pay:4" },
+    });
+    // An exact-call hold takes no legacy keys.
+    expect(
+      next.hold
+        .open({ ...ordinary, call: regenerated }, { legacy: ["jbm:pay:4"] })
+        .peek(),
+    ).toEqual({ status: "clear" });
+  });
+
+  it("follows the legacy hold's evidence through the intent handle", async () => {
+    const { handle, client, chain, receiptOf, legacy } = await delegated();
+    // The legacy write's hash turns up: attach it, and its receipt settles it.
+    chain.txs.push(sent(HASH));
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      reservation: legacy.record.id,
+    });
+    chain.txs[0].block = 101n;
+    await expect(
+      handle.onReceipt(receiptOf(chain.txs[0]), client),
+    ).resolves.toMatchObject({
+      status: "clear",
+      settled: { result: "success", hash: HASH },
+      reservation: legacy.record.id,
+    });
+    await expect(handle.onUnproven(client)).resolves.toMatchObject({
+      status: "clear",
+    });
+    await expect(handle.onExecuted(client)).resolves.toMatchObject({
+      status: "clear",
+    });
+  });
+
+  it("rechecks the legacy keys right before reserving, and routes every method to the hold in charge", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = next.hold.open(intentCall, {
+      legacy: [{ call: ordinary.call }],
+    });
+    // A legacy hold appears while the review is open: the reserve refuses.
+    const write = vi.fn();
+    const refused = await handle
+      .send(client, async (gate) => {
+        await expect(
+          old.hold.open(ordinary).send(client, lostReply().send),
+        ).rejects.toThrow();
+        await gate.beforeSend();
+        write();
+      })
+      .catch((e) => e);
+    expect(refused).toBeInstanceOf(WriteHeldError);
+    expect(write).not.toHaveBeenCalled();
+    // While delegated, an exit of another snapshot or a clear one releases nothing.
+    const legacy = await handle.state(client);
+    for (const snapshot of [
+      { status: "clear" } as WriteHoldState,
+      {
+        ...legacy,
+        record: { ...(legacy as WriteHeldState).record, id: "x" },
+      } as WriteHoldState,
+    ])
+      await expect(
+        handle.exit(snapshot, { checkedWallet: true }, client),
+      ).resolves.toMatchObject({
+        released: false,
+        state: { reservation: legacy.reservation },
+      });
+    await expect(handle.onUnproven(client)).resolves.toMatchObject({
+      reservation: legacy.reservation,
+    });
+    await expect(handle.onExecuted(client)).resolves.toMatchObject({
+      reservation: legacy.reservation,
+    });
+    await handle.exit(legacy, { checkedWallet: true }, client);
+    // With the legacy keys clear, the intent's own record answers.
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push({ ...sent(HASH), input: regenerated.data });
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      record: { namespace: key },
+    });
+    chain.txs[0].block = 95n;
+    await expect(
+      handle.onReceipt(receiptOf(chain.txs[0]), client),
+    ).resolves.toMatchObject({
+      status: "clear",
+      settled: { result: "success" },
+    });
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "clear",
+      settled: { result: "success", hash: HASH },
+    });
+    await expect(
+      handle.exit({ status: "clear" }, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: false });
+  });
+
+  describe("excludes the exact-call writer", () => {
+    function pair() {
+      const browser = origin();
+      const locks = lockManager();
+      const intentTab = setup({ browser, locks });
+      const exactTab = setup({ browser, locks });
+      const handle = intentTab.hold.open(intentCall, {
+        legacy: [{ call: ordinary.call }],
+      });
+      const exact = exactTab.hold.open(ordinary);
+      return { browser, locks, intentTab, exactTab, handle, exact };
+    }
+
+    it("Codex (a): never reserves after the exact call reserved during its nonce read", async () => {
+      const { handle, exact } = pair();
+      const { client } = fakeChain();
+      let resume!: () => void;
+      const gate = new Promise<void>((resolve) => (resume = resolve));
+      const block = client.getBlockNumber.getMockImplementation()!;
+      client.getBlockNumber.mockImplementationOnce(async () => {
+        await gate;
+        return block();
+      });
+      const intentWrite = wallet(async () => HASH);
+      const sending = handle.send(client, intentWrite.send).catch((e) => e);
+      await vi.waitFor(() => expect(client.getBlockNumber).toHaveBeenCalled());
+      const exactWrite = wallet(async () => OTHER);
+      const exactSent = exact.send(client, exactWrite.send).catch((e) => e);
+      resume();
+      const [one, two] = await Promise.all([sending, exactSent]);
+      // Exactly one of them reached the wallet.
+      expect(
+        intentWrite.write.mock.calls.length +
+          exactWrite.write.mock.calls.length,
+      ).toBe(1);
+      expect([one, two].some((r) => r instanceof Error)).toBe(true);
+    });
+
+    it("Codex (b): the exact-call handle can't send once the intent sent", async () => {
+      const { handle, exact } = pair();
+      const { client } = fakeChain();
+      await handle.send(client, wallet(async () => HASH).send);
+      const again = wallet(async () => OTHER);
+      const refused = await exact.send(client, again.send).catch((e) => e);
+      expect(refused).toBeInstanceOf(WriteHeldError);
+      expect(refused.state).toMatchObject({
+        status: "pending-known-hash",
+        record: { namespace: key },
+      });
+      expect(again.write).not.toHaveBeenCalled();
+    });
+
+    it("leaves a held mirror for an old exact-call reader while the intent holds", async () => {
+      const { handle, intentTab } = pair();
+      const { client } = fakeChain();
+      await handle.send(client, wallet(async () => HASH).send);
+      // The previous SDK reads only its exact-call key.
+      const old = createBrowserWriteRecovery(ordinary, {
+        storage: intentTab.storage,
+        locks: intentTab.locks,
+      });
+      const mirror = old.read();
+      expect(mirror).toMatchObject({
+        id: (handle.peek() as WriteHeldState).record.id,
+        mirrorOf: key,
+      });
+      await expect(old.withLock(async () => old.reserve())).rejects.toThrow(
+        "still unresolved",
+      );
+    });
+
+    it("delegates an exact-call exit on a mirror to the intent, and clears the mirror", async () => {
+      const { handle, exact, intentTab } = pair();
+      const { client } = fakeChain();
+      await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+      const shown = await exact.state(client);
+      expect(shown).toMatchObject({
+        status: "held-no-hash",
+        exit: true,
+        record: { namespace: key },
+      });
+      await expect(
+        exact.exit(shown, { checkedWallet: true }, client),
+      ).resolves.toMatchObject({ released: true });
+      expect(handle.peek().status).toBe("clear");
+      expect(
+        createBrowserWriteRecovery(ordinary, {
+          storage: intentTab.storage,
+        }).read(),
+      ).toBeNull();
+      await exact.send(client, wallet(async () => OTHER).send);
+    });
+
+    it("clears the mirror when the intent settles, and when it exits", async () => {
+      const { handle, intentTab } = pair();
+      const { chain, client, receiptOf } = fakeChain();
+      const mirrorAt = () =>
+        createBrowserWriteRecovery(ordinary, {
+          storage: intentTab.storage,
+        }).read();
+      await handle.send(client, wallet(async () => HASH).send);
+      expect(mirrorAt()).toMatchObject({ mirrorOf: key });
+      chain.txs.push({ ...sent(HASH), input: regenerated.data, block: 95n });
+      await expect(
+        handle.onReceipt(receiptOf(chain.txs[0]), client),
+      ).resolves.toMatchObject({ status: "clear" });
+      expect(mirrorAt()).toBeNull();
+      await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+      expect(mirrorAt()).toMatchObject({ mirrorOf: key });
+      const shown = await handle.state(client);
+      await handle.exit(shown, { checkedWallet: true }, client);
+      expect(mirrorAt()).toBeNull();
+    });
+
+    it("shows the intent through the exact-call handle, and drops a mirror its intent left behind", async () => {
+      const { handle, exact, intentTab } = pair();
+      const { client } = fakeChain();
+      await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+      expect(exact.peek()).toMatchObject({
+        status: "held-no-hash",
+        record: { namespace: key },
+      });
+      // A stale snapshot's exit releases nothing, and the mirror stays.
+      const shown = await exact.state(client);
+      await expect(
+        exact.exit(
+          {
+            ...shown,
+            record: { ...(shown as WriteHeldState).record, id: "x" },
+          } as WriteHoldState,
+          { checkedWallet: true },
+          client,
+        ),
+      ).resolves.toMatchObject({ released: false });
+      const mirrorAt = () =>
+        createBrowserWriteRecovery(ordinary, {
+          storage: intentTab.storage,
+        }).read();
+      expect(mirrorAt()).toMatchObject({ mirrorOf: key });
+      // The intent ends without its handle cleaning up (another version).
+      const intentJournal = createBrowserWriteRecovery(intentCall, {
+        storage: intentTab.storage,
+      });
+      intentJournal.abandon(intentJournal.read()!, { checkedWallet: true });
+      await expect(exact.state(client)).resolves.toMatchObject({
+        status: "clear",
+      });
+      expect(mirrorAt()).toBeNull();
+      // With no mirror, the exact-call handle is itself.
+      await expect(
+        exact.exit({ status: "clear" }, { checkedWallet: true }, client),
+      ).resolves.toMatchObject({ released: false });
+      await exact.send(client, wallet(async () => OTHER).send);
+    });
+
+    it("aborts the unsent reservation when a mirror can't be saved in the hold's own store", async () => {
+      const browser = origin();
+      const base = createHeldWriteStorage({
+        durable: () => browser.storage,
+        memory: new Map(),
+      });
+      const storage: HeldWriteStorage = {
+        ...base,
+        setItem: (k, v) => {
+          if (k.startsWith("nana-sdk:reviewed-write:v2:"))
+            throw new Error("full");
+          base.setItem(k, v);
+        },
+      };
+      const { hold } = setup({ storage, browser });
+      const { client } = fakeChain();
+      const handle = hold.open(intentCall, {
+        legacy: [{ call: ordinary.call }],
+      });
+      const write = wallet(async () => HASH);
+      await expect(handle.send(client, write.send)).rejects.toThrow("full");
+      expect(write.write).not.toHaveBeenCalled();
+      expect(handle.peek().status).toBe("clear");
+    });
+
+    it("undoes its partial mirrors when a later one can't be saved", async () => {
+      for (const removal of ["works", "refused"] as const) {
+        const browser = origin();
+        const base = createHeldWriteStorage({
+          durable: () => browser.storage,
+          memory: new Map(),
+        });
+        const storage: HeldWriteStorage = {
+          ...base,
+          setItem: (k, v) => {
+            if (k.startsWith("nana-sdk:reviewed-write:v2:"))
+              throw new Error("full");
+            base.setItem(k, v);
+          },
+          removeItem: (k) => {
+            if (removal === "refused" && k.includes(":namespace:"))
+              throw new Error("refused");
+            base.removeItem(k);
+          },
+        };
+        const { hold } = setup({ storage, browser });
+        const { client } = fakeChain();
+        const write = wallet(async () => HASH);
+        const failed = await hold
+          .open(intentCall, {
+            legacy: ["jbm:pay:4", { call: ordinary.call }],
+          })
+          .send(client, write.send)
+          .catch((e) => e);
+        // Undone, the error itself; where the undo is refused too, the unsent
+        // reservation stays held, with its explicit exit.
+        if (removal === "works") expect(failed.message).toBe("full");
+        else expect(failed).toBeInstanceOf(WriteHeldError);
+        expect(write.write).not.toHaveBeenCalled();
+        const namespaced = createBrowserWriteRecovery(
+          { ...ordinary, namespace: "jbm:pay:4" },
+          { storage },
+        ).read();
+        if (removal === "works") expect(namespaced).toBeNull();
+        else expect(namespaced).toMatchObject({ mirrorOf: key });
+      }
+    });
+
+    it("sends once and mirrors to the tab's memory while durable storage is refused", async () => {
+      const browser = origin();
+      browser.state.write = false;
+      const memory = new Map<string, string>();
+      const locks = lockManager();
+      const intentTab = setup({ browser, memory, locks });
+      const exactTab = setup({ browser, memory, locks });
+      const { client } = fakeChain();
+      const write = wallet(async () => HASH);
+      await intentTab.hold
+        .open(intentCall, { legacy: [{ call: ordinary.call }] })
+        .send(client, write.send);
+      expect(write.write).toHaveBeenCalledOnce();
+      expect(browser.values.size).toBe(0);
+      const again = wallet(async () => OTHER);
+      await expect(
+        exactTab.hold.open(ordinary).send(client, again.send),
+      ).rejects.toBeInstanceOf(WriteHeldError);
+      expect(again.write).not.toHaveBeenCalled();
+    });
+
+    it("never deadlocks the intent and the exact call reserving in crossed order", async () => {
+      const { handle, exact } = pair();
+      const { client } = fakeChain();
+      const writes = [wallet(async () => HASH), wallet(async () => OTHER)];
+      const results = await Promise.all([
+        handle.send(client, writes[0].send).catch((e) => e),
+        exact.send(client, writes[1].send).catch((e) => e),
+      ]);
+      expect(
+        writes[0].write.mock.calls.length + writes[1].write.mock.calls.length,
+      ).toBe(1);
+      // Resolved within the retries: the loser is held, never busy.
+      const errors = results.filter((r) => r instanceof Error);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toBeInstanceOf(WriteHeldError);
+    });
+
+    it("refuses as busy only after its retries run out", async () => {
+      const { handle, exact } = pair();
+      const { client } = fakeChain();
+      let finish!: () => void;
+      const holding = exact.send(
+        client,
+        () => new Promise<void>((resolve) => (finish = resolve)),
+      );
+      await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+      const started = Date.now();
+      const refused = await handle
+        .send(client, wallet(async () => HASH).send)
+        .catch((e) => e);
+      expect(refused).toBeInstanceOf(WriteHoldBusyError);
+      expect(Date.now() - started).toBeGreaterThanOrEqual(1_500);
+      finish();
+      await holding;
+    });
+  });
+
+  it("refuses a second send of the intent: held once reserved, busy while the first holds its locks", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    let finish!: () => void;
+    const first = handle.send(client, async (gate) => {
+      await gate.beforeSend();
+      await new Promise<void>((resolve) => (finish = resolve));
+    });
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    await expect(
+      handle.send(client, wallet(async () => HASH).send),
+    ).rejects.toBeInstanceOf(WriteHoldBusyError);
+    finish();
+    await first;
+    await expect(
+      handle.send(client, wallet(async () => HASH).send),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+  });
+
+  it("never settles a stale mirror it can't remove, read through the exact-call key", async () => {
+    const browser = origin();
+    const base = createHeldWriteStorage({
+      durable: () => browser.storage,
+      memory: new Map(),
+    });
+    let refuse = false;
+    const storage: HeldWriteStorage = {
+      ...base,
+      removeItem: (k) => {
+        if (refuse && k.startsWith("nana-sdk:reviewed-write:v2:"))
+          throw new Error("refused");
+        base.removeItem(k);
+      },
+    };
+    const { hold } = setup({ storage, browser });
+    const { chain, client } = fakeChain();
+    const handle = hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    refuse = true;
+    // The intent ends elsewhere; its mirror can't be removed.
+    const intentJournal = createBrowserWriteRecovery(intentCall, { storage });
+    intentJournal.abandon(intentJournal.read()!, { checkedWallet: true });
+    chain.txs.push(sent(HASH, { block: 105n }));
+    chain.head = 120n;
+    chain.finalized = 110n;
+    await expect(hold.open(ordinary).state(client)).resolves.toMatchObject({
+      status: "held-no-hash",
+      record: { mirrorOf: key },
+    });
+    expect(
+      createBrowserWriteRecovery(ordinary, { storage }).read()?.hash,
+    ).toBeUndefined();
+  });
+
+  it("Codex: a review that went stale while another tab's attempt settled must be reviewed again", async () => {
+    const browser = origin();
+    const locks = lockManager();
+    const tabA = setup({ browser, locks });
+    const tabB = setup({ browser, locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const a = tabA.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    const b = tabB.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    let resume!: () => void;
+    const reviewing = new Promise<void>((resolve) => (resume = resolve));
+    const staleWrite = vi.fn();
+    let inReview = false;
+    const stale = a
+      .send(client, async (gate) => {
+        inReview = true;
+        await reviewing;
+        await gate.beforeSend();
+        staleWrite();
+      })
+      .catch((e) => e);
+    // Meanwhile, tab B sends the same intent and it settles.
+    await vi.waitFor(() => expect(inReview).toBe(true));
+    await b.send(client, wallet(async () => HASH).send);
+    chain.txs.push({ ...sent(HASH), input: regenerated.data, block: 95n });
+    await b.onReceipt(receiptOf(chain.txs[0]), client);
+    resume();
+    const refused = await stale;
+    expect(refused).toBeInstanceOf(WriteHoldStaleReviewError);
+    expect(refused.message).toBe(WRITE_HOLD_STALE_REVIEW_LINE);
+    expect(refused.settled).toEqual({ result: "success", hash: HASH });
+    expect(staleWrite).not.toHaveBeenCalled();
+    // A fresh review sends normally: a deliberate repeat is never blocked.
+    const again = wallet(async () => OTHER);
+    await a.send(client, again.send);
+    expect(again.write).toHaveBeenCalledOnce();
+  });
+
+  it("Codex: an exit never waits behind another tab's wallet prompt", async () => {
+    const browser = origin();
+    const locks = lockManager();
+    const tabA = setup({ browser, locks });
+    const tabB = setup({ browser, locks });
+    const { client } = fakeChain();
+    const a = tabA.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    const b = tabB.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    await expect(a.send(client, lostReply().send)).rejects.toThrow();
+    const kept = await b.state(client);
+    await a.exit(await a.state(client), { checkedWallet: true }, client);
+    // Tab A opens another wallet prompt and waits there.
+    let answer!: () => void;
+    const prompt = a.send(client, async (gate) => {
+      await gate.beforeSend();
+      await new Promise<void>((resolve) => (answer = resolve));
+    });
+    await vi.waitFor(() => expect(answer).toBeTypeOf("function"));
+    const started = Date.now();
+    const ended = await b.exit(kept, { checkedWallet: true }, client);
+    expect(Date.now() - started).toBeLessThan(500);
+    expect(ended.released).toBe(false);
+    expect(ended.state).toMatchObject({ exit: false });
+    answer();
+    await prompt;
+  });
+
+  it("crossed intents in two tabs: one sends within the retries, the other is held, never both busy", async () => {
+    for (let run = 0; run < 20; run += 1) {
+      const browser = origin();
+      const locks = lockManager();
+      const a = setup({ browser, locks });
+      const b = setup({ browser, locks });
+      const { client } = fakeChain();
+      const one = a.hold.open(
+        { ...ordinary, namespace: "intent:a:1" },
+        { legacy: ["intent:b:1"] },
+      );
+      const two = b.hold.open(
+        { ...ordinary, namespace: "intent:b:1" },
+        { legacy: ["intent:a:1"] },
+      );
+      const writes = [lostReply(), lostReply()];
+      const results = await Promise.all([
+        one.send(client, writes[0].send).catch((e) => e),
+        two.send(client, writes[1].send).catch((e) => e),
+      ]);
+      expect(
+        writes[0].write.mock.calls.length + writes[1].write.mock.calls.length,
+      ).toBe(1);
+      expect(results.filter((r) => r instanceof WriteHeldError)).toHaveLength(
+        1,
+      );
+      expect(results.some((r) => r instanceof WriteHoldBusyError)).toBe(false);
+    }
+  }, 20_000);
+
+  it("Codex H1/H2: never settles a foreign mirror with an unrelated mined hash", async () => {
+    const browser = origin();
+    const locks = lockManager();
+    const tabA = setup({ browser, locks });
+    const tabB = setup({ browser, locks });
+    const { chain, client } = fakeChain();
+    const H1 = `0x${"a1".repeat(32)}` as Hex;
+    const H2 = `0x${"a2".repeat(32)}` as Hex;
+    const intentA = tabA.hold.open(
+      { ...intentCall, namespace: writeIntentKey("pay", { who: "a" }) },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    const intentB = tabB.hold.open(
+      { ...intentCall, namespace: writeIntentKey("pay", { who: "b" }) },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    // A reserves with nonce evidence 7 and submits H1 at nonce 8, pending.
+    await intentA.send(client, wallet(async () => H1).send);
+    chain.txs.push({ ...sent(H1), input: regenerated.data, nonce: 8 });
+    // An identical exact call H2 mined at nonce 7 after the reservation.
+    chain.txs.push(sent(H2, { block: 105n }));
+    chain.head = 120n;
+    const mirrorAt = () =>
+      createBrowserWriteRecovery(ordinary, { storage: tabA.storage }).read();
+    expect(mirrorAt()).toMatchObject({ mirrorOf: expect.any(String) });
+    // B tries to attach H2 to A's hashless mirror: it acts on A instead.
+    await expect(intentB.attachHash(client, H2)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: H1,
+    });
+    expect(mirrorAt()?.hash).toBeUndefined();
+    const second = wallet(async () => OTHER);
+    await expect(intentB.send(client, second.send)).rejects.toBeInstanceOf(
+      WriteHeldError,
+    );
+    expect(second.write).not.toHaveBeenCalled();
+    // A mirror never takes a hash or settles, read directly either.
+    const direct = createWriteHold({ storage: tabA.storage, locks });
+    const exactHandle = direct.open(ordinary);
+    await expect(exactHandle.attachHash(client, H2)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: H1,
+    });
+    expect(mirrorAt()?.hash).toBeUndefined();
+  });
+});
+
+describe("a held write's reservation identity", () => {
+  it("names the reservation that ended even when its latest marker was refused (Codex 7)", async () => {
+    const browser = origin();
+    const { hold } = setup({ browser });
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    const first = await handle.state(client);
+    await handle.exit(first, { checkedWallet: true }, client);
+    const write = browser.storage.setItem;
+    browser.storage.setItem = (k: string, v: string) => {
+      if (k.endsWith(":latest")) throw new Error("QuotaExceededError");
+      write(k, v);
+    };
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    const second = (await handle.state(client)) as WriteHeldState;
+    expect(second.reservation).not.toBe((first as WriteHeldState).reservation);
+    const ended = await handle.exit(second, { checkedWallet: true }, client);
+    expect(ended.state).toEqual({
+      status: "clear",
+      reservation: second.reservation,
+    });
+    expect(handle.peek()).toEqual({
+      status: "clear",
+      reservation: second.reservation,
+    });
+  });
+
+  it("replays by reservation, so a late subscriber never hears an older clear (Codex 8)", async () => {
+    const browser = origin();
+    const first = setup({ browser });
+    const second = setup({ browser, locks: first.locks });
+    const { client } = fakeChain();
+    const a = first.hold.open(ordinary);
+    await expect(a.send(client, lostReply().send)).rejects.toThrow();
+    const old = await a.state(client);
+    await a.exit(old, { checkedWallet: true }, client);
+    // Another controller reserves and exits a newer attempt.
+    const b = second.hold.open(ordinary);
+    await expect(b.send(client, lostReply().send)).rejects.toThrow();
+    const newer = (await b.state(client)) as WriteHeldState;
+    await b.exit(newer, { checkedWallet: true }, client);
+    const late = vi.fn();
+    first.hold.open(ordinary).subscribe(late);
+    expect(late).toHaveBeenCalledWith({
+      status: "clear",
+      reservation: newer.reservation,
+    });
+  });
+
+  it("is on every emitted, subscribed and returned state", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    const heard: WriteHoldState[] = [];
+    handle.subscribe((state) => heard.push(state));
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    const id = (handle.peek() as WriteHeldState).record.id;
+    expect(handle.peek()).toMatchObject({ reservation: id });
+    const shown = await handle.state(client);
+    expect(shown).toMatchObject({ reservation: id });
+    expect(heard.length).toBeGreaterThan(0);
+    for (const state of heard.filter((state) => state.status !== "clear"))
+      expect(state.reservation).toBe(id);
+    const late = vi.fn();
+    hold.open(ordinary).subscribe(late);
+    expect(late.mock.calls[0][0]).toMatchObject({ reservation: id });
+    const refused = await handle.send(client, lostReply().send).catch((e) => e);
+    expect(refused.state).toMatchObject({ reservation: id });
+    // A clear names the reservation it ended.
+    const ended = await handle.exit(shown, { checkedWallet: true }, client);
+    expect(ended.state).toEqual({ status: "clear", reservation: id });
+    expect(handle.peek()).toEqual({ status: "clear", reservation: id });
+    // Nothing reserved yet: no reservation to name.
+    expect(
+      hold.open({ ...ordinary, call: { ...ordinary.call, value: 3n } }).peek(),
+    ).toEqual({ status: "clear" });
+  });
+});
+
 describe("a held write's settlement", () => {
   const success = {
     status: "clear",
+    reservation: expect.any(String),
     settled: { result: "success", hash: HASH },
   };
 
@@ -2276,10 +3223,17 @@ describe("a held write's settlement", () => {
     const shown = await handle.state(client);
     await expect(
       handle.exit(shown, { checkedWallet: true }, client),
-    ).resolves.toEqual({ released: true, state: { status: "clear" } });
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    ).resolves.toEqual({
+      released: true,
+      state: { status: "clear", reservation: expect.any(String) },
+    });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     expect(setup({ browser, locks }).hold.open(ordinary).peek()).toEqual({
       status: "clear",
+      reservation: expect.any(String),
     });
   });
 
@@ -2303,7 +3257,10 @@ describe("a held write's settlement", () => {
     const shown = await handle.state(client);
     expect(shown.status).toBe("held-no-hash");
     await handle.exit(shown, { checkedWallet: true }, client);
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
   });
 
   it("never brings an older settlement back after a newer reservation's exit, even when its removal was refused", async () => {
@@ -2325,13 +3282,28 @@ describe("a held write's settlement", () => {
     const shown = await handle.state(client);
     await expect(
       handle.exit(shown, { checkedWallet: true }, client),
-    ).resolves.toEqual({ released: true, state: { status: "clear" } });
-    expect(handle.peek()).toEqual({ status: "clear" });
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    ).resolves.toEqual({
+      released: true,
+      state: { status: "clear", reservation: expect.any(String) },
+    });
+    expect(handle.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     // After a reload too.
     const reloaded = setup({ browser, locks }).hold.open(ordinary);
-    expect(reloaded.peek()).toEqual({ status: "clear" });
-    await expect(reloaded.state(client)).resolves.toEqual({ status: "clear" });
+    expect(reloaded.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
+    await expect(reloaded.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
   });
 
   it("never lets a tab's older settlement kept in memory replace another tab's newer one", async () => {
@@ -2368,6 +3340,7 @@ describe("a held write's settlement", () => {
     chain.txs.push(sent(OTHER, { nonce: 8, block: 96n }));
     const settledB = {
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: OTHER },
     };
     await expect(
@@ -2404,10 +3377,19 @@ describe("a held write's settlement", () => {
       throw Object.assign(new Error("denied"), { code: 4001 });
     });
     await expect(handle.send(client, rejected.send)).rejects.toThrow("denied");
-    expect(handle.peek()).toEqual({ status: "clear" });
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    expect(handle.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     const reloaded = setup({ browser, locks }).hold.open(ordinary);
-    expect(reloaded.peek()).toEqual({ status: "clear" });
+    expect(reloaded.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     // And a later send goes out normally.
     const again = wallet(async () => OTHER);
     await reloaded.send(client, again.send);
@@ -2431,10 +3413,19 @@ describe("a held write's settlement", () => {
     await expect(handle.send(client, lostReply().send)).rejects.toThrow();
     const shown = await handle.state(client);
     await handle.exit(shown, { checkedWallet: true }, client);
-    expect(handle.peek()).toEqual({ status: "clear" });
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    expect(handle.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
     const reloaded = setup({ browser, locks }).hold.open(ordinary);
-    expect(reloaded.peek()).toEqual({ status: "clear" });
+    expect(reloaded.peek()).toEqual({
+      status: "clear",
+      reservation: expect.any(String),
+    });
   });
 
   it("brings no old settlement back after an exit and a reload", async () => {
@@ -2450,8 +3441,14 @@ describe("a held write's settlement", () => {
     await handle.exit(shown, { checkedWallet: true }, client);
     for (let reload = 0; reload < 2; reload += 1) {
       const again = setup({ browser, locks }).hold.open(ordinary);
-      expect(again.peek()).toEqual({ status: "clear" });
-      await expect(again.state(client)).resolves.toEqual({ status: "clear" });
+      expect(again.peek()).toEqual({
+        status: "clear",
+        reservation: expect.any(String),
+      });
+      await expect(again.state(client)).resolves.toEqual({
+        status: "clear",
+        reservation: expect.any(String),
+      });
     }
   });
 
@@ -2598,7 +3595,11 @@ describe("a held Safe proposal", () => {
       });
       executes(fixture, queue.hash, topic);
       // The service still lists it unexecuted.
-      const settled = { status: "clear", settled: { result, hash: EXECUTION } };
+      const settled = {
+        status: "clear",
+        reservation: expect.any(String),
+        settled: { result, hash: EXECUTION },
+      };
       await expect(handle.state(fixture.client)).resolves.toEqual(settled);
       // Another tab learns the same settlement.
       expect(safeSetup(browser).hold.open(safeCall()).peek()).toEqual(settled);
@@ -2657,6 +3658,7 @@ describe("a held Safe proposal", () => {
       reloaded.onExecuted(fixture.client, EXECUTION),
     ).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: EXECUTION },
     });
     hold.dispose();
@@ -2674,6 +3676,7 @@ describe("a held Safe proposal", () => {
     fixture.chain.hidden.add(EXECUTION.toLowerCase());
     await expect(handle.state(fixture.client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: EXECUTION },
     });
     // With no readable proof, a receipt that doesn't verify settles nothing.
@@ -3046,6 +4049,7 @@ describe("a held Safe proposal", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "failed", hash: EXECUTION },
     });
     // A retry is allowed.
@@ -3088,6 +4092,7 @@ describe("a held Safe proposal", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "failed", hash: EXECUTION },
     });
     hold.dispose();
@@ -3112,6 +4117,7 @@ describe("a held Safe proposal", () => {
     executes(fixture, queue.hash, SUCCESS);
     await expect(handle.onExecuted(fixture.client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: EXECUTION },
     });
   });
@@ -3235,6 +4241,7 @@ describe("a held Safe proposal", () => {
       else
         await expect(handle.state(fixture.client)).resolves.toEqual({
           status: "clear",
+          reservation: expect.any(String),
           settled: { result: "failed", hash: second },
         });
       hold.dispose();
@@ -3353,6 +4360,7 @@ describe("a held Safe proposal", () => {
       fixture.chain.finalized = 110n;
       await expect(handle.state(fixture.client)).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "success", hash: EXECUTION },
       });
     });
@@ -3413,6 +4421,7 @@ describe("a held Safe proposal", () => {
         handle.onExecuted(fixture.client, EXECUTION),
       ).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "success", hash: EXECUTION },
       });
     });
@@ -3452,6 +4461,7 @@ describe("a held Safe proposal", () => {
         fixture.client.getTransaction.mockImplementation(lookup);
         await expect(handle.state(fixture.client)).resolves.toEqual({
           status: "clear",
+          reservation: expect.any(String),
           settled: { result: "success", hash: CAND },
         });
       }
@@ -3521,6 +4531,7 @@ describe("a held Safe proposal", () => {
       });
       await expect(handle.state(fixture.client)).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "success", hash: EXECUTION },
       });
     });
@@ -3533,6 +4544,7 @@ describe("a held Safe proposal", () => {
         fixture.chain.hidden.add(EXECUTION.toLowerCase());
         await expect(handle.state(fixture.client)).resolves.toEqual({
           status: "clear",
+          reservation: expect.any(String),
           settled: {
             result: topic === SUCCESS ? "success" : "failed",
             hash: EXECUTION,
@@ -3612,6 +4624,7 @@ describe("a held Safe proposal", () => {
       fixture.chain.finalized = 110n;
       await expect(handle.state(fixture.client)).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "success", hash: CAND },
       });
     });
@@ -3849,7 +4862,10 @@ describe("a held Safe proposal", () => {
       ).resolves.toMatchObject({ released: false });
       await expect(
         reloaded.exit(shown, { checkedWallet: true }, fixture.client),
-      ).resolves.toEqual({ released: true, state: { status: "clear" } });
+      ).resolves.toEqual({
+        released: true,
+        state: { status: "clear", reservation: expect.any(String) },
+      });
       const again = vi.fn();
       await reloaded.send(fixture.client, async (gate) => {
         await gate.beforeSend();
@@ -3865,6 +4881,7 @@ describe("a held Safe proposal", () => {
         executes(fixture, queue.hash, topic);
         await expect(handle.state(fixture.client)).resolves.toEqual({
           status: "clear",
+          reservation: expect.any(String),
           settled: {
             result: topic === SUCCESS ? "success" : "failed",
             hash: EXECUTION,
@@ -3876,6 +4893,7 @@ describe("a held Safe proposal", () => {
       executes(fixture, queue.hash, SUCCESS);
       await expect(handle.onUnproven(fixture.client)).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "success", hash: EXECUTION },
       });
     });
@@ -3909,6 +4927,7 @@ describe("a held Safe proposal", () => {
       fixture.chain.finalized = 110n;
       await expect(handle.state(fixture.client)).resolves.toEqual({
         status: "clear",
+        reservation: expect.any(String),
         settled: { result: "failed", hash: EXECUTION },
       });
       hold.dispose();
@@ -4006,6 +5025,7 @@ describe("a held Safe proposal", () => {
     fixture.chain.finalized = 96n;
     await expect(handle.state(fixture.client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "expired" },
     });
   });
@@ -4033,6 +5053,7 @@ describe("a held Safe proposal", () => {
     executes(fixture, OTHER, SUCCESS);
     await expect(handle.state(fixture.client)).resolves.toEqual({
       status: "clear",
+      reservation: expect.any(String),
       settled: { result: "success", hash: EXECUTION },
     });
   });

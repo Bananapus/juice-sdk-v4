@@ -221,9 +221,23 @@ const budgets = {
     // Rounds 5 to 7 (attach evidence, the mined clock per seen hash, and a
     // proven Safe execution settled from its canonical log) measured
     // 1,441,392 B packed / 21,683,809 B unpacked and 818 entries.
-    packed: 1_447_000,
-    unpacked: 21_695_000,
-    entries: 818,
+    // Write intents (writeIntentKey and its tags, one module and eight
+    // artifacts), legacy-hold adoption and the reservation id on every state
+    // measured 1,447,165 B packed / 21,722,125 B unpacked and 826 entries.
+    // Delegating to legacy holds in place, in place of adopting them,
+    // measured 1,453,822 B packed / 21,726,999 B unpacked and 826 entries.
+    // Mutual exclusion with the legacy keys (sorted locks for the reserve,
+    // mirror records, the exact-call handle's delegation) measured
+    // 1,458,340 B packed / 21,752,155 B unpacked and 826 entries.
+    // The reserve taking every lock in order, mirror-aware delegates and
+    // evidence-free mirrors measured 1,461,348 B packed / 21,766,711 B
+    // unpacked and 826 entries.
+    // Stale-review generations, kept last records, the memory-only notice and
+    // the unknown-read clock measured 1,464,159 B packed / 21,782,309 B
+    // unpacked and 826 entries.
+    packed: 1_470_000,
+    unpacked: 21_795_000,
+    entries: 826,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

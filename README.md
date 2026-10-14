@@ -825,6 +825,7 @@ import {
   createWriteHold,
   WriteHeldError,
   WriteHoldBusyError,
+  WriteHoldStaleReviewError,
   WRITE_EXIT_LABEL,
   writeExitMessage,
 } from "@bananapus/nana-sdk-core/review";
@@ -847,6 +848,8 @@ try {
   );
 } catch (error) {
   if (error instanceof WriteHeldError) showHeld(error.state);
+  else if (error instanceof WriteHoldStaleReviewError)
+    showError(error.message); // sent from another window: review again
   else if (error instanceof WriteHoldBusyError) showError(error.message);
   else showHeld(await hold.state(publicClient)); // a lost reply stays held
 }
@@ -888,15 +891,60 @@ with `exit: false`. Every state carries the record it was read from; `exit` refu
 snapshot that changed, and asks the chain once more, so a confirmation that
 lands meanwhile wins.
 
-Holds live in the browser's storage, or this tab's memory where storage is
-refused; `holds.reviewLine()` then returns `WRITE_HOLD_IN_TAB_LINE` for the
-review. Both stores are always read, and a memory hold moves into the browser's
+Cross-tab protection needs shared storage. Holds live in the browser's storage,
+or this tab's memory where storage is refused (private browsing, some
+webviews): there, tabs can't see each other's holds, sends are never refused
+for it, and every held state carries `notice` (`WRITE_HOLD_IN_TAB_LINE`, also
+`holds.reviewLine()` for the review) so the user checks their wallet before
+repeating one. Both stores are always read, and a memory hold moves into the browser's
 storage once it can be written. A send checks, reserves and hands the call to
 the wallet under one lock per exact call, so two flows or tabs never both send
 it. For a Safe write, `state` follows the proposal itself: a proven expiry
 releases, a proven execution is settled from the receipt its canonical log
 names, without Safe's service, and a nonce another Safe transaction used is
 `safe-replaced`: never released on its own, the exit offered at once.
+
+### Write intents
+
+A write whose calldata regenerates on every retry (a fresh deadline, Permit2
+expiration, signature or quote) is held by its intent, not its exact call.
+`writeIntentKey(action, params)` is that hold's namespace: the action and the
+parameters the user chose, canonically encoded (sorted keys, decimal integers,
+exact strings) and hashed behind a readable prefix.
+
+```ts
+import { intent, writeIntentKey } from "@bananapus/nana-sdk-core/review";
+
+const namespace = writeIntentKey("pay", {
+  projectId: 4n,
+  token: intent.address(token), // compared case-blind
+  amount,
+  memo, // compared exactly: "ABC" and "abc" are different intents
+});
+const hold = holds.open(
+  { chainId, account, safe, call, namespace },
+  { legacy: ["jbm:pay:4"] }, // keys an earlier version held it under
+);
+```
+
+Include the user's chosen inputs and the identity of what is acted on
+(project, pool, collection, position, loan). Leave out what restamps on every
+review: deadlines, expirations, signatures, nonces and derived quotes. Tag
+addresses and hex with `intent.address` and `intent.hex`; plain strings stay
+case-sensitive. A number and a bigint are different values (pass amounts as
+bigint), and a non-integer number or a sparse array is refused.
+
+When a hold is opened under an intent, the current exact call and every
+`legacy` key (an old namespace, or `{ call }` for an old exact call) are
+checked too, each alone under its own lock. While one holds an unresolved
+write, the intent handle is that hold: its state, its refusal and its own exit,
+in place; nothing moves, so an older version's handle keeps working. When the
+intent reserves, under every key's lock in one sorted order, it leaves a held
+mirror (`mirrorOf`) at each legacy key, so older versions and the exact-call
+handle see it held until it settles or exits. Only when
+all are clear does the intent's own record apply. Every state carries
+`reservation`, the id of the reservation it belongs to (on a clear, the one
+that ended), so an observer can ignore a newer reservation it didn't start.
 
 ### Safe proposals
 
