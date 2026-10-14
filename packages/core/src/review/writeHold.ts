@@ -1679,6 +1679,21 @@ export function createWriteHold(
     const scopeOf = (input: ReviewedWriteRecoveryInput) =>
       createBrowserWriteRecovery(input, { storage }).scopeKey;
     const scopes = new Set([scopeOf(call)]);
+    /**
+     * The keys a match found: only true pre-intent exact-call records hold
+     * there. Any intent's mirror is skipped (each intent's own namespace
+     * holds its writes), and none is written there.
+     */
+    const matchedKeys = new Set<string>();
+    /** Whether `journal`'s record holds this intent: never its own mirror, nor any mirror at a matched key. */
+    const holds = (journal: (typeof journals)[number]) => {
+      const record = journal.read();
+      return (
+        !!record &&
+        record.mirrorOf !== namespace &&
+        !(record.mirrorOf !== undefined && matchedKeys.has(journal.scopeKey))
+      );
+    };
     // Mirror-aware: evidence and exits always act on the source attempt.
     const delegates: ReturnType<typeof openExact>[] = [];
     const journals: ReturnType<typeof createBrowserWriteRecovery>[] = [];
@@ -1719,6 +1734,7 @@ export function createWriteHold(
      */
     function rescan(): ReviewedWriteRecoveryRecord[] {
       const found = matched().filter(({ key }) => !scopes.has(key));
+      for (const { key } of found) matchedKeys.add(key);
       include(
         found.map(({ key, record }) => ({
           input: { ...exact, safe: record.safe, call: record.call },
@@ -1739,8 +1755,7 @@ export function createWriteHold(
     rescan();
     /** A legacy key holding anything but this intent's own mirror. */
     const foreign = (index: number) =>
-      journals[index].read()?.mirrorOf !== namespace &&
-      delegates[index].peek().status !== "clear";
+      holds(journals[index]) && delegates[index].peek().status !== "clear";
     /** The legacy hold the intent stands for right now, from storage alone. */
     const active = () => delegates.find((_, index) => foreign(index));
     /** The first legacy key holding an unresolved write, through its own gate. */
@@ -1796,7 +1811,7 @@ export function createWriteHold(
             );
           for (const journal of journals) {
             const held = journal.read();
-            if (held && held.mirrorOf !== namespace) throw refuse(held);
+            if (held && holds(journal)) throw refuse(held);
           }
           // A matching write saved since the last look holds it too, and
           // its own state() and exit() are reached from now on.
@@ -1816,7 +1831,8 @@ export function createWriteHold(
           ][] = [];
           try {
             for (const journal of journals)
-              mirrors.push([journal, journal.mirror(record, namespace)]);
+              if (!matchedKeys.has(journal.scopeKey))
+                mirrors.push([journal, journal.mirror(record, namespace)]);
           } catch (error) {
             for (const [journal, mirror] of mirrors)
               try {
