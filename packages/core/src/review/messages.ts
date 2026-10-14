@@ -122,3 +122,25 @@ export const WRITE_HOLD_MINED_LINE =
 /** A send whose review went stale because another window's attempt of the same write ended meanwhile. */
 export const WRITE_HOLD_STALE_REVIEW_LINE =
   "This was just sent from another window. Review it again to send another.";
+
+/** The one line while a sent write, direct or through a Safe, is being confirmed. */
+export const HELD_CONFIRMING_LINE = "Confirming your transaction.";
+
+/** A held write the user released with their exit: they can send it again. */
+export const HELD_RELEASED_LINE = "Released. You can send it again.";
+
+/** A held write another window released: neutral, never a result. */
+export const HELD_RELEASED_ELSEWHERE_LINE =
+  "This was released in another window.";
+
+/** The exit button where the review follows on its own. */
+export const HELD_EXIT_LABEL = "I checked my wallet";
+
+/** The exit button where only the hold is released (an app-wide notice). */
+export const HELD_RELEASE_LABEL = "I checked my wallet. Release it";
+
+/** A held write settled with success on authenticated evidence. */
+export const HELD_SUCCESS_LINE = "Your transaction went through.";
+
+/** A held Safe proposal proven expired before it ran. */
+export const HELD_EXPIRED_LINE = "Your Safe proposal expired before it ran.";

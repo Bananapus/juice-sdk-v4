@@ -37,6 +37,7 @@ import {
   findReviewedWrites,
   heldSafeProposal,
   findTransactionAtNonce,
+  listReviewedWrites,
   readReviewedWriteNonce,
   safeProposalIsHeldCall,
   SubmittedWritePersistenceError,
@@ -2069,8 +2070,33 @@ export function createWriteHold(
         route()?.peek() ?? own.adopt(...args),
     };
   }
+  /**
+   * Every write held for `account` on `chainId`, with a handle to each at
+   * the key it was saved under: for an app-wide notice of everything held,
+   * whatever action made it. Read from storage alone; each handle's state()
+   * is the gated answer.
+   */
+  function list({ account, chainId }: { account: Address; chainId: number }) {
+    return listReviewedWrites({ account, chainId }, { storage }).map(
+      ({ key, record }) => {
+        const input: ReviewedWriteRecoveryInput = {
+          chainId: record.chainId,
+          account: record.account,
+          safe: record.safe,
+          call: record.call,
+        };
+        const handle: ReturnType<typeof open> =
+          record.namespace === undefined
+            ? openExact(input, key)
+            : open({ ...input, namespace: record.namespace });
+        return { key, record, handle };
+      },
+    );
+  }
+
   return {
     open,
+    list,
     /** Whether holds outlive this tab right now. */
     durable: () => storage.durable(),
     /** The review's line while holds last only in this tab, or null. */

@@ -14,6 +14,7 @@ export default defineConfig({
         "**/*.d.ts",
         "**/*.config.ts",
         "**/*.test.ts",
+        "**/*.test.tsx",
       ],
       // Keep the entire published React surface covered, with explicit stricter
       // floors on the money, indexer, and signing boundaries below. Generated
@@ -32,6 +33,24 @@ export default defineConfig({
         "src/hooks/token/useTokenCashOutQuoteEth.ts": {
           statements: 100,
           branches: 85,
+          functions: 100,
+          lines: 100,
+        },
+        "src/hooks/heldWrite/useHeldWrite.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/hooks/heldWrite/useHeldWrites.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/hooks/heldWrite/HeldWritesNotice.tsx": {
+          statements: 100,
+          branches: 100,
           functions: 100,
           lines: 100,
         },

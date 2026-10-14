@@ -566,6 +566,50 @@ function foundAt(input: ReviewedWriteRecoveryInput, at: string): string {
   throw new Error("Invalid write recovery key.");
 }
 
+/**
+ * Every unresolved write saved for `account` on `chainId`, with the key it
+ * was saved under: held under an intent namespace, as an exact call, or under
+ * the pre-2.30 selector key. A mirror is never one (its intent is listed by
+ * its namespace), nor a released, unreadable or other-account record. For an
+ * app-wide notice of everything held.
+ */
+export function listReviewedWrites(
+  input: Pick<ReviewedWriteRecoveryInput, "chainId" | "account">,
+  options: { storage?: RecoveryStorage } = {},
+): { key: string; record: ReviewedWriteRecoveryRecord }[] {
+  const { chainId, account } = normalizedIdentity(input);
+  const store = recoveryStorage(options.storage);
+  const listed: { key: string; record: ReviewedWriteRecoveryRecord }[] = [];
+  for (const key of storedKeys(store)) {
+    if (
+      !key.startsWith("nana-sdk:reviewed-write:") ||
+      !key.includes(`:${chainId}:${account}:`)
+    )
+      continue;
+    try {
+      const record = readStored(store.getItem(key), key, () => key, store);
+      if (
+        !record ||
+        record.mirrorOf !== undefined ||
+        record.chainId !== chainId ||
+        record.account !== account
+      )
+        continue;
+      const exactPrefix = `nana-sdk:reviewed-write:v2:${chainId}:${account}:${record.call.to}:`;
+      const owned =
+        record.namespace !== undefined
+          ? key === scope(record)
+          : key === legacyScope(record) ||
+            (key.startsWith(exactPrefix) &&
+              /^\d+:0x[0-9a-f]{64}$/.test(key.slice(exactPrefix.length)));
+      if (owned) listed.push({ key, record });
+    } catch {
+      // An unreadable record names no call, so it holds none.
+    }
+  }
+  return listed;
+}
+
 export type ReviewedWriteRecoveryScope = Pick<
   ReviewedWriteRecoveryInput,
   "chainId" | "account"

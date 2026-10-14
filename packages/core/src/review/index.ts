@@ -9,3 +9,4 @@ export * from "./writeRecovery.js";
 export * from "./writeHold.js";
 export * from "./writeIntent.js";
 export * from "./intents.js";
+export * from "./heldWrite.js";

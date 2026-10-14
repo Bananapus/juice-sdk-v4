@@ -31,6 +31,10 @@ describe("published React SDK surface", () => {
       "useGetRelayrTxBundle",
       "useGetRelayrTxQuote",
       "useSendRelayrTx",
+      "useHeldWrite",
+      "useHeldIntents",
+      "useHeldWrites",
+      "HeldWritesNotice",
     ] as const;
 
     for (const exportName of publicFunctions) {

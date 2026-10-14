@@ -5878,6 +5878,61 @@ describe("a launch held under its shared intent", () => {
   });
 });
 
+describe("listing every held write for an account", () => {
+  it("lists exact-call and intent holds once each, never a mirror, another account's or a released one", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const OTHER_ACCOUNT =
+      "0x3333333333333333333333333333333333333333" as Address;
+    const key = writeIntentKey("pay", { projectId: 4n });
+    // An exact-call hold.
+    await expect(
+      hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toThrow();
+    // An intent hold, mirrored at its own exact call.
+    const intentCall = {
+      ...ordinary,
+      call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+      namespace: key,
+    };
+    await expect(
+      hold
+        .open(intentCall, { legacy: [{ call: intentCall.call }] })
+        .send(client, lostReply().send),
+    ).rejects.toThrow();
+    // Another account's, and one released by its exit.
+    await expect(
+      hold
+        .open({ ...ordinary, account: OTHER_ACCOUNT })
+        .send(client, lostReply().send),
+    ).rejects.toThrow();
+    const released = hold.open({
+      ...ordinary,
+      call: { ...ordinary.call, value: 3n },
+    });
+    await expect(released.send(client, lostReply().send)).rejects.toThrow();
+    await released.exit(
+      await released.state(client),
+      { checkedWallet: true },
+      client,
+    );
+    const listed = hold.list({ account: ACCOUNT, chainId: 10 });
+    expect(listed.map(({ record }) => record.namespace ?? null).sort()).toEqual(
+      [key, null].sort(),
+    );
+    expect(hold.list({ account: ACCOUNT, chainId: 1 })).toEqual([]);
+    // Each handle is the gated hold: its exit releases it.
+    for (const { handle } of listed) {
+      const state = await handle.state(client);
+      expect(state).toMatchObject({ status: "held-no-hash", exit: true });
+      await expect(
+        handle.exit(state, { checkedWallet: true }, client),
+      ).resolves.toMatchObject({ released: true });
+    }
+    expect(hold.list({ account: ACCOUNT, chainId: 10 })).toEqual([]);
+  });
+});
+
 describe("adopting a previous deploy's hashless write", () => {
   it("keeps another tab's settlement made after the app's read, and creates no hold", async () => {
     const browser = origin();
