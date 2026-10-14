@@ -1278,15 +1278,25 @@ describe("releasing a write with no confirmed result", () => {
     ).rejects.toThrow("Invalid");
   });
 
-  it("finds the exact call at its nonce and returns the hash to track", async () => {
+  it("adopts another hash only at the nonce its own transaction was sent at", async () => {
     const { record } = await reserved();
+    // Codex: the exact call at the pre-wallet nonce, under a hash nobody returned.
     const client = nonceChain();
-    await expect(check(client, record)).resolves.toEqual({
-      status: "sent",
-      hash: SENT,
-    });
+    await expect(check(client, record)).resolves.toEqual(pending);
+    await expect(check(client, { ...record, hash: HASH })).resolves.toEqual(
+      pending,
+    );
+    // Its own hash there is this transaction.
+    await expect(
+      check(nonceChain({ tx: exact(HASH) }), { ...record, hash: HASH }),
+    ).resolves.toEqual({ status: "sent", hash: HASH });
+    // At the authenticated sent nonce, a speed-up of the exact call is adopted.
+    const bound = nonceChain();
+    await expect(
+      check(bound, { ...record, hash: HASH, sentNonce: "7" }),
+    ).resolves.toEqual({ status: "sent", hash: SENT });
     // A binary search, not a scan of every block.
-    expect(client.getTransactionCount.mock.calls.length).toBeLessThan(12);
+    expect(bound.getTransactionCount.mock.calls.length).toBeLessThan(12);
   });
 
   it("never calls a write replaced from a nonce sampled before the wallet opened", async () => {
@@ -1377,15 +1387,41 @@ describe("releasing a write with no confirmed result", () => {
     ).resolves.toEqual(pending);
   });
 
-  it("releases once the call's effect is visible, and ignores a failing effect read", async () => {
-    const { record } = await reserved();
+  it("reports a visible effect without releasing, and ignores a failing effect read", async () => {
+    const { record, journal } = await reserved();
     const client = nonceChain({ crossing: 300n });
     const effect = vi.fn(async () => true);
     await expect(
       checkReviewedWrite(client as never, record, { effect }),
-    ).resolves.toEqual({ status: "ran" });
+    ).resolves.toEqual({ status: "pending", effect: true });
     // The effect reads the saved chain.
     expect(effect).toHaveBeenCalledWith(10);
+    // Codex: the original is still pending in the mempool; nothing is released.
+    await journal.withLock(async () => journal.submitted(HASH));
+    await expect(
+      journal.withLock(() =>
+        journal.resolve(
+          nonceChain({
+            crossing: 300n,
+            known: { [HASH]: { nonce: 7, blockNumber: null } },
+          }) as never,
+          { effect },
+        ),
+      ),
+    ).resolves.toEqual({ status: "pending", effect: true });
+    expect(journal.read()).toMatchObject({ hash: HASH });
+    // A Safe write is guarded first: no effect is read for it.
+    const safeEffect = vi.fn(async () => true);
+    await expect(
+      checkReviewedWrite(
+        client as never,
+        { ...record, safe: true },
+        {
+          effect: safeEffect,
+        },
+      ),
+    ).resolves.toEqual(pending);
+    expect(safeEffect).not.toHaveBeenCalled();
     await expect(
       checkReviewedWrite(client as never, record, {
         effect: async () => {
@@ -1465,7 +1501,8 @@ describe("releasing a write with no confirmed result", () => {
         effect: async () => true,
       }),
     );
-    expect(ran.journal.read()).toBeNull();
+    // An effect never releases on its own: the user's exit does.
+    expect(ran.journal.read()).not.toBeNull();
   });
 
   it("resolves nothing when nothing is saved, and prefers native Web Locks", async () => {

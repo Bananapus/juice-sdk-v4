@@ -1017,8 +1017,8 @@ export function createBrowserWriteRecovery(
     },
     /**
      * Check the saved write against the chain ({@link checkReviewedWrite}) and
-     * apply the finding: `sent` records the hash to track, `ran` releases it.
-     * Null when nothing is saved.
+     * apply the finding: `sent` records the hash to track. Nothing here
+     * releases a write; null when nothing is saved.
      */
     async resolve(
       client: ReviewedWriteNonceClient,
@@ -1034,9 +1034,8 @@ export function createBrowserWriteRecovery(
       );
       if (sentNonce !== undefined && saved.sentNonce !== sentNonce)
         saved = bind(saved, sentNonce);
-      if (check.status === "sent") {
-        if (check.hash !== saved.hash) record(check.hash, saved, true);
-      } else if (check.status !== "pending") clear(saved);
+      if (check.status === "sent" && check.hash !== saved.hash)
+        record(check.hash, saved, true);
       return check;
     },
     /**
@@ -1110,11 +1109,18 @@ export type ReviewedWriteCheck =
    * shows this other transaction used the nonce the write was sent at, so
    * the saved hash can never run (a wrapper may still have run the call).
    */
-  | { status: "pending"; usedBy?: Hex }
-  /** The saved hash, or the exact call, is the transaction at its nonce: track that receipt. */
-  | { status: "sent"; hash: Hex }
-  /** The app's effect read shows the call took effect. */
-  | { status: "ran" };
+  | {
+      status: "pending";
+      usedBy?: Hex;
+      /** The app's effect read shows the call took effect. It releases nothing: the user's exit decides. */
+      effect?: true;
+    }
+  /**
+   * The saved hash is the transaction at its nonce, or the exact call is,
+   * under another hash, at the nonce the saved hash was sent at (a wallet
+   * speed-up): track that receipt.
+   */
+  | { status: "sent"; hash: Hex };
 
 /** The reads {@link checkReviewedWrite} makes; a viem PublicClient satisfies it. */
 export type ReviewedWriteNonceClient = Pick<
@@ -1168,13 +1174,28 @@ async function inspectWrite(
   effect: ((chainId: number) => Promise<boolean>) | undefined,
 ): Promise<{ check: ReviewedWriteCheck; sentNonce?: string }> {
   const record = recordOf(saved);
+  // No proof, the app's effect read included, from another chain, and none
+  // here for a Safe write.
+  if (
+    record.safe ||
+    (await client.getChainId().catch(() => null)) !== record.chainId
+  )
+    return { check: { status: "pending" } };
+  const found = await inspectOrdinary(client, record);
+  if (
+    found.check.status === "pending" &&
+    effect &&
+    (await effect(record.chainId).catch(() => false))
+  )
+    return { ...found, check: { ...found.check, effect: true } };
+  return found;
+}
+
+async function inspectOrdinary(
+  client: ReviewedWriteNonceClient,
+  record: ReviewedWriteRecoveryRecord,
+): Promise<{ check: ReviewedWriteCheck; sentNonce?: string }> {
   const pending = { check: { status: "pending" } as const };
-  // No proof, the app's effect read included, from another chain.
-  if ((await client.getChainId().catch(() => null)) !== record.chainId)
-    return pending;
-  if (effect && (await effect(record.chainId).catch(() => false)))
-    return { check: { status: "ran" } };
-  if (record.safe) return pending;
   if (record.hash) {
     const sent = await client.getTransaction({ hash: record.hash }).then(
       (tx) => tx,
@@ -1208,12 +1229,14 @@ async function inspectWrite(
   if (!used) return pending;
   if (used.hash === record.hash)
     return { check: { status: "sent", hash: used.hash } };
-  if (
+  const sameCall =
     used.to?.toLowerCase() === record.call.to &&
     used.input?.toLowerCase() === record.call.data &&
-    BigInt(used.value ?? 0) === BigInt(record.call.value)
-  )
-    return { check: { status: "sent", hash: used.hash } };
+    BigInt(used.value ?? 0) === BigInt(record.call.value);
+  // Another hash is adopted only at the nonce the saved hash's own
+  // transaction was sent at; the pre-wallet nonce only locates the call.
+  if (sameCall)
+    return bound ? { check: { status: "sent", hash: used.hash } } : pending;
   // Another transaction at that nonce may have run the call inside it
   // (a wrapper, or an EIP-7702 wallet that ran code and then cleared its
   // delegation), so it proves nothing. The user's exit ends it.

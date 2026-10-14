@@ -106,3 +106,7 @@ export const WRITE_HOLD_HASHED_EXIT_LINE =
 /** A held Safe write whose nonce another Safe transaction used. The exit is offered. */
 export const WRITE_HOLD_SAFE_REPLACED_LINE =
   "Another Safe transaction used this nonce. Check your Safe, then send again.";
+
+/** A held write the app's effect read shows done. Nothing is released on that alone; the exit is offered. */
+export const WRITE_HOLD_LOOKS_DONE_LINE =
+  "This looks done. Check your wallet, then continue.";

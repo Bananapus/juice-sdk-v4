@@ -21,6 +21,7 @@ import {
   SAFE_PROPOSAL_EXECUTED_LINE,
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
+  WRITE_HOLD_LOOKS_DONE_LINE,
   WRITE_HOLD_NONCE_LINE,
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_UNCHECKED_LINE,
@@ -34,6 +35,7 @@ import {
   WriteHoldNonceError,
   type WriteHoldClient,
   type WriteHoldGate,
+  type WriteHeldState,
   type WriteHoldState,
 } from "./writeHold.js";
 import {
@@ -753,10 +755,15 @@ describe("a held write", () => {
       ),
     ).rejects.toThrow();
     const staleA = await tabA.hold.open(ordinary).state(client);
-    chain.txs.push(sent(HASH, { block: 105n }));
-    chain.head = 120n;
-    chain.finalized = 110n;
-    client.getTransactionReceipt.mockRejectedValueOnce(new Error("busy"));
+    // The wallet's late reply reaches tab B, which saves it on the same attempt.
+    const late = createBrowserWriteRecovery(ordinary, {
+      storage: tabB.storage,
+      locks: tabB.locks,
+    });
+    await late.withLock(async () =>
+      late.submitted(HASH, (staleA as WriteHeldState).record),
+    );
+    chain.txs.push(sent(HASH));
     await expect(tabB.hold.open(ordinary).state(client)).resolves.toMatchObject(
       {
         status: "pending-known-hash",
@@ -766,7 +773,6 @@ describe("a held write", () => {
         },
       },
     );
-    client.getTransactionReceipt.mockRejectedValue(new Error("busy"));
     const result = await tabA.hold
       .open(ordinary)
       .exit(staleA, { checkedWallet: true }, client);
@@ -1139,18 +1145,13 @@ describe("a held write", () => {
     const { hold } = setup();
     const { chain, client, receiptOf } = fakeChain();
     const handle = hold.open(ordinary);
-    await expect(
-      handle.send(
-        client,
-        wallet(async () => {
-          throw new Error("reply lost");
-        }).send,
-      ),
-    ).rejects.toThrow();
-    const shown = await handle.state(client);
-    expect(shown.status).toBe("held-no-hash");
-    // It was sent after all, and confirms as the user takes the exit.
-    chain.txs.push(sent(HASH, { block: 105n }));
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH));
+    // The app's effect read says it looks done: the exit, at once.
+    const shown = await handle.state(client, { effect: async () => true });
+    expect(shown).toMatchObject({ status: "looks-done", exit: true });
+    // It confirms as the user takes the exit.
+    chain.txs[0].block = 105n;
     chain.head = 120n;
     chain.finalized = 110n;
     const [exit, receipt] = await Promise.all([
@@ -1271,7 +1272,7 @@ describe("a held write", () => {
     hold.dispose();
   });
 
-  it("ends a write its effect read shows ran, and reads nothing on another chain", async () => {
+  it("never releases on an effect read alone: it changes the line and offers the exit", async () => {
     const { hold, storage } = setup();
     const { chain, client } = fakeChain();
     const handle = hold.open(ordinary);
@@ -1284,9 +1285,9 @@ describe("a held write", () => {
       ),
     ).rejects.toThrow();
     chain.chainId = 1;
-    await expect(handle.state(client)).resolves.toMatchObject({
-      status: "held-no-hash",
-    });
+    await expect(
+      handle.state(client, { effect: async () => true }),
+    ).resolves.toMatchObject({ status: "held-no-hash" });
     chain.chainId = 10;
     // Released elsewhere while the chain is asked: nothing is held.
     const elsewhere = createBrowserWriteRecovery(ordinary, { storage });
@@ -1307,12 +1308,33 @@ describe("a held write", () => {
         }).send,
       ),
     ).rejects.toThrow();
+    const done = await handle.state(client, { effect: async () => true });
+    expect(done).toMatchObject({
+      status: "looks-done",
+      exit: true,
+      line: WRITE_HOLD_LOOKS_DONE_LINE,
+    });
+    expect(handle.peek().status).toBe("held-no-hash");
+    // Codex: the original still pending in the mempool, with its hash.
+    const second = setup();
+    const pendingHold = second.hold.open(ordinary);
+    await pendingHold.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH));
+    const looks = await pendingHold.state(client, { effect: async () => true });
+    expect(looks).toMatchObject({
+      status: "looks-done",
+      hash: HASH,
+      exit: true,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
+    });
+    expect(pendingHold.peek().status).toBe("pending-known-hash");
+    // The exit is the user's, and it releases.
     await expect(
-      handle.state(client, { effect: async () => true }),
-    ).resolves.toEqual({ status: "clear", settled: { result: "ran" } });
+      handle.exit(done, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
   });
 
-  it("tracks the exact call found at its nonce and settles on its receipt", async () => {
+  it("never adopts a hash found at the pre-wallet nonce for a lost reply", async () => {
     const { hold } = setup();
     const { chain, client } = fakeChain();
     const handle = hold.open(ordinary);
@@ -1324,27 +1346,13 @@ describe("a held write", () => {
         }).send,
       ),
     ).rejects.toThrow();
+    // Codex: the exact call there, under a hash the wallet never returned.
     chain.txs.push(sent(HASH, { block: 105n }));
     chain.head = 120n;
     chain.finalized = 110n;
-    // Found, but its receipt isn't readable yet.
-    client.getTransactionReceipt.mockRejectedValueOnce(new Error("busy"));
-    await expect(handle.state(client)).resolves.toMatchObject({
-      status: "pending-known-hash",
-      hash: HASH,
-    });
-    // A receipt that doesn't verify keeps it held.
-    client.getTransactionReceipt.mockResolvedValueOnce({
-      transactionHash: HASH,
-      status: "success",
-    } as never);
-    await expect(handle.state(client)).resolves.toMatchObject({
-      status: "pending-known-hash",
-    });
-    await expect(handle.state(client)).resolves.toEqual({
-      status: "clear",
-      settled: { result: "success", hash: HASH },
-    });
+    const shown = await handle.state(client);
+    expect(shown).toMatchObject({ status: "held-no-hash", exit: true });
+    expect((shown as { record: { hash?: Hex } }).record.hash).toBeUndefined();
   });
 
   it("ignores another transaction's receipt, and receipts with nothing held", async () => {

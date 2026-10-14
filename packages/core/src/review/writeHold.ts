@@ -18,6 +18,7 @@ import {
   SAFE_PROPOSAL_EXECUTED_LINE,
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
+  WRITE_HOLD_LOOKS_DONE_LINE,
   WRITE_HOLD_NONCE_LINE,
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_UNCHECKED_LINE,
@@ -54,8 +55,8 @@ export type WriteHoldClient = Pick<
 export type WriteHoldSettled =
   /** Its verified receipt (a revert only once final). */
   | { result: "success" | "failed"; hash: Hex }
-  /** The app's effect read showed it ran, or a Safe proposal's expiry before it ran is proven. */
-  | { result: "ran" | "expired" };
+  /** A Safe proposal's expiry before it ran is proven. */
+  | { result: "expired" };
 
 type Held<S extends string, Extra> = {
   status: S;
@@ -88,6 +89,9 @@ type Held<S extends string, Extra> = {
  *   the executor's, for an execution returned at once). It may have run the
  *   call too, so it is never released on its own: the exit is offered at
  *   once, with its `warning`;
+ * - `looks-done`: the app's effect read shows the call took effect. Nothing
+ *   is released on that alone: its line says so, and the exit is offered at
+ *   once (with the `warning` when it has a hash);
  * - `ran-executed`: the chain shows it ran (a Safe execution, or a revert
  *   not final yet). It is kept until its result settles it, and never offered
  *   a resend.
@@ -102,6 +106,7 @@ export type WriteHoldState =
     >
   | Held<"held-unchecked", { hash: Hex; exit: true; warning: string }>
   | Held<"safe-replaced", { hash: Hex; exit: true; warning: string }>
+  | Held<"looks-done", { hash?: Hex; exit: true; warning?: string }>
   | Held<
       "ran-executed",
       { executionHash?: Hex; result?: "failed"; exit: false }
@@ -306,6 +311,8 @@ export function createWriteHold(
       locks: options.locks,
     });
     const key = listenerKey(call);
+    /** The effect read the last state() was given: the exit asks it again. */
+    let lastEffect: ((chainId: number) => Promise<boolean>) | undefined;
     const peek = () => classify(recovery.read());
     const shown = (state: WriteHoldState) => (emit(key, state), state);
 
@@ -549,7 +556,6 @@ export function createWriteHold(
       const check = await recovery
         .resolve(client, effect ? { effect } : undefined)
         .catch(() => null);
-      if (check?.status === "ran") return clear({ result: "ran" });
       record = recovery.read();
       if (!record) return clear();
       if (check?.status === "sent") {
@@ -561,6 +567,17 @@ export function createWriteHold(
       // A hash saved before its clock existed starts it now.
       if (record.hash && record.submittedAt === undefined)
         record = recovery.firstSeen(record);
+      // The app's effect read only changes the line, and offers the exit.
+      if (check?.status === "pending" && check.effect)
+        return {
+          status: "looks-done",
+          record,
+          exit: true,
+          line: WRITE_HOLD_LOOKS_DONE_LINE,
+          ...(record.hash
+            ? { hash: record.hash, warning: WRITE_HOLD_HASHED_EXIT_LINE }
+            : {}),
+        };
       if (
         record.hash &&
         record.sentNonce !== undefined &&
@@ -600,6 +617,7 @@ export function createWriteHold(
       client: WriteHoldClient,
       checks: { effect?: (chainId: number) => Promise<boolean> } = {},
     ): Promise<WriteHoldState> {
+      lastEffect = checks.effect;
       const result = await locked(() => inspect(client, checks.effect), false);
       return shown(result ? result.value : peek());
     }
@@ -711,7 +729,7 @@ export function createWriteHold(
             "Release a held write only after the user confirms they checked their wallet.",
           );
         const result = await locked(async () => {
-          const now = await inspect(client);
+          const now = await inspect(client, lastEffect);
           if (
             snapshot.status === "clear" ||
             now.status === "clear" ||

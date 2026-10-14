@@ -774,20 +774,26 @@ journal.abandon(record, { checkedWallet: true }); // needs no lock
 
 `resolve` (and the pure `checkReviewedWrite`) reads only the record's chain:
 the client's `getChainId()` must match before any proof, the app's `effect`
-read included, which receives the saved chain ID. A release needs proof:
+read included, which receives the saved chain ID. Nothing in it releases a
+write; it finds what to track:
 
 - The saved hash's own transaction, while the node knows it, is the write:
   `sent` once mined (its receipt decides, wallet wrappers included), `pending`
   in the mempool. `resolve` saves the nonce it was sent at (`sentNonce`).
 - Once the account's nonce is past it at a canonical finalized block, the
-  block where it moved holds the transaction that used it. The saved hash or
-  the exact call there is `sent` (a wallet speed-up included). Any other
+  block where it moved holds the transaction that used it. The saved hash
+  there is `sent`; the exact call under another hash (a wallet speed-up) is
+  adopted only at the nonce the saved hash was sent at (`sentNonce`, from its
+  own transaction), never at a nonce read before the wallet opened. Any other
   transaction there stays `pending`: a wrapper, or an EIP-7702 wallet that ran
   code and then cleared its delegation in the same block, may have run the
   call inside it, so no state at block end proves it didn't. A wallet's cancel
-  therefore costs the user one tap on the exit. A nonce sampled before the
-  wallet opened only locates the exact call.
-- `effect` returning true ends it as `ran`, released.
+  therefore costs the user one tap on the exit.
+- `effect` returning true adds `effect: true` to `pending`. It releases
+  nothing: an effect can't tell this transaction's result from another's, so
+  the user's exit decides (`createWriteHold` shows `looks-done`, with
+  `WRITE_HOLD_LOOKS_DONE_LINE` and the exit at once). A Safe write reads no
+  effect. Apps that relied on `effect` to release a hold now offer the exit.
 
 Anything else stays `pending`: a Safe write, a hashless write the chain
 can't place, or a node without history. The user always keeps the exit:
@@ -862,7 +868,8 @@ if (released) resend();
 `hold.state(client)` is the one answer: `clear` (with how a hold just
 `settled`), `pending-known-hash` (no exit, `WRITE_HOLD_PENDING_LINE`),
 `held-no-hash` and `dropped-proven` (the exit, with `WRITE_EXIT_LABEL` and
-`writeExitMessage(state.record.call)`), `held-unchecked` (a hash the node
+`writeExitMessage(state.record.call)`), `looks-done` (the app's `effect` read
+shows it done: the exit at once, nothing released), `held-unchecked` (a hash the node
 doesn't know, saved without a nonce or unseen 30 minutes after the wallet
 returned it: the exit, with `WRITE_HOLD_UNCHECKED_LINE`), and
 `ran-executed` (kept through reload until its result settles it, never a
