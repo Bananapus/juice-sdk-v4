@@ -783,6 +783,139 @@ describe("a held write", () => {
     });
   });
 
+  describe("a seen hash that vanished from the node", () => {
+    async function seenThenGone(browser = origin()) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(1_000_000);
+      const ctx = setup({ browser });
+      const fixture = fakeChain();
+      const handle = ctx.hold.open(ordinary);
+      await handle.send(fixture.client, wallet(async () => HASH).send);
+      fixture.chain.txs.push(sent(HASH));
+      await expect(handle.state(fixture.client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        record: { sentNonce: "7" },
+      });
+      // The wallet dropped it: the node no longer knows it, and its nonce is unused.
+      fixture.chain.hidden.add(HASH);
+      return { ...ctx, ...fixture, handle };
+    }
+
+    it("offers the exit once the node hasn't known it for 30 minutes, through a reload", async () => {
+      const browser = origin();
+      const { handle, client, locks } = await seenThenGone(browser);
+      await expect(handle.state(client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        exit: false,
+        record: { vanishedAt: "1000000" },
+      });
+      vi.setSystemTime(1_000_000 + 29 * 60_000);
+      const reloaded = createWriteHold({
+        storage: createHeldWriteStorage({
+          durable: () => browser.storage,
+          memory: new Map(),
+        }),
+        locks,
+      }).open(ordinary);
+      await expect(reloaded.state(client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        record: { vanishedAt: "1000000" },
+      });
+      vi.setSystemTime(1_000_000 + 31 * 60_000);
+      const unchecked = await reloaded.state(client);
+      expect(unchecked).toMatchObject({
+        status: "held-unchecked",
+        hash: HASH,
+        exit: true,
+        line: WRITE_HOLD_UNCHECKED_LINE,
+        warning: WRITE_HOLD_HASHED_EXIT_LINE,
+      });
+      await expect(
+        reloaded.exit(unchecked, { checkedWallet: true }, client),
+      ).resolves.toMatchObject({ released: true });
+      vi.useRealTimers();
+    });
+
+    it("follows it again if it reappears, and restarts the clock", async () => {
+      const { handle, client, chain } = await seenThenGone();
+      await handle.state(client);
+      vi.setSystemTime(1_000_000 + 31 * 60_000);
+      const unchecked = await handle.state(client);
+      expect(unchecked.status).toBe("held-unchecked");
+      // It reappears as the user takes the exit: it is followed, not released.
+      chain.hidden.clear();
+      const exit = await handle.exit(
+        unchecked,
+        { checkedWallet: true },
+        client,
+      );
+      expect(exit).toMatchObject({
+        released: false,
+        state: { status: "pending-known-hash" },
+      });
+      expect((exit.state as WriteHeldState).record.vanishedAt).toBeUndefined();
+      // Gone again: a new 30 minutes.
+      chain.hidden.add(HASH);
+      await expect(handle.state(client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        record: { vanishedAt: String(1_000_000 + 31 * 60_000) },
+      });
+      vi.useRealTimers();
+    });
+
+    it("never offers it while the node can't answer, or once the finalized nonce passed it unread", async () => {
+      const { handle, client, chain } = await seenThenGone();
+      // A node that can't answer starts no clock.
+      client.getTransaction.mockRejectedValue(new Error("timeout"));
+      await handle.state(client);
+      expect(
+        (handle.peek() as WriteHeldState).record.vanishedAt,
+      ).toBeUndefined();
+      client.getTransaction.mockReset();
+      client.getTransaction.mockImplementation(async ({ hash }) => {
+        const tx = chain.hidden.has(hash)
+          ? undefined
+          : chain.txs.find((t) => t.hash === hash);
+        if (!tx)
+          throw Object.assign(new Error("not found"), {
+            name: "TransactionNotFoundError",
+          });
+        return {
+          ...tx,
+          chainId: 10,
+          blockHash: null,
+          blockNumber: null,
+          transactionIndex: null,
+        } as never;
+      });
+      await handle.state(client);
+      vi.setSystemTime(1_000_000 + 31 * 60_000);
+      // The finalized block can't be read: no exit.
+      const blocks = client.getBlock.getMockImplementation()!;
+      client.getBlock.mockImplementation(async (args = {}) => {
+        if (args.blockTag === "finalized") throw new Error("unsupported");
+        return blocks(args);
+      });
+      await expect(handle.state(client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        exit: false,
+      });
+      // Another transaction used the nonce, but the history behind it can't be read.
+      client.getBlock.mockImplementation(async (args = {}) => {
+        if (args.includeTransactions) throw new Error("history unavailable");
+        return blocks(args);
+      });
+      chain.txs.push({ ...sent(OTHER), block: 105n });
+      chain.head = 120n;
+      chain.finalized = 110n;
+      await expect(handle.state(client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        exit: false,
+      });
+      vi.useRealTimers();
+    });
+  });
+
   it("keeps a known pending hash held with no exit, even through a lagging node", async () => {
     const { hold } = setup();
     const { chain, client } = fakeChain();

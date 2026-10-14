@@ -39,6 +39,7 @@ import {
   type ReviewedWriteRecoveryInput,
   type ReviewedWriteRecoveryRecord,
 } from "./writeRecovery.js";
+import { atCanonicalFinalizedBlock } from "./relayr.js";
 
 /** The reads a write hold makes on the call's chain; a viem PublicClient satisfies it. */
 export type WriteHoldClient = Pick<
@@ -83,7 +84,9 @@ type Held<S extends string, Extra> = {
  *   with no nonce to check, or 30 minutes after the wallet returned it (or,
  *   for a record saved before that time was kept, after it was first read). The
  *   exit is offered, with a line that says so; a hash that shows up later is
- *   followed as usual. A Safe proposal Safe's service never authenticates
+ *   followed as usual. A hash seen with its sent nonce that the node has not
+ *   known for 30 minutes, with that nonce unused at a canonical finalized
+ *   block, gets it too (`vanishedAt` keeps the clock). A Safe proposal Safe's service never authenticates
  *   gets it after the same 30 minutes. Its `warning` says a resend can run it
  *   twice;
  * - `safe-replaced`: another Safe transaction used a Safe write's nonce (or
@@ -171,6 +174,24 @@ function unseenTooLong(record: ReviewedWriteRecoveryRecord): boolean {
     Date.now() - Number(record.submittedAt ?? record.firstSeenAt) >=
     UNSEEN_HASH_MS
   );
+}
+
+/** Whether a canonical finalized block shows the account's nonce still at or below the sent nonce; false when it can't say. */
+async function nonceUnused(
+  client: WriteHoldClient,
+  record: ReviewedWriteRecoveryRecord,
+): Promise<boolean> {
+  const proof = await atCanonicalFinalizedBlock(
+    client as never,
+    async (blockNumber) =>
+      BigInt(
+        await client.getTransactionCount({
+          address: record.account,
+          blockNumber,
+        }),
+      ) <= BigInt(record.sentNonce!),
+  );
+  return proof?.value === true;
 }
 
 /** A Safe write whose nonce another Safe transaction used: never released on its own. */
@@ -629,6 +650,26 @@ export function createWriteHold(
           line: writeHeldMessage(),
           warning: WRITE_HOLD_HASHED_EXIT_LINE,
         };
+      // A hash seen with its sent nonce that the node has since lost.
+      if (
+        record.hash &&
+        record.sentNonce !== undefined &&
+        check?.status === "pending" &&
+        !check.usedBy
+      ) {
+        const known = await client.getTransaction({ hash: record.hash }).then(
+          () => true,
+          (error: { name?: unknown } | null) =>
+            error?.name === "TransactionNotFoundError" ? false : null,
+        );
+        if (known !== null) record = recovery.vanished(record, !known);
+        if (
+          known === false &&
+          Date.now() - Number(record.vanishedAt) >= UNSEEN_HASH_MS &&
+          (await nonceUnused(client, record))
+        )
+          return unchecked(record);
+      }
       if (
         record.hash &&
         record.sentNonce === undefined &&

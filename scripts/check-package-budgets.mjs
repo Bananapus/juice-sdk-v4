@@ -202,8 +202,12 @@ const budgets = {
     // safe-unproven state and its line) and the 2.32.0 changelog entry
     // change existing artifacts only. Measured 1,423,114 B packed /
     // 21,600,393 B unpacked and 818 entries.
-    packed: 1_428_000,
-    unpacked: 21_612_000,
+    // The vanished-hash exit (vanishedAt, its finalized nonce check) and the
+    // 2.33.0 changelog entry change existing artifacts only: measured
+    // 1,424,541 B packed / 21,611,522 B unpacked and 818 entries, so the
+    // margin is raised for the next change.
+    packed: 1_430_000,
+    unpacked: 21_625_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {
