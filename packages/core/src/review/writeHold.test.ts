@@ -833,7 +833,7 @@ describe("a held write", () => {
     await expect(
       handle.exit(unchecked, { checkedWallet: true }, client),
     ).resolves.toMatchObject({ released: false });
-    // A record saved before the clock existed keeps waiting on its nonce.
+    // A record saved before the clock existed starts it the first time it is read.
     const { storage, locks, browser } = setup();
     const legacy = createBrowserWriteRecovery(ordinary, { storage, locks });
     await legacy.withLock(async () => {
@@ -844,16 +844,48 @@ describe("a held write", () => {
       const [key] = browser.values.keys();
       browser.values.set(key, JSON.stringify({ ...reserved, hash: OTHER }));
     });
+    const firstRead = Date.now();
     await expect(
       createWriteHold({ storage, locks })
         .open(ordinary)
         .state(fakeChain().client),
-    ).resolves.toMatchObject({ status: "pending-known-hash", hash: OTHER });
+    ).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: OTHER,
+      record: { firstSeenAt: String(firstRead) },
+    });
+    // A reload keeps that first sighting; a later read never moves it.
+    vi.setSystemTime(firstRead + 29 * 60_000);
+    const reloaded = createWriteHold({
+      storage: createHeldWriteStorage({
+        durable: () => browser.storage,
+        memory: new Map(),
+      }),
+      locks,
+    }).open(ordinary);
+    await expect(reloaded.state(fakeChain().client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      record: { firstSeenAt: String(firstRead) },
+    });
+    vi.setSystemTime(firstRead + 31 * 60_000);
+    const legacyUnchecked = await reloaded.state(fakeChain().client);
+    expect(legacyUnchecked).toMatchObject({
+      status: "held-unchecked",
+      hash: OTHER,
+      line: WRITE_HOLD_UNCHECKED_LINE,
+    });
+    await expect(
+      reloaded.exit(
+        legacyUnchecked,
+        { checkedWallet: true },
+        fakeChain().client,
+      ),
+    ).resolves.toMatchObject({ released: true });
     // Never broadcast: the exit releases it.
     const second = setup();
     const lost = second.hold.open(ordinary);
     await lost.send(fakeChain().client, wallet(async () => OTHER).send);
-    vi.setSystemTime(1_000_000 + 62 * 60_000);
+    vi.setSystemTime(Date.now() + 31 * 60_000);
     const never = await lost.state(fakeChain().client);
     expect(never).toMatchObject({ status: "held-unchecked", hash: OTHER });
     await expect(

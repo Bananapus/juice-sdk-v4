@@ -1648,6 +1648,37 @@ describe("tabs without Web Locks", () => {
   });
 });
 
+describe("a record saved before its hash had a clock", () => {
+  it("saves when it was first seen, once, and only on a hashed record", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(input, options);
+    await journal.withLock(async () => {
+      const reserved = journal.reserve();
+      expect(() => journal.firstSeen(reserved)).not.toThrow();
+      expect(journal.firstSeen(reserved)).toEqual(reserved);
+      const [key] = options.values.keys();
+      options.values.set(key, JSON.stringify({ ...reserved, hash: HASH }));
+      const legacy = journal.read()!;
+      const seen = journal.firstSeen(legacy);
+      expect(seen).toEqual({ ...legacy, firstSeenAt: AT });
+      expect(journal.read()).toEqual(seen);
+      expect(journal.firstSeen(seen)).toEqual(seen);
+      // A stale snapshot changes nothing.
+      expect(journal.firstSeen({ ...legacy, id: "other" })).toEqual(seen);
+      // A failed save keeps the record as it was.
+      options.storage.setItem.mockImplementationOnce(() => {
+        throw new Error("full");
+      });
+      options.values.set(key, JSON.stringify(legacy));
+      expect(journal.firstSeen(legacy)).toEqual(legacy);
+    });
+    expect(() => journal.firstSeen(saved)).toThrow("browser lock");
+    expect(() =>
+      parseReviewedWriteRecoveryRecord({ ...saved, firstSeenAt: "soon" }),
+    ).toThrow("Invalid saved write recovery record");
+  });
+});
+
 describe("a write the chain proved ran", () => {
   it("keeps its execution evidence, refuses the exit and rejects malformed evidence", async () => {
     const options = browser();

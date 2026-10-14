@@ -177,9 +177,13 @@ const budgets = {
     // wallet returned it gets the exit; an at-once Safe execution whose own
     // transaction reverted settles as failed once final) change existing
     // artifacts only: +1,071 B packed / +5,286 B unpacked. Measured
-    // 1,413,123 B packed / 21,535,979 B unpacked and 818 entries.
-    packed: 1_415_000,
-    unpacked: 21_540_000,
+    // 1,413,123 B packed / 21,535,979 B unpacked and 818 entries. The repair
+    // paths (a record without a starting block, and a first-seen clock for
+    // hashes saved by 2.31, which Homerun already shipped) add 1,264 B packed
+    // and 6,820 B unpacked to existing artifacts. Measured 1,414,387 B packed /
+    // 21,542,799 B unpacked and 818 entries.
+    packed: 1_416_000,
+    unpacked: 21_546_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

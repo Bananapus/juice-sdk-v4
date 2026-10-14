@@ -65,7 +65,8 @@ type Held<S extends string, Extra> = {
  *   nonce read before the wallet opened only locates the call). The exit is
  *   offered;
  * - `held-unchecked`: a saved hash the node doesn't know, on a record saved
- *   with no nonce to check, or 30 minutes after the wallet returned it. The
+ *   with no nonce to check, or 30 minutes after the wallet returned it (or,
+ *   for a record saved before that time was kept, after it was first read). The
  *   exit is offered, with a line that says so; a hash that shows up later is
  *   followed as usual;
  * - `ran-executed`: the chain shows it ran (a Safe execution, or a revert
@@ -399,6 +400,9 @@ export function createWriteHold(
           .catch(() => null);
         return receipt ? settle(record, receipt, client) : pendingHash(record);
       }
+      // A hash saved before its clock existed starts it now.
+      if (record.hash && record.submittedAt === undefined)
+        record = recovery.firstSeen(record);
       if (
         record.hash &&
         record.sentNonce !== undefined &&
@@ -418,7 +422,8 @@ export function createWriteHold(
         record.sentNonce === undefined &&
         (record.nonce === undefined ||
           record.fromBlock === undefined ||
-          Date.now() - Number(record.submittedAt ?? Date.now()) >=
+          // A clock that couldn't be saved (NaN) never runs out.
+          Date.now() - Number(record.submittedAt ?? record.firstSeenAt) >=
             UNSEEN_HASH_MS) &&
         (await client.getTransaction({ hash: record.hash }).then(
           () => false,

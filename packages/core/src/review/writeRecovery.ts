@@ -52,6 +52,11 @@ export type ReviewedWriteRecoveryRecord = Omit<
   executionHash?: Hex;
   /** When the wallet returned `hash`, in milliseconds since the epoch, as a decimal string. */
   submittedAt?: string;
+  /**
+   * For a hash saved before `submittedAt` existed: when this record was
+   * first read with it, in milliseconds since the epoch, as a decimal string.
+   */
+  firstSeenAt?: string;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -140,6 +145,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.fromBlock) ||
     !optionalDecimal(record.sentNonce) ||
     !optionalDecimal(record.submittedAt) ||
+    !optionalDecimal(record.firstSeenAt) ||
     (record.executed !== undefined && record.executed !== true) ||
     (record.executionHash !== undefined &&
       (record.executed !== true || !isBytes32(record.executionHash)))
@@ -160,6 +166,9 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.submittedAt === undefined
       ? {}
       : { submittedAt: record.submittedAt }),
+    ...(record.firstSeenAt === undefined
+      ? {}
+      : { firstSeenAt: record.firstSeenAt }),
     ...(record.executed ? { executed: true as const } : {}),
     ...(record.executionHash === undefined
       ? {}
@@ -852,6 +861,32 @@ export function createBrowserWriteRecovery(
     },
     rejected,
     clear,
+    /**
+     * Start the clock of a hash saved before `submittedAt` existed: save now
+     * as its `firstSeenAt`, once. Extra evidence: a stale snapshot or a failed
+     * save keeps the record as it was.
+     */
+    firstSeen(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      requireLock();
+      const current = read();
+      if (
+        !current?.hash ||
+        current.submittedAt !== undefined ||
+        current.firstSeenAt !== undefined ||
+        JSON.stringify(current) !== JSON.stringify(recordOf(expected))
+      )
+        return current ?? recordOf(expected);
+      const next = recordOf({ ...current, firstSeenAt: String(Date.now()) });
+      try {
+        const { at } = locate(storage());
+        persist(next, at);
+        return next;
+      } catch {
+        return current;
+      }
+    },
     /**
      * Save the chain's proof that `expected` ran, with the transaction it ran
      * in when known. From then on the user's exit refuses it: only its result
