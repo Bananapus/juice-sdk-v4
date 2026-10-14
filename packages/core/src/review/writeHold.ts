@@ -197,6 +197,8 @@ export type WriteHoldGate = {
 type Locks = Pick<LockManager, "request">;
 
 const SETTLE_POLL_MS = 15_000;
+/** How long a reservation retries a lock another writer briefly holds. */
+const RESERVE_RETRY_MS = 2_000;
 /** A Safe's execution events, in its 1.3 and 1.4 layouts alike. */
 const SAFE_EXECUTION_TOPICS = [
   toEventSelector("ExecutionSuccess(bytes32,uint256)"),
@@ -387,8 +389,14 @@ export function createWriteHold(
   function openOne(
     call: ReviewedWriteRecoveryInput,
     hooks: {
-      /** Runs the final reservation, synchronous, under any further locks the caller needs. */
-      aroundReserve?: (reserve: () => void) => Promise<void>;
+      /**
+       * Runs the final reservation, synchronous, under any further locks the
+       * caller needs; `unreserve` undoes it while nothing was sent.
+       */
+      aroundReserve?: (
+        reserve: () => void,
+        unreserve: () => void,
+      ) => Promise<void>;
     } = {},
   ) {
     const recovery = createBrowserWriteRecovery(call, {
@@ -1019,7 +1027,11 @@ export function createWriteHold(
               attempt = recovery.reserve(actualCall, evidence);
             };
             try {
-              if (hooks.aroundReserve) await hooks.aroundReserve(reserve);
+              if (hooks.aroundReserve)
+                await hooks.aroundReserve(reserve, () => {
+                  recovery.rejected();
+                  attempt = undefined;
+                });
               else reserve();
             } catch (error) {
               if (
@@ -1313,61 +1325,87 @@ export function createWriteHold(
      * hold refuses; otherwise the intent reserves, and mirrors itself at each
      * legacy key so its readers, older versions included, see it held.
      */
-    async function reserveAcross(reserve: () => void): Promise<void> {
-      let entered = 0;
-      const acquire = async (index: number): Promise<void> => {
-        if (index < journals.length)
-          return journals[index].withLock(async () => {
-            entered += 1;
-            return acquire(index + 1);
-          });
-        for (const journal of journals) {
-          const held = journal.read();
-          if (held && held.mirrorOf !== namespace)
-            throw new WriteHeldError({
-              ...(ungated(classify(held)) as WriteHeldState),
-              reservation: held.id,
+    async function reserveAcross(
+      reserve: () => void,
+      unreserve: () => void,
+    ): Promise<void> {
+      const deadline = Date.now() + RESERVE_RETRY_MS;
+      for (;;) {
+        let entered = 0;
+        const acquire = async (index: number): Promise<void> => {
+          if (index < journals.length)
+            return journals[index].withLock(async () => {
+              entered += 1;
+              return acquire(index + 1);
             });
-        }
-        reserve();
-        const reserved = own.peek() as WriteHeldState;
-        for (const journal of journals)
-          try {
-            journal.mirror(reserved.record, namespace);
-          } catch {
-            /* Its own lock refuses the exact-call writer either way. */
+          for (const journal of journals) {
+            const held = journal.read();
+            if (held && held.mirrorOf !== namespace)
+              throw new WriteHeldError({
+                ...(ungated(classify(held)) as WriteHeldState),
+                reservation: held.id,
+              });
           }
-      };
-      try {
-        await acquire(0);
-      } catch (error) {
-        if (entered < journals.length && !(error instanceof WriteHeldError))
-          throw new WriteHoldBusyError();
-        throw error;
+          reserve();
+          const reserved = (own.peek() as WriteHeldState).record;
+          // Every mirror is saved, in the store the hold itself uses (its
+          // memory fallback included), before the wallet opens; otherwise
+          // this unsent reservation and its partial mirrors are undone.
+          const mirrors: [
+            (typeof journals)[number],
+            ReviewedWriteRecoveryRecord,
+          ][] = [];
+          try {
+            for (const journal of journals)
+              mirrors.push([journal, journal.mirror(reserved, namespace)]);
+          } catch (error) {
+            for (const [journal, mirror] of mirrors)
+              try {
+                journal.clear(mirror);
+              } catch {
+                /* Held for old readers until their explicit exit. */
+              }
+            try {
+              unreserve();
+            } catch {
+              /* Unsent, it stays held with its explicit exit. */
+            }
+            throw error;
+          }
+        };
+        try {
+          return await acquire(0);
+        } catch (error) {
+          // Only a key another writer holds is retried, briefly, with every
+          // lock released between attempts; the checks run again each time.
+          if (entered === journals.length || error instanceof WriteHeldError)
+            throw error;
+          if (Date.now() >= deadline) throw new WriteHoldBusyError();
+          await new Promise((resolve) =>
+            setTimeout(resolve, 25 + Math.random() * 75),
+          );
+        }
       }
     }
-    /** Remove this intent's mirrors of a reservation it no longer holds. */
-    async function clearMirrors(): Promise<void> {
-      const now = own.peek();
+    /** Remove this intent's mirrors of the reservation that ended, by its id only. */
+    async function clearMirrors(ended: string): Promise<void> {
       for (const journal of journals) {
-        const mirror = journal.read();
-        if (
-          mirror?.mirrorOf !== namespace ||
-          (now.status !== "clear" && now.record.id === mirror.id)
-        )
-          continue;
+        if (journal.read()?.id !== ended) continue;
         await journal
           .withLock(async () => {
             const current = journal.read();
-            if (current?.id === mirror.id) journal.clear(current);
+            if (current?.mirrorOf === namespace && current.id === ended)
+              journal.clear(current);
           })
           .catch(() => {
             /* Kept for old readers until their explicit exit. */
           });
       }
     }
-    const after = async <T>(value: T): Promise<T> => {
-      await clearMirrors();
+    /** After a call that ended this intent's reservation, its mirrors go. */
+    const after = async <T extends WriteHoldState>(value: T): Promise<T> => {
+      if (value.status === "clear" && value.reservation)
+        await clearMirrors(value.reservation);
       return value;
     };
     return {
@@ -1408,7 +1446,9 @@ export function createWriteHold(
         if (owner) return owner.exit(snapshot, acknowledgement, client);
         const held = await delegated(client);
         if (held) return { released: false, state: held };
-        return after(await own.exit(snapshot, acknowledgement, client));
+        const ended = await own.exit(snapshot, acknowledgement, client);
+        await after(ended.state);
+        return ended;
       },
       onReceipt: async (...args: Parameters<typeof own.onReceipt>) =>
         active()?.onReceipt(...args) ?? after(await own.onReceipt(...args)),

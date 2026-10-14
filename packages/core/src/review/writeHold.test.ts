@@ -2623,7 +2623,7 @@ describe("a write held under an intent", () => {
       await exact.send(client, wallet(async () => OTHER).send);
     });
 
-    it("still sends the intent when a mirror can't be saved", async () => {
+    it("aborts the unsent reservation when a mirror can't be saved in the hold's own store", async () => {
       const browser = origin();
       const base = createHeldWriteStorage({
         durable: () => browser.storage,
@@ -2639,11 +2639,77 @@ describe("a write held under an intent", () => {
       };
       const { hold } = setup({ storage, browser });
       const { client } = fakeChain();
+      const handle = hold.open(intentCall, {
+        legacy: [{ call: ordinary.call }],
+      });
       const write = wallet(async () => HASH);
-      await hold
+      await expect(handle.send(client, write.send)).rejects.toThrow("full");
+      expect(write.write).not.toHaveBeenCalled();
+      expect(handle.peek().status).toBe("clear");
+    });
+
+    it("undoes its partial mirrors when a later one can't be saved", async () => {
+      for (const removal of ["works", "refused"] as const) {
+        const browser = origin();
+        const base = createHeldWriteStorage({
+          durable: () => browser.storage,
+          memory: new Map(),
+        });
+        const storage: HeldWriteStorage = {
+          ...base,
+          setItem: (k, v) => {
+            if (k.startsWith("nana-sdk:reviewed-write:v2:"))
+              throw new Error("full");
+            base.setItem(k, v);
+          },
+          removeItem: (k) => {
+            if (removal === "refused" && k.includes(":namespace:"))
+              throw new Error("refused");
+            base.removeItem(k);
+          },
+        };
+        const { hold } = setup({ storage, browser });
+        const { client } = fakeChain();
+        const write = wallet(async () => HASH);
+        const failed = await hold
+          .open(intentCall, {
+            legacy: ["jbm:pay:4", { call: ordinary.call }],
+          })
+          .send(client, write.send)
+          .catch((e) => e);
+        // Undone, the error itself; where the undo is refused too, the unsent
+        // reservation stays held, with its explicit exit.
+        if (removal === "works") expect(failed.message).toBe("full");
+        else expect(failed).toBeInstanceOf(WriteHeldError);
+        expect(write.write).not.toHaveBeenCalled();
+        const namespaced = createBrowserWriteRecovery(
+          { ...ordinary, namespace: "jbm:pay:4" },
+          { storage },
+        ).read();
+        if (removal === "works") expect(namespaced).toBeNull();
+        else expect(namespaced).toMatchObject({ mirrorOf: key });
+      }
+    });
+
+    it("sends once and mirrors to the tab's memory while durable storage is refused", async () => {
+      const browser = origin();
+      browser.state.write = false;
+      const memory = new Map<string, string>();
+      const locks = lockManager();
+      const intentTab = setup({ browser, memory, locks });
+      const exactTab = setup({ browser, memory, locks });
+      const { client } = fakeChain();
+      const write = wallet(async () => HASH);
+      await intentTab.hold
         .open(intentCall, { legacy: [{ call: ordinary.call }] })
         .send(client, write.send);
       expect(write.write).toHaveBeenCalledOnce();
+      expect(browser.values.size).toBe(0);
+      const again = wallet(async () => OTHER);
+      await expect(
+        exactTab.hold.open(ordinary).send(client, again.send),
+      ).rejects.toBeInstanceOf(WriteHeldError);
+      expect(again.write).not.toHaveBeenCalled();
     });
 
     it("never deadlocks the intent and the exact call reserving in crossed order", async () => {
@@ -2657,7 +2723,29 @@ describe("a write held under an intent", () => {
       expect(
         writes[0].write.mock.calls.length + writes[1].write.mock.calls.length,
       ).toBe(1);
-      expect(results.filter((r) => r instanceof Error)).toHaveLength(1);
+      // Resolved within the retries: the loser is held, never busy.
+      const errors = results.filter((r) => r instanceof Error);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toBeInstanceOf(WriteHeldError);
+    });
+
+    it("refuses as busy only after its retries run out", async () => {
+      const { handle, exact } = pair();
+      const { client } = fakeChain();
+      let finish!: () => void;
+      const holding = exact.send(
+        client,
+        () => new Promise<void>((resolve) => (finish = resolve)),
+      );
+      await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+      const started = Date.now();
+      const refused = await handle
+        .send(client, wallet(async () => HASH).send)
+        .catch((e) => e);
+      expect(refused).toBeInstanceOf(WriteHoldBusyError);
+      expect(Date.now() - started).toBeGreaterThanOrEqual(1_500);
+      finish();
+      await holding;
     });
   });
 
