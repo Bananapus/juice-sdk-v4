@@ -14,6 +14,17 @@ import { intent, writeIntentKey, type IntentValue } from "./writeIntent.js";
 
 type Id = bigint | number;
 
+/**
+ * A list of ids as a set: sorted ascending and without repeats, so every app
+ * keys the same set the same way, whatever order it holds them in.
+ */
+function canonicalIds(ids: readonly Id[]): bigint[] {
+  return [...new Set(ids.map((id) => BigInt(id)))].sort(
+    // Unique after the Set: never equal.
+    (a, b) => (a < b ? -1 : 1),
+  );
+}
+
 /** Every payment to a project: checkout, pay and add to balance alike. No token, amount, memo or cart. */
 export function payIntent({
   chainId,
@@ -143,11 +154,12 @@ export function liquidityIntent({
   chainId: number;
   /** The pool's id or address. */
   pool: Hex | string;
+  /** A set: order and repeats don't change the key. */
   positions: readonly Id[];
 }): string {
   return writeIntentKey("liquidity", {
     chainId,
     pool: intent.hex(pool),
-    positions: positions.map((position) => BigInt(position)),
+    positions: canonicalIds(positions),
   });
 }

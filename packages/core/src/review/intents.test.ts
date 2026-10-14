@@ -154,9 +154,12 @@ describe("shared write intents", () => {
         positions: [1n, 2n],
       }),
     ).toBe(lp);
-    expect(liquidityIntent({ chainId: 1, pool, positions: [2n, 1n] })).not.toBe(
+    // Positions are a set: order and repeats never change the key.
+    expect(liquidityIntent({ chainId: 1, pool, positions: [2n, 1n] })).toBe(lp);
+    expect(liquidityIntent({ chainId: 1, pool, positions: [2, 1n, 1n] })).toBe(
       lp,
     );
+    expect(liquidityIntent({ chainId: 1, pool, positions: [1n] })).not.toBe(lp);
   });
 
   it("refuses an identity it can't key", () => {

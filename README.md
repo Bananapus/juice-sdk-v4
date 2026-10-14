@@ -1028,7 +1028,7 @@ the user takes its explicit exit), but it never sends twice.
 | `bridgeIntent({ chainId, sucker, token, account })`        | sending, preparing and syncing through one sucker. No fee                                 | a second bridge step of that token by that account            |
 | `approvalIntent(parent, { step, token, spender })`         | one approval step of a parent action's key                                                | the same approval for that action                             |
 | `launchIntent({ chainId, account, config })`               | a launch from the user's frozen form input                                                | the same launch, until the form changes                       |
-| `liquidityIntent({ chainId, pool, positions })`            | changing those positions in one pool                                                      | a second change to the same positions                         |
+| `liquidityIntent({ chainId, pool, positions })`            | changing those positions in one pool (a set: order and repeats don't change the key)      | a second change to the same positions                         |
 
 ```ts
 import { payIntent } from "@bananapus/nana-sdk-core/review";
