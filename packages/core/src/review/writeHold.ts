@@ -417,8 +417,8 @@ export function createWriteHold(
 ) {
   const storage = options.storage ?? createHeldWriteStorage();
   /**
-   * Safe's service, every request bounded to {@link SAFE_SERVICE_READ_MS}
-   * whatever its fetch does with the signal: a read that times out is
+   * Safe's service, every request and its body bounded together to
+   * {@link SAFE_SERVICE_READ_MS} whatever its fetch does with the signal: a read that times out is
    * unknown, which never releases or settles, so a hung service can't hold
    * a send or the call's lock.
    */
@@ -428,7 +428,15 @@ export function createWriteHold(
       const request = options.safeService?.fetch ?? globalThis.fetch;
       let timer: ReturnType<typeof setTimeout> | undefined;
       return Promise.race([
-        request(url, init),
+        // The whole read, its body included, under the one deadline.
+        request(url, init).then(
+          async (response) =>
+            new Response(await response.arrayBuffer(), {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+            }),
+        ),
         new Promise<never>((_, reject) => {
           timer = setTimeout(
             () => reject(new Error("Safe's service did not answer in time.")),

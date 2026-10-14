@@ -3662,6 +3662,35 @@ describe("a held Safe proposal", () => {
     vi.useRealTimers();
   });
 
+  it("keeps a held proposal when Safe's service sends its headers but never its body", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    queue.options.fetch.mockImplementation(
+      async () =>
+        new Response(new ReadableStream({ start() {} }), { status: 200 }),
+    );
+    const read = handle.state(fixture.client);
+    await vi.advanceTimersByTimeAsync(8_000 * 4);
+    await expect(read).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: queue.hash,
+      checked: true,
+    });
+    // Never authenticated by the service: the usual exit after 30 minutes.
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + 31 * 60_000);
+    const later = handle.state(fixture.client);
+    await vi.advanceTimersByTimeAsync(8_000 * 4);
+    await expect(later).resolves.toMatchObject({ exit: true, checked: true });
+    vi.useRealTimers();
+  });
+
   it("bounds Safe-service reads made with the browser's own fetch", async () => {
     const { queue } = safeSetup();
     vi.stubGlobal("fetch", queue.options.fetch);

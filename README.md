@@ -998,7 +998,7 @@ handle sees it held. It never sends, settles only on authenticated evidence,
 and adopting twice holds once. A Safe proposal adopted before its nonce was known
 takes it later with `handle.attachSafeNonce(client, { safeTxHash, nonce })`,
 saved only when the call's proposal at that nonce hashes to `safeTxHash`, so
-a replacement can be proven. Every Safe-service request inside the hold is
+a replacement can be proven. Every Safe-service read inside the hold, body included, is
 bounded to 8 seconds; one that times out is unknown, which never releases or
 settles.
 
