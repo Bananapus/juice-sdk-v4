@@ -1279,6 +1279,23 @@ export function createBrowserWriteRecovery(
       }
     },
     /**
+     * Forget the saved settlement `settled` names (its hash), once the user
+     * acknowledged it: no reader sees it again. Another settlement stays.
+     */
+    forgetSettled(settled: ReviewedWriteSettlement): void {
+      requireLock();
+      const store = storage();
+      try {
+        const saved = JSON.parse(store.getItem(settledKey) ?? "null") as {
+          hash?: unknown;
+        } | null;
+        if (saved?.hash === settled.hash.toLowerCase())
+          store.removeItem(settledKey);
+      } catch {
+        /* An unreadable settlement names none. */
+      }
+    },
+    /**
      * How the call's last write ended, if {@link markSettled} saved it for
      * the call's latest reservation; a settlement of an earlier one reads as
      * none, wherever it was kept.

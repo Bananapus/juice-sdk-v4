@@ -1086,7 +1086,7 @@ const write = useHeldWrite({
 await write.send((gate) => sendThroughWallet(gate));
 ```
 
-- **Phases:** `clear`, `awaiting` (a Safe proposal waiting for signers),
+- **Phases:** `clear`, `succeeded` (a success settled while away), `awaiting` (a Safe proposal waiting for signers),
   `confirming`, `held` (the hold's own line, its exit when offered), `settled`
   and `released`. Once a write is confirming it never goes back to awaiting.
 - **Lines:** one confirming line for direct and Safe writes,
@@ -1109,12 +1109,17 @@ await write.send((gate) => sendThroughWallet(gate));
   settlement or the user's exit, never its own reading of a receipt,
   replacement or expiry.
 - **Settlement:** `onSettled(settled, receipt)` fires once, only for what this
-  view saw held. A settlement left from an earlier visit is in `settled` with
-  phase `clear`.
+  view saw held, and the hold then forgets that success. A success that settled
+  while the page was closed is phase `succeeded`, with
+  `HELD_AWAY_SUCCESS_LINE` ("This went through while you were away."): every
+  send refuses until the user picks `HELD_SEND_AGAIN_LABEL` ("Send it again",
+  `sendAgainAction`), which forgets it for every reader. Sending twice is
+  sometimes meant; it just has to be said. It is never announced through
+  `onSettled`.
 - **Adoption:** with `adopt`, the hook moves a previous deploy's saved record
   - **Adoption:** with `adopt`, the hook moves a previous deploy's saved record
     into the hold (`hold.adopt`) before any send, which waits for it. An adoption
-    it couldn't check (`declined: "unreadable"`: the chain unread, or a lock
+    it couldn't check (`declined: "unreadable"`: the chain unread, a client on another chain, or a lock
     another writer held) refuses the send, and adoption runs again on the next;
     one proven to be another write (`declined: "refused"`) lets it send. A
     provider added later makes a new view, and no send skips it.

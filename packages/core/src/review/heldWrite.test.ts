@@ -7,6 +7,7 @@ import {
   settledLine,
 } from "./heldWrite.js";
 import {
+  HELD_AWAY_SUCCESS_LINE,
   HELD_CONFIRMING_LINE,
   HELD_EXPIRED_LINE,
   HELD_RELEASED_ELSEWHERE_LINE,
@@ -101,6 +102,7 @@ function fakeHandle(start: WriteHoldState = clear({ reservation: undefined })) {
     })),
     send: vi.fn(async () => HASH),
     adopt: vi.fn(async () => fake.answer),
+    acknowledge: vi.fn(async () => fake.answer),
     onExecuted: vi.fn(async () => fake.answer),
     onUnproven: vi.fn(async () => fake.answer),
   };
@@ -339,7 +341,7 @@ describe("one held write's view", () => {
 
   it("delivers a settlement once, with its receipt, only for what it saw held", async () => {
     const onSettled = vi.fn();
-    const { view, fake, stop } = started(pending(), { onSettled });
+    const { view, fake, handle, stop } = started(pending(), { onSettled });
     await flush();
     fake.answer = clear({ settled: { result: "success", hash: HASH } });
     await view.check();
@@ -354,14 +356,19 @@ describe("one held write's view", () => {
       { result: "success", hash: HASH },
       { transactionHash: HASH },
     );
-    // A settlement from an earlier visit is shown as clear, never delivered.
+    // Seen settling here: the hold forgets it, so no later visit asks.
+    expect(handle.acknowledge).toHaveBeenCalledWith({
+      result: "success",
+      hash: HASH,
+    });
+    // A success from an earlier visit waits for the user, never delivered.
     const earlier = started(
       clear({ settled: { result: "success", hash: HASH } }),
       { onSettled },
     );
     await flush();
     expect(earlier.view.get()).toMatchObject({
-      phase: "clear",
+      phase: "succeeded",
       settled: { hash: HASH },
     });
     expect(onSettled).toHaveBeenCalledOnce();
@@ -753,5 +760,63 @@ describe("one held write's view", () => {
       phase: "confirming",
       line: HELD_CONFIRMING_LINE,
     });
+  });
+
+  it("blocks a success that settled while away until the user sends it again (ruling)", async () => {
+    const onSettled = vi.fn();
+    const away = clear({ settled: { result: "success", hash: HASH } });
+    const { view, handle, fake, stop } = started(away, { onSettled });
+    handle.acknowledge.mockImplementation(async () => (fake.answer = clear()));
+    await flush();
+    expect(view.get()).toMatchObject({
+      phase: "succeeded",
+      line: HELD_AWAY_SUCCESS_LINE,
+      settled: { hash: HASH },
+    });
+    await expect(view.send(async () => HASH)).rejects.toThrow(
+      HELD_AWAY_SUCCESS_LINE,
+    );
+    expect(handle.send).not.toHaveBeenCalled();
+    await view.acknowledge();
+    expect(handle.acknowledge).toHaveBeenCalledWith({
+      result: "success",
+      hash: HASH,
+    });
+    expect(view.get()).toMatchObject({ phase: "clear", line: null });
+    await expect(view.send(async () => HASH)).resolves.toBe(HASH);
+    expect(onSettled).not.toHaveBeenCalled();
+    stop();
+    // A failure or expiry from an earlier visit blocks nothing.
+    const failed = started(
+      clear({ settled: { result: "failed", hash: HASH } }),
+    );
+    await flush();
+    expect(failed.view.get().phase).toBe("clear");
+    failed.stop();
+  });
+
+  it("refuses a send whose own checks find a success that settled while away", async () => {
+    const { view, handle, fake, stop } = started(
+      clear({ reservation: undefined }),
+    );
+    await flush();
+    // The hold's check inside the send finds it settled, and says so first.
+    handle.send.mockImplementationOnce((async (
+      _client: WriteHoldClient,
+      run: (gate: never) => Promise<Hex>,
+    ) => {
+      fake.emit(clear({ settled: { result: "success", hash: HASH } }));
+      return run({} as never);
+    }) as never);
+    const wallet = vi.fn(async () => HASH);
+    await expect(view.send(wallet)).rejects.toThrow(HELD_AWAY_SUCCESS_LINE);
+    expect(wallet).not.toHaveBeenCalled();
+    // Nothing to acknowledge on a write that isn't waiting for it.
+    const other = started(pending());
+    await flush();
+    await other.view.acknowledge();
+    expect(other.handle.acknowledge).not.toHaveBeenCalled();
+    other.stop();
+    stop();
   });
 });

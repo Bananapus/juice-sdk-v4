@@ -48,6 +48,7 @@ import {
   type ReviewedWriteRecoveryRecord,
 } from "./writeRecovery.js";
 import { isBytes32 } from "../untrusted.js";
+import { readBoundedSafeNonce } from "../safe.js";
 import { atCanonicalFinalizedBlock } from "./relayr.js";
 import { TAB, tabShared } from "./tabState.js";
 
@@ -269,9 +270,13 @@ const UNSEEN_HASH_MS = 30 * 60_000;
 const SAFE_SERVICE_READ_MS = 8_000;
 
 /** The 30 minutes have passed since the wallet returned the hash, or since it was first read. A clock that couldn't be saved (NaN) never runs out. */
-function unseenTooLong(record: ReviewedWriteRecoveryRecord): boolean {
+function unseenTooLong(
+  record: ReviewedWriteRecoveryRecord,
+  /** A later authenticated sighting, when there is one: the clock runs from it. */
+  seen?: string,
+): boolean {
   return (
-    Date.now() - Number(record.submittedAt ?? record.firstSeenAt) >=
+    Date.now() - Number(seen ?? record.submittedAt ?? record.firstSeenAt) >=
     UNSEEN_HASH_MS
   );
 }
@@ -666,8 +671,8 @@ export function createWriteHold(
       if (!isBytes32(hash)) return "refused";
       if (!client) return "unreadable";
       const chainId = await client.getChainId().catch(() => null);
-      if (chainId === null) return "unreadable";
-      if (chainId !== call.chainId) return "refused";
+      // A client on another chain can't check this chain's transaction.
+      if (chainId !== call.chainId) return "unreadable";
       const reviewed = {
         account: call.account.toLowerCase(),
         chainId: call.chainId,
@@ -1014,11 +1019,29 @@ export function createWriteHold(
           return clear(settled, record.id);
         }
       }
+      // A saved nonce the chain shows the Safe still waiting at is
+      // authenticated evidence of a live proposal; without it, the wait is
+      // bounded like any unchecked write.
       if (
         !record.executed &&
         !record.unproven &&
-        record.safeNonce === undefined &&
-        unseenTooLong(record)
+        record.safeNonce !== undefined &&
+        end.look === "live"
+      ) {
+        const now = await readBoundedSafeNonce(
+          client as never,
+          record.account,
+        ).catch(() => null);
+        if (now !== null && now <= BigInt(record.safeNonce))
+          record = recovery.seenPending(record);
+      }
+      if (
+        !record.executed &&
+        !record.unproven &&
+        unseenTooLong(
+          record,
+          record.safeNonce === undefined ? undefined : record.pendingSeenAt,
+        )
       )
         return unchecked(record);
       if (record.executed) follow(client, record.id);
@@ -1563,6 +1586,21 @@ export function createWriteHold(
               /* Not this proposal at that nonce: nothing saved. */
             }
           return inspect(client);
+        }, true);
+        return shown(result?.value ?? peek());
+      },
+      /**
+       * The user acknowledged a success the hold settled while they were
+       * away: its saved settlement is forgotten, for every reader, so the
+       * action can be sent again. Under the call's lock; nothing is sent.
+       */
+      async acknowledge(settled: {
+        result: "success" | "failed";
+        hash: Hex;
+      }): Promise<WriteHoldState> {
+        const result = await locked(async () => {
+          recovery.forgetSettled(settled);
+          return peek();
         }, true);
         return shown(result?.value ?? peek());
       },

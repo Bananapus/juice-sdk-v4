@@ -3659,6 +3659,38 @@ describe("a held Safe proposal", () => {
     return { hold, queue, browser, storage };
   }
 
+  it("bounds a saved-nonce proposal's unchecked wait, and holds it while the chain shows it waiting", async () => {
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    await handle.state(fixture.client);
+    expect((handle.peek() as WriteHeldState).record.safeNonce).toBe("5");
+    // Two hours on, the chain still shows the Safe waiting at its nonce.
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + 2 * 3_600_000);
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      exit: false,
+    });
+    // Then every read fails: held for 30 minutes, then the warned exit.
+    queue.options.fetch.mockRejectedValue(new Error("offline"));
+    fixture.client.request.mockRejectedValue(new Error("rpc"));
+    fixture.client.getTransactionReceipt.mockRejectedValue(new Error("rpc"));
+    vi.spyOn(Date, "now").mockReturnValue(now + 2 * 3_600_000 + 29 * 60_000);
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      exit: false,
+    });
+    vi.spyOn(Date, "now").mockReturnValue(now + 2 * 3_600_000 + 31 * 60_000);
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      status: "held-unchecked",
+      exit: true,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
+    });
+  });
+
   it("keeps a held proposal, unreleased, when Safe's service never answers", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const { hold, queue } = safeSetup();
@@ -5894,6 +5926,44 @@ describe("a launch held under its shared intent", () => {
   });
 });
 
+describe("acknowledging a success that settled while away", () => {
+  it("clears the saved settlement for every reader, and only that one", async () => {
+    const browser = origin();
+    const { hold } = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    const settled = await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(settled).toMatchObject({
+      settled: { result: "success", hash: HASH },
+    });
+    // Another hash names nothing to acknowledge.
+    await expect(
+      handle.acknowledge({ result: "success", hash: OTHER }),
+    ).resolves.toMatchObject({ settled: { hash: HASH } });
+    await expect(
+      handle.acknowledge({ result: "success", hash: HASH }),
+    ).resolves.toEqual({ status: "clear", reservation: expect.any(String) });
+    expect(setup({ browser }).hold.open(ordinary).peek()).not.toHaveProperty(
+      "settled",
+    );
+    // Without the lock, nothing is forgotten: the saved record is shown.
+    const unlocked = setup({
+      locks: {
+        request: async () => {
+          throw new Error("locks unavailable");
+        },
+      } as never,
+    });
+    await expect(
+      unlocked.hold
+        .open(ordinary)
+        .acknowledge({ result: "success", hash: HASH }),
+    ).resolves.toMatchObject({ status: "clear" });
+  });
+});
+
 describe("listing every held write for an account", () => {
   it("lists exact-call and intent holds once each, never a mirror, another account's or a released one", async () => {
     const { hold } = setup();
@@ -6073,6 +6143,11 @@ describe("adopting a previous deploy's hashed write", () => {
       handle.adopt({ status: "clear" }, { hash: HASH }, client),
     ).resolves.toMatchObject({ status: "clear", declined: "refused" });
     client.getChainId.mockRejectedValueOnce(new Error("rpc"));
+    await expect(
+      handle.adopt({ status: "clear" }, { hash: OTHER }, client),
+    ).resolves.toMatchObject({ status: "clear", declined: "unreadable" });
+    // A client on another chain can't check this chain's transaction.
+    client.getChainId.mockResolvedValueOnce(1);
     await expect(
       handle.adopt({ status: "clear" }, { hash: OTHER }, client),
     ).resolves.toMatchObject({ status: "clear", declined: "unreadable" });

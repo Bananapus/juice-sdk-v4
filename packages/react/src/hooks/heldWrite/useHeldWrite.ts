@@ -1,6 +1,7 @@
 import {
   createHeldWriteView,
   HELD_EXIT_LABEL,
+  HELD_SEND_AGAIN_LABEL,
   type HeldWriteEvidence,
   type HeldWriteView,
   type HeldWriteViewController,
@@ -58,6 +59,11 @@ export type UseHeldWriteOptions = {
 export type UseHeldWriteResult = HeldWriteView & {
   /** The exit the hold offers now, with its label; null when none. */
   exitAction: { label: string; run: () => Promise<boolean> } | null;
+  /**
+   * On a success settled while away ("This went through while you were
+   * away."): the user's choice to send it again. Null otherwise.
+   */
+  sendAgainAction: { label: string; run: () => Promise<void> } | null;
   /** Send under the hold, once any adoption is done. */
   send: (run: (gate: WriteHoldGate) => Promise<Hex>) => Promise<Hex>;
   /** Ask the chain now. */
@@ -163,6 +169,10 @@ export function useHeldWrite(options: UseHeldWriteOptions): UseHeldWriteResult {
     ...shown,
     exitAction:
       shown.exit && view ? { label: HELD_EXIT_LABEL, run: view.exit } : null,
+    sendAgainAction:
+      shown.phase === "succeeded" && view
+        ? { label: HELD_SEND_AGAIN_LABEL, run: view.acknowledge }
+        : null,
     send: (run) => {
       if (!view)
         return Promise.reject(

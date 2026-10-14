@@ -144,3 +144,9 @@ export const HELD_SUCCESS_LINE = "Your transaction went through.";
 
 /** A held Safe proposal proven expired before it ran. */
 export const HELD_EXPIRED_LINE = "Your Safe proposal expired before it ran.";
+
+/** A success the hold settled while the user was away: shown until they say to send again. */
+export const HELD_AWAY_SUCCESS_LINE = "This went through while you were away.";
+
+/** The one action on a success settled while away: acknowledge it, then send. */
+export const HELD_SEND_AGAIN_LABEL = "Send it again";

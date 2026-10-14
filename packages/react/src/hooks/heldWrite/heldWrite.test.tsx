@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import {
+  HELD_AWAY_SUCCESS_LINE,
   HELD_CONFIRMING_LINE,
   HELD_EXIT_LABEL,
   HELD_RELEASE_LABEL,
   HELD_RELEASED_ELSEWHERE_LINE,
   HELD_RELEASED_LINE,
+  HELD_SEND_AGAIN_LABEL,
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
   WRITE_HOLD_PENDING_LINE,
@@ -75,6 +77,10 @@ function fakeHold() {
     }),
     send: vi.fn(async () => HASH),
     adopt: vi.fn(async () => answer(key)),
+    acknowledge: vi.fn(async () => {
+      answers.set(key, { status: "clear" } as WriteHoldState);
+      return answer(key);
+    }),
     onExecuted: vi.fn(),
     onUnproven: vi.fn(),
   });
@@ -307,6 +313,61 @@ describe("useHeldWrite", () => {
       line: HELD_RELEASED_ELSEWHERE_LINE,
       releasedBy: "other-tab",
     });
+  });
+});
+
+describe("useHeldWrite on a success settled while away", () => {
+  function Probe(props: {
+    options: Parameters<typeof useHeldWrite>[0];
+    out: { current?: UseHeldWriteResult };
+  }) {
+    props.out.current = useHeldWrite(props.options);
+    return null;
+  }
+
+  test("blocks until the user chooses to send it again, then sends", async () => {
+    const fake = fakeHold();
+    fake.set("intent:away", {
+      status: "clear",
+      reservation: "rw",
+      settled: { result: "success", hash: HASH },
+    } as WriteHoldState);
+    const out: { current?: UseHeldWriteResult } = {};
+    const onSettled = vi.fn();
+    await mount(
+      <Probe
+        out={out}
+        options={{
+          hold: fake.hold,
+          chainId: 10,
+          account: ACCOUNT,
+          namespace: "intent:away",
+          client,
+          onSettled,
+        }}
+      />,
+    );
+    expect(out.current).toMatchObject({
+      phase: "succeeded",
+      line: HELD_AWAY_SUCCESS_LINE,
+      sendAgainAction: { label: HELD_SEND_AGAIN_LABEL },
+    });
+    await act(async () => {
+      await expect(out.current!.send(async () => HASH)).rejects.toThrow(
+        HELD_AWAY_SUCCESS_LINE,
+      );
+    });
+    await act(async () => {
+      await out.current!.sendAgainAction!.run();
+    });
+    expect(out.current).toMatchObject({
+      phase: "clear",
+      sendAgainAction: null,
+    });
+    await act(async () => {
+      await expect(out.current!.send(async () => HASH)).resolves.toBe(HASH);
+    });
+    expect(onSettled).not.toHaveBeenCalled();
   });
 });
 

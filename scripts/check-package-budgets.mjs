@@ -247,8 +247,10 @@ const budgets = {
     // entries.
     // The shared held-write view, its follower and hold.list measured
     // 1,513,496 B packed / 22,049,060 B unpacked and 858 entries.
-    packed: 1_520_000,
-    unpacked: 22_065_000,
+    // With the away-success gate, acknowledgement and the bounded Safe
+    // nonce wait: 1,518,154 B packed / 22,074,641 B unpacked.
+    packed: 1_525_000,
+    unpacked: 22_090_000,
     entries: 858,
   },
   "@bananapus/nana-sdk-react": {

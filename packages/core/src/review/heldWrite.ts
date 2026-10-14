@@ -5,6 +5,7 @@ import {
   waitForSafeExecutionHash,
 } from "../safeService.js";
 import {
+  HELD_AWAY_SUCCESS_LINE,
   HELD_CONFIRMING_LINE,
   HELD_EXPIRED_LINE,
   HELD_RELEASED_ELSEWHERE_LINE,
@@ -25,7 +26,11 @@ import {
 /**
  * Where one held write stands, for the one way every app shows it:
  *
- * - `clear`: nothing held (a settlement from an earlier visit is in `settled`);
+ * - `clear`: nothing held (a failure or expiry from an earlier visit is in
+ *   `settled`);
+ * - `succeeded`: a success the hold settled while the user was away: every
+ *   send refuses until they acknowledge it (`acknowledge`, "Send it again"),
+ *   since sending again may pay twice;
  * - `awaiting`: a Safe proposal waiting for its signers;
  * - `confirming`: sent, being confirmed; once a write is confirming it never
  *   goes back to awaiting;
@@ -37,6 +42,7 @@ import {
  */
 export type HeldWritePhase =
   | "clear"
+  | "succeeded"
   | "awaiting"
   | "confirming"
   | "held"
@@ -366,6 +372,10 @@ export function createHeldWriteView(
       stopFollowing();
       if (next.settled && mine) {
         deliver(next.settled, observed!);
+        // Seen settling here: the app was told, so the hold forgets it, and
+        // no later visit asks again.
+        if ("hash" in next.settled && next.settled.result === "success")
+          void handle.acknowledge(next.settled).catch(() => null);
         set({
           phase: "settled",
           state: next,
@@ -390,7 +400,20 @@ export function createHeldWriteView(
           releasedBy: by,
         });
         options.onReleased?.(by);
-      } else if (view.phase !== "settled" && view.phase !== "released")
+      } else if (view.phase === "settled" || view.phase === "released") {
+        // Already shown: a later read of the same end changes nothing.
+      } else if (next.settled?.result === "success")
+        // Settled while away: never announced, and never sent past unasked.
+        set({
+          phase: "succeeded",
+          state: next,
+          line: HELD_AWAY_SUCCESS_LINE,
+          warning: undefined,
+          notice: undefined,
+          exit: false,
+          settled: next.settled,
+        });
+      else
         set({
           phase: "clear",
           state: next,
@@ -413,6 +436,11 @@ export function createHeldWriteView(
     wasHeld = true;
     set(heldView(next));
     if (next.record.hash) follow(reservation);
+  }
+
+  /** A success settled while away, not yet acknowledged: no send past it. */
+  function unacknowledged() {
+    if (view.phase === "succeeded") throw new Error(HELD_AWAY_SUCCESS_LINE);
   }
 
   /** The gated answer, now. */
@@ -513,16 +541,35 @@ export function createHeldWriteView(
         throw new Error(
           "Saved transactions are still being checked. Try again in a moment.",
         );
+      unacknowledged();
+      // The send's own check may find one too: it says so before the wallet.
+      const unsubscribe = handle.subscribe(apply);
       try {
-        const hash = await handle.send(client, run);
+        const hash = await handle.send(client, async (gate) => {
+          unacknowledged();
+          return run(gate);
+        });
+        unsubscribe();
         apply(handle.peek());
         return hash;
       } catch (error) {
+        unsubscribe();
         // Its own evidence, checked or not: a contended refusal hides no exit.
         if (error instanceof WriteHeldError) apply(error.state);
-        else await check();
+        else if ((view.phase as HeldWritePhase) !== "succeeded") await check();
         throw error;
       }
+    },
+    /**
+     * The user saw a success that settled while away and chose to send again:
+     * the hold forgets it, for every reader, and sends are allowed.
+     */
+    async acknowledge(): Promise<void> {
+      const settled = view.settled;
+      if (view.phase !== "succeeded" || !settled || !("hash" in settled))
+        return;
+      apply(await handle.acknowledge(settled));
+      set({ phase: "clear", line: null, settled: undefined });
     },
   };
 }
