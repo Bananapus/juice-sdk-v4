@@ -799,6 +799,20 @@ export function createWriteHold(
       );
     }
 
+    /**
+     * The way out of every method that has a client: a state that could
+     * offer the exit, or track a hash, is the gate's answer (inspect), so no
+     * method reports an exit state() would refuse. Under the call's lock.
+     */
+    async function finish(
+      state: WriteHoldState,
+      client: WriteHoldClient,
+    ): Promise<WriteHoldState> {
+      return state.status === "clear" || state.status === "ran-executed"
+        ? state
+        : inspect(client);
+    }
+
     async function inspectChain(
       client: WriteHoldClient,
       effect?: (chainId: number) => Promise<boolean>,
@@ -966,7 +980,8 @@ export function createWriteHold(
             try {
               attempt = recovery.reserve(actualCall, evidence);
             } catch (error) {
-              const now = peek();
+              const now = await finish(classify(recovery.read()), client);
+              shown(now);
               if (now.status !== "clear") throw new WriteHeldError(now);
               throw error;
             }
@@ -1037,7 +1052,10 @@ export function createWriteHold(
           try {
             recovery.abandon(snapshot.record, { checkedWallet: true });
           } catch {
-            return { released: false, state: peek() };
+            return {
+              released: false,
+              state: await finish(classify(recovery.read()), client),
+            };
           }
           return { released: true, state: clear() };
         }, true);
@@ -1062,8 +1080,8 @@ export function createWriteHold(
             (!record.safe &&
               record.hash !== receipt?.transactionHash?.toLowerCase())
           )
-            return classify(record);
-          return settle(record, receipt, client, proof);
+            return finish(classify(record), client);
+          return finish(await settle(record, receipt, client, proof), client);
         }, true);
         return shown(result?.value ?? peek());
       },
@@ -1152,7 +1170,8 @@ export function createWriteHold(
       ): Promise<WriteHoldState> {
         const result = await locked(async () => {
           const record = recovery.read();
-          if (!record?.safe || !record.hash) return classify(record);
+          if (!record?.safe || !record.hash)
+            return finish(classify(record), client);
           if (executionHash) {
             // Authenticated on arrival: its own receipt settles it, or proves
             // it isn't this write's; only an unresolved one is kept.
