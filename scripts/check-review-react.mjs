@@ -1,12 +1,45 @@
 // The held-write hooks (@bananapus/nana-sdk-core/review/react) must load in
 // an app with no wagmi, or a wagmi other than nana-sdk-react's: nothing they
-// import, however indirectly, may name wagmi. Walks the built ESM and CJS
-// graphs, then loads both with wagmi made unresolvable.
+// import, however indirectly, may name wagmi. Packs core, installs the tarball
+// in a fixture outside the repository with React and viem but no wagmi, walks
+// the packaged ESM and CJS graphs, then imports and requires the subpath.
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 
-const dist = resolve("packages/core/dist");
+const fixture = mkdtempSync(join(tmpdir(), "review-react-"));
+process.on("exit", () => rmSync(fixture, { recursive: true, force: true }));
+const sh = (command, args, cwd) => {
+  const run = spawnSync(command, args, { cwd, encoding: "utf8" });
+  if (run.status !== 0) throw new Error(run.stderr || run.stdout);
+  return run.stdout;
+};
+const tarball = JSON.parse(
+  sh("npm", ["pack", "--json", "--pack-destination", fixture], "packages/core"),
+)[0].filename;
+const installed = join(fixture, "node_modules/@bananapus/nana-sdk-core");
+mkdirSync(installed, { recursive: true });
+sh(
+  "tar",
+  ["-xzf", join(fixture, tarball), "-C", installed, "--strip-components=1"],
+  fixture,
+);
+// The app's own React and viem, as an app on wagmi 3 (or none) has them.
+const fromCore = createRequire(resolve("packages/core/package.json"));
+for (const name of ["react", "viem"])
+  symlinkSync(
+    dirname(fromCore.resolve(`${name}/package.json`)),
+    join(fixture, "node_modules", name),
+  );
+const dist = join(installed, "dist");
 // tsc's output forms: `from "x";` ending a statement, a bare `import "x";`,
 // and `require("x")` / `import("x")` calls.
 const pattern =
@@ -47,29 +80,23 @@ for (const format of ["esm", "cjs"]) {
     );
 }
 
-// Load it with wagmi unresolvable, as in an app that has none.
-const hooks = `import { registerHooks } from "node:module";
-registerHooks({ resolve(specifier, context, next) {
-  if (/(^|\\/|@)wagmi/.test(specifier)) throw new Error("wagmi imported: " + specifier);
-  return next(specifier, context);
-} });`;
+// Import and require it as the app would, from the fixture.
 const load = `const esm = await import("@bananapus/nana-sdk-core/review/react");
 const cjs = (await import("node:module")).createRequire(import.meta.url)("@bananapus/nana-sdk-core/review/react");
 for (const name of ["useHeldWrite", "useHeldIntents", "useHeldWrites", "HeldWritesNotice", "useSavedAttempt"])
-  if (typeof esm[name] !== "function" || typeof cjs[name] !== "function") throw new Error("missing " + name);`;
+  if (typeof esm[name] !== "function" || typeof cjs[name] !== "function") throw new Error("missing " + name);
+try { (await import("node:module")).createRequire(import.meta.url).resolve("wagmi"); throw new Error("wagmi is installed"); }
+catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }`;
 const run = spawnSync(
   process.execPath,
-  [
-    "--import",
-    `data:text/javascript,${encodeURIComponent(hooks)}`,
-    "--input-type=module",
-    "--eval",
-    load,
-  ],
-  { cwd: resolve("packages/core"), encoding: "utf8" },
+  ["--input-type=module", "--eval", load],
+  { cwd: fixture, encoding: "utf8" },
 );
 if (run.status !== 0) {
   failed = true;
   console.error(run.stderr || run.stdout);
-} else console.log("review/react loads (ESM and CJS) with wagmi unresolvable");
+} else
+  console.log(
+    `review/react imports and requires from the packed ${tarball}, with no wagmi installed`,
+  );
 if (failed) process.exit(1);
