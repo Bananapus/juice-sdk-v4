@@ -307,6 +307,24 @@ describe("one held write's view", () => {
       exit: true,
       warning: WRITE_HOLD_HASHED_EXIT_LINE,
     });
+    // A replayed held record without its exit, before any check, shows held.
+    const replayed = started({
+      status: "held-no-hash",
+      record: record({ id: "r13" }),
+      exit: false,
+      line: "held",
+      reservation: "r13",
+    } as WriteHoldState);
+    await flush();
+    replayed.fake.emit({
+      status: "held-no-hash",
+      record: record({ id: "r13" }),
+      exit: false,
+      line: "held",
+      reservation: "r13",
+    } as WriteHoldState);
+    expect(replayed.view.get()).toMatchObject({ phase: "held", line: "held" });
+    replayed.stop();
     // An emission and a contended read carry no exit: the exit stays.
     fake.emit(pending());
     handle.state.mockResolvedValueOnce({ ...pending(), checked: false });
@@ -445,12 +463,13 @@ describe("one held write's view", () => {
     await expect(view.send(async () => HASH)).resolves.toBe(HASH);
     expect(view.get().phase).toBe("confirming");
     handle.send.mockRejectedValueOnce(
-      new WriteHeldError(unproven(false) as never),
+      new WriteHeldError({ ...unproven(), checked: true } as never),
     );
     await expect(view.send(async () => HASH)).rejects.toBeInstanceOf(
       WriteHeldError,
     );
-    expect(view.get().state).toMatchObject({ checked: true });
+    // The refusal's own evidence is shown, its exit included.
+    expect(view.get()).toMatchObject({ exit: true, state: { checked: true } });
     handle.send.mockRejectedValueOnce(new Error("reply lost"));
     fake.answer = unproven();
     await expect(view.send(async () => HASH)).rejects.toThrow("reply lost");
@@ -611,5 +630,128 @@ describe("one held write's view", () => {
     finish(null);
     await vi.advanceTimersByTimeAsync(0);
     expect(slow.handle.state.mock.calls.length).toBe(before);
+  });
+
+  it("refuses the send while an adoption couldn't be read, and sends once it resolves (Codex 1)", async () => {
+    const { fake, handle } = fakeHandle(clear({ reservation: undefined }));
+    fake.answer = clear({ reservation: undefined });
+    handle.adopt.mockResolvedValueOnce({
+      ...clear({ reservation: undefined }),
+      declined: "unreadable",
+    } as unknown as WriteHoldState);
+    const view = createHeldWriteView(handle, {
+      client,
+      follow: false,
+      adopt: async () => ({ hash: HASH }),
+    });
+    await expect(view.send(async () => HASH)).rejects.toThrow(
+      "Saved transactions are still being checked",
+    );
+    expect(handle.send).not.toHaveBeenCalled();
+    // An authenticated refusal resolves it: the evidence is another write.
+    handle.adopt.mockResolvedValueOnce({
+      ...clear({ reservation: undefined }),
+      declined: "refused",
+    } as unknown as WriteHoldState);
+    await expect(view.send(async () => HASH)).resolves.toBe(HASH);
+  });
+
+  it("keeps a shown exit when a send is refused by a contended read (Codex 2)", async () => {
+    const { view, handle, stop } = started(unproven());
+    await flush();
+    handle.send.mockRejectedValueOnce(
+      new WriteHeldError({ ...pending(), checked: false } as never),
+    );
+    await expect(view.send(async () => HASH)).rejects.toBeInstanceOf(
+      WriteHeldError,
+    );
+    expect(view.get().exit).toBe(true);
+    stop();
+  });
+
+  it("keeps following across a stop and an immediate start, as in StrictMode (Codex 3)", async () => {
+    vi.useFakeTimers();
+    const { fake, handle } = fakeHandle(pending({ id: "r8" }));
+    fake.answer = pending({ id: "r8" });
+    // The hold replays its latest state to a new subscriber at once.
+    handle.subscribe.mockImplementation((listener) => {
+      listener(fake.answer);
+      return () => {};
+    });
+    const view = createHeldWriteView(handle, { client, pollMs: 60_000 });
+    view.start()();
+    const stop = view.start();
+    await vi.advanceTimersByTimeAsync(0);
+    const reads = handle.state.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(8_000);
+    expect(handle.state.mock.calls.length).toBeGreaterThan(reads);
+    stop();
+    await vi.advanceTimersByTimeAsync(60_000);
+  });
+
+  it("ignores a read or a receipt that lands after it stopped (Codex 4)", async () => {
+    const onSettled = vi.fn();
+    const { fake, handle } = fakeHandle(pending({ id: "r10" }));
+    fake.answer = pending({ id: "r10" });
+    const view = createHeldWriteView(handle, {
+      client,
+      follow: false,
+      onSettled,
+    });
+    const stop = view.start();
+    await flush();
+    let answer!: (state: WriteHoldState) => void;
+    handle.state.mockImplementationOnce(
+      () => new Promise<WriteHoldState>((resolve) => (answer = resolve)),
+    );
+    const late = view.check();
+    stop();
+    answer(
+      clear({ reservation: "r10", settled: { result: "success", hash: HASH } }),
+    );
+    await late;
+    await flush();
+    expect(onSettled).not.toHaveBeenCalled();
+    // A receipt still being read when it stops is not delivered either.
+    const second = fakeHandle(pending({ id: "r11" }));
+    second.fake.answer = pending({ id: "r11" });
+    const other = createHeldWriteView(second.handle, {
+      client,
+      follow: false,
+      onSettled,
+    });
+    const stopOther = other.start();
+    await flush();
+    let receipt!: (value: unknown) => void;
+    client.getTransactionReceipt.mockImplementationOnce(
+      () => new Promise((resolve) => (receipt = resolve)),
+    );
+    second.fake.answer = clear({
+      reservation: "r11",
+      settled: { result: "success", hash: HASH },
+    });
+    await other.check();
+    stopOther();
+    receipt({ transactionHash: HASH });
+    await flush();
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  it("keeps a reservation confirming across a new view of the same write (Codex 5)", async () => {
+    const { fake, handle } = fakeHandle(
+      pending({ id: "r12", safe: true, candidates: [EXECUTION] }),
+    );
+    fake.answer = pending({ id: "r12", safe: true, candidates: [EXECUTION] });
+    const first = createHeldWriteView(handle, { client, follow: false });
+    await first.check();
+    expect(first.get().phase).toBe("confirming");
+    // The candidate is disproven, and the app builds a new view (new calldata).
+    fake.answer = pending({ id: "r12", safe: true });
+    const next = createHeldWriteView(handle, { client, follow: false });
+    await next.check();
+    expect(next.get()).toMatchObject({
+      phase: "confirming",
+      line: HELD_CONFIRMING_LINE,
+    });
   });
 });

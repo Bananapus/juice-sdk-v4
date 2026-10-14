@@ -58,7 +58,9 @@ function fakeHold() {
     answers.get(key) ?? ({ status: "clear" } as WriteHoldState);
   const handleOf = (key: string) => ({
     peek: () => answer(key),
-    state: vi.fn(async () => ({ ...answer(key), checked: true })),
+    state: vi.fn(
+      async (): Promise<WriteHoldState> => ({ ...answer(key), checked: true }),
+    ),
     subscribe: (listener: (state: WriteHoldState) => void) => {
       if (!listeners.has(key)) listeners.set(key, new Set());
       listeners.get(key)!.add(listener);
@@ -305,6 +307,110 @@ describe("useHeldWrite", () => {
       line: HELD_RELEASED_ELSEWHERE_LINE,
       releasedBy: "other-tab",
     });
+  });
+});
+
+describe("useHeldWrite across changes (Codex 4, 6)", () => {
+  function Probe(props: {
+    options: Parameters<typeof useHeldWrite>[0];
+    out: { current?: UseHeldWriteResult };
+  }) {
+    props.out.current = useHeldWrite(props.options);
+    return null;
+  }
+
+  test("adopts with a provider added after mount before it sends", async () => {
+    const fake = fakeHold();
+    const out: { current?: UseHeldWriteResult } = {};
+    const base = {
+      hold: fake.hold,
+      chainId: 10,
+      account: ACCOUNT,
+      namespace: "intent:late",
+      client,
+    };
+    await mount(<Probe out={out} options={base} />);
+    const adopt = vi.fn(async () => ({ hash: HASH }));
+    const before = out.current!.send;
+    await act(async () =>
+      root!.render(<Probe out={out} options={{ ...base, adopt }} />),
+    );
+    // A send from before the provider arrived refuses: it never skips adoption.
+    await expect(before(async () => HASH)).rejects.toThrow(
+      "Saved transactions are still being checked",
+    );
+    await act(async () => {
+      await out.current!.send(async () => HASH).catch(() => undefined);
+    });
+    expect(adopt).toHaveBeenCalledOnce();
+    expect(fake.handle("intent:late").adopt).toHaveBeenCalled();
+  });
+
+  test("never hands action A's late settlement to action B's callback", async () => {
+    const fake = fakeHold();
+    fake.set("intent:a", unproven("ra"));
+    const out: { current?: UseHeldWriteResult } = {};
+    const onSettledA = vi.fn();
+    const onSettledB = vi.fn();
+    const base = { hold: fake.hold, chainId: 10, account: ACCOUNT, client };
+    await mount(
+      <Probe
+        out={out}
+        options={{ ...base, namespace: "intent:a", onSettled: onSettledA }}
+      />,
+    );
+    // A's read is in flight when the app moves to action B.
+    let answer!: (state: WriteHoldState) => void;
+    fake
+      .handle("intent:a")
+      .state.mockImplementationOnce(
+        () => new Promise<WriteHoldState>((resolve) => (answer = resolve)),
+      );
+    const late = out.current!.check();
+    await act(async () =>
+      root!.render(
+        <Probe
+          out={out}
+          options={{ ...base, namespace: "intent:b", onSettled: onSettledB }}
+        />,
+      ),
+    );
+    await act(async () => {
+      answer({
+        status: "clear",
+        reservation: "ra",
+        settled: { result: "success", hash: HASH },
+      } as WriteHoldState);
+      await late;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onSettledB).not.toHaveBeenCalled();
+    expect(onSettledA).not.toHaveBeenCalled();
+    // Action A's exit taken after the move releases A, and tells no one.
+    const onReleased = vi.fn();
+    fake.set("intent:c", unproven("rc"));
+    await act(async () =>
+      root!.render(
+        <Probe
+          out={out}
+          options={{ ...base, namespace: "intent:c", onReleased }}
+        />,
+      ),
+    );
+    const exitC = out.current!.exitAction!.run;
+    await act(async () =>
+      root!.render(
+        <Probe
+          out={out}
+          options={{ ...base, namespace: "intent:d", onReleased }}
+        />,
+      ),
+    );
+    await act(async () => {
+      await exitC();
+    });
+    expect(fake.handle("intent:c").exit).toHaveBeenCalled();
+    expect(onReleased).not.toHaveBeenCalled();
   });
 });
 

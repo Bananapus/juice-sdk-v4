@@ -1112,8 +1112,12 @@ await write.send((gate) => sendThroughWallet(gate));
   view saw held. A settlement left from an earlier visit is in `settled` with
   phase `clear`.
 - **Adoption:** with `adopt`, the hook moves a previous deploy's saved record
-  into the hold (`hold.adopt`) before any send, which waits for it; a read that
-  fails refuses the send and adoption runs again.
+  - **Adoption:** with `adopt`, the hook moves a previous deploy's saved record
+    into the hold (`hold.adopt`) before any send, which waits for it. An adoption
+    it couldn't check (`declined: "unreadable"`: the chain unread, or a lock
+    another writer held) refuses the send, and adoption runs again on the next;
+    one proven to be another write (`declined: "refused"`) lets it send. A
+    provider added later makes a new view, and no send skips it.
 
 For an app-wide notice, `hold.list({ account, chainId })` (core) lists every
 held write for an account, and `useHeldWrites` watches them; `useHeldIntents`

@@ -662,13 +662,12 @@ export function createWriteHold(
     async function adoptable(
       hash: Hex,
       client: WriteHoldClient | undefined,
-    ): Promise<boolean> {
-      if (
-        !isBytes32(hash) ||
-        !client ||
-        (await client.getChainId().catch(() => null)) !== call.chainId
-      )
-        return false;
+    ): Promise<"yes" | "refused" | "unreadable"> {
+      if (!isBytes32(hash)) return "refused";
+      if (!client) return "unreadable";
+      const chainId = await client.getChainId().catch(() => null);
+      if (chainId === null) return "unreadable";
+      if (chainId !== call.chainId) return "refused";
       const reviewed = {
         account: call.account.toLowerCase(),
         chainId: call.chainId,
@@ -678,6 +677,7 @@ export function createWriteHold(
           value: String(call.call.value ?? 0),
         },
       };
+      // One the chain or the service can't show is this call's, held.
       if (call.safe) {
         const proposal = await readSafeTransaction(
           call.chainId,
@@ -685,10 +685,12 @@ export function createWriteHold(
           hash,
           service,
         ).catch(() => null);
-        return !proposal || safeProposalIsHeldCall(proposal, call);
+        return !proposal || safeProposalIsHeldCall(proposal, call)
+          ? "yes"
+          : "refused";
       }
       const sent = await client.getTransaction({ hash }).catch(() => null);
-      return !sent || sentIsCall(sent, hash, reviewed);
+      return !sent || sentIsCall(sent, hash, reviewed) ? "yes" : "refused";
     }
 
     /** The authenticated nonce of a Safe proposal, from Safe's service. */
@@ -1456,7 +1458,7 @@ export function createWriteHold(
           safe?: { safeTxHash: Hex };
         } = {},
         client?: WriteHoldClient,
-      ): Promise<WriteHoldState> {
+      ): Promise<WriteHoldState & { declined?: "refused" | "unreadable" }> {
         const nonce = evidence.nonce ?? evidence.sentNonce;
         const hash = (
           call.safe ? evidence.safe?.safeTxHash : evidence.hash
@@ -1483,12 +1485,12 @@ export function createWriteHold(
         if (hooks.across) {
           // Under an intent: the same atomic reserve as a send, under every
           // legacy key's lock, mirrored at each so older versions see it.
-          if (
-            !free() ||
-            (hash !== undefined && !(await adoptable(hash, client)))
-          )
-            return shown(peek());
+          if (!free()) return shown(peek());
+          const verdict =
+            hash === undefined ? "yes" : await adoptable(hash, client);
+          if (verdict !== "yes") return { ...shown(peek()), declined: verdict };
           let adopted = false;
+          let busy = false;
           try {
             const { released } = await hooks.across(
               (work) => recovery.withLock(work),
@@ -1502,20 +1504,33 @@ export function createWriteHold(
               hooks.generations!(),
             );
             await released;
-          } catch {
-            /* Held elsewhere, busy, or no longer free: nothing adopted. */
+          } catch (error) {
+            // Held elsewhere or no longer free: what the hold shows. Busy: unread.
+            busy = error instanceof WriteHoldBusyError;
           }
           // A mined hash settles on its verified receipt, through the gate.
-          return adopted && hash && client ? state(client) : shown(peek());
+          if (adopted && hash && client) return state(client);
+          const now = shown(peek());
+          return busy && now.status === "clear"
+            ? { ...now, declined: "unreadable" }
+            : now;
         }
         const result = await locked(async () => {
           if (!free()) return peek();
-          if (hash !== undefined && !(await adoptable(hash, client)))
-            return peek();
+          const verdict =
+            hash === undefined ? "yes" : await adoptable(hash, client);
+          if (verdict !== "yes") return { ...peek(), declined: verdict };
           reserve();
           return hash && client ? inspect(client) : peek();
         }, true);
-        return shown(result?.value ?? peek());
+        if (!result) return { ...shown(peek()), declined: "unreadable" };
+        const { declined, ...answer } = result.value as WriteHoldState & {
+          declined?: "refused" | "unreadable";
+        };
+        return {
+          ...shown(answer as WriteHoldState),
+          ...(declined ? { declined } : {}),
+        };
       },
       /**
        * Save the Safe nonce of a held Safe proposal adopted before it was

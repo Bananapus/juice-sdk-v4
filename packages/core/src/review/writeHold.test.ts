@@ -2945,6 +2945,22 @@ describe("a write held under an intent", () => {
       finish();
       await holding;
     });
+
+    it("reports an adoption it couldn't make while another writer held a lock as unread", async () => {
+      const { handle, exact } = pair();
+      const { client } = fakeChain();
+      let finish!: () => void;
+      const holding = exact.send(
+        client,
+        () => new Promise<void>((resolve) => (finish = resolve)),
+      );
+      await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+      await expect(
+        handle.adopt({ status: "clear" }, { nonce: 7, fromBlock: 90n }),
+      ).resolves.toMatchObject({ status: "clear", declined: "unreadable" });
+      finish();
+      await holding;
+    });
   });
 
   it("refuses a second send of the intent: held once reserved, busy while the first holds its locks", async () => {
@@ -6048,6 +6064,34 @@ describe("adopting a previous deploy's hashless write", () => {
 });
 
 describe("adopting a previous deploy's hashed write", () => {
+  it("says why it adopted nothing: a hash proven to be another write, or a chain it couldn't read", async () => {
+    const { hold } = setup();
+    const { chain, client } = fakeChain();
+    chain.txs.push(sent(HASH, { input: "0xaabbccdd0009" as Hex }));
+    const handle = hold.open(ordinary);
+    await expect(
+      handle.adopt({ status: "clear" }, { hash: HASH }, client),
+    ).resolves.toMatchObject({ status: "clear", declined: "refused" });
+    client.getChainId.mockRejectedValueOnce(new Error("rpc"));
+    await expect(
+      handle.adopt({ status: "clear" }, { hash: OTHER }, client),
+    ).resolves.toMatchObject({ status: "clear", declined: "unreadable" });
+    await expect(
+      handle.adopt({ status: "clear" }, { hash: OTHER }),
+    ).resolves.toMatchObject({ status: "clear", declined: "unreadable" });
+    await expect(
+      handle.adopt({ status: "clear" }, { hash: "0x12" as Hex }, client),
+    ).resolves.toMatchObject({ status: "clear", declined: "refused" });
+    // Under an intent, the same.
+    const intent = hold.open(
+      { ...ordinary, namespace: writeIntentKey("pay", { projectId: 9n }) },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    await expect(
+      intent.adopt({ status: "clear" }, { hash: HASH }, client),
+    ).resolves.toMatchObject({ status: "clear", declined: "refused" });
+  });
+
   it("gives a dropped hash the warned exit 30 minutes after it was sent, never before", async () => {
     vi.useFakeTimers({ now: 10_000_000, toFake: ["Date"] });
     const { hold } = setup();
@@ -6118,7 +6162,7 @@ describe("adopting a previous deploy's hashed write", () => {
       const { checked: _, ...snapshot } = await handle.state(client);
       await expect(
         handle.adopt(snapshot, { hash: HASH }, client),
-      ).resolves.toEqual(snapshot);
+      ).resolves.toEqual({ ...snapshot, declined: "refused" });
       expect(handle.peek().status).toBe("clear");
     }
     const { hold } = setup();

@@ -135,6 +135,9 @@ export async function followHeldWrite(
   return null;
 }
 
+/** Reservations seen confirming in this tab: a new view of one never shows it awaiting. */
+const confirmed = new Set<string>();
+
 /** One follower per reservation in this tab, however many views show it. */
 const followers = new Map<
   string,
@@ -152,7 +155,8 @@ function followShared(
   pollMs: number | undefined,
 ): { ended: Promise<WriteHoldState | null>; leave: () => void } {
   let shared = followers.get(reservation);
-  if (!shared) {
+  // A follower stopped by its last view, still ending, is never rejoined.
+  if (!shared || shared.stop.signal.aborted) {
     const stop = new AbortController();
     const ended = followHeldWrite(handle, client, {
       signal: stop.signal,
@@ -247,10 +251,12 @@ export function createHeldWriteView(
   let observed: string | undefined;
   let wasHeld = false;
   let exitedHere: string | undefined;
-  const confirmed = new Set<string>();
   const delivered = new Set<string>();
   let following: { reservation: string; leave: () => void } | undefined;
   let running = false;
+  /** Each start and stop begins a new lifecycle: a read or receipt from an earlier one is dropped. */
+  let epoch = 0;
+  let live = true;
   let adoption: Promise<boolean> | undefined;
 
   function set(next: Partial<HeldWriteView>) {
@@ -272,16 +278,20 @@ export function createHeldWriteView(
       return;
     stopFollowing();
     const shared = followShared(reservation, handle, client, options.pollMs);
-    following = { reservation, leave: shared.leave };
+    const mine = { reservation, leave: shared.leave };
+    following = mine;
+    const at = epoch;
     void shared.ended.then((end) => {
-      if (end && running) apply(end);
+      if (following === mine) following = undefined;
+      if (end && at === epoch) apply(end);
     });
   }
 
   function deliver(settled: WriteHoldSettled, key: string) {
-    if (delivered.has(key) || !options.onSettled) return;
+    if (!live || delivered.has(key) || !options.onSettled) return;
     delivered.add(key);
     const onSettled = options.onSettled;
+    const at = epoch;
     void (
       "hash" in settled
         ? client.getTransactionReceipt({ hash: settled.hash }).then(
@@ -289,7 +299,9 @@ export function createHeldWriteView(
             () => null,
           )
         : Promise.resolve(null)
-    ).then((receipt) => onSettled(settled, receipt));
+    ).then((receipt) => {
+      if (at === epoch) onSettled(settled, receipt);
+    });
   }
 
   /** The phase and line a held state shows, monotonic once confirming. */
@@ -405,7 +417,9 @@ export function createHeldWriteView(
 
   /** The gated answer, now. */
   async function check(): Promise<HeldWriteView> {
-    apply(await handle.state(client).catch(() => null));
+    const at = epoch;
+    const next = await handle.state(client).catch(() => null);
+    if (at === epoch) apply(next);
     return view;
   }
 
@@ -421,6 +435,9 @@ export function createHeldWriteView(
         const evidence = await provider();
         if (evidence) {
           const state = await handle.adopt(snapshot, evidence, client);
+          // Unread (the chain, or a lock another writer held): no send until it is.
+          if ((state as { declined?: string }).declined === "unreadable")
+            throw new Error("The saved write couldn't be checked.");
           apply(state);
           if (state.status !== "clear" || state.settled)
             options.onAdopted?.(state);
@@ -450,6 +467,8 @@ export function createHeldWriteView(
      */
     start(): () => void {
       running = true;
+      live = true;
+      epoch += 1;
       const unsubscribe = handle.subscribe(apply);
       void adopt().then(() => (running ? check() : view));
       const timer = setInterval(() => {
@@ -464,6 +483,8 @@ export function createHeldWriteView(
       globalThis.addEventListener?.("focus", onFocus);
       return () => {
         running = false;
+        live = false;
+        epoch += 1;
         unsubscribe();
         clearInterval(timer);
         globalThis.removeEventListener?.("focus", onFocus);
@@ -497,8 +518,8 @@ export function createHeldWriteView(
         apply(handle.peek());
         return hash;
       } catch (error) {
-        if (error instanceof WriteHeldError)
-          apply({ ...error.state, checked: true });
+        // Its own evidence, checked or not: a contended refusal hides no exit.
+        if (error instanceof WriteHeldError) apply(error.state);
         else await check();
         throw error;
       }

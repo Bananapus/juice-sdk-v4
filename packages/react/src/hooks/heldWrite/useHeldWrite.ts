@@ -3,6 +3,7 @@ import {
   HELD_EXIT_LABEL,
   type HeldWriteEvidence,
   type HeldWriteView,
+  type HeldWriteViewController,
   type ReviewedWriteRecoveryInput,
   type WriteHold,
   type WriteHoldClient,
@@ -117,24 +118,42 @@ export function useHeldWrite(options: UseHeldWriteOptions): UseHeldWriteResult {
     );
     // The call and legacy keys stand for their values.
   }, [hold, chainId, account, safe, namespace, callKey, legacyKey]);
-  const view = useMemo(
-    () =>
-      handle && client
-        ? createHeldWriteView(handle, {
-            client,
-            pollMs,
-            onSettled: (settled, receipt) =>
-              latest.current.onSettled?.(settled, receipt),
-            onReleased: (by) => latest.current.onReleased?.(by),
-            onAdopted: (state) => latest.current.onAdopted?.(state),
-            ...(latest.current.adopt
-              ? { adopt: () => latest.current.adopt!() }
-              : {}),
-          })
-        : undefined,
-    [handle, client, pollMs],
-  );
-  useEffect(() => view?.start(), [view]);
+  // Whether the app has a previous deploy's record to adopt: a change makes a
+  // new view, whose adoption runs before any send.
+  const adopts = !!options.adopt;
+  /** The view whose callbacks are the app's now: an earlier one's late answers reach none. */
+  const active = useRef<HeldWriteViewController | undefined>(undefined);
+  const view = useMemo(() => {
+    if (!handle || !client) return undefined;
+    /** Only while this view is the app's: an earlier one's late answers reach no callback. */
+    const own =
+      <A extends unknown[]>(callback: (...args: A) => void) =>
+      (...args: A) => {
+        if (active.current === created) callback(...args);
+      };
+    const created: HeldWriteViewController = createHeldWriteView(handle, {
+      client,
+      pollMs,
+      onSettled: own((settled, receipt) =>
+        latest.current.onSettled?.(settled, receipt),
+      ),
+      onReleased: own((by) => latest.current.onReleased?.(by)),
+      onAdopted: own((state) => latest.current.onAdopted?.(state)),
+      // A view made with a provider: the app's current one (a removed one
+      // makes a new view, and this one stops).
+      ...(adopts ? { adopt: () => latest.current.adopt!() } : {}),
+    });
+    return created;
+  }, [handle, client, pollMs, adopts]);
+  useEffect(() => {
+    if (!view) return;
+    active.current = view;
+    const stop = view.start();
+    return () => {
+      if (active.current === view) active.current = undefined;
+      stop();
+    };
+  }, [view]);
   const shown = useSyncExternalStore(
     view?.subscribe ?? none,
     view?.get ?? idle,
@@ -148,6 +167,13 @@ export function useHeldWrite(options: UseHeldWriteOptions): UseHeldWriteResult {
       if (!view)
         return Promise.reject(
           new Error("Connect a wallet and build the call before sending."),
+        );
+      // A record to adopt that this view doesn't know of yet: never send past it.
+      if (!!latest.current.adopt !== adopts)
+        return Promise.reject(
+          new Error(
+            "Saved transactions are still being checked. Try again in a moment.",
+          ),
         );
       return view.send(run);
     },
