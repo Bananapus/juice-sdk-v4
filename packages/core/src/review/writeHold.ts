@@ -523,14 +523,19 @@ export function createWriteHold(
         if (atOnce) {
           const settled = await settle(record, atOnce, client);
           if (settled.status === "clear") return settled;
-          // It ran; only its verified result (a failure at finality) ends it.
-          record = recovery.executed(record, hash);
-          // Who sent it at which nonce proves a canonical replacement later.
-          const sent = await client.getTransaction({ hash }).catch(() => null);
-          if (sent?.hash?.toLowerCase() === hash && isAddress(sent.from))
-            record = recovery.sentBy(record, sent.from, BigInt(sent.nonce));
-          follow(client, record.id);
-          return ranExecuted(record);
+          // Saved as executed only once authenticated as this Safe's
+          // execution of the exact call (settle does that); a receipt alone
+          // proves nothing, and the record stays unproven.
+          if (settled.status === "ran-executed") {
+            record = settled.record;
+            // Who sent it at which nonce proves a canonical replacement later.
+            const sent = await client
+              .getTransaction({ hash })
+              .catch(() => null);
+            if (sent?.hash?.toLowerCase() === hash && isAddress(sent.from))
+              record = recovery.sentBy(record, sent.from, BigInt(sent.nonce));
+            return ranExecuted(record, hash, settled.result);
+          }
         }
       } else if (record.executionHash) {
         const settled = await execution(record, client);
