@@ -867,9 +867,16 @@ export function createWriteHold(
             ? recovery.mined(record, look === "mined")
             : recovery.candidateMined(record, hash, look === "mined");
         const at = own ? record.minedAt : record.candidateMinedAt?.[hash];
+        // A candidate the chain hasn't answered for since it was reported
+        // keeps its unseen window through failing reads.
+        const unread =
+          !own && look === "unknown" && at === undefined
+            ? record.candidateSeenAt?.[hash]
+            : undefined;
         if (
           look === "pending" ||
-          (at !== undefined && Date.now() - Number(at) < UNSEEN_HASH_MS)
+          (at !== undefined && Date.now() - Number(at) < UNSEEN_HASH_MS) ||
+          (unread !== undefined && Date.now() - Number(unread) < UNSEEN_HASH_MS)
         )
           return {
             status: "pending-known-hash",
@@ -879,7 +886,9 @@ export function createWriteHold(
             line:
               look === "pending"
                 ? WRITE_HOLD_PENDING_LINE
-                : WRITE_HOLD_MINED_LINE,
+                : at === undefined
+                  ? writeHeldMessage()
+                  : WRITE_HOLD_MINED_LINE,
           };
       }
       return null;

@@ -98,6 +98,11 @@ export type ReviewedWriteRecoveryRecord = Omit<
   minedAt?: string;
   /** The same clock for each candidate seen mined with its receipt unreadable, by hash. */
   candidateMinedAt?: Record<string, string>;
+  /**
+   * When each candidate was reported, by hash, in milliseconds since the
+   * epoch, as a decimal string: its unseen window runs from it.
+   */
+  candidateSeenAt?: Record<string, string>;
 };
 
 /** How a held write ended, on authenticated evidence: its result and transaction. */
@@ -198,12 +203,8 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.vanishedAt) ||
     !optionalDecimal(record.pendingSeenAt) ||
     !optionalDecimal(record.minedAt) ||
-    (record.candidateMinedAt !== undefined &&
-      (typeof record.candidateMinedAt !== "object" ||
-        record.candidateMinedAt === null ||
-        !Object.entries(record.candidateMinedAt).every(
-          ([hash, at]) => isBytes32(hash) && optionalDecimal(at),
-        ))) ||
+    !hashClocks(record.candidateMinedAt) ||
+    !hashClocks(record.candidateSeenAt) ||
     (record.candidates !== undefined &&
       (!Array.isArray(record.candidates) ||
         !record.candidates.every(isBytes32))) ||
@@ -254,6 +255,9 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.candidateMinedAt === undefined
       ? {}
       : { candidateMinedAt: { ...record.candidateMinedAt } }),
+    ...(record.candidateSeenAt === undefined
+      ? {}
+      : { candidateSeenAt: { ...record.candidateSeenAt } }),
     ...(record.candidates === undefined
       ? {}
       : {
@@ -266,6 +270,18 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       ? {}
       : { executionHash: record.executionHash.toLowerCase() as Hex }),
   };
+}
+
+/** A clock per hash: bytes32 hashes to decimal times, or none. */
+function hashClocks(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (typeof value === "object" &&
+      value !== null &&
+      Object.entries(value).every(
+        ([hash, at]) => isBytes32(hash) && optionalDecimal(at),
+      ))
+  );
 }
 
 function optionalDecimal(value: unknown): boolean {
@@ -1340,7 +1356,13 @@ export function createBrowserWriteRecovery(
       return amend(
         expected,
         (current) => current.safe && !known.includes(wanted),
-        { candidates: [...known, wanted] },
+        {
+          candidates: [...known, wanted],
+          candidateSeenAt: {
+            ...recordOf(expected).candidateSeenAt,
+            [wanted]: String(Date.now()),
+          },
+        },
       );
     },
     /** Drop a candidate whose own receipt proved it isn't this write's execution. */
@@ -1350,8 +1372,10 @@ export function createBrowserWriteRecovery(
     ): ReviewedWriteRecoveryRecord {
       const known = recordOf(expected).candidates ?? [];
       const rest = known.filter((candidate) => candidate !== hash);
+      const { [hash]: _, ...seen } = recordOf(expected).candidateSeenAt ?? {};
       return amend(expected, () => rest.length !== known.length, {
         candidates: rest.length ? rest : undefined,
+        candidateSeenAt: Object.keys(seen).length ? seen : undefined,
       });
     },
     /** Note that a read just showed the saved hash pending. Extra evidence only. */

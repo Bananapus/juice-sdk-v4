@@ -242,9 +242,12 @@ const budgets = {
     // unpacked and 842 entries.
     // With Safe Relayr's three-valued status reads, sticky funding evidence
     // and its warned exits: 1,494,786 B packed / 21,923,025 B unpacked.
-    packed: 1_500_000,
-    unpacked: 21_935_000,
-    entries: 842,
+    // The shared intent builders (review/intents) and the candidate unseen
+    // window measured 1,498,599 B packed / 21,950,472 B unpacked and 850
+    // entries.
+    packed: 1_505_000,
+    unpacked: 21_965_000,
+    entries: 850,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

@@ -31,7 +31,9 @@ import {
   WRITE_HOLD_SAFE_REPLACED_LINE,
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
   WRITE_HOLD_STALE_REVIEW_LINE,
+  writeHeldMessage,
 } from "./messages.js";
+import { launchIntent } from "./intents.js";
 import { intent, writeIntentKey } from "./writeIntent.js";
 import {
   createWriteHold,
@@ -4543,6 +4545,40 @@ describe("a held Safe proposal", () => {
       return { ...setup, fixture, handle };
     }
 
+    it("keeps a reported execution's unseen window through failing reads, then offers the exit", async () => {
+      const { handle, fixture } = await proposed();
+      const candidate = `0x${"c4".repeat(32)}` as Hex;
+      await handle.onExecuted(fixture.client, candidate);
+      // Every read of that hash fails before the chain ever showed it.
+      const read = fixture.client.getTransaction.getMockImplementation()!;
+      fixture.client.getTransaction.mockImplementation(async (args) => {
+        if (args.hash.toLowerCase() === candidate)
+          throw new Error("request timed out");
+        return read(args);
+      });
+      const unproven = await handle.onUnproven(fixture.client);
+      expect(unproven).toMatchObject({
+        status: "pending-known-hash",
+        hash: candidate,
+        exit: false,
+        line: writeHeldMessage(),
+      });
+      const now = Date.now();
+      vi.spyOn(Date, "now").mockReturnValue(now + 29 * 60_000);
+      const early = await handle.state(fixture.client);
+      expect(early).toMatchObject({ exit: false });
+      // The exit is refused inside the window, even from an older snapshot.
+      await expect(
+        handle.exit(unproven, { checkedWallet: true }, fixture.client),
+      ).resolves.toMatchObject({ released: false });
+      vi.spyOn(Date, "now").mockReturnValue(now + 31 * 60_000);
+      const late = await handle.state(fixture.client);
+      expect(late).toMatchObject(unprovenState);
+      await expect(
+        handle.exit(late, { checkedWallet: true }, fixture.client),
+      ).resolves.toMatchObject({ released: true });
+    });
+
     it("refuses the exit while the returned hash is a known pending transaction, then settles it", async () => {
       const { hold } = safeSetup();
       const fixture = fakeChain();
@@ -5636,10 +5672,64 @@ describe("resetting write holds between tests", () => {
     resetWriteHoldsForTests();
     expect(removed).toHaveBeenCalledOnce();
     expect(queues.size).toBe(0);
-    expect(tab[Symbol.for("nana-sdk:held-writes")]).toBeUndefined();
+    // Cleared in place: a controller made before the reset shares it.
+    expect(tab[Symbol.for("nana-sdk:held-writes")]).toBe(memory);
+    expect(memory.size).toBe(0);
     // A disposed controller is let go: a second reset stops nothing again.
     resetWriteHoldsForTests();
     expect(removed).toHaveBeenCalledOnce();
+  });
+});
+
+describe("resetting a controller made before the reset", () => {
+  it("leaves nothing held in the shared tab memory for a module-scoped controller", async () => {
+    resetWriteHoldsForTests();
+    // A controller made once, at module scope, on the tab's own memory,
+    // with the browser's storage refused.
+    const browser = origin();
+    browser.state.write = false;
+    browser.state.read = false;
+    const hold = createWriteHold({
+      storage: createHeldWriteStorage({ durable: () => browser.storage }),
+      locks: lockManager(),
+    });
+    const { client } = fakeChain();
+    await expect(
+      hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toThrow();
+    expect(hold.open(ordinary).peek().status).not.toBe("clear");
+    resetWriteHoldsForTests();
+    expect(hold.open(ordinary).peek().status).toBe("clear");
+    const retry = wallet(async () => HASH);
+    await hold.open(ordinary).send(client, retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+    resetWriteHoldsForTests();
+  });
+});
+
+describe("a launch held under its shared intent", () => {
+  it("refuses a retry whose config holds a number where the first held a bigint", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    // Each review regenerates its calldata (a new salt or deadline).
+    const launch = (reserved: number | bigint, data: Hex) =>
+      hold.open({
+        ...ordinary,
+        call: { ...ordinary.call, data },
+        namespace: launchIntent({
+          chainId: 10,
+          account: ACCOUNT,
+          config: { name: "Banny", reserved },
+        }),
+      });
+    await expect(
+      launch(1000, "0xaabbccdd0001").send(client, lostReply().send),
+    ).rejects.toThrow();
+    const retry = wallet(async () => HASH);
+    await expect(
+      launch(1000n, "0xaabbccdd0002").send(client, retry.send),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    expect(retry.write).not.toHaveBeenCalled();
   });
 });
 

@@ -862,6 +862,9 @@ await hold.onExecuted(publicClient, executionHash);
 await hold.attachHash(publicClient, hash); // followed; no exit while pending
 // Or that it ended without proof (it gave up, or the service lost it):
 await hold.onUnproven(publicClient, proposalHash); // safe-unproven: the exit
+// ...but an execution hash reported with onExecuted that the chain can't be
+// read for yet (reads fail, before it was ever seen pending or mined) keeps
+// the hold, with no exit, for 30 minutes from when it was reported.
 
 // The exit, only on a state with `exit: true`, given the state the user saw:
 const { released } = await hold.exit(
@@ -1008,6 +1011,45 @@ entry exports them): `resetWriteHoldsForTests()` stops every controller's
 settle polls and tab listeners and drops this tab's lock queues and
 held-write memory; `resetSafeRelayrForTests()` stops every Safe Relayr watch
 and forgets its remembered reviews. Call them in `afterEach`.
+
+### Shared intents
+
+Every web client keys the same user action the same way, with the builders in
+`/review`. The rule: **identity plus explicit user choices; never derived,
+quoted, routed or auto-filled values.** Each builder reads only the fields it
+names, so an amount, memo, quote, route, deadline or fee passed by mistake
+changes nothing. The trade, for every builder: a coarse key may make a second
+action of the same kind wait on an unresolved first one (until it settles or
+the user takes its explicit exit), but it never sends twice. Nothing is inferred from a string's
+shape: each builder tags the parameters whose meaning it knows (addresses,
+pools) so they compare case-blind, integers and bigints are one value, and
+every other string stays exactly as given. In `launchIntent`'s free-form
+`config`, tag addresses and bytes with `intent.address` and `intent.hex`, and
+build the config in one place from the frozen form so every retry represents
+it the same way.
+
+| Builder                                                    | Key                                                                                       | What waits                                                    |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `payIntent({ chainId, project, beneficiary })`             | every payment to a project: checkout, pay, add to balance. No token, amount, memo or cart | a second payment to the same project for the same beneficiary |
+| `cashOutIntent({ chainId, project, holder, beneficiary })` | every cash-out of the project's token, whatever the venue. No amount                      | a second cash-out by that holder to that beneficiary          |
+| `loanIntent({ chainId, loanId })`                          | repaying and reallocating one loan                                                        | a second change to that loan                                  |
+| `borrowIntent({ chainId, project, holder })`               | borrowing against the project's token. No amount                                          | a second borrow by that holder                                |
+| `bridgeIntent({ chainId, sucker, token, account })`        | sending, preparing and syncing through one sucker. No fee                                 | a second bridge step of that token by that account            |
+| `approvalIntent(parent, { step, token, spender })`         | one approval step of a parent action's key                                                | the same approval for that action                             |
+| `launchIntent({ chainId, account, config })`               | a launch from the user's frozen form input                                                | the same launch, until the form changes                       |
+| `liquidityIntent({ chainId, pool, positions })`            | changing those positions in one pool (a set: order and repeats don't change the key)      | a second change to the same positions                         |
+
+```ts
+import { payIntent } from "@bananapus/nana-sdk-core/review";
+
+holds.open({
+  chainId,
+  account,
+  safe,
+  call,
+  namespace: payIntent({ chainId, project, beneficiary }),
+});
+```
 
 ### Safe proposals
 
