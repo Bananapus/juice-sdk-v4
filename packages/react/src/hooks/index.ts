@@ -16,3 +16,4 @@ export * from "./useEtherPrice";
 export * from "./ruleset/useJBRuleset";
 export * from "./ruleset/useResolveDataHook";
 export * from "./ruleset/useJBUpcomingRuleset";
+export * from "./heldWrite";

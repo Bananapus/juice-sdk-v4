@@ -37,6 +37,7 @@ import {
   findReviewedWrites,
   heldSafeProposal,
   findTransactionAtNonce,
+  listReviewedWrites,
   readReviewedWriteNonce,
   safeProposalIsHeldCall,
   SubmittedWritePersistenceError,
@@ -80,6 +81,14 @@ function sentIsCall(
 /** The stop of every controller with a follower or tab listener running, for the test-only reset. */
 const liveHolds = tabShared(TAB.holds, () => new Set<() => void>());
 
+/** A saved success the user hasn't acknowledged: it blocks sending the action again. */
+export type UnacknowledgedSuccess = {
+  result: "success";
+  hash: Hex;
+  /** The reservation it settled. */
+  reservation?: string;
+};
+
 /** The reads a write hold makes on the call's chain; a viem PublicClient satisfies it. */
 export type WriteHoldClient = Pick<
   PublicClient,
@@ -94,8 +103,8 @@ export type WriteHoldClient = Pick<
 
 /** How a held write ended, when the hold saw it end. */
 export type WriteHoldSettled =
-  /** Its verified receipt (a revert only once final). */
-  | { result: "success" | "failed"; hash: Hex }
+  /** Its verified receipt (a revert only once final); `acknowledged` once the user saw it. */
+  | { result: "success" | "failed"; hash: Hex; acknowledged?: true }
   /** A Safe proposal's expiry before it ran is proven. */
   | { result: "expired" };
 
@@ -268,9 +277,13 @@ const UNSEEN_HASH_MS = 30 * 60_000;
 const SAFE_SERVICE_READ_MS = 8_000;
 
 /** The 30 minutes have passed since the wallet returned the hash, or since it was first read. A clock that couldn't be saved (NaN) never runs out. */
-function unseenTooLong(record: ReviewedWriteRecoveryRecord): boolean {
+function unseenTooLong(
+  record: ReviewedWriteRecoveryRecord,
+  /** A later authenticated sighting, when there is one: the clock runs from it. */
+  seen?: string,
+): boolean {
   return (
-    Date.now() - Number(record.submittedAt ?? record.firstSeenAt) >=
+    Date.now() - Number(seen ?? record.submittedAt ?? record.firstSeenAt) >=
     UNSEEN_HASH_MS
   );
 }
@@ -661,13 +674,12 @@ export function createWriteHold(
     async function adoptable(
       hash: Hex,
       client: WriteHoldClient | undefined,
-    ): Promise<boolean> {
-      if (
-        !isBytes32(hash) ||
-        !client ||
-        (await client.getChainId().catch(() => null)) !== call.chainId
-      )
-        return false;
+    ): Promise<"yes" | "refused" | "unreadable"> {
+      if (!isBytes32(hash)) return "refused";
+      if (!client) return "unreadable";
+      const chainId = await client.getChainId().catch(() => null);
+      // A client on another chain can't check this chain's transaction.
+      if (chainId !== call.chainId) return "unreadable";
       const reviewed = {
         account: call.account.toLowerCase(),
         chainId: call.chainId,
@@ -677,6 +689,7 @@ export function createWriteHold(
           value: String(call.call.value ?? 0),
         },
       };
+      // One the chain or the service can't show is this call's, held.
       if (call.safe) {
         const proposal = await readSafeTransaction(
           call.chainId,
@@ -684,27 +697,43 @@ export function createWriteHold(
           hash,
           service,
         ).catch(() => null);
-        return !proposal || safeProposalIsHeldCall(proposal, call);
+        return !proposal || safeProposalIsHeldCall(proposal, call)
+          ? "yes"
+          : "refused";
       }
       const sent = await client.getTransaction({ hash }).catch(() => null);
-      return !sent || sentIsCall(sent, hash, reviewed);
+      return !sent || sentIsCall(sent, hash, reviewed) ? "yes" : "refused";
     }
 
-    /** The authenticated nonce of a Safe proposal, from Safe's service. */
-    async function proposalNonceOf(
+    /**
+     * Safe's authenticated record of the held proposal, or null while the
+     * service can't return it (down, or it has none).
+     */
+    async function proposalOf(
       record: ReviewedWriteRecoveryRecord,
-    ): Promise<bigint | null> {
-      try {
-        const proposal = await readSafeTransaction(
-          record.chainId,
-          record.account,
-          record.hash!,
-          service,
-        );
-        return safeTransactionMessage(proposal).nonce;
-      } catch {
-        return null;
-      }
+    ): Promise<SafeQueuedTransaction | null> {
+      return readSafeTransaction(
+        record.chainId,
+        record.account,
+        record.hash!,
+        service,
+      ).catch(() => null);
+    }
+
+    /**
+     * A Safe write unseen too long: not proven run, not ended unproven (that
+     * has its own exit), and not listed unexecuted by the service for 30
+     * minutes since it was sent, adopted, or last listed.
+     */
+    function unboundedSafe(record: ReviewedWriteRecoveryRecord): boolean {
+      return (
+        record.safe &&
+        !!record.hash &&
+        !record.executed &&
+        !record.unproven &&
+        !record.replaced &&
+        unseenTooLong(record, record.pendingSeenAt)
+      );
     }
 
     /** Follow a saved execution's receipt; null while the node has none. */
@@ -953,12 +982,20 @@ export function createWriteHold(
           return settled ?? ranExecuted(record);
         }
       }
-      // The chain's proof, from the proposal's nonce: Safe's service is asked
-      // only for the nonce, once, and for an expiry.
-      if (record.safeNonce === undefined) {
-        const nonce = await proposalNonceOf(record);
-        if (nonce !== null) record = recovery.proposalNonce(record, nonce);
-      }
+      // The chain's proof, from the proposal's nonce, saved once. Only the
+      // service returning this proposal unexecuted shows it truly pending:
+      // that read restarts its unseen clock. A Safe nonce still waiting shows
+      // only that nothing ran there.
+      const proposal = await proposalOf(record);
+      const listed = !!proposal && proposal.isExecuted !== true;
+      if (proposal && record.safeNonce === undefined)
+        record = recovery.proposalNonce(
+          record,
+          safeTransactionMessage(proposal).nonce,
+        );
+      // Listed: truly pending, an unproven end included. The fresh record
+      // carries the new stamp, so the checked answer below removes any exit.
+      if (listed) record = recovery.listedAgain(record);
       const end =
         (record.safeNonce !== undefined &&
           (await provenSafeProposalEnd(
@@ -1011,13 +1048,9 @@ export function createWriteHold(
           return clear(settled, record.id);
         }
       }
-      if (
-        !record.executed &&
-        !record.unproven &&
-        record.safeNonce === undefined &&
-        unseenTooLong(record)
-      )
-        return unchecked(record);
+      // Its wait is bounded like any unchecked write, the clock restarted by
+      // each listing (an unproven end has its own exit).
+      if (unboundedSafe(record)) return unchecked(record);
       if (record.executed) follow(client, record.id);
       return classify(record);
     }
@@ -1068,9 +1101,13 @@ export function createWriteHold(
       if (!record) return cleared();
       // A mirror carries no evidence of its own: its source attempt does.
       if (record.mirrorOf) return classify(record);
-      // No evidence from another chain.
-      if ((await client.getChainId().catch(() => null)) !== record.chainId)
-        return classify(record);
+      // No evidence from another chain. Unreadable chain identity still
+      // bounds a Safe write's unchecked wait.
+      const chainId = await client.getChainId().catch(() => null);
+      if (chainId !== record.chainId)
+        return chainId === null && unboundedSafe(record)
+          ? unchecked(record)
+          : classify(record);
       if (record.safe) return safeState(record, client);
       const check = await recovery
         .resolve(client, effect ? { effect } : undefined)
@@ -1455,7 +1492,7 @@ export function createWriteHold(
           safe?: { safeTxHash: Hex };
         } = {},
         client?: WriteHoldClient,
-      ): Promise<WriteHoldState> {
+      ): Promise<WriteHoldState & { declined?: "refused" | "unreadable" }> {
         const nonce = evidence.nonce ?? evidence.sentNonce;
         const hash = (
           call.safe ? evidence.safe?.safeTxHash : evidence.hash
@@ -1482,12 +1519,12 @@ export function createWriteHold(
         if (hooks.across) {
           // Under an intent: the same atomic reserve as a send, under every
           // legacy key's lock, mirrored at each so older versions see it.
-          if (
-            !free() ||
-            (hash !== undefined && !(await adoptable(hash, client)))
-          )
-            return shown(peek());
+          if (!free()) return shown(peek());
+          const verdict =
+            hash === undefined ? "yes" : await adoptable(hash, client);
+          if (verdict !== "yes") return { ...shown(peek()), declined: verdict };
           let adopted = false;
+          let busy = false;
           try {
             const { released } = await hooks.across(
               (work) => recovery.withLock(work),
@@ -1501,20 +1538,33 @@ export function createWriteHold(
               hooks.generations!(),
             );
             await released;
-          } catch {
-            /* Held elsewhere, busy, or no longer free: nothing adopted. */
+          } catch (error) {
+            // Held elsewhere or no longer free: what the hold shows. Busy: unread.
+            busy = error instanceof WriteHoldBusyError;
           }
           // A mined hash settles on its verified receipt, through the gate.
-          return adopted && hash && client ? state(client) : shown(peek());
+          if (adopted && hash && client) return state(client);
+          const now = shown(peek());
+          return busy && now.status === "clear"
+            ? { ...now, declined: "unreadable" }
+            : now;
         }
         const result = await locked(async () => {
           if (!free()) return peek();
-          if (hash !== undefined && !(await adoptable(hash, client)))
-            return peek();
+          const verdict =
+            hash === undefined ? "yes" : await adoptable(hash, client);
+          if (verdict !== "yes") return { ...peek(), declined: verdict };
           reserve();
           return hash && client ? inspect(client) : peek();
         }, true);
-        return shown(result?.value ?? peek());
+        if (!result) return { ...shown(peek()), declined: "unreadable" };
+        const { declined, ...answer } = result.value as WriteHoldState & {
+          declined?: "refused" | "unreadable";
+        };
+        return {
+          ...shown(answer as WriteHoldState),
+          ...(declined ? { declined } : {}),
+        };
       },
       /**
        * Save the Safe nonce of a held Safe proposal adopted before it was
@@ -1547,6 +1597,49 @@ export function createWriteHold(
               /* Not this proposal at that nonce: nothing saved. */
             }
           return inspect(client);
+        }, true);
+        return shown(result?.value ?? peek());
+      },
+      /**
+       * The send gate's evidence for this key: its saved success, while no
+       * record is held and the user hasn't acknowledged it. Pure, from storage.
+       */
+      unacknowledgedSuccess(
+        /** A success to look past (one a view already told, its acknowledgement under way). */
+        skip?: (hash: Hex) => boolean,
+      ): UnacknowledgedSuccess | undefined {
+        if (recovery.read()) return undefined;
+        const settled = recovery.settled();
+        return settled?.result === "success" &&
+          !settled.acknowledged &&
+          !skip?.(settled.hash)
+          ? {
+              result: "success",
+              hash: settled.hash,
+              reservation: recovery.latestReservation(),
+            }
+          : undefined;
+      },
+      /** How `reservation` settled, if it is this key's latest and settled. */
+      settlementOf(reservation: string): WriteHoldSettled | undefined {
+        const now = peek();
+        return now.status === "clear" && now.reservation === reservation
+          ? now.settled
+          : undefined;
+      },
+      /**
+       * The user acknowledged a success the hold settled while they were
+       * away (or a view saw it settle): its saved settlement is marked
+       * acknowledged, keeping its result for every reader, so it blocks no
+       * send. Under the call's lock; nothing is sent.
+       */
+      async acknowledge(settled: {
+        result: "success" | "failed";
+        hash: Hex;
+      }): Promise<WriteHoldState> {
+        const result = await locked(async () => {
+          recovery.acknowledgeSettled(settled);
+          return peek();
         }, true);
         return shown(result?.value ?? peek());
       },
@@ -1757,11 +1850,22 @@ export function createWriteHold(
       ),
     );
     rescan();
+    /** The legacy hold this intent last stood for, with its reservation. */
+    let routed:
+      | { handle: ReturnType<typeof openExact>; reservation: string }
+      | undefined;
     /** A legacy key holding anything but this intent's own mirror. */
     const foreign = (index: number) =>
       holds(journals[index]) && delegates[index].peek().status !== "clear";
     /** The legacy hold the intent stands for right now, from storage alone. */
-    const active = () => delegates.find((_, index) => foreign(index));
+    const active = () => {
+      const index = delegates.findIndex((_, at) => foreign(at));
+      if (index < 0) return undefined;
+      const now = delegates[index].peek();
+      if (now.status !== "clear")
+        routed = { handle: delegates[index], reservation: now.record.id };
+      return delegates[index];
+    };
     /** The first legacy key holding an unresolved write, through its own gate. */
     async function delegated(
       client: WriteHoldClient,
@@ -1770,9 +1874,98 @@ export function createWriteHold(
       for (const [index, handle] of delegates.entries()) {
         if (!foreign(index)) continue;
         const state = await handle.state(client);
-        if (state.status !== "clear") return state;
+        if (state.status !== "clear") {
+          routed = { handle, reservation: state.record.id };
+          return state;
+        }
       }
       return null;
+    }
+    /**
+     * How a legacy hold this intent stood for ended, while the intent itself
+     * never reserved: its settlement (acknowledged or not) is the intent's,
+     * so a view that saw it held shows its result, and an unacknowledged
+     * success still blocks a fresh one.
+     */
+    /**
+     * Every legacy settlement that may be the intent's: the reservation it
+     * was seen standing for (first), and any reserved after (or not provably
+     * before) its own latest reservation. Times that can't be compared count
+     * as newer: a false block is the safe side.
+     */
+    function eligibleLegacy(): {
+      handle: (typeof delegates)[number];
+      state: Extract<WriteHoldState, { status: "clear" }>;
+    }[] {
+      const eligible: {
+        handle: (typeof delegates)[number];
+        state: Extract<WriteHoldState, { status: "clear" }>;
+      }[] = [];
+      if (routed) {
+        const now = routed.handle.peek();
+        if (
+          now.status === "clear" &&
+          now.settled &&
+          now.reservation === routed.reservation
+        )
+          eligible.push({ handle: routed.handle, state: now });
+      }
+      const ownReserved = ownJournal.latestReservation() !== undefined;
+      const ownAt = ownJournal.latestReservedAt();
+      for (const [index, handle] of delegates.entries()) {
+        if (eligible.some((entry) => entry.handle === handle)) continue;
+        const now = handle.peek();
+        if (now.status !== "clear" || !now.settled) continue;
+        const legacyAt =
+          journals[index].latestReservedAt() ?? journals[index].settledAt();
+        if (
+          !ownReserved ||
+          ownAt === undefined ||
+          legacyAt === undefined ||
+          // The same moment is no proof of order: counted as newer.
+          legacyAt >= ownAt
+        )
+          eligible.push({ handle, state: now });
+      }
+      return eligible;
+    }
+    /**
+     * What the intent shows of its legacy holds: the settlement of the one
+     * it was seen standing for (so it is delivered), else an unacknowledged
+     * success, else any eligible one. Blocking is the send gate's
+     * (unacknowledgedSuccess), never this choice.
+     */
+    function legacySettled() {
+      const eligible = eligibleLegacy();
+      return (
+        eligible.find(
+          ({ handle, state }) =>
+            handle === routed?.handle &&
+            state.reservation === routed.reservation,
+        ) ??
+        eligible.find(
+          ({ state }) =>
+            state.settled!.result === "success" &&
+            !("acknowledged" in state.settled! && state.settled.acknowledged),
+        ) ??
+        eligible[0]
+      );
+    }
+    /**
+     * `state`, or, when it is a clear, the legacy settlement that owns the
+     * intent's result instead: the one it was seen standing for, or one
+     * reserved after its own latest reservation, whatever the intent's own
+     * (older) settlement says. One choice for reads, events and the guard.
+     */
+    function withLegacy(state: WriteHoldState): WriteHoldState {
+      if (state.status !== "clear") return state;
+      const legacy = legacySettled();
+      return legacy
+        ? {
+            ...legacy.state,
+            ...(state.checked === undefined ? {} : { checked: state.checked }),
+          }
+        : state;
     }
     /**
      * The final check and reservation, under every legacy key's lock taken
@@ -1911,14 +2104,81 @@ export function createWriteHold(
     };
     return {
       ...own,
-      peek: () => active()?.peek() ?? own.peek(),
+      peek: () => active()?.peek() ?? withLegacy(own.peek()),
+      /**
+       * The intent's events, through the same owner as its state(): while a
+       * legacy hold stands for it, its own empty clear is that hold's state
+       * (or its settlement), never a release.
+       */
+      subscribe: (listener: (state: WriteHoldState) => void) =>
+        own.subscribe((state) =>
+          listener(
+            state.status === "clear"
+              ? (active()?.peek() ?? withLegacy(state))
+              : state,
+          ),
+        ),
       async state(
         client: WriteHoldClient,
         checks?: { effect?: (chainId: number) => Promise<boolean> },
       ): Promise<WriteHoldState> {
         return (
-          (await delegated(client)) ?? after(await own.state(client, checks))
+          (await delegated(client)) ??
+          withLegacy(await after(await own.state(client, checks)))
         );
+      },
+      /**
+       * The send gate: any unacknowledged success, the intent's own or an
+       * eligible legacy hold's. Pure, from storage, whatever a view shows.
+       */
+      unacknowledgedSuccess(
+        skip?: (hash: Hex) => boolean,
+      ): UnacknowledgedSuccess | undefined {
+        // Every eligible success is considered: one looked past never hides
+        // another.
+        const mine = own.unacknowledgedSuccess(skip);
+        if (mine) return mine;
+        for (const { state } of eligibleLegacy()) {
+          const settled = state.settled!;
+          if (
+            settled.result === "success" &&
+            "hash" in settled &&
+            !settled.acknowledged &&
+            !skip?.(settled.hash)
+          )
+            return {
+              result: "success",
+              hash: settled.hash,
+              reservation: state.reservation,
+            };
+        }
+        return undefined;
+      },
+      /**
+       * How a reservation this intent stood for settled, on its own key or a
+       * legacy one, whichever hold is shown now.
+       */
+      settlementOf(reservation: string): WriteHoldSettled | undefined {
+        for (const handle of [own, ...delegates]) {
+          const settled = handle.settlementOf(reservation);
+          if (settled) return settled;
+        }
+        return undefined;
+      },
+      /** A settlement is acknowledged where it was saved, found by its hash. */
+      async acknowledge(
+        settled: Parameters<typeof own.acknowledge>[0],
+      ): Promise<WriteHoldState> {
+        const hash = settled.hash.toLowerCase();
+        const legacy = eligibleLegacy().find(
+          ({ state }) =>
+            state.settled !== undefined &&
+            "hash" in state.settled &&
+            state.settled.hash === hash,
+        );
+        return legacy
+          ? withLegacy(await legacy.handle.acknowledge(settled))
+          : own.acknowledge(settled);
       },
       async send<T>(
         client: WriteHoldClient,
@@ -2069,8 +2329,33 @@ export function createWriteHold(
         route()?.peek() ?? own.adopt(...args),
     };
   }
+  /**
+   * Every write held for `account` on `chainId`, with a handle to each at
+   * the key it was saved under: for an app-wide notice of everything held,
+   * whatever action made it. Read from storage alone; each handle's state()
+   * is the gated answer.
+   */
+  function list({ account, chainId }: { account: Address; chainId: number }) {
+    return listReviewedWrites({ account, chainId }, { storage }).map(
+      ({ key, record }) => {
+        const input: ReviewedWriteRecoveryInput = {
+          chainId: record.chainId,
+          account: record.account,
+          safe: record.safe,
+          call: record.call,
+        };
+        const handle: ReturnType<typeof open> =
+          record.namespace === undefined
+            ? openExact(input, key)
+            : open({ ...input, namespace: record.namespace });
+        return { key, record, handle };
+      },
+    );
+  }
+
   return {
     open,
+    list,
     /** Whether holds outlive this tab right now. */
     durable: () => storage.durable(),
     /** The review's line while holds last only in this tab, or null. */

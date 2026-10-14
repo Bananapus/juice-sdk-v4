@@ -245,13 +245,22 @@ const budgets = {
     // The shared intent builders (review/intents) and the candidate unseen
     // window measured 1,498,599 B packed / 21,950,472 B unpacked and 850
     // entries.
-    packed: 1_505_000,
-    unpacked: 21_965_000,
-    entries: 850,
+    // The shared held-write view, its follower and hold.list measured
+    // 1,513,496 B packed / 22,049,060 B unpacked and 858 entries.
+    // With the away-success gate, acknowledgement and the bounded Safe
+    // nonce wait: 1,518,154 B packed / 22,074,641 B unpacked; with legacy
+    // settlements through intents and listing-only Safe clocks, 1,521,404 B
+    // packed / 22,090,603 B unpacked; with the separate send gate, 22,113,761 B
+    // unpacked.
+    packed: 1_535_000,
+    unpacked: 22_130_000,
+    entries: 858,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
-    packed: 155_000,
+    // useHeldWrite, useHeldIntents, useHeldWrites and HeldWritesNotice
+    // measured 163,145 B packed / 1,805,792 B unpacked and 104 entries.
+    packed: 170_000,
     unpacked: 1_820_000,
     entries: 110,
   },

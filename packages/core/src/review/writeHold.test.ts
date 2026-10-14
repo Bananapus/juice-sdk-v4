@@ -19,6 +19,7 @@ import {
 import { uniswapV4Deployment } from "../v6/uniswapV4Deployments.js";
 import { submitReviewedContractWrite } from "./contractWrite.js";
 import {
+  HELD_SUCCESS_LINE,
   SAFE_PROPOSAL_EXECUTED_LINE,
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
@@ -34,6 +35,7 @@ import {
   writeHeldMessage,
 } from "./messages.js";
 import { launchIntent } from "./intents.js";
+import { createHeldWriteView } from "./heldWrite.js";
 import { intent, writeIntentKey } from "./writeIntent.js";
 import {
   createWriteHold,
@@ -2945,6 +2947,22 @@ describe("a write held under an intent", () => {
       finish();
       await holding;
     });
+
+    it("reports an adoption it couldn't make while another writer held a lock as unread", async () => {
+      const { handle, exact } = pair();
+      const { client } = fakeChain();
+      let finish!: () => void;
+      const holding = exact.send(
+        client,
+        () => new Promise<void>((resolve) => (finish = resolve)),
+      );
+      await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+      await expect(
+        handle.adopt({ status: "clear" }, { nonce: 7, fromBlock: 90n }),
+      ).resolves.toMatchObject({ status: "clear", declined: "unreadable" });
+      finish();
+      await holding;
+    });
   });
 
   it("refuses a second send of the intent: held once reserved, busy while the first holds its locks", async () => {
@@ -3642,6 +3660,63 @@ describe("a held Safe proposal", () => {
     });
     return { hold, queue, browser, storage };
   }
+
+  it("holds a proposal while Safe's service returns it unexecuted, and bounds the wait once it doesn't (ruling)", async () => {
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    await handle.state(fixture.client);
+    expect((handle.peek() as WriteHeldState).record.safeNonce).toBe("5");
+    // Two hours on, the service still returns it unexecuted: truly pending.
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + 2 * 3_600_000);
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      exit: false,
+    });
+    // Then the service can't find it, though the Safe's nonce still waits:
+    // a waiting nonce shows only that nothing ran there, so the clock runs.
+    queue.options.fetch.mockResolvedValue(new Response("", { status: 404 }));
+    vi.spyOn(Date, "now").mockReturnValue(now + 2 * 3_600_000 + 29 * 60_000);
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      exit: false,
+    });
+    vi.spyOn(Date, "now").mockReturnValue(now + 2 * 3_600_000 + 31 * 60_000);
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      status: "held-unchecked",
+      exit: true,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
+    });
+  });
+
+  it("bounds a saved-nonce proposal's wait when not even the chain's id can be read", async () => {
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    await handle.state(fixture.client);
+    queue.options.fetch.mockRejectedValue(new Error("offline"));
+    fixture.client.getChainId.mockRejectedValue(new Error("rpc"));
+    fixture.client.request.mockRejectedValue(new Error("rpc"));
+    fixture.client.getTransactionReceipt.mockRejectedValue(new Error("rpc"));
+    fixture.client.getTransaction.mockRejectedValue(new Error("rpc"));
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + 29 * 60_000);
+    await expect(handle.state(fixture.client)).resolves.toMatchObject({
+      exit: false,
+    });
+    vi.spyOn(Date, "now").mockReturnValue(now + 31 * 60_000);
+    const late = await handle.state(fixture.client);
+    expect(late).toMatchObject({ status: "held-unchecked", exit: true });
+    // Still only the user's explicit exit ends it.
+    expect(handle.peek().status).not.toBe("clear");
+  });
 
   it("keeps a held proposal, unreleased, when Safe's service never answers", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
@@ -4528,6 +4603,42 @@ describe("a held Safe proposal", () => {
   );
 
   describe("whose follower ends without proof", () => {
+    it("lets the service listing this proposal unexecuted again override its unproven end", async () => {
+      const { hold, queue } = safeSetup();
+      const fixture = fakeChain();
+      const handle = hold.open(safeCall());
+      await handle.send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(queue.hash);
+      });
+      // The service lost it: unproven, with its exit.
+      queue.options.fetch.mockResolvedValue(new Response("", { status: 404 }));
+      const view = createHeldWriteView(handle, {
+        client: fixture.client,
+        follow: false,
+      });
+      const stop = view.start();
+      await handle.onUnproven(fixture.client, queue.hash);
+      await view.check();
+      expect(view.get()).toMatchObject({ phase: "held", exit: true });
+      // It lists this exact proposal unexecuted again: truly pending.
+      queue.options.fetch.mockImplementation(
+        async () => new Response(JSON.stringify(queue.answer.current)),
+      );
+      const now = Date.now();
+      vi.spyOn(Date, "now").mockReturnValue(now + 60 * 60_000);
+      await view.check();
+      expect(view.get()).toMatchObject({
+        exit: false,
+        state: { checked: true },
+      });
+      expect((handle.peek() as WriteHeldState).record).toMatchObject({
+        pendingSeenAt: String(now + 60 * 60_000),
+      });
+      expect((handle.peek() as WriteHeldState).record.unproven).toBeUndefined();
+      stop();
+    });
+
     const unprovenState = {
       status: "safe-unproven",
       exit: true,
@@ -4544,9 +4655,16 @@ describe("a held Safe proposal", () => {
       });
       return { ...setup, fixture, handle };
     }
+    /** Safe's service answers it has no such proposal. */
+    const lost = (queue: ReturnType<typeof service>) =>
+      queue.options.fetch.mockImplementation(
+        async () => new Response("", { status: 404 }),
+      );
 
     it("keeps a reported execution's unseen window through failing reads, then offers the exit", async () => {
-      const { handle, fixture } = await proposed();
+      const { handle, fixture, queue } = await proposed();
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       const candidate = `0x${"c4".repeat(32)}` as Hex;
       await handle.onExecuted(fixture.client, candidate);
       // Every read of that hash fails before the chain ever showed it.
@@ -4734,6 +4852,8 @@ describe("a held Safe proposal", () => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(1_000_000);
       const { handle, fixture, queue } = await proposed();
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       const CAND = `0x${"c5".repeat(32)}` as Hex;
       fixture.chain.txs.push({
         hash: CAND,
@@ -4930,6 +5050,8 @@ describe("a held Safe proposal", () => {
     it("keeps an unauthenticated execution hash as a candidate only, so the exit stays reachable", async () => {
       const browser = origin();
       const { handle, fixture, queue } = await proposed(browser);
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       // Codex: the hash ran different calldata.
       fixture.chain.txs.push({
         hash: EXECUTION,
@@ -4956,7 +5078,9 @@ describe("a held Safe proposal", () => {
       const unproven = await handle.onUnproven(fixture.client, queue.hash);
       expect(unproven).toMatchObject(unprovenState);
       // After a reload too.
-      const reloaded = safeSetup(browser).hold.open(safeCall());
+      const reloadedSetup = safeSetup(browser);
+      lost(reloadedSetup.queue);
+      const reloaded = reloadedSetup.hold.open(safeCall());
       expect(reloaded.peek()).toMatchObject({ ...unprovenState, exit: false });
       const shown = await reloaded.state(fixture.client);
       expect(shown).toMatchObject(unprovenState);
@@ -5086,6 +5210,8 @@ describe("a held Safe proposal", () => {
 
     it("offers the unproven exit through state(), never through peek()", async () => {
       const { handle, fixture, queue } = await proposed();
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       await handle.onUnproven(fixture.client, queue.hash);
       expect(handle.peek()).toMatchObject({
         status: "safe-unproven",
@@ -5101,6 +5227,8 @@ describe("a held Safe proposal", () => {
     it("offers the exit at once, durably through a reload", async () => {
       const browser = origin();
       const { handle, fixture, queue } = await proposed(browser);
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       const ended = await handle.onUnproven(fixture.client, queue.hash);
       expect(ended).toMatchObject({
         ...unprovenState,
@@ -5108,7 +5236,9 @@ describe("a held Safe proposal", () => {
         record: { unproven: true },
       });
       // A reload: a new controller and tab memory, the same browser.
-      const reloaded = safeSetup(browser).hold.open(safeCall());
+      const reloadedSetup = safeSetup(browser);
+      lost(reloadedSetup.queue);
+      const reloaded = reloadedSetup.hold.open(safeCall());
       expect(reloaded.peek()).toMatchObject({ ...unprovenState, exit: false });
       const shown = await reloaded.state(fixture.client);
       expect(shown).toMatchObject(unprovenState);
@@ -5171,6 +5301,8 @@ describe("a held Safe proposal", () => {
 
     it("saves an authenticated execution before it is final, so an earlier unproven snapshot can't exit", async () => {
       const { handle, fixture, queue, hold } = await proposed();
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       const unproven = await handle.onUnproven(fixture.client, queue.hash);
       expect(unproven.status).toBe("safe-unproven");
       // Codex: the execution lands at block 95 while the finalized block is 90.
@@ -5224,6 +5356,8 @@ describe("a held Safe proposal", () => {
 
     it("ignores another proposal, an ordinary write, nothing held and a busy lock", async () => {
       const { handle, fixture, queue } = await proposed();
+      // The service has lost it: its follower ends unproven.
+      lost(queue);
       await expect(
         handle.onUnproven(fixture.client, OTHER),
       ).resolves.toMatchObject({
@@ -5878,6 +6012,968 @@ describe("a launch held under its shared intent", () => {
   });
 });
 
+describe("acknowledging a success that settled while away", () => {
+  it("marks the saved settlement acknowledged for every reader, and only that one", async () => {
+    const browser = origin();
+    const { hold } = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    const settled = await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(settled).toMatchObject({
+      settled: { result: "success", hash: HASH },
+    });
+    // Another hash names nothing to acknowledge.
+    await expect(
+      handle.acknowledge({ result: "success", hash: OTHER }),
+    ).resolves.toMatchObject({ settled: { hash: HASH } });
+    // Acknowledged, never wiped: every reader still sees the success.
+    const acknowledged = {
+      status: "clear",
+      reservation: expect.any(String),
+      settled: { result: "success", hash: HASH, acknowledged: true },
+    };
+    await expect(
+      handle.acknowledge({ result: "success", hash: HASH }),
+    ).resolves.toEqual(acknowledged);
+    expect(setup({ browser }).hold.open(ordinary).peek()).toEqual(acknowledged);
+    // The next reservation replaces it, as any settlement.
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    expect(handle.peek().status).not.toBe("clear");
+    // Without the lock, nothing is forgotten: the saved record is shown.
+    const unlocked = setup({
+      locks: {
+        request: async () => {
+          throw new Error("locks unavailable");
+        },
+      } as never,
+    });
+    await expect(
+      unlocked.hold
+        .open(ordinary)
+        .acknowledge({ result: "success", hash: HASH }),
+    ).resolves.toMatchObject({ status: "clear" });
+  });
+});
+
+describe("a legacy hold's success, through its intent", () => {
+  it("passes the intent's own settlement to its subscribers as it is", async () => {
+    const { hold } = setup();
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(
+      { ...ordinary, namespace: writeIntentKey("pay", { projectId: 7n }) },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    const heard: WriteHoldState[] = [];
+    const stop = handle.subscribe((state) => heard.push(state));
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(heard[heard.length - 1]).toMatchObject({
+      status: "clear",
+      settled: { result: "success", hash: HASH },
+    });
+    stop();
+  });
+
+  it("blocks a fresh load on a legacy success reserved after the intent's own attempt, never on an older one", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const open = () =>
+      next.hold.open(
+        {
+          ...ordinary,
+          call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+          namespace: key,
+        },
+        { legacy: [{ call: ordinary.call }] },
+      );
+    // An older version's write that settled before the intent ever reserved.
+    await old.hold.open(ordinary).send(client, wallet(async () => OTHER).send);
+    chain.txs.push(sent(OTHER, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    vi.setSystemTime(2_000_000);
+    // The intent reserves; the wallet rejects it.
+    await expect(
+      open().send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+        throw new Error("rejected");
+      }),
+    ).rejects.toThrow("rejected");
+    // The older settlement stays unannounced.
+    const before = createHeldWriteView(open(), { client, follow: false });
+    await before.check();
+    expect(before.get().phase).toBe("clear");
+    // Later, with every page closed, the older version sends again and it settles.
+    vi.setSystemTime(3_000_000);
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 96n, nonce: 8 }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[1]), client);
+    // A fresh load sees a success it never told: blocked until acknowledged.
+    const view = createHeldWriteView(open(), { client, follow: false });
+    await view.check();
+    expect(view.get()).toMatchObject({
+      phase: "succeeded",
+      settled: { hash: HASH },
+    });
+    const retry = wallet(async () => OTHER);
+    await expect(view.send(retry.send)).rejects.toThrow();
+    expect(retry.write).not.toHaveBeenCalled();
+    await view.acknowledge();
+    await view.send(retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+  });
+
+  it("lets a newer legacy success win over the intent's own older settlement, in reads and subscriptions", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    chain.head = 120n;
+    chain.finalized = 110n;
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const intentCall = {
+      ...ordinary,
+      call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+      namespace: key,
+    };
+    const open = () =>
+      next.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    // The intent's own write reverted, final: its settlement is a failure.
+    const own = open();
+    await own.send(client, wallet(async () => OTHER).send);
+    chain.txs.push({
+      ...sent(OTHER, { block: 100n, status: "reverted" }),
+      input: intentCall.call.data,
+    });
+    await own.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(own.peek()).toMatchObject({ settled: { result: "failed" } });
+    // Later, an older version's exact call succeeds.
+    vi.setSystemTime(2_000_000);
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 101n, nonce: 8 }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[1]), client);
+    // A fresh view: the newer success, blocked until acknowledged.
+    const view = createHeldWriteView(open(), { client, follow: false });
+    const stop = view.start();
+    await vi.waitFor(() =>
+      expect(view.get()).toMatchObject({
+        phase: "succeeded",
+        settled: { hash: HASH },
+      }),
+    );
+    // The intent's own key speaks: still the newer success.
+    const heard: WriteHoldState[] = [];
+    const stopHearing = open().subscribe((state) => heard.push(state));
+    await next.hold.open(intentCall).state(client);
+    expect(heard[heard.length - 1]).toMatchObject({ settled: { hash: HASH } });
+    stopHearing();
+    await expect(view.send(wallet(async () => OTHER).send)).rejects.toThrow();
+    stop();
+  });
+
+  it.each([false, true])(
+    "lets an unacknowledged legacy success win over another legacy key's failure (swapped %s)",
+    async (swapped) => {
+      const browser = origin();
+      const old = setup({ browser });
+      const next = setup({ browser, locks: old.locks });
+      const { chain, client, receiptOf } = fakeChain();
+      chain.head = 120n;
+      chain.finalized = 110n;
+      const callA = { ...ordinary.call, data: "0xaabbccdd00a1" as Hex };
+      const callB = { ...ordinary.call, data: "0xaabbccdd00b2" as Hex };
+      const [failing, succeeding] = swapped ? [callB, callA] : [callA, callB];
+      // One earlier write reverted, final; another succeeded.
+      await old.hold
+        .open({ ...ordinary, call: failing })
+        .send(client, async (gate) => {
+          await gate.beforeSend();
+          gate.afterSubmit(OTHER);
+          return OTHER;
+        });
+      chain.txs.push({
+        ...sent(OTHER, { block: 100n, status: "reverted" }),
+        input: failing.data,
+      });
+      await old.hold
+        .open({ ...ordinary, call: failing })
+        .onReceipt(receiptOf(chain.txs[0]), client);
+      await old.hold
+        .open({ ...ordinary, call: succeeding })
+        .send(client, async (gate) => {
+          await gate.beforeSend();
+          gate.afterSubmit(HASH);
+          return HASH;
+        });
+      chain.txs.push({
+        ...sent(HASH, { block: 101n, nonce: 8 }),
+        input: succeeding.data,
+      });
+      await old.hold
+        .open({ ...ordinary, call: succeeding })
+        .onReceipt(receiptOf(chain.txs[1]), client);
+      const handle = next.hold.open(
+        {
+          ...ordinary,
+          call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+          namespace: writeIntentKey("pay", { projectId: 4n }),
+        },
+        { legacy: [{ call: callA }, { call: callB }] },
+      );
+      const view = createHeldWriteView(handle, { client, follow: false });
+      const stop = view.start();
+      await vi.waitFor(() =>
+        expect(view.get()).toMatchObject({
+          phase: "succeeded",
+          settled: { hash: HASH },
+        }),
+      );
+      await view.acknowledge();
+      expect(
+        old.hold.open({ ...ordinary, call: succeeding }).peek(),
+      ).toMatchObject({
+        settled: { acknowledged: true },
+      });
+      stop();
+    },
+  );
+
+  /** Two legacy keys, A and B, of an intent that never reserved, and a started view. */
+  function twoKeys() {
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const fixture = fakeChain();
+    fixture.chain.head = 120n;
+    fixture.chain.finalized = 110n;
+    const calls = {
+      A: { ...ordinary.call, data: "0xaabbccdd00a1" as Hex },
+      B: { ...ordinary.call, data: "0xaabbccdd00b2" as Hex },
+    };
+    const hashes = {
+      A: `0x${"a1".repeat(32)}` as Hex,
+      B: `0x${"b2".repeat(32)}` as Hex,
+    };
+    let block = 100n;
+    let nonce = 7;
+    const legacyOf = (key: "A" | "B") =>
+      old.hold.open({ ...ordinary, call: calls[key] });
+    /** The older version sends `key`'s call. */
+    const send = (key: "A" | "B") =>
+      legacyOf(key).send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(hashes[key]);
+        return hashes[key];
+      });
+    /** `key`'s transaction mines, final, with `result`. */
+    const settle = async (key: "A" | "B", result: "success" | "failed") => {
+      fixture.chain.txs.push({
+        ...sent(hashes[key], {
+          block: block++,
+          nonce: nonce++,
+          ...(result === "failed" ? { status: "reverted" as const } : {}),
+        }),
+        input: calls[key].data,
+      });
+      await legacyOf(key).onReceipt(
+        fixture.receiptOf(fixture.chain.txs[fixture.chain.txs.length - 1]),
+        fixture.client,
+      );
+    };
+    const intentHandle = () =>
+      next.hold.open(
+        {
+          ...ordinary,
+          call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+          namespace: writeIntentKey("pay", { projectId: 4n }),
+        },
+        { legacy: [{ call: calls.A }, { call: calls.B }] },
+      );
+    /** Another writer holds `key`'s lock until the returned release. */
+    const lockKey = async (key: "A" | "B") => {
+      let release!: () => void;
+      const holding = legacyOf(key)
+        .send(
+          fixture.client,
+          () => new Promise<void>((resolve) => (release = resolve)),
+        )
+        .catch(() => undefined);
+      await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+      return async () => {
+        release();
+        await holding;
+      };
+    };
+    /** `key`'s call sent with its wallet reply lost: held, no hash. */
+    const lose = (key: "A" | "B") =>
+      legacyOf(key)
+        .send(fixture.client, lostReply().send)
+        .catch(() => undefined);
+    /** Whether `key`'s saved settlement is an unacknowledged success. */
+    const unacknowledged = (key: "A" | "B") => {
+      const now = legacyOf(key).peek();
+      return (
+        now.status === "clear" &&
+        now.settled?.result === "success" &&
+        !("acknowledged" in now.settled && now.settled.acknowledged)
+      );
+    };
+    return {
+      fixture,
+      hashes,
+      send,
+      settle,
+      intentHandle,
+      lockKey,
+      lose,
+      unacknowledged,
+    };
+  }
+
+  it("lets a later legacy success replace a retained failure, and gates the send on it (Codex :417)", async () => {
+    const keys = twoKeys();
+    await keys.send("A");
+    const settled = vi.fn();
+    const view = createHeldWriteView(keys.intentHandle(), {
+      client: keys.fixture.client,
+      follow: false,
+      onSettled: settled,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    await keys.settle("A", "failed");
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(view.get()).toMatchObject({
+      phase: "settled",
+      settled: { result: "failed" },
+    });
+    // Between this view's reads, B is sent and succeeds.
+    await keys.send("B");
+    await keys.settle("B", "success");
+    await view.check();
+    expect(view.get()).toMatchObject({
+      phase: "succeeded",
+      settled: { hash: keys.hashes.B },
+    });
+    const retry = wallet(async () => OTHER);
+    await expect(view.send(retry.send)).rejects.toThrow();
+    expect(retry.write).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("delivers the settlement it saw held, though another key has a success (Codex :1896)", async () => {
+    const keys = twoKeys();
+    await keys.send("B");
+    await keys.settle("B", "success");
+    await keys.send("A");
+    const settled = vi.fn();
+    const view = createHeldWriteView(keys.intentHandle(), {
+      client: keys.fixture.client,
+      follow: false,
+      onSettled: settled,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    await keys.settle("A", "failed");
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(settled).toHaveBeenCalledWith(
+      { result: "failed", hash: keys.hashes.A },
+      expect.anything(),
+    );
+    // Then B's unacknowledged success shows, and gates the send.
+    await vi.waitFor(() =>
+      expect(view.get()).toMatchObject({
+        phase: "succeeded",
+        settled: { hash: keys.hashes.B },
+      }),
+    );
+    await expect(view.send(wallet(async () => OTHER).send)).rejects.toThrow();
+    stop();
+  });
+
+  it("finds another success past one whose acknowledgement waits on a lock (Codex 1)", async () => {
+    const keys = twoKeys();
+    await keys.send("A");
+    const view = createHeldWriteView(keys.intentHandle(), {
+      client: keys.fixture.client,
+      follow: false,
+      onSettled: vi.fn(),
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    await keys.settle("A", "success");
+    // A's acknowledgement will wait for A's lock.
+    const release = await keys.lockKey("A");
+    await view.check();
+    await vi.waitFor(() => expect(view.get().phase).toBe("settled"));
+    // B succeeds between this view's reads.
+    await keys.send("B");
+    await keys.settle("B", "success");
+    await view.check();
+    expect(view.get()).toMatchObject({
+      phase: "succeeded",
+      settled: { hash: keys.hashes.B },
+    });
+    const retry = wallet(async () => OTHER);
+    await expect(view.send(retry.send)).rejects.toThrow();
+    expect(retry.write).not.toHaveBeenCalled();
+    await release();
+    stop();
+  });
+
+  it("keeps a newer hold and its exit when an acknowledgement completes (Codex 2)", async () => {
+    const keys = twoKeys();
+    await keys.send("A");
+    await keys.settle("A", "success");
+    const view = createHeldWriteView(keys.intentHandle(), {
+      client: keys.fixture.client,
+      follow: false,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("succeeded"));
+    // "Send it again", its acknowledgement waiting on A's lock.
+    const release = await keys.lockKey("A");
+    const acknowledged = view.acknowledge();
+    // Meanwhile B is held, its reply lost: the exit at once.
+    await keys.lose("B");
+    await view.check();
+    expect(view.get()).toMatchObject({ phase: "held", exit: true });
+    await release();
+    await acknowledged;
+    expect(view.get()).toMatchObject({ phase: "held", exit: true });
+    expect(view.get().state).not.toBeNull();
+    stop();
+  });
+
+  it("delivers a reservation it saw held after another becomes the one shown (Codex 3)", async () => {
+    const keys = twoKeys();
+    await keys.send("A");
+    const settled = vi.fn();
+    const view = createHeldWriteView(keys.intentHandle(), {
+      client: keys.fixture.client,
+      follow: false,
+      onSettled: settled,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    // B is held too, before A settles; then A fails.
+    await keys.send("B");
+    await keys.settle("A", "failed");
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(settled).toHaveBeenCalledWith(
+      { result: "failed", hash: keys.hashes.A },
+      expect.anything(),
+    );
+    await keys.settle("B", "failed");
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledTimes(2));
+    stop();
+  });
+
+  it("holds the gate through overlapping holds and acknowledgement contention, whatever the order", async () => {
+    let seed = 7;
+    const random = () =>
+      (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+    for (let run = 0; run < 16; run += 1) {
+      const keys = twoKeys();
+      const told = new Set<string>();
+      const view = createHeldWriteView(keys.intentHandle(), {
+        client: keys.fixture.client,
+        follow: false,
+        onSettled: (settled) => {
+          if ("hash" in settled) told.add(settled.hash.toLowerCase());
+        },
+      });
+      const stop = view.start();
+      // Both keys sent before either settles, in a random order, so their
+      // holds overlap; then each settles, in a random order.
+      const sends: ("A" | "B")[] = random() < 0.5 ? ["A", "B"] : ["B", "A"];
+      const settles: ("A" | "B")[] = random() < 0.5 ? ["A", "B"] : ["B", "A"];
+      for (const key of sends) {
+        await keys.send(key);
+        if (random() < 0.5) await view.check();
+      }
+      const releases: (() => Promise<void>)[] = [];
+      for (const key of settles) {
+        await keys.settle(key, random() < 0.5 ? "success" : "failed");
+        // Sometimes another writer holds a key's lock: acknowledgements wait.
+        if (random() < 0.5 && releases.length === 0)
+          releases.push(await keys.lockKey(key));
+        await view.check();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        // The gate holds while any saved success is unacknowledged and was
+        // never told to the app by this view.
+        const owed = (["A", "B"] as const).some(
+          (each) =>
+            keys.unacknowledged(each) &&
+            !told.has(keys.hashes[each].toLowerCase()),
+        );
+        if (owed) {
+          const retry = wallet(async () => OTHER);
+          await expect(view.send(retry.send)).rejects.toThrow();
+          expect({ run, key, written: retry.write.mock.calls.length }).toEqual({
+            run,
+            key,
+            written: 0,
+          });
+          // A hold still shown comes first; with none, "Send it again".
+          if (view.get().state?.status === "clear")
+            expect(view.get().phase).toBe("succeeded");
+        }
+        if (random() < 0.5) await releases.shift()?.();
+      }
+      for (const release of releases) await release();
+      stop();
+    }
+  });
+
+  it("holds the gate whenever any success is unacknowledged, whatever the order of events", async () => {
+    // A small seeded generator: the same sequences every run.
+    let seed = 42;
+    const random = () =>
+      (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+    for (let run = 0; run < 12; run += 1) {
+      const keys = twoKeys();
+      const view = createHeldWriteView(keys.intentHandle(), {
+        client: keys.fixture.client,
+        follow: false,
+      });
+      const order: ("A" | "B")[] = random() < 0.5 ? ["A", "B"] : ["B", "A"];
+      let anySuccess = false;
+      for (const key of order) {
+        await keys.send(key);
+        // Sometimes the view reads it held first (and then sees it settle live).
+        const watched = random() < 0.5;
+        if (watched) await view.check();
+        const result = random() < 0.5 ? "success" : "failed";
+        await keys.settle(key, result);
+        await view.check();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        // A success this view saw settle live is told and acknowledged;
+        // one it never saw held stays unacknowledged.
+        if (result === "success" && !watched) anySuccess = true;
+        const retry = wallet(async () => OTHER);
+        const sent = await view.send(retry.send).then(
+          () => true,
+          () => false,
+        );
+        expect({ run, key, watched, result, sent }).toMatchObject({
+          sent: !anySuccess,
+        });
+        if (sent) break; // a send changes the intent's history: one per run
+      }
+    }
+  });
+
+  it("gates on the intent's own unacknowledged success, and never on a held record", async () => {
+    const { hold } = setup();
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(
+      { ...ordinary, namespace: writeIntentKey("pay", { projectId: 8n }) },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    expect(handle.unacknowledgedSuccess()).toBeUndefined();
+    await handle.exit(
+      await handle.state(client),
+      { checkedWallet: true },
+      client,
+    );
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n, nonce: 7 }));
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(handle.unacknowledgedSuccess()).toMatchObject({
+      result: "success",
+      hash: HASH,
+    });
+    expect(handle.settlementOf("no-such-reservation")).toBeUndefined();
+  });
+
+  it("blocks on a legacy reservation made at the same moment as the intent's", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(5_000_000);
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const open = () =>
+      next.hold.open(
+        {
+          ...ordinary,
+          call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+          namespace: key,
+        },
+        { legacy: [{ call: ordinary.call }] },
+      );
+    await expect(
+      open().send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+        throw new Error("rejected");
+      }),
+    ).rejects.toThrow("rejected");
+    // The same millisecond: order unproven.
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    const view = createHeldWriteView(open(), { client, follow: false });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("succeeded"));
+    stop();
+  });
+
+  it("orders by the settlement's time, and blocks when times can't be compared", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const open = () =>
+      next.hold.open(
+        {
+          ...ordinary,
+          call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+          namespace: key,
+        },
+        { legacy: [{ call: ordinary.call }] },
+      );
+    await expect(
+      open().send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+        throw new Error("rejected");
+      }),
+    ).rejects.toThrow("rejected");
+    vi.setSystemTime(2_000_000);
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    /** Latest markers as an earlier version saved them: no time. */
+    const untimed = (scope: (key: string) => boolean) => {
+      for (const [stored, value] of browser.values)
+        if (stored.endsWith(":latest") && scope(stored))
+          browser.values.set(
+            stored,
+            JSON.stringify({ id: JSON.parse(value).id }),
+          );
+    };
+    // The legacy marker has no time: its settlement's time orders it.
+    untimed((stored) => !stored.includes("namespace"));
+    const view = createHeldWriteView(open(), { client, follow: false });
+    await view.check();
+    expect(view.get().phase).toBe("succeeded");
+    // Neither side has a time: blocked.
+    untimed(() => true);
+    const blind = createHeldWriteView(open(), { client, follow: false });
+    await blind.check();
+    expect(blind.get().phase).toBe("succeeded");
+  });
+
+  it("keeps the success of a legacy hold it saw held, though the intent reserved before", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const intentCall = {
+      ...ordinary,
+      call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+      namespace: key,
+    };
+    const open = () =>
+      next.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    // The intent once reserved, and the wallet rejected it.
+    await expect(
+      open().send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+        throw new Error("rejected");
+      }),
+    ).rejects.toThrow("rejected");
+    // Then an older version sends its exact call.
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    const settled = vi.fn();
+    const released = vi.fn();
+    const view = createHeldWriteView(open(), {
+      client,
+      follow: false,
+      onSettled: settled,
+      onReleased: released,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(view.get().phase).toBe("settled");
+    expect(released).not.toHaveBeenCalled();
+    stop();
+    // An unrelated old settlement, never seen held, stays unannounced here.
+    const fresh = createHeldWriteView(open(), {
+      client,
+      follow: false,
+      onSettled: settled,
+    });
+    await fresh.check();
+    expect(fresh.get().phase).toBe("clear");
+    expect(settled).toHaveBeenCalledOnce();
+  });
+
+  it("reaches a started, subscribed view as the success, never a release", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    const next = setup({ browser, locks: old.locks });
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const handle = next.hold.open(
+      {
+        ...ordinary,
+        call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+        namespace: key,
+      },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    const settled = vi.fn();
+    const released = vi.fn();
+    const view = createHeldWriteView(handle, {
+      client,
+      follow: false,
+      onSettled: settled,
+      onReleased: released,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    // The intent's own key speaks (another handle reads it): still the legacy hold.
+    const heard: WriteHoldState[] = [];
+    const stopHearing = handle.subscribe((state) => heard.push(state));
+    await next.hold
+      .open({
+        ...ordinary,
+        call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+        namespace: key,
+      })
+      .state(client);
+    expect(heard[heard.length - 1]).toMatchObject({
+      status: "pending-known-hash",
+    });
+    stopHearing();
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(view.get().phase).toBe("settled");
+    expect(released).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("is the intent's settlement: delivered once, never a release, and blocks until acknowledged", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    // An earlier version's exact-call write, sent.
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    const next = setup({ browser, locks: old.locks });
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const intentCall = {
+      ...ordinary,
+      call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+      namespace: key,
+    };
+    const open = () =>
+      next.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    const settled = vi.fn();
+    const released = vi.fn();
+    const view = createHeldWriteView(open(), {
+      client,
+      follow: false,
+      onSettled: settled,
+      onReleased: released,
+    });
+    await view.check();
+    expect(view.get().phase).toBe("confirming");
+    // The earlier write mines and settles.
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(view.get()).toMatchObject({
+      phase: "settled",
+      line: HELD_SUCCESS_LINE,
+    });
+    expect(released).not.toHaveBeenCalled();
+    // Seen settling, it was acknowledged: a reload blocks nothing.
+    await vi.waitFor(async () =>
+      expect((await open().state(client)).status).toBe("clear"),
+    );
+    const reloaded = createHeldWriteView(open(), { client, follow: false });
+    await reloaded.check();
+    expect(reloaded.get().phase).toBe("clear");
+  });
+
+  it("blocks a fresh view of the intent until the user acknowledges it", async () => {
+    const browser = origin();
+    const old = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await old.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    const next = setup({ browser, locks: old.locks });
+    const key = writeIntentKey("pay", { projectId: 4n });
+    const handle = next.hold.open(
+      {
+        ...ordinary,
+        call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+        namespace: key,
+      },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    const view = createHeldWriteView(handle, { client, follow: false });
+    await view.check();
+    expect(view.get().phase).toBe("succeeded");
+    expect(handle.peek()).toMatchObject({ settled: { hash: HASH } });
+    // Another hash acknowledges nothing of it.
+    await handle.acknowledge({ result: "success", hash: OTHER });
+    expect(old.hold.open(ordinary).peek()).toMatchObject({
+      settled: { hash: HASH },
+    });
+    expect(old.hold.open(ordinary).peek()).not.toMatchObject({
+      settled: { acknowledged: true },
+    });
+    const retry = wallet(async () => OTHER);
+    await expect(view.send(retry.send)).rejects.toThrow();
+    expect(retry.write).not.toHaveBeenCalled();
+    await view.acknowledge();
+    expect(old.hold.open(ordinary).peek()).toMatchObject({
+      settled: { acknowledged: true },
+    });
+    await view.send(retry.send);
+    expect(retry.write).toHaveBeenCalledOnce();
+  });
+});
+
+describe("two tabs viewing one write that succeeds", () => {
+  it("shows the success in the tab that didn't see it settle, never a release", async () => {
+    const browser = origin();
+    const tabA = setup({ browser });
+    const tabB = setup({ browser, locks: tabA.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const a = tabA.hold.open(ordinary);
+    await a.send(client, wallet(async () => HASH).send);
+    const settledB = vi.fn();
+    const releasedB = vi.fn();
+    const viewA = createHeldWriteView(a, { client, follow: false });
+    const viewB = createHeldWriteView(tabB.hold.open(ordinary), {
+      client,
+      follow: false,
+      onSettled: settledB,
+      onReleased: releasedB,
+    });
+    await viewA.check();
+    await viewB.check();
+    expect(viewB.get().phase).toBe("confirming");
+    // It mines; tab A sees it settle live, and acknowledges it.
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await a.onReceipt(receiptOf(chain.txs[0]), client);
+    await viewA.check();
+    expect(viewA.get().phase).toBe("settled");
+    await vi.waitFor(() =>
+      expect(tabA.hold.open(ordinary).peek()).toMatchObject({
+        settled: { acknowledged: true },
+      }),
+    );
+    await viewB.check();
+    await vi.waitFor(() => expect(settledB).toHaveBeenCalledOnce());
+    expect(viewB.get()).toMatchObject({
+      phase: "settled",
+      line: HELD_SUCCESS_LINE,
+    });
+    expect(releasedB).not.toHaveBeenCalled();
+    // A reload in either tab blocks nothing.
+    const reloaded = createHeldWriteView(
+      setup({ browser }).hold.open(ordinary),
+      {
+        client,
+        follow: false,
+      },
+    );
+    await reloaded.check();
+    expect(reloaded.get().phase).toBe("clear");
+  });
+});
+
+describe("listing every held write for an account", () => {
+  it("lists exact-call and intent holds once each, never a mirror, another account's or a released one", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const OTHER_ACCOUNT =
+      "0x3333333333333333333333333333333333333333" as Address;
+    const key = writeIntentKey("pay", { projectId: 4n });
+    // An exact-call hold.
+    await expect(
+      hold.open(ordinary).send(client, lostReply().send),
+    ).rejects.toThrow();
+    // An intent hold, mirrored at its own exact call.
+    const intentCall = {
+      ...ordinary,
+      call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+      namespace: key,
+    };
+    await expect(
+      hold
+        .open(intentCall, { legacy: [{ call: intentCall.call }] })
+        .send(client, lostReply().send),
+    ).rejects.toThrow();
+    // Another account's, and one released by its exit.
+    await expect(
+      hold
+        .open({ ...ordinary, account: OTHER_ACCOUNT })
+        .send(client, lostReply().send),
+    ).rejects.toThrow();
+    const released = hold.open({
+      ...ordinary,
+      call: { ...ordinary.call, value: 3n },
+    });
+    await expect(released.send(client, lostReply().send)).rejects.toThrow();
+    await released.exit(
+      await released.state(client),
+      { checkedWallet: true },
+      client,
+    );
+    const listed = hold.list({ account: ACCOUNT, chainId: 10 });
+    expect(listed.map(({ record }) => record.namespace ?? null).sort()).toEqual(
+      [key, null].sort(),
+    );
+    expect(hold.list({ account: ACCOUNT, chainId: 1 })).toEqual([]);
+    // Each handle is the gated hold: its exit releases it.
+    for (const { handle } of listed) {
+      const state = await handle.state(client);
+      expect(state).toMatchObject({ status: "held-no-hash", exit: true });
+      await expect(
+        handle.exit(state, { checkedWallet: true }, client),
+      ).resolves.toMatchObject({ released: true });
+    }
+    expect(hold.list({ account: ACCOUNT, chainId: 10 })).toEqual([]);
+  });
+});
+
 describe("adopting a previous deploy's hashless write", () => {
   it("keeps another tab's settlement made after the app's read, and creates no hold", async () => {
     const browser = origin();
@@ -5993,6 +7089,39 @@ describe("adopting a previous deploy's hashless write", () => {
 });
 
 describe("adopting a previous deploy's hashed write", () => {
+  it("says why it adopted nothing: a hash proven to be another write, or a chain it couldn't read", async () => {
+    const { hold } = setup();
+    const { chain, client } = fakeChain();
+    chain.txs.push(sent(HASH, { input: "0xaabbccdd0009" as Hex }));
+    const handle = hold.open(ordinary);
+    await expect(
+      handle.adopt({ status: "clear" }, { hash: HASH }, client),
+    ).resolves.toMatchObject({ status: "clear", declined: "refused" });
+    client.getChainId.mockRejectedValueOnce(new Error("rpc"));
+    await expect(
+      handle.adopt({ status: "clear" }, { hash: OTHER }, client),
+    ).resolves.toMatchObject({ status: "clear", declined: "unreadable" });
+    // A client on another chain can't check this chain's transaction.
+    client.getChainId.mockResolvedValueOnce(1);
+    await expect(
+      handle.adopt({ status: "clear" }, { hash: OTHER }, client),
+    ).resolves.toMatchObject({ status: "clear", declined: "unreadable" });
+    await expect(
+      handle.adopt({ status: "clear" }, { hash: OTHER }),
+    ).resolves.toMatchObject({ status: "clear", declined: "unreadable" });
+    await expect(
+      handle.adopt({ status: "clear" }, { hash: "0x12" as Hex }, client),
+    ).resolves.toMatchObject({ status: "clear", declined: "refused" });
+    // Under an intent, the same.
+    const intent = hold.open(
+      { ...ordinary, namespace: writeIntentKey("pay", { projectId: 9n }) },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    await expect(
+      intent.adopt({ status: "clear" }, { hash: HASH }, client),
+    ).resolves.toMatchObject({ status: "clear", declined: "refused" });
+  });
+
   it("gives a dropped hash the warned exit 30 minutes after it was sent, never before", async () => {
     vi.useFakeTimers({ now: 10_000_000, toFake: ["Date"] });
     const { hold } = setup();
@@ -6063,7 +7192,7 @@ describe("adopting a previous deploy's hashed write", () => {
       const { checked: _, ...snapshot } = await handle.state(client);
       await expect(
         handle.adopt(snapshot, { hash: HASH }, client),
-      ).resolves.toEqual(snapshot);
+      ).resolves.toEqual({ ...snapshot, declined: "refused" });
       expect(handle.peek().status).toBe("clear");
     }
     const { hold } = setup();

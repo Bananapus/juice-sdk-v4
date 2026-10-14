@@ -109,6 +109,12 @@ export type ReviewedWriteRecoveryRecord = Omit<
 export type ReviewedWriteSettlement = {
   result: "success" | "failed";
   hash: Hex;
+  /**
+   * The user saw it (or a view that saw it settle told the app): it blocks
+   * nothing, but every reader still learns the result. One per call key,
+   * replaced by the call's next reservation like any settlement.
+   */
+  acknowledged?: true;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -566,6 +572,50 @@ function foundAt(input: ReviewedWriteRecoveryInput, at: string): string {
   throw new Error("Invalid write recovery key.");
 }
 
+/**
+ * Every unresolved write saved for `account` on `chainId`, with the key it
+ * was saved under: held under an intent namespace, as an exact call, or under
+ * the pre-2.30 selector key. A mirror is never one (its intent is listed by
+ * its namespace), nor a released, unreadable or other-account record. For an
+ * app-wide notice of everything held.
+ */
+export function listReviewedWrites(
+  input: Pick<ReviewedWriteRecoveryInput, "chainId" | "account">,
+  options: { storage?: RecoveryStorage } = {},
+): { key: string; record: ReviewedWriteRecoveryRecord }[] {
+  const { chainId, account } = normalizedIdentity(input);
+  const store = recoveryStorage(options.storage);
+  const listed: { key: string; record: ReviewedWriteRecoveryRecord }[] = [];
+  for (const key of storedKeys(store)) {
+    if (
+      !key.startsWith("nana-sdk:reviewed-write:") ||
+      !key.includes(`:${chainId}:${account}:`)
+    )
+      continue;
+    try {
+      const record = readStored(store.getItem(key), key, () => key, store);
+      if (
+        !record ||
+        record.mirrorOf !== undefined ||
+        record.chainId !== chainId ||
+        record.account !== account
+      )
+        continue;
+      const exactPrefix = `nana-sdk:reviewed-write:v2:${chainId}:${account}:${record.call.to}:`;
+      const owned =
+        record.namespace !== undefined
+          ? key === scope(record)
+          : key === legacyScope(record) ||
+            (key.startsWith(exactPrefix) &&
+              /^\d+:0x[0-9a-f]{64}$/.test(key.slice(exactPrefix.length)));
+      if (owned) listed.push({ key, record });
+    } catch {
+      // An unreadable record names no call, so it holds none.
+    }
+  }
+  return listed;
+}
+
 export type ReviewedWriteRecoveryScope = Pick<
   ReviewedWriteRecoveryInput,
   "chainId" | "account"
@@ -967,7 +1017,8 @@ export function createBrowserWriteRecovery(
   }
   /** Save `id` as the call's latest reservation, verified by reading it back. */
   function markedLatest(id: string): boolean {
-    const marker = JSON.stringify({ id });
+    // When it was reserved too, so another key's settlement can be ordered against it.
+    const marker = JSON.stringify({ id, at: Date.now() });
     try {
       const store = storage();
       store.setItem(latestKey, marker);
@@ -1190,6 +1241,36 @@ export function createBrowserWriteRecovery(
       return mirrored;
     },
     /**
+     * When the call's latest reservation was made, in milliseconds since the
+     * epoch, from its latest marker; undefined when unknown (none, or one an
+     * earlier version saved without a time).
+     */
+    latestReservedAt(): number | undefined {
+      try {
+        const at = (
+          JSON.parse(storage().getItem(latestKey) ?? "null") as {
+            at?: unknown;
+          } | null
+        )?.at;
+        return typeof at === "number" ? at : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    /** When the call's saved settlement was saved, or undefined. */
+    settledAt(): number | undefined {
+      try {
+        const at = (
+          JSON.parse(storage().getItem(settledKey) ?? "null") as {
+            at?: unknown;
+          } | null
+        )?.at;
+        return typeof at === "number" ? at : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    /**
      * The call's latest reservation id: the record saved at the key (held,
      * or released by its exit), or else the saved latest marker.
      */
@@ -1235,6 +1316,27 @@ export function createBrowserWriteRecovery(
       }
     },
     /**
+     * Mark the saved settlement `settled` names (its hash) acknowledged,
+     * keeping its result and hash for every reader. Another settlement stays.
+     */
+    acknowledgeSettled(settled: ReviewedWriteSettlement): void {
+      requireLock();
+      const store = storage();
+      try {
+        const raw = store.getItem(settledKey);
+        const saved = JSON.parse(raw ?? "null") as {
+          hash?: unknown;
+        } | null;
+        if (saved?.hash === settled.hash.toLowerCase())
+          store.setItem(
+            settledKey,
+            JSON.stringify({ ...saved, acknowledged: true }),
+          );
+      } catch {
+        /* An unreadable settlement names none; a refused write keeps it unacknowledged. */
+      }
+    },
+    /**
      * How the call's last write ended, if {@link markSettled} saved it for
      * the call's latest reservation; a settlement of an earlier one reads as
      * none, wherever it was kept.
@@ -1249,6 +1351,7 @@ export function createBrowserWriteRecovery(
           id?: unknown;
           result?: unknown;
           hash?: unknown;
+          acknowledged?: unknown;
         } | null;
         // A record saved at the key (held, or released by the user's exit)
         // belongs to its own attempt; only none, or the settled one, lets the
@@ -1260,7 +1363,13 @@ export function createBrowserWriteRecovery(
           (raw === null || idOf(raw) === saved.id) &&
           (saved.result === "success" || saved.result === "failed") &&
           isBytes32(saved.hash)
-          ? { result: saved.result, hash: saved.hash as Hex }
+          ? {
+              result: saved.result,
+              hash: saved.hash as Hex,
+              ...(saved.acknowledged === true
+                ? { acknowledged: true as const }
+                : {}),
+            }
           : undefined;
       } catch {
         return undefined;
@@ -1436,6 +1545,19 @@ export function createBrowserWriteRecovery(
           !current.unproven,
         { unproven: true },
       );
+    },
+    /**
+     * Safe's service lists the proposal unexecuted again: it is truly
+     * pending, so an unproven end is undone and its unseen clock restarts.
+     * Extra evidence: a stale snapshot keeps the record as it was.
+     */
+    listedAgain(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(expected, (current) => current.safe && !current.executed, {
+        unproven: undefined,
+        pendingSeenAt: String(Date.now()),
+      });
     },
     /**
      * Save a Safe proposal's nonce from its authenticated record, once. Extra

@@ -894,6 +894,25 @@ with `exit: false`. Every state carries the record it was read from; `exit` refu
 snapshot that changed, and asks the chain once more, so a confirmation that
 lands meanwhile wins.
 
+A Safe proposal is truly pending only while Safe's service returns it
+unexecuted: each such read restarts its 30-minute clock and keeps the exit
+away. A Safe nonce that still waits shows only that nothing ran at it, so it
+restarts nothing. Once 30 minutes pass since the proposal was sent, adopted or
+last listed, with nothing proving it ran, it gets the warned exit
+(`held-unchecked`), even when the chain can't be read at all. A follower's
+unproven end (the service can't find it) gets its own warned exit, until the
+service lists this exact proposal unexecuted again, which undoes it. The same
+nonce makes a double execution impossible, so the exit costs little, and a
+proposal the service can't find never becomes a dead end.
+
+A legacy hold an intent stood for keeps its settlement through the intent: a
+view that saw it held shows its result (`onSettled`, never a release), and an
+unacknowledged success still blocks the intent's sends until the user
+acknowledges it, which marks it where it was saved. On a fresh load, a legacy
+settlement reserved after the intent's own latest reservation counts as the
+intent's; an older one stays unannounced, and times that can't be compared
+block.
+
 A result of `state()` or `exit()` carries `checked`: `true` when the gate read
 the chain under the call's lock, `false` when another tab or flow held the
 lock and the result is only the saved record, with its exit hidden. Never let
@@ -1050,6 +1069,90 @@ holds.open({
   namespace: payIntent({ chainId, project, beneficiary }),
 });
 ```
+
+### One held write, the same in every app
+
+`useHeldWrite` (React, `@bananapus/nana-sdk-react`) runs one held write the
+one way every app does: its send under the hold, the watch, the follower of its
+transaction or Safe proposal, its one line, its exit and the adoption of a
+previous deploy's record. Apps supply the hold controller, the call or intent,
+the account and client, and their domain callbacks.
+
+```tsx
+const write = useHeldWrite({
+  hold, // the app's createWriteHold()
+  chainId,
+  account, // the wallet, or the Safe
+  safe,
+  namespace: payIntent({ chainId, project, beneficiary }),
+  legacy, // keys an earlier version held it under
+  call, // the reviewed call, once built
+  client, // reads the chain
+  adopt: async () => savedJournalEvidence(), // a previous deploy's record, if any
+  onSettled: (settled, receipt) => refresh(receipt),
+  onReleased: (by) => (by === "user" ? reopenReview() : undefined),
+});
+
+<p>{write.line}</p>;
+{
+  write.warning && <p>{write.warning}</p>;
+}
+{
+  write.exitAction && (
+    <button onClick={write.exitAction.run}>{write.exitAction.label}</button>
+  );
+}
+await write.send((gate) => sendThroughWallet(gate));
+```
+
+- **Phases:** `clear`, `succeeded` (a success settled while away), `awaiting` (a Safe proposal waiting for signers),
+  `confirming`, `held` (the hold's own line, its exit when offered), `settled`
+  and `released`. Once a write is confirming it never goes back to awaiting.
+- **Lines:** one confirming line for direct and Safe writes,
+  `HELD_CONFIRMING_LINE` ("Confirming your transaction."). A direct write that
+  stays pending a while shows `WRITE_HOLD_PENDING_LINE`. A settlement shows
+  `HELD_SUCCESS_LINE`, `WRITE_HOLD_REVERTED_LINE` or `HELD_EXPIRED_LINE`. A
+  release shows `HELD_RELEASED_LINE` ("Released. You can send it again.")
+  after the user's exit, or `HELD_RELEASED_ELSEWHERE_LINE` ("This was released
+  in another window."): never a result, and never a resend claim.
+- **Exit:** `HELD_EXIT_LABEL` ("I checked my wallet") releases the hold only.
+  `onReleased("user")` is where the app reopens its review, so a resend always
+  shows the values it sends.
+- **Watch:** the hold's events, plus a checked read on start, on focus and every
+  30 s (15 to 60 s) while held and visible. A read the chain didn't check
+  (`checked: false`, an emission or a replay) never hides an exit already
+  shown; a checked one does.
+- **Follower:** one per reservation in the tab (`followHeldWrite` in core). A
+  Safe proposal's execution from Safe's service goes to `onExecuted`, its loss
+  to `onUnproven`. It ends only when the hold is clear: authenticated
+  settlement or the user's exit, never its own reading of a receipt,
+  replacement or expiry.
+- **Settlement:** `onSettled(settled, receipt)` fires once, only for what this
+  view saw held, and the hold then marks that success acknowledged. A success that settled
+  while the page was closed is phase `succeeded`, with
+  `HELD_AWAY_SUCCESS_LINE` ("This went through while you were away."): every
+  send refuses until the user picks `HELD_SEND_AGAIN_LABEL` ("Send it again",
+  `sendAgainAction`), which marks it acknowledged for every reader. The send
+  gate is a separate read of current evidence (`hold.unacknowledgedSuccess()`,
+  over the intent and its legacy holds), so a result still shown never lets a
+  send past another unacknowledged success. It it keeps
+  its result, blocks nothing, and a tab that saw it held still shows the
+  success, never a release. Sending twice is
+  sometimes meant; it just has to be said. It is never announced through
+  `onSettled`.
+- **Adoption:** with `adopt`, the hook moves a previous deploy's saved record
+  - **Adoption:** with `adopt`, the hook moves a previous deploy's saved record
+    into the hold (`hold.adopt`) before any send, which waits for it. An adoption
+    it couldn't check (`declined: "unreadable"`: the chain unread, a client on another chain, or a lock
+    another writer held) refuses the send, and adoption runs again on the next;
+    one proven to be another write (`declined: "refused"`) lets it send. A
+    provider added later makes a new view, and no send skips it.
+
+For an app-wide notice, `hold.list({ account, chainId })` (core) lists every
+held write for an account, and `useHeldWrites` watches them; `useHeldIntents`
+watches a fixed set of actions by their intents. Both feed `HeldWritesNotice`,
+whose release button reads `HELD_RELEASE_LABEL` ("I checked my wallet.
+Release it"), since a notice has no review to reopen.
 
 ### Safe proposals
 
