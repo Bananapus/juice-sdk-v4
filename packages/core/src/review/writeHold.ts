@@ -328,7 +328,10 @@ export function createWriteHold(
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   let onStorage: ((event: StorageEvent) => void) | undefined;
 
+  /** The latest state emitted for each call, replayed to a late subscriber. */
+  const latest = new Map<string, WriteHoldState>();
   function emit(key: string, state: WriteHoldState) {
+    latest.set(key, state);
     for (const listener of listeners.get(key) ?? []) listener(state);
   }
 
@@ -766,13 +769,19 @@ export function createWriteHold(
       state,
       /** What the saved record alone says, without asking the chain. */
       peek,
-      /** Every state this controller reads or makes for the call, and other tabs' changes. */
+      /**
+       * Every state this controller reads or makes for the call, and other
+       * tabs' changes. The latest one, if any, is replayed at once.
+       */
       subscribe(listener: (state: WriteHoldState) => void): () => void {
         let set = listeners.get(key);
         if (!set) listeners.set(key, (set = new Set()));
         set.add(listener);
         peekers.set(key, peek);
         watchTabs();
+        // A subscriber that arrives after the hold spoke hears its latest state.
+        const last = latest.get(key);
+        if (last) listener(last);
         return () => {
           set!.delete(listener);
           if (!set!.size) {

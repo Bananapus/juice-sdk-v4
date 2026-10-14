@@ -206,8 +206,12 @@ const budgets = {
     // 2.33.0 changelog entry change existing artifacts only: measured
     // 1,424,541 B packed / 21,611,522 B unpacked and 818 entries, so the
     // margin is raised for the next change.
-    packed: 1_430_000,
-    unpacked: 21_625_000,
+    // The write hold's kept settlement (bound to the reservation it settles),
+    // the known-pending hash check, app-reported execution candidates and
+    // the subscriber replay change existing artifacts only: measured
+    // 1,433,153 B packed / 21,637,566 B unpacked and 818 entries.
+    packed: 1_437_000,
+    unpacked: 21_650_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

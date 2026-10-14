@@ -542,7 +542,7 @@ describe("write hold storage", () => {
 });
 
 describe("a held write", () => {
-  it.skip("replays the latest state to a subscriber that arrives late", async () => {
+  it("replays the latest state to a subscriber that arrives late", async () => {
     const { hold } = setup();
     const { client } = fakeChain();
     const handle = hold.open(ordinary);
