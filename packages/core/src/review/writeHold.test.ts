@@ -2424,6 +2424,40 @@ describe("a held Safe proposal", () => {
       });
     });
 
+    it("saves an authenticated execution before it is final, so an earlier unproven snapshot can't exit", async () => {
+      const { handle, fixture, queue, hold } = await proposed();
+      const unproven = await handle.onUnproven(fixture.client, queue.hash);
+      expect(unproven.status).toBe("safe-unproven");
+      // Codex: the execution lands at block 95 while the finalized block is 90.
+      executes(fixture, queue.hash, FAILURE);
+      fixture.chain.finalized = 90n;
+      const receipt = fixture.receiptOf(fixture.chain.txs[0]);
+      await expect(
+        handle.onReceipt(receipt, fixture.client),
+      ).resolves.toMatchObject({
+        status: "ran-executed",
+        executionHash: EXECUTION,
+        exit: false,
+        record: { executed: true, executionHash: EXECUTION },
+      });
+      await expect(
+        handle.exit(unproven, { checkedWallet: true }, fixture.client),
+      ).resolves.toMatchObject({
+        released: false,
+        state: { status: "ran-executed" },
+      });
+      await expect(
+        handle.send(fixture.client, async () => {}),
+      ).rejects.toBeInstanceOf(WriteHeldError);
+      // At finality it settles as failed.
+      fixture.chain.finalized = 110n;
+      await expect(handle.state(fixture.client)).resolves.toEqual({
+        status: "clear",
+        settled: { result: "failed", hash: EXECUTION },
+      });
+      hold.dispose();
+    });
+
     it("keeps a proven execution or replacement as it is", async () => {
       const ran = await proposed();
       executes(ran.fixture, ran.queue.hash, SUCCESS, { named: false });

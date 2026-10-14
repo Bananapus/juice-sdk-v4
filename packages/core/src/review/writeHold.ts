@@ -402,6 +402,23 @@ export function createWriteHold(
         follow(client, record.id);
         return ranExecuted(record, record.hash, "failed");
       }
+      // An authenticated Safe failure that isn't final yet: saved, never an exit.
+      // (A verified success has already settled above.)
+      const ran =
+        record.safe &&
+        (await verifyReviewedWriteReceipt(
+          client as never,
+          record,
+          receipt,
+          proof,
+          { finality: false },
+        ).catch(() => null));
+      if (ran === "failed") {
+        const hash = receipt.transactionHash.toLowerCase() as Hex;
+        const saved = recovery.executed(record, hash);
+        follow(client, saved.id);
+        return ranExecuted(saved, hash, "failed");
+      }
       if (record.executed) follow(client, record.id);
       return classify(recovery.read());
     }

@@ -776,6 +776,27 @@ describe("reviewed receipt recovery proof", () => {
     }
   });
 
+  it("authenticates a canonical Safe failure before finality only when asked", async () => {
+    const run = safeChain(true);
+    const record = { ...saved, safe: true, hash: PROPOSAL };
+    run.client.getBlock.mockRejectedValueOnce(new Error("not finalized"));
+    await expect(
+      verifyReviewedWriteReceipt(run.client, record, run.receipt),
+    ).rejects.toThrow("pending");
+    const finalityReads = run.client.getBlock.mock.calls.length;
+    await expect(
+      verifyReviewedWriteReceipt(run.client, record, run.receipt, undefined, {
+        finality: false,
+      }),
+    ).resolves.toBe("failed");
+    // Still canonical: its block is read, but no finalized one.
+    expect(
+      run.client.getBlock.mock.calls
+        .slice(finalityReads)
+        .some(([args]) => args.blockTag === "finalized"),
+    ).toBe(false);
+  });
+
   it("settles only finalized Safe failure events, preserving reverted executors and missing events", async () => {
     const run = safeChain(true);
     const record = { ...saved, safe: true, hash: PROPOSAL };

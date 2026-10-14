@@ -1353,7 +1353,8 @@ export type ReviewedWriteReceiptClient = {
  * Ordinary wallet wrappers are allowed: the wallet's returned hash binds their
  * execution. A wallet-returned Safe proposal hash authenticates its execution
  * event even through a wrapper; an immediate execution hash additionally needs
- * exact reviewed calldata. A failure releases only after finality.
+ * exact reviewed calldata. A failure releases only after finality;
+ * `finality: false` authenticates a canonical failure before it is final.
  * Throws on missing or inconsistent evidence; the caller retains its record.
  */
 export async function verifyReviewedWriteReceipt(
@@ -1364,6 +1365,7 @@ export async function verifyReviewedWriteReceipt(
     calls: readonly ReviewedWriteRecoveryInput["call"][];
     batch?: boolean;
   },
+  { finality = true }: { finality?: boolean } = {},
 ): Promise<"success" | "failed"> {
   const record = recordOf(saved);
   const pending = () =>
@@ -1463,7 +1465,7 @@ export async function verifyReviewedWriteReceipt(
       block.hash?.toLowerCase() === canonical.blockHash.toLowerCase()
     );
   };
-  if (status === "failed") {
+  if (status === "failed" && finality) {
     const finalized = await atCanonicalFinalizedBlock(
       client,
       async (number) =>
