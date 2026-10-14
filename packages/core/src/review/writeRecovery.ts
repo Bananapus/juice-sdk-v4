@@ -870,6 +870,8 @@ export function createBrowserWriteRecovery(
     options.at === undefined ? scope(reviewed) : foundAt(reviewed, options.at);
   const settledKey = `${key}:settled`;
   const latestKey = `${key}:latest`;
+  /** The last reservation dropped on a definite wallet rejection or an abort before the wallet opened. */
+  const rejectedKey = `${key}:rejected`;
   const legacyKey =
     reviewed.namespace === undefined ? legacyScope(reviewed) : undefined;
   let owned: ReviewedWriteRecoveryRecord | undefined;
@@ -1012,6 +1014,12 @@ export function createBrowserWriteRecovery(
       const store = storage();
       const { at } = locate(store);
       store.setItem(releasedKey(at, owned.id), "1");
+    }
+    // Nothing was sent: kept so a saved attempt of it retires instead of asking for a check.
+    try {
+      storage().setItem(rejectedKey, JSON.stringify({ id: owned.id }));
+    } catch {
+      /* Unsaved, its saved attempt asks for the user's check. */
     }
     owned = undefined;
   }
@@ -1285,6 +1293,22 @@ export function createBrowserWriteRecovery(
               id?: unknown;
             } | null
           )?.id;
+        return typeof id === "string" ? id : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    /**
+     * The reservation the SDK last dropped because nothing was sent (the
+     * wallet refused, or the send aborted before it opened), if saved.
+     */
+    rejectedReservation(): string | undefined {
+      try {
+        const id = (
+          JSON.parse(storage().getItem(rejectedKey) ?? "null") as {
+            id?: unknown;
+          } | null
+        )?.id;
         return typeof id === "string" ? id : undefined;
       } catch {
         return undefined;

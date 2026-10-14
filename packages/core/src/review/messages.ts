@@ -150,3 +150,16 @@ export const HELD_AWAY_SUCCESS_LINE = "This went through while you were away.";
 
 /** The one action on a success settled while away: acknowledge it, then send. */
 export const HELD_SEND_AGAIN_LABEL = "Send it again";
+
+/** A saved attempt that can't be shown here: absence of evidence is never permission to send. */
+export const SAVED_ATTEMPT_CHECK_LINE =
+  "This transaction may already be in your wallet, and it cannot be confirmed from here.";
+
+/** The warning under it. */
+export const SAVED_ATTEMPT_CHECK_WARNING =
+  "Check your wallet and the explorer first. Continuing can send it twice.";
+
+/** The one check action's label: "I checked it. Review it again." or the flow's next step ("Create again"). */
+export function checkedItLabel(next = "Review it again"): string {
+  return `I checked it. ${next.replace(/\.+$/, "")}.`;
+}

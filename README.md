@@ -1154,6 +1154,71 @@ watches a fixed set of actions by their intents. Both feed `HeldWritesNotice`,
 whose release button reads `HELD_RELEASE_LABEL` ("I checked my wallet.
 Release it"), since a notice has no review to reopen.
 
+### Saved attempts: one recovery rule
+
+`createSavedAttemptRecovery({ hold, storage?, locks? })` (core `/review`)
+recovers any saved attempt (a launch, a linked plan, a shop update, a payer, a
+bridge) the same way in every app. Pass the hold's own `storage` and `locks`
+when it was made with custom ones. Run `recover` right after the app finds a
+saved attempt, before any fresh-send preparation (fee reads, uploads,
+calldata rebuilds): its inputs are only what was saved.
+
+```ts
+const attempts = createSavedAttemptRecovery({ hold, storage });
+const attempt = {
+  chainId,
+  account,
+  namespaces: [launchNamespace, ...legacyNamespaces],
+  call: savedCall, // when kept: a saved hash is adopted against it
+  saved: { started: true, hash, safeTxHash, submittedAt, before },
+  authenticate: async (hash) =>
+    // The app's domain check of one transaction (or, given none, its search):
+    (await launchedBy(hash))
+      ? { result: "proven", value: projectId }
+      : { result: "unknown" }, // or "not-this"
+};
+const outcome = await attempts.recover(attempt, client);
+```
+
+It returns exactly one outcome:
+
+- `held`: the hold still holds the write (`state`, `handle`). Count nothing;
+  show its line and its exit when due. After the user's exit releases it,
+  `retire(attempt, { by: "exit" })`.
+- `done`: `result: "success"` was shown as this attempt by `authenticate`
+  (`hash`, `value`): record it, never send it again, then
+  `retire(attempt, { by: "settled", hash })`. `result: "failed"` is the hold's
+  proven final revert.
+- `check`: it can't be shown here. Show `SAVED_ATTEMPT_CHECK_LINE`,
+  `SAVED_ATTEMPT_CHECK_WARNING` and one action labelled
+  `checkedItLabel("Create again")` ("I checked it. Create again."). That action,
+  and only it, runs `retire(attempt, { by: "check", outcome })`.
+- `none`: the hold proves no reservation was ever made and nothing saved says
+  it was sent, or the attempt was retired (`retired`). `retired: "rejected"`
+  means the SDK dropped every reservation of it on a definite wallet rejection
+  or an abort before the wallet opened: nothing can have been sent.
+
+The rules it keeps:
+
+- **Absence of evidence is `check`, never `none`:** a missing hold record with a
+  started send, a refused or unreadable adoption, an empty search, holds that
+  last only in this tab, and every exception.
+- **A settled success always wins:** a success the hold settled is followed
+  through `authenticate`; one it can't show is `check` with `settled`, never a
+  send. Settlements listed in `saved.before` are never this attempt's.
+- **Retirement lasts:** `retire` is saved under every namespace's hold lock, for
+  every tab and reload, and binds to the hold evidence it saw. It is refused
+  while anything holds the attempt, when the hold changed since a check was
+  shown, on an exit while an unfollowed success shows, or while a lock is busy:
+  recover again. A later reservation or settlement is never covered by it.
+- **Discard:** `canDiscard(attempt)` is false while the attempt is held, or
+  while a success it settled hasn't been followed.
+
+`useSavedAttempt({ recovery, attempt, client, checkNext })` (React) recovers on
+mount and whenever the attempt or client changes, never showing one attempt's
+answer for another, and gives `outcome`, `recovering`, `recover`, `retire` and
+`checkAction` (`line`, `warning`, `label`, `run`) on `check`.
+
 ### Safe proposals
 
 `lookAtSafeProposal` and `watchSafeProposal` end a proposal whose nonce another
