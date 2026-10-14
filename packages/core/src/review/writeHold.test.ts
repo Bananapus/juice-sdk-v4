@@ -863,6 +863,31 @@ describe("a held write", () => {
       vi.useRealTimers();
     });
 
+    it("restarts the clock when it reappears mined with no readable receipt", async () => {
+      const { handle, client, chain } = await seenThenGone();
+      await handle.state(client);
+      vi.setSystemTime(1_000_000 + 31 * 60_000);
+      // It mines, but its receipt can't be read yet.
+      chain.hidden.clear();
+      chain.txs[0].block = 101n;
+      client.getTransactionReceipt.mockRejectedValueOnce(new Error("busy"));
+      const mined = await handle.state(client);
+      expect(mined).toMatchObject({
+        status: "pending-known-hash",
+        exit: false,
+      });
+      expect((mined as WriteHeldState).record.vanishedAt).toBeUndefined();
+      // A reorg drops it again: a new 30 minutes, no exit at once.
+      chain.txs[0].block = undefined;
+      chain.hidden.add(HASH);
+      await expect(handle.state(client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        exit: false,
+        record: { vanishedAt: String(1_000_000 + 31 * 60_000) },
+      });
+      vi.useRealTimers();
+    });
+
     it("never offers it while the node can't answer, or once the finalized nonce passed it unread", async () => {
       const { handle, client, chain } = await seenThenGone();
       // A node that can't answer starts no clock.

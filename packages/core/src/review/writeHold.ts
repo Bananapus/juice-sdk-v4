@@ -616,6 +616,9 @@ export function createWriteHold(
       record = recovery.read();
       if (!record) return clear();
       if (check?.status === "sent") {
+        // An authenticated hash is seen: any vanished clock stops.
+        if (record.vanishedAt !== undefined)
+          record = recovery.vanished(record, false);
         const receipt = await client
           .getTransactionReceipt({ hash: check.hash })
           .catch(() => null);
