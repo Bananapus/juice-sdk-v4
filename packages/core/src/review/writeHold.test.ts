@@ -1080,6 +1080,47 @@ describe("a held write", () => {
       vi.useRealTimers();
     }
 
+    it("restarts the clock when a mined replacement is adopted after a reorg", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(1_000_000);
+      const { hold } = setup();
+      const { chain, client } = fakeChain();
+      const handle = hold.open(ordinary);
+      await handle.send(client, wallet(async () => HASH).send);
+      chain.txs.push(sent(HASH, { block: 105n }));
+      chain.head = 120n;
+      chain.finalized = 90n;
+      const receipts = client.getTransactionReceipt.getMockImplementation()!;
+      client.getTransactionReceipt.mockImplementation(async (args) => {
+        if (args.hash === HASH || args.hash === OTHER)
+          throw new Error("timeout");
+        return receipts(args);
+      });
+      await expect(handle.state(client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        record: { minedAt: "1000000", sentNonce: "7" },
+      });
+      // Codex: a reorg drops it; a speed-up of the same call is mined instead.
+      vi.setSystemTime(1_000_000 + 29 * 60_000);
+      chain.txs.length = 0;
+      chain.txs.push(sent(OTHER, { block: 106n }));
+      chain.finalized = 110n;
+      await expect(handle.state(client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        hash: OTHER,
+        exit: false,
+      });
+      // Its own 30 minutes, not the original's: no exit yet.
+      vi.setSystemTime(1_000_000 + 31 * 60_000);
+      await expect(handle.state(client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        hash: OTHER,
+        exit: false,
+        line: WRITE_HOLD_MINED_LINE,
+      });
+      vi.useRealTimers();
+    });
+
     it.each([
       ["attached", false],
       ["attached", true],
@@ -3431,6 +3472,21 @@ describe("a held Safe proposal", () => {
         handle.exit(shown, { checkedWallet: true }, fixture.client),
       ).resolves.toMatchObject({ released: true });
       vi.useRealTimers();
+    });
+
+    it("settles from the finalized log when a readable receipt can't be verified", async () => {
+      const { handle, fixture, queue } = await proposed();
+      executes(fixture, queue.hash, SUCCESS);
+      // Codex: the execution's transaction lookup times out.
+      const lookup = fixture.client.getTransaction.getMockImplementation()!;
+      fixture.client.getTransaction.mockImplementation(async (args) => {
+        if (args.hash === EXECUTION) throw new Error("timeout");
+        return lookup(args);
+      });
+      await expect(handle.state(fixture.client)).resolves.toEqual({
+        status: "clear",
+        settled: { result: "success", hash: EXECUTION },
+      });
     });
 
     it("settles a canonical execution from its Safe log when its receipt can't be read", async () => {

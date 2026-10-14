@@ -734,7 +734,9 @@ export function createWriteHold(
           record = recovery.executed(record, end.execution?.executionHash);
         if (record.executionHash) {
           const settled = await execution(record, client);
-          if (settled) return settled;
+          // Only a settled receipt ends it here; one that can't be verified
+          // leaves the finalized log to decide.
+          if (settled?.status === "clear") return settled;
         }
         // It ran: with its receipt unreadable, the canonical log at a
         // finalized block carries its result. Never a resend exit.

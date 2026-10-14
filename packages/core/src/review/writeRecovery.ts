@@ -871,6 +871,8 @@ export function createBrowserWriteRecovery(
       ...previous,
       hash: submittedHash,
       ...(submittedAt === undefined ? {} : { submittedAt }),
+      // A mined clock belongs to the hash it was seen for.
+      ...(previous.hash === submittedHash ? {} : { minedAt: undefined }),
     });
     let raw: string | null;
     let at = key;
