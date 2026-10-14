@@ -26,7 +26,6 @@ import {
   bindRelayrQuote,
   readRelayrBundle,
   relayrBundleRequest,
-  relayrDeadlinePassed,
   relayrPaymentOptions,
   relayrPaymentDetails,
   relayrPaymentAttemptOutcome,
@@ -36,7 +35,10 @@ import {
   relayrSentPaymentsSnapshot,
   relayrStateIsPending,
   relayrStateIsFailed,
+  relayrDeadlinePassed,
   relayrQuotedOptions,
+  relayrQuoteUnfundable,
+  RelayrPaymentRetryError,
   requireRelayrBundleUnpaid,
   requireRelayrRetry,
   revertedRelayrQuote,
@@ -83,9 +85,16 @@ export type SafeRelayrSession = {
   payments: RelayrSentPayment[];
   state: "publishing" | "active" | "complete" | "released";
   /** Obsolete Safe nonces do not prove execution success, quote expiry, or a refund. */
-  releaseReason?: "quote-expired" | "safe-nonces-consumed" | "quote-replaced";
+  releaseReason?:
+    | "quote-expired"
+    | "safe-nonces-consumed"
+    | "quote-replaced"
+    /** The user's warned exit from a quote whose payment status stayed unknown. The record is kept for reconciliation. */
+    | "payment-unconfirmed";
   /** Sticky evidence that Relayr reported funding or an execution attempt. Not a payment receipt proof. */
   fundingObserved?: boolean;
+  /** When Relayr last reported that funding, in milliseconds since the epoch: the warned exit waits an hour from it. */
+  fundingObservedAt?: number;
   createdAt: number;
   records?: RelayrTransactionRecord[];
   /** Conservative legacy reservations when exact execution proof is unavailable. */
@@ -191,8 +200,20 @@ export type SafeRelayrRecovery = {
     | "safe-nonces-mixed"
     | "safe-nonces-unavailable"
     | "safe-nonces-consumed"
-    | "funding-unresolved";
+    | "funding-unresolved"
+    /** The payment's status couldn't be read: unknown, never paid or free to pay. Retry. */
+    | "status-unknown"
+    /** The browser's clock closed the payment window before the chain's: wait for a new quote. */
+    | "quote-closing";
   message: string;
+  /** A later check may clear it: try again in a moment. */
+  retryable?: true;
+  /**
+   * The quote's deadline passed on finalized evidence, no payment is shown to
+   * have funded it, yet its status stays unknown: the user may leave it with
+   * the controller's `exit`, warned by `message`, for a new quote.
+   */
+  exit?: true;
   checks?: {
     chainId: number;
     safe: Address;
@@ -277,6 +298,44 @@ export type SafeRelayrOptions = {
   ) => Promise<void>;
   createId?: () => string;
 };
+
+/** The line a Safe action shows when its payment's status couldn't be read. */
+export const SAFE_RELAYR_STATUS_UNKNOWN_LINE =
+  "Couldn't check this payment's status. Try again in a moment.";
+
+/** The line a Safe action shows when its quote can no longer be paid but hasn't expired onchain. */
+export const SAFE_RELAYR_QUOTE_CLOSING_LINE =
+  "This quote's payment window has closed. Try again in a few minutes for a new quote.";
+
+/** The line a Safe action shows with its warned exit while Relayr's funding report is unresolved. */
+export const SAFE_RELAYR_FUNDING_EXIT_LINE =
+  "Relayr reported a payment for this quote. Check your wallet and Relayr before paying again.";
+
+/** How long after funding was last reported its warned exit waits: an hour. */
+const FUNDING_EXIT_MS = 60 * 60_000;
+
+/** The line a Safe action shows with its warned exit (see {@link SafeRelayrRecovery.exit}). */
+export const SAFE_RELAYR_UNCONFIRMED_LINE =
+  "We couldn't confirm this payment's status. If your wallet shows no payment, get a new quote.";
+
+/** A status read's failure that says nothing: no refusal Relayr gave. */
+function statusUnknown(error: unknown): boolean {
+  return (
+    !(error instanceof RelayrPaymentRetryError) || error.reason === "unknown"
+  );
+}
+
+/** A refusal saying Relayr reports the bundle paid, or a call running or run. */
+function fundingReported(error: unknown): boolean {
+  return (
+    error instanceof RelayrPaymentRetryError &&
+    (error.reason === "paid" || error.reason === "running")
+  );
+}
+
+/** Reads of a bundle's payment status before an unknown answer is reported. */
+const STATUS_READS = 3;
+const STATUS_RETRY_MS = 250;
 
 export class SafeRelayrRecoveryError extends Error {
   readonly name = "SafeRelayrRecoveryError";
@@ -586,7 +645,36 @@ function requireSessionQuote(session: SafeRelayrSession): RelayrQuote {
 
 /** Shared Safe Relayr state machine. It never signs Safe proposals or submits on prepare/check. */
 export function createSafeRelayrController(options: SafeRelayrOptions) {
-  const { store } = options;
+  /**
+   * The app's store, with funding evidence sticky in its one save path: a
+   * save from an older snapshot never drops `fundingObserved` or an older
+   * `fundingObservedAt` another flow saved. Nothing ever clears them; an
+   * exit keeps them for reconciliation.
+   */
+  const store: SafeRelayrStore = {
+    get scope() {
+      return options.store.scope;
+    },
+    list: (account) => options.store.list(account),
+    withLock: (account, run) => options.store.withLock(account, run),
+    async save(next) {
+      const saved = (await options.store.list(next.account)).find(
+        (session) => session.id === next.id,
+      );
+      const at = [saved?.fundingObservedAt, next.fundingObservedAt].filter(
+        (value): value is number => typeof value === "number",
+      );
+      return options.store.save(
+        saved?.fundingObserved && !next.fundingObserved
+          ? {
+              ...next,
+              fundingObserved: true,
+              ...(at.length ? { fundingObservedAt: Math.max(...at) } : {}),
+            }
+          : next,
+      );
+    },
+  };
   const fetchRelayr = options.fetch ?? globalThis.fetch;
   const displayedExecutions = new Map<string, string>();
   const notify = (progress: SafeRelayrProgress, rechecking = false) => {
@@ -839,18 +927,15 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           checks,
         });
       if (session.bundleUuid) {
-        try {
-          await requireRelayrBundleUnpaid(session.bundleUuid, {
-            fetch: fetchRelayr,
-          });
-        } catch {
+        const [status, read] = await bundleUnpaid(session);
+        session = read;
+        if (status !== "unpaid")
           return pending({
             reason: "funding-unresolved",
             message:
               "Every saved Safe nonce has been used, but the existing Relayr bundle has not been proven unpaid with all calls pending. Keep its payment evidence and inspect the original bundle before replacing this selection.",
             checks,
           });
-        }
       }
       session = {
         ...session,
@@ -878,6 +963,238 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     });
   }
 
+  /**
+   * `read` of the bundle's status, tried up to {@link STATUS_READS} times
+   * while its failure is unknown. Every status read goes through it.
+   */
+  async function statusRead<T>(read: () => Promise<T>): Promise<T> {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await read();
+      } catch (error) {
+        if (!statusUnknown(error) || attempt >= STATUS_READS) throw error;
+        await new Promise((resolve) => setTimeout(resolve, STATUS_RETRY_MS));
+      }
+    }
+  }
+
+  /** `session`, saved with the funding Relayr reported. */
+  async function observed(
+    session: SafeRelayrSession,
+  ): Promise<SafeRelayrSession> {
+    session = {
+      ...session,
+      fundingObserved: true,
+      fundingObservedAt: Date.now(),
+    };
+    await store.save(session);
+    return session;
+  }
+
+  /**
+   * The bundle's payment status, three-valued: proven unpaid, funded (Relayr
+   * reports it paid or running, saved as observed funding), or unknown when
+   * it couldn't be read. Unknown is never paid, and never free to pay again.
+   */
+  async function bundleUnpaid(
+    session: SafeRelayrSession,
+  ): Promise<["unpaid" | "funded" | "unknown", SafeRelayrSession]> {
+    try {
+      await statusRead(() =>
+        requireRelayrBundleUnpaid(session.bundleUuid!, { fetch: fetchRelayr }),
+      );
+      return ["unpaid", session];
+    } catch (error) {
+      if (!fundingReported(error)) return ["unknown", session];
+      return ["funded", await observed(session)];
+    }
+  }
+
+  /**
+   * What a quote whose payments didn't fund it allows
+   * ({@link revertedRelayrQuote}), read after {@link bundleUnpaid} proved it
+   * unpaid; its own reads are confirmations. Funding they report is saved.
+   * Null while unproven, or with `rethrow`, its reason thrown.
+   */
+  async function disposed(
+    session: SafeRelayrSession,
+    quote: RelayrQuote,
+    chains: number[],
+    rethrow = false,
+  ): Promise<{
+    state: "funded" | "payable" | "released" | "unknown";
+    session: SafeRelayrSession;
+  } | null> {
+    let state: "funded" | "payable" | "released";
+    /** The last read before release failed after its retries: unknown. */
+    let unconfirmed = false;
+    try {
+      ({ state } = await revertedRelayrQuote(
+        options.clientFor,
+        {
+          bundleUuid: quote.bundle_uuid,
+          payments: session.payments,
+          options: quote.payment_info,
+          destinationChainIds: chains,
+          account: session.account,
+        },
+        {
+          fetch: fetchRelayr,
+          // Every read of its bundle, through the same retries.
+          statusRead: (read) =>
+            statusRead(read).catch((error: unknown) => {
+              unconfirmed = statusUnknown(error);
+              throw error;
+            }),
+        },
+      ));
+    } catch (error) {
+      if (unconfirmed) return { state: "unknown", session };
+      if (rethrow) throw error;
+      return null;
+    }
+    return {
+      state,
+      session: state === "funded" ? await observed(session) : session,
+    };
+  }
+
+  /**
+   * Held while reported funding is unresolved: never a release or a retry.
+   * Once every deadline is final and an hour has passed since funding was
+   * last reported, the user may leave it, strongly warned: a spurious
+   * report is no dead end.
+   */
+  async function fundingUnresolved(
+    session: SafeRelayrSession,
+  ): Promise<SafeRelayrResult> {
+    const exit = await fundingExitDue(session, session.quote!);
+    return {
+      ...result("pending", session),
+      recovery: exit
+        ? {
+            reason: "funding-unresolved",
+            message: SAFE_RELAYR_FUNDING_EXIT_LINE,
+            exit: true,
+          }
+        : {
+            reason: "funding-unresolved",
+            message:
+              "This saved selection has reported funding or execution activity. Check the existing bundle and its funding transactions before submitting another payment.",
+          },
+    };
+  }
+
+  /** Reported funding's warned exit is due: an hour since it was last reported, and every deadline final. */
+  async function fundingExitDue(
+    session: SafeRelayrSession,
+    quote: RelayrQuote,
+  ): Promise<boolean> {
+    return (
+      Date.now() - Number(session.fundingObservedAt) >= FUNDING_EXIT_MS &&
+      (await deadlinesFinal(session, quote))
+    );
+  }
+
+  /** Every deadline of the quote's options and payments passed at a canonical finalized block. */
+  async function deadlinesFinal(
+    session: SafeRelayrSession,
+    quote: RelayrQuote,
+  ): Promise<boolean> {
+    const deadlines = [
+      ...relayrQuotedOptions(
+        quote,
+        session.executions.map(({ entry }) => entry.chain),
+      ).map(({ details }) => details),
+      ...session.payments,
+    ];
+    for (const { chainId, deadline } of deadlines) {
+      const client = options.clientFor(chainId);
+      if (!client || (await relayrDeadlinePassed(client, deadline)) !== true)
+        return false;
+    }
+    return true;
+  }
+
+  /**
+   * A held result that says why: in progress, unknown, or closing. Unknown
+   * offers the warned exit once nothing shown can fund the quote.
+   */
+  async function held(
+    why: "funded" | "unknown" | "closing",
+    session: SafeRelayrSession,
+  ): Promise<SafeRelayrResult> {
+    if (why === "funded") return result("pending", session);
+    if (why === "closing")
+      return {
+        ...result("pending", session),
+        recovery: {
+          reason: "quote-closing",
+          message: SAFE_RELAYR_QUOTE_CLOSING_LINE,
+          retryable: true,
+        },
+      };
+    const quote = session.quote;
+    // With funding reported and unresolved, the exit also waits for the
+    // funding exit's rule (see fundingUnresolved), with its stronger warning.
+    const funded = hasObservedFunding(session);
+    const spent =
+      !!quote &&
+      (!funded || (await fundingExitDue(session, quote))) &&
+      (await relayrQuoteUnfundable(
+        options.clientFor,
+        {
+          bundleUuid: quote.bundle_uuid,
+          payments: session.payments,
+          options: quote.payment_info,
+          destinationChainIds: session.executions.map(
+            ({ entry }) => entry.chain,
+          ),
+          account: session.account,
+        },
+        { unseen: true },
+      ).catch(() => null)) === true;
+    return {
+      ...result("pending", session),
+      recovery: spent
+        ? {
+            reason: "status-unknown",
+            message: funded
+              ? SAFE_RELAYR_FUNDING_EXIT_LINE
+              : SAFE_RELAYR_UNCONFIRMED_LINE,
+            retryable: true,
+            exit: true,
+          }
+        : {
+            reason: "status-unknown",
+            message: SAFE_RELAYR_STATUS_UNKNOWN_LINE,
+            retryable: true,
+          },
+    };
+  }
+
+  /** The status-unknown refusal, for a status read outside an inspection. */
+  const unknownStatus = (session: SafeRelayrSession) =>
+    new SafeRelayrRecoveryError(session, SAFE_RELAYR_STATUS_UNKNOWN_LINE, {
+      reason: "status-unknown",
+      message: SAFE_RELAYR_STATUS_UNKNOWN_LINE,
+      retryable: true,
+    });
+
+  /**
+   * Why an overlapping quote is kept, or null when it may be replaced: it is
+   * unused (see {@link canReplaceSafeRelayrQuote}) and, once quoted, a status
+   * read now proves it unpaid. Funding it reports is saved; unknown keeps it.
+   */
+  async function unreplaceable(
+    saved: SafeRelayrSession,
+  ): Promise<SafeRelayrResult | null> {
+    if (!canReplaceSafeRelayrQuote(saved)) return result("pending", saved);
+    if (!saved.bundleUuid) return null;
+    const [status, read] = await bundleUnpaid(saved);
+    return status === "unpaid" ? null : held(status, read);
+  }
+
   async function inspect(
     session: SafeRelayrSession,
     signal?: AbortSignal,
@@ -889,25 +1206,33 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       savedPhase(session, signal);
       if (session.state === "released") return result("released", session);
       if (session.state === "complete") return result("complete", session);
-      if (hasObservedFunding(session) && session.fundingObserved !== true) {
-        session = { ...session, fundingObserved: true };
+      if (
+        hasObservedFunding(session) &&
+        (session.fundingObserved !== true ||
+          session.fundingObservedAt === undefined)
+      ) {
+        // A record saved before the clock existed starts it now.
+        session = {
+          ...session,
+          fundingObserved: true,
+          fundingObservedAt: session.fundingObservedAt ?? Date.now(),
+        };
         await store.save(session);
       }
       if (!session.bundleUuid || !session.quote)
         return inspectMissingQuote(session);
       const quote = requireSessionQuote(session);
       const chains = session.executions.map(({ entry }) => entry.chain);
-      const bundle = await readRelayrBundle(session.bundleUuid, {
-        fetch: fetchRelayr,
-      });
+      const bundleUuid = session.bundleUuid;
+      const bundle = await statusRead(() =>
+        readRelayrBundle(bundleUuid, { fetch: fetchRelayr }),
+      ).catch(() => null);
+      if (!bundle) return held("unknown", session);
       if (
-        hasObservedFunding(session) ||
         bundle.payment_received === true ||
         hasFundingRecords(bundle.transactions)
-      ) {
-        session = { ...session, fundingObserved: true };
-        await store.save(session);
-      }
+      )
+        session = await observed(session);
       if (!Array.isArray(bundle.transactions))
         throw new SafeRelayrRecoveryError(
           session,
@@ -1103,22 +1428,28 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
               everyReverted = false;
           }
         }
+        // Funding reported once stays unresolved until the chain proves a
+        // payment funded it (above) or the calls ran: a later unpaid read,
+        // or this session's own payments reverting, can't exclude another
+        // payment. No release, no retry.
+        if (hasObservedFunding(session))
+          return await fundingUnresolved(session);
         if (!everyReverted) {
           // A payment through a wallet contract that reverted is no
           // RelayrPaymentRevertedError. Once nothing can fund the quote, it
-          // is released like an expired one.
-          const disposition = await revertedRelayrQuote(
-            options.clientFor,
-            {
-              bundleUuid: quote.bundle_uuid,
-              payments: session.payments,
-              options: quote.payment_info,
-              destinationChainIds: chains,
-              account: session.account,
-            },
-            { fetch: fetchRelayr },
-          ).catch(() => null);
-          if (disposition?.state !== "released")
+          // is released like an expired one. A payment that can't be shown
+          // reverted (dropped, or unreadable) is unknown: never released on
+          // its own, since no node can prove a transaction doesn't exist;
+          // the warned exit is offered once the chain says it has none.
+          const [status, read] = await bundleUnpaid(session);
+          session = read;
+          if (status === "funded") return held("funded", session);
+          const disposition =
+            status === "unpaid" ? await disposed(session, quote, chains) : null;
+          if (!disposition || disposition.state === "unknown")
+            return held("unknown", session);
+          session = disposition.session;
+          if (disposition.state !== "released")
             return result("pending", session);
           session = {
             ...session,
@@ -1131,17 +1462,13 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         }
         session = { ...session, paymentStatus: "reverted" };
         await store.save(session);
-        const disposition = await revertedRelayrQuote(
-          options.clientFor,
-          {
-            bundleUuid: quote.bundle_uuid,
-            payments: session.payments,
-            options: quote.payment_info,
-            destinationChainIds: chains,
-            account: session.account,
-          },
-          { fetch: fetchRelayr },
-        );
+        const [status, read] = await bundleUnpaid(session);
+        session = read;
+        if (status !== "unpaid") return held(status, session);
+        // Unpaid, its release may still be unproven: it says why.
+        const disposition = (await disposed(session, quote, chains, true))!;
+        session = disposition.session;
+        if (disposition.state === "unknown") return held("unknown", session);
         if (disposition.state === "funded") return result("pending", session);
         if (disposition.state === "released") {
           session = {
@@ -1159,14 +1486,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       ) {
         // A wallet invocation without a known hash may still have broadcast.
         return session.fundingObserved && !known.length
-          ? {
-              ...result("pending", session),
-              recovery: {
-                reason: "funding-unresolved",
-                message:
-                  "This saved selection has reported funding or execution activity. Check the existing bundle and its funding transactions before submitting another payment.",
-              },
-            }
+          ? await fundingUnresolved(session)
           : result("pending", session);
       }
       const quoted = relayrQuotedOptions(quote, chains);
@@ -1177,22 +1497,15 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         : await Promise.all(
             quoted.map(async ({ details }) => {
               const client = options.clientFor(details.chainId);
-              return (
-                !!client &&
-                (await relayrDeadlinePassed(client, details.deadline).catch(
-                  () => false,
-                ))
-              );
+              return client
+                ? relayrDeadlinePassed(client, details.deadline)
+                : false;
             }),
           );
-      if (expired.every(Boolean)) {
-        try {
-          await requireRelayrBundleUnpaid(quote.bundle_uuid, {
-            fetch: fetchRelayr,
-          });
-        } catch {
-          return result("pending", session);
-        }
+      const [unpaid, read] = await bundleUnpaid(session);
+      session = read;
+      if (unpaid !== "unpaid") return held(unpaid, session);
+      if (expired.every((passed) => passed === true)) {
         session = {
           ...session,
           state: "released",
@@ -1202,17 +1515,16 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         await store.save(session);
         return result("released", session);
       }
-      try {
-        await requireRelayrBundleUnpaid(quote.bundle_uuid, {
-          fetch: fetchRelayr,
-        });
-      } catch {
-        return result("pending", session);
-      }
-      const allowed =
-        session.payments.length && payments.length
-          ? [relayrRetryOption(session.payments, payments)]
-          : payments;
+      // No option the browser's clock still allows, though the chain hasn't
+      // shown the quote expired: closing, or unknown if the chain couldn't say.
+      if (!payments.length)
+        return held(
+          expired.some((passed) => passed === null) ? "unknown" : "closing",
+          session,
+        );
+      const allowed = session.payments.length
+        ? [relayrRetryOption(session.payments, payments)]
+        : payments;
       return allowed.length
         ? result("ready", session, allowed)
         : result("pending", session);
@@ -1243,8 +1555,11 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       const reservations = (await store.list(account)).filter((session) =>
         reserves(session, executions),
       );
-      for (const saved of reservations) {
-        if (canReplaceSafeRelayrQuote(saved)) continue;
+      for (const found of reservations) {
+        const kept = await unreplaceable(found);
+        if (!kept) continue;
+        // What its status read saved, a funding report included.
+        const saved = kept.session;
         let checked: SafeRelayrResult;
         try {
           checked = await inspect(saved, signal);
@@ -1292,8 +1607,13 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       // old quote untouched; a recorded wallet invocation can never be retired.
       for (const saved of await store.list(account)) {
         if (!reserves(saved, executions)) continue;
-        if (!canReplaceSafeRelayrQuote(saved))
-          throw new SafeRelayrRecoveryError(saved);
+        const kept = await unreplaceable(saved);
+        if (kept)
+          throw new SafeRelayrRecoveryError(
+            kept.session,
+            kept.recovery?.message,
+            kept.recovery,
+          );
         await store.save({
           ...saved,
           state: "released",
@@ -1429,20 +1749,25 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         phase("payment-checking", session, signal);
         await revalidate(session.executions, account, onStatus, true, signal);
         await assertUnreserved(account, session.executions, session.id);
-        if (session.payments.length) {
-          await requireRelayrRetry(
-            options.clientFor,
-            {
-              payments: session.payments,
-              from: account,
-              bundleUuid: session.bundleUuid!,
-            },
-            { fetch: fetchRelayr },
-          );
-        } else
-          await requireRelayrBundleUnpaid(session.bundleUuid!, {
-            fetch: fetchRelayr,
-          });
+        await statusRead(() =>
+          session.payments.length
+            ? requireRelayrRetry(
+                options.clientFor,
+                {
+                  payments: session.payments,
+                  from: account,
+                  bundleUuid: session.bundleUuid!,
+                },
+                { fetch: fetchRelayr },
+              )
+            : requireRelayrBundleUnpaid(session.bundleUuid!, {
+                fetch: fetchRelayr,
+              }),
+        ).catch(async (error) => {
+          if (statusUnknown(error)) throw unknownStatus(session);
+          if (fundingReported(error)) session = await observed(session);
+          throw error;
+        });
         checkAccount(account, signal);
         requireOpenPayment();
         verified = true;
@@ -1666,5 +1991,38 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     }
   }
 
-  return { prepare, check, fund, watch };
+  /**
+   * The user's warned exit from a quote whose status stays unknown (see
+   * {@link SafeRelayrRecovery.exit}): rechecked now, then released, its
+   * record kept for reconciliation, so a new quote can follow.
+   */
+  async function exit({
+    account,
+    sessionId,
+    signal,
+  }: {
+    account: Address;
+    sessionId: string;
+    signal?: AbortSignal;
+  }): Promise<SafeRelayrResult> {
+    return store.withLock(account, async () => {
+      checkAccount(account, signal);
+      const checked = await inspect(await load(account, sessionId), signal);
+      if (!checked.recovery?.exit)
+        throw new SafeRelayrRecoveryError(
+          checked.session,
+          checked.recovery?.message,
+          checked.recovery,
+        );
+      const session: SafeRelayrSession = {
+        ...checked.session,
+        state: "released",
+        releaseReason: "payment-unconfirmed",
+      };
+      await store.save(session);
+      return result("released", session);
+    });
+  }
+
+  return { prepare, check, fund, watch, exit };
 }

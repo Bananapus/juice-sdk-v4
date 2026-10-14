@@ -25,6 +25,9 @@ import {
   createSafeRelayrController,
   canReplaceSafeRelayrQuote,
   requireSafeRelayrExecution,
+  SAFE_RELAYR_STATUS_UNKNOWN_LINE,
+  SAFE_RELAYR_FUNDING_EXIT_LINE,
+  SAFE_RELAYR_UNCONFIRMED_LINE,
   SafeRelayrRecoveryError,
   safeRelayrPreconditions,
   safeRelayrReservationKey,
@@ -150,7 +153,7 @@ function harness() {
   let timestamp = BigInt(NOW);
   let canonicalHash = BLOCK;
   let onPost: (() => Promise<void>) | undefined;
-  const fetchRelayr = vi.fn<typeof fetch>(async (_url, init) => {
+  const fetchRelayr = vi.fn<typeof fetch>(async (url, init) => {
     if (init?.method === "POST") {
       order.push("post");
       await onPost?.();
@@ -169,7 +172,8 @@ function harness() {
     }
     order.push("get");
     return json({
-      bundle_uuid: bundleUuid,
+      // Relayr answers for the bundle asked about.
+      bundle_uuid: String(url).split("/").pop(),
       payment_received: paymentReceived,
       transactions: records,
     });
@@ -1333,7 +1337,7 @@ describe("Safe Relayr preparation and recovery", () => {
   });
 
   it.each([false, true])(
-    "reuses original calldata after a proven payment revert with prior observed funding %s",
+    "reuses original calldata after a proven payment revert, never with prior observed funding (%s)",
     async (fundingObserved) => {
       const h = harness();
       const original = execution();
@@ -1350,6 +1354,20 @@ describe("Safe Relayr preparation and recovery", () => {
       h.sessions.get(first.session.id)!.fundingObserved = fundingObserved;
       h.revalidate.mockClear();
       h.review.mockClear();
+      if (fundingObserved) {
+        // Reported funding stays unresolved: a revert of its own payment
+        // can't exclude another one, so it is never paid again.
+        await expect(
+          h.controller.prepare({
+            account: ACCOUNT,
+            executions: [execution(1, { signatures: "0x11223344" })],
+          }),
+        ).rejects.toMatchObject({
+          recovery: { reason: "funding-unresolved" },
+        });
+        expect(h.sendPayment).toHaveBeenCalledOnce();
+        return;
+      }
       const retry = await h.controller.prepare({
         account: ACCOUNT,
         executions: [execution(1, { signatures: "0x11223344" })],
@@ -2025,6 +2043,112 @@ describe("Safe Relayr funding and canonical outcome", () => {
     expect(h.sessions.get(restored.id)?.paymentStatus).toBe("unfunded");
   });
 
+  it("says the payment status couldn't be checked, never that a payment is in progress, then proceeds", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    // Every bundle-status read after the first fails transiently.
+    const relay = h.fetchRelayr.getMockImplementation()!;
+    let gets = 0;
+    let failing = true;
+    h.fetchRelayr.mockImplementation(async (url, init) => {
+      if (init?.method !== "POST" && failing && ++gets > 1)
+        throw new TypeError("fetch failed");
+      return relay(url, init);
+    });
+    const refused = await h.controller
+      .fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      })
+      .catch((e) => e);
+    expect(refused).toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(refused.message).toBe(SAFE_RELAYR_STATUS_UNKNOWN_LINE);
+    expect(refused.message).not.toMatch(/in progress/);
+    expect(refused.recovery).toMatchObject({
+      reason: "status-unknown",
+      retryable: true,
+    });
+    // It retried before saying so.
+    expect(gets).toBeGreaterThan(2);
+    expect(h.sendPayment).not.toHaveBeenCalled();
+    // A later successful read proceeds.
+    failing = false;
+    const result = await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    expect(result.session.paymentStatus).toBe("submitted");
+    expect(h.sendPayment).toHaveBeenCalledOnce();
+  });
+
+  it("still says a payment is in progress when Relayr reports this bundle paid", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const relay = h.fetchRelayr.getMockImplementation()!;
+    let gets = 0;
+    h.fetchRelayr.mockImplementation(async (url, init) => {
+      const response = await relay(url, init);
+      if (init?.method === "POST" || ++gets === 1) return response;
+      // The status read: Relayr reports the payment.
+      const body = await response.json();
+      return new Response(JSON.stringify({ ...body, payment_received: true }));
+    });
+    const refused = await h.controller
+      .fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      })
+      .catch((e) => e);
+    expect(refused).toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(refused.message).toMatch(/in progress/);
+    expect(refused.recovery).toBeUndefined();
+    expect(gets).toBe(2);
+  });
+
+  it("names a quote the browser's clock closed before the chain's, never a payment in progress", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    // The browser's clock is past the payment window; the chain's isn't.
+    const now = Date.now;
+    vi.spyOn(Date, "now").mockReturnValue(now() + 365 * 24 * 3_600_000);
+    const refused = await h.controller
+      .fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      })
+      .catch((e) => e);
+    expect(refused).toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(refused.message).not.toMatch(/in progress/);
+    expect(refused.recovery).toMatchObject({ reason: "quote-closing" });
+    // And when the chain's deadline can't be read either: unknown, retryable.
+    h.client.getBlock.mockRejectedValue(new Error("timeout"));
+    const unknown = await h.controller
+      .fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      })
+      .catch((e) => e);
+    expect(unknown.recovery).toMatchObject({
+      reason: "status-unknown",
+      retryable: true,
+    });
+    vi.restoreAllMocks();
+  });
+
   it("funds only after rechecking the original calldata and persists the payment", async () => {
     const h = harness();
     const ready = await h.controller.prepare({
@@ -2675,9 +2799,6 @@ describe("Safe Relayr funding and canonical outcome", () => {
     vi.mocked(Date.now).mockReturnValue((DEADLINE + 60) * 1000);
     expect((await check()).state).toBe("pending");
     h.setTimestamp(BigInt(DEADLINE + 1));
-    h.setPaymentReceived(true);
-    expect((await check()).state).toBe("pending");
-    h.setPaymentReceived(false);
     const released = await check();
     expect(released.state).toBe("released");
     expect(released.session).toMatchObject({
@@ -3853,6 +3974,528 @@ describe("Safe Relayr read-only progress polling", () => {
     ).rejects.toThrow("positive interval");
     expect(h.store.list).not.toHaveBeenCalled();
     expect(h.fetchRelayr).not.toHaveBeenCalled();
+  });
+});
+
+describe("Safe Relayr status reads that stay unknown", () => {
+  /** Fail every bundle read after the first `ok`, while `reads.failing`. */
+  function failReads(h: ReturnType<typeof harness>, ok = 0) {
+    const relay = h.fetchRelayr.getMockImplementation()!;
+    const reads = { gets: 0, failing: true };
+    h.fetchRelayr.mockImplementation(async (url, init) => {
+      if (init?.method !== "POST" && reads.failing && ++reads.gets > ok)
+        throw new TypeError("fetch failed");
+      return relay(url, init);
+    });
+    return reads;
+  }
+  const posts = (h: ReturnType<typeof harness>) =>
+    h.fetchRelayr.mock.calls.filter(([, init]) => init?.method === "POST")
+      .length;
+
+  it("retries the first status read and the final pre-payment check, and names each unknown", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const fund = () =>
+      h.controller
+        .fund({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+          paymentChainId: 1,
+        })
+        .catch((e) => e);
+    // Every read fails from the outset.
+    let reads = failReads(h);
+    let refused = await fund();
+    expect(refused).toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(refused.message).toBe(SAFE_RELAYR_STATUS_UNKNOWN_LINE);
+    expect(refused.recovery).toMatchObject({
+      reason: "status-unknown",
+      retryable: true,
+    });
+    expect(reads.gets).toBe(3);
+    expect(h.sendPayment).not.toHaveBeenCalled();
+    // The inspection reads, then the final check before the wallet fails.
+    reads.failing = false;
+    reads = failReads(h, 2);
+    refused = await fund();
+    expect(refused).toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(refused.message).toBe(SAFE_RELAYR_STATUS_UNKNOWN_LINE);
+    expect(refused.recovery).toMatchObject({ reason: "status-unknown" });
+    expect(reads.gets).toBe(5);
+    expect(h.sessions.get(ready.session.id)).toMatchObject({
+      paymentStatus: "unfunded",
+      payments: [],
+    });
+  });
+
+  it("keeps an unused quote whose status is unknown, and saves a paid report, rather than replacing it", async () => {
+    const h = harness();
+    const first = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const reads = failReads(h);
+    const checked = await h.controller.check({
+      account: ACCOUNT,
+      sessionId: first.session.id,
+    });
+    expect(checked.recovery).toMatchObject({ reason: "status-unknown" });
+    h.setBundleUuid(NEXT_BUNDLE);
+    const next = () =>
+      h.controller
+        .prepare({ account: ACCOUNT, executions: [execution(), execution(10)] })
+        .catch((e) => e);
+    const kept = await next();
+    expect(kept).toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(kept.recovery).toMatchObject({ reason: "status-unknown" });
+    expect(h.sessions.get(first.session.id)?.state).toBe("active");
+    // The first read says unpaid, the next says paid: that report is saved.
+    reads.failing = false;
+    const relay = h.fetchRelayr.getMockImplementation()!;
+    let gets = 0;
+    h.fetchRelayr.mockImplementation(async (url, init) => {
+      const response = await relay(url, init);
+      if (init?.method === "POST" || ++gets !== 2) return response;
+      const body = await response.json();
+      return new Response(JSON.stringify({ ...body, payment_received: true }));
+    });
+    expect(
+      (
+        await h.controller.check({
+          account: ACCOUNT,
+          sessionId: first.session.id,
+        })
+      ).state,
+    ).toBe("pending");
+    expect(h.sessions.get(first.session.id)?.fundingObserved).toBe(true);
+    expect(await next()).toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(h.sessions.get(first.session.id)?.state).toBe("active");
+    expect(posts(h)).toBe(1);
+    expect(h.sendPayment).not.toHaveBeenCalled();
+  });
+
+  it("saves a paid report from the final pre-payment check", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const relay = h.fetchRelayr.getMockImplementation()!;
+    let gets = 0;
+    h.fetchRelayr.mockImplementation(async (url, init) => {
+      const response = await relay(url, init);
+      if (init?.method === "POST" || ++gets !== 3) return response;
+      const body = await response.json();
+      return new Response(JSON.stringify({ ...body, payment_received: true }));
+    });
+    await expect(
+      h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      }),
+    ).rejects.toThrow(/Do not pay again/);
+    expect(h.sessions.get(ready.session.id)).toMatchObject({
+      fundingObserved: true,
+      paymentStatus: "unfunded",
+      payments: [],
+    });
+  });
+
+  it("offers a warned exit for a reverted payment whose status stays unknown past a finalized deadline, keeping its record", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    h.mined({ status: "reverted" });
+    const reads = failReads(h);
+    const check = () =>
+      h.controller.check({ account: ACCOUNT, sessionId: ready.session.id });
+    const exit = () =>
+      h.controller
+        .exit({ account: ACCOUNT, sessionId: ready.session.id })
+        .catch((e) => e);
+    // Before the deadline is final, unknown offers no exit.
+    const open = await check();
+    expect(open.recovery).toEqual({
+      reason: "status-unknown",
+      message: SAFE_RELAYR_STATUS_UNKNOWN_LINE,
+      retryable: true,
+    });
+    expect(await exit()).toBeInstanceOf(SafeRelayrRecoveryError);
+    vi.mocked(Date.now).mockReturnValue((DEADLINE + 60) * 1000);
+    h.setTimestamp(BigInt(DEADLINE + 1));
+    const offered = await check();
+    expect(offered.state).toBe("pending");
+    expect(offered.recovery).toEqual({
+      reason: "status-unknown",
+      message: SAFE_RELAYR_UNCONFIRMED_LINE,
+      retryable: true,
+      exit: true,
+    });
+    // Without the exit, nothing replaces it.
+    vi.mocked(Date.now).mockReturnValue(NOW * 1000);
+    h.setTimestamp(BigInt(NOW));
+    h.setBundleUuid(NEXT_BUNDLE);
+    expect(
+      await h.controller
+        .prepare({ account: ACCOUNT, executions: [execution()] })
+        .catch((e) => e),
+    ).toBeInstanceOf(SafeRelayrRecoveryError);
+    // Taken, it rechecks: an open deadline refuses it.
+    expect(await exit()).toBeInstanceOf(SafeRelayrRecoveryError);
+    vi.mocked(Date.now).mockReturnValue((DEADLINE + 60) * 1000);
+    h.setTimestamp(BigInt(DEADLINE + 1));
+    const exited = await exit();
+    expect(exited.state).toBe("released");
+    expect(h.sessions.get(ready.session.id)).toMatchObject({
+      state: "released",
+      releaseReason: "payment-unconfirmed",
+      bundleUuid: BUNDLE,
+      payments: [expect.objectContaining({ hash: HASH })],
+    });
+    // A new quote follows.
+    reads.failing = false;
+    vi.mocked(Date.now).mockReturnValue(NOW * 1000);
+    h.setTimestamp(BigInt(NOW));
+    const fresh = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    expect(fresh.resumed).toBe(false);
+    expect(fresh.session.bundleUuid).toBe(NEXT_BUNDLE);
+    expect(h.sendPayment).toHaveBeenCalledTimes(1);
+  });
+
+  /** The node answers that the payment does not exist. */
+  const dropped = (h: ReturnType<typeof harness>) =>
+    vi.mocked(h.client.getTransaction).mockRejectedValue(
+      Object.assign(new Error("not found"), {
+        name: "TransactionNotFoundError",
+      }),
+    );
+  /** A funded quote whose deadline is final onchain and in the browser. */
+  async function paidThenExpired() {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    vi.mocked(Date.now).mockReturnValue((DEADLINE + 60) * 1000);
+    h.setTimestamp(BigInt(DEADLINE + 1));
+    const check = () =>
+      h.controller.check({ account: ACCOUNT, sessionId: ready.session.id });
+    return { h, ready, check };
+  }
+
+  it.each(["direct", "wrapped"])(
+    "saves a paid report from the final release check of a %s reverted payment, and offers no exit",
+    async (kind) => {
+      const { h, ready, check } = await paidThenExpired();
+      h.mined({
+        status: "reverted",
+        ...(kind === "wrapped" ? { target: OTHER } : {}),
+      });
+      // Every read says unpaid until the last check before release.
+      const relay = h.fetchRelayr.getMockImplementation()!;
+      let gets = 0;
+      h.fetchRelayr.mockImplementation(async (url, init) => {
+        const response = await relay(url, init);
+        if (init?.method === "POST" || ++gets !== 4) return response;
+        const body = await response.json();
+        return new Response(
+          JSON.stringify({ ...body, payment_received: true }),
+        );
+      });
+      const first = await check().catch((e) => e);
+      expect(first.recovery?.exit).toBeUndefined();
+      expect(h.sessions.get(ready.session.id)?.fundingObserved).toBe(true);
+      expect(h.sessions.get(ready.session.id)?.state).toBe("active");
+      failReads(h);
+      const held = await check().catch((e) => e);
+      expect(held.recovery?.exit).toBeUndefined();
+      await expect(
+        h.controller.exit({ account: ACCOUNT, sessionId: ready.session.id }),
+      ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    },
+  );
+
+  it.each(["direct", "wrapped"])(
+    "keeps observed funding of a %s reverted payment through a later unpaid read: no release, no retry",
+    async (kind) => {
+      const { h, ready, check } = await paidThenExpired();
+      h.mined({
+        status: "reverted",
+        ...(kind === "wrapped" ? { target: OTHER } : {}),
+      });
+      const relay = h.fetchRelayr.getMockImplementation()!;
+      let gets = 0;
+      h.fetchRelayr.mockImplementation(async (url, init) => {
+        const response = await relay(url, init);
+        if (init?.method === "POST" || ++gets !== 4) return response;
+        const body = await response.json();
+        return new Response(
+          JSON.stringify({ ...body, payment_received: true }),
+        );
+      });
+      await check().catch(() => undefined);
+      expect(h.sessions.get(ready.session.id)?.fundingObserved).toBe(true);
+      // Every later read says unpaid: the funding stays unresolved.
+      const later = await check();
+      expect(later.state).toBe("pending");
+      expect(later.recovery).toMatchObject({ reason: "funding-unresolved" });
+      expect(later.recovery?.exit).toBeUndefined();
+      expect(h.sessions.get(ready.session.id)?.state).toBe("active");
+      vi.mocked(Date.now).mockReturnValue(NOW * 1000);
+      h.setBundleUuid(NEXT_BUNDLE);
+      await expect(
+        h.controller.prepare({ account: ACCOUNT, executions: [execution()] }),
+      ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+      expect(h.sendPayment).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("offers a strongly warned exit an hour after funding was last reported, once every deadline is final", async () => {
+    const { h, ready, check } = await paidThenExpired();
+    h.mined({ status: "reverted" });
+    const at = (DEADLINE + 60) * 1000;
+    // Relayr reports the bundle paid, then never again.
+    h.setPaymentReceived(true);
+    expect((await check()).recovery?.exit).toBeUndefined();
+    h.setPaymentReceived(false);
+    vi.mocked(Date.now).mockReturnValue(at + 59 * 60_000);
+    const early = await check();
+    expect(early.recovery).toMatchObject({ reason: "funding-unresolved" });
+    expect(early.recovery?.exit).toBeUndefined();
+    await expect(
+      h.controller.exit({ account: ACCOUNT, sessionId: ready.session.id }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    vi.mocked(Date.now).mockReturnValue(at + 61 * 60_000);
+    const offered = await check();
+    expect(offered.state).toBe("pending");
+    expect(offered.recovery).toEqual({
+      reason: "funding-unresolved",
+      message: SAFE_RELAYR_FUNDING_EXIT_LINE,
+      exit: true,
+    });
+    const exited = await h.controller.exit({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    expect(exited.state).toBe("released");
+    expect(h.sessions.get(ready.session.id)).toMatchObject({
+      state: "released",
+      releaseReason: "payment-unconfirmed",
+      fundingObserved: true,
+      payments: [expect.objectContaining({ hash: HASH })],
+    });
+  });
+
+  it("offers the same strongly warned exit when reads fail after funding was reported", async () => {
+    const { h, ready, check } = await paidThenExpired();
+    h.mined({ status: "reverted" });
+    const at = (DEADLINE + 60) * 1000;
+    h.setPaymentReceived(true);
+    await check();
+    h.setPaymentReceived(false);
+    failReads(h);
+    vi.mocked(Date.now).mockReturnValue(at + 59 * 60_000);
+    const early = await check();
+    expect(early.recovery).toMatchObject({ reason: "status-unknown" });
+    expect(early.recovery?.exit).toBeUndefined();
+    vi.mocked(Date.now).mockReturnValue(at + 61 * 60_000);
+    const offered = await check();
+    expect(offered.recovery).toEqual({
+      reason: "status-unknown",
+      message: SAFE_RELAYR_FUNDING_EXIT_LINE,
+      retryable: true,
+      exit: true,
+    });
+    await expect(
+      h.controller.exit({ account: ACCOUNT, sessionId: ready.session.id }),
+    ).resolves.toMatchObject({ state: "released" });
+    expect(h.sessions.get(ready.session.id)).toMatchObject({
+      releaseReason: "payment-unconfirmed",
+      fundingObserved: true,
+      payments: [expect.objectContaining({ hash: HASH })],
+    });
+  });
+
+  it("offers no funding exit while a deadline isn't final, however long ago funding was reported", async () => {
+    const { h, check } = await paidThenExpired();
+    h.mined({ status: "reverted" });
+    h.setPaymentReceived(true);
+    await check();
+    h.setPaymentReceived(false);
+    h.setCanonicalHash(WRONG_BLOCK);
+    vi.mocked(Date.now).mockReturnValue((DEADLINE + 60) * 1000 + 2 * 3_600_000);
+    expect((await check()).recovery?.exit).toBeUndefined();
+  });
+
+  it("offers the warned exit when the last read before releasing reverted payments stays unknown", async () => {
+    const { h, ready, check } = await paidThenExpired();
+    h.mined({ status: "reverted" });
+    failReads(h, 3);
+    const held = await check();
+    expect(held.state).toBe("pending");
+    expect(held.recovery).toMatchObject({
+      reason: "status-unknown",
+      message: SAFE_RELAYR_UNCONFIRMED_LINE,
+      exit: true,
+    });
+    await expect(
+      h.controller.exit({ account: ACCOUNT, sessionId: ready.session.id }),
+    ).resolves.toMatchObject({ state: "released" });
+  });
+
+  it("keeps a paid report prepare read, so later unpaid reads never let it be paid", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    // prepare's own status read sees the bundle paid; every later one, unpaid.
+    const relay = h.fetchRelayr.getMockImplementation()!;
+    let gets = 0;
+    h.fetchRelayr.mockImplementation(async (url, init) => {
+      const response = await relay(url, init);
+      if (init?.method === "POST" || ++gets !== 1) return response;
+      const body = await response.json();
+      return new Response(JSON.stringify({ ...body, payment_received: true }));
+    });
+    await expect(
+      h.controller.prepare({ account: ACCOUNT, executions: [execution()] }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(h.sessions.get(ready.session.id)).toMatchObject({
+      fundingObserved: true,
+      fundingObservedAt: expect.any(Number),
+    });
+    await expect(
+      h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(h.sendPayment).not.toHaveBeenCalled();
+    expect(h.sessions.get(ready.session.id)?.fundingObserved).toBe(true);
+  });
+
+  it("never drops funding evidence another flow saved, whatever snapshot a save starts from", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    // While the payment is checked, another tab saves funding.
+    const other = h.recreateController();
+    h.revalidate.mockImplementationOnce(async () => {
+      h.sessions.set(ready.session.id, {
+        ...h.sessions.get(ready.session.id)!,
+        fundingObserved: true,
+        fundingObservedAt: 5,
+      });
+    });
+    await other
+      .fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      })
+      .catch(() => undefined);
+    expect(h.sessions.get(ready.session.id)).toMatchObject({
+      fundingObserved: true,
+      fundingObservedAt: 5,
+    });
+  });
+
+  it("offers no exit when the payment's reads fail rather than find nothing", async () => {
+    const { h, check } = await paidThenExpired();
+    failReads(h);
+    vi.mocked(h.client.getTransaction).mockRejectedValue(
+      new Error("request timed out"),
+    );
+    const held = await check();
+    expect(held.recovery?.reason).toBe("status-unknown");
+    expect(held.recovery?.exit).toBeUndefined();
+    dropped(h);
+    expect((await check()).recovery?.exit).toBe(true);
+  });
+
+  it("offers the warned exit for a dropped payment that Relayr reports unpaid", async () => {
+    const { h, ready, check } = await paidThenExpired();
+    dropped(h);
+    const offered = await check();
+    expect(offered.state).toBe("pending");
+    expect(offered.recovery).toMatchObject({
+      reason: "status-unknown",
+      message: SAFE_RELAYR_UNCONFIRMED_LINE,
+      exit: true,
+    });
+    await expect(
+      h.controller.exit({ account: ACCOUNT, sessionId: ready.session.id }),
+    ).resolves.toMatchObject({ state: "released" });
+  });
+
+  it("saves a paid report from any read of the check, and then never offers the exit", async () => {
+    const { h, ready, check } = await paidThenExpired();
+    dropped(h);
+    // One read during the check reports the bundle paid.
+    const relay = h.fetchRelayr.getMockImplementation()!;
+    let gets = 0;
+    h.fetchRelayr.mockImplementation(async (url, init) => {
+      const response = await relay(url, init);
+      if (init?.method === "POST" || ++gets !== 2) return response;
+      const body = await response.json();
+      return new Response(JSON.stringify({ ...body, payment_received: true }));
+    });
+    expect((await check()).state).toBe("pending");
+    expect(h.sessions.get(ready.session.id)?.fundingObserved).toBe(true);
+    failReads(h);
+    const held = await check();
+    expect(held.recovery?.exit).toBeUndefined();
+    await expect(
+      h.controller.exit({ account: ACCOUNT, sessionId: ready.session.id }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+  });
+
+  it("offers no exit while a payment's deadline is unknown on the chain", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    h.mined({ status: "reverted" });
+    failReads(h);
+    vi.mocked(Date.now).mockReturnValue((DEADLINE + 60) * 1000);
+    h.setTimestamp(BigInt(DEADLINE + 1));
+    h.setCanonicalHash(WRONG_BLOCK);
+    const held = await h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    expect(held.recovery?.exit).toBeUndefined();
+    expect(held.recovery?.message).toBe(SAFE_RELAYR_STATUS_UNKNOWN_LINE);
   });
 });
 

@@ -745,6 +745,7 @@ describe("whether a deadline passed at a canonical finalized block", () => {
     await expect(relayrDeadlinePassed(client, REQUEST_DEADLINE)).resolves.toBe(
       true,
     );
+    // Open: the finalized block is at the deadline, not past it.
     finalizedAt(REQUEST_DEADLINE);
     await expect(
       relayrDeadlinePassed(client, String(REQUEST_DEADLINE)),
@@ -762,16 +763,19 @@ describe("whether a deadline passed at a canonical finalized block", () => {
     ["the deadline is empty", () => {}, ""],
     ["the deadline is blank", () => {}, " "],
     ["the deadline is negative", () => {}, "-1"],
-  ])("does not pass while %s", async (_, arrange, deadline) => {
-    finalizedAt(REQUESTS_EXPIRED);
-    arrange();
-    await expect(
-      relayrDeadlinePassed(
-        clients[1] as unknown as RelayrFinalizedClient,
-        deadline,
-      ),
-    ).resolves.toBe(false);
-  });
+  ])(
+    "is unknown, neither passed nor open, while %s",
+    async (_, arrange, deadline) => {
+      finalizedAt(REQUESTS_EXPIRED);
+      arrange();
+      await expect(
+        relayrDeadlinePassed(
+          clients[1] as unknown as RelayrFinalizedClient,
+          deadline,
+        ),
+      ).resolves.toBeNull();
+    },
+  );
 });
 
 describe("what a session whose bundle won't run as signed does next (rulings R104, R114)", () => {
@@ -1735,7 +1739,7 @@ describe("the session rules over viem's HTTP transport", () => {
     );
     await expect(
       relayrDeadlinePassed(httpClientFor(10), String(START)),
-    ).resolves.toBe(false);
+    ).resolves.toBeNull();
     finalizedTag = true;
     canonical = OTHER_BLOCK_HASH;
     await expect(verdictOverHttp()).resolves.toEqual({
