@@ -250,9 +250,10 @@ const budgets = {
     // With the away-success gate, acknowledgement and the bounded Safe
     // nonce wait: 1,518,154 B packed / 22,074,641 B unpacked; with legacy
     // settlements through intents and listing-only Safe clocks, 1,521,404 B
-    // packed / 22,090,603 B unpacked.
-    packed: 1_530_000,
-    unpacked: 22_110_000,
+    // packed / 22,090,603 B unpacked; with the separate send gate, 22,113,761 B
+    // unpacked.
+    packed: 1_535_000,
+    unpacked: 22_130_000,
     entries: 858,
   },
   "@bananapus/nana-sdk-react": {

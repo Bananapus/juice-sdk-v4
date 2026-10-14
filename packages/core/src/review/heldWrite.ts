@@ -309,7 +309,9 @@ export function createHeldWriteView(
       if (at !== epoch || delivered.has(key)) return;
       delivered.add(key);
       undelivered.delete(key);
+      if ("hash" in settled) told.add(settled.hash.toLowerCase());
       options.onSettled?.(settled, receipt);
+      present();
       // Told: the hold marks it acknowledged, so no later visit asks again.
       if (
         "hash" in settled &&
@@ -415,22 +417,8 @@ export function createHeldWriteView(
         });
         options.onReleased?.(by);
       } else if (view.phase === "settled" || view.phase === "released") {
-        // Already shown: a later read of the same end changes nothing.
-      } else if (
-        next.settled?.result === "success" &&
-        !next.settled.acknowledged
-      )
-        // Settled while away: never announced, and never sent past unasked.
-        set({
-          phase: "succeeded",
-          state: next,
-          line: HELD_AWAY_SUCCESS_LINE,
-          warning: undefined,
-          notice: undefined,
-          exit: false,
-          settled: next.settled,
-        });
-      else
+        // Already shown: kept, unless the gate below has another success.
+      } else
         set({
           phase: "clear",
           state: next,
@@ -443,6 +431,7 @@ export function createHeldWriteView(
       wasHeld = false;
       observed = undefined;
       exitedHere = undefined;
+      present();
       return;
     }
     const reservation = next.record.id;
@@ -455,9 +444,48 @@ export function createHeldWriteView(
     if (next.record.hash) follow(reservation);
   }
 
-  /** A success settled while away, not yet acknowledged: no send past it. */
+  /**
+   * The send gate, from current evidence alone: any unacknowledged success
+   * of the intent or an eligible legacy hold. It holds whatever is shown.
+   */
   function unacknowledged() {
-    if (view.phase === "succeeded") throw new Error(HELD_AWAY_SUCCESS_LINE);
+    if (gate()) throw new Error(HELD_AWAY_SUCCESS_LINE);
+  }
+
+  /** Successes this view told the app of: their acknowledgement is under way. */
+  const told = new Set<string>();
+  /** The gate's success, but for one this view already told the app of. */
+  function gate() {
+    const success = handle.unacknowledgedSuccess();
+    return success && !told.has(success.hash.toLowerCase())
+      ? success
+      : undefined;
+  }
+
+  /**
+   * Show the gate's success as `succeeded` ("Send it again") once nothing is
+   * left to deliver, unless a hold is shown.
+   */
+  function present() {
+    const success = gate();
+    if (!success || undelivered.size) return;
+    if (
+      view.phase === "awaiting" ||
+      view.phase === "confirming" ||
+      view.phase === "held"
+    )
+      return;
+    // A success this view saw settle was told, so the gate never names it.
+    set({
+      phase: "succeeded",
+      state: view.state,
+      line: HELD_AWAY_SUCCESS_LINE,
+      warning: undefined,
+      notice: undefined,
+      exit: false,
+      settled: { result: "success", hash: success.hash },
+      releasedBy: undefined,
+    });
   }
 
   /** The gated answer, now. */
@@ -596,11 +624,12 @@ export function createHeldWriteView(
      * the hold marks it acknowledged, for every reader, and sends are allowed.
      */
     async acknowledge(): Promise<void> {
-      const settled = view.settled;
-      if (view.phase !== "succeeded" || !settled || !("hash" in settled))
-        return;
-      apply(await handle.acknowledge(settled));
-      set({ phase: "clear", line: null, settled: undefined });
+      const success = gate();
+      if (view.phase !== "succeeded" || !success) return;
+      await handle.acknowledge({ result: success.result, hash: success.hash });
+      set({ phase: "clear", line: null, settled: undefined, state: null });
+      // Another success still unacknowledged is shown next.
+      present();
     },
   };
 }

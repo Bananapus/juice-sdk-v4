@@ -81,6 +81,14 @@ function sentIsCall(
 /** The stop of every controller with a follower or tab listener running, for the test-only reset. */
 const liveHolds = tabShared(TAB.holds, () => new Set<() => void>());
 
+/** A saved success the user hasn't acknowledged: it blocks sending the action again. */
+export type UnacknowledgedSuccess = {
+  result: "success";
+  hash: Hex;
+  /** The reservation it settled. */
+  reservation?: string;
+};
+
 /** The reads a write hold makes on the call's chain; a viem PublicClient satisfies it. */
 export type WriteHoldClient = Pick<
   PublicClient,
@@ -1593,6 +1601,21 @@ export function createWriteHold(
         return shown(result?.value ?? peek());
       },
       /**
+       * The send gate's evidence for this key: its saved success, while no
+       * record is held and the user hasn't acknowledged it. Pure, from storage.
+       */
+      unacknowledgedSuccess(): UnacknowledgedSuccess | undefined {
+        if (recovery.read()) return undefined;
+        const settled = recovery.settled();
+        return settled?.result === "success" && !settled.acknowledged
+          ? {
+              result: "success",
+              hash: settled.hash,
+              reservation: recovery.latestReservation(),
+            }
+          : undefined;
+      },
+      /**
        * The user acknowledged a success the hold settled while they were
        * away (or a view saw it settle): its saved settlement is marked
        * acknowledged, keeping its result for every reader, so it blocks no
@@ -1852,16 +1875,16 @@ export function createWriteHold(
      * so a view that saw it held shows its result, and an unacknowledged
      * success still blocks a fresh one.
      */
-    function legacySettled():
-      | {
-          handle: (typeof delegates)[number];
-          state: Extract<WriteHoldState, { status: "clear" }>;
-        }
-      | undefined {
-      // Every legacy settlement that may be the intent's: the reservation it
-      // was seen standing for, and any reserved after (or not provably
-      // before) its own latest reservation. Times that can't be compared
-      // count as newer: a false block is the safe side.
+    /**
+     * Every legacy settlement that may be the intent's: the reservation it
+     * was seen standing for (first), and any reserved after (or not provably
+     * before) its own latest reservation. Times that can't be compared count
+     * as newer: a false block is the safe side.
+     */
+    function eligibleLegacy(): {
+      handle: (typeof delegates)[number];
+      state: Extract<WriteHoldState, { status: "clear" }>;
+    }[] {
       const eligible: {
         handle: (typeof delegates)[number];
         state: Extract<WriteHoldState, { status: "clear" }>;
@@ -1878,6 +1901,7 @@ export function createWriteHold(
       const ownReserved = ownJournal.latestReservation() !== undefined;
       const ownAt = ownJournal.latestReservedAt();
       for (const [index, handle] of delegates.entries()) {
+        if (eligible.some((entry) => entry.handle === handle)) continue;
         const now = handle.peek();
         if (now.status !== "clear" || !now.settled) continue;
         const legacyAt =
@@ -1891,13 +1915,28 @@ export function createWriteHold(
         )
           eligible.push({ handle, state: now });
       }
-      // An unacknowledged success wins over failures and acknowledged ones.
+      return eligible;
+    }
+    /**
+     * What the intent shows of its legacy holds: the settlement of the one
+     * it was seen standing for (so it is delivered), else an unacknowledged
+     * success, else any eligible one. Blocking is the send gate's
+     * (unacknowledgedSuccess), never this choice.
+     */
+    function legacySettled() {
+      const eligible = eligibleLegacy();
       return (
+        eligible.find(
+          ({ handle, state }) =>
+            handle === routed?.handle &&
+            state.reservation === routed.reservation,
+        ) ??
         eligible.find(
           ({ state }) =>
             state.settled!.result === "success" &&
             !("acknowledged" in state.settled! && state.settled.acknowledged),
-        ) ?? eligible[0]
+        ) ??
+        eligible[0]
       );
     }
     /**
@@ -2076,14 +2115,40 @@ export function createWriteHold(
           withLegacy(await after(await own.state(client, checks)))
         );
       },
-      /** A legacy hold's settlement is acknowledged where it was saved. */
+      /**
+       * The send gate: any unacknowledged success, the intent's own or an
+       * eligible legacy hold's. Pure, from storage, whatever a view shows.
+       */
+      unacknowledgedSuccess(): UnacknowledgedSuccess | undefined {
+        const mine = own.unacknowledgedSuccess();
+        if (mine) return mine;
+        for (const { state } of eligibleLegacy()) {
+          const settled = state.settled!;
+          if (
+            settled.result === "success" &&
+            "hash" in settled &&
+            !settled.acknowledged
+          )
+            return {
+              result: "success",
+              hash: settled.hash,
+              reservation: state.reservation,
+            };
+        }
+        return undefined;
+      },
+      /** A settlement is acknowledged where it was saved, found by its hash. */
       async acknowledge(
         settled: Parameters<typeof own.acknowledge>[0],
       ): Promise<WriteHoldState> {
-        const legacy = legacySettled();
-        return legacy &&
-          "hash" in legacy.state.settled! &&
-          legacy.state.settled.hash === settled.hash.toLowerCase()
+        const hash = settled.hash.toLowerCase();
+        const legacy = eligibleLegacy().find(
+          ({ state }) =>
+            state.settled !== undefined &&
+            "hash" in state.settled &&
+            state.settled.hash === hash,
+        );
+        return legacy
           ? withLegacy(await legacy.handle.acknowledge(settled))
           : own.acknowledge(settled);
       },

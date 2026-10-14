@@ -103,6 +103,18 @@ function fakeHandle(start: WriteHoldState = clear({ reservation: undefined })) {
     send: vi.fn(async () => HASH),
     adopt: vi.fn(async () => fake.answer),
     acknowledge: vi.fn(async () => fake.answer),
+    unacknowledgedSuccess: vi.fn(() => {
+      const now = fake.answer;
+      return now.status === "clear" &&
+        now.settled?.result === "success" &&
+        !now.settled.acknowledged
+        ? {
+            result: "success" as const,
+            hash: now.settled.hash,
+            reservation: now.reservation,
+          }
+        : undefined;
+    }),
     onExecuted: vi.fn(async () => fake.answer),
     onUnproven: vi.fn(async () => fake.answer),
   };
@@ -805,7 +817,9 @@ describe("one held write's view", () => {
       _client: WriteHoldClient,
       run: (gate: never) => Promise<Hex>,
     ) => {
-      fake.emit(clear({ settled: { result: "success", hash: HASH } }));
+      // Saved, then said: the gate reads what is saved.
+      fake.answer = clear({ settled: { result: "success", hash: HASH } });
+      fake.emit(fake.answer);
       return run({} as never);
     }) as never);
     const wallet = vi.fn(async () => HASH);
@@ -1015,6 +1029,39 @@ describe("one held write's view", () => {
       { result: "failed", hash: EXECUTION },
       { transactionHash: EXECUTION },
     );
+    stop();
+  });
+
+  it("shows a new hold over a gated success when a late delivery ends", async () => {
+    const { fake, handle } = fakeHandle(pending({ id: "r60" }));
+    fake.answer = pending({ id: "r60" });
+    const view = createHeldWriteView(handle, {
+      client,
+      follow: false,
+      onSettled: vi.fn(),
+    });
+    const stop = view.start();
+    await flush();
+    let receipt!: (value: unknown) => void;
+    client.getTransactionReceipt.mockImplementationOnce(
+      () => new Promise((resolve) => (receipt = resolve)),
+    );
+    fake.answer = clear({
+      reservation: "r60",
+      settled: { result: "failed", hash: HASH },
+    });
+    await view.check();
+    // Another reservation is held meanwhile, and another success is unacknowledged.
+    fake.answer = pending({ id: "r61" });
+    await view.check();
+    handle.unacknowledgedSuccess.mockReturnValue({
+      result: "success",
+      hash: EXECUTION,
+      reservation: "r9",
+    });
+    receipt({ transactionHash: HASH });
+    await flush();
+    expect(view.get().phase).toBe("confirming");
     stop();
   });
 });

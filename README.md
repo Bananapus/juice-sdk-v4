@@ -1132,7 +1132,10 @@ await write.send((gate) => sendThroughWallet(gate));
   while the page was closed is phase `succeeded`, with
   `HELD_AWAY_SUCCESS_LINE` ("This went through while you were away."): every
   send refuses until the user picks `HELD_SEND_AGAIN_LABEL` ("Send it again",
-  `sendAgainAction`), which marks it acknowledged for every reader: it keeps
+  `sendAgainAction`), which marks it acknowledged for every reader. The send
+  gate is a separate read of current evidence (`hold.unacknowledgedSuccess()`,
+  over the intent and its legacy holds), so a result still shown never lets a
+  send past another unacknowledged success. It it keeps
   its result, blocks nothing, and a tab that saw it held still shows the
   success, never a release. Sending twice is
   sometimes meant; it just has to be said. It is never announced through

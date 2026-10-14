@@ -77,6 +77,18 @@ function fakeHold() {
     }),
     send: vi.fn(async () => HASH),
     adopt: vi.fn(async () => answer(key)),
+    unacknowledgedSuccess: () => {
+      const now = answer(key);
+      return now.status === "clear" &&
+        now.settled?.result === "success" &&
+        !now.settled.acknowledged
+        ? {
+            result: "success" as const,
+            hash: now.settled.hash,
+            reservation: now.reservation,
+          }
+        : undefined;
+    },
     acknowledge: vi.fn(async () => {
       answers.set(key, { status: "clear" } as WriteHoldState);
       return answer(key);

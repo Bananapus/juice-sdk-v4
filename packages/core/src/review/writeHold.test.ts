@@ -6248,6 +6248,184 @@ describe("a legacy hold's success, through its intent", () => {
     },
   );
 
+  /** Two legacy keys, A and B, of an intent that never reserved, and a started view. */
+  function twoKeys() {
+    const browser = origin();
+    const old = setup({ browser });
+    const next = setup({ browser, locks: old.locks });
+    const fixture = fakeChain();
+    fixture.chain.head = 120n;
+    fixture.chain.finalized = 110n;
+    const calls = {
+      A: { ...ordinary.call, data: "0xaabbccdd00a1" as Hex },
+      B: { ...ordinary.call, data: "0xaabbccdd00b2" as Hex },
+    };
+    const hashes = {
+      A: `0x${"a1".repeat(32)}` as Hex,
+      B: `0x${"b2".repeat(32)}` as Hex,
+    };
+    let block = 100n;
+    let nonce = 7;
+    const legacyOf = (key: "A" | "B") =>
+      old.hold.open({ ...ordinary, call: calls[key] });
+    /** The older version sends `key`'s call. */
+    const send = (key: "A" | "B") =>
+      legacyOf(key).send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(hashes[key]);
+        return hashes[key];
+      });
+    /** `key`'s transaction mines, final, with `result`. */
+    const settle = async (key: "A" | "B", result: "success" | "failed") => {
+      fixture.chain.txs.push({
+        ...sent(hashes[key], {
+          block: block++,
+          nonce: nonce++,
+          ...(result === "failed" ? { status: "reverted" as const } : {}),
+        }),
+        input: calls[key].data,
+      });
+      await legacyOf(key).onReceipt(
+        fixture.receiptOf(fixture.chain.txs[fixture.chain.txs.length - 1]),
+        fixture.client,
+      );
+    };
+    const intentHandle = () =>
+      next.hold.open(
+        {
+          ...ordinary,
+          call: { ...ordinary.call, data: "0xaabbccdd0002" as Hex },
+          namespace: writeIntentKey("pay", { projectId: 4n }),
+        },
+        { legacy: [{ call: calls.A }, { call: calls.B }] },
+      );
+    return { fixture, hashes, send, settle, intentHandle };
+  }
+
+  it("lets a later legacy success replace a retained failure, and gates the send on it (Codex :417)", async () => {
+    const keys = twoKeys();
+    await keys.send("A");
+    const settled = vi.fn();
+    const view = createHeldWriteView(keys.intentHandle(), {
+      client: keys.fixture.client,
+      follow: false,
+      onSettled: settled,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    await keys.settle("A", "failed");
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(view.get()).toMatchObject({
+      phase: "settled",
+      settled: { result: "failed" },
+    });
+    // Between this view's reads, B is sent and succeeds.
+    await keys.send("B");
+    await keys.settle("B", "success");
+    await view.check();
+    expect(view.get()).toMatchObject({
+      phase: "succeeded",
+      settled: { hash: keys.hashes.B },
+    });
+    const retry = wallet(async () => OTHER);
+    await expect(view.send(retry.send)).rejects.toThrow();
+    expect(retry.write).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("delivers the settlement it saw held, though another key has a success (Codex :1896)", async () => {
+    const keys = twoKeys();
+    await keys.send("B");
+    await keys.settle("B", "success");
+    await keys.send("A");
+    const settled = vi.fn();
+    const view = createHeldWriteView(keys.intentHandle(), {
+      client: keys.fixture.client,
+      follow: false,
+      onSettled: settled,
+    });
+    const stop = view.start();
+    await vi.waitFor(() => expect(view.get().phase).toBe("confirming"));
+    await keys.settle("A", "failed");
+    await view.check();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+    expect(settled).toHaveBeenCalledWith(
+      { result: "failed", hash: keys.hashes.A },
+      expect.anything(),
+    );
+    // Then B's unacknowledged success shows, and gates the send.
+    await vi.waitFor(() =>
+      expect(view.get()).toMatchObject({
+        phase: "succeeded",
+        settled: { hash: keys.hashes.B },
+      }),
+    );
+    await expect(view.send(wallet(async () => OTHER).send)).rejects.toThrow();
+    stop();
+  });
+
+  it("holds the gate whenever any success is unacknowledged, whatever the order of events", async () => {
+    // A small seeded generator: the same sequences every run.
+    let seed = 42;
+    const random = () =>
+      (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+    for (let run = 0; run < 12; run += 1) {
+      const keys = twoKeys();
+      const view = createHeldWriteView(keys.intentHandle(), {
+        client: keys.fixture.client,
+        follow: false,
+      });
+      const order: ("A" | "B")[] = random() < 0.5 ? ["A", "B"] : ["B", "A"];
+      let anySuccess = false;
+      for (const key of order) {
+        await keys.send(key);
+        // Sometimes the view reads it held first (and then sees it settle live).
+        const watched = random() < 0.5;
+        if (watched) await view.check();
+        const result = random() < 0.5 ? "success" : "failed";
+        await keys.settle(key, result);
+        await view.check();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        // A success this view saw settle live is told and acknowledged;
+        // one it never saw held stays unacknowledged.
+        if (result === "success" && !watched) anySuccess = true;
+        const retry = wallet(async () => OTHER);
+        const sent = await view.send(retry.send).then(
+          () => true,
+          () => false,
+        );
+        expect({ run, key, watched, result, sent }).toMatchObject({
+          sent: !anySuccess,
+        });
+        if (sent) break; // a send changes the intent's history: one per run
+      }
+    }
+  });
+
+  it("gates on the intent's own unacknowledged success, and never on a held record", async () => {
+    const { hold } = setup();
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(
+      { ...ordinary, namespace: writeIntentKey("pay", { projectId: 8n }) },
+      { legacy: [{ call: ordinary.call }] },
+    );
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    expect(handle.unacknowledgedSuccess()).toBeUndefined();
+    await handle.exit(
+      await handle.state(client),
+      { checkedWallet: true },
+      client,
+    );
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n, nonce: 7 }));
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(handle.unacknowledgedSuccess()).toMatchObject({
+      result: "success",
+      hash: HASH,
+    });
+  });
+
   it("blocks on a legacy reservation made at the same moment as the intent's", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(5_000_000);
