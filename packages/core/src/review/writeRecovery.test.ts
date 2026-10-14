@@ -13,6 +13,7 @@ import { IDBDatabase, IDBFactory } from "fake-indexeddb";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   canonicalSafeTxHash,
+  safeBatchProposalFor,
   safeProposalFor,
   SAFE_EXEC_ABI,
 } from "../safeService.js";
@@ -1073,6 +1074,64 @@ describe("reviewed Safe expiry proof", () => {
       alter(fixture);
       await expect(fixture.verify()).rejects.toThrow("pending");
     }
+  });
+});
+
+describe("reviewed Safe expiry proof of a batch hold", () => {
+  /** A batch hold of one expiring router call, proposed with `operation`. */
+  function batchExpiring(operation: 0 | 1) {
+    const call = {
+      to: uniswapV4Deployment(10)!.universalRouter!,
+      data: `0x3593564c${encodeAbiParameters([{ type: "bytes" }, { type: "bytes[]" }, { type: "uint256" }], ["0x01", ["0x00"], 99n]).slice(2)}` as Hex,
+      value: 0n,
+    };
+    const proposal = {
+      ...safeBatchProposalFor([call], 5),
+      operation,
+      safe: ACCOUNT,
+      isExecuted: false,
+    };
+    const record: ReviewedWriteRecoveryRecord = {
+      ...saved,
+      safe: true,
+      hash: canonicalSafeTxHash(10, ACCOUNT, proposal),
+      call: {
+        to: MULTI_SEND_CALL_ONLY,
+        data: encodeMultiSend([call]),
+        value: "0",
+      },
+    };
+    const client = {
+      getChainId: vi.fn(async () => 10),
+      getBlock: vi.fn(async (_args: unknown) => ({
+        number: 7n,
+        hash: BLOCK,
+        timestamp: 100n,
+      })),
+      request: vi.fn(
+        async (_args: unknown) => `0x${5n.toString(16).padStart(64, "0")}`,
+      ),
+    };
+    const verify = () =>
+      verifyReviewedWriteExpiry(
+        client as unknown as Parameters<typeof verifyReviewedWriteExpiry>[0],
+        record,
+        { fetch: vi.fn(async () => new Response(JSON.stringify(proposal))) },
+      );
+    return { client, verify };
+  }
+
+  it("checks the proposal runs the batch by DELEGATECALL, never a plain CALL to MultiSend", async () => {
+    const plain = batchExpiring(0);
+    await expect(plain.verify()).rejects.toThrow("pending");
+    // Refused at the proposal match, before any chain read.
+    expect(plain.client.getBlock).not.toHaveBeenCalled();
+    const delegated = batchExpiring(1);
+    await delegated.verify().catch(() => undefined);
+    // Its proposal matched, so the proof went on to the finalized block.
+    expect(delegated.client.getBlock).toHaveBeenCalledWith({
+      blockTag: "finalized",
+    });
   });
 });
 
