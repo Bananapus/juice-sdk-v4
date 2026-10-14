@@ -2214,6 +2214,62 @@ describe("a held Safe proposal", () => {
     }
   });
 
+  it("never saves an execution returned at once that ran another call", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(1_000_000);
+    const browser = origin();
+    const { hold, queue } = safeSetup(browser);
+    queue.options.fetch.mockImplementation(
+      async () => new Response("not found", { status: 404 }),
+    );
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(EXECUTION);
+    });
+    // Sticky: the hash is a Safe execution, but of a different call.
+    const otherCall = { to: TARGET, data: "0xdeadbeef" as Hex, value: 0n };
+    fixture.chain.txs.push({
+      hash: EXECUTION,
+      from: ACCOUNT,
+      nonce: 7,
+      to: SAFE,
+      input: execInput(otherCall),
+      value: 0n,
+      block: 95n,
+      logs: [event(`0x${"5c".repeat(32)}` as Hex, SUCCESS)],
+    });
+    fixture.chain.head = 120n;
+    fixture.chain.finalized = 110n;
+    const first = await handle.state(fixture.client);
+    expect(first).toMatchObject({ status: "pending-known-hash", exit: false });
+    expect((first as WriteHeldState).record.executed).toBeUndefined();
+    // 65 minutes later, after a remount: the warned exit, nothing marked executed.
+    vi.setSystemTime(1_000_000 + 65 * 60_000);
+    const remounted = safeSetup(browser);
+    remounted.queue.options.fetch.mockImplementation(
+      async () => new Response("not found", { status: 404 }),
+    );
+    const again = remounted.hold.open(safeCall());
+    const shown = await again.state(fixture.client);
+    expect(shown).toMatchObject({
+      status: "held-unchecked",
+      exit: true,
+      warning: WRITE_HOLD_HASHED_EXIT_LINE,
+    });
+    expect((shown as WriteHeldState).record.executed).toBeUndefined();
+    // The app's follower can still end it as unproven, with the exit.
+    const unproven = await again.onUnproven(fixture.client);
+    expect(unproven).toMatchObject({ status: "safe-unproven", exit: true });
+    await expect(
+      again.exit(unproven, { checkedWallet: true }, fixture.client),
+    ).resolves.toMatchObject({ released: true });
+    hold.dispose();
+    remounted.hold.dispose();
+    vi.useRealTimers();
+  });
+
   it("settles an execution returned at once whose outer transaction reverted as failed, once final", async () => {
     vi.useFakeTimers();
     const { hold } = safeSetup();
