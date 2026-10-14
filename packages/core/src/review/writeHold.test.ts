@@ -752,6 +752,42 @@ describe("a held write", () => {
     });
   });
 
+  it("offers an exit only through the gate: peek() and replays never do", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    // Read from storage alone, the exit isn't offered: the status and line stay.
+    expect(handle.peek()).toMatchObject({
+      status: "held-no-hash",
+      exit: false,
+      line: expect.any(String),
+    });
+    const gated = await handle.state(client);
+    expect(gated).toMatchObject({ status: "held-no-hash", exit: true });
+    // A late subscriber hears the state, never its exit.
+    const late = vi.fn();
+    hold.open(ordinary).subscribe(late);
+    expect(late).toHaveBeenCalledOnce();
+    expect(late.mock.calls[0][0]).toMatchObject({
+      status: "held-no-hash",
+      exit: false,
+    });
+    // Every emitted state that didn't pass the gate carries no exit either.
+    const second = setup();
+    const other = second.hold.open(ordinary);
+    const seen: WriteHoldState[] = [];
+    other.subscribe((state) => seen.push(state));
+    await expect(other.send(client, lostReply().send)).rejects.toThrow();
+    expect(
+      seen.filter((state) => state.status !== "clear" && state.exit),
+    ).toEqual([]);
+    // The exit taken through the gate still releases.
+    await expect(
+      handle.exit(gated, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+  });
+
   it("replays the latest state to a subscriber that arrives late", async () => {
     const { hold } = setup();
     const { client } = fakeChain();
@@ -2538,7 +2574,7 @@ describe("a held Safe proposal", () => {
       safeService: queue.options,
       settle: { intervalMs: 1_000, attempts: 3 },
     });
-    return { hold, queue, browser };
+    return { hold, queue, browser, storage };
   }
 
   it.each([
@@ -3642,12 +3678,145 @@ describe("a held Safe proposal", () => {
       expect(unproven).toMatchObject(unprovenState);
       // After a reload too.
       const reloaded = safeSetup(browser).hold.open(safeCall());
-      expect(reloaded.peek()).toMatchObject(unprovenState);
+      expect(reloaded.peek()).toMatchObject({ ...unprovenState, exit: false });
       const shown = await reloaded.state(fixture.client);
       expect(shown).toMatchObject(unprovenState);
       await expect(
         reloaded.exit(shown, { checkedWallet: true }, fixture.client),
       ).resolves.toMatchObject({ released: true });
+    });
+
+    describe("every method with a client goes through the one gate", () => {
+      /** Replaced, while a candidate is still pending: state() offers no exit. */
+      async function replacedWithPendingCandidate() {
+        const ctx = await proposed();
+        const CAND = `0x${"c6".repeat(32)}` as Hex;
+        ctx.fixture.chain.txs.push({
+          hash: CAND,
+          from: RELAYER,
+          nonce: 0,
+          to: SAFE,
+          input: execInput(),
+          value: 0n,
+        });
+        await ctx.handle.onExecuted(ctx.fixture.client, CAND);
+        executes(ctx.fixture, OTHER, SUCCESS);
+        // A stored replacement, as if seen before the candidate.
+        const raw = createBrowserWriteRecovery(safeCall(), {
+          storage: ctx.storage,
+          locks: {
+            request: (
+              _n: string,
+              _o: LockOptions,
+              work: (l: Lock) => unknown,
+            ) => work({} as Lock),
+          } as never,
+        });
+        await raw.withLock(async () => raw.replacedOnChain(raw.read()!));
+        return { ...ctx, CAND };
+      }
+      const unrelated = (
+        ctx: Awaited<ReturnType<typeof replacedWithPendingCandidate>>,
+      ) =>
+        ctx.fixture.receiptOf({
+          ...sent(`0x${"77".repeat(32)}` as Hex),
+          block: 95n,
+        });
+
+      it("exit releases only what the gate offers", async () => {
+        for (const candidate of ["pending", "gone"] as const) {
+          const ctx = await replacedWithPendingCandidate();
+          if (candidate === "gone") ctx.fixture.chain.hidden.add(ctx.CAND);
+          const shown = await ctx.handle.state(ctx.fixture.client);
+          const ended = await ctx.handle.exit(
+            { ...shown, exit: true } as WriteHoldState,
+            { checkedWallet: true },
+            ctx.fixture.client,
+          );
+          expect(ended.released).toBe(candidate === "gone");
+          if (!ended.released)
+            expect(ended.state).toMatchObject({ exit: false });
+        }
+      });
+
+      it("Codex: an unrelated receipt never reports a replaced hold's exit while a candidate is pending", async () => {
+        const ctx = await replacedWithPendingCandidate();
+        const viaReceipt = await ctx.handle.onReceipt(
+          unrelated(ctx),
+          ctx.fixture.client,
+        );
+        expect(viaReceipt).toMatchObject({
+          status: "pending-known-hash",
+          exit: false,
+        });
+        await expect(
+          ctx.handle.state(ctx.fixture.client),
+        ).resolves.toMatchObject({
+          exit: false,
+        });
+      });
+
+      it.each([
+        [
+          "onReceipt",
+          (ctx: Awaited<ReturnType<typeof replacedWithPendingCandidate>>) =>
+            ctx.handle.onReceipt(unrelated(ctx), ctx.fixture.client),
+        ],
+        [
+          "onUnproven",
+          (ctx: Awaited<ReturnType<typeof replacedWithPendingCandidate>>) =>
+            ctx.handle.onUnproven(ctx.fixture.client),
+        ],
+        [
+          "onExecuted",
+          (ctx: Awaited<ReturnType<typeof replacedWithPendingCandidate>>) =>
+            ctx.handle.onExecuted(ctx.fixture.client),
+        ],
+        [
+          "attachHash",
+          (ctx: Awaited<ReturnType<typeof replacedWithPendingCandidate>>) =>
+            ctx.handle.attachHash(ctx.fixture.client, HASH),
+        ],
+        [
+          "send",
+          async (
+            ctx: Awaited<ReturnType<typeof replacedWithPendingCandidate>>,
+          ) =>
+            (
+              await ctx.handle
+                .send(ctx.fixture.client, async () => {})
+                .catch((e) => e)
+            ).state as WriteHoldState,
+        ],
+      ] as const)(
+        "%s offers an exit only when state() would, with the candidate pending and then gone",
+        async (_, call) => {
+          for (const candidate of ["pending", "gone"] as const) {
+            const ctx = await replacedWithPendingCandidate();
+            if (candidate === "gone") ctx.fixture.chain.hidden.add(ctx.CAND);
+            const gated = await ctx.handle.state(ctx.fixture.client);
+            const got = await call(ctx);
+            const exitOf = (state: WriteHoldState) =>
+              state.status !== "clear" && state.exit;
+            expect(exitOf(got)).toBe(exitOf(gated));
+            expect(exitOf(gated)).toBe(candidate === "gone");
+          }
+        },
+      );
+    });
+
+    it("offers the unproven exit through state(), never through peek()", async () => {
+      const { handle, fixture, queue } = await proposed();
+      await handle.onUnproven(fixture.client, queue.hash);
+      expect(handle.peek()).toMatchObject({
+        status: "safe-unproven",
+        exit: false,
+        line: WRITE_HOLD_SAFE_UNPROVEN_LINE,
+      });
+      await expect(handle.state(fixture.client)).resolves.toMatchObject({
+        status: "safe-unproven",
+        exit: true,
+      });
     });
 
     it("offers the exit at once, durably through a reload", async () => {
@@ -3661,7 +3830,7 @@ describe("a held Safe proposal", () => {
       });
       // A reload: a new controller and tab memory, the same browser.
       const reloaded = safeSetup(browser).hold.open(safeCall());
-      expect(reloaded.peek()).toMatchObject(unprovenState);
+      expect(reloaded.peek()).toMatchObject({ ...unprovenState, exit: false });
       const shown = await reloaded.state(fixture.client);
       expect(shown).toMatchObject(unprovenState);
       await expect(

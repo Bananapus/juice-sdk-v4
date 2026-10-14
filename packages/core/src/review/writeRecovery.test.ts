@@ -1699,8 +1699,14 @@ describe("tabs without Web Locks", () => {
     const b = second.createBrowserWriteRecovery(input, { storage });
     let release!: () => void;
     const held = new Promise<void>((resolve) => (release = resolve));
-    const holding = a.withLock(() => held);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    let entered!: () => void;
+    const inside = new Promise<void>((resolve) => (entered = resolve));
+    const holding = a.withLock(() => {
+      entered();
+      return held;
+    });
+    // The first tab holds its lease before the clock moves.
+    await inside;
     const now = Date.now();
     vi.spyOn(Date, "now").mockReturnValue(now + 60_000);
     await expect(b.withLock(async () => "taken")).resolves.toBe("taken");
