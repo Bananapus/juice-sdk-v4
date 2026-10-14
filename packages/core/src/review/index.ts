@@ -7,3 +7,4 @@ export * from "./transactionReview.js";
 export * from "./transaction-message.js";
 export * from "./writeRecovery.js";
 export * from "./writeHold.js";
+export * from "./writeIntent.js";
