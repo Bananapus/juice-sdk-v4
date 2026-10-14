@@ -664,8 +664,9 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       const at = [saved?.fundingObservedAt, next.fundingObservedAt].filter(
         (value): value is number => typeof value === "number",
       );
+      // Once seen, funding stays, and its clock only moves forward.
       return options.store.save(
-        saved?.fundingObserved && !next.fundingObserved
+        saved?.fundingObserved || next.fundingObserved
           ? {
               ...next,
               fundingObserved: true,

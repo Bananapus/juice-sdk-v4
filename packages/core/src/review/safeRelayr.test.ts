@@ -4430,6 +4430,30 @@ describe("Safe Relayr status reads that stay unknown", () => {
     });
   });
 
+  it("never moves the funding clock back from a stale snapshot that already saw funding", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.sessions.set(ready.session.id, {
+      ...h.sessions.get(ready.session.id)!,
+      fundingObserved: true,
+      fundingObservedAt: 5,
+    });
+    // While this check reads, another tab records funding again, later.
+    const relay = h.fetchRelayr.getMockImplementation()!;
+    h.fetchRelayr.mockImplementationOnce(async (url, init) => {
+      h.sessions.set(ready.session.id, {
+        ...h.sessions.get(ready.session.id)!,
+        fundingObservedAt: 9,
+      });
+      return relay(url, init);
+    });
+    await h.controller.check({ account: ACCOUNT, sessionId: ready.session.id });
+    expect(h.sessions.get(ready.session.id)?.fundingObservedAt).toBe(9);
+  });
+
   it("opens no wallet once the saved record changed in a way that blocks payment", async () => {
     const h = harness();
     const ready = await h.controller.prepare({
