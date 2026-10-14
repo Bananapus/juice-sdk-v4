@@ -74,6 +74,10 @@ type Held<S extends string, Extra> = {
 /**
  * What a write hold says about one exact call, from {@link WriteHold.state}:
  *
+ * "The exit is offered" means through the gate: `exit` is true only on a
+ * state from state() or exit(). peek(), replays and every other emitted state
+ * keep the status and line with `exit: false`.
+ *
  * - `clear`: nothing is held; `settled` says how the call's last write
  *   ended on authenticated evidence (its receipt or canonical execution),
  *   saved for every reader until the next write on the call is reserved. A
@@ -113,19 +117,30 @@ type Held<S extends string, Extra> = {
 export type WriteHoldState =
   | { status: "clear"; settled?: WriteHoldSettled }
   | Held<"pending-known-hash", { hash: Hex; exit: false }>
-  | Held<"held-no-hash", { exit: true }>
+  | Held<"held-no-hash", { exit: boolean }>
   | Held<
       "dropped-proven",
-      { hash: Hex; usedBy: Hex; exit: true; warning: string }
+      { hash: Hex; usedBy: Hex; exit: boolean; warning: string }
     >
-  | Held<"held-unchecked", { hash: Hex; exit: true; warning: string }>
-  | Held<"safe-replaced", { hash: Hex; exit: true; warning: string }>
-  | Held<"safe-unproven", { hash: Hex; exit: true; warning: string }>
-  | Held<"looks-done", { hash?: Hex; exit: true; warning?: string }>
+  | Held<"held-unchecked", { hash: Hex; exit: boolean; warning: string }>
+  | Held<"safe-replaced", { hash: Hex; exit: boolean; warning: string }>
+  | Held<"safe-unproven", { hash: Hex; exit: boolean; warning: string }>
+  | Held<"looks-done", { hash?: Hex; exit: boolean; warning?: string }>
   | Held<
       "ran-executed",
       { executionHash?: Hex; result?: "failed"; exit: false }
     >;
+
+/**
+ * A state read without the chain (peek, a replay, another tab's change, a
+ * send's progress): its status and line, never the exit. Only the gate in
+ * state() and exit() offers that.
+ */
+function ungated(state: WriteHoldState): WriteHoldState {
+  return state.status === "clear" || !state.exit
+    ? state
+    : ({ ...state, exit: false } as WriteHoldState);
+}
 
 /** Any state but `clear`. */
 export type WriteHeldState = Exclude<WriteHoldState, { status: "clear" }>;
@@ -365,7 +380,7 @@ export function createWriteHold(
     const cleared = () => clear(recovery.settled());
     const peek = () => {
       const record = recovery.read();
-      return record ? classify(record) : cleared();
+      return record ? ungated(classify(record)) : cleared();
     };
     const shown = (state: WriteHoldState) => (emit(key, state), state);
 
@@ -912,7 +927,7 @@ export function createWriteHold(
             JSON.stringify(
               state.status === "clear" ? (state.settled ?? null) : state.record,
             );
-          listener(identity(now) === identity(last) ? last : now);
+          listener(ungated(identity(now) === identity(last) ? last : now));
         }
         return () => {
           set!.delete(listener);
@@ -978,7 +993,7 @@ export function createWriteHold(
               } catch {
                 /* Not this proposal: the service is asked later. */
               }
-            shown(classify(attempt));
+            shown(ungated(classify(attempt)));
           },
           onRejected() {
             recovery.rejected();

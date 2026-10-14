@@ -752,6 +752,42 @@ describe("a held write", () => {
     });
   });
 
+  it("offers an exit only through the gate: peek() and replays never do", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    // Read from storage alone, the exit isn't offered: the status and line stay.
+    expect(handle.peek()).toMatchObject({
+      status: "held-no-hash",
+      exit: false,
+      line: expect.any(String),
+    });
+    const gated = await handle.state(client);
+    expect(gated).toMatchObject({ status: "held-no-hash", exit: true });
+    // A late subscriber hears the state, never its exit.
+    const late = vi.fn();
+    hold.open(ordinary).subscribe(late);
+    expect(late).toHaveBeenCalledOnce();
+    expect(late.mock.calls[0][0]).toMatchObject({
+      status: "held-no-hash",
+      exit: false,
+    });
+    // Every emitted state that didn't pass the gate carries no exit either.
+    const second = setup();
+    const other = second.hold.open(ordinary);
+    const seen: WriteHoldState[] = [];
+    other.subscribe((state) => seen.push(state));
+    await expect(other.send(client, lostReply().send)).rejects.toThrow();
+    expect(
+      seen.filter((state) => state.status !== "clear" && state.exit),
+    ).toEqual([]);
+    // The exit taken through the gate still releases.
+    await expect(
+      handle.exit(gated, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
+  });
+
   it("replays the latest state to a subscriber that arrives late", async () => {
     const { hold } = setup();
     const { client } = fakeChain();
@@ -3642,12 +3678,26 @@ describe("a held Safe proposal", () => {
       expect(unproven).toMatchObject(unprovenState);
       // After a reload too.
       const reloaded = safeSetup(browser).hold.open(safeCall());
-      expect(reloaded.peek()).toMatchObject(unprovenState);
+      expect(reloaded.peek()).toMatchObject({ ...unprovenState, exit: false });
       const shown = await reloaded.state(fixture.client);
       expect(shown).toMatchObject(unprovenState);
       await expect(
         reloaded.exit(shown, { checkedWallet: true }, fixture.client),
       ).resolves.toMatchObject({ released: true });
+    });
+
+    it("offers the unproven exit through state(), never through peek()", async () => {
+      const { handle, fixture, queue } = await proposed();
+      await handle.onUnproven(fixture.client, queue.hash);
+      expect(handle.peek()).toMatchObject({
+        status: "safe-unproven",
+        exit: false,
+        line: WRITE_HOLD_SAFE_UNPROVEN_LINE,
+      });
+      await expect(handle.state(fixture.client)).resolves.toMatchObject({
+        status: "safe-unproven",
+        exit: true,
+      });
     });
 
     it("offers the exit at once, durably through a reload", async () => {
@@ -3661,7 +3711,7 @@ describe("a held Safe proposal", () => {
       });
       // A reload: a new controller and tab memory, the same browser.
       const reloaded = safeSetup(browser).hold.open(safeCall());
-      expect(reloaded.peek()).toMatchObject(unprovenState);
+      expect(reloaded.peek()).toMatchObject({ ...unprovenState, exit: false });
       const shown = await reloaded.state(fixture.client);
       expect(shown).toMatchObject(unprovenState);
       await expect(

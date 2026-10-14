@@ -882,7 +882,9 @@ resend). A hash is dropped only when the node doesn't know it and a canonical
 finalized block shows another transaction ran at the nonce it was sent at
 (`sentNonce`, from its authenticated transaction); a send reads the account's
 nonce first, with one retry, or stops with `WriteHoldNonceError` before the
-wallet opens. Every state carries the record it was read from; `exit` refuses a
+wallet opens. Only a state from `state()` or `exit()` offers the exit: `peek()`, a
+subscriber's replay and every other emitted state keep the status and line
+with `exit: false`. Every state carries the record it was read from; `exit` refuses a
 snapshot that changed, and asks the chain once more, so a confirmation that
 lands meanwhile wins.
 
