@@ -77,9 +77,7 @@ export type SavedAttemptCheck = {
   reason: string;
   line: string;
   warning: string;
-  /** A success the hold settled that couldn't be shown as this attempt: never discard or resend past it unseen. */
-  settled?: Hex;
-  /** The hold evidence the user is asked about: their check retires exactly this. */
+  /** The hold evidence this check evaluated: the user's check retires exactly this. */
   evidence: string;
 };
 
@@ -88,8 +86,12 @@ export type SavedAttemptCheck = {
  * before any send or discard:
  * - `held`: the hold still holds the write. Count nothing; show `state`, and
  *   its exit when due (through `handle`);
- * - `done`: `success` was shown as this attempt by the app's check (record it,
- *   never send it again); `failed` is the hold's proven revert of it;
+ * - `done`: `success` ran. `authenticated: true` when the app's check showed
+ *   it as this attempt (`value`); `false` when the hold settled it but the
+ *   app's details are unavailable (`reason`): record its `hash` and follow it,
+ *   with "Check again" (recover again) as its only action. Either way, never
+ *   send it again; only `retire({ by: "settled" })` retires it. `failed` is
+ *   the hold's proven revert of it;
  * - `check`: it can't be shown. One explicit action, "I checked it. ...",
  *   and only that, retires it (`retire({ by: "check", outcome })`);
  * - `none`: the hold proves nothing was reserved and nothing saved says it
@@ -100,7 +102,20 @@ export type SavedAttemptCheck = {
  */
 export type SavedAttemptOutcome<T> =
   | { status: "held"; state: WriteHeldState; handle: WriteHoldHandle }
-  | { status: "done"; result: "success"; hash?: Hex; value: T }
+  | {
+      status: "done";
+      result: "success";
+      authenticated: true;
+      hash?: Hex;
+      value: T;
+    }
+  | {
+      status: "done";
+      result: "success";
+      authenticated: false;
+      hash: Hex;
+      reason: string;
+    }
   | { status: "done"; result: "failed"; hash: Hex }
   | SavedAttemptCheck
   | { status: "none"; retired?: SavedAttemptRetirement["by"] | "rejected" };
@@ -111,6 +126,8 @@ const NO_CALL = {
   data: "0x" as Hex,
 };
 const RETIRED_PREFIX = "nana-sdk:saved-attempt:retired:";
+/** How many times a check the hold moved under is evaluated again. */
+const PASSES = 3;
 
 const lower = (hash?: Hex) => hash?.toLowerCase() as Hex | undefined;
 const reasonOf = (error: unknown) =>
@@ -199,29 +216,25 @@ export function createSavedAttemptRecovery(options: {
     return { success, failed };
   }
 
-  function check(
-    attempt: SavedAttemptScope,
-    handles: WriteHoldHandle[],
-    reason: string,
-    settled?: Hex,
-  ): SavedAttemptCheck {
-    let evidence = "";
-    try {
-      evidence = evidenceOf(
-        attempt,
-        handles.map((handle) => handle.peek()),
-      );
-    } catch {
-      /* Unreadable: no check action can retire it until it reads. */
-    }
+  function check(reason: string, evidence: string): SavedAttemptCheck {
     return {
       status: "check",
       reason,
       line: SAVED_ATTEMPT_CHECK_LINE,
       warning: SAVED_ATTEMPT_CHECK_WARNING,
-      ...(settled ? { settled } : {}),
       evidence,
     };
+  }
+  /** The evidence the hold shows now, or "" (no check on it can be retired) when unreadable. */
+  function evidenceNow(attempt: SavedAttemptScope, handles: WriteHoldHandle[]) {
+    try {
+      return evidenceOf(
+        attempt,
+        handles.map((handle) => handle.peek()),
+      );
+    } catch {
+      return "";
+    }
   }
 
   /**
@@ -232,7 +245,31 @@ export function createSavedAttemptRecovery(options: {
     attempt: SavedAttempt<T>,
     client: WriteHoldClient,
   ): Promise<SavedAttemptOutcome<T>> {
-    let handles: WriteHoldHandle[] = [];
+    let outcome = await pass(attempt, client);
+    // A check the hold moved under (a settlement landed while the app's check
+    // ran) is evaluated again; one that keeps moving stays bound to what it saw.
+    for (
+      let again = 0;
+      again < PASSES - 1 && outcome.status === "check";
+      again++
+    ) {
+      let handles: WriteHoldHandle[];
+      try {
+        handles = handlesOf(attempt);
+      } catch {
+        break;
+      }
+      if (evidenceNow(attempt, handles) === outcome.evidence) break;
+      outcome = await pass(attempt, client);
+    }
+    return outcome;
+  }
+
+  async function pass<T>(
+    attempt: SavedAttempt<T>,
+    client: WriteHoldClient,
+  ): Promise<SavedAttemptOutcome<T>> {
+    let evidence = "";
     const reasons: string[] = [];
     const prove = async (hash: Hex | undefined) => {
       try {
@@ -249,7 +286,7 @@ export function createSavedAttemptRecovery(options: {
       }
       return undefined;
     };
-    /** A settled success wins: shown as this attempt, it's done; otherwise it's check, never a send. */
+    /** A settled success wins: shown as this attempt, or else followed by its hash alone; never a check. */
     const followed = async (
       states: WriteHoldState[],
     ): Promise<SavedAttemptOutcome<T> | undefined> => {
@@ -260,6 +297,7 @@ export function createSavedAttemptRecovery(options: {
           return {
             status: "done",
             result: "success",
+            authenticated: true,
             hash,
             value: proof.value,
           };
@@ -272,31 +310,38 @@ export function createSavedAttemptRecovery(options: {
           return {
             status: "done",
             result: "success",
+            authenticated: true,
             hash: saved,
             value: proof.value,
           };
-        return check(attempt, handles, reasons.join(" "), success[0]);
+        return {
+          status: "done",
+          result: "success",
+          authenticated: false,
+          hash: success[0],
+          reason: reasons.join(" "),
+        };
       }
       if (failed.length)
         return { status: "done", result: "failed", hash: failed[0] };
       return undefined;
     };
     try {
-      handles = handlesOf(attempt);
+      const handles = handlesOf(attempt);
       const states: WriteHoldState[] = [];
       for (const handle of handles) {
         const state = await handle.state(client).catch(() => handle.peek());
         if (state.status !== "clear") return { status: "held", state, handle };
         states.push(state);
       }
-      const retired = retirementOf(
-        attempt,
-        evidenceOf(
-          attempt,
-          handles.map((handle) => handle.peek()),
-        ),
-      );
-      if (retired) return { status: "none", retired };
+      evidence = evidenceNow(attempt, handles);
+      const retired = retirementOf(attempt, evidence);
+      if (
+        retired &&
+        (retired === "settled" ||
+          !settlementsOf(attempt, states).success.length)
+      )
+        return { status: "none", retired };
       const settled = await followed(states);
       if (settled) return settled;
 
@@ -311,18 +356,22 @@ export function createSavedAttemptRecovery(options: {
           states.every((state) => state.reservation === undefined)
         )
           return { status: "none" };
-        const rejected = attempt.namespaces.map((namespace) =>
-          createBrowserWriteRecovery(inputOf(attempt, namespace), {
-            storage,
-            locks,
-          }).rejectedReservation(),
+        // A reservation id names one attempt wherever it is mirrored: a
+        // rejection saved at any of its keys covers them all.
+        const rejected = new Set(
+          attempt.namespaces.map((namespace) =>
+            createBrowserWriteRecovery(inputOf(attempt, namespace), {
+              storage,
+              locks,
+            }).rejectedReservation(),
+          ),
         );
         if (
           states.some((state) => state.reservation !== undefined) &&
           states.every(
-            (state, index) =>
+            (state) =>
               state.reservation === undefined ||
-              state.reservation === rejected[index],
+              rejected.has(state.reservation),
           )
         )
           return { status: "none", retired: "rejected" };
@@ -372,12 +421,13 @@ export function createSavedAttemptRecovery(options: {
         return {
           status: "done",
           result: "success",
+          authenticated: true,
           ...(saved.hash ? { hash: saved.hash } : {}),
           value: proof.value,
         };
-      return check(attempt, handles, reasons.join(" "));
+      return check(reasons.join(" "), evidence);
     } catch (error) {
-      return check(attempt, handles, [...reasons, reasonOf(error)].join(" "));
+      return check([...reasons, reasonOf(error)].join(" "), evidence);
     }
   }
 
@@ -404,14 +454,17 @@ export function createSavedAttemptRecovery(options: {
   /**
    * Retire a saved attempt for every tab and reload: the user's exit (once
    * the hold released it), the user's check action on the exact outcome they
-   * saw, or a settlement the app followed and recorded. Refused (false) while
-   * anything holds it, while the hold changed since the check was shown, while
-   * an unfollowed success shows on an exit, or while a lock is busy: recover again.
+   * saw, or a settlement the app followed and recorded. Refused
+   * (`retired: false`) while anything holds it, while the hold changed since
+   * the check was shown, while an unfollowed success shows (only `settled`
+   * retires one), or while a lock is busy: recover again. `durable: false`
+   * says it lasts in this tab alone (holds kept only in its memory); the app
+   * decides whether to say so.
    */
   async function retire(
     attempt: SavedAttemptScope,
     reason: SavedAttemptRetirement,
-  ): Promise<boolean> {
+  ): Promise<{ retired: false } | { retired: true; durable: boolean }> {
     let settled: { handle: WriteHoldHandle; state: WriteHoldState }[] = [];
     try {
       const handles = handlesOf(attempt);
@@ -422,7 +475,7 @@ export function createSavedAttemptRecovery(options: {
         if (reason.by === "check" && reason.outcome.evidence !== evidence)
           return false;
         if (
-          reason.by === "exit" &&
+          reason.by !== "settled" &&
           settlementsOf(attempt, states).success.length
         )
           return false;
@@ -456,9 +509,11 @@ export function createSavedAttemptRecovery(options: {
           "hash" in state.settled
         )
           await handle.acknowledge(state.settled).catch(() => undefined);
-      return done;
+      return done
+        ? { retired: true, durable: storage.durable() }
+        : { retired: false };
     } catch {
-      return false;
+      return { retired: false };
     }
   }
 
@@ -471,8 +526,9 @@ export function createSavedAttemptRecovery(options: {
     try {
       const states = handlesOf(attempt).map((handle) => handle.peek());
       if (states.some((state) => state.status !== "clear")) return false;
-      if (retirementOf(attempt, evidenceOf(attempt, states))) return true;
-      return !settlementsOf(attempt, states).success.length;
+      const unfollowed = settlementsOf(attempt, states).success.length > 0;
+      const retired = retirementOf(attempt, evidenceOf(attempt, states));
+      return unfollowed ? retired === "settled" : true;
     } catch {
       return false;
     }

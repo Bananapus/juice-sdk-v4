@@ -549,7 +549,9 @@ describe("held: the hold decides while it holds the write", () => {
     expect(outcome.state.status).toBe("held-no-hash");
     expect(attempt.authenticate).not.toHaveBeenCalled();
     expect(recovery.canDiscard(attempt)).toBe(false);
-    expect(await recovery.retire(attempt, { by: "exit" })).toBe(false);
+    expect((await recovery.retire(attempt, { by: "exit" })).retired).toBe(
+      false,
+    );
   });
 
   it("finds a hold under a legacy namespace", async () => {
@@ -582,7 +584,7 @@ describe("held: the hold decides while it holds the write", () => {
       client,
     );
     expect(ended.released).toBe(true);
-    expect(await recovery.retire(attempt, { by: "exit" })).toBe(true);
+    expect((await recovery.retire(attempt, { by: "exit" })).retired).toBe(true);
     const reloaded = page.load().recovery;
     expect(await reloaded.recover(attempt, client)).toEqual({
       status: "none",
@@ -606,15 +608,18 @@ describe("done: a settled success always wins", () => {
     expect(await recovery.recover(attempt, client)).toEqual({
       status: "done",
       result: "success",
+      authenticated: true,
       hash: HASH,
       value: "project 7",
     });
     // Unfollowed, it blocks discard and the user's exit; followed, it retires.
     expect(recovery.canDiscard(attempt)).toBe(false);
-    expect(await recovery.retire(attempt, { by: "exit" })).toBe(false);
-    expect(await recovery.retire(attempt, { by: "settled", hash: HASH })).toBe(
-      true,
+    expect((await recovery.retire(attempt, { by: "exit" })).retired).toBe(
+      false,
     );
+    expect(
+      (await recovery.retire(attempt, { by: "settled", hash: HASH })).retired,
+    ).toBe(true);
     expect(recovery.canDiscard(attempt)).toBe(true);
     expect(await recovery.recover(attempt, client)).toEqual({
       status: "none",
@@ -651,7 +656,7 @@ describe("done: a settled success always wins", () => {
   });
 
   // revnet 3: a settled success with an empty event read became permission to deploy again.
-  it("is check, holding the success, when the app's check can't show it (empty logs)", async () => {
+  it("follows the success by its hash alone when the app's check can't show it (empty logs)", async () => {
     const page = browser();
     const { chain, client } = fakeChain();
     await sendUnder(page.load().hold, client, HASH);
@@ -659,9 +664,16 @@ describe("done: a settled success always wins", () => {
     const { recovery } = page.load();
     const attempt = attemptOf(async () => ({ result: "unknown" }));
     const outcome = await recovery.recover(attempt, client);
-    expect(outcome).toMatchObject({ status: "check", settled: HASH });
+    expect(outcome).toMatchObject({
+      status: "done",
+      result: "success",
+      authenticated: false,
+      hash: HASH,
+    });
     expect(recovery.canDiscard(attempt)).toBe(false);
-    expect(await recovery.retire(attempt, { by: "exit" })).toBe(false);
+    expect((await recovery.retire(attempt, { by: "exit" })).retired).toBe(
+      false,
+    );
     // The saved hash, a different one, is tried too.
     const withSaved = attemptOf(
       async (hash) =>
@@ -731,7 +743,9 @@ describe("done: a settled success always wins", () => {
       client,
     );
     expect(ended.released).toBe(false);
-    expect(await recovery.retire(attempt, { by: "exit" })).toBe(false);
+    expect((await recovery.retire(attempt, { by: "exit" })).retired).toBe(
+      false,
+    );
     expect(await recovery.recover(attempt, client)).toMatchObject({
       status: "done",
       value: "ran",
@@ -830,6 +844,7 @@ describe("adoption of a saved hash the hold doesn't know (a main-era record)", (
     expect(await recovery.recover(attempt, client)).toEqual({
       status: "done",
       result: "success",
+      authenticated: true,
       hash: HASH,
       value: "by hash",
     });
@@ -841,6 +856,7 @@ describe("adoption of a saved hash the hold doesn't know (a main-era record)", (
     expect(found).toEqual({
       status: "done",
       result: "success",
+      authenticated: true,
       value: "found",
     });
   });
@@ -908,7 +924,9 @@ describe("check: every failure reaches the one explicit action", () => {
     const outcome = await recovery.recover(attempt, client);
     expect(outcome.status).toBe("check");
     if (outcome.status !== "check") throw new Error("unreachable");
-    expect(await recovery.retire(attempt, { by: "check", outcome })).toBe(true);
+    expect(
+      (await recovery.retire(attempt, { by: "check", outcome })).retired,
+    ).toBe(true);
     expect(await recovery.recover(attempt, client)).toEqual({
       status: "none",
       retired: "check",
@@ -923,7 +941,9 @@ describe("check: every failure reaches the one explicit action", () => {
       status: "check",
       reason: "A saved attempt names at least one namespace.",
     });
-    expect(await recovery.retire(attempt, { by: "exit" })).toBe(false);
+    expect((await recovery.retire(attempt, { by: "exit" })).retired).toBe(
+      false,
+    );
     expect(recovery.canDiscard(attempt)).toBe(false);
   });
 
@@ -937,7 +957,9 @@ describe("check: every failure reaches the one explicit action", () => {
     });
     const outcome = await recovery.recover(attempt, client);
     if (outcome.status !== "check") throw new Error("expected check");
-    expect(await recovery.retire(attempt, { by: "check", outcome })).toBe(true);
+    expect(
+      (await recovery.retire(attempt, { by: "check", outcome })).retired,
+    ).toBe(true);
     const other = page.load().recovery;
     expect(await other.recover(attempt, client)).toEqual({
       status: "none",
@@ -966,9 +988,9 @@ describe("check: every failure reaches the one explicit action", () => {
       await gate.beforeSend();
       gate.onRejected();
     });
-    expect(await recovery.retire(attempt, { by: "check", outcome })).toBe(
-      false,
-    );
+    expect(
+      (await recovery.retire(attempt, { by: "check", outcome })).retired,
+    ).toBe(false);
   });
 
   // Invariant D: a success that lands after the check action still wins.
@@ -983,7 +1005,9 @@ describe("check: every failure reaches the one explicit action", () => {
     );
     const outcome = await recovery.recover(attempt, client);
     if (outcome.status !== "check") throw new Error("expected check");
-    expect(await recovery.retire(attempt, { by: "check", outcome })).toBe(true);
+    expect(
+      (await recovery.retire(attempt, { by: "check", outcome })).retired,
+    ).toBe(true);
     await sendUnder(hold, client, THIRD);
     chain.txs.push(sent(THIRD, { block: 60n }));
     expect(await recovery.recover(attempt, client)).toMatchObject({
@@ -1009,9 +1033,9 @@ describe("check: every failure reaches the one explicit action", () => {
       () => new Promise<void>((resolve) => (busy = resolve)),
     );
     await Promise.resolve();
-    expect(await recovery.retire(attempt, { by: "check", outcome })).toBe(
-      false,
-    );
+    expect(
+      (await recovery.retire(attempt, { by: "check", outcome })).retired,
+    ).toBe(false);
     busy();
     await held;
     const dropping = createSavedAttemptRecovery({
@@ -1025,9 +1049,9 @@ describe("check: every failure reaches the one explicit action", () => {
       },
       locks: page.locks,
     });
-    expect(await dropping.retire(attempt, { by: "check", outcome })).toBe(
-      false,
-    );
+    expect(
+      (await dropping.retire(attempt, { by: "check", outcome })).retired,
+    ).toBe(false);
   });
 });
 
@@ -1040,7 +1064,9 @@ describe("retiring a followed settlement", () => {
     const { recovery } = page.load();
     const attempt = attemptOf(async () => proven("p"));
     await recovery.recover(attempt, client);
-    expect(await recovery.retire(attempt, { by: "settled" })).toBe(true);
+    expect((await recovery.retire(attempt, { by: "settled" })).retired).toBe(
+      true,
+    );
     expect(recovery.canDiscard(attempt)).toBe(true);
   });
 });
@@ -1141,8 +1167,9 @@ describe("the paths a stub hold reaches", () => {
       saved: { hash: HASH },
     });
     expect(await recovery.recover(attempt, client)).toMatchObject({
-      status: "check",
-      settled: HASH,
+      status: "done",
+      authenticated: false,
+      hash: HASH,
     });
     expect(attempt.authenticate).toHaveBeenCalledTimes(1);
     // An already acknowledged one is not acknowledged again.
@@ -1157,9 +1184,9 @@ describe("the paths a stub hold reaches", () => {
     });
     // The hold's default storage and locks by default.
     const other = createSavedAttemptRecovery({ hold: again.hold });
-    expect(await other.retire(attempt, { by: "settled", hash: OTHER })).toBe(
-      true,
-    );
+    expect(
+      (await other.retire(attempt, { by: "settled", hash: OTHER })).retired,
+    ).toBe(true);
     expect(acknowledge).not.toHaveBeenCalled();
   });
 
@@ -1205,5 +1232,185 @@ describe("the paths a stub hold reaches", () => {
         client,
       ),
     ).toMatchObject({ status: "check", reason: "unreadable", evidence: "" });
+  });
+});
+
+describe("review round: success, mirrors, ordering and tab-only retirement", () => {
+  // 1: a settled success the app can't show is never a retirable check.
+  it("returns an unauthenticated done for a settled success the app can't show, retirable only as followed", async () => {
+    const page = browser();
+    const { chain, client } = fakeChain();
+    await sendUnder(page.load().hold, client, HASH);
+    chain.txs.push(sent(HASH, { block: 50n }));
+    const { recovery } = page.load();
+    const attempt = attemptOf(async () => {
+      throw new Error("logs unavailable");
+    });
+    const outcome = await recovery.recover(attempt, client);
+    expect(outcome).toEqual({
+      status: "done",
+      result: "success",
+      hash: HASH,
+      authenticated: false,
+      reason: "logs unavailable",
+    });
+    expect(recovery.canDiscard(attempt)).toBe(false);
+    // A check action can't retire it, even on evidence that matches now.
+    const now = page
+      .load()
+      .hold.open({
+        chainId: 10,
+        account: ACCOUNT,
+        safe: false,
+        namespace: NAMESPACE,
+        call: CALL,
+      })
+      .peek();
+    const evidence = JSON.stringify({
+      saved: null,
+      holds: [[NAMESPACE, now.reservation, "clear", HASH]],
+    });
+    expect(
+      (
+        await recovery.retire(attempt, {
+          by: "check",
+          outcome: {
+            status: "check",
+            reason: "",
+            line: SAVED_ATTEMPT_CHECK_LINE,
+            warning: SAVED_ATTEMPT_CHECK_WARNING,
+            evidence,
+          },
+        })
+      ).retired,
+    ).toBe(false);
+    expect((await recovery.retire(attempt, { by: "exit" })).retired).toBe(
+      false,
+    );
+    expect(recovery.canDiscard(attempt)).toBe(false);
+    expect(
+      (await recovery.retire(attempt, { by: "settled", hash: HASH })).retired,
+    ).toBe(true);
+    expect(recovery.canDiscard(attempt)).toBe(true);
+  });
+
+  // 2: C' across mirrors: a rejected intent send with legacy keys retires on its own.
+  it("retires a rejected send whose reservation was mirrored under legacy namespaces", async () => {
+    const page = browser();
+    const { hold, recovery } = page.load();
+    const { client } = fakeChain();
+    const handle = hold.open(
+      {
+        chainId: 10,
+        account: ACCOUNT,
+        safe: false,
+        namespace: NAMESPACE,
+        call: CALL,
+      },
+      { legacy: [LEGACY] },
+    );
+    await handle.send(client, async (gate) => {
+      await gate.beforeSend();
+      gate.onRejected();
+    });
+    expect(
+      await recovery.recover(
+        attemptOf(async () => ({ result: "unknown" }), {
+          namespaces: [NAMESPACE, LEGACY],
+          saved: { started: true },
+        }),
+        client,
+      ),
+    ).toEqual({ status: "none", retired: "rejected" });
+  });
+
+  // 4: a settlement that lands while the app's check runs is evaluated, never covered by a stale check.
+  it("re-evaluates when the hold settles during the app's check", async () => {
+    const page = browser();
+    const { hold, recovery } = page.load();
+    const { chain, client } = fakeChain();
+    let landed = false;
+    const attempt = attemptOf(
+      async (hash) => {
+        if (hash === HASH) return proven("landed");
+        if (!landed) {
+          landed = true;
+          await sendUnder(hold, client, HASH);
+          chain.txs.push(sent(HASH, { block: 50n }));
+          await hold
+            .open({
+              chainId: 10,
+              account: ACCOUNT,
+              safe: false,
+              namespace: NAMESPACE,
+              call: CALL,
+            })
+            .state(client);
+        }
+        return { result: "unknown" };
+      },
+      { saved: { started: true } },
+    );
+    expect(await recovery.recover(attempt, client)).toMatchObject({
+      status: "done",
+      hash: HASH,
+      value: "landed",
+      authenticated: true,
+    });
+  });
+
+  it("binds a check to the evidence it evaluated: one that changes every pass can't be retired", async () => {
+    const page = browser();
+    const { hold, recovery } = page.load();
+    const { client } = fakeChain();
+    const attempt = attemptOf(
+      async () => {
+        // Every pass, another rejected reservation changes the evidence.
+        await hold
+          .open({
+            chainId: 10,
+            account: ACCOUNT,
+            safe: false,
+            namespace: NAMESPACE,
+            call: CALL,
+          })
+          .send(client, async (gate) => {
+            await gate.beforeSend();
+            gate.onRejected();
+          });
+        return { result: "unknown" };
+      },
+      { saved: { started: true, hash: OTHER }, call: undefined },
+    );
+    const outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(
+      (await recovery.retire(attempt, { by: "check", outcome })).retired,
+    ).toBe(false);
+  });
+
+  // 5: tab-only retirement is distinct.
+  it("says whether a retirement outlives the tab", async () => {
+    const page = browser();
+    const { recovery } = page.load();
+    const { client } = fakeChain();
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    let outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(await recovery.retire(attempt, { by: "check", outcome })).toEqual({
+      retired: true,
+      durable: true,
+    });
+    const tab = browser();
+    tab.site.state.write = false;
+    const only = tab.load().recovery;
+    outcome = await only.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(await only.retire(attempt, { by: "check", outcome })).toEqual({
+      retired: true,
+      durable: false,
+    });
   });
 });

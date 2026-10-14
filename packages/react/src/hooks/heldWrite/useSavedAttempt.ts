@@ -6,7 +6,7 @@ import {
   type SavedAttemptRetirement,
   type WriteHoldClient,
 } from "@bananapus/nana-sdk-core/review";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type UseSavedAttemptOptions<T> = {
   /** The app's one saved-attempt recovery (createSavedAttemptRecovery()). */
@@ -19,21 +19,28 @@ export type UseSavedAttemptOptions<T> = {
   checkNext?: string;
 };
 
+/** What a retirement returned: whether it took, and whether it outlives this tab. */
+type Retired = Awaited<ReturnType<SavedAttemptRecovery["retire"]>>;
+
 export type UseSavedAttemptResult<T> = {
   /** How recovery ended; null until it has, or with no attempt. */
   outcome: SavedAttemptOutcome<T> | null;
   recovering: boolean;
-  /** Recover again now. */
+  /** Recover again now: also "Check again" on a success whose details are unavailable. */
   recover: () => Promise<SavedAttemptOutcome<T> | null>;
   /** On `check`: the one explicit action, which retires the attempt for every tab and reload. */
   checkAction: {
     line: string;
     warning: string;
     label: string;
-    run: () => Promise<boolean>;
+    run: () => Promise<Retired>;
   } | null;
-  /** Retire after the user's exit or a followed settlement; recovers again either way. */
-  retire: (reason: SavedAttemptRetirement) => Promise<boolean>;
+  /**
+   * Retire after the user's exit or a followed settlement; recovers again.
+   * Bound to the attempt it was rendered for: called after that attempt (or
+   * its recovery or client) changed, it refuses before anything is saved.
+   */
+  retire: (reason: SavedAttemptRetirement) => Promise<Retired>;
 };
 
 const keyOf = (attempt: SavedAttempt<unknown> | null | undefined) =>
@@ -43,74 +50,74 @@ const keyOf = (attempt: SavedAttempt<unknown> | null | undefined) =>
       )
     : null;
 
-const same = (a: unknown[], b: unknown[]) =>
-  a.length === b.length && a.every((part, index) => part === b[index]);
-
 /**
  * One saved attempt's recovery, the one way every app runs it: recovered
  * when it (or the client) appears, before the app prepares any new send, with
- * the check action ready on `check`. Answers from an earlier attempt or client
- * never reach the current one.
+ * the check action ready on `check`. Every answer and callback belongs to the
+ * attempt, recovery and client it started with: an earlier one's, or an older
+ * request's, never reaches the current one.
  */
 export function useSavedAttempt<T>(
   options: UseSavedAttemptOptions<T>,
 ): UseSavedAttemptResult<T> {
   const { recovery, client, checkNext } = options;
   const key = keyOf(options.attempt);
-  const latest = useRef(options);
-  latest.current = options;
-  /** The lifecycle of the current attempt, recovery and client: a later one drops earlier answers. */
-  const epoch = useRef(0);
+  const attempt = options.attempt;
+  /** One lifecycle per attempt, recovery and client, with its latest request. */
+  const lifecycle = useMemo(
+    () => ({ attempt, recovery, client, request: 0 }),
+    // The key stands for the attempt.
+    [key, recovery, client],
+  );
+  type Lifecycle = typeof lifecycle;
+  /** The lifecycle mounted now; none between a cleanup and the next mount. */
+  const active = useRef<Lifecycle | undefined>(undefined);
   const [shown, setShown] = useState<{
-    /** The attempt, recovery and client this answer is for. */
-    of: unknown[];
+    of?: Lifecycle;
     outcome: SavedAttemptOutcome<T> | null;
     recovering: boolean;
-  }>({ of: [], outcome: null, recovering: false });
-  const of = [key, recovery, client];
+  }>({ outcome: null, recovering: false });
 
   const recover = useCallback(async () => {
-    const own = epoch.current;
-    const attempt = latest.current.attempt;
-    if (!attempt || !client) return null;
-    const now = [key, recovery, client];
-    setShown((shown) => ({
-      of: now,
-      outcome: same(shown.of, now) ? shown.outcome : null,
+    const { attempt, recovery, client } = lifecycle;
+    if (!attempt || !client || active.current !== lifecycle) return null;
+    const request = ++lifecycle.request;
+    setShown((now) => ({
+      of: lifecycle,
+      outcome: now.of === lifecycle ? now.outcome : null,
       recovering: true,
     }));
     const outcome = await recovery.recover(attempt, client);
-    if (epoch.current !== own) return null;
-    setShown({ of: now, outcome, recovering: false });
+    // Only the latest request of the mounted lifecycle shows.
+    if (active.current !== lifecycle || lifecycle.request !== request)
+      return null;
+    setShown({ of: lifecycle, outcome, recovering: false });
     return outcome;
-    // The key stands for the attempt.
-  }, [recovery, client, key]);
+  }, [lifecycle]);
 
   useEffect(() => {
-    epoch.current += 1;
+    active.current = lifecycle;
     void recover();
     return () => {
-      epoch.current += 1;
+      if (active.current === lifecycle) active.current = undefined;
     };
-  }, [recover]);
+  }, [lifecycle, recover]);
 
   const retire = useCallback(
-    async (reason: SavedAttemptRetirement) => {
-      const attempt = latest.current.attempt;
-      const own = epoch.current;
-      const retired = attempt ? await recovery.retire(attempt, reason) : false;
-      if (epoch.current === own) await recover();
+    async (reason: SavedAttemptRetirement): Promise<Retired> => {
+      const { attempt, recovery } = lifecycle;
+      if (!attempt || active.current !== lifecycle) return { retired: false };
+      const retired = await recovery.retire(attempt, reason);
+      if (active.current === lifecycle) await recover();
       return retired;
     },
-    [recovery, recover],
+    [lifecycle, recover],
   );
 
-  // Only an answer for what is rendered now: never an earlier attempt's, even for one render.
-  const current = same(shown.of, of);
-  const outcome = current ? shown.outcome : null;
+  const outcome = shown.of === lifecycle ? shown.outcome : null;
   return {
     outcome,
-    recovering: current && shown.recovering,
+    recovering: shown.of === lifecycle && shown.recovering,
     recover,
     checkAction:
       outcome?.status === "check"

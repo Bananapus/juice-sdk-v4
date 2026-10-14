@@ -1185,8 +1185,11 @@ It returns exactly one outcome:
 - `held`: the hold still holds the write (`state`, `handle`). Count nothing;
   show its line and its exit when due. After the user's exit releases it,
   `retire(attempt, { by: "exit" })`.
-- `done`: `result: "success"` was shown as this attempt by `authenticate`
-  (`hash`, `value`): record it, never send it again, then
+- `done`: `result: "success"` ran; never send it again. With
+  `authenticated: true`, `authenticate` showed it as this attempt (`hash`,
+  `value`). With `authenticated: false`, the hold settled it but the app's
+  details are unavailable (`hash`, `reason`): record the hash and follow it,
+  with "Check again" (`recover`) as its only action. Either way, once recorded,
   `retire(attempt, { by: "settled", hash })`. `result: "failed"` is the hold's
   proven final revert.
 - `check`: it can't be shown here. Show `SAVED_ATTEMPT_CHECK_LINE`,
@@ -1195,8 +1198,9 @@ It returns exactly one outcome:
   and only it, runs `retire(attempt, { by: "check", outcome })`.
 - `none`: the hold proves no reservation was ever made and nothing saved says
   it was sent, or the attempt was retired (`retired`). `retired: "rejected"`
-  means the SDK dropped every reservation of it on a definite wallet rejection
-  or an abort before the wallet opened: nothing can have been sent.
+  means the SDK dropped every reservation of it (and its legacy mirrors, which
+  share its id) on a definite wallet rejection or an abort before the wallet
+  opened: nothing can have been sent.
 
 The rules it keeps:
 
@@ -1204,19 +1208,27 @@ The rules it keeps:
   started send, a refused or unreadable adoption, an empty search, holds that
   last only in this tab, and every exception.
 - **A settled success always wins:** a success the hold settled is followed
-  through `authenticate`; one it can't show is `check` with `settled`, never a
-  send. Settlements listed in `saved.before` are never this attempt's.
+  through `authenticate`; one it can't show is still `done` (`authenticated:
+false`), never a check or a send. Only `{ by: "settled" }` retires it.
+  Settlements listed in `saved.before` are never this attempt's.
+- **Checks are bound to what they evaluated:** a check whose hold evidence
+  moved while `authenticate` ran is evaluated again; one that keeps moving
+  can't be retired by its stale action.
 - **Retirement lasts:** `retire` is saved under every namespace's hold lock, for
   every tab and reload, and binds to the hold evidence it saw. It is refused
   while anything holds the attempt, when the hold changed since a check was
-  shown, on an exit while an unfollowed success shows, or while a lock is busy:
-  recover again. A later reservation or settlement is never covered by it.
+  shown, while an unfollowed success shows (by anything but `settled`), or
+  while a lock is busy: recover again. A later reservation or settlement is
+  never covered by it. It returns `{ retired: true, durable }`: `durable:
+false` means holds last only in this tab's memory, so it does too; the app
+  decides whether to say so.
 - **Discard:** `canDiscard(attempt)` is false while the attempt is held, or
   while a success it settled hasn't been followed.
 
 `useSavedAttempt({ recovery, attempt, client, checkNext })` (React) recovers on
-mount and whenever the attempt or client changes, never showing one attempt's
-answer for another, and gives `outcome`, `recovering`, `recover`, `retire` and
+mount and whenever the attempt or client changes. Only the latest request of
+the mounted attempt shows, and `retire` (and the check action) refuse once
+the attempt they were rendered for changed, before anything is saved. It gives `outcome`, `recovering`, `recover`, `retire` and
 `checkAction` (`line`, `warning`, `label`, `run`) on `check`.
 
 ### Safe proposals

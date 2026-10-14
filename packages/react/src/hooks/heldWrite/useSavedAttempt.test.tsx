@@ -7,7 +7,7 @@ import {
   type SavedAttemptRecovery,
   type WriteHoldClient,
 } from "@bananapus/nana-sdk-core/review";
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Address } from "viem";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
@@ -43,7 +43,9 @@ function fakeRecovery() {
           pending.push(resolve),
         ),
     ),
-    retire: vi.fn(async () => true),
+    retire: vi.fn(
+      async (): Promise<Retired> => ({ retired: true, durable: true }),
+    ),
     canDiscard: vi.fn(() => true),
   };
   return {
@@ -55,6 +57,7 @@ function fakeRecovery() {
 }
 
 const client = {} as WriteHoldClient;
+type Retired = Awaited<ReturnType<SavedAttemptRecovery["retire"]>>;
 
 beforeAll(() => {
   (
@@ -100,7 +103,7 @@ describe("useSavedAttempt", () => {
       warning: SAVED_ATTEMPT_CHECK_WARNING,
       label: "I checked it. Create again.",
     });
-    let ran!: Promise<boolean>;
+    let ran!: Promise<Retired>;
     await act(async () => {
       ran = seen.current!.checkAction!.run();
     });
@@ -109,7 +112,7 @@ describe("useSavedAttempt", () => {
       outcome: check,
     });
     await answer({ status: "none", retired: "check" });
-    expect(await ran).toBe(true);
+    expect(await ran).toEqual({ retired: true, durable: true });
     expect(seen.current!.outcome).toEqual({ status: "none", retired: "check" });
     expect(seen.current!.checkAction).toBeNull();
   });
@@ -156,7 +159,9 @@ describe("useSavedAttempt", () => {
     });
     await start();
     expect(recovery.recover).not.toHaveBeenCalled();
-    expect(await seen.current!.retire({ by: "exit" })).toBe(false);
+    expect(await seen.current!.retire({ by: "exit" })).toEqual({
+      retired: false,
+    });
     expect(recovery.retire).not.toHaveBeenCalled();
     await render({ recovery, attempt: attemptOf(), client: undefined });
     expect(recovery.recover).not.toHaveBeenCalled();
@@ -177,9 +182,9 @@ describe("useSavedAttempt", () => {
 
   test("retires a followed settlement and skips recovering again once the attempt changed", async () => {
     const { recovery, answer } = fakeRecovery();
-    let release!: (value: boolean) => void;
+    let release!: (value: Retired) => void;
     recovery.retire.mockImplementationOnce(
-      () => new Promise<boolean>((resolve) => (release = resolve)),
+      () => new Promise<Retired>((resolve) => (release = resolve)),
     );
     const { seen, start, render } = harness({
       recovery,
@@ -187,14 +192,19 @@ describe("useSavedAttempt", () => {
       client,
     });
     await start();
-    await answer({ status: "done", result: "success", value: "p" });
-    let retired!: Promise<boolean>;
+    await answer({
+      status: "done",
+      result: "success",
+      authenticated: true,
+      value: "p",
+    });
+    let retired!: Promise<Retired>;
     await act(async () => {
       retired = seen.current!.retire({ by: "settled" });
     });
     await render({ recovery, attempt: attemptOf("launch:b"), client });
-    await act(async () => release(true));
-    expect(await retired).toBe(true);
+    await act(async () => release({ retired: true, durable: true }));
+    expect(await retired).toEqual({ retired: true, durable: true });
     // Only launch:a's mount and launch:b's: the retirement didn't recover the old one again.
     expect(recovery.recover).toHaveBeenCalledTimes(2);
   });
@@ -213,5 +223,128 @@ describe("useSavedAttempt", () => {
     expect(seen.current!.outcome).toBeNull();
     expect(seen.current!.checkAction).toBeNull();
     expect(seen.current!.recovering).toBe(true);
+  });
+
+  // Review 3: a retire captured for attempt A never retires attempt B.
+  test("refuses a stale retire callback before anything is saved", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const { seen, start, render } = harness({
+      recovery,
+      attempt: attemptOf("launch:a"),
+      client,
+    });
+    await start();
+    await answer({
+      status: "done",
+      result: "success",
+      authenticated: true,
+      value: "a",
+    });
+    const retireA = seen.current!.retire;
+    await render({ recovery, attempt: attemptOf("launch:b"), client });
+    await answer(check);
+    let result!: Retired;
+    await act(async () => {
+      result = await retireA({ by: "settled" });
+    });
+    expect(result).toEqual({ retired: false });
+    expect(recovery.retire).not.toHaveBeenCalled();
+    expect(seen.current!.outcome).toEqual(check);
+  });
+
+  // Review 4: an older request's answer never replaces a newer one's.
+  test("drops an older request answered first, while the latest is pending", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const { seen, start } = harness({ recovery, attempt: attemptOf(), client });
+    await start(); // request 1 (mount), pending
+    let second!: Promise<SavedAttemptOutcome<string> | null>;
+    await act(async () => {
+      second = seen.current!.recover(); // request 2, pending
+    });
+    expect(recovery.recover).toHaveBeenCalledTimes(2);
+    const success: SavedAttemptOutcome<string> = {
+      status: "done",
+      result: "success",
+      authenticated: true,
+      value: "ok",
+    };
+    await answer(check); // request 1's: dropped, request 2 is still pending
+    expect(seen.current!.outcome).toBeNull();
+    expect(seen.current!.recovering).toBe(true);
+    await answer(success);
+    expect(await second).toEqual(success);
+    expect(seen.current!.outcome).toEqual(success);
+  });
+
+  test("answers out of order: an older request finishing last is dropped", async () => {
+    const resolvers: ((outcome: SavedAttemptOutcome<string>) => void)[] = [];
+    const recovery = {
+      recover: vi.fn(
+        () =>
+          new Promise<SavedAttemptOutcome<string>>((resolve) =>
+            resolvers.push(resolve),
+          ),
+      ),
+      retire: vi.fn(),
+      canDiscard: vi.fn(),
+    } as unknown as SavedAttemptRecovery;
+    const { seen, start } = harness({ recovery, attempt: attemptOf(), client });
+    await start();
+    let second!: Promise<SavedAttemptOutcome<string> | null>;
+    await act(async () => {
+      second = seen.current!.recover();
+    });
+    const success: SavedAttemptOutcome<string> = {
+      status: "done",
+      result: "success",
+      authenticated: true,
+      value: "ok",
+    };
+    await act(async () => resolvers[1](success));
+    expect(await second).toEqual(success);
+    await act(async () => resolvers[0](check));
+    expect(seen.current!.outcome).toEqual(success);
+    expect(seen.current!.recovering).toBe(false);
+  });
+
+  // StrictMode mounts, cleans up and mounts again: the first mount's late answer is dropped.
+  test("drops StrictMode's first mount answer and shows the remount's", async () => {
+    const resolvers: ((outcome: SavedAttemptOutcome<string>) => void)[] = [];
+    const recovery = {
+      recover: vi.fn(
+        () =>
+          new Promise<SavedAttemptOutcome<string>>((resolve) =>
+            resolvers.push(resolve),
+          ),
+      ),
+      retire: vi.fn(async () => ({ retired: true, durable: true })),
+      canDiscard: vi.fn(),
+    } as unknown as SavedAttemptRecovery;
+    const seen: { current?: UseSavedAttemptResult<string> } = {};
+    const attempt = attemptOf();
+    function Probe() {
+      seen.current = useSavedAttempt({ recovery, attempt, client });
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () =>
+      root!.render(
+        <StrictMode>
+          <Probe />
+        </StrictMode>,
+      ),
+    );
+    expect(resolvers).toHaveLength(2);
+    await act(async () => resolvers[1](check));
+    await act(async () => resolvers[0]({ status: "none" }));
+    expect(seen.current!.outcome).toEqual(check);
+    // Its retire still belongs to the mounted lifecycle.
+    await act(async () => {
+      void seen.current!.checkAction!.run();
+    });
+    expect(recovery.retire).toHaveBeenCalledWith(attempt, {
+      by: "check",
+      outcome: check,
+    });
   });
 });
