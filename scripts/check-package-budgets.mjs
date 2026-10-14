@@ -229,8 +229,11 @@ const budgets = {
     // Mutual exclusion with the legacy keys (sorted locks for the reserve,
     // mirror records, the exact-call handle's delegation) measured
     // 1,458,340 B packed / 21,752,155 B unpacked and 826 entries.
-    packed: 1_463_000,
-    unpacked: 21_765_000,
+    // The reserve taking every lock in order, mirror-aware delegates and
+    // evidence-free mirrors measured 1,461,348 B packed / 21,766,711 B
+    // unpacked and 826 entries.
+    packed: 1_466_000,
+    unpacked: 21_780_000,
     entries: 826,
   },
   "@bananapus/nana-sdk-react": {

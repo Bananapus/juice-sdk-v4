@@ -2749,32 +2749,135 @@ describe("a write held under an intent", () => {
     });
   });
 
-  it("never deadlocks two tabs whose intents name each other as legacy", async () => {
+  it("refuses a second send of the intent: held once reserved, busy while the first holds its locks", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    let finish!: () => void;
+    const first = handle.send(client, async (gate) => {
+      await gate.beforeSend();
+      await new Promise<void>((resolve) => (finish = resolve));
+    });
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    await expect(
+      handle.send(client, wallet(async () => HASH).send),
+    ).rejects.toBeInstanceOf(WriteHoldBusyError);
+    finish();
+    await first;
+    await expect(
+      handle.send(client, wallet(async () => HASH).send),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+  });
+
+  it("never settles a stale mirror it can't remove, read through the exact-call key", async () => {
+    const browser = origin();
+    const base = createHeldWriteStorage({
+      durable: () => browser.storage,
+      memory: new Map(),
+    });
+    let refuse = false;
+    const storage: HeldWriteStorage = {
+      ...base,
+      removeItem: (k) => {
+        if (refuse && k.startsWith("nana-sdk:reviewed-write:v2:"))
+          throw new Error("refused");
+        base.removeItem(k);
+      },
+    };
+    const { hold } = setup({ storage, browser });
+    const { chain, client } = fakeChain();
+    const handle = hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    refuse = true;
+    // The intent ends elsewhere; its mirror can't be removed.
+    const intentJournal = createBrowserWriteRecovery(intentCall, { storage });
+    intentJournal.abandon(intentJournal.read()!, { checkedWallet: true });
+    chain.txs.push(sent(HASH, { block: 105n }));
+    chain.head = 120n;
+    chain.finalized = 110n;
+    await expect(hold.open(ordinary).state(client)).resolves.toMatchObject({
+      status: "held-no-hash",
+      record: { mirrorOf: key },
+    });
+    expect(
+      createBrowserWriteRecovery(ordinary, { storage }).read()?.hash,
+    ).toBeUndefined();
+  });
+
+  it("crossed intents in two tabs: one sends within the retries, the other is held, never both busy", async () => {
+    for (let run = 0; run < 20; run += 1) {
+      const browser = origin();
+      const locks = lockManager();
+      const a = setup({ browser, locks });
+      const b = setup({ browser, locks });
+      const { client } = fakeChain();
+      const one = a.hold.open(
+        { ...ordinary, namespace: "intent:a:1" },
+        { legacy: ["intent:b:1"] },
+      );
+      const two = b.hold.open(
+        { ...ordinary, namespace: "intent:b:1" },
+        { legacy: ["intent:a:1"] },
+      );
+      const writes = [lostReply(), lostReply()];
+      const results = await Promise.all([
+        one.send(client, writes[0].send).catch((e) => e),
+        two.send(client, writes[1].send).catch((e) => e),
+      ]);
+      expect(
+        writes[0].write.mock.calls.length + writes[1].write.mock.calls.length,
+      ).toBe(1);
+      expect(results.filter((r) => r instanceof WriteHeldError)).toHaveLength(
+        1,
+      );
+      expect(results.some((r) => r instanceof WriteHoldBusyError)).toBe(false);
+    }
+  }, 20_000);
+
+  it("Codex H1/H2: never settles a foreign mirror with an unrelated mined hash", async () => {
     const browser = origin();
     const locks = lockManager();
-    const a = setup({ browser, locks });
-    const b = setup({ browser, locks });
-    const { client } = fakeChain();
-    const one = a.hold.open(
-      { ...ordinary, namespace: "intent:a:1" },
-      { legacy: ["intent:b:1"] },
+    const tabA = setup({ browser, locks });
+    const tabB = setup({ browser, locks });
+    const { chain, client } = fakeChain();
+    const H1 = `0x${"a1".repeat(32)}` as Hex;
+    const H2 = `0x${"a2".repeat(32)}` as Hex;
+    const intentA = tabA.hold.open(
+      { ...intentCall, namespace: writeIntentKey("pay", { who: "a" }) },
+      { legacy: [{ call: ordinary.call }] },
     );
-    const two = b.hold.open(
-      { ...ordinary, namespace: "intent:b:1" },
-      { legacy: ["intent:a:1"] },
+    const intentB = tabB.hold.open(
+      { ...intentCall, namespace: writeIntentKey("pay", { who: "b" }) },
+      { legacy: [{ call: ordinary.call }] },
     );
-    const writes = [lostReply(), lostReply()];
-    // Both finish: a key the other holds refuses as busy, it never waits.
-    const results = await Promise.all([
-      one.send(client, writes[0].send).catch((e) => e),
-      two.send(client, writes[1].send).catch((e) => e),
-    ]);
-    expect(results).toHaveLength(2);
-    expect(
-      writes[0].write.mock.calls.length + writes[1].write.mock.calls.length,
-    ).toBeLessThanOrEqual(1);
-    // Afterwards, one at a time, each sends.
-    await expect(one.state(client)).resolves.toBeDefined();
+    // A reserves with nonce evidence 7 and submits H1 at nonce 8, pending.
+    await intentA.send(client, wallet(async () => H1).send);
+    chain.txs.push({ ...sent(H1), input: regenerated.data, nonce: 8 });
+    // An identical exact call H2 mined at nonce 7 after the reservation.
+    chain.txs.push(sent(H2, { block: 105n }));
+    chain.head = 120n;
+    const mirrorAt = () =>
+      createBrowserWriteRecovery(ordinary, { storage: tabA.storage }).read();
+    expect(mirrorAt()).toMatchObject({ mirrorOf: expect.any(String) });
+    // B tries to attach H2 to A's hashless mirror: it acts on A instead.
+    await expect(intentB.attachHash(client, H2)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: H1,
+    });
+    expect(mirrorAt()?.hash).toBeUndefined();
+    const second = wallet(async () => OTHER);
+    await expect(intentB.send(client, second.send)).rejects.toBeInstanceOf(
+      WriteHeldError,
+    );
+    expect(second.write).not.toHaveBeenCalled();
+    // A mirror never takes a hash or settles, read directly either.
+    const direct = createWriteHold({ storage: tabA.storage, locks });
+    const exactHandle = direct.open(ordinary);
+    await expect(exactHandle.attachHash(client, H2)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: H1,
+    });
+    expect(mirrorAt()?.hash).toBeUndefined();
   });
 });
 
