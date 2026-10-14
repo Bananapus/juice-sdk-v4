@@ -1746,6 +1746,66 @@ describe("tabs without Web Locks", () => {
   });
 });
 
+describe("a write's saved settlement", () => {
+  it("is saved under the lock, read back exactly, ignored when malformed and dropped on the next reservation", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(input, options);
+    expect(journal.settled()).toBeUndefined();
+    expect(() =>
+      journal.markSettled({ result: "success", hash: HASH }),
+    ).toThrow("browser lock");
+    await journal.withLock(async () =>
+      journal.markSettled({
+        result: "failed",
+        hash: HASH.toUpperCase().replace("0X", "0x") as Hex,
+      }),
+    );
+    expect(journal.settled()).toEqual({ result: "failed", hash: HASH });
+    const [key] = [...options.values.keys()].filter((k) =>
+      k.endsWith(":settled"),
+    );
+    expect(JSON.parse(options.values.get(key)!)).toMatchObject({
+      at: expect.any(Number),
+    });
+    for (const bad of [
+      "{",
+      JSON.stringify({ result: "ran", hash: HASH }),
+      JSON.stringify({ result: "success", hash: "0x12" }),
+    ]) {
+      options.values.set(key, bad);
+      expect(journal.settled()).toBeUndefined();
+    }
+    // A failed save leaves none, and never throws.
+    options.storage.setItem.mockImplementationOnce(() => {
+      throw new Error("full");
+    });
+    options.values.delete(key);
+    await journal.withLock(async () =>
+      journal.markSettled({ result: "success", hash: HASH }),
+    );
+    expect(journal.settled()).toBeUndefined();
+    await journal.withLock(async () =>
+      journal.markSettled({ result: "success", hash: HASH }),
+    );
+    await journal.withLock(async () => journal.reserve());
+    expect(journal.settled()).toBeUndefined();
+    // A settlement that can't be removed doesn't stop the reservation.
+    const other = createBrowserWriteRecovery(
+      { ...input, call: { ...input.call, value: 1n } },
+      options,
+    );
+    await other.withLock(async () =>
+      other.markSettled({ result: "success", hash: HASH }),
+    );
+    options.storage.removeItem.mockImplementationOnce(() => {
+      throw new Error("refused");
+    });
+    await expect(
+      other.withLock(async () => other.reserve()),
+    ).resolves.toMatchObject({ version: 1 });
+  });
+});
+
 describe("a record saved before its hash had a clock", () => {
   it("saves when it was first seen, once, and only on a hashed record", async () => {
     const options = browser();

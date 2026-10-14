@@ -71,7 +71,11 @@ type Held<S extends string, Extra> = {
 /**
  * What a write hold says about one exact call, from {@link WriteHold.state}:
  *
- * - `clear`: nothing is held; `settled` says how a hold just ended;
+ * - `clear`: nothing is held; `settled` says how the call's last write
+ *   ended on authenticated evidence (its receipt or canonical execution),
+ *   saved for every reader until the next write on the call is reserved. A
+ *   proven expiry says so only to the caller that saw it; the user's exit
+ *   leaves none;
  * - `pending-known-hash`: its saved hash (or Safe proposal) can still run. No
  *   exit: the wallet speeds it up or cancels it;
  * - `held-no-hash`: the wallet never returned a hash. The exit is offered;
@@ -352,7 +356,12 @@ export function createWriteHold(
     const key = listenerKey(call);
     /** The effect read the last state() was given: the exit asks it again. */
     let lastEffect: ((chainId: number) => Promise<boolean>) | undefined;
-    const peek = () => classify(recovery.read());
+    /** Nothing held: how the call's last write settled, if saved. */
+    const cleared = () => clear(recovery.settled());
+    const peek = () => {
+      const record = recovery.read();
+      return record ? classify(record) : cleared();
+    };
     const shown = (state: WriteHoldState) => (emit(key, state), state);
 
     async function locked<T>(
@@ -410,11 +419,15 @@ export function createWriteHold(
         receipt,
         proof,
       ).catch(() => null);
-      if (verdict && release(record))
-        return clear({
+      if (verdict && release(record)) {
+        const settled = {
           result: verdict,
           hash: receipt.transactionHash.toLowerCase() as Hex,
-        });
+        };
+        // Kept for any later reader: another tab, a reload, a follow timer.
+        recovery.markSettled(settled);
+        return clear(settled);
+      }
       if (
         !record.safe &&
         receipt.status === "reverted" &&
@@ -610,7 +623,7 @@ export function createWriteHold(
       effect?: (chainId: number) => Promise<boolean>,
     ): Promise<WriteHoldState> {
       let record = recovery.read();
-      if (!record) return clear();
+      if (!record) return cleared();
       // No evidence from another chain.
       if ((await client.getChainId().catch(() => null)) !== record.chainId)
         return classify(record);
@@ -619,7 +632,7 @@ export function createWriteHold(
         .resolve(client, effect ? { effect } : undefined)
         .catch(() => null);
       record = recovery.read();
-      if (!record) return clear();
+      if (!record) return cleared();
       if (check?.status === "sent") {
         // An authenticated hash is seen: any vanished clock stops.
         if (record.vanishedAt !== undefined)

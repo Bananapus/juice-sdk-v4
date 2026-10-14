@@ -867,8 +867,9 @@ const { released } = await hold.exit(
 if (released) resend();
 ```
 
-`hold.state(client)` is the one answer: `clear` (with how a hold just
-`settled`), `pending-known-hash` (no exit, `WRITE_HOLD_PENDING_LINE`),
+`hold.state(client)` is the one answer: `clear` (with how the call's last
+write `settled` on authenticated evidence, kept for every tab and reload until
+the next write is reserved; never after the user's exit), `pending-known-hash` (no exit, `WRITE_HOLD_PENDING_LINE`),
 `held-no-hash` and `dropped-proven` (the exit, with `WRITE_EXIT_LABEL` and
 `writeExitMessage(state.record.call)`), `looks-done` (the app's `effect` read
 shows it done: the exit at once, nothing released), `held-unchecked` (a hash the node

@@ -73,6 +73,12 @@ export type ReviewedWriteRecoveryRecord = Omit<
   vanishedAt?: string;
 };
 
+/** How a held write ended, on authenticated evidence: its result and transaction. */
+export type ReviewedWriteSettlement = {
+  result: "success" | "failed";
+  hash: Hex;
+};
+
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
 export type ReviewedWriteNonceEvidence = {
   nonce: number | bigint;
@@ -634,6 +640,7 @@ export function createBrowserWriteRecovery(
 ) {
   const reviewed = normalized(input);
   const key = scope(reviewed);
+  const settledKey = `${key}:settled`;
   const legacyKey =
     reviewed.namespace === undefined ? legacyScope(reviewed) : undefined;
   let owned: ReviewedWriteRecoveryRecord | undefined;
@@ -913,6 +920,12 @@ export function createBrowserWriteRecovery(
         } catch {
           /* A leftover marker names only the old record. */
         }
+      // This write replaces the call's last settlement.
+      try {
+        store.removeItem(settledKey);
+      } catch {
+        /* A stale settlement is read only while nothing is held. */
+      }
       return recordOf(record);
     },
     submitted(
@@ -923,6 +936,43 @@ export function createBrowserWriteRecovery(
     },
     rejected,
     clear,
+    /**
+     * Save how the call's last write ended, on authenticated evidence (its
+     * verified receipt or canonical execution), for any later reader: another
+     * tab, a reload. The next reservation replaces it. Extra evidence: a
+     * failed save keeps none.
+     */
+    markSettled(settlement: ReviewedWriteSettlement): void {
+      requireLock();
+      try {
+        storage().setItem(
+          settledKey,
+          JSON.stringify({
+            result: settlement.result,
+            hash: settlement.hash.toLowerCase(),
+            at: Date.now(),
+          }),
+        );
+      } catch {
+        /* Only the settling caller learns it. */
+      }
+    },
+    /** How the call's last write ended, if {@link markSettled} saved it. */
+    settled(): ReviewedWriteSettlement | undefined {
+      try {
+        const saved = JSON.parse(storage().getItem(settledKey) ?? "null") as {
+          result?: unknown;
+          hash?: unknown;
+        } | null;
+        return saved &&
+          (saved.result === "success" || saved.result === "failed") &&
+          isBytes32(saved.hash)
+          ? { result: saved.result, hash: saved.hash as Hex }
+          : undefined;
+      } catch {
+        return undefined;
+      }
+    },
     /**
      * Start the clock of a hash saved before `submittedAt` existed: save now
      * as its `firstSeenAt`, once. Extra evidence: a stale snapshot or a failed

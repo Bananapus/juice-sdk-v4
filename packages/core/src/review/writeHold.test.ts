@@ -567,7 +567,10 @@ describe("a held write", () => {
       status: "clear",
       settled: { result: "success", hash: HASH },
     });
-    expect(handle.peek()).toEqual({ status: "clear" });
+    expect(handle.peek()).toEqual({
+      status: "clear",
+      settled: { result: "success", hash: HASH },
+    });
     expect(seen).toEqual([
       "clear",
       "held-no-hash",
@@ -1355,7 +1358,10 @@ describe("a held write", () => {
       status: "clear",
       settled: { result: "success", hash: HASH },
     });
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    await expect(handle.state(client)).resolves.toEqual({
+      status: "clear",
+      settled: { result: "success", hash: HASH },
+    });
   });
 
   it("holds a revert until it is final, through a reorg, and never offers a resend", async () => {
@@ -1405,8 +1411,12 @@ describe("a held write", () => {
     chain.head = 120n;
     chain.finalized = 96n;
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(handle.peek()).toEqual({ status: "clear" });
-    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    const failed = {
+      status: "clear",
+      settled: { result: "failed", hash: HASH },
+    };
+    expect(handle.peek()).toEqual(failed);
+    await expect(handle.state(client)).resolves.toEqual(failed);
   });
 
   it("stops looking after its attempts, and a later state() looks again", async () => {
@@ -1768,6 +1778,98 @@ describe("a held write", () => {
   });
 });
 
+describe("a held write's settlement", () => {
+  const success = {
+    status: "clear",
+    settled: { result: "success", hash: HASH },
+  };
+
+  it("is read by another controller on the same storage, as after a reload or in another tab", async () => {
+    const browser = origin();
+    const first = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    await first.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await expect(
+      first.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client),
+    ).resolves.toEqual(success);
+    // The same controller keeps saying so.
+    expect(first.hold.open(ordinary).peek()).toEqual(success);
+    const second = setup({ browser, locks: first.locks });
+    expect(second.hold.open(ordinary).peek()).toEqual(success);
+    await expect(second.hold.open(ordinary).state(client)).resolves.toEqual(
+      success,
+    );
+    // Another call on the same account has none.
+    await expect(
+      second.hold
+        .open({ ...ordinary, call: { ...ordinary.call, value: 1n } })
+        .state(client),
+    ).resolves.toEqual({ status: "clear" });
+  });
+
+  it("is never produced by the user's exit", async () => {
+    const browser = origin();
+    const { hold, locks } = setup({ browser });
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await expect(
+      handle.send(
+        client,
+        wallet(async () => {
+          throw new Error("reply lost");
+        }).send,
+      ),
+    ).rejects.toThrow();
+    const shown = await handle.state(client);
+    await expect(
+      handle.exit(shown, { checkedWallet: true }, client),
+    ).resolves.toEqual({ released: true, state: { status: "clear" } });
+    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    expect(setup({ browser, locks }).hold.open(ordinary).peek()).toEqual({
+      status: "clear",
+    });
+  });
+
+  it("is replaced once a new write on the call is reserved", async () => {
+    const { hold } = setup();
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    expect(handle.peek()).toEqual(success);
+    // A deliberate repeat: its reservation replaces the old settlement.
+    await expect(
+      handle.send(
+        client,
+        wallet(async () => {
+          throw new Error("reply lost");
+        }).send,
+      ),
+    ).rejects.toThrow();
+    const shown = await handle.state(client);
+    expect(shown.status).toBe("held-no-hash");
+    await handle.exit(shown, { checkedWallet: true }, client);
+    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+  });
+
+  it("holds within the tab while storage is refused", async () => {
+    const browser = origin();
+    browser.state.write = false;
+    const memory = new Map<string, string>();
+    const first = setup({ browser, memory });
+    const { chain, client, receiptOf } = fakeChain();
+    await first.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await first.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    expect(browser.values.size).toBe(0);
+    // Another controller in the same tab reads it from the tab's memory.
+    const second = setup({ browser, memory, locks: first.locks });
+    expect(second.hold.open(ordinary).peek()).toEqual(success);
+  });
+});
+
 describe("a held Safe proposal", () => {
   const SUCCESS = encodeEventTopics({
     abi: parseAbi(["event ExecutionSuccess(bytes32 txHash, uint256 payment)"]),
@@ -1880,7 +1982,8 @@ describe("a held Safe proposal", () => {
   ] as const)(
     "settles from the canonical %s log's receipt while Safe's service is stale",
     async (topic, result) => {
-      const { hold, queue } = safeSetup();
+      const browser = origin();
+      const { hold, queue } = safeSetup(browser);
       const fixture = fakeChain();
       const handle = hold.open(safeCall());
       await handle.send(fixture.client, async (gate) => {
@@ -1894,10 +1997,10 @@ describe("a held Safe proposal", () => {
       });
       executes(fixture, queue.hash, topic);
       // The service still lists it unexecuted.
-      await expect(handle.state(fixture.client)).resolves.toEqual({
-        status: "clear",
-        settled: { result, hash: EXECUTION },
-      });
+      const settled = { status: "clear", settled: { result, hash: EXECUTION } };
+      await expect(handle.state(fixture.client)).resolves.toEqual(settled);
+      // Another tab learns the same settlement.
+      expect(safeSetup(browser).hold.open(safeCall()).peek()).toEqual(settled);
       // Either way it ended: the next proposal is a new action.
       await handle.send(fixture.client, async (gate) => {
         await gate.beforeSend();
