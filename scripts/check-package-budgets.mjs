@@ -186,9 +186,12 @@ const budgets = {
     // proof, execution logs bound to the canonical block, rechecked saved
     // executions and the hashed exit's warning) change existing artifacts
     // only: +3,469 B packed / +20,317 B unpacked. Measured 1,417,856 B packed
-    // / 21,563,116 B unpacked and 818 entries.
-    packed: 1_420_000,
-    unpacked: 21_567_000,
+    // / 21,563,116 B unpacked and 818 entries. Reconciling a direct Safe
+    // execution reorganized away (its sender and nonce saved, the shared
+    // nonce search) adds +2,418 B packed / +14,694 B unpacked to existing
+    // artifacts. Measured 1,420,274 B packed / 21,577,810 B unpacked, 818.
+    packed: 1_423_000,
+    unpacked: 21_582_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

@@ -1676,6 +1676,9 @@ describe("a record saved before its hash had a clock", () => {
     expect(() =>
       parseReviewedWriteRecoveryRecord({ ...saved, firstSeenAt: "soon" }),
     ).toThrow("Invalid saved write recovery record");
+    expect(() =>
+      parseReviewedWriteRecoveryRecord({ ...saved, sentFrom: "0x12" }),
+    ).toThrow("Invalid saved write recovery record");
   });
 });
 

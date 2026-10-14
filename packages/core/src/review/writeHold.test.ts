@@ -1861,6 +1861,95 @@ describe("a held Safe proposal", () => {
     expect(proposals).toHaveBeenCalledOnce();
   });
 
+  it("releases a direct execution reorganized away once a finalized cancel used its executor's nonce", async () => {
+    for (const history of ["readable", "unreadable", "unsent"] as const) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(1_000_000);
+      const browser = origin();
+      const { hold, queue } = safeSetup(browser);
+      queue.options.fetch.mockImplementation(
+        async () => new Response("not found", { status: 404 }),
+      );
+      const fixture = fakeChain();
+      const handle = hold.open(safeCall());
+      await handle.send(fixture.client, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(EXECUTION);
+      });
+      // The owner executed it at once; its outer transaction reverted, not final yet.
+      fixture.chain.txs.push({
+        hash: EXECUTION,
+        from: ACCOUNT,
+        nonce: 7,
+        to: SAFE,
+        input: execInput(),
+        value: 0n,
+        block: 95n,
+        status: "reverted",
+      });
+      fixture.chain.head = 100n;
+      fixture.chain.finalized = 90n;
+      await expect(handle.state(fixture.client)).resolves.toMatchObject({
+        status: "ran-executed",
+        record: {
+          executed: true,
+          executionHash: EXECUTION,
+          sentNonce: "7",
+          sentFrom: ACCOUNT,
+        },
+      });
+      if (history === "unsent") {
+        // A record saved before who sent it was kept: no replacement can be proven.
+        const [key] = browser.values.keys();
+        const { sentFrom: _, ...legacy } = JSON.parse(browser.values.get(key)!);
+        browser.values.set(key, JSON.stringify(legacy));
+      }
+      // A reorg removes it, and a finalized cancel uses the executor's nonce.
+      fixture.chain.txs.length = 0;
+      fixture.chain.reorged.set(95n, OTHER);
+      fixture.chain.txs.push({
+        hash: OTHER,
+        from: ACCOUNT,
+        nonce: 7,
+        to: ACCOUNT,
+        input: "0x",
+        value: 0n,
+        block: 97n,
+      });
+      fixture.chain.head = 120n;
+      fixture.chain.finalized = 110n;
+      if (history === "readable") {
+        await expect(handle.state(fixture.client)).resolves.toEqual({
+          status: "clear",
+          settled: { result: "replaced" },
+        });
+      } else {
+        const blocks = fixture.client.getBlock.getMockImplementation()!;
+        fixture.client.getBlock.mockImplementation(async (args = {}) => {
+          if (args.includeTransactions) throw new Error("history unavailable");
+          return blocks(args);
+        });
+        await expect(handle.state(fixture.client)).resolves.toMatchObject({
+          status: "ran-executed",
+          exit: false,
+        });
+        vi.setSystemTime(1_000_000 + 31 * 60_000);
+        const unchecked = await handle.state(fixture.client);
+        expect(unchecked).toMatchObject({
+          status: "held-unchecked",
+          exit: true,
+          line: WRITE_HOLD_UNCHECKED_LINE,
+          warning: WRITE_HOLD_HASHED_EXIT_LINE,
+        });
+        await expect(
+          handle.exit(unchecked, { checkedWallet: true }, fixture.client),
+        ).resolves.toMatchObject({ released: true });
+      }
+      hold.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("settles an execution returned at once whose outer transaction reverted as failed, once final", async () => {
     vi.useFakeTimers();
     const { hold } = safeSetup();

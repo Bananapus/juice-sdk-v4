@@ -59,6 +59,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
   firstSeenAt?: string;
   /** A Safe proposal's nonce, from its authenticated record: proof of its end needs no Safe service. */
   safeNonce?: string;
+  /** For a Safe execution the wallet returned at once: the account that sent it (its nonce is `sentNonce`). */
+  sentFrom?: Address;
 };
 
 /** The account's next nonce and the block it was read at, from {@link readReviewedWriteNonce}. */
@@ -150,6 +152,8 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.submittedAt) ||
     !optionalDecimal(record.firstSeenAt) ||
     !optionalDecimal(record.safeNonce) ||
+    (record.sentFrom !== undefined &&
+      !isAddress(record.sentFrom, { strict: false })) ||
     (record.executed !== undefined && record.executed !== true) ||
     (record.executionHash !== undefined &&
       (record.executed !== true || !isBytes32(record.executionHash)))
@@ -174,6 +178,9 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
       ? {}
       : { firstSeenAt: record.firstSeenAt }),
     ...(record.safeNonce === undefined ? {} : { safeNonce: record.safeNonce }),
+    ...(record.sentFrom === undefined
+      ? {}
+      : { sentFrom: record.sentFrom.toLowerCase() as Address }),
     ...(record.executed ? { executed: true as const } : {}),
     ...(record.executionHash === undefined
       ? {}
@@ -915,6 +922,34 @@ export function createBrowserWriteRecovery(
       );
     },
     /**
+     * Save who sent a Safe execution the wallet returned at once, and at which
+     * nonce, from its authenticated transaction, once: its canonical
+     * replacement can then be proven. Extra evidence only.
+     */
+    sentBy(
+      expected: ReviewedWriteRecoveryRecord,
+      from: Address,
+      nonce: bigint,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(
+        expected,
+        (current) => current.safe && current.sentFrom === undefined,
+        { sentFrom: from, sentNonce: nonce.toString() },
+      );
+    },
+    /**
+     * Drop the proof that `expected` ran, once its execution is gone from the
+     * chain: it is held again as an unproven write. Extra evidence only.
+     */
+    unexecuted(
+      expected: ReviewedWriteRecoveryRecord,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(expected, (current) => current.executed === true, {
+        executed: undefined,
+        executionHash: undefined,
+      });
+    },
+    /**
      * Save a Safe proposal's nonce from its authenticated record, once. Extra
      * evidence: a stale snapshot or a failed save keeps the record as it was.
      */
@@ -1147,18 +1182,51 @@ async function inspectWrite(
   // a record saved without a starting block searches from genesis instead.
   const from = record.fromBlock ?? (bound ? "0" : undefined);
   if (target === undefined || from === undefined) return pending;
-  const nonce = BigInt(target);
+  const used = await findTransactionAtNonce(
+    client,
+    record.account,
+    BigInt(target),
+    BigInt(from),
+  );
+  if (!used) return pending;
+  if (used.hash === record.hash)
+    return { check: { status: "sent", hash: used.hash } };
+  if (
+    used.to?.toLowerCase() === record.call.to &&
+    used.input?.toLowerCase() === record.call.data &&
+    BigInt(used.value ?? 0) === BigInt(record.call.value)
+  )
+    return { check: { status: "sent", hash: used.hash } };
+  // Another transaction at that nonce may have run the call inside it
+  // (a wrapper, or an EIP-7702 wallet that ran code and then cleared its
+  // delegation), so it proves nothing. The user's exit ends it.
+  return { check: { status: "pending", usedBy: used.hash } };
+}
+
+/**
+ * The transaction `account` sent at `nonce`, once the account's nonce is past
+ * it at a canonical finalized block: a search of its nonce from `fromBlock`
+ * finds the block where it moved. Null while that is unproven or the node
+ * can't say (no history, a reorganized answer).
+ */
+export async function findTransactionAtNonce(
+  client: Pick<ReviewedWriteNonceClient, "getBlock" | "getTransactionCount">,
+  account: Address,
+  nonce: bigint,
+  fromBlock = 0n,
+): Promise<{
+  hash: Hex;
+  to?: Address | null;
+  input?: Hex;
+  value?: bigint;
+} | null> {
+  const from = account.toLowerCase();
   const count = async (blockNumber: bigint) =>
-    BigInt(
-      await client.getTransactionCount({
-        address: record.account,
-        blockNumber,
-      }),
-    );
+    BigInt(await client.getTransactionCount({ address: account, blockNumber }));
   const proof = await atCanonicalFinalizedBlock(
     client as Pick<RelayrFinalizedClient, "getBlock">,
-    async (finalized): Promise<ReviewedWriteCheck | null> => {
-      let low = BigInt(from);
+    async (finalized) => {
+      let low = fromBlock;
       let high = finalized;
       if (
         high <= low ||
@@ -1179,26 +1247,14 @@ async function inspectWrite(
         block.number === high
           ? block.transactions.find(
               (tx) =>
-                tx.from?.toLowerCase() === record.account &&
-                BigInt(tx.nonce) === nonce,
+                tx.from?.toLowerCase() === from && BigInt(tx.nonce) === nonce,
             )
           : undefined;
       if (!used || !isBytes32(used.hash)) return null;
-      const hash = used.hash.toLowerCase() as Hex;
-      if (hash === record.hash) return { status: "sent", hash };
-      if (
-        used.to?.toLowerCase() === record.call.to &&
-        used.input?.toLowerCase() === record.call.data &&
-        BigInt(used.value ?? 0) === BigInt(record.call.value)
-      )
-        return { status: "sent", hash };
-      // Another transaction at that nonce may have run the call inside it
-      // (a wrapper, or an EIP-7702 wallet that ran code and then cleared its
-      // delegation), so it proves nothing. The user's exit ends it.
-      return { status: "pending", usedBy: hash };
+      return { ...used, hash: used.hash.toLowerCase() as Hex };
     },
   );
-  return { check: proof?.value ?? pending.check };
+  return proof?.value ?? null;
 }
 
 /** Minimal RPC reads; PublicClient instances for any chain satisfy this shape. */

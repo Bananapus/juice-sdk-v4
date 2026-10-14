@@ -1,4 +1,9 @@
-import type { Hex, PublicClient, TransactionReceipt } from "viem";
+import {
+  isAddress,
+  type Hex,
+  type PublicClient,
+  type TransactionReceipt,
+} from "viem";
 import {
   canonicalSafeTxHash,
   lookAtSafeProposalEnd,
@@ -22,6 +27,7 @@ import {
 import {
   createBrowserWriteRecovery,
   createHeldWriteStorage,
+  findTransactionAtNonce,
   readReviewedWriteNonce,
   SubmittedWritePersistenceError,
   verifyReviewedWriteExpiry,
@@ -383,6 +389,40 @@ export function createWriteHold(
       return receipt ? settle(record, receipt, client) : null;
     }
 
+    /**
+     * A direct execution whose receipt is gone: another transaction the
+     * executor sent at its nonce, at a canonical finalized block, means it
+     * never ran. History that can't be read keeps it held, and after 30
+     * minutes with the transaction unknown it gets the unchecked exit.
+     */
+    async function reconcileDirect(
+      record: ReviewedWriteRecoveryRecord,
+      client: WriteHoldClient,
+    ): Promise<WriteHoldState | null> {
+      const used =
+        record.sentFrom && record.sentNonce !== undefined
+          ? await findTransactionAtNonce(
+              client,
+              record.sentFrom,
+              BigInt(record.sentNonce),
+            )
+          : null;
+      if (used && used.hash !== record.hash && release(record))
+        return clear({ result: "replaced" });
+      if (
+        used ||
+        !unseenTooLong(record) ||
+        !(await client.getTransaction({ hash: record.hash! }).then(
+          () => false,
+          (error: { name?: unknown } | null) =>
+            error?.name === "TransactionNotFoundError",
+        ))
+      )
+        return null;
+      // A proof that can't be dropped keeps the exit refusing it.
+      return unchecked(recovery.unexecuted(record));
+    }
+
     async function safeState(
       saved: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
@@ -401,6 +441,10 @@ export function createWriteHold(
           if (settled.status === "clear") return settled;
           // It ran; only its verified result (a failure at finality) ends it.
           record = recovery.executed(record, hash);
+          // Who sent it at which nonce proves a canonical replacement later.
+          const sent = await client.getTransaction({ hash }).catch(() => null);
+          if (sent?.hash?.toLowerCase() === hash && isAddress(sent.from))
+            record = recovery.sentBy(record, sent.from, BigInt(sent.nonce));
           follow(client, record.id);
           return ranExecuted(record);
         }
@@ -408,6 +452,10 @@ export function createWriteHold(
         const settled = await execution(record, client);
         if (settled?.status === "clear") return settled;
         if (record.executionHash === hash) {
+          if (!settled) {
+            const reconciled = await reconcileDirect(record, client);
+            if (reconciled) return reconciled;
+          }
           follow(client, record.id);
           return settled ?? ranExecuted(record);
         }
