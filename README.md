@@ -1020,7 +1020,13 @@ quoted, routed or auto-filled values.** Each builder reads only the fields it
 names, so an amount, memo, quote, route, deadline or fee passed by mistake
 changes nothing. The trade, for every builder: a coarse key may make a second
 action of the same kind wait on an unresolved first one (until it settles or
-the user takes its explicit exit), but it never sends twice.
+the user takes its explicit exit), but it never sends twice. Nothing is inferred from a string's
+shape: each builder tags the parameters whose meaning it knows (addresses,
+pools) so they compare case-blind, integers and bigints are one value, and
+every other string stays exactly as given. In `launchIntent`'s free-form
+`config`, tag addresses and bytes with `intent.address` and `intent.hex`, and
+build the config in one place from the frozen form so every retry represents
+it the same way.
 
 | Builder                                                    | Key                                                                                       | What waits                                                    |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------- |

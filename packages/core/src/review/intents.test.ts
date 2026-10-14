@@ -9,7 +9,7 @@ import {
   loanIntent,
   payIntent,
 } from "./intents.js";
-import { intent } from "./writeIntent.js";
+import { intent, type IntentValue } from "./writeIntent.js";
 
 const A = "0x1111111111111111111111111111111111111111";
 const B = "0x2222222222222222222222222222222222222222";
@@ -163,13 +163,14 @@ describe("shared write intents", () => {
     expect(liquidityIntent({ chainId: 1, pool, positions: [1n] })).not.toBe(lp);
   });
 
-  it("keys a launch config the same whatever integer type or hex case it holds", () => {
+  it("keys a launch config the same whatever integer type or tagged hex case it holds", () => {
+    const upper = (value: string) => value.toUpperCase().replace("0X", "0x");
     const typed = {
       name: "Banny",
       reserved: 1000,
-      owner: A.toUpperCase().replace("0X", "0x"),
-      salt: "0xABCDEF",
-      splits: [{ percent: 50, beneficiary: B }],
+      owner: intent.address(upper(A)),
+      salt: intent.hex("0xABCDEF"),
+      splits: [{ percent: 50, beneficiary: intent.address(B) }],
     };
     const key = launchIntent({ chainId: 1, account: A, config: typed });
     expect(
@@ -179,20 +180,11 @@ describe("shared write intents", () => {
         config: {
           name: "Banny",
           reserved: 1000n,
-          owner: A,
-          salt: "0xabcdef",
-          splits: [
-            { percent: 50n, beneficiary: B.toUpperCase().replace("0X", "0x") },
-          ],
+          owner: intent.address(A),
+          salt: intent.hex("0xabcdef"),
+          splits: [{ percent: 50n, beneficiary: intent.address(upper(B)) }],
+          memo: undefined,
         },
-      }),
-    ).toBe(key);
-    // Already tagged, left out, or null: the same canonical form.
-    expect(
-      launchIntent({
-        chainId: 1,
-        account: A,
-        config: { ...typed, owner: intent.address(A), memo: undefined },
       }),
     ).toBe(key);
     expect(
@@ -210,14 +202,33 @@ describe("shared write intents", () => {
         config: { ...typed, reserved: 0.5 },
       }),
     ).toThrow("safe integer");
-    // Strings stay as typed.
+  });
+
+  it("never infers anything from a plain string's shape", () => {
+    // Names that differ only by case are different names, hex-looking or not.
+    const named = (name: string) =>
+      launchIntent({ chainId: 1, account: A, config: { name } });
+    expect(named("0xABCD")).not.toBe(named("0xabcd"));
+    expect(named("Banny")).not.toBe(named("banny"));
+    // A value that is both bytes and an address keys by the builder's
+    // declared tag, whatever case it comes in.
+    const lower = liquidityIntent({ chainId: 1, pool: A, positions: [1n] });
     expect(
-      launchIntent({
+      liquidityIntent({
         chainId: 1,
-        account: A,
-        config: { ...typed, name: "banny" },
+        pool: A.toUpperCase().replace("0X", "0x"),
+        positions: [1n],
       }),
-    ).not.toBe(key);
+    ).toBe(lower);
+    // In a config, the tag the app declares decides, the same way each time.
+    const tagged = (value: IntentValue) =>
+      launchIntent({ chainId: 1, account: A, config: { target: value } });
+    expect(tagged(intent.hex(A))).toBe(
+      tagged(intent.hex(A.toUpperCase().replace("0X", "0x"))),
+    );
+    expect(tagged(intent.address(A))).toBe(
+      tagged(intent.address(A.toUpperCase().replace("0X", "0x"))),
+    );
   });
 
   it("refuses an identity it can't key", () => {

@@ -16,20 +16,15 @@ type Id = bigint | number;
 
 /**
  * The one canonical form of what a builder keys: a safe integer becomes a
- * bigint (1000 and 1000n are one value), an address or other 0x hex string
- * is tagged to compare case-blind, and every other string stays as typed.
- * Arrays and records are normalized throughout; anything else is left for
- * {@link writeIntentKey} to accept or refuse.
+ * bigint (1000 and 1000n are one value), arrays and records are normalized
+ * throughout, and nothing is inferred from a string's shape: a plain string
+ * stays exactly as given, and only values tagged with {@link intent} compare
+ * case-blind. Anything else is left for {@link writeIntentKey} to accept or
+ * refuse.
  */
 function canonicalValue(value: IntentValue): IntentValue {
   if (typeof value === "number")
     return Number.isSafeInteger(value) ? BigInt(value) : value;
-  if (typeof value === "string")
-    return /^0x[0-9a-fA-F]*$/.test(value)
-      ? value.length === 42
-        ? intent.address(value)
-        : intent.hex(value)
-      : value;
   if (Array.isArray(value)) return value.map(canonicalValue);
   if (value && typeof value === "object" && !isTagged(value))
     return Object.fromEntries(
@@ -170,7 +165,10 @@ export function launchIntent({
 }: {
   chainId: number;
   account: Address | string;
-  /** What the user entered, frozen: tag addresses and hex with {@link intent}. */
+  /**
+   * What the user entered, frozen and built in one place: tag addresses and
+   * bytes with {@link intent}; plain strings compare exactly as given.
+   */
   config: IntentValue;
 }): string {
   return writeIntentKey("launch", {
