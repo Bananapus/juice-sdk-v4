@@ -1100,7 +1100,19 @@ const SAFE_NONCE_SEARCH_READS = 80;
  * execution events there: `executed` when one names `proposalHash`,
  * `replaced` when only others do. Null while that is unproven or unread, as
  * with a node that keeps no history or a block with no execution logged.
+ * Every execution log must carry that canonical block's number and hash.
+ * Needs no Safe service: `nonce` is the proposal's authenticated nonce.
  */
+export function provenSafeProposalEnd(
+  client: Pick<SafeQueueClient, "request">,
+  safe: Address,
+  proposalHash: Hex,
+  nonce: bigint,
+): Promise<SafeProposalEnd | null> {
+  return provenProposalEnd(client, safe, proposalHash, nonce);
+}
+
+/** {@link provenSafeProposalEnd}. */
 async function provenProposalEnd(
   client: Pick<SafeQueueClient, "request">,
   safe: Address,
@@ -1157,6 +1169,9 @@ async function provenProposalEnd(
       ],
     });
     if (!Array.isArray(logs)) return null;
+    // Only logs of the canonical block where the nonce passed are evidence.
+    const passed = await block(hex(high));
+    if (!isBytes32(passed?.hash)) return null;
     let executed = false;
     let others = false;
     const executions: (SafeProposalExecution | null)[] = [];
@@ -1166,12 +1181,21 @@ async function provenProposalEnd(
       topics?: unknown;
       data?: unknown;
       transactionHash?: unknown;
+      blockNumber?: unknown;
+      blockHash?: unknown;
     }[]) {
       if (
         typeof log?.address !== "string" ||
         log.address.toLowerCase() !== safe.toLowerCase()
       )
         continue;
+      if (
+        typeof log.blockNumber !== "string" ||
+        BigInt(log.blockNumber) !== high ||
+        typeof log.blockHash !== "string" ||
+        log.blockHash.toLowerCase() !== passed.hash.toLowerCase()
+      )
+        return null;
       const event = safeExecutionEvent(log);
       if (log.removed === true || typeof event === "string") return null;
       if (event?.txHash === proposalHash.toLowerCase()) {

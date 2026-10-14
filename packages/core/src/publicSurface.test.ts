@@ -279,6 +279,7 @@ describe("published core SDK surfaces", () => {
       "onchainApprovalStep",
       "parseSafeCreationPayload",
       "proposeSafeTransaction",
+      "provenSafeProposalEnd",
       "readSafeAppExecution",
       "readSafeTransaction",
       "reportedSafeExecution",

@@ -20,6 +20,7 @@ import {
   heldCall,
   lookAtSafeProposal,
   lookAtSafeProposalEnd,
+  provenSafeProposalEnd,
   readSafeAppExecution,
   reportedSafeExecution,
   requireSafeProposalSuccess,
@@ -614,9 +615,16 @@ describe("a proposal awaiting its signers", () => {
               : { number: params[0], hash: canonical };
           if (method === "eth_getLogs") {
             const filter = params[0] as { fromBlock: string; toBlock: string };
+            // Logs carry the canonical block they're in unless a test says otherwise.
             return filter.fromBlock === `0x${crossing.toString(16)}` &&
               filter.toBlock === filter.fromBlock
-              ? logs
+              ? Array.isArray(logs)
+                ? logs.map((log) => ({
+                    blockNumber: filter.fromBlock,
+                    blockHash: canonical,
+                    ...log,
+                  }))
+                : logs
               : [];
           }
           throw new Error(`unexpected ${method}`);
@@ -708,6 +716,8 @@ describe("a proposal awaiting its signers", () => {
         proving(),
         proving({ logs: {} }),
         proving({ canonical: HASH }),
+        // No canonical block where the nonce passed.
+        proving({ canonical: null as never }),
         proving({ logs: [{ ...executed(HASH), removed: true }] }),
         proving({ logs: [{ ...executed(HASH), data: "0x12" }] }),
         chain(),
@@ -818,6 +828,38 @@ describe("a proposal awaiting its signers", () => {
           execution: { executionHash: EXECUTION, status: "failed" },
         });
       });
+    });
+
+    it("ignores logs from outside the canonical block where the nonce passed", async () => {
+      const { hash } = service(call());
+      for (const orphan of [
+        { blockHash: HASH },
+        { blockNumber: "0x51" },
+        { blockHash: undefined },
+      ])
+        await expect(
+          look(
+            call(),
+            undefined,
+            proving({ logs: [{ ...executed(hash), ...orphan }] }) as never,
+          ),
+        ).resolves.toBe("passed");
+    });
+
+    it("proves an end from the saved proposal nonce without Safe's service", async () => {
+      const { hash } = service(call());
+      const client = proving({
+        logs: [{ ...executed(hash), transactionHash: FINAL }],
+      });
+      await expect(
+        provenSafeProposalEnd(client as never, SAFE, hash, 5n),
+      ).resolves.toEqual({
+        look: "executed",
+        execution: { executionHash: FINAL, status: "success" },
+      });
+      await expect(
+        provenSafeProposalEnd(proving() as never, SAFE, hash, 5n),
+      ).resolves.toBeNull();
     });
 
     it("ends a watch as replaced or executed instead of holding", async () => {
