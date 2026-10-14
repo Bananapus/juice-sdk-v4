@@ -192,9 +192,14 @@ const budgets = {
     // artifacts. Measured 1,420,274 B packed / 21,577,810 B unpacked, 818.
     // Settling from what that replacement did (its own Safe execution of the
     // reviewed call) adds +967 B packed / +8,570 B unpacked. Measured
-    // 1,421,241 B packed / 21,586,380 B unpacked and 818 entries.
-    packed: 1_424_000,
-    unpacked: 21_590_000,
+    // 1,421,241 B packed / 21,586,380 B unpacked and 818 entries. Rounds 4
+    // to 6 (no automatic release of a replaced Safe write, no release on an
+    // effect read, speed-ups adopted only at the authenticated sent nonce,
+    // and that nonce bound only from the saved hash's own transaction) left
+    // the measure at the edge (1,422,125 B packed / 21,590,464 B unpacked,
+    // 818 entries); this margin gives the next fix room.
+    packed: 1_426_000,
+    unpacked: 21_600_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

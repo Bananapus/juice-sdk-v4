@@ -1204,7 +1204,13 @@ async function inspectOrdinary(
     );
     if (sent === undefined) return pending;
     if (sent) {
-      if (sent.from?.toLowerCase() !== record.account) return pending;
+      // Only the saved hash's own transaction, on the saved chain, is evidence.
+      if (
+        sent.from?.toLowerCase() !== record.account ||
+        sent.hash?.toLowerCase() !== record.hash ||
+        (sent.chainId !== undefined && sent.chainId !== record.chainId)
+      )
+        return pending;
       return {
         check:
           sent.blockNumber !== null && sent.blockNumber !== undefined

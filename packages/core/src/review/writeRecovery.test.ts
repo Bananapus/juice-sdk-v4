@@ -1448,6 +1448,46 @@ describe("releasing a write with no confirmed result", () => {
     expect(journal.read()).toEqual(record);
   });
 
+  it("binds a sent nonce only from the saved hash's own transaction on the saved chain", async () => {
+    const { journal } = await reserved();
+    await journal.withLock(async () => journal.submitted(HASH));
+    // Codex: the node answers for HASH with another transaction U.
+    for (const answer of [
+      { hash: SENT, nonce: 9, blockNumber: null },
+      { hash: SENT, nonce: 9, blockNumber: 150n },
+      { hash: HASH, chainId: 1, nonce: 9, blockNumber: 150n },
+    ]) {
+      await expect(
+        journal.withLock(() =>
+          journal.resolve(
+            nonceChain({
+              crossing: 300n,
+              known: { [HASH]: answer } as never,
+            }) as never,
+          ),
+        ),
+      ).resolves.toEqual(pending);
+      expect(journal.read()?.sentNonce).toBeUndefined();
+    }
+    // Its own transaction, on the saved chain, binds.
+    await journal.withLock(() =>
+      journal.resolve(
+        nonceChain({
+          crossing: 300n,
+          known: {
+            [HASH]: {
+              hash: HASH.toUpperCase().replace("0X", "0x"),
+              chainId: 10,
+              nonce: 7,
+              blockNumber: null,
+            },
+          } as never,
+        }) as never,
+      ),
+    );
+    expect(journal.read()?.sentNonce).toBe("7");
+  });
+
   it("binds the sent nonce while the node knows the hash, then applies each finding", async () => {
     const replaced = await reserved();
     await expect(
