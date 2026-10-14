@@ -118,3 +118,7 @@ export const WRITE_HOLD_SAFE_UNPROVEN_LINE =
 /** A held write whose transaction is mined but whose result can't be read yet. No exit yet. */
 export const WRITE_HOLD_MINED_LINE =
   "Your transaction is onchain, but its result can't be read yet.";
+
+/** A send whose review went stale because another window's attempt of the same write ended meanwhile. */
+export const WRITE_HOLD_STALE_REVIEW_LINE =
+  "This was just sent from another window. Review it again to send another.";

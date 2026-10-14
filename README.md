@@ -825,6 +825,7 @@ import {
   createWriteHold,
   WriteHeldError,
   WriteHoldBusyError,
+  WriteHoldStaleReviewError,
   WRITE_EXIT_LABEL,
   writeExitMessage,
 } from "@bananapus/nana-sdk-core/review";
@@ -847,6 +848,8 @@ try {
   );
 } catch (error) {
   if (error instanceof WriteHeldError) showHeld(error.state);
+  else if (error instanceof WriteHoldStaleReviewError)
+    showError(error.message); // sent from another window: review again
   else if (error instanceof WriteHoldBusyError) showError(error.message);
   else showHeld(await hold.state(publicClient)); // a lost reply stays held
 }

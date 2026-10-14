@@ -29,6 +29,7 @@ import {
   WRITE_HOLD_REVERTED_LINE,
   WRITE_HOLD_SAFE_REPLACED_LINE,
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
+  WRITE_HOLD_STALE_REVIEW_LINE,
 } from "./messages.js";
 import { intent, writeIntentKey } from "./writeIntent.js";
 import {
@@ -36,6 +37,7 @@ import {
   WriteHeldError,
   WriteHoldBusyError,
   WriteHoldNonceError,
+  WriteHoldStaleReviewError,
   type WriteHoldClient,
   type WriteHoldGate,
   type WriteHeldState,
@@ -2802,6 +2804,70 @@ describe("a write held under an intent", () => {
     expect(
       createBrowserWriteRecovery(ordinary, { storage }).read()?.hash,
     ).toBeUndefined();
+  });
+
+  it("Codex: a review that went stale while another tab's attempt settled must be reviewed again", async () => {
+    const browser = origin();
+    const locks = lockManager();
+    const tabA = setup({ browser, locks });
+    const tabB = setup({ browser, locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const a = tabA.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    const b = tabB.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    let resume!: () => void;
+    const reviewing = new Promise<void>((resolve) => (resume = resolve));
+    const staleWrite = vi.fn();
+    let inReview = false;
+    const stale = a
+      .send(client, async (gate) => {
+        inReview = true;
+        await reviewing;
+        await gate.beforeSend();
+        staleWrite();
+      })
+      .catch((e) => e);
+    // Meanwhile, tab B sends the same intent and it settles.
+    await vi.waitFor(() => expect(inReview).toBe(true));
+    await b.send(client, wallet(async () => HASH).send);
+    chain.txs.push({ ...sent(HASH), input: regenerated.data, block: 95n });
+    await b.onReceipt(receiptOf(chain.txs[0]), client);
+    resume();
+    const refused = await stale;
+    expect(refused).toBeInstanceOf(WriteHoldStaleReviewError);
+    expect(refused.message).toBe(WRITE_HOLD_STALE_REVIEW_LINE);
+    expect(refused.settled).toEqual({ result: "success", hash: HASH });
+    expect(staleWrite).not.toHaveBeenCalled();
+    // A fresh review sends normally: a deliberate repeat is never blocked.
+    const again = wallet(async () => OTHER);
+    await a.send(client, again.send);
+    expect(again.write).toHaveBeenCalledOnce();
+  });
+
+  it("Codex: an exit never waits behind another tab's wallet prompt", async () => {
+    const browser = origin();
+    const locks = lockManager();
+    const tabA = setup({ browser, locks });
+    const tabB = setup({ browser, locks });
+    const { client } = fakeChain();
+    const a = tabA.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    const b = tabB.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    await expect(a.send(client, lostReply().send)).rejects.toThrow();
+    const kept = await b.state(client);
+    await a.exit(await a.state(client), { checkedWallet: true }, client);
+    // Tab A opens another wallet prompt and waits there.
+    let answer!: () => void;
+    const prompt = a.send(client, async (gate) => {
+      await gate.beforeSend();
+      await new Promise<void>((resolve) => (answer = resolve));
+    });
+    await vi.waitFor(() => expect(answer).toBeTypeOf("function"));
+    const started = Date.now();
+    const ended = await b.exit(kept, { checkedWallet: true }, client);
+    expect(Date.now() - started).toBeLessThan(500);
+    expect(ended.released).toBe(false);
+    expect(ended.state).toMatchObject({ exit: false });
+    answer();
+    await prompt;
   });
 
   it("crossed intents in two tabs: one sends within the retries, the other is held, never both busy", async () => {

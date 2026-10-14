@@ -27,6 +27,7 @@ import {
   WRITE_HOLD_REVERTED_LINE,
   WRITE_HOLD_SAFE_REPLACED_LINE,
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
+  WRITE_HOLD_STALE_REVIEW_LINE,
   writeHeldMessage,
 } from "./messages.js";
 import {
@@ -168,6 +169,18 @@ export class WriteHoldNonceError extends Error {
   readonly name = "WriteHoldNonceError";
   constructor(readonly cause: unknown) {
     super(WRITE_HOLD_NONCE_LINE);
+  }
+}
+
+/**
+ * The review went stale: another window's attempt of the same write was
+ * reserved, and maybe settled (`settled`), while it was open. Review again;
+ * the next review sends normally.
+ */
+export class WriteHoldStaleReviewError extends Error {
+  readonly name = "WriteHoldStaleReviewError";
+  constructor(readonly settled?: WriteHoldSettled) {
+    super(WRITE_HOLD_STALE_REVIEW_LINE);
   }
 }
 
@@ -400,7 +413,10 @@ export function createWriteHold(
         reserve: () => void,
         unreserve: () => void,
         until: Promise<void>,
+        reviewed: string,
       ) => Promise<{ released: Promise<void> }>;
+      /** Every involved key's generation, read when the review opens. */
+      generations?: () => string;
     } = {},
   ) {
     const recovery = createBrowserWriteRecovery(call, {
@@ -1018,6 +1034,7 @@ export function createWriteHold(
         let ended!: () => void;
         const until = new Promise<void>((resolve) => (ended = resolve));
         let released: Promise<void> | undefined;
+        let reviewed = "";
         const gate: WriteHoldGate = {
           async beforeSend(actualCall) {
             let evidence:
@@ -1045,12 +1062,14 @@ export function createWriteHold(
                     attempt = undefined;
                   },
                   until,
+                  reviewed,
                 ));
               else reserve();
             } catch (error) {
               if (
                 error instanceof WriteHeldError ||
-                error instanceof WriteHoldBusyError
+                error instanceof WriteHoldBusyError ||
+                error instanceof WriteHoldStaleReviewError
               )
                 throw error;
               if (hooks.across) {
@@ -1106,6 +1125,8 @@ export function createWriteHold(
           if (!checked) throw new WriteHoldBusyError();
           if (checked.value.status !== "clear")
             throw new WriteHeldError(checked.value);
+          // Given with `across`: the generations the review is checked against.
+          reviewed = hooks.generations!();
           try {
             return await run(gate);
           } finally {
@@ -1159,7 +1180,9 @@ export function createWriteHold(
             released: true,
             state: clear(undefined, snapshot.record.id),
           };
-        }, true);
+          // Never waits behind another send's wallet prompt: on contention,
+          // what the saved record says, with no exit.
+        }, false);
         const ended = result?.value ?? { released: false, state: peek() };
         return { ...ended, state: shown(ended.state) };
       },
@@ -1318,7 +1341,16 @@ export function createWriteHold(
   ) {
     if (call.namespace === undefined) return openExact(call);
     const namespace = call.namespace;
-    const own = openOne(call, { across: reserveAcross });
+    const own = openOne(call, {
+      across: reserveAcross,
+      generations: () => generations(),
+    });
+    const ownJournal = createBrowserWriteRecovery(call, { storage });
+    /** Every involved key's latest reservation id, its generation. */
+    const generations = () =>
+      JSON.stringify(
+        [ownJournal, ...journals].map((journal) => journal.latestReservation()),
+      );
     const { namespace: _, ...exact } = call;
     const scopeOf = (input: ReviewedWriteRecoveryInput) =>
       createBrowserWriteRecovery(input, { storage }).scopeKey;
@@ -1372,6 +1404,7 @@ export function createWriteHold(
       reserve: () => void,
       unreserve: () => void,
       until: Promise<void>,
+      reviewed: string,
     ): Promise<{ released: Promise<void> }> {
       const locks = [
         { scope: scopeOf(call), take: ownLock },
@@ -1399,6 +1432,9 @@ export function createWriteHold(
                 reservation: held.id,
               });
           }
+          // Another attempt since this review opened: review it again.
+          if (generations() !== reviewed)
+            throw new WriteHoldStaleReviewError(ownJournal.settled());
           reserve();
           const record = (own.peek() as WriteHeldState).record;
           // Every mirror is saved, in the store the hold itself uses (its
@@ -1441,7 +1477,11 @@ export function createWriteHold(
         // Not reserved: every lock, its own included, is let go before any
         // retry; the checks run again each time.
         const { error } = failed;
-        if (entered === locks.length || error instanceof WriteHeldError)
+        if (
+          entered === locks.length ||
+          error instanceof WriteHeldError ||
+          error instanceof WriteHoldStaleReviewError
+        )
           throw error;
         if (Date.now() >= deadline) throw new WriteHoldBusyError();
         await new Promise((resolve) =>

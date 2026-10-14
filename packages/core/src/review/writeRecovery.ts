@@ -1036,6 +1036,8 @@ export function createBrowserWriteRecovery(
         mirrorOf: of,
       });
       persist(mirrored, key);
+      // Its generation stays readable after the mirror is removed.
+      markedLatest(mirrored.id);
       return mirrored;
     },
     /**
