@@ -163,3 +163,14 @@ export const SAVED_ATTEMPT_CHECK_WARNING =
 export function checkedItLabel(next = "Review it again"): string {
   return `I checked it. ${next.replace(/\.+$/, "")}.`;
 }
+
+/** Under a retirement that lasts in this tab alone (`durable: false`). */
+export const SAVED_ATTEMPT_TAB_ONLY_LINE = "This applies to this tab only.";
+
+/** When the browser has storage but can't read it: the warned exit's line. */
+export const SAVED_ATTEMPT_UNREADABLE_LINE =
+  "This browser can't read its saved transactions. Check your wallet before sending again.";
+
+/** The warned exit's label, offered only after a check action found storage unreadable. */
+export const SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL =
+  "I checked my wallet. Continue anyway";

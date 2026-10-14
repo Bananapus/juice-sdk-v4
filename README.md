@@ -1171,7 +1171,7 @@ const attempt = {
   namespaces: [launchNamespace, ...legacyNamespaces],
   call: savedCall, // when kept: a saved hash is adopted against it
   saved: { started: true, hash, safeTxHash, submittedAt, before },
-  confirmRetirable: async () => !journalRecordsSuccess(), // optional final say
+  confirmRetirable: async () => !journalRecordsSuccess(), // required: Rule E's journal re-read
   authenticate: async (hash) =>
     // The app's domain check of one transaction (or, given none, its search):
     (await launchedBy(hash))
@@ -1199,7 +1199,8 @@ It returns exactly one outcome:
   and only it, runs `retire(attempt, { by: "check", outcome })`.
 - `none`: the hold proves no reservation was ever made and the app saved the
   attempt as unsent (`saved.started === false`, with no hash or nonce
-  evidence; an omitted field proves nothing), or the attempt was retired (`retired`). `retired: "rejected"`
+  evidence; an omitted field proves nothing) and strict reads show no
+  reservation, or the attempt was retired (`retired`). `retired: "rejected"`
   means the SDK dropped every reservation of it (and its legacy mirrors, which
   share its id) on a definite wallet rejection or an abort before the wallet
   opened: nothing can have been sent.
@@ -1225,16 +1226,30 @@ false`), never a check or a send. Only `{ by: "settled" }` retires it.
   never covered by it. It returns `{ retired: true, durable }`: `durable:
 false` means this retirement was kept only in this tab's memory (the
   storage's `durableAt` says so for its own commit; storage without it reports
-  `false`); the app decides whether to say so.
+  `false`). Show `SAVED_ATTEMPT_TAB_ONLY_LINE` ("This applies to this tab
+  only."): another tab or a reload shows the check again, which only asks
+  again and never sends. A failed durable commit (a full quota) still retires
+  in the tab this way.
+- **Unreadable storage:** when the browser has storage but its reads keep
+  throwing, a retirement returns `{ retired: false, reason: "unreadable" }`.
+  Only then may the app offer the warned exit: `SAVED_ATTEMPT_UNREADABLE_LINE`
+  ("This browser can't read its saved transactions. Check your wallet before
+  sending again.") with `SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL` ("I checked my
+  wallet. Continue anyway"), which runs
+  `retire(attempt, { by: "check", outcome, force: "unreadable" })`. It retires
+  in this tab alone, and only if a strict read fails again inside it;
+  `useSavedAttempt` exposes it as `unreadableAction`.
 - **Rule E:** only a followed settlement (`{ by: "settled" }`) retires a
   success. An authenticated `done` is saved for every tab, so another tab's
   stale check or exit is refused, and a tab whose own check can't show it gets
-  `done` with `authenticated: false`. Check and exit retirements read the
-  hold fresh and error-aware under the locks (an unreadable record, settlement
-  or marker refuses), then await the attempt's optional `confirmRetirable()`:
-  false or a throw refuses.
+  `done` with `authenticated: false`, and it overrides any retirement but
+  `settled`. Check and exit retirements read the hold fresh and error-aware
+  under the locks (an unreadable record, settlement or marker refuses), then
+  await the attempt's required `confirmRetirable()`, the app's own journal
+  re-read: anything but `true`, or a throw, refuses.
 - **Discard:** `canDiscard(attempt)` is false while the attempt is held, or
-  while a success it settled, or another tab proved, hasn't been followed.
+  while a success it settled, or another tab proved, hasn't been followed, or
+  while any of its records can't be read.
 
 `useSavedAttempt({ recovery, attempt, client, checkNext })` (React) recovers on
 mount and whenever the attempt or client changes. Only the latest request of

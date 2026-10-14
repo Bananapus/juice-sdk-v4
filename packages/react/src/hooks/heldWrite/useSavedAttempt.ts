@@ -1,5 +1,7 @@
 import {
   checkedItLabel,
+  SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL,
+  SAVED_ATTEMPT_UNREADABLE_LINE,
   type SavedAttempt,
   type SavedAttemptOutcome,
   type SavedAttemptRecovery,
@@ -39,6 +41,17 @@ export type UseSavedAttemptResult<T> = {
   checkAction: {
     line: string;
     warning: string;
+    label: string;
+    run: () => Promise<Retired>;
+  } | null;
+  /**
+   * Only after the check action came back `reason: "unreadable"` (the browser
+   * has storage it can't read): the warned exit, "I checked my wallet.
+   * Continue anyway", which retires in this tab alone if storage still can't
+   * be read. Never a first option.
+   */
+  unreadableAction: {
+    line: string;
     label: string;
     run: () => Promise<Retired>;
   } | null;
@@ -100,6 +113,8 @@ export function useSavedAttempt<T>(
     outcome: SavedAttemptOutcome<T> | null;
     recovering: boolean;
   }>({ outcome: null, recovering: false });
+  /** The lifecycle whose check action last found storage unreadable. */
+  const [unreadable, setUnreadable] = useState<Lifecycle | undefined>();
 
   const recover = useCallback(async () => {
     const { attempt, recovery, client } = lifecycle;
@@ -126,7 +141,10 @@ export function useSavedAttempt<T>(
       const { attempt, recovery } = lifecycle;
       if (!attempt || !current(lifecycle)) return { retired: false };
       const retired = await recovery.retire(attempt, reason);
-      if (current(lifecycle)) await recover();
+      if (!current(lifecycle)) return retired;
+      if (!retired.retired && retired.reason === "unreadable")
+        setUnreadable(lifecycle);
+      await recover();
       return retired;
     },
     [lifecycle, recover],
@@ -144,6 +162,14 @@ export function useSavedAttempt<T>(
             warning: outcome.warning,
             label: checkedItLabel(checkNext),
             run: () => retire({ by: "check", outcome }),
+          }
+        : null,
+    unreadableAction:
+      outcome?.status === "check" && unreadable === lifecycle
+        ? {
+            line: SAVED_ATTEMPT_UNREADABLE_LINE,
+            label: SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL,
+            run: () => retire({ by: "check", outcome, force: "unreadable" }),
           }
         : null,
     retire,

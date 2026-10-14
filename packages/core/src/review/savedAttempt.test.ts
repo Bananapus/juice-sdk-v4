@@ -4,6 +4,9 @@ import { submitReviewedContractWrite } from "./contractWrite.js";
 import { launchIntent } from "./intents.js";
 import {
   checkedItLabel,
+  SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL,
+  SAVED_ATTEMPT_TAB_ONLY_LINE,
+  SAVED_ATTEMPT_UNREADABLE_LINE,
   SAVED_ATTEMPT_CHECK_LINE,
   SAVED_ATTEMPT_CHECK_WARNING,
 } from "./messages.js";
@@ -11,6 +14,7 @@ import {
   createSavedAttemptRecovery,
   type SavedAttempt,
   type SavedAttemptProof,
+  type SavedAttemptScope,
 } from "./savedAttempt.js";
 import { intent } from "./writeIntent.js";
 import {
@@ -290,10 +294,11 @@ function browser() {
   const site = origin();
   const memory = new Map<string, string>();
   const locks = lockManager();
-  const load = () => {
+  /** A page load; `tab` is its tab memory (a new Map: another tab, with nothing cached). */
+  const load = (tab = memory) => {
     const storage = createHeldWriteStorage({
       durable: () => site.storage,
-      memory,
+      memory: tab,
     });
     const hold = createWriteHold({
       storage,
@@ -321,6 +326,7 @@ function attemptOf(
     namespaces: [NAMESPACE],
     call: CALL,
     authenticate: vi.fn(authenticate),
+    confirmRetirable: vi.fn(async () => true),
     ...extra,
   };
 }
@@ -1730,5 +1736,168 @@ describe("review round 3: rule E across tabs, unreadable settlements, and positi
       retired: true,
       durable: false,
     });
+  });
+});
+
+describe("review round 4: rule E under concurrency, strict reads for none and discard, unreadable storage", () => {
+  /** Make every read of a saved hold or attempt key throw, as a storage policy does; the probe still works. */
+  function unreadable(
+    site: ReturnType<typeof origin>,
+    match = (key: string) =>
+      key.startsWith("nana-sdk:reviewed-write:v") ||
+      key.startsWith("nana-sdk:saved-attempt:"),
+  ) {
+    const getItem = site.storage.getItem;
+    site.storage.getItem = (key: string) => {
+      if (match(key)) throw new Error("SecurityError");
+      return getItem(key);
+    };
+    return () => {
+      site.storage.getItem = getItem;
+    };
+  }
+
+  // 1: a domain success proved while another tab retired the check still wins.
+  it("lets a proven success override a check retirement made while it was being proved", async () => {
+    const page = browser();
+    const b = page.load().recovery;
+    const a = page.load().recovery;
+    const { client } = fakeChain();
+    const unknown = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    const outcome = await b.recover(unknown, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    const racing = attemptOf(
+      async () => {
+        expect(
+          (await b.retire(unknown, { by: "check", outcome })).retired,
+        ).toBe(true);
+        return proven("raced");
+      },
+      { saved: { started: true } },
+    );
+    expect(await a.recover(racing, client)).toMatchObject({
+      status: "done",
+      authenticated: true,
+    });
+    expect(await page.load().recovery.recover(unknown, client)).toMatchObject({
+      status: "done",
+      result: "success",
+      authenticated: false,
+    });
+    expect(b.canDiscard(unknown)).toBe(false);
+  });
+
+  // 2: the app's journal re-read is required for check and exit.
+  it("refuses a check or exit retirement from a scope without confirmRetirable", async () => {
+    const { recovery } = browser().load();
+    const { client } = fakeChain();
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    const outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    const { confirmRetirable: _, ...without } = attempt;
+    // @ts-expect-error confirmRetirable is required
+    const scope: SavedAttemptScope = without;
+    expect(
+      (await recovery.retire(scope, { by: "check", outcome })).retired,
+    ).toBe(false);
+    expect((await recovery.retire(scope, { by: "exit" })).retired).toBe(false);
+  });
+
+  // 4: none needs strict reads proving no reservation.
+  it("is check, not none, when the hold's records can't be read in a fresh tab", async () => {
+    const page = browser();
+    const { client } = fakeChain();
+    await sendUnder(page.load().hold, client);
+    unreadable(page.site);
+    const { recovery } = page.load(new Map());
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: false },
+    });
+    expect((await recovery.recover(attempt, client)).status).toBe("check");
+  });
+
+  // 5: discard reads strictly too.
+  it("refuses discard when a settled success can't be read in a fresh tab", async () => {
+    const page = browser();
+    const { chain, client } = fakeChain();
+    await sendUnder(page.load().hold, client, HASH);
+    chain.txs.push(sent(HASH, { block: 50n }));
+    await page
+      .load()
+      .hold.open({
+        chainId: 10,
+        account: ACCOUNT,
+        safe: false,
+        namespace: NAMESPACE,
+        call: CALL,
+      })
+      .state(client);
+    unreadable(page.site, (key) => key.endsWith(":settled"));
+    const { recovery } = page.load(new Map());
+    expect(recovery.canDiscard(attemptOf(async () => proven("x")))).toBe(false);
+  });
+
+  // 6: storage that exists but can't be read: refused, then the warned tab-only exit.
+  it("refuses a check retirement as unreadable, then retires in this tab on the warned exit", async () => {
+    const page = browser();
+    const { client } = fakeChain();
+    const restore = unreadable(page.site);
+    const { recovery } = page.load(new Map());
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    const outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(await recovery.retire(attempt, { by: "check", outcome })).toEqual({
+      retired: false,
+      reason: "unreadable",
+    });
+    expect(
+      await recovery.retire(attempt, {
+        by: "check",
+        outcome,
+        force: "unreadable",
+      }),
+    ).toEqual({ retired: true, durable: false });
+    expect(await recovery.recover(attempt, client)).toEqual({
+      status: "none",
+      retired: "check",
+    });
+    // Another tab, once storage reads again, asks again: it never sends.
+    restore();
+    expect(
+      (await page.load(new Map()).recovery.recover(attempt, client)).status,
+    ).toBe("check");
+  });
+
+  it("ignores force when storage reads: the ordinary retirement applies", async () => {
+    const { recovery } = browser().load();
+    const { client } = fakeChain();
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+    });
+    const outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(
+      await recovery.retire(attempt, {
+        by: "check",
+        outcome,
+        force: "unreadable",
+      }),
+    ).toEqual({ retired: true, durable: true });
+  });
+
+  it("has the copy for the tab-only and unreadable exits", () => {
+    expect(SAVED_ATTEMPT_TAB_ONLY_LINE).toBe("This applies to this tab only.");
+    expect(SAVED_ATTEMPT_UNREADABLE_LINE).toBe(
+      "This browser can't read its saved transactions. Check your wallet before sending again.",
+    );
+    expect(SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL).toBe(
+      "I checked my wallet. Continue anyway",
+    );
   });
 });

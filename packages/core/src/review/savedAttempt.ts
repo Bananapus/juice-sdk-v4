@@ -38,11 +38,13 @@ export type SavedAttemptScope = {
   /** The exact saved call, when kept: a saved hash is adopted into the hold against it. */
   call?: ReviewedWriteRecoveryInput["call"];
   /**
-   * The app's domain journal's final say on a check or exit retirement,
-   * awaited under the hold's locks: false or a throw refuses it (for
-   * example, when the journal now records the attempt's success).
+   * The app's re-read of its own domain journal, required: awaited under
+   * the hold's locks before any check or exit retirement, it is the final say
+   * of Rule E (only a followed settlement retires a success). Return false,
+   * or throw, while the journal records the attempt's success or can't be
+   * read.
    */
-  confirmRetirable?(): Promise<boolean>;
+  confirmRetirable(): Promise<boolean>;
   saved?: {
     /**
      * The app's send began: the wallet may have opened. Only an explicit
@@ -71,12 +73,27 @@ export type SavedAttempt<T> = SavedAttemptScope & {
   authenticate(hash: Hex | undefined): Promise<SavedAttemptProof<T>>;
 };
 
+/**
+ * What a retirement returned. `durable: false`: it lasts in this tab alone
+ * (show `SAVED_ATTEMPT_TAB_ONLY_LINE`); another tab or a reload asks
+ * again, never sends. `reason: "unreadable"`: the browser has storage but
+ * can't read it, so the warned exit may be offered.
+ */
+export type SavedAttemptRetired =
+  | { retired: false; reason?: "unreadable" }
+  | { retired: true; durable: boolean };
+
 /** Why an attempt is retired: the only three things that retire one. */
 export type SavedAttemptRetirement =
   /** The user's exit released the hold. */
   | { by: "exit" }
-  /** The user's "I checked it. ..." on exactly this check outcome. */
-  | { by: "check"; outcome: SavedAttemptCheck }
+  /**
+   * The user's "I checked it. ..." on exactly this check outcome. With
+   * `force: "unreadable"` (the warned "I checked my wallet. Continue anyway",
+   * offered only after a retirement came back `reason: "unreadable"`), it
+   * retires in this tab alone if the hold's storage still can't be read.
+   */
+  | { by: "check"; outcome: SavedAttemptCheck; force?: "unreadable" }
   /** The app followed and recorded this settlement. */
   | { by: "settled"; hash?: Hex };
 
@@ -168,6 +185,8 @@ export function createSavedAttemptRecovery(options: {
 }) {
   const { hold, locks } = options;
   const storage = options.storage ?? createHeldWriteStorage();
+  /** Retirements the warned exit kept in this tab while storage couldn't be read. */
+  const tabRetired = new Map<string, string>();
 
   function inputOf(attempt: SavedAttemptScope, namespace: string) {
     return {
@@ -234,8 +253,9 @@ export function createSavedAttemptRecovery(options: {
     evidence: string,
     strict = false,
   ): SavedAttemptRetirement["by"] | undefined {
+    const key = retiredKey(attempt);
     const saved = JSON.parse(
-      readKey(retiredKey(attempt), strict) ?? "null",
+      tabRetired.get(key) ?? readKey(key, strict) ?? "null",
     ) as {
       by?: SavedAttemptRetirement["by"];
       evidence?: string;
@@ -425,7 +445,8 @@ export function createSavedAttemptRecovery(options: {
       if (
         retired &&
         (retired === "settled" ||
-          !settlementsOf(attempt, states).success.length)
+          (!settlementsOf(attempt, states).success.length &&
+            !provenOf(attempt, evidence)))
       )
         return { status: "none", retired };
       const settled = await followed(states);
@@ -443,7 +464,8 @@ export function createSavedAttemptRecovery(options: {
           saved.fromBlock === undefined &&
           saved.submittedAt === undefined &&
           hold.durable() &&
-          states.every((state) => state.reservation === undefined)
+          states.every((state) => state.reservation === undefined) &&
+          provesUnreserved(attempt)
         )
           return { status: "none" };
         // A reservation id names one attempt wherever it is mirrored: a
@@ -521,14 +543,11 @@ export function createSavedAttemptRecovery(options: {
     }
   }
 
-  /** Under every namespace key's hold lock, in one order, never waiting on a busy one. */
-  async function underLocks<R>(
-    attempt: SavedAttemptScope,
-    work: (
-      journals: ReturnType<typeof createBrowserWriteRecovery>[],
-    ) => Promise<R>,
-  ): Promise<R> {
-    const journals = attempt.namespaces
+  /** Each namespace's write recovery, in one order by key. */
+  function journalsOf(attempt: SavedAttemptScope) {
+    if (!attempt.namespaces.length)
+      throw new Error("A saved attempt names at least one namespace.");
+    return attempt.namespaces
       .map((namespace) =>
         createBrowserWriteRecovery(inputOf(attempt, namespace), {
           storage,
@@ -536,48 +555,93 @@ export function createSavedAttemptRecovery(options: {
         }),
       )
       .sort((a, b) => (a.scopeKey < b.scopeKey ? -1 : 1));
+  }
+  /**
+   * Read every hold record, settlement and marker of the attempt fresh,
+   * throwing when any can't be read or parsed: the error-aware snapshot a
+   * retirement, a discard or a `none` decides on.
+   */
+  function readStrictly(attempt: SavedAttemptScope) {
+    for (const journal of journalsOf(attempt)) journal.assertReadable();
+    for (const key of [retiredKey(attempt), successKey(attempt)]) {
+      const raw = readKey(key, true);
+      if (raw !== null) JSON.parse(raw);
+    }
+  }
+  /** Strict reads prove no namespace ever reserved the attempt. */
+  function provesUnreserved(attempt: SavedAttemptScope): boolean {
+    try {
+      readStrictly(attempt);
+      return handlesOf(attempt).every(
+        (handle) => handle.peek().reservation === undefined,
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /** Under every namespace key's hold lock, in one order, never waiting on a busy one. */
+  async function underLocks<R>(
+    attempt: SavedAttemptScope,
+    work: () => Promise<R>,
+  ): Promise<R> {
+    const journals = journalsOf(attempt);
     const run = (index: number): Promise<R> =>
       index === journals.length
-        ? work(journals)
+        ? work()
         : journals[index].withLock(() => run(index + 1));
     return run(0);
   }
 
   /**
-   * Retire a saved attempt for every tab and reload: the user's exit (once
-   * the hold released it), the user's check action on the exact outcome they
-   * saw, or a settlement the app followed and recorded. Refused
-   * (`retired: false`) while anything holds it, while the hold changed since
-   * the check was shown, while an unfollowed success shows (only `settled`
-   * retires one), or while a lock is busy: recover again. `durable: false`
-   * says it lasts in this tab alone (holds kept only in its memory); the app
-   * decides whether to say so.
+   * Retire a saved attempt: the user's exit (once the hold released it), the
+   * user's check action on the exact outcome they saw, or a settlement the
+   * app followed and recorded. Under the hold's locks, on a fresh
+   * error-aware read. Refused (`retired: false`) while anything holds it,
+   * while the hold changed since the check was shown, while a success shows
+   * (only `settled` retires one), when the attempt's `confirmRetirable()` says
+   * no, or while a lock is busy: recover again. `reason: "unreadable"`: the
+   * browser has storage it can't read; the warned exit (`force:
+   * "unreadable"`) then retires in this tab alone, only if a strict read fails
+   * again inside it. `durable: false`: the commit lasts in this tab alone.
    */
   async function retire(
     attempt: SavedAttemptScope,
     reason: SavedAttemptRetirement,
-  ): Promise<{ retired: false } | { retired: true; durable: boolean }> {
+  ): Promise<SavedAttemptRetired> {
     let settled: { handle: WriteHoldHandle; state: WriteHoldState }[] = [];
+    let unreadable = false;
+    let forced = false;
     try {
       const handles = handlesOf(attempt);
-      const done = await underLocks(attempt, async (journals) => {
-        // Fresh and error-aware: an unreadable record, settlement or marker
-        // refuses (it throws), never reads as clear.
-        for (const journal of journals) journal.assertReadable();
+      const done = await underLocks(attempt, async () => {
+        try {
+          readStrictly(attempt);
+        } catch {
+          // Unresolved: never read as clear. Only the warned exit goes on, in this tab.
+          if (reason.by !== "check" || reason.force !== "unreadable") {
+            unreadable = true;
+            return false;
+          }
+          forced = true;
+        }
         const states = handles.map((handle) => handle.peek());
         if (states.some((state) => state.status !== "clear")) return false;
         const evidence = evidenceOf(attempt, states);
-        retirementOf(attempt, evidence, true);
         if (reason.by === "check" && reason.outcome.evidence !== evidence)
           return false;
         if (reason.by !== "settled") {
           // Rule E: only a followed settlement retires a success.
           if (
             settlementsOf(attempt, states).success.length ||
-            provenOf(attempt, evidence, true)
+            provenOf(attempt, evidence)
           )
             return false;
-          if (attempt.confirmRetirable && !(await attempt.confirmRetirable()))
+          // The app's own journal has the final say; it is required.
+          if (
+            typeof attempt.confirmRetirable !== "function" ||
+            (await attempt.confirmRetirable()) !== true
+          )
             return false;
         }
         const key = retiredKey(attempt);
@@ -588,6 +652,10 @@ export function createSavedAttemptRecovery(options: {
             ? { hash: lower(reason.hash) }
             : {}),
         });
+        if (forced) {
+          tabRetired.set(key, value);
+          return true;
+        }
         storage.setItem(key, value);
         if (storage.getItem(key) !== value) return false;
         settled = states.flatMap((state, index) =>
@@ -610,25 +678,28 @@ export function createSavedAttemptRecovery(options: {
           "hash" in state.settled
         )
           await handle.acknowledge(state.settled).catch(() => undefined);
-      return done
-        ? {
-            retired: true,
-            // Only commit-specific evidence says it outlives the tab.
-            durable: storage.durableAt?.(retiredKey(attempt)) ?? false,
-          }
-        : { retired: false };
+      if (!done)
+        return unreadable
+          ? { retired: false, reason: "unreadable" }
+          : { retired: false };
+      return {
+        retired: true,
+        // Only commit-specific evidence says it outlives the tab.
+        durable: !forced && (storage.durableAt?.(retiredKey(attempt)) ?? false),
+      };
     } catch {
       return { retired: false };
     }
   }
 
   /**
-   * Whether the app may delete its saved attempt now, from storage alone:
-   * never while the hold holds it, or while a success it settled hasn't been
-   * followed (retired). Unreadable reads as no.
+   * Whether the app may delete its saved attempt now, on a fresh error-aware
+   * read: never while the hold holds it, while a success it settled (or a
+   * tab proved) hasn't been followed, or while anything can't be read.
    */
   function canDiscard(attempt: SavedAttemptScope): boolean {
     try {
+      readStrictly(attempt);
       const states = handlesOf(attempt).map((handle) => handle.peek());
       if (states.some((state) => state.status !== "clear")) return false;
       const evidence = evidenceOf(attempt, states);

@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import {
+  SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL,
+  SAVED_ATTEMPT_UNREADABLE_LINE,
   SAVED_ATTEMPT_CHECK_LINE,
   SAVED_ATTEMPT_CHECK_WARNING,
   type SavedAttempt,
@@ -31,6 +33,7 @@ const attemptOf = (namespace = "launch:a"): SavedAttempt<string> => ({
   namespaces: [namespace],
   saved: { started: true, nonce: 7n },
   authenticate: async () => ({ result: "unknown" }),
+  confirmRetirable: async () => true,
 });
 
 /** A recovery whose answers the test releases one by one. */
@@ -413,5 +416,68 @@ describe("useSavedAttempt", () => {
     expect((recovery.retire.mock.calls[0] as unknown[])[0]).toMatchObject({
       namespaces: ["launch:b"],
     });
+  });
+
+  // Review round 4: the warned exit appears only after the check action found storage unreadable.
+  test("offers the warned tab-only exit only after a check action came back unreadable", async () => {
+    const { recovery, answer } = fakeRecovery();
+    recovery.retire.mockImplementationOnce(async () => ({
+      retired: false,
+      reason: "unreadable",
+    }));
+    const attempt = attemptOf();
+    const { seen, start } = harness({ recovery, attempt, client });
+    await start();
+    await answer(check);
+    expect(seen.current!.unreadableAction).toBeNull();
+    let ran!: Promise<Retired>;
+    await act(async () => {
+      ran = seen.current!.checkAction!.run();
+    });
+    await answer(check);
+    expect(await ran).toEqual({ retired: false, reason: "unreadable" });
+    expect(seen.current!.unreadableAction).toMatchObject({
+      line: SAVED_ATTEMPT_UNREADABLE_LINE,
+      label: SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL,
+    });
+    recovery.retire.mockImplementationOnce(async () => ({
+      retired: true,
+      durable: false,
+    }));
+    await act(async () => {
+      ran = seen.current!.unreadableAction!.run();
+    });
+    expect(recovery.retire).toHaveBeenLastCalledWith(attempt, {
+      by: "check",
+      outcome: check,
+      force: "unreadable",
+    });
+    await answer({ status: "none", retired: "check" });
+    expect(await ran).toEqual({ retired: true, durable: false });
+    expect(seen.current!.unreadableAction).toBeNull();
+  });
+
+  test("keeps a refused retirement's answer for a lifecycle that changed meanwhile", async () => {
+    const { recovery, answer } = fakeRecovery();
+    let release!: (value: Retired) => void;
+    recovery.retire.mockImplementationOnce(
+      () => new Promise<Retired>((resolve) => (release = resolve)),
+    );
+    const { seen, start, render } = harness({
+      recovery,
+      attempt: attemptOf("launch:a"),
+      client,
+    });
+    await start();
+    await answer(check);
+    let ran!: Promise<Retired>;
+    await act(async () => {
+      ran = seen.current!.checkAction!.run();
+    });
+    await render({ recovery, attempt: attemptOf("launch:b"), client });
+    await act(async () => release({ retired: false, reason: "unreadable" }));
+    expect(await ran).toEqual({ retired: false, reason: "unreadable" });
+    await answer(check);
+    expect(seen.current!.unreadableAction).toBeNull();
   });
 });
