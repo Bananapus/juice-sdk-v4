@@ -114,3 +114,7 @@ export const WRITE_HOLD_LOOKS_DONE_LINE =
 /** A held Safe write whose follower ended without proof. The exit is offered. */
 export const WRITE_HOLD_SAFE_UNPROVEN_LINE =
   "This Safe transaction couldn't be confirmed here. Check your Safe, then send again.";
+
+/** A held write whose transaction is mined but whose result can't be read yet. No exit yet. */
+export const WRITE_HOLD_MINED_LINE =
+  "Your transaction is onchain, but its result can't be read yet.";

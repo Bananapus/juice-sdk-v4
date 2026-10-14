@@ -20,6 +20,7 @@ import {
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
   WRITE_HOLD_LOOKS_DONE_LINE,
+  WRITE_HOLD_MINED_LINE,
   WRITE_HOLD_NONCE_LINE,
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_UNCHECKED_LINE,
@@ -556,6 +557,30 @@ export function createWriteHold(
       );
     }
 
+    /**
+     * A held hash the node shows mined, though its receipt can't be read: it
+     * may have run, so no exit at once, and no "speed it up" either. Once
+     * that has lasted 30 minutes (`minedAt` keeps the clock), the warned exit.
+     * Seen pending again, the clock stops.
+     */
+    async function minedUnread(
+      state: Extract<WriteHoldState, { status: "pending-known-hash" }>,
+      client: WriteHoldClient,
+    ): Promise<WriteHoldState> {
+      const sent = await client
+        .getTransaction({ hash: state.hash })
+        .catch(() => null);
+      if (sent?.hash?.toLowerCase() !== state.hash) return state;
+      if (sent.blockNumber === null) {
+        const record = recovery.mined(state.record, false);
+        return { ...state, record };
+      }
+      const record = recovery.mined(state.record, true);
+      if (Date.now() - Number(record.minedAt) >= UNSEEN_HASH_MS)
+        return unchecked(record);
+      return { ...state, record, line: WRITE_HOLD_MINED_LINE };
+    }
+
     async function knownPending(
       record: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
@@ -700,6 +725,8 @@ export function createWriteHold(
       effect?: (chainId: number) => Promise<boolean>,
     ): Promise<WriteHoldState> {
       const state = await inspectChain(client, effect);
+      if (state.status === "pending-known-hash")
+        return minedUnread(state, client);
       if (state.status === "clear" || !state.exit) return state;
       // A hash proven dropped (another transaction used its sent nonce at a
       // canonical finalized block) can't run, whatever a node still shows.

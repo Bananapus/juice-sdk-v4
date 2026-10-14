@@ -77,6 +77,12 @@ export type ReviewedWriteRecoveryRecord = Omit<
    * execution of the exact proposal or call.
    */
   candidates?: Hex[];
+  /**
+   * When the saved hash was first seen mined with its receipt unreadable, in
+   * milliseconds since the epoch, as a decimal string. Cleared once it is
+   * seen pending again.
+   */
+  minedAt?: string;
 };
 
 /** How a held write ended, on authenticated evidence: its result and transaction. */
@@ -175,6 +181,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.firstSeenAt) ||
     !optionalDecimal(record.safeNonce) ||
     !optionalDecimal(record.vanishedAt) ||
+    !optionalDecimal(record.minedAt) ||
     (record.candidates !== undefined &&
       (!Array.isArray(record.candidates) ||
         !record.candidates.every(isBytes32))) ||
@@ -214,6 +221,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     ...(record.vanishedAt === undefined
       ? {}
       : { vanishedAt: record.vanishedAt }),
+    ...(record.minedAt === undefined ? {} : { minedAt: record.minedAt }),
     ...(record.candidates === undefined
       ? {}
       : {
@@ -1139,6 +1147,21 @@ export function createBrowserWriteRecovery(
       return amend(expected, () => rest.length !== known.length, {
         candidates: rest.length ? rest : undefined,
       });
+    },
+    /**
+     * Note whether the saved hash is mined with its receipt unreadable right
+     * now: mined starts the clock once; pending again clears it. Extra
+     * evidence only.
+     */
+    mined(
+      expected: ReviewedWriteRecoveryRecord,
+      seen: boolean,
+    ): ReviewedWriteRecoveryRecord {
+      return amend(
+        expected,
+        (current) => (current.minedAt === undefined) === seen,
+        { minedAt: seen ? String(Date.now()) : undefined },
+      );
     },
     /**
      * Save that the app's follower of this Safe write ended without proof.

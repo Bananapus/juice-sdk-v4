@@ -22,6 +22,7 @@ import {
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
   WRITE_HOLD_LOOKS_DONE_LINE,
+  WRITE_HOLD_MINED_LINE,
   WRITE_HOLD_NONCE_LINE,
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_UNCHECKED_LINE,
@@ -1014,6 +1015,72 @@ describe("a held write", () => {
       released: false,
       state: { status: "pending-known-hash", hash: HASH },
     });
+  });
+
+  describe("a mined hash whose receipt can't be read", () => {
+    async function mined(path: "attached" | "returned", settles: boolean) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(1_000_000);
+      const { hold } = setup();
+      const { chain, client } = fakeChain();
+      const handle = hold.open(ordinary);
+      if (path === "attached") {
+        await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+      } else await handle.send(client, wallet(async () => HASH).send);
+      chain.txs.push(sent(HASH, { block: 105n }));
+      chain.head = 120n;
+      const receipts = client.getTransactionReceipt.getMockImplementation()!;
+      client.getTransactionReceipt.mockImplementation(async (args) => {
+        if (args.hash === HASH) throw new Error("timeout");
+        return receipts(args);
+      });
+      const first =
+        path === "attached"
+          ? await handle.attachHash(client, HASH)
+          : await handle.state(client);
+      // Mined: it may have run, so no exit yet, and no "speed it up".
+      expect(first).toMatchObject({
+        status: "pending-known-hash",
+        hash: HASH,
+        exit: false,
+        line: WRITE_HOLD_MINED_LINE,
+      });
+      vi.setSystemTime(1_000_000 + 29 * 60_000);
+      await expect(handle.state(client)).resolves.toMatchObject({
+        status: "pending-known-hash",
+        exit: false,
+      });
+      if (settles) {
+        client.getTransactionReceipt.mockImplementation(receipts);
+        await expect(handle.state(client)).resolves.toEqual({
+          status: "clear",
+          settled: { result: "success", hash: HASH },
+        });
+      } else {
+        vi.setSystemTime(1_000_000 + 31 * 60_000);
+        const unchecked = await handle.state(client);
+        expect(unchecked).toMatchObject({
+          status: "held-unchecked",
+          hash: HASH,
+          exit: true,
+          warning: WRITE_HOLD_HASHED_EXIT_LINE,
+        });
+        await expect(
+          handle.exit(unchecked, { checkedWallet: true }, client),
+        ).resolves.toMatchObject({ released: true });
+      }
+      vi.useRealTimers();
+    }
+
+    it.each([
+      ["attached", false],
+      ["attached", true],
+      ["returned", false],
+      ["returned", true],
+    ] as const)(
+      "%s hash: the warned exit only after 30 minutes, unless its receipt settles it first (%s)",
+      async (path, settles) => mined(path, settles),
+    );
   });
 
   describe("a seen hash that vanished from the node", () => {
