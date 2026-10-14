@@ -894,6 +894,21 @@ with `exit: false`. Every state carries the record it was read from; `exit` refu
 snapshot that changed, and asks the chain once more, so a confirmation that
 lands meanwhile wins.
 
+A Safe proposal is truly pending only while Safe's service returns it
+unexecuted: each such read restarts its 30-minute clock and keeps the exit
+away. A Safe nonce that still waits shows only that nothing ran at it, so it
+restarts nothing. Once 30 minutes pass since the proposal was sent, adopted or
+last listed, with nothing proving it ran, it gets the warned exit
+(`held-unchecked`), even when the chain can't be read at all; a follower's
+unproven end (the service can't find it) gets its own warned exit. The same
+nonce makes a double execution impossible, so the exit costs little, and a
+proposal the service can't find never becomes a dead end.
+
+A legacy hold an intent stood for keeps its settlement through the intent: a
+view that saw it held shows its result (`onSettled`, never a release), and an
+unacknowledged success still blocks the intent's sends until the user
+acknowledges it, which marks it where it was saved.
+
 A result of `state()` or `exit()` carries `checked`: `true` when the gate read
 the chain under the call's lock, `false` when another tab or flow held the
 lock and the result is only the saved record, with its exit hidden. Never let

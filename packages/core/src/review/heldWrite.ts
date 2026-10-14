@@ -372,9 +372,10 @@ export function createHeldWriteView(
       stopFollowing();
       if (next.settled && mine) {
         deliver(next.settled, observed!);
-        // Seen settling here: the app was told, so the hold marks it
-        // acknowledged, and no later visit asks again.
+        // Seen settling here, while live: the app was told, so the hold
+        // marks it acknowledged, and no later visit asks again.
         if (
+          live &&
           "hash" in next.settled &&
           next.settled.result === "success" &&
           !next.settled.acknowledged
@@ -464,12 +465,21 @@ export function createHeldWriteView(
     if (!provider) return Promise.resolve(true);
     adoption ??= (async () => {
       set({ adopting: true });
+      // Each answer is this lifecycle's only: a stopped view's late read
+      // applies nothing and acknowledges nothing.
+      const at = epoch;
+      const current = () => {
+        if (at !== epoch) throw new Error("Stopped while adopting.");
+      };
       const snapshot = await handle.state(client);
+      current();
       apply(snapshot);
       if (snapshot.status === "clear") {
         const evidence = await provider();
+        current();
         if (evidence) {
           const state = await handle.adopt(snapshot, evidence, client);
+          current();
           // Unread (the chain, or a lock another writer held): no send until it is.
           if ((state as { declined?: string }).declined === "unreadable")
             throw new Error("The saved write couldn't be checked.");
@@ -505,7 +515,10 @@ export function createHeldWriteView(
       live = true;
       epoch += 1;
       const unsubscribe = handle.subscribe(apply);
-      void adopt().then(() => (running ? check() : view));
+      // An adoption a stopped lifecycle left unfinished runs again here.
+      void adopt()
+        .then((done) => (done || !running ? done : adopt()))
+        .then(() => (running ? check() : view));
       const timer = setInterval(() => {
         const held =
           view.phase === "awaiting" ||

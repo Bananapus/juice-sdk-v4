@@ -857,4 +857,54 @@ describe("one held write's view", () => {
     expect(onSettled).not.toHaveBeenCalled();
     stop();
   });
+
+  it("never lets an adoption read that lands after it stopped acknowledge a success (Codex 4)", async () => {
+    const { fake, handle } = fakeHandle(pending({ id: "r30" }));
+    fake.answer = pending({ id: "r30" });
+    // The hold replays the write held to the new subscriber.
+    handle.subscribe.mockImplementation((listener) => {
+      listener(pending({ id: "r30" }));
+      return () => {};
+    });
+    let answer!: (state: WriteHoldState) => void;
+    handle.state.mockImplementationOnce(
+      () => new Promise<WriteHoldState>((resolve) => (answer = resolve)),
+    );
+    const view = createHeldWriteView(handle, {
+      client,
+      follow: false,
+      adopt: async () => null,
+    });
+    const stop = view.start();
+    stop();
+    answer({
+      ...clear({
+        reservation: "r30",
+        settled: { result: "success", hash: HASH },
+      }),
+      checked: true,
+    });
+    await flush();
+    await flush();
+    expect(handle.acknowledge).not.toHaveBeenCalled();
+  });
+
+  it("runs an adoption again when StrictMode stopped the first mid-read", async () => {
+    const { fake, handle } = fakeHandle(clear({ reservation: undefined }));
+    fake.answer = clear({ reservation: undefined });
+    let answer!: (state: WriteHoldState) => void;
+    handle.state.mockImplementationOnce(
+      () => new Promise<WriteHoldState>((resolve) => (answer = resolve)),
+    );
+    const view = createHeldWriteView(handle, {
+      client,
+      follow: false,
+      adopt: async () => ({ hash: HASH }),
+    });
+    view.start()();
+    const stop = view.start();
+    answer({ ...clear({ reservation: undefined }), checked: true });
+    await vi.waitFor(() => expect(handle.adopt).toHaveBeenCalledOnce());
+    stop();
+  });
 });
