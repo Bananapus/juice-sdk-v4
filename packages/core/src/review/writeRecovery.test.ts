@@ -1750,7 +1750,7 @@ describe("tabs without Web Locks", () => {
 });
 
 describe("a Safe write's candidate executions", () => {
-  it("keeps valid, distinct hashes only, a bounded number, on a Safe write, and drops a disproven one", async () => {
+  it("keeps valid, distinct hashes only, with no cap, on a Safe write, and drops a disproven one", async () => {
     const options = browser();
     const journal = createBrowserWriteRecovery(
       { ...input, safe: true },
@@ -1769,9 +1769,10 @@ describe("a Safe write's candidate executions", () => {
           record,
           `0x${i.toString(16).padStart(64, "0")}` as Hex,
         );
-      expect(record.candidates).toHaveLength(64);
+      // No cap: candidates come only from the app's own wallet replies.
+      expect(record.candidates).toHaveLength(70);
       record = journal.disproven(record, HASH);
-      expect(record.candidates).toHaveLength(63);
+      expect(record.candidates).toHaveLength(69);
       expect(journal.disproven(record, HASH)).toEqual(record);
       for (const hash of record.candidates!)
         record = journal.disproven(record, hash);
@@ -1784,11 +1785,7 @@ describe("a Safe write's candidate executions", () => {
         ordinaryJournal.candidate(record, PROPOSAL).candidates,
       ).toBeUndefined();
     });
-    for (const bad of [
-      { candidates: "0x" },
-      { candidates: ["0x12"] },
-      { candidates: Array.from({ length: 65 }, () => HASH) },
-    ])
+    for (const bad of [{ candidates: "0x" }, { candidates: ["0x12"] }])
       expect(() =>
         parseReviewedWriteRecoveryRecord({ ...saved, ...bad }),
       ).toThrow("Invalid saved write recovery record");

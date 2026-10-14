@@ -214,8 +214,12 @@ const budgets = {
     // arrival, a verified latest marker, replay checked against the current
     // record and keyed by scope, and attachHash) measured 1,436,332 B packed
     // / 21,653,998 B unpacked and 818 entries.
-    packed: 1_441_000,
-    unpacked: 21_668_000,
+    // Round 4 (three-valued candidate evidence, no candidate cap, attempt-bound
+    // attachHash, settlement identity through rejection and replay, and the
+    // canonical cancellation past the pending gate) measured 1,438,735 B
+    // packed / 21,665,498 B unpacked and 818 entries; raised for headroom.
+    packed: 1_445_000,
+    unpacked: 21_680_000,
     entries: 818,
   },
   "@bananapus/nana-sdk-react": {

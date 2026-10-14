@@ -1,5 +1,6 @@
 import {
   isAddress,
+  toEventSelector,
   type Hex,
   type PublicClient,
   type TransactionReceipt,
@@ -170,6 +171,11 @@ export type WriteHoldGate = {
 type Locks = Pick<LockManager, "request">;
 
 const SETTLE_POLL_MS = 15_000;
+/** A Safe's execution events, in its 1.3 and 1.4 layouts alike. */
+const SAFE_EXECUTION_TOPICS = [
+  toEventSelector("ExecutionSuccess(bytes32,uint256)"),
+  toEventSelector("ExecutionFailure(bytes32,uint256)"),
+];
 /** A hash the network still hasn't seen this long after the wallet returned it was almost certainly never broadcast. */
 const UNSEEN_HASH_MS = 30 * 60_000;
 
@@ -519,12 +525,44 @@ export function createWriteHold(
     }
 
     /** The first hash the hold has seen that the node knows as a transaction with no receipt yet. */
+    /**
+     * Positive proof that `receipt` isn't the held Safe proposal's
+     * execution: it is in a canonical block, and it reverted or its Safe
+     * logged no execution of the proposal's safeTxHash. A read that fails
+     * proves nothing.
+     */
+    async function disproves(
+      record: ReviewedWriteRecoveryRecord,
+      receipt: TransactionReceipt,
+      client: WriteHoldClient,
+    ): Promise<boolean> {
+      const block = await client
+        .getBlock({ blockNumber: receipt.blockNumber })
+        .catch(() => null);
+      if (
+        !block?.hash ||
+        block.hash.toLowerCase() !== receipt.blockHash?.toLowerCase()
+      )
+        return false;
+      if (receipt.status === "reverted") return true;
+      return !receipt.logs.some(
+        (log) =>
+          log.address?.toLowerCase() === record.account &&
+          SAFE_EXECUTION_TOPICS.includes(log.topics?.[0] as Hex) &&
+          (log.topics.length === 2
+            ? log.topics[1]
+            : log.data?.slice(0, 66)
+          )?.toLowerCase() === record.hash,
+      );
+    }
+
     async function knownPending(
       record: ReviewedWriteRecoveryRecord,
       client: WriteHoldClient,
+      ownDropped: boolean,
     ): Promise<Hex | null> {
       const seen = [
-        ...(record.hash ? [record.hash] : []),
+        ...(record.hash && !ownDropped ? [record.hash] : []),
         ...(record.candidates ?? []),
       ];
       for (const hash of seen) {
@@ -580,8 +618,10 @@ export function createWriteHold(
           const settled = await settle(record, receipt, client);
           if (settled.status === "clear" || settled.status === "ran-executed")
             return settled;
-          // Mined as something else: no longer a candidate.
-          record = recovery.disproven(record, candidate);
+          // Only a canonical receipt that names no execution of this
+          // proposal disproves it; anything unread keeps it.
+          if (await disproves(record, receipt, client))
+            record = recovery.disproven(record, candidate);
         }
       if (record.executed && record.executionHash) {
         const settled = await execution(record, client);
@@ -662,7 +702,13 @@ export function createWriteHold(
     ): Promise<WriteHoldState> {
       const state = await inspectChain(client, effect);
       if (state.status === "clear" || !state.exit) return state;
-      const pending = await knownPending(state.record, client);
+      // A hash proven dropped (another transaction used its sent nonce at a
+      // canonical finalized block) can't run, whatever a node still shows.
+      const pending = await knownPending(
+        state.record,
+        client,
+        state.status === "dropped-proven",
+      );
       return pending
         ? {
             status: "pending-known-hash",
@@ -796,12 +842,12 @@ export function createWriteHold(
         const last = latest.get(key);
         if (last) {
           const now = peek();
-          listener(
-            JSON.stringify(now.status === "clear" ? null : now.record) ===
-              JSON.stringify(last.status === "clear" ? null : last.record)
-              ? last
-              : now,
-          );
+          // A clear is compared by its settlement's identity, a hold by its record.
+          const identity = (state: WriteHoldState) =>
+            JSON.stringify(
+              state.status === "clear" ? (state.settled ?? null) : state.record,
+            );
+          listener(identity(now) === identity(last) ? last : now);
         }
         return () => {
           set!.delete(listener);
@@ -966,7 +1012,8 @@ export function createWriteHold(
       },
       /**
        * Attach a hash the chain authenticates as this exact call, sent by the
-       * account on the call's chain, to the held write that has none: under
+       * account on the reservation's chain at or after its next nonce, and
+       * not mined before it was reserved, to the held write that has none: under
        * one lock, without releasing it. The hold then follows that hash: no
        * exit while it is pending, and its receipt settles it.
        */
@@ -976,7 +1023,13 @@ export function createWriteHold(
       ): Promise<WriteHoldState> {
         const result = await locked(async () => {
           const record = recovery.read();
-          if (record && !record.safe && !record.hash && isBytes32(hash)) {
+          if (
+            record &&
+            !record.safe &&
+            !record.hash &&
+            isBytes32(hash) &&
+            (await client.getChainId().catch(() => null)) === record.chainId
+          ) {
             const sent = await client
               .getTransaction({ hash })
               .catch(() => null);
@@ -986,7 +1039,14 @@ export function createWriteHold(
               (sent.chainId === undefined || sent.chainId === record.chainId) &&
               sent.to?.toLowerCase() === record.call.to &&
               sent.input?.toLowerCase() === record.call.data &&
-              BigInt(sent.value) === BigInt(record.call.value)
+              BigInt(sent.value) === BigInt(record.call.value) &&
+              // This attempt, not an earlier identical call: never below the
+              // account's next nonce or mined before it was reserved.
+              (record.nonce === undefined ||
+                BigInt(sent.nonce) >= BigInt(record.nonce)) &&
+              (record.fromBlock === undefined ||
+                sent.blockNumber === null ||
+                sent.blockNumber >= BigInt(record.fromBlock))
             )
               try {
                 recovery.submitted(hash, record);
@@ -1024,7 +1084,9 @@ export function createWriteHold(
                 settled.status === "ran-executed"
               )
                 return settled;
-            } else recovery.candidate(record, executionHash);
+            }
+            if (!receipt || !(await disproves(record, receipt, client)))
+              recovery.candidate(record, executionHash);
           }
           return inspect(client);
         }, true);

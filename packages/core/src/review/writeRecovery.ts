@@ -94,12 +94,6 @@ export type ReviewedWriteNonceEvidence = {
 type RecoveryStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type RecoveryLocks = Pick<LockManager, "request">;
 const TAB_MEMORY = Symbol.for("nana-sdk:held-writes");
-/**
- * At most this many unauthenticated, unresolved execution hashes are kept per
- * write: an app never reports this many, and a reported hash is
- * authenticated on arrival, so the cap only bounds a hostile caller.
- */
-const MAX_CANDIDATES = 64;
 const TAB_QUEUES = Symbol.for("nana-sdk:write-lock-queues");
 const TAB_SEEN = Symbol.for("nana-sdk:held-writes-seen");
 // A returned hash must survive a component remount even when its durable update
@@ -183,7 +177,6 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     !optionalDecimal(record.vanishedAt) ||
     (record.candidates !== undefined &&
       (!Array.isArray(record.candidates) ||
-        record.candidates.length > MAX_CANDIDATES ||
         !record.candidates.every(isBytes32))) ||
     (record.replaced !== undefined && record.replaced !== true) ||
     (record.unproven !== undefined && record.unproven !== true) ||
@@ -789,8 +782,27 @@ export function createBrowserWriteRecovery(
     if (!owned || owned.hash) return;
     const current = read();
     if (current?.id === owned.id && current.hash) return;
-    clear(owned);
+    // Removing the record must not uncover a settlement of an earlier
+    // attempt: unless this reservation is the verified latest, it stays as
+    // released instead, which still invalidates that settlement.
+    if (markedLatest(owned.id)) clear(owned);
+    else {
+      const store = storage();
+      const { at } = locate(store);
+      store.setItem(releasedKey(at, owned.id), "1");
+    }
     owned = undefined;
+  }
+  /** Save `id` as the call's latest reservation, verified by reading it back. */
+  function markedLatest(id: string): boolean {
+    const marker = JSON.stringify({ id });
+    try {
+      const store = storage();
+      store.setItem(latestKey, marker);
+      return store.getItem(latestKey) === marker;
+    } catch {
+      return false;
+    }
   }
   /**
    * Save the nonce the chain showed for the saved hash. It is extra evidence:
@@ -951,15 +963,7 @@ export function createBrowserWriteRecovery(
       // The marker is verified by reading it back; where an older one still
       // shows, the old settlement goes too. Either way the saved record
       // itself outranks any settlement of another attempt.
-      const marker = JSON.stringify({ id: record.id });
-      let marked = false;
-      try {
-        store.setItem(latestKey, marker);
-        marked = store.getItem(latestKey) === marker;
-      } catch {
-        /* Not marked: the settlement is removed below. */
-      }
-      if (!marked)
+      if (!markedLatest(record.id))
         try {
           store.removeItem(settledKey);
         } catch {
@@ -1108,7 +1112,9 @@ export function createBrowserWriteRecovery(
     },
     /**
      * Keep `hash` as a candidate execution of this Safe write, unproven.
-     * Extra evidence only: a full list or a failed save keeps it as it was.
+     * No cap: candidates come only from the app's own wallet replies, bounded
+     * by the user's actions; add one if an outside path ever reports them.
+     * Extra evidence only: a failed save keeps the record as it was.
      */
     candidate(
       expected: ReviewedWriteRecoveryRecord,
@@ -1119,10 +1125,7 @@ export function createBrowserWriteRecovery(
       const known = recordOf(expected).candidates ?? [];
       return amend(
         expected,
-        (current) =>
-          current.safe &&
-          !known.includes(wanted) &&
-          known.length < MAX_CANDIDATES,
+        (current) => current.safe && !known.includes(wanted),
         { candidates: [...known, wanted] },
       );
     },
@@ -1399,12 +1402,20 @@ async function inspectOrdinary(
         (sent.chainId !== undefined && sent.chainId !== record.chainId)
       )
         return pending;
+      const sentNonce = BigInt(sent.nonce).toString();
+      if (sent.blockNumber !== null && sent.blockNumber !== undefined)
+        return { check: { status: "sent", hash: record.hash }, sentNonce };
+      // A node may keep a dropped hash pending: a canonical finalized block
+      // that shows its sent nonce used by another transaction still decides.
       return {
-        check:
-          sent.blockNumber !== null && sent.blockNumber !== undefined
-            ? { status: "sent", hash: record.hash }
-            : { status: "pending" },
-        sentNonce: BigInt(sent.nonce).toString(),
+        check: await atNonce(
+          client,
+          record,
+          BigInt(sentNonce),
+          BigInt(record.fromBlock ?? "0"),
+          true,
+        ),
+        sentNonce,
       };
     }
   }
@@ -1414,27 +1425,39 @@ async function inspectOrdinary(
   // a record saved without a starting block searches from genesis instead.
   const from = record.fromBlock ?? (bound ? "0" : undefined);
   if (target === undefined || from === undefined) return pending;
+  return {
+    check: await atNonce(client, record, BigInt(target), BigInt(from), bound),
+  };
+}
+
+/** What the transaction the account sent at `nonce` says of the saved write; `bound`: the saved hash's own sent nonce. */
+async function atNonce(
+  client: ReviewedWriteNonceClient,
+  record: ReviewedWriteRecoveryRecord,
+  nonce: bigint,
+  fromBlock: bigint,
+  bound: boolean,
+): Promise<ReviewedWriteCheck> {
+  const pending = { status: "pending" } as const;
   const used = await findTransactionAtNonce(
     client,
     record.account,
-    BigInt(target),
-    BigInt(from),
+    nonce,
+    fromBlock,
   );
   if (!used) return pending;
-  if (used.hash === record.hash)
-    return { check: { status: "sent", hash: used.hash } };
+  if (used.hash === record.hash) return { status: "sent", hash: used.hash };
   const sameCall =
     used.to?.toLowerCase() === record.call.to &&
     used.input?.toLowerCase() === record.call.data &&
     BigInt(used.value ?? 0) === BigInt(record.call.value);
   // Another hash is adopted only at the nonce the saved hash's own
   // transaction was sent at; the pre-wallet nonce only locates the call.
-  if (sameCall)
-    return bound ? { check: { status: "sent", hash: used.hash } } : pending;
+  if (sameCall) return bound ? { status: "sent", hash: used.hash } : pending;
   // Another transaction at that nonce may have run the call inside it
   // (a wrapper, or an EIP-7702 wallet that ran code and then cleared its
   // delegation), so it proves nothing. The user's exit ends it.
-  return { check: { status: "pending", usedBy: used.hash } };
+  return { status: "pending", usedBy: used.hash };
 }
 
 /**

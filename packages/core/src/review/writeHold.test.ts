@@ -548,6 +548,24 @@ describe("write hold storage", () => {
 });
 
 describe("a held write", () => {
+  it("replays no older settlement after another controller's newer attempt ended", async () => {
+    const browser = origin();
+    const first = setup({ browser });
+    const second = setup({ browser, locks: first.locks });
+    const { chain, client, receiptOf } = fakeChain();
+    await first.hold.open(ordinary).send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await first.hold.open(ordinary).onReceipt(receiptOf(chain.txs[0]), client);
+    // Codex: B reserves and exits a newer attempt in another controller.
+    const b = second.hold.open(ordinary);
+    await expect(b.send(client, lostReply().send)).rejects.toThrow();
+    await b.exit(await b.state(client), { checkedWallet: true }, client);
+    expect(first.hold.open(ordinary).peek()).toEqual({ status: "clear" });
+    const late = vi.fn();
+    first.hold.open(ordinary).subscribe(late);
+    expect(late).toHaveBeenCalledWith({ status: "clear" });
+  });
+
   it("replays nothing stale once another controller reserved the call", async () => {
     const browser = origin();
     const first = setup({ browser });
@@ -578,6 +596,66 @@ describe("a held write", () => {
     const late = vi.fn();
     hold.open(ordinary).subscribe(late);
     expect(late).toHaveBeenCalledWith({ status: "clear" });
+  });
+
+  it("never attaches a hash the reservation's own evidence contradicts", async () => {
+    const { hold } = setup();
+    const { chain, client } = fakeChain();
+    // Codex: the identical call mined earlier, at nonce 7 and block 80.
+    chain.txs.push(sent(HASH, { block: 80n }));
+    const handle = hold.open(ordinary);
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    expect(handle.peek()).toMatchObject({
+      status: "held-no-hash",
+      record: { nonce: "8", fromBlock: "100" },
+    });
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "held-no-hash",
+    });
+    // At a nonce the reservation's next nonce rules out, even pending.
+    chain.txs.push({ ...sent(OTHER), nonce: 6 });
+    await expect(handle.attachHash(client, OTHER)).resolves.toMatchObject({
+      status: "held-no-hash",
+    });
+    // Codex: a node that names no chain, through a client on another chain.
+    const THIRD = `0x${"3d".repeat(32)}` as Hex;
+    chain.txs.push({ ...sent(THIRD), nonce: 8 });
+    const lookup = client.getTransaction.getMockImplementation()!;
+    client.getTransaction.mockImplementation(
+      async (args) =>
+        ({ ...(await lookup(args)), chainId: undefined }) as never,
+    );
+    chain.chainId = 11;
+    await expect(handle.attachHash(client, THIRD)).resolves.toMatchObject({
+      status: "held-no-hash",
+    });
+    chain.chainId = 10;
+    // Mined before the reservation, at an allowed nonce: still not this attempt.
+    client.getTransaction.mockImplementation(lookup);
+    const FOURTH = `0x${"4d".repeat(32)}` as Hex;
+    chain.txs.push({ ...sent(FOURTH), nonce: 8, block: 90n });
+    await expect(handle.attachHash(client, FOURTH)).resolves.toMatchObject({
+      status: "held-no-hash",
+    });
+    client.getTransaction.mockImplementation(
+      async (args) =>
+        ({ ...(await lookup(args)), chainId: undefined }) as never,
+    );
+    await expect(handle.attachHash(client, THIRD)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: THIRD,
+    });
+  });
+
+  it("attaches to a record saved with no nonce evidence, mined or pending", async () => {
+    const { hold, storage, locks } = setup();
+    const { chain, client } = fakeChain();
+    const legacy = createBrowserWriteRecovery(ordinary, { storage, locks });
+    await legacy.withLock(async () => legacy.reserve());
+    chain.txs.push(sent(HASH, { block: 40n }));
+    await expect(
+      hold.open(ordinary).attachHash(client, HASH),
+    ).resolves.toMatchObject({ status: "clear" });
   });
 
   it("attaches a hash kept only in memory when saving it fails, and accepts a node that names no chain", async () => {
@@ -1122,6 +1200,38 @@ describe("a held write", () => {
       ),
     ).resolves.toMatchObject({ released: false });
     expect(handle.peek().status).toBe("pending-known-hash");
+  });
+
+  it("resolves a canonical cancellation even while a node still reports the original hash pending", async () => {
+    const { hold } = setup();
+    const { chain, client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH));
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      record: { sentNonce: "7" },
+    });
+    // Codex: a finalized cancel used nonce 7; the node keeps HASH pending.
+    chain.txs.push({
+      ...sent(OTHER),
+      to: ACCOUNT,
+      input: "0x",
+      value: 0n,
+      block: 105n,
+    });
+    chain.head = 120n;
+    chain.finalized = 110n;
+    const dropped = await handle.state(client);
+    expect(dropped).toMatchObject({
+      status: "dropped-proven",
+      hash: HASH,
+      usedBy: OTHER,
+      exit: true,
+    });
+    await expect(
+      handle.exit(dropped, { checkedWallet: true }, client),
+    ).resolves.toMatchObject({ released: true });
   });
 
   it("calls a hash dropped only once a finalized block shows another transaction used its nonce", async () => {
@@ -2089,6 +2199,39 @@ describe("a held write's settlement", () => {
     expect(tabB.hold.open(ordinary).peek()).toEqual(settledB);
   });
 
+  it("brings no old settlement back after a wallet rejection when neither invalidation could be saved", async () => {
+    const browser = origin();
+    const { hold, locks } = setup({ browser });
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    chain.txs.push(sent(HASH, { block: 95n }));
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    // Codex: the latest marker and the old settlement's removal both refused.
+    const write = browser.storage.setItem;
+    browser.storage.setItem = (key: string, value: string) => {
+      if (key.endsWith(":latest")) throw new Error("QuotaExceededError");
+      write(key, value);
+    };
+    const remove = browser.storage.removeItem;
+    browser.storage.removeItem = (key: string) => {
+      if (key.endsWith(":settled")) throw new Error("refused");
+      remove(key);
+    };
+    const rejected = wallet(async () => {
+      throw Object.assign(new Error("denied"), { code: 4001 });
+    });
+    await expect(handle.send(client, rejected.send)).rejects.toThrow("denied");
+    expect(handle.peek()).toEqual({ status: "clear" });
+    await expect(handle.state(client)).resolves.toEqual({ status: "clear" });
+    const reloaded = setup({ browser, locks }).hold.open(ordinary);
+    expect(reloaded.peek()).toEqual({ status: "clear" });
+    // And a later send goes out normally.
+    const again = wallet(async () => OTHER);
+    await reloaded.send(client, again.send);
+    expect(again.write).toHaveBeenCalledOnce();
+  });
+
   it("brings no old settlement back when the newer reservation's marker can't be saved", async () => {
     const browser = origin();
     const { hold, locks } = setup({ browser });
@@ -3039,16 +3182,16 @@ describe("a held Safe proposal", () => {
       void queue;
     });
 
-    it("settles from a real execution reported after eight unresolved candidates", async () => {
+    it("settles from a real execution reported after many unresolved candidates", async () => {
       const { handle, fixture, queue } = await proposed();
-      for (let i = 1; i <= 9; i += 1)
+      for (let i = 1; i <= 70; i += 1)
         await handle.onExecuted(
           fixture.client,
           `0x${i.toString(16).padStart(64, "0")}` as Hex,
         );
-      // Unresolved candidates are never dropped.
+      // Unresolved candidates are never dropped: no cap.
       expect((handle.peek() as WriteHeldState).record.candidates).toHaveLength(
-        9,
+        70,
       );
       // Codex: the proposal's nonce is saved, but history logs can't be read.
       await handle.state(fixture.client);
@@ -3060,6 +3203,99 @@ describe("a held Safe proposal", () => {
         status: "clear",
         settled: { result: "success", hash: EXECUTION },
       });
+    });
+
+    it("keeps a candidate whose verification can't be read, and settles once it can", async () => {
+      for (const reported of ["before", "after"] as const) {
+        const { handle, fixture, queue } = await proposed();
+        const CAND = `0x${"c4".repeat(32)}` as Hex;
+        fixture.chain.txs.push({
+          hash: CAND,
+          from: RELAYER,
+          nonce: 0,
+          to: SAFE,
+          input: execInput(),
+          value: 0n,
+          ...(reported === "after"
+            ? { block: 95n, logs: [event(queue.hash, SUCCESS)] }
+            : {}),
+        });
+        fixture.chain.head = 120n;
+        fixture.chain.finalized = 110n;
+        if (reported === "before")
+          await handle.onExecuted(fixture.client, CAND);
+        fixture.chain.txs[0].block = 95n;
+        fixture.chain.txs[0].logs = [event(queue.hash, SUCCESS)];
+        // Codex: its receipt is there, but the transaction read fails.
+        const lookup = fixture.client.getTransaction.getMockImplementation()!;
+        fixture.client.getTransaction.mockImplementation(async (args) => {
+          if (args.hash === CAND) throw new Error("timeout");
+          return lookup(args);
+        });
+        if (reported === "after") await handle.onExecuted(fixture.client, CAND);
+        else await handle.state(fixture.client);
+        expect((handle.peek() as WriteHeldState).record.candidates).toEqual([
+          CAND,
+        ]);
+        fixture.client.getTransaction.mockImplementation(lookup);
+        await expect(handle.state(fixture.client)).resolves.toEqual({
+          status: "clear",
+          settled: { result: "success", hash: CAND },
+        });
+      }
+    });
+
+    it("drops a candidate only on canonical proof it isn't this proposal's execution", async () => {
+      const { handle, fixture, queue } = await proposed();
+      const hashes = [1, 2, 3].map(
+        (i) => `0x${i.toString(16).repeat(64)}` as Hex,
+      );
+      const [, offChain, layout14] = hashes;
+      for (const hash of hashes)
+        fixture.chain.txs.push({
+          hash,
+          from: RELAYER,
+          nonce: 0,
+          to: SAFE,
+          input: execInput(),
+          value: 0n,
+        });
+      for (const hash of hashes) await handle.onExecuted(fixture.client, hash);
+      Object.assign(fixture.chain.txs[0], { block: 95n, status: "reverted" });
+      Object.assign(fixture.chain.txs[1], { block: 96n, logs: [] });
+      // The Safe 1.4 layout: the safeTxHash indexed.
+      Object.assign(fixture.chain.txs[2], {
+        block: 97n,
+        logs: [
+          {
+            address: SAFE,
+            topics: [SUCCESS, queue.hash],
+            data: pad(0n),
+          },
+        ],
+      });
+      fixture.chain.head = 120n;
+      fixture.chain.finalized = 110n;
+      const receipts =
+        fixture.client.getTransactionReceipt.getMockImplementation()!;
+      fixture.client.getTransactionReceipt.mockImplementation(async (args) => {
+        const receipt = await receipts(args);
+        return args.hash === offChain
+          ? { ...receipt, blockHash: OTHER }
+          : receipt;
+      });
+      const lookup = fixture.client.getTransaction.getMockImplementation()!;
+      fixture.client.getTransaction.mockImplementation(async (args) => {
+        if (args.hash === layout14) throw new Error("timeout");
+        return lookup(args);
+      });
+      await handle.state(fixture.client);
+      // The reverted one is disproven; the off-chain receipt and the unread
+      // execution prove nothing either way.
+      expect((handle.peek() as WriteHeldState).record.candidates).toEqual([
+        offChain,
+        layout14,
+      ]);
     });
 
     it("settles from a candidate once it mines as this proposal's execution", async () => {
