@@ -1156,6 +1156,19 @@ await write.send((gate) => sendThroughWallet(gate));
     one proven to be another write (`declined: "refused"`) lets it send. A
     provider added later makes a new view, and no send skips it.
 
+When the call is known only at send time (a generic contract write or Safe
+transaction), `useHeldSend({ hold, client })` returns `send(input, run)`: each
+send runs through the held-write view of its intent (or exact call), made once
+and reused, and the hook shows the current send's line, notice, exit and "Send
+it again" as `useHeldWrite` does. No app makes a view itself.
+
+```tsx
+const held = useHeldSend({ hold, client, onReleased, onSettled });
+await held.send({ chainId, account, safe, namespace, call }, (gate) =>
+  submit(gate),
+);
+```
+
 For an app-wide notice, `hold.list({ account, chainId })` (core) lists every
 held write for an account, and `useHeldWrites` watches them; `useHeldIntents`
 watches a fixed set of actions by their intents. Both feed `HeldWritesNotice`,

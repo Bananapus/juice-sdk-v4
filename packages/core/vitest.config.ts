@@ -148,6 +148,18 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/review/react/useHeldSend.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/react/heldView.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/review/react/useHeldWrite.ts": {
           statements: 100,
           branches: 100,

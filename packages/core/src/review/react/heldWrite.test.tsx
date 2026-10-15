@@ -26,7 +26,9 @@ import {
   useHeldWrite,
   useHeldWrites,
   type HeldWriteItem,
+  type UseHeldSendResult,
   type UseHeldWriteResult,
+  useHeldSend,
 } from "./index.js";
 
 const ACCOUNT = "0x1111111111111111111111111111111111111111" as Address;
@@ -631,5 +633,180 @@ describe("the app-wide notice of held writes", () => {
       />,
     );
     expect(noAccount.textContent).toBe("");
+  });
+});
+
+describe("useHeldSend", () => {
+  function Probe(props: {
+    options: Parameters<typeof useHeldSend>[0];
+    out: { current?: UseHeldSendResult };
+  }) {
+    props.out.current = useHeldSend(props.options);
+    return null;
+  }
+  const call = { to: ACCOUNT, data: "0x12" as Hex, value: 1n };
+  const input = (namespace: string) => ({
+    chainId: 10,
+    account: ACCOUNT,
+    safe: true,
+    namespace,
+    call,
+  });
+
+  test("holds each send by its intent, one view per intent, showing the current one", async () => {
+    const fake = fakeHold();
+    const onReleased = vi.fn();
+    const onSettled = vi.fn();
+    const out: { current?: UseHeldSendResult } = {};
+    await mount(
+      <Probe
+        out={out}
+        options={{ hold: fake.hold, client, onReleased, onSettled }}
+      />,
+    );
+    expect(out.current).toMatchObject({ phase: "clear", exitAction: null });
+    expect(out.current!.handle).toBeUndefined();
+    await expect(out.current!.check()).resolves.toMatchObject({
+      phase: "clear",
+    });
+    // A's call is known only now: its view is made at the send.
+    fake.set("intent:a", unproven());
+    const legacy = [{ call: { to: ACCOUNT, data: "0x" as Hex } }];
+    await act(async () => {
+      await expect(
+        out.current!.send({ ...input("intent:a"), legacy }, async () => HASH),
+      ).resolves.toBe(HASH);
+    });
+    expect(fake.hold.open).toHaveBeenCalledWith(
+      expect.objectContaining({ namespace: "intent:a", safe: true, call }),
+      { legacy },
+    );
+    expect(out.current).toMatchObject({
+      phase: "held",
+      notice: WRITE_HOLD_IN_TAB_LINE,
+      exit: true,
+    });
+    expect(out.current!.handle).toBe(fake.handle("intent:a"));
+    // The same intent again: the same view.
+    await act(async () => {
+      await out.current!.send(
+        { ...input("intent:a"), legacy },
+        async () => HASH,
+      );
+    });
+    expect(fake.hold.open).toHaveBeenCalledTimes(1);
+    expect(out.current!.exitAction?.label).toBe(HELD_EXIT_LABEL);
+    await act(async () => {
+      await out.current!.exitAction!.run();
+    });
+    expect(out.current).toMatchObject({
+      phase: "released",
+      releasedBy: "user",
+    });
+    expect(onReleased).toHaveBeenCalledWith("user");
+    // Another intent: its own view, shown now.
+    fake.set("intent:b", unproven("r5"));
+    await act(async () => {
+      await out.current!.send(input("intent:b"), async () => HASH);
+    });
+    expect(fake.hold.open).toHaveBeenCalledTimes(2);
+    expect(out.current).toMatchObject({ phase: "held", exit: true });
+    fake.set("intent:b", {
+      status: "clear",
+      reservation: "r5",
+      settled: { result: "success", hash: HASH },
+    } as WriteHoldState);
+    await act(async () => {
+      await out.current!.check();
+    });
+    expect(out.current!.phase).toBe("settled");
+    await vi.waitFor(() =>
+      expect(onSettled).toHaveBeenCalledWith(
+        { result: "success", hash: HASH },
+        null,
+      ),
+    );
+  });
+
+  test("blocks on a success its exact call settled while away until the user sends it again", async () => {
+    const fake = fakeHold();
+    const out: { current?: UseHeldSendResult } = {};
+    // No intent: held by its exact call.
+    const exact = { chainId: 10, account: ACCOUNT, call };
+    await mount(
+      <Probe out={out} options={{ hold: fake.hold, client, follow: false }} />,
+    );
+    fake.set("exact", {
+      status: "clear",
+      reservation: "r7",
+      settled: { result: "success", hash: HASH },
+    } as WriteHoldState);
+    await act(async () => {
+      await expect(out.current!.send(exact, async () => HASH)).rejects.toThrow(
+        HELD_AWAY_SUCCESS_LINE,
+      );
+    });
+    expect(out.current!.phase).toBe("succeeded");
+    expect(out.current!.sendAgainAction?.label).toBe(HELD_SEND_AGAIN_LABEL);
+    await act(async () => {
+      await out.current!.sendAgainAction!.run();
+    });
+    await act(async () => {
+      await expect(out.current!.send(exact, async () => HASH)).resolves.toBe(
+        HASH,
+      );
+    });
+  });
+
+  test("a replaced view's late answers reach no callback, and a new hold or no client starts over", async () => {
+    const fake = fakeHold();
+    const onReleased = vi.fn();
+    const out: { current?: UseHeldSendResult } = {};
+    const props = { hold: fake.hold, client, onReleased };
+    await mount(<Probe out={out} options={props} />);
+    fake.set("intent:a", unproven());
+    let finish: (hash: Hex) => void = () => {};
+    fake
+      .handle("intent:a")
+      .send.mockImplementationOnce(
+        () => new Promise<Hex>((resolve) => (finish = resolve)),
+      );
+    let first: Promise<Hex> | undefined;
+    await act(async () => {
+      first = out.current!.send(input("intent:a"), async () => HASH);
+    });
+    // B replaces A while A's send is still out.
+    await act(async () => {
+      await out.current!.send(input("intent:b"), async () => HASH);
+    });
+    // Another window releases A: A's view says so, to no one.
+    fake.set("intent:a", {
+      status: "clear",
+      reservation: "r1",
+    } as WriteHoldState);
+    await act(async () => {
+      finish(HASH);
+      await first;
+    });
+    expect(onReleased).not.toHaveBeenCalled();
+    // A new hold controller: nothing of the old one shows.
+    const other = fakeHold();
+    await act(async () =>
+      root!.render(
+        <Probe out={out} options={{ ...props, hold: other.hold }} />,
+      ),
+    );
+    expect(out.current!.handle).toBeUndefined();
+    await act(async () =>
+      root!.render(
+        <Probe
+          out={out}
+          options={{ ...props, hold: other.hold, client: undefined }}
+        />,
+      ),
+    );
+    await expect(
+      out.current!.send(input("intent:a"), async () => HASH),
+    ).rejects.toThrow("Connect a wallet");
   });
 });
