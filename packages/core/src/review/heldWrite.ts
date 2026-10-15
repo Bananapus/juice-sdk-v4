@@ -11,6 +11,7 @@ import {
   HELD_RELEASED_ELSEWHERE_LINE,
   HELD_RELEASED_LINE,
   HELD_SUCCESS_LINE,
+  WRITE_HOLD_MINED_LINE,
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_REVERTED_LINE,
 } from "./messages.js";
@@ -384,10 +385,12 @@ export function createHeldWriteView(
               phase: "awaiting" as const,
               line: SAFE_PROPOSAL_AWAITING,
             };
-      // A direct write: confirming, until the wallet has held it a while.
+      // A direct write: confirming, pending or mined with its result unread,
+      // until it has waited a while.
       const since = Number(record.submittedAt ?? record.firstSeenAt);
       const line =
-        next.line === WRITE_HOLD_PENDING_LINE &&
+        (next.line === WRITE_HOLD_PENDING_LINE ||
+          next.line === WRITE_HOLD_MINED_LINE) &&
         !(Date.now() - since >= CONFIRMING_MS)
           ? HELD_CONFIRMING_LINE
           : next.line;
@@ -526,11 +529,16 @@ export function createHeldWriteView(
     });
   }
 
+  /** This view's reads under way: its own send waits for them, never refused as busy. */
+  const reading = new Set<Promise<unknown>>();
+
   /** The gated answer, now. */
   async function check(): Promise<HeldWriteView> {
     const at = epoch;
     const before = observed;
-    const next = await handle.state(client).catch(() => null);
+    const read = handle.state(client).catch(() => null);
+    reading.add(read);
+    const next = await read.finally(() => reading.delete(read));
     // A clear read begun before this view saw its reservation says nothing of it.
     const stale =
       next?.status === "clear" &&
@@ -659,6 +667,7 @@ export function createHeldWriteView(
           throw new Error(
             "Saved transactions are still being checked. Try again in a moment.",
           );
+        while (reading.size) await Promise.all(reading);
         guard();
         // The send's own check may find one too: it says so before the wallet.
         // Its own listener: unsubscribing it leaves a started view's in place.

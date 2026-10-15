@@ -9,12 +9,14 @@ import {
   HELD_SEND_AGAIN_LABEL,
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
+  WRITE_HOLD_MINED_LINE,
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
   createHeldWriteStorage,
   createHeldWriteView,
   createWriteHold,
   WriteHeldError,
+  WriteHoldBusyError,
   type WriteHold,
   type WriteHoldClient,
   type WriteHoldState,
@@ -809,12 +811,14 @@ describe("useHeldSend", () => {
   });
 
   /** A real hold over this tab's own memory, and a chain where nothing is mined unless told. */
-  function realHold() {
+  function realHold(
+    locks?: NonNullable<Parameters<typeof createWriteHold>[0]>["locks"],
+  ) {
     const storage = createHeldWriteStorage({
       durable: () => undefined,
       memory: new Map(),
     });
-    const hold = createWriteHold({ storage });
+    const hold = createWriteHold({ storage, ...(locks ? { locks } : {}) });
     const mined = new Map<string, bigint>();
     const missing = (name: string) =>
       Object.assign(new Error("not found"), { name });
@@ -1040,6 +1044,105 @@ describe("useHeldSend", () => {
       await out.current!.handle!.state(chain);
     });
     expect(out.current!.phase).toBe("settled");
+  });
+
+  /** Web Locks whose holder keeps each lock a few milliseconds, as a real read does. */
+  function slowLocks() {
+    const held = new Set<string>();
+    const waiting = new Map<string, (() => void)[]>();
+    return {
+      async request<T>(
+        name: string,
+        options: { ifAvailable?: boolean },
+        work: (lock: { name: string } | null) => Promise<T>,
+      ): Promise<T> {
+        while (held.has(name)) {
+          if (options.ifAvailable) return work(null);
+          await new Promise<void>((resolve) =>
+            waiting.set(name, [...(waiting.get(name) ?? []), resolve]),
+          );
+        }
+        held.add(name);
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          return await work({ name });
+        } finally {
+          held.delete(name);
+          const next = waiting.get(name)?.shift();
+          next?.();
+        }
+      },
+    };
+  }
+
+  test("a real hold's send waits for its own view's read, and only another writer refuses it as busy (Sticky)", async () => {
+    const { hold, chain } = realHold(slowLocks() as never);
+    const view = createHeldWriteView(hold.open(exactOf), {
+      client: chain,
+      follow: false,
+    });
+    const stop = view.start();
+    // The view's first read holds the lock (as on mount) when the user sends.
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    await expect(
+      view.send(async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+        throw new Error("declined");
+      }),
+    ).rejects.toThrow("declined");
+    // Another writer of the same call holding its lock still refuses it.
+    let finish: () => void = () => {};
+    const other = hold
+      .open(exactOf)
+      .send(chain, () => new Promise<void>((resolve) => (finish = resolve)));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await expect(view.send(async () => HASH)).rejects.toBeInstanceOf(
+      WriteHoldBusyError,
+    );
+    finish();
+    await other;
+    stop();
+  });
+
+  test("a real hold's mined hash with an unread result shows confirming until the long wait (Sticky)", async () => {
+    const { hold, chain, mined } = realHold();
+    // Mined, but the node can't give its receipt yet.
+    const unread = {
+      ...chain,
+      getTransactionReceipt: async () => {
+        throw Object.assign(new Error("not found"), {
+          name: "TransactionReceiptNotFoundError",
+        });
+      },
+    } as WriteHoldClient;
+    const view = createHeldWriteView(hold.open(exactOf), {
+      client: unread,
+      follow: false,
+    });
+    const stop = view.start();
+    await view.send(async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(HASH);
+      mined.set(HASH, 105n);
+      return HASH;
+    });
+    // The send's own checked read after it.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(view.get()).toMatchObject({
+      phase: "confirming",
+      line: HELD_CONFIRMING_LINE,
+    });
+    // Past the long wait, the hold's own line.
+    const now = Date.now();
+    const later = vi.spyOn(Date, "now").mockReturnValue(now + 121_000);
+    await view.check();
+    expect(view.get()).toMatchObject({
+      phase: "confirming",
+      line: WRITE_HOLD_MINED_LINE,
+    });
+    later.mockRestore();
+    stop();
   });
 
   test("a real hold's view asks the chain once more after each send", async () => {
