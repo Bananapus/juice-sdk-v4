@@ -6550,6 +6550,7 @@ describe("a legacy hold's success, through its intent", () => {
       const view = createHeldWriteView(keys.intentHandle(), {
         client: keys.fixture.client,
         follow: false,
+        onSettled: () => {},
       });
       const order: ("A" | "B")[] = random() < 0.5 ? ["A", "B"] : ["B", "A"];
       let anySuccess = false;
@@ -6562,7 +6563,7 @@ describe("a legacy hold's success, through its intent", () => {
         await keys.settle(key, result);
         await view.check();
         await new Promise((resolve) => setTimeout(resolve, 0));
-        // A success this view saw settle live is told and acknowledged;
+        // A success this view saw settle live is told (to its screen) and acknowledged;
         // one it never saw held stays unacknowledged.
         if (result === "success" && !watched) anySuccess = true;
         const retry = wallet(async () => OTHER);
@@ -6875,7 +6876,11 @@ describe("two tabs viewing one write that succeeds", () => {
     await a.send(client, wallet(async () => HASH).send);
     const settledB = vi.fn();
     const releasedB = vi.fn();
-    const viewA = createHeldWriteView(a, { client, follow: false });
+    const viewA = createHeldWriteView(a, {
+      client,
+      follow: false,
+      onSettled: vi.fn(),
+    });
     const viewB = createHeldWriteView(tabB.hold.open(ordinary), {
       client,
       follow: false,

@@ -11,6 +11,7 @@ import {
   HELD_RELEASED_ELSEWHERE_LINE,
   HELD_RELEASED_LINE,
   HELD_SUCCESS_LINE,
+  WRITE_HOLD_MINED_LINE,
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_REVERTED_LINE,
 } from "./messages.js";
@@ -112,7 +113,14 @@ export async function followHeldWrite(
     signal,
     pollMs,
     fastMs = FAST_MS,
-  }: { signal: AbortSignal; pollMs?: number; fastMs?: number },
+    onRead,
+  }: {
+    signal: AbortSignal;
+    pollMs?: number;
+    fastMs?: number;
+    /** Each read of the hold as it starts, while it holds the call's lock. */
+    onRead?: (read: Promise<unknown>) => void;
+  },
 ): Promise<WriteHoldState | null> {
   const now = handle.peek();
   if (
@@ -134,7 +142,9 @@ export async function followHeldWrite(
       .catch(() => null);
   }
   for (let look = 0; !signal.aborted; look += 1) {
-    const state = await handle.state(client).catch(() => null);
+    const read = handle.state(client).catch(() => null);
+    onRead?.(read);
+    const state = await read;
     if (state?.status === "clear") return state;
     await pause(look < FAST_LOOKS ? fastMs : pollOf(pollMs), signal);
   }
@@ -151,6 +161,8 @@ const followers = new Map<
     views: number;
     stop: AbortController;
     ended: Promise<WriteHoldState | null>;
+    /** Its read under way, if any: a send of a view it follows for waits for it. */
+    reads: Set<Promise<unknown>>;
   }
 >();
 
@@ -159,25 +171,35 @@ function followShared(
   handle: WriteHoldHandle,
   client: WriteHoldClient,
   pollMs: number | undefined,
-): { ended: Promise<WriteHoldState | null>; leave: () => void } {
+): {
+  ended: Promise<WriteHoldState | null>;
+  leave: () => void;
+  reads: Set<Promise<unknown>>;
+} {
   let shared = followers.get(reservation);
   // A follower stopped by its last view, still ending, is never rejoined.
   if (!shared || shared.stop.signal.aborted) {
     const stop = new AbortController();
+    const reads = new Set<Promise<unknown>>();
     const ended = followHeldWrite(handle, client, {
       signal: stop.signal,
       pollMs,
+      onRead(read) {
+        reads.add(read);
+        void read.finally(() => reads.delete(read));
+      },
     }).finally(() => {
       if (followers.get(reservation)?.stop === stop)
         followers.delete(reservation);
     });
-    shared = { views: 0, stop, ended };
+    shared = { views: 0, stop, ended, reads };
     followers.set(reservation, shared);
   }
   shared.views += 1;
   const joined = shared;
   return {
     ended: joined.ended,
+    reads: joined.reads,
     leave() {
       joined.views -= 1;
       if (joined.views === 0) joined.stop.abort();
@@ -268,7 +290,13 @@ export function createHeldWriteView(
   const delivered = new Set<string>();
   /** Every reservation this view saw held and hasn't delivered: each is delivered once, whatever is shown. */
   const seen = new Set<string>();
-  let following: { reservation: string; leave: () => void } | undefined;
+  let following:
+    | {
+        reservation: string;
+        leave: () => void;
+        reads: Set<Promise<unknown>>;
+      }
+    | undefined;
   let running = false;
   /** Each start and stop begins a new lifecycle: a read or receipt from an earlier one is dropped. */
   let epoch = 0;
@@ -294,7 +322,7 @@ export function createHeldWriteView(
       return;
     stopFollowing();
     const shared = followShared(reservation, handle, client, options.pollMs);
-    const mine = { reservation, leave: shared.leave };
+    const mine = { reservation, leave: shared.leave, reads: shared.reads };
     following = mine;
     const at = epoch;
     void shared.ended.then((end) => {
@@ -309,7 +337,9 @@ export function createHeldWriteView(
   /**
    * Tell the app of a settlement it saw held, once, while live. Only once its
    * callback ran is it done, and a success acknowledged: a lifecycle change
-   * before then leaves it to the next start.
+   * before then leaves it to the next start. A view without `onSettled` (a
+   * watcher) tells no one, so it never acknowledges a success: the gate
+   * keeps it, shown as `succeeded`, until the user acts.
    */
   function deliver(settled: WriteHoldSettled, key: string) {
     undelivered.set(key, settled);
@@ -319,7 +349,8 @@ export function createHeldWriteView(
       if (at !== epoch || delivered.has(key)) return;
       delivered.add(key);
       undelivered.delete(key);
-      if ("hash" in settled) told.add(settled.hash.toLowerCase());
+      const shown = !!options.onSettled;
+      if (shown && "hash" in settled) told.add(settled.hash.toLowerCase());
       // A send under way never saw it: it blocks that send, acknowledged or not.
       if (settled.result === "success")
         for (const during of sending) during.add(key);
@@ -327,6 +358,7 @@ export function createHeldWriteView(
       present();
       // Told: the hold marks it acknowledged, so no later visit asks again.
       if (
+        shown &&
         "hash" in settled &&
         settled.result === "success" &&
         !settled.acknowledged
@@ -384,10 +416,12 @@ export function createHeldWriteView(
               phase: "awaiting" as const,
               line: SAFE_PROPOSAL_AWAITING,
             };
-      // A direct write: confirming, until the wallet has held it a while.
+      // A direct write: confirming, pending or mined with its result unread,
+      // until it has waited a while.
       const since = Number(record.submittedAt ?? record.firstSeenAt);
       const line =
-        next.line === WRITE_HOLD_PENDING_LINE &&
+        (next.line === WRITE_HOLD_PENDING_LINE ||
+          next.line === WRITE_HOLD_MINED_LINE) &&
         !(Date.now() - since >= CONFIRMING_MS)
           ? HELD_CONFIRMING_LINE
           : next.line;
@@ -526,11 +560,16 @@ export function createHeldWriteView(
     });
   }
 
+  /** This view's reads under way: its own send waits for them, never refused as busy. */
+  const reading = new Set<Promise<unknown>>();
+
   /** The gated answer, now. */
   async function check(): Promise<HeldWriteView> {
     const at = epoch;
     const before = observed;
-    const next = await handle.state(client).catch(() => null);
+    const read = handle.state(client).catch(() => null);
+    reading.add(read);
+    const next = await read.finally(() => reading.delete(read));
     // A clear read begun before this view saw its reservation says nothing of it.
     const stale =
       next?.status === "clear" &&
@@ -599,9 +638,12 @@ export function createHeldWriteView(
       for (const [key, settled] of [...undelivered]) deliver(settled, key);
       const unsubscribe = handle.subscribe(apply);
       // An adoption a stopped lifecycle left unfinished runs again here.
-      void adopt()
+      // Its first read is this view's from now: a send made at once waits for it.
+      const first = adopt()
         .then((done) => (done || !running ? done : adopt()))
         .then(() => (running ? check() : view));
+      reading.add(first);
+      void first.finally(() => reading.delete(first));
       const timer = setInterval(() => {
         const held =
           view.phase === "awaiting" ||
@@ -659,6 +701,11 @@ export function createHeldWriteView(
           throw new Error(
             "Saved transactions are still being checked. Try again in a moment.",
           );
+        // This view's own reads, and its follower's, end first: only another
+        // writer's lock refuses the send as busy.
+        const own = () => [...reading, ...(following?.reads ?? [])];
+        for (let reads = own(); reads.length; reads = own())
+          await Promise.all(reads);
         guard();
         // The send's own check may find one too: it says so before the wallet.
         // Its own listener: unsubscribing it leaves a started view's in place.

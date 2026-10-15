@@ -664,7 +664,8 @@ describe("one held write's view", () => {
     fake.answer = clear({ settled: { result: "success", hash: HASH } });
     await vi.advanceTimersByTimeAsync(4_000);
     expect(first.get().phase).toBe("settled");
-    expect(second.get().phase).toBe("settled");
+    // A watcher tells no one: the success stays for the gate, shown as such.
+    expect(second.get().phase).toBe("succeeded");
     stopSecond();
     stopFirst();
     stopFirst();
@@ -1231,7 +1232,11 @@ describe("one held write's view", () => {
         } as WriteHoldState;
       return fake.answer;
     });
-    const view = createHeldWriteView(handle, { client, follow: false });
+    const view = createHeldWriteView(handle, {
+      client,
+      follow: false,
+      onSettled: vi.fn(),
+    });
     const stop = view.start();
     await flush();
     handle.send.mockImplementationOnce((async (
