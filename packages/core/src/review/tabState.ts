@@ -11,6 +11,8 @@ export const TAB = {
   queues: Symbol.for("nana-sdk:write-lock-queues"),
   /** What each tab memory last saw in durable storage. */
   seen: Symbol.for("nana-sdk:held-writes-seen"),
+  /** Every write hold controller's subscribers, by the tab memory their storage shares. */
+  listeners: Symbol.for("nana-sdk:write-hold-listeners"),
   /** The stop of every write hold controller with a follower or listener running. */
   holds: Symbol.for("nana-sdk:write-hold-stops"),
   /** The stop of every running Safe Relayr watch. */

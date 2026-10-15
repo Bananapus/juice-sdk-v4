@@ -81,6 +81,17 @@ function sentIsCall(
 /** The stop of every controller with a follower or tab listener running, for the test-only reset. */
 const liveHolds = tabShared(TAB.holds, () => new Set<() => void>());
 
+/** What a key's subscribers hear, and the latest state they were told, for every controller of one tab storage. */
+type HoldListeners = {
+  listeners: Map<string, Set<(state: WriteHoldState) => void>>;
+  latest: Map<string, WriteHoldState>;
+};
+/** This tab's subscribers by the tab memory of their storage: a change through any handle reaches them all. */
+const tabListeners = tabShared(
+  TAB.listeners,
+  () => new WeakMap<object, HoldListeners>(),
+);
+
 /** A saved success the user hasn't acknowledged: it blocks sending the action again. */
 export type UnacknowledgedSuccess = {
   result: "success";
@@ -461,7 +472,16 @@ export function createWriteHold(
   };
   const interval = options.settle?.intervalMs ?? SETTLE_POLL_MS;
   const attempts = options.settle?.attempts ?? SETTLE_POLL_ATTEMPTS;
-  const listeners = new Map<string, Set<(state: WriteHoldState) => void>>();
+  // Every controller over this tab's storage shares one registry, so a
+  // receipt or settlement on any handle reaches every view at once.
+  const scope = (storage as { [TAB.memory]?: object })[TAB.memory] ?? storage;
+  let shared = tabListeners.get(scope);
+  if (!shared)
+    tabListeners.set(
+      scope,
+      (shared = { listeners: new Map(), latest: new Map() }),
+    );
+  const { listeners, latest } = shared;
   const peekers = new Map<string, () => WriteHoldState>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   let onStorage: ((event: StorageEvent) => void) | undefined;
@@ -478,8 +498,7 @@ export function createWriteHold(
       : (rest as WriteHoldState);
   }
 
-  /** The latest state emitted for each call, replayed to a late subscriber. */
-  const latest = new Map<string, WriteHoldState>();
+  /** Tell every subscriber of `key` in this tab; the latest is replayed to a late one. */
   function emit(key: string, state: WriteHoldState) {
     latest.set(key, state);
     for (const listener of listeners.get(key) ?? []) listener(state);

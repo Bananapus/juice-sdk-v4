@@ -12,6 +12,7 @@ import {
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
   createHeldWriteStorage,
+  createHeldWriteView,
   createWriteHold,
   WriteHeldError,
   type WriteHold,
@@ -809,12 +810,11 @@ describe("useHeldSend", () => {
 
   /** A real hold over this tab's own memory, and a chain where nothing is mined unless told. */
   function realHold() {
-    const hold = createWriteHold({
-      storage: createHeldWriteStorage({
-        durable: () => undefined,
-        memory: new Map(),
-      }),
+    const storage = createHeldWriteStorage({
+      durable: () => undefined,
+      memory: new Map(),
     });
+    const hold = createWriteHold({ storage });
     const mined = new Map<string, bigint>();
     const missing = (name: string) =>
       Object.assign(new Error("not found"), { name });
@@ -862,7 +862,7 @@ describe("useHeldSend", () => {
         transactions: [],
       }),
     } as unknown as WriteHoldClient;
-    return { hold, chain, mined };
+    return { hold, chain, mined, storage };
   }
   const exactOf = { chainId: 10, account: ACCOUNT, safe: false, call };
 
@@ -921,6 +921,102 @@ describe("useHeldSend", () => {
       ).rejects.toThrow(HELD_AWAY_SUCCESS_LINE);
     });
     expect(wallet).not.toHaveBeenCalled();
+  });
+
+  for (const [name, other] of [
+    ["the same controller", (hold: WriteHold) => hold],
+    [
+      "another controller over this tab's storage",
+      (_hold: WriteHold, storage: ReturnType<typeof createHeldWriteStorage>) =>
+        createWriteHold({ storage }),
+    ],
+  ] as const)
+    test(`a receipt reported on a handle opened by ${name} reaches the sending view at once (revnet)`, async () => {
+      const { hold, chain, mined, storage } = realHold();
+      const out: { current?: UseHeldSendResult } = {};
+      await mount(
+        <Probe out={out} options={{ hold, client: chain, follow: false }} />,
+      );
+      const send = () =>
+        out.current!.send(exactOf, async (gate) => {
+          await gate.beforeSend();
+          gate.afterSubmit(HASH);
+          return HASH;
+        });
+      await act(async () => {
+        await send();
+      });
+      await act(async () => {});
+      expect(out.current!.phase).toBe("confirming");
+      // The app's receipt hook reports it on a handle of its own.
+      mined.set(HASH, 105n);
+      const receipt = await chain.getTransactionReceipt({ hash: HASH });
+      await act(async () => {
+        await other(hold, storage)
+          .open(exactOf)
+          .onReceipt(receipt as never, chain);
+      });
+      await act(async () => {});
+      expect(out.current!.phase).toBe("settled");
+      // The same payment again, right away: never "went through while away".
+      mined.clear();
+      await act(async () => {
+        await expect(send()).resolves.toBe(HASH);
+      });
+    });
+
+  test("a root follower's view delivers a success the sending view saw held: each tells it once, one acknowledgement clears both", async () => {
+    const { hold, chain, mined, storage } = realHold();
+    const onSettled = vi.fn();
+    const out: { current?: UseHeldSendResult } = {};
+    await mount(
+      <Probe
+        out={out}
+        options={{ hold, client: chain, follow: false, onSettled }}
+      />,
+    );
+    const send = () =>
+      out.current!.send(exactOf, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(HASH);
+        return HASH;
+      });
+    await act(async () => {
+      await send();
+    });
+    // The app's root follower, on a controller and handle of its own.
+    const rootSettled = vi.fn();
+    const root = createHeldWriteView(
+      createWriteHold({ storage }).open(exactOf),
+      { client: chain, follow: false, onSettled: rootSettled },
+    );
+    const stopRoot = root.start();
+    await act(async () => {});
+    expect(root.get().phase).toBe("confirming");
+    mined.set(HASH, 105n);
+    await act(async () => {
+      await root.check();
+    });
+    await act(async () => {});
+    expect(rootSettled).toHaveBeenCalledTimes(1);
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(out.current!.phase).toBe("settled");
+    expect(root.get().phase).toBe("settled");
+    expect(hold.open(exactOf).unacknowledgedSuccess()).toBeUndefined();
+    // A view made after shows nothing, and the next send goes.
+    const later = createHeldWriteView(hold.open(exactOf), {
+      client: chain,
+      follow: false,
+    });
+    const stopLater = later.start();
+    await act(async () => {});
+    expect(later.get()).toMatchObject({ phase: "clear", line: null });
+    mined.clear();
+    await act(async () => {
+      await expect(send()).resolves.toBe(HASH);
+    });
+    stopRoot();
+    stopLater();
   });
 
   test("a real hold's view still hears the hold after a send", async () => {
