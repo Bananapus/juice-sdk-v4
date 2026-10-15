@@ -923,6 +923,87 @@ describe("useHeldSend", () => {
     expect(wallet).not.toHaveBeenCalled();
   });
 
+  test("a real hold's view still hears the hold after a send", async () => {
+    const { hold, chain, mined } = realHold();
+    const out: { current?: UseHeldSendResult } = {};
+    await mount(
+      <Probe out={out} options={{ hold, client: chain, follow: false }} />,
+    );
+    await act(async () => {
+      await out.current!.send(exactOf, async (gate) => {
+        await gate.beforeSend();
+        gate.afterSubmit(HASH);
+        return HASH;
+      });
+    });
+    await act(async () => {});
+    expect(out.current!.phase).toBe("confirming");
+    // Mined later: the hold's own read reaches the started view.
+    mined.set(HASH, 105n);
+    await act(async () => {
+      await out.current!.handle!.state(chain);
+    });
+    expect(out.current!.phase).toBe("settled");
+  });
+
+  test("a real hold's view asks the chain once more after each send", async () => {
+    const { hold, chain, mined } = realHold();
+    const out: { current?: UseHeldSendResult } = {};
+    await mount(
+      <Probe out={out} options={{ hold, client: chain, follow: false }} />,
+    );
+    await act(async () => {
+      await out.current!.send(exactOf, async (gate) => {
+        // The view's first read is done before the wallet opens.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await gate.beforeSend();
+        gate.afterSubmit(HASH);
+        mined.set(HASH, 105n);
+        return HASH;
+      });
+    });
+    await act(async () => {});
+    expect(out.current!.phase).toBe("settled");
+  });
+
+  test("a real hold's send withdrawn before the wallet is never another window's release", async () => {
+    const { hold, chain } = realHold();
+    const onReleased = vi.fn();
+    const out: { current?: UseHeldSendResult } = {};
+    await mount(
+      <Probe
+        out={out}
+        options={{ hold, client: chain, follow: false, onReleased }}
+      />,
+    );
+    await act(async () => {
+      await expect(
+        out.current!.send(exactOf, async (gate) => {
+          await gate.beforeSend();
+          gate.onRejected();
+          throw new Error("wallet never opened");
+        }),
+      ).rejects.toThrow("wallet never opened");
+    });
+    await act(async () => {});
+    expect(out.current).toMatchObject({ phase: "clear", line: null });
+    expect(out.current!.releasedBy).toBeUndefined();
+    // Again with the view's own reads long done: still its own withdrawal.
+    await act(async () => {
+      await expect(
+        out.current!.send(exactOf, async (gate) => {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          await gate.beforeSend();
+          gate.onRejected();
+          throw new Error("wallet never opened");
+        }),
+      ).rejects.toThrow("wallet never opened");
+    });
+    await act(async () => {});
+    expect(out.current).toMatchObject({ phase: "clear", line: null });
+    expect(onReleased).not.toHaveBeenCalled();
+  });
+
   test("a replaced view's late answers reach no callback, and a new hold or no client starts over", async () => {
     const fake = fakeHold();
     const onReleased = vi.fn();
