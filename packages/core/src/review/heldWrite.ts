@@ -257,8 +257,11 @@ export function createHeldWriteView(
   let observed: string | undefined;
   let wasHeld = false;
   let exitedHere: string | undefined;
-  /** The user's exit is asking the hold: a release seen meanwhile waits for its answer. */
-  let exiting = false;
+  /**
+   * The user's exit asking the hold, shared by every concurrent call: a
+   * release seen meanwhile waits for its answer.
+   */
+  let exiting: Promise<boolean> | undefined;
   const delivered = new Set<string>();
   /** Every reservation this view saw held and hasn't delivered: each is delivered once, whatever is shown. */
   const seen = new Set<string>();
@@ -612,17 +615,22 @@ export function createHeldWriteView(
      * The user checked their wallet: the exit the shown state offers, asked
      * of the chain once more. True when released: the app reopens its review.
      */
-    async exit(): Promise<boolean> {
+    exit(): Promise<boolean> {
+      if (exiting) return exiting;
       const shown = view.state;
-      if (!shown || shown.status === "clear" || !view.exit) return false;
-      exiting = true;
-      const ended = await handle
-        .exit(shown, { checkedWallet: true }, client)
-        .finally(() => (exiting = false));
-      // Released by this exit, or else by another window meanwhile.
-      if (ended.released) exitedHere = shown.record.id;
-      apply(ended.state);
-      return ended.released;
+      if (!shown || shown.status === "clear" || !view.exit)
+        return Promise.resolve(false);
+      // Asked once `exiting` is set: a release it emits at once waits too.
+      exiting = Promise.resolve()
+        .then(() => handle.exit(shown, { checkedWallet: true }, client))
+        .finally(() => (exiting = undefined))
+        .then((ended) => {
+          // Released by this exit, or else by another window meanwhile.
+          if (ended.released) exitedHere = shown.record.id;
+          apply(ended.state);
+          return ended.released;
+        });
+      return exiting;
     },
     /**
      * Send under the hold, once any adoption is done. A held write refuses

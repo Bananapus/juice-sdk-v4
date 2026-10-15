@@ -11,10 +11,14 @@ import {
   WRITE_HOLD_IN_TAB_LINE,
   WRITE_HOLD_PENDING_LINE,
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
+  createHeldWriteStorage,
+  createWriteHold,
+  WriteHeldError,
   type WriteHold,
   type WriteHoldClient,
   type WriteHoldState,
 } from "../index.js";
+import { resetWriteHoldsForTests } from "../../testing.js";
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Address, Hex } from "viem";
@@ -33,6 +37,7 @@ import {
 
 const ACCOUNT = "0x1111111111111111111111111111111111111111" as Address;
 const HASH = `0x${"aa".repeat(32)}` as Hex;
+const OTHER_HASH = `0x${"bb".repeat(32)}` as Hex;
 const record = (id = "r1", extra: object = {}) => ({
   version: 1 as const,
   id,
@@ -144,6 +149,7 @@ let root: Root | undefined;
 let host: HTMLDivElement | undefined;
 afterEach(() => {
   act(() => root?.unmount());
+  resetWriteHoldsForTests();
   host?.remove();
   root = undefined;
 });
@@ -756,6 +762,165 @@ describe("useHeldSend", () => {
         HASH,
       );
     });
+  });
+
+  test("a view replaced before React shows it leaves its success pending, told when it shows again", async () => {
+    const fake = fakeHold();
+    const onSettled = vi.fn();
+    const out: { current?: UseHeldSendResult } = {};
+    await mount(
+      <Probe out={out} options={{ hold: fake.hold, client, onSettled }} />,
+    );
+    const settled = {
+      status: "clear",
+      reservation: "r1",
+      settled: { result: "success", hash: HASH },
+    } as WriteHoldState;
+    // A's send sees its own hold settle while B replaces it.
+    fake.handle("intent:a").send.mockImplementationOnce(async () => {
+      fake.emit("intent:a", unproven());
+      fake.set("intent:a", settled);
+      fake.emit("intent:a", settled);
+      return HASH;
+    });
+    await act(async () => {
+      const a = out.current!.send(input("intent:a"), async () => HASH);
+      const b = out.current!.send(input("intent:b"), async () => HASH);
+      await Promise.all([a, b]);
+    });
+    await act(async () => {});
+    expect(onSettled).not.toHaveBeenCalled();
+    expect(fake.handle("intent:a").acknowledge).not.toHaveBeenCalled();
+    // A again: the gate still sees the success, and A's view tells it now.
+    await act(async () => {
+      await expect(
+        out.current!.send(input("intent:a"), async () => HASH),
+      ).rejects.toThrow(HELD_AWAY_SUCCESS_LINE);
+    });
+    await vi.waitFor(() =>
+      expect(onSettled).toHaveBeenCalledWith(
+        { result: "success", hash: HASH },
+        null,
+      ),
+    );
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(fake.handle("intent:a").acknowledge).toHaveBeenCalledTimes(1);
+  });
+
+  /** A real hold over this tab's own memory, and a chain where nothing is mined unless told. */
+  function realHold() {
+    const hold = createWriteHold({
+      storage: createHeldWriteStorage({
+        durable: () => undefined,
+        memory: new Map(),
+      }),
+    });
+    const mined = new Map<string, bigint>();
+    const missing = (name: string) =>
+      Object.assign(new Error("not found"), { name });
+    const chain = {
+      getChainId: async () => 10,
+      getBlockNumber: async () => (mined.size ? 120n : 100n),
+      getTransactionCount: async (args: { blockTag?: string }) =>
+        7 + (args.blockTag === "pending" ? 0 : mined.size),
+      getTransaction: async ({ hash }: { hash: Hex }) => {
+        const block = mined.get(hash);
+        if (block === undefined) throw missing("TransactionNotFoundError");
+        return {
+          hash,
+          from: ACCOUNT,
+          nonce: 7,
+          to: ACCOUNT,
+          input: "0x12",
+          value: 1n,
+          blockNumber: block,
+          blockHash: `0x${"11".repeat(32)}`,
+          transactionIndex: 0,
+        };
+      },
+      getTransactionReceipt: async ({ hash }: { hash: Hex }) => {
+        const block = mined.get(hash);
+        if (block === undefined)
+          throw missing("TransactionReceiptNotFoundError");
+        return {
+          transactionHash: hash,
+          status: "success",
+          blockNumber: block,
+          blockHash: `0x${"11".repeat(32)}`,
+          transactionIndex: 0,
+          from: ACCOUNT,
+          to: ACCOUNT,
+          logs: [],
+        };
+      },
+      getBlock: async (
+        args: { blockTag?: string; blockNumber?: bigint } = {},
+      ) => ({
+        number: args.blockNumber ?? (mined.size ? 120n : 100n),
+        hash: `0x${"11".repeat(32)}`,
+        timestamp: 1_000n,
+        transactions: [],
+      }),
+    } as unknown as WriteHoldClient;
+    return { hold, chain, mined };
+  }
+  const exactOf = { chainId: 10, account: ACCOUNT, safe: false, call };
+
+  test("a real hold refuses a send while its write is held, and the wallet never opens", async () => {
+    const { hold, chain } = realHold();
+    const out: { current?: UseHeldSendResult } = {};
+    await mount(
+      <Probe out={out} options={{ hold, client: chain, follow: false }} />,
+    );
+    // The wallet's reply is lost after it may have sent: held, no hash.
+    await act(async () => {
+      await expect(
+        out.current!.send(exactOf, async (gate) => {
+          await gate.beforeSend();
+          throw new Error("reply lost");
+        }),
+      ).rejects.toThrow("reply lost");
+    });
+    expect(out.current!.phase).toBe("held");
+    const wallet = vi.fn(async () => HASH);
+    await act(async () => {
+      await expect(
+        out.current!.send(exactOf, async (gate) => {
+          await gate.beforeSend();
+          return wallet();
+        }),
+      ).rejects.toBeInstanceOf(WriteHeldError);
+    });
+    expect(wallet).not.toHaveBeenCalled();
+    expect(out.current).toMatchObject({ phase: "held", exit: true });
+  });
+
+  test("a real hold asks again at the reservation: a success saved meanwhile stops the send", async () => {
+    const { hold, chain, mined } = realHold();
+    const out: { current?: UseHeldSendResult } = {};
+    await mount(
+      <Probe out={out} options={{ hold, client: chain, follow: false }} />,
+    );
+    const wallet = vi.fn(async () => HASH);
+    // An intent's send lets its lock go while the app reviews.
+    const pay = { ...exactOf, namespace: "intent:pay" };
+    await act(async () => {
+      await expect(
+        out.current!.send(pay, async (gate) => {
+          // Meanwhile another flow's write of this intent succeeds.
+          const other = hold.open(pay);
+          await other.send(chain, async (inner) => {
+            await inner.beforeSend();
+            inner.afterSubmit(OTHER_HASH);
+          });
+          mined.set(OTHER_HASH, 105n);
+          await other.state(chain);
+          await gate.beforeSend();
+          return wallet();
+        }),
+      ).rejects.toThrow(HELD_AWAY_SUCCESS_LINE);
+    });
+    expect(wallet).not.toHaveBeenCalled();
   });
 
   test("a replaced view's late answers reach no callback, and a new hold or no client starts over", async () => {

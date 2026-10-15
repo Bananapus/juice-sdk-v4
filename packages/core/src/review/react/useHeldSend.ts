@@ -78,16 +78,27 @@ export function useHeldSend(options: UseHeldSendOptions): UseHeldSendResult {
   // A view of an earlier hold or client shows nothing.
   const held = current?.views === views ? current.held : undefined;
   const view = held?.view;
-  const active = useRef<HeldWriteViewController | undefined>(undefined);
-  useEffect(() => {
-    if (!view) return;
-    active.current = view;
-    const stop = view.start();
-    return () => {
-      if (active.current === view) active.current = undefined;
-      stop();
-    };
-  }, [view]);
+  /**
+   * The one view running, started at its send: a replaced view is stopped
+   * then, so only the current send's view ever tells the app anything, and
+   * a success it never told stays pending for the gate.
+   */
+  const running = useRef<
+    | {
+        views: Map<string, Held>;
+        view: HeldWriteViewController;
+        stop: () => void;
+      }
+    | undefined
+  >(undefined);
+  useEffect(
+    () => () => {
+      if (running.current?.views !== views) return;
+      running.current.stop();
+      running.current = undefined;
+    },
+    [views],
+  );
   const shown = useSyncExternalStore(
     view?.subscribe ?? none,
     view?.get ?? idle,
@@ -112,12 +123,6 @@ export function useHeldSend(options: UseHeldSendOptions): UseHeldSendResult {
       ]);
       let next = views.get(key);
       if (!next) {
-        /** Only while this view is the current send's. */
-        const own =
-          <A extends unknown[]>(callback: (...args: A) => void) =>
-          (...args: A) => {
-            if (active.current === created) callback(...args);
-          };
         const handle = hold.open(
           { chainId, account, safe, call, ...(namespace ? { namespace } : {}) },
           legacy ? { legacy } : undefined,
@@ -126,15 +131,21 @@ export function useHeldSend(options: UseHeldSendOptions): UseHeldSendResult {
           client,
           pollMs,
           ...(follow === undefined ? {} : { follow }),
-          onSettled: own((settled, receipt) =>
+          // A stopped view tells no settlement; a late release is dropped here.
+          onSettled: (settled, receipt) =>
             latest.current.onSettled?.(settled, receipt),
-          ),
-          onReleased: own((by) => latest.current.onReleased?.(by)),
+          onReleased: (by) => {
+            if (running.current?.view === created)
+              latest.current.onReleased?.(by);
+          },
         });
         next = { handle, view: created };
         views.set(key, next);
       }
-      active.current = next.view;
+      if (running.current?.view !== next.view) {
+        running.current?.stop();
+        running.current = { views, view: next.view, stop: next.view.start() };
+      }
       setCurrent({ views, held: next });
       return next.view.send(run);
     },
