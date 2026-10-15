@@ -257,6 +257,8 @@ export function createHeldWriteView(
   let observed: string | undefined;
   let wasHeld = false;
   let exitedHere: string | undefined;
+  /** The user's exit is asking the hold: a release seen meanwhile waits for its answer. */
+  let exiting = false;
   const delivered = new Set<string>();
   /** Every reservation this view saw held and hasn't delivered: each is delivered once, whatever is shown. */
   const seen = new Set<string>();
@@ -394,6 +396,8 @@ export function createHeldWriteView(
     if (next.status === "clear") {
       const reservation = next.reservation;
       const mine = wasHeld && (!reservation || reservation === observed);
+      // Whose release it is, only the exit's answer says.
+      if (exiting && mine && !next.settled) return;
       stopFollowing();
       if (next.settled && mine) {
         seen.delete(observed!);
@@ -611,9 +615,12 @@ export function createHeldWriteView(
     async exit(): Promise<boolean> {
       const shown = view.state;
       if (!shown || shown.status === "clear" || !view.exit) return false;
-      exitedHere = shown.record.id;
-      const ended = await handle.exit(shown, { checkedWallet: true }, client);
-      if (!ended.released) exitedHere = undefined;
+      exiting = true;
+      const ended = await handle
+        .exit(shown, { checkedWallet: true }, client)
+        .finally(() => (exiting = false));
+      // Released by this exit, or else by another window meanwhile.
+      if (ended.released) exitedHere = shown.record.id;
       apply(ended.state);
       return ended.released;
     },

@@ -457,6 +457,41 @@ describe("one held write's view", () => {
     stop();
   });
 
+  it("names another window's release during the user's exit as elsewhere", async () => {
+    const onReleased = vi.fn();
+    const { view, handle, fake, stop } = started(unproven(), { onReleased });
+    await flush();
+    handle.exit.mockImplementationOnce(async () => {
+      // Another window releases it while this exit asks the chain.
+      fake.emit(clear());
+      return { released: false, state: clear() };
+    });
+    await expect(view.exit()).resolves.toBe(false);
+    expect(view.get()).toMatchObject({
+      phase: "released",
+      line: HELD_RELEASED_ELSEWHERE_LINE,
+      releasedBy: "other-tab",
+    });
+    expect(onReleased).toHaveBeenCalledTimes(1);
+    expect(onReleased).toHaveBeenCalledWith("other-tab");
+    stop();
+  });
+
+  it("names its own release during the exit as the user's, emitted before it resolves", async () => {
+    const onReleased = vi.fn();
+    const { view, handle, fake, stop } = started(unproven(), { onReleased });
+    await flush();
+    handle.exit.mockImplementationOnce(async () => {
+      fake.emit(clear());
+      return { released: true, state: clear() };
+    });
+    await expect(view.exit()).resolves.toBe(true);
+    expect(view.get()).toMatchObject({ phase: "released", releasedBy: "user" });
+    expect(onReleased).toHaveBeenCalledTimes(1);
+    expect(onReleased).toHaveBeenCalledWith("user");
+    stop();
+  });
+
   it("keeps the exit when the chain refuses it, and shows what the chain found", async () => {
     const { view, handle, stop } = started(unproven());
     await flush();
