@@ -1,5 +1,15 @@
 # juice-sdk-core
 
+## 2.41.1
+
+### Patch Changes
+
+- 64878a0: Every write hold controller over the same tab storage now shares one subscriber registry, by storage key. A reservation, hash, receipt, settlement, acknowledgement or release made through any handle reaches every view of that write in the tab at once. Previously a receipt reported on a separately opened handle (an app's receipt hook or root follower) reached the sending view only on its next poll. Sending the same action again right after "Confirmed" was then refused with "This went through while you were away." Other tabs still hear changes through the storage event and polls.
+- fc44095: Held-write view fixes found by the Homerun migration:
+  - A started view keeps hearing its hold after a send: the send subscribes its own listener, so unsubscribing it no longer removes the view's.
+  - Every send that went out ends with one checked read, so a write mined during the send shows its settlement without waiting for the poll or focus.
+  - A reservation the view's own send withdrew before the wallet (`onRejected`), or a clear read begun before the view saw that reservation, is never reported as released by another window.
+
 ## 2.41.0
 
 ### Minor Changes
