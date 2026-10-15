@@ -196,3 +196,117 @@ export function liquidityIntent({
     positions: canonicalIds(positions),
   });
 }
+
+/** Redeeming shop items: the collection, the token id set and the holder. No terminal, payout token or minimum. */
+export function redeemIntent({
+  chainId,
+  project,
+  hook,
+  tokenIds,
+  holder,
+}: {
+  chainId: number;
+  project: Id;
+  /** The collection (its 721 hook). */
+  hook: Address | string;
+  /** A set: order and repeats don't change the key. */
+  tokenIds: readonly Id[];
+  holder: Address | string;
+}): string {
+  return writeIntentKey("redeem-items", {
+    chainId,
+    project: id(project),
+    hook: intent.address(hook),
+    tokenIds: canonicalIds(tokenIds),
+    holder: intent.address(holder),
+  });
+}
+
+/** Paying out from a project's surplus allowance: the allowance line and beneficiary. No amount or minimum. */
+export function allowanceIntent({
+  chainId,
+  project,
+  terminal,
+  token,
+  currency,
+  beneficiary,
+}: {
+  chainId: number;
+  project: Id;
+  terminal: Address | string;
+  token: Address | string;
+  /** The allowance line's currency. */
+  currency: Id;
+  beneficiary: Address | string;
+}): string {
+  return writeIntentKey("use-allowance", {
+    chainId,
+    project: id(project),
+    terminal: intent.address(terminal),
+    token: intent.address(token),
+    currency: id(currency),
+    beneficiary: intent.address(beneficiary),
+  });
+}
+
+/** Burning a holder's project tokens. No amount. */
+export function burnIntent({
+  chainId,
+  project,
+  holder,
+}: {
+  chainId: number;
+  project: Id;
+  holder: Address | string;
+}): string {
+  return writeIntentKey("burn", {
+    chainId,
+    project: id(project),
+    holder: intent.address(holder),
+  });
+}
+
+/**
+ * Proposing one batch to a Safe: the Safe and its exact calls, in order. A
+ * generic batch has no coarser identity, so its calls are the user's choice.
+ */
+export function safeBatchIntent({
+  chainId,
+  safe,
+  calls,
+}: {
+  chainId: number;
+  safe: Address | string;
+  calls: readonly {
+    to: Address | string;
+    data: Hex | string;
+    value?: Id;
+  }[];
+}): string {
+  return writeIntentKey("safe-batch", {
+    chainId,
+    safe: intent.address(safe),
+    calls: calls.map((call) => ({
+      to: intent.address(call.to),
+      data: intent.hex(call.data),
+      value: id(call.value ?? 0n),
+    })),
+  });
+}
+
+/** Syncing a bridge's accounting through one sucker. No fee. */
+export function syncIntent({
+  chainId,
+  sucker,
+  account,
+}: {
+  chainId: number;
+  sucker: Address | string;
+  account: Address | string;
+}): string {
+  return writeIntentKey("bridge-sync", {
+    chainId,
+    sucker: intent.address(sucker),
+    account: intent.address(account),
+  });
+}

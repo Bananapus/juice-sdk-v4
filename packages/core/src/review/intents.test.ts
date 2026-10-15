@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  allowanceIntent,
   approvalIntent,
   borrowIntent,
   bridgeIntent,
+  burnIntent,
   cashOutIntent,
   launchIntent,
   liquidityIntent,
   loanIntent,
   payIntent,
+  redeemIntent,
+  safeBatchIntent,
+  syncIntent,
 } from "./intents.js";
 import { intent, type IntentValue } from "./writeIntent.js";
 
@@ -228,6 +233,137 @@ describe("shared write intents", () => {
     );
     expect(tagged(intent.address(A))).toBe(
       tagged(intent.address(A.toUpperCase().replace("0X", "0x"))),
+    );
+  });
+
+  it("keys a shop redemption by its collection, token id set and holder", () => {
+    const key = redeemIntent({
+      chainId: 1,
+      project: 4n,
+      hook: A,
+      tokenIds: [3n, 1n, 3n],
+      holder: B,
+    });
+    expect(
+      (redeemIntent as unknown as (input: object) => string)({
+        chainId: 1,
+        project: 4,
+        hook: A.toUpperCase().replace("0X", "0x"),
+        tokenIds: [1, 3],
+        holder: B,
+        terminal: C,
+        minReclaimed: 9n,
+      }),
+    ).toBe(key);
+    for (const other of [
+      redeemIntent({
+        chainId: 1,
+        project: 4n,
+        hook: A,
+        tokenIds: [1n],
+        holder: B,
+      }),
+      redeemIntent({
+        chainId: 1,
+        project: 4n,
+        hook: C,
+        tokenIds: [1n, 3n],
+        holder: B,
+      }),
+      redeemIntent({
+        chainId: 1,
+        project: 4n,
+        hook: A,
+        tokenIds: [1n, 3n],
+        holder: A,
+      }),
+    ])
+      expect(other).not.toBe(key);
+  });
+
+  it("keys a surplus allowance payout by its line and beneficiary, with no amount", () => {
+    const input = {
+      chainId: 1,
+      project: 4n,
+      terminal: A,
+      token: B,
+      currency: 1n,
+      beneficiary: C,
+    };
+    const key = allowanceIntent(input);
+    expect(
+      (allowanceIntent as unknown as (input: object) => string)({
+        ...input,
+        amount: 5n,
+        minTokensPaidOut: 4n,
+        memo: "x",
+      }),
+    ).toBe(key);
+    for (const other of [
+      allowanceIntent({ ...input, token: A }),
+      allowanceIntent({ ...input, currency: 2n }),
+      allowanceIntent({ ...input, beneficiary: A }),
+    ])
+      expect(other).not.toBe(key);
+  });
+
+  it("keys a burn by its project and holder, with no amount", () => {
+    const key = burnIntent({ chainId: 1, project: 4n, holder: A });
+    expect(
+      (burnIntent as unknown as (input: object) => string)({
+        chainId: 1,
+        project: 4n,
+        holder: A,
+        amount: 7n,
+      }),
+    ).toBe(key);
+    expect(burnIntent({ chainId: 1, project: 4n, holder: B })).not.toBe(key);
+    expect(key).not.toBe(
+      cashOutIntent({ chainId: 1, project: 4n, holder: A, beneficiary: A }),
+    );
+  });
+
+  it("keys a Safe batch by its Safe and its exact calls, in order", () => {
+    const calls = [
+      { to: A, data: "0xabcd", value: 0n },
+      { to: B, data: "0x01" },
+    ];
+    const key = safeBatchIntent({ chainId: 1, safe: C, calls });
+    expect(
+      safeBatchIntent({
+        chainId: 1,
+        safe: C.toUpperCase().replace("0X", "0x"),
+        calls: [
+          { to: A, data: "0xABCD", value: 0n },
+          { to: B, data: "0x01", value: 0n },
+        ],
+      }),
+    ).toBe(key);
+    for (const other of [
+      safeBatchIntent({ chainId: 1, safe: C, calls: [...calls].reverse() }),
+      safeBatchIntent({
+        chainId: 1,
+        safe: C,
+        calls: [{ ...calls[0], value: 1n }, calls[1]],
+      }),
+      safeBatchIntent({ chainId: 1, safe: A, calls }),
+    ])
+      expect(other).not.toBe(key);
+  });
+
+  it("keys a bridge sync by its sucker and account, with no fee", () => {
+    const key = syncIntent({ chainId: 1, sucker: A, account: B });
+    expect(
+      (syncIntent as unknown as (input: object) => string)({
+        chainId: 1,
+        sucker: A,
+        account: B,
+        fee: 3n,
+      }),
+    ).toBe(key);
+    expect(syncIntent({ chainId: 1, sucker: A, account: C })).not.toBe(key);
+    expect(key).not.toBe(
+      bridgeIntent({ chainId: 1, sucker: A, token: B, account: B }),
     );
   });
 

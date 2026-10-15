@@ -1047,16 +1047,21 @@ every other string stays exactly as given. In `launchIntent`'s free-form
 build the config in one place from the frozen form so every retry represents
 it the same way.
 
-| Builder                                                    | Key                                                                                       | What waits                                                    |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `payIntent({ chainId, project, beneficiary })`             | every payment to a project: checkout, pay, add to balance. No token, amount, memo or cart | a second payment to the same project for the same beneficiary |
-| `cashOutIntent({ chainId, project, holder, beneficiary })` | every cash-out of the project's token, whatever the venue. No amount                      | a second cash-out by that holder to that beneficiary          |
-| `loanIntent({ chainId, loanId })`                          | repaying and reallocating one loan                                                        | a second change to that loan                                  |
-| `borrowIntent({ chainId, project, holder })`               | borrowing against the project's token. No amount                                          | a second borrow by that holder                                |
-| `bridgeIntent({ chainId, sucker, token, account })`        | sending, preparing and syncing through one sucker. No fee                                 | a second bridge step of that token by that account            |
-| `approvalIntent(parent, { step, token, spender })`         | one approval step of a parent action's key                                                | the same approval for that action                             |
-| `launchIntent({ chainId, account, config })`               | a launch from the user's frozen form input                                                | the same launch, until the form changes                       |
-| `liquidityIntent({ chainId, pool, positions })`            | changing those positions in one pool (a set: order and repeats don't change the key)      | a second change to the same positions                         |
+| Builder                                                                         | Key                                                                                       | What waits                                                    |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `payIntent({ chainId, project, beneficiary })`                                  | every payment to a project: checkout, pay, add to balance. No token, amount, memo or cart | a second payment to the same project for the same beneficiary |
+| `cashOutIntent({ chainId, project, holder, beneficiary })`                      | every cash-out of the project's token, whatever the venue. No amount                      | a second cash-out by that holder to that beneficiary          |
+| `loanIntent({ chainId, loanId })`                                               | repaying and reallocating one loan                                                        | a second change to that loan                                  |
+| `borrowIntent({ chainId, project, holder })`                                    | borrowing against the project's token. No amount                                          | a second borrow by that holder                                |
+| `bridgeIntent({ chainId, sucker, token, account })`                             | sending, preparing and syncing through one sucker. No fee                                 | a second bridge step of that token by that account            |
+| `syncIntent({ chainId, sucker, account })`                                      | syncing a sucker's accounting, with no token. No fee                                      | a second sync of that sucker by that account                  |
+| `redeemIntent({ chainId, project, hook, tokenIds, holder })`                    | redeeming shop items (a set of token ids). No terminal, payout token or minimum           | a second redemption of the same items by that holder          |
+| `allowanceIntent({ chainId, project, terminal, token, currency, beneficiary })` | a payout from the surplus allowance line. No amount or minimum                            | a second payout from that line to that beneficiary            |
+| `burnIntent({ chainId, project, holder })`                                      | burning the holder's project tokens. No amount                                            | a second burn by that holder                                  |
+| `safeBatchIntent({ chainId, safe, calls })`                                     | one batch proposed to a Safe, by its exact calls in order                                 | the same batch to that Safe                                   |
+| `approvalIntent(parent, { step, token, spender })`                              | one approval step of a parent action's key                                                | the same approval for that action                             |
+| `launchIntent({ chainId, account, config })`                                    | a launch from the user's frozen form input                                                | the same launch, until the form changes                       |
+| `liquidityIntent({ chainId, pool, positions })`                                 | changing those positions in one pool (a set: order and repeats don't change the key)      | a second change to the same positions                         |
 
 ```ts
 import { payIntent } from "@bananapus/nana-sdk-core/review";
