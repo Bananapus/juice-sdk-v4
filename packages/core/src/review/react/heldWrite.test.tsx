@@ -1105,6 +1105,72 @@ describe("useHeldSend", () => {
     stop();
   });
 
+  test("a fresh view started and sent in the same tick refuses an earlier held send as held, never busy (jbm)", async () => {
+    const { hold, chain } = realHold();
+    // An earlier send of the same call, still pending with its hash.
+    await hold.open(exactOf).send(chain, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(HASH);
+    });
+    // Following its hash too, as views do by default.
+    const view = createHeldWriteView(hold.open(exactOf), { client: chain });
+    const wallet = vi.fn(async () => OTHER_HASH);
+    const stop = view.start();
+    const sent = view.send(async (gate) => {
+      await gate.beforeSend();
+      return wallet();
+    });
+    await expect(sent).rejects.toBeInstanceOf(WriteHeldError);
+    expect(wallet).not.toHaveBeenCalled();
+    stop();
+  });
+
+  test("a watcher view with no onSettled never acknowledges a success: a fresh intent view shows it and refuses the send", async () => {
+    const { hold, chain, mined } = realHold();
+    const pay = { ...exactOf, namespace: "intent:pay" };
+    await hold.open(pay).send(chain, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(HASH);
+    });
+    // An app-wide watcher (as useHeldWrites makes) sees it settle; no screen tells it.
+    const watcher = createHeldWriteView(hold.open(pay), {
+      client: chain,
+      follow: false,
+    });
+    const stopWatcher = watcher.start();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(watcher.get().phase).toBe("confirming");
+    mined.set(HASH, 105n);
+    await watcher.check();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(hold.open(pay).unacknowledgedSuccess()).toMatchObject({
+      hash: HASH,
+    });
+    expect(watcher.get().phase).toBe("succeeded");
+    // The intent reopened: shown as succeeded, and the wallet never opens.
+    const view = createHeldWriteView(hold.open(pay), {
+      client: chain,
+      follow: false,
+      onSettled: vi.fn(),
+    });
+    const stop = view.start();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(view.get()).toMatchObject({
+      phase: "succeeded",
+      line: HELD_AWAY_SUCCESS_LINE,
+    });
+    const wallet = vi.fn(async () => OTHER_HASH);
+    await expect(
+      view.send(async (gate) => {
+        await gate.beforeSend();
+        return wallet();
+      }),
+    ).rejects.toThrow(HELD_AWAY_SUCCESS_LINE);
+    expect(wallet).not.toHaveBeenCalled();
+    stop();
+    stopWatcher();
+  });
+
   test("a real hold's mined hash with an unread result shows confirming until the long wait (Sticky)", async () => {
     const { hold, chain, mined } = realHold();
     // Mined, but the node can't give its receipt yet.
