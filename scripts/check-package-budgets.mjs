@@ -259,9 +259,12 @@ const budgets = {
     // The held-write React hooks, moved from nana-sdk-react to their own
     // /review/react entry point (five modules, 40 artifacts), measured
     // 1,554,581 B packed / 22,328,075 B unpacked and 906 entries.
-    packed: 1_562_000,
-    unpacked: 22_345_000,
-    entries: 906,
+    // useHeldSend and the hooks' shared view actions (two modules, 16
+    // artifacts) with five intent builders measured 1,559,165 B packed /
+    // 22,368,314 B unpacked and 922 entries.
+    packed: 1_566_000,
+    unpacked: 22_385_000,
+    entries: 922,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

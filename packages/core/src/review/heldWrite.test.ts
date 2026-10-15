@@ -457,6 +457,70 @@ describe("one held write's view", () => {
     stop();
   });
 
+  it("names another window's release during the user's exit as elsewhere", async () => {
+    const onReleased = vi.fn();
+    const { view, handle, fake, stop } = started(unproven(), { onReleased });
+    await flush();
+    handle.exit.mockImplementationOnce(async () => {
+      // Another window releases it while this exit asks the chain.
+      fake.emit(clear());
+      return { released: false, state: clear() };
+    });
+    await expect(view.exit()).resolves.toBe(false);
+    expect(view.get()).toMatchObject({
+      phase: "released",
+      line: HELD_RELEASED_ELSEWHERE_LINE,
+      releasedBy: "other-tab",
+    });
+    expect(onReleased).toHaveBeenCalledTimes(1);
+    expect(onReleased).toHaveBeenCalledWith("other-tab");
+    stop();
+  });
+
+  it("names its own release during the exit as the user's, emitted before it resolves", async () => {
+    const onReleased = vi.fn();
+    const { view, handle, fake, stop } = started(unproven(), { onReleased });
+    await flush();
+    handle.exit.mockImplementationOnce(async () => {
+      fake.emit(clear());
+      return { released: true, state: clear() };
+    });
+    await expect(view.exit()).resolves.toBe(true);
+    expect(view.get()).toMatchObject({ phase: "released", releasedBy: "user" });
+    expect(onReleased).toHaveBeenCalledTimes(1);
+    expect(onReleased).toHaveBeenCalledWith("user");
+    stop();
+  });
+
+  it("shares one exit between concurrent calls, so its own release stays the user's", async () => {
+    const onReleased = vi.fn();
+    const { view, handle, fake, stop } = started(unproven(), { onReleased });
+    await flush();
+    let finish: () => void = () => {};
+    handle.exit
+      .mockImplementationOnce(async () => {
+        await new Promise<void>((resolve) => (finish = resolve));
+        fake.emit(clear());
+        return { released: true, state: clear() };
+      })
+      // A second exit that finds the lock taken.
+      .mockImplementationOnce(async () => ({
+        released: false,
+        state: unproven(),
+      }));
+    const first = view.exit();
+    const second = view.exit();
+    await flush();
+    finish();
+    await expect(first).resolves.toBe(true);
+    await expect(second).resolves.toBe(true);
+    expect(handle.exit).toHaveBeenCalledTimes(1);
+    expect(view.get()).toMatchObject({ phase: "released", releasedBy: "user" });
+    expect(onReleased).toHaveBeenCalledTimes(1);
+    expect(onReleased).toHaveBeenCalledWith("user");
+    stop();
+  });
+
   it("keeps the exit when the chain refuses it, and shows what the chain found", async () => {
     const { view, handle, stop } = started(unproven());
     await flush();

@@ -1,7 +1,5 @@
 import {
   createHeldWriteView,
-  HELD_EXIT_LABEL,
-  HELD_SEND_AGAIN_LABEL,
   type HeldWriteEvidence,
   type HeldWriteView,
   type HeldWriteViewController,
@@ -15,6 +13,14 @@ import {
 } from "../index.js";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { Address, Hex, TransactionReceipt } from "viem";
+import {
+  actionsOf,
+  IDLE,
+  idle,
+  keyOf,
+  none,
+  type HeldViewActions,
+} from "./heldView.js";
 
 /** A call stand-in for a hold found by its intent alone, before any call is built. */
 const NO_CALL = {
@@ -56,36 +62,15 @@ export type UseHeldWriteOptions = {
   pollMs?: number;
 };
 
-export type UseHeldWriteResult = HeldWriteView & {
-  /** The exit the hold offers now, with its label; null when none. */
-  exitAction: { label: string; run: () => Promise<boolean> } | null;
-  /**
-   * On a success settled while away ("This went through while you were
-   * away."): the user's choice to send it again. Null otherwise.
-   */
-  sendAgainAction: { label: string; run: () => Promise<void> } | null;
-  /** Send under the hold, once any adoption is done. */
-  send: (run: (gate: WriteHoldGate) => Promise<Hex>) => Promise<Hex>;
-  /** Ask the chain now. */
-  check: () => Promise<HeldWriteView>;
-  /** The hold handle, for anything else. */
-  handle: WriteHoldHandle | undefined;
-};
-
-const IDLE: HeldWriteView = {
-  phase: "clear",
-  state: null,
-  line: null,
-  exit: false,
-  adopting: false,
-};
-const none = () => () => {};
-/** A value's identity for a memo key, wei amounts (bigints) included. */
-const keyOf = (value: unknown) =>
-  JSON.stringify(value, (_, field) =>
-    typeof field === "bigint" ? `${field}n` : field,
-  );
-const idle = () => IDLE;
+export type UseHeldWriteResult = HeldWriteView &
+  HeldViewActions & {
+    /** Send under the hold, once any adoption is done. */
+    send: (run: (gate: WriteHoldGate) => Promise<Hex>) => Promise<Hex>;
+    /** Ask the chain now. */
+    check: () => Promise<HeldWriteView>;
+    /** The hold handle, for anything else. */
+    handle: WriteHoldHandle | undefined;
+  };
 
 /**
  * One held write, the one way every app runs it: its send under the hold,
@@ -170,12 +155,7 @@ export function useHeldWrite(options: UseHeldWriteOptions): UseHeldWriteResult {
   );
   return {
     ...shown,
-    exitAction:
-      shown.exit && view ? { label: HELD_EXIT_LABEL, run: view.exit } : null,
-    sendAgainAction:
-      shown.phase === "succeeded" && view
-        ? { label: HELD_SEND_AGAIN_LABEL, run: view.acknowledge }
-        : null,
+    ...actionsOf(shown, view),
     send: (run) => {
       if (!view)
         return Promise.reject(

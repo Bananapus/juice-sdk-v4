@@ -37,6 +37,7 @@ describe("published React SDK surface", () => {
       "useHeldWrites",
       "HeldWritesNotice",
       "useSavedAttempt",
+      "useHeldSend",
     ] as const;
 
     for (const exportName of publicFunctions) {
@@ -51,6 +52,7 @@ describe("published React SDK surface", () => {
       "useHeldWrites",
       "HeldWritesNotice",
       "useSavedAttempt",
+      "useHeldSend",
     ] as const)
       expect(sdk[name], name).toBe(held[name]);
   });
