@@ -547,7 +547,7 @@ describe("one held write's view", () => {
       clear({ reservation: undefined }),
     );
     await flush();
-    fake.peeked = pending();
+    fake.answer = fake.peeked = pending();
     await expect(view.send(async () => HASH)).resolves.toBe(HASH);
     expect(view.get().phase).toBe("confirming");
     handle.send.mockRejectedValueOnce(

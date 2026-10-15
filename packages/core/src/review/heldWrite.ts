@@ -215,10 +215,11 @@ export function settledLine(settled: WriteHoldSettled): string {
 
 /**
  * One held write's view, framework-free: its phase and line, the watch
- * (the hold's own events, and a checked read on start, on focus and every
- * poll while held), a shared follower for its hash, its exit, its send and
- * the adoption of a previous deploy's record. Every app binds the same one
- * (useHeldWrite in React), so the same action behaves the same everywhere.
+ * (the hold's own events, and a checked read on start, after each send, on
+ * focus and every poll while held), a shared follower for its hash, its
+ * exit, its send and the adoption of a previous deploy's record. Every app
+ * binds the same one (useHeldWrite in React), so the same action behaves the
+ * same everywhere.
  *
  * - A read the chain didn't check never hides an exit already shown.
  * - Once confirming, a write never goes back to awaiting.
@@ -257,6 +258,8 @@ export function createHeldWriteView(
   let observed: string | undefined;
   let wasHeld = false;
   let exitedHere: string | undefined;
+  /** The reservation this view's own send withdrew before the wallet: never another window's release. */
+  let withdrawn: string | undefined;
   /**
    * The user's exit asking the hold, shared by every concurrent call: a
    * release seen meanwhile waits for its answer.
@@ -415,7 +418,7 @@ export function createHeldWriteView(
           settled: next.settled,
           releasedBy: undefined,
         });
-      } else if (mine) {
+      } else if (mine && withdrawn !== observed) {
         const by = exitedHere === observed ? "user" : "other-tab";
         set({
           phase: "released",
@@ -445,6 +448,7 @@ export function createHeldWriteView(
       wasHeld = false;
       observed = undefined;
       exitedHere = undefined;
+      withdrawn = undefined;
       collect();
       present();
       return;
@@ -453,6 +457,7 @@ export function createHeldWriteView(
     if (observed !== reservation) {
       observed = reservation;
       exitedHere = undefined;
+      withdrawn = undefined;
     }
     wasHeld = true;
     seen.add(reservation);
@@ -524,8 +529,14 @@ export function createHeldWriteView(
   /** The gated answer, now. */
   async function check(): Promise<HeldWriteView> {
     const at = epoch;
+    const before = observed;
     const next = await handle.state(client).catch(() => null);
-    if (at === epoch) apply(next);
+    // A clear read begun before this view saw its reservation says nothing of it.
+    const stale =
+      next?.status === "clear" &&
+      observed !== before &&
+      next.reservation !== observed;
+    if (at === epoch && !stale) apply(next);
     return view;
   }
 
@@ -650,12 +661,19 @@ export function createHeldWriteView(
           );
         guard();
         // The send's own check may find one too: it says so before the wallet.
-        const unsubscribe = handle.subscribe(apply);
+        // Its own listener: unsubscribing it leaves a started view's in place.
+        const unsubscribe = handle.subscribe((state) => apply(state));
         try {
           const hash = await handle.send(client, async (gate) => {
             guard();
+            // Nothing reached the wallet: the reservation it withdraws is this view's own.
+            const withdraw = () => {
+              withdrawn = observed;
+              gate.onRejected();
+            };
             return run({
               ...gate,
+              onRejected: withdraw,
               // Asked again at the reservation itself, after any lock retries.
               async beforeSend(actualCall) {
                 guard();
@@ -663,7 +681,7 @@ export function createHeldWriteView(
                 try {
                   guard();
                 } catch (error) {
-                  gate.onRejected();
+                  withdraw();
                   throw error;
                 }
               },
@@ -671,6 +689,8 @@ export function createHeldWriteView(
           });
           unsubscribe();
           apply(handle.peek());
+          // The chain asked once more after the send, as a start asks before it.
+          void check();
           return hash;
         } catch (error) {
           unsubscribe();
