@@ -468,6 +468,8 @@ export function createHeldWriteStorage(
     return kept;
   };
   return {
+    // This storage's tab memory: write holds over the same one share their subscribers.
+    [TAB_MEMORY]: memory,
     getItem,
     setItem(key, value) {
       const kept = memory.get(key);
