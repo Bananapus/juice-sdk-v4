@@ -1,5 +1,17 @@
 # juice-sdk-core
 
+## 2.41.2
+
+### Patch Changes
+
+- 4a485b2: Two held-write view fixes Sticky found on 2.41.1, so no app needs a workaround:
+  - A send that starts while its own view is reading the hold (on mount, focus, a poll or the read after the previous send) now waits for that read and its lock instead of refusing as busy. Another writer holding the call still refuses it.
+  - A direct write whose hash is mined but whose result can't be read yet shows the confirming line during the normal confirmation window. "Your transaction is onchain, but its result can't be read yet." appears only after the existing two-minute wait, as the wallet's pending line does.
+
+- 4a485b2: Two more held-write view fixes found validating the candidate against jbm:
+  - A send made in the same tick as its view's start (as `useHeldSend` does) waits for the start's first read and for the view's follower read, so an earlier held send refuses it as held, never as busy.
+  - A view acknowledges a success only when it delivered it to an `onSettled` callback. A watcher with no callback (`useHeldWrites`, `HeldWritesNotice`, app-wide followers) leaves the success unacknowledged, so the gate keeps blocking, the view shows `succeeded`, and the notice offers "Send it again" until the user acts.
+
 ## 2.41.1
 
 ### Patch Changes
