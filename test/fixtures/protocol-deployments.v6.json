@@ -6,7 +6,7 @@
   },
   "extensions": {
     "mejango/sticky": {
-      "commit": "b3835db805786e680f5cc27e700d7be660fdba1f",
+      "commit": "fce29cca5c20330c0db4494e5cfc1af2e5de7174",
       "contracts": [
         "StickyDeployer",
         "StickyHook",
@@ -156,23 +156,23 @@
       "abiSha256": "b6ade0d07cae6b6a04e6dd4da5408aa9b3e6ad8a967667cda1792ebe96fa4ba0"
     },
     "StickyDeployer": {
-      "address": "0xda38ec48b5b1d186b02ba99f297e95153bee33a9",
-      "abiSha256": "ef52e05a473f89240da21fd9b6b8a779cd3b65b0a7443f20f1165ded459406e9"
+      "address": "0x78d3809db6221b41f72375eb7361b2a43d29b27a",
+      "abiSha256": "4501e443817e18d93d830207999791fd28491b12298a3c5b7065e162cfe726bc"
     },
     "StickyHook": {
-      "address": "0xa8dcd735031cf96c4213d9a3f66a1dffdcdba693",
-      "abiSha256": "4303ed3929ee3ede1e521b7c0652c7a1815430c74ef4b56da8f436752c1abaf5"
+      "address": "0x57bb7161afce10a12b1761483bfc61dfcb2c4df5",
+      "abiSha256": "c8df4274ce348aa5ca4f7a2f52d9f172bfdaedf4de9f1dcb7e0de1c55ee5404d"
     },
     "StickyDistributor": {
-      "address": "0xc62b3fed668cd8a3879ba34890a67c48a52b1bb8",
+      "address": "0x489d011dc34983eb2e219a5010806caa418cb46b",
       "abiSha256": "2bb86c314be7eff19b5cb7acfaeccf8a3d2258f8a28e262c98b1bc4ad08bf054"
     },
     "StickyRewardReceiverFactory": {
-      "address": "0x41aec7aacea4759f2c8aabd68d4a4c1574a6a737",
+      "address": "0xe7ffa07476f2ca35cee3548538541b335ef3a2b7",
       "abiSha256": "e4e01d8cea570a163dc84f484bd803c46fe0ec0ceb7103f5013c2f630a42b461"
     },
     "StickyAutoStick": {
-      "address": "0x9b091e21d25c424de67751f4b6ae8494351218c5",
+      "address": "0x866e6f89964afb151eb6f91fc7eb53483689e89c",
       "abiSha256": "59fd0f970e7e28a90b36c43354eff55999ce1250747b218b82d9f0a5a6b6940f"
     },
     "REVDeployer": {

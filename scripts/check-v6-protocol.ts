@@ -5,6 +5,8 @@ import { basename, dirname, join, resolve } from "node:path";
 import { validateRolloutDeployment } from "../packages/core/scripts/validateRolloutDeployment.js";
 import * as bindingsModule from "../packages/core/src/generated/juicebox.js";
 
+import { stickySourceCollectorDeployments } from "../packages/core/src/generated/stickySourceCollectors.js";
+
 type AbiParameter = {
   components?: AbiParameter[];
   indexed?: boolean;
@@ -644,6 +646,19 @@ if (!deploymentsRoot) {
   process.exit(0);
 }
 
+const stickyRoot = extensionRoot("mejango/sticky");
+invariant(
+  JSON.stringify(stickySourceCollectorDeployments) ===
+    JSON.stringify(
+      JSON.parse(
+        readFileSync(
+          join(stickyRoot, "web/src/lib/sticky-source-collectors.json"),
+          "utf8",
+        ),
+      ),
+    ),
+  "Sticky collector deployments differ from the pinned verified export; regenerate the SDK.",
+);
 const root = checkedDeploymentsRoot();
 const contractRoots = Object.fromEntries(
   contractNames.map((name) => [name, checkedDeploymentsRoot(name)]),

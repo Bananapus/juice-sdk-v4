@@ -51,20 +51,20 @@ describe("contract helpers", () => {
   test.each([
     [
       StickyContracts.StickyDeployer,
-      "0xdA38Ec48B5b1d186B02BA99F297e95153BEE33a9",
+      "0x78d3809db6221b41f72375eb7361b2a43d29b27a",
     ],
-    [StickyContracts.StickyHook, "0xa8DcD735031cf96C4213D9A3f66a1DFFDCdba693"],
+    [StickyContracts.StickyHook, "0x57bb7161afce10a12b1761483bfc61dfcb2c4df5"],
     [
       StickyContracts.StickyDistributor,
-      "0xc62b3fED668Cd8a3879ba34890a67C48a52b1Bb8",
+      "0x489d011dc34983eb2e219a5010806caa418cb46b",
     ],
     [
       StickyContracts.StickyRewardReceiverFactory,
-      "0x41AEC7AacEa4759F2c8AaBD68D4a4C1574A6A737",
+      "0xe7ffa07476f2ca35cee3548538541b335ef3a2b7",
     ],
     [
       StickyContracts.StickyAutoStick,
-      "0x9B091e21d25c424De67751F4b6Ae8494351218C5",
+      "0x866e6f89964afb151eb6f91fc7eb53483689e89c",
     ],
   ])("registers %s at %s on every supported chain", (contract, address) => {
     const chainIds = Object.keys(SUPPORTED_CHAINS);

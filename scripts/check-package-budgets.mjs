@@ -262,9 +262,11 @@ const budgets = {
     // useHeldSend and the hooks' shared view actions (two modules, 16
     // artifacts) with five intent builders measured 1,559,165 B packed /
     // 22,368,314 B unpacked and 922 entries.
-    packed: 1_566_000,
-    unpacked: 22_385_000,
-    entries: 922,
+    // Verified Sticky source/home families add one generated module (eight
+    // ESM/CJS artifacts): 1,567,282 B packed, 22,498,259 B unpacked, 930 files.
+    packed: 1_575_000,
+    unpacked: 22_520_000,
+    entries: 930,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

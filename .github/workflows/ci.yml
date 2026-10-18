@@ -34,9 +34,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: mejango/sticky
-          ref: b3835db805786e680f5cc27e700d7be660fdba1f
+          ref: fce29cca5c20330c0db4494e5cfc1af2e5de7174
           path: .contract-source/sticky
-          sparse-checkout: deployments
+          sparse-checkout: |
+            deployments
+            web/src/lib
           sparse-checkout-cone-mode: true
           persist-credentials: false
       - name: Set up Node.js
