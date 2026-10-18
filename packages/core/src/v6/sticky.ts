@@ -20,6 +20,7 @@ import { SPLITS_TOTAL_PERCENT } from "../pureConstants.js";
 import type { JBChainId } from "../types.js";
 import { buildSplit, type JBSplit } from "./splits.js";
 import { v6Address } from "./types.js";
+import { stickySourceCollectorDeployments } from "../generated/stickySourceCollectors.js";
 
 /**
  * A split routes funds to Sticky holders when its `hook` is the chain's
@@ -543,7 +544,7 @@ const stickySuckerIdentityAbi = [
 ] as const;
 
 /**
- * A reviewed, actually deployed collector and fee child on one source chain.
+ * A reviewed, actually deployed collector and fee payer on one source chain.
  * Obtain hashes and bindings from verified deployment artifacts, never predictions
  * or the target's own getters. A destination family has one address across sources.
  */
@@ -560,9 +561,9 @@ export interface StickySourceCollectorDeployment {
   receiverFactory: Address;
 }
 
-/** No new collector family has been published as a verified live deployment yet. */
+/** Verified source/home families generated from the pinned Sticky release. */
 export const STICKY_SOURCE_COLLECTOR_DEPLOYMENTS: readonly StickySourceCollectorDeployment[] =
-  [];
+  stickySourceCollectorDeployments;
 
 /**
  * Find a deployed source/home pair. Unknown or conflicting family records fail
@@ -1102,8 +1103,8 @@ export async function verifyStickyCollectorRoute(
       throw new Error(
         "Sticky destination peer does not match the source route.",
       );
-    // The fee child can return only same-call refunds. Native Arbitrum L1
-    // retryables refund later on L2, where the child cannot attribute or return
+    // The fee payer can return only same-call refunds. Native Arbitrum L1
+    // retryables refund later on L2, where the fee payer cannot attribute or return
     // that caller's payment. This is a qualification mitigation, not a contract
     // restriction or a fix to the upstream asynchronous refund destination.
     const transport = await classifySuckerTransport(sourceClient, sucker);

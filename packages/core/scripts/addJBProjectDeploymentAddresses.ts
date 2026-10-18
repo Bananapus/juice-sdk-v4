@@ -5,9 +5,12 @@ import {
   SUPPORTED_CHAINS,
 } from "../src/contracts.js";
 import fs from "fs";
+import { format } from "prettier";
+import { resolve } from "node:path";
 import { aliasRouterAbis } from "./aliasRouterAbis.js";
 import { REVIEW_DECODER_ABIS, splitAbiModules } from "./splitAbiModules.js";
 import {
+  deploymentFilePath,
   getAllContractNames,
   getHistoricalContract,
   isMissingDeployment,
@@ -187,6 +190,29 @@ async function addDefaultAddresses() {
     fs.writeFileSync(`src/generated/abi/${name}.ts`, module);
   }
   fs.writeFileSync(filePath, bindings.source + content);
+  // Sticky owns receipt and constructor validation. Consume its checked export,
+  // rather than teaching SDK generation a second artifact format.
+  const stickyArtifact = deploymentFilePath(
+    "@bananapus/sticky-v6/deployments/ethereum/StickyHook.json",
+  );
+  const collectors = JSON.parse(
+    fs.readFileSync(
+      resolve(
+        stickyArtifact,
+        "../../../web/src/lib/sticky-source-collectors.json",
+      ),
+      "utf8",
+    ),
+  );
+  if (!Array.isArray(collectors))
+    throw new Error("Invalid Sticky collector export");
+  fs.writeFileSync(
+    "src/generated/stickySourceCollectors.ts",
+    await format(
+      `// Generated from the pinned Sticky verified deployment export. Do not edit.\nexport const stickySourceCollectorDeployments = ${JSON.stringify(collectors, null, 2)} as const;\n`,
+      { parser: "typescript" },
+    ),
+  );
 }
 
 addDefaultAddresses();

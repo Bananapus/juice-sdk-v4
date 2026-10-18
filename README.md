@@ -1480,6 +1480,13 @@ Sticky (`StickyDeployer`, `StickyHook`, `StickyDistributor`,
 has no npm artifacts: generation reads `STICKY_DEPLOYMENTS_DIR` when set,
 otherwise a `mejango/sticky` checkout at `../extensions/sticky`, then a pinned
 `.contract-source/sticky` checkout, and fails when none exists.
+
+`STICKY_SOURCE_COLLECTOR_DEPLOYMENTS` is generated from that pinned checkout's
+verified collector export, covering every supported source/home pair within each
+network environment. Recognition is deployment evidence: call
+`verifyStickyCollectorRoute` to check the live runtime, bindings, destination pool
+and transport before preparing a source allocation. A deployed family does not prove that a particular pool or transport lane is ready.
+
 Missing records in a selected tree stay absent; malformed records fail the
 build. Hook, router, gateway and ratio-feed artifacts (including retained
 generations) must identify the expected contract and chain and contain a successful

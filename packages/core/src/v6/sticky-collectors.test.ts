@@ -13,6 +13,7 @@ import {
 import { describe, expect, test, vi } from "vitest";
 import { SPLITS_TOTAL_PERCENT } from "../pureConstants.js";
 import { v6Address } from "./types.js";
+import type { JBChainId } from "../types.js";
 import {
   STICKY_SOURCE_COLLECTOR_DEPLOYMENTS,
   stickySourceCollectorAbi,
@@ -176,9 +177,30 @@ const wrongRead =
       : undefined;
 
 describe("Sticky collector deployment identity", () => {
-  test("does not advertise predictions as deployments", () => {
-    expect(STICKY_SOURCE_COLLECTOR_DEPLOYMENTS).toEqual([]);
-    expect(stickySourceCollectorDeployment(10, 1)).toBeUndefined();
+  test("recognizes every verified source/home pair and no unsupported chain", () => {
+    const environments = [
+      [1, 10, 8453, 42161],
+      [11155111, 11155420, 84532, 421614],
+    ];
+    expect(STICKY_SOURCE_COLLECTOR_DEPLOYMENTS).toHaveLength(32);
+    for (const chains of environments) {
+      for (const source of chains)
+        for (const home of chains) {
+          const found = stickySourceCollectorDeployment(source, home);
+          expect(found).toBeDefined();
+          expect(stickySourceCollectorAt(source, found!.address)).toEqual(
+            found,
+          );
+          expect(found!.receiverFactory.toLowerCase()).toBe(
+            v6Address(
+              "StickyRewardReceiverFactory",
+              source as JBChainId,
+            ).toLowerCase(),
+          );
+        }
+    }
+    expect(stickySourceCollectorDeployment(10, 11155111)).toBeUndefined();
+    expect(stickySourceCollectorDeployment(999, 1)).toBeUndefined();
     expect(stickySourceCollectorAt(10, COLLECTOR)).toBeUndefined();
     expect(stickySourceCollectorAt(10, "0x1234", [deployment])).toBeUndefined();
   });
