@@ -10,7 +10,10 @@ import {
   MAX_RESERVED_PERCENT,
   NATIVE_TOKEN,
 } from "../constants.js";
-import { jbMultiTerminalAbi } from "../generated/juicebox.js";
+import {
+  jbBuybackHookRegistryAbi,
+  jbMultiTerminalAbi,
+} from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
 import { getJBContractAddress } from "../utils/contracts.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
@@ -115,11 +118,11 @@ export interface PayPreview {
  * terminal's `previewPayFor(projectId, token, amount, beneficiary, metadata)`.
  *
  * When the buyback hook wins the route, the terminal mints nothing itself and
- * reports zero; the hook's 1.4 pay specification carries the swap quote. This
- * reads it with the same rule the router terminal scores routes by
- * (`JBPayRouteResolver._effectivePreviewPayTokenCounts`), so direct and routed
- * previews agree. Older hooks' shorter specifications are ignored, as the router
- * ignores them.
+ * reports zero; the hook's pay specification carries the swap quote. This folds
+ * it in with the router terminal's scoring rule (see
+ * {@link effectivePayPreview}), for the hook the buyback registry resolves for
+ * the project, 1.4 or 1.1.1. The swap figure ignores pool fees and price
+ * impact, so use {@link prepareUserPay} for a payment's minimum.
  *
  * @param client A viem public client on the given chain.
  * @param args.chainId The chain to preview on.
@@ -129,61 +132,29 @@ export interface PayPreview {
  * @param args.amount The amount being paid, as a fixed point number with the token's
  * decimals.
  * @param args.beneficiary The address that would receive the project tokens.
- * @param args.metadata Hook metadata (e.g. from {@link buildUserPayMetadata}).
- * Defaults to "0x".
+ * @param args.metadata Hook metadata. Defaults to "0x".
  * @returns The previewed token counts.
  */
 export async function previewPay(
   client: PublicClient,
-  {
-    chainId,
-    terminal,
-    projectId,
-    token,
-    amount,
-    beneficiary,
-    metadata = "0x",
-  }: {
-    chainId: JBChainId;
-    terminal: Address;
-    projectId: bigint;
-    token: Address;
-    amount: bigint;
-    beneficiary: Address;
-    metadata?: Hex;
-  },
+  args: PayArgs & { metadata?: Hex },
 ): Promise<PayPreview> {
-  const [
-    ruleset,
-    beneficiaryTokenCount,
-    reservedTokenCount,
-    hookSpecifications,
-  ] = await client.readContract({
-    address: terminal,
-    abi: jbMultiTerminalAbi,
-    functionName: "previewPayFor",
-    args: [projectId, token, amount, beneficiary, metadata],
-  });
-
-  return effectivePayPreview({
-    buybackHook: buybackHookOf(chainId),
-    beneficiaryTokenCount,
-    reservedTokenCount,
-    weight: ruleset.weight,
-    hookSpecifications,
-  });
+  return (await readPay(client, args)).preview;
 }
 
-function buybackHookOf(chainId: JBChainId): Address | null {
-  try {
-    return getJBContractAddress("JBBuybackHook", 6, chainId);
-  } catch {
-    return null;
-  }
+interface PayArgs {
+  chainId: JBChainId;
+  terminal: Address;
+  projectId: bigint;
+  token: Address;
+  amount: bigint;
+  beneficiary: Address;
 }
 
-/** The fields of buyback 1.4's 17-word pay specification the SDK reads. */
+/** The fields of a buyback pay specification the SDK reads. */
 interface BuybackPaySpec {
+  hook: Address;
+  noop: boolean;
   projectTokenIs0: boolean;
   amountToMintWith: bigint;
   minimumSwapAmountOut: bigint;
@@ -203,13 +174,23 @@ type PayHookSpecification = {
   metadata: Hex;
 };
 
-/** Decode a 1.4 buyback pay spec; older hooks' 15-word specs return null. */
-function decodeBuybackPaySpec(metadata: Hex): BuybackPaySpec | null {
-  if ((metadata.length - 2) / 64 < 17) return null;
+/**
+ * Decode a buyback pay specification: 17 words on 1.4, 15 on 1.1.1, which
+ * share the first 15. 1.1.1 has no `skipSplits` and reports no reserved
+ * percent, so the ruleset's is used.
+ */
+function decodeBuybackPaySpec(
+  spec: PayHookSpecification,
+  rulesetReservedPercent: bigint,
+): BuybackPaySpec | null {
+  const words = (spec.metadata.length - 2) / 64;
+  if (words !== 15 && words < 17) return null;
   const word = (i: number) =>
-    `0x${metadata.slice(2 + i * 64, 2 + (i + 1) * 64)}` as Hex;
+    `0x${spec.metadata.slice(2 + i * 64, 2 + (i + 1) * 64)}` as Hex;
   const uint = (i: number) => BigInt(word(i));
   return {
+    hook: spec.hook,
+    noop: spec.noop,
     projectTokenIs0: uint(0) !== 0n,
     amountToMintWith: uint(1),
     minimumSwapAmountOut: uint(2),
@@ -219,8 +200,8 @@ function decodeBuybackPaySpec(metadata: Hex): BuybackPaySpec | null {
     poolId: word(10),
     rawSwapQuote: uint(13),
     oracleUnseeded: uint(14) !== 0n,
-    skipSplits: uint(15) !== 0n,
-    reservedPercent: uint(16),
+    skipSplits: words >= 17 && uint(15) !== 0n,
+    reservedPercent: words >= 17 ? uint(16) : rulesetReservedPercent,
   };
 }
 
@@ -234,29 +215,34 @@ function splitOf(tokenCount: bigint, reservedPercent: bigint): PayPreview {
   };
 }
 
+/** Tokens the hook's direct-mint leg issues, as the hook computes them. */
+function directMintOf(spec: BuybackPaySpec, weight: bigint): bigint {
+  return spec.amountToMintWith !== 0n && spec.weightRatio !== 0n
+    ? (spec.amountToMintWith * weight) / spec.weightRatio
+    : 0n;
+}
+
 /**
- * Fold the buyback hook's pay specification into a terminal preview. Mirrors
- * `JBPayRouteResolver._effectivePreviewPayTokenCounts` and
- * `_hookPreviewPayTokenCounts`.
- *
- * `floorOnly` scores the swap leg at the hook's TWAP floor instead of its raw
- * quote. The raw quote is the TWAP price times the amount, with no pool fee or
- * price impact, so only the floor is safe as a `minReturnedTokens`.
+ * Fold the buyback hook's pay specification into a terminal preview, with the
+ * rule `JBPayRouteResolver._effectivePreviewPayTokenCounts` scores routes by.
+ * The swap leg uses the hook's raw quote: the TWAP price times the amount, with
+ * no pool fee or price impact. It is a ranking figure, not a minimum.
  */
 export function effectivePayPreview({
   buybackHook,
   beneficiaryTokenCount,
   reservedTokenCount,
   weight,
+  reservedPercent = 0n,
   hookSpecifications,
-  floorOnly = false,
 }: {
   buybackHook: Address | null;
   beneficiaryTokenCount: bigint;
   reservedTokenCount: bigint;
   weight: bigint;
+  /** The ruleset's reserved percent, for 1.1.1 specs. */
+  reservedPercent?: bigint;
   hookSpecifications: readonly PayHookSpecification[];
-  floorOnly?: boolean;
 }): PayPreview {
   let best: PayPreview = { beneficiaryTokenCount, reservedTokenCount };
   if (
@@ -270,15 +256,11 @@ export function effectivePayPreview({
     if (spec.noop || spec.hook.toLowerCase() !== buybackHook.toLowerCase()) {
       continue;
     }
-    const decoded = decodeBuybackPaySpec(spec.metadata);
+    const decoded = decodeBuybackPaySpec(spec, reservedPercent);
     if (!decoded) continue;
 
-    const directMintTokenCount =
-      decoded.amountToMintWith !== 0n && decoded.weightRatio !== 0n
-        ? (decoded.amountToMintWith * weight) / decoded.weightRatio
-        : 0n;
+    const directMintTokenCount = directMintOf(decoded, weight);
     const swapTokenCount =
-      !floorOnly &&
       !decoded.oracleUnseeded &&
       decoded.rawSwapQuote > decoded.minimumSwapAmountOut
         ? decoded.rawSwapQuote
@@ -300,6 +282,93 @@ export function effectivePayPreview({
     }
   }
   return best;
+}
+
+/**
+ * What the payer receives if the hook mints instead of swapping. The hook
+ * swaps only while the pool beats this rate, and unwinds to it when a swap
+ * underfills, so every honest settlement clears it.
+ */
+function mintEntitlementOf(spec: BuybackPaySpec, weight: bigint): bigint {
+  const swapLeg = spec.skipSplits
+    ? spec.tokenCountWithoutHook
+    : splitOf(spec.tokenCountWithoutHook, spec.reservedPercent)
+        .beneficiaryTokenCount;
+  return (
+    swapLeg +
+    splitOf(directMintOf(spec, weight), spec.reservedPercent)
+      .beneficiaryTokenCount
+  );
+}
+
+/** One terminal preview, with the project's buyback spec decoded. */
+async function readPay(
+  client: PublicClient,
+  {
+    chainId,
+    terminal,
+    projectId,
+    token,
+    amount,
+    beneficiary,
+    metadata = "0x",
+  }: PayArgs & { metadata?: Hex },
+): Promise<{
+  preview: PayPreview;
+  terminalBeneficiaryTokenCount: bigint;
+  weight: bigint;
+  buyback: BuybackPaySpec | null;
+}> {
+  const [
+    [ruleset, beneficiaryTokenCount, reservedTokenCount, hookSpecifications],
+    buybackHook,
+  ] = await Promise.all([
+    client.readContract({
+      address: terminal,
+      abi: jbMultiTerminalAbi,
+      functionName: "previewPayFor",
+      args: [projectId, token, amount, beneficiary, metadata],
+    }),
+    resolvedBuybackHookOf(client, chainId, projectId),
+  ]);
+  const reservedPercent = (ruleset.metadata >> 4n) & 0xffffn;
+  const spec = buybackHook
+    ? hookSpecifications.find(
+        (s) => s.hook.toLowerCase() === buybackHook.toLowerCase(),
+      )
+    : undefined;
+  return {
+    preview: effectivePayPreview({
+      buybackHook,
+      beneficiaryTokenCount,
+      reservedTokenCount,
+      weight: ruleset.weight,
+      reservedPercent,
+      hookSpecifications,
+    }),
+    terminalBeneficiaryTokenCount: beneficiaryTokenCount,
+    weight: ruleset.weight,
+    buyback: spec ? decodeBuybackPaySpec(spec, reservedPercent) : null,
+  };
+}
+
+/** The buyback hook the registry resolves for a project, or null. */
+async function resolvedBuybackHookOf(
+  client: PublicClient,
+  chainId: JBChainId,
+  projectId: bigint,
+): Promise<Address | null> {
+  try {
+    const hook = await client.readContract({
+      address: getJBContractAddress("JBBuybackHookRegistry", 6, chainId),
+      abi: jbBuybackHookRegistryAbi,
+      functionName: "hookOf",
+      args: [projectId],
+    });
+    return hook === zeroAddress ? null : hook;
+  } catch {
+    return null;
+  }
 }
 
 /** A pay card's whole payment: what to send, what to show, what to require. */
@@ -338,81 +407,49 @@ const poolKeyOfAbi = [
  * Prepare a person's payment with {@link buildUserPayMetadata}: preview it,
  * and set the minimum the terminal enforces on the beneficiary's balance.
  *
- * When the buyback hook's pool is in the paid token, this quotes that pool
- * (fee and price impact included) and sends the slippage-floored quote as an
- * explicit minimum. The hook then swaps whenever the pool beats the payer's
- * share of a mint, and reverts below the floor. Without it the hook routes by
- * its TWAP floor, which reaches zero on large buys against a thin pool and
- * sends them to minting even when the pool pays far more. Otherwise (no pool,
- * an older hook, or a router converting the token first) the hook routes by
- * TWAP and the minimum is its floor.
+ * When the project's buyback hook honors `skipSplits` and its pool is in the
+ * paid token, this quotes that pool (fee and price impact included) and sends
+ * the slippage-floored quote as an explicit minimum. The hook then swaps
+ * whenever the pool beats the payer's share of a mint, and reverts below the
+ * floor. Without it the hook routes by its TWAP floor, which reaches zero on
+ * large buys against a thin pool and sends them to minting even when the pool
+ * pays far more.
  *
- * @param args.slippageBps Tolerance on the pool quote and on non-swap
- * previews. Defaults to 100 (1%).
+ * Otherwise (no pool, hook 1.1.1, a router converting the token first, or a
+ * failed quote) the hook routes by TWAP. The minimum is then the payer's mint
+ * entitlement when the hook would swap, since the hook never settles below it,
+ * and the terminal's own issuance when it would not.
+ *
+ * @param args.slippageBps Tolerance on the pool quote and on the fallback
+ * minimum. Defaults to 100 (1%).
  */
 export async function prepareUserPay(
   client: PublicClient,
   {
-    chainId,
-    terminal,
-    projectId,
-    token,
-    amount,
-    beneficiary,
     tiers,
     slippageBps = 100n,
-  }: {
-    chainId: JBChainId;
-    terminal: Address;
-    projectId: bigint;
-    token: Address;
-    amount: bigint;
-    beneficiary: Address;
-    tiers?: UserPayTiers;
-    slippageBps?: bigint;
-  },
+    ...args
+  }: PayArgs & { tiers?: UserPayTiers; slippageBps?: bigint },
 ): Promise<PreparedUserPay> {
+  const { chainId, projectId, token } = args;
   const metadata = buildUserPayMetadata({ chainId, tiers });
-  const [
-    ruleset,
-    beneficiaryTokenCount,
-    reservedTokenCount,
-    hookSpecifications,
-  ] = await client.readContract({
-    address: terminal,
-    abi: jbMultiTerminalAbi,
-    functionName: "previewPayFor",
-    args: [projectId, token, amount, beneficiary, metadata],
-  });
-  const fold = (floorOnly: boolean) =>
-    effectivePayPreview({
-      buybackHook: buybackHookOf(chainId),
-      beneficiaryTokenCount,
-      reservedTokenCount,
-      weight: ruleset.weight,
-      hookSpecifications,
-      floorOnly,
-    });
-  const preview = fold(false);
+  const { preview, terminalBeneficiaryTokenCount, weight, buyback } =
+    await readPay(client, { ...args, metadata });
   const fallback: PreparedUserPay = {
     metadata,
     preview,
     minReturnedTokens: slippageFloor(
-      fold(true).beneficiaryTokenCount,
+      buyback && !buyback.noop
+        ? mintEntitlementOf(buyback, weight)
+        : terminalBeneficiaryTokenCount,
       slippageBps,
     ),
   };
-
-  const buybackHook = buybackHookOf(chainId);
-  const spec = hookSpecifications.find(
-    (s) => !!buybackHook && s.hook.toLowerCase() === buybackHook.toLowerCase(),
-  );
-  const decoded = spec ? decodeBuybackPaySpec(spec.metadata) : null;
-  if (!spec || !decoded || decoded.amountToSwapWith === 0n) return fallback;
+  if (!buyback?.skipSplits || buyback.amountToSwapWith === 0n) return fallback;
 
   try {
     const poolKey = await client.readContract({
-      address: spec.hook,
+      address: buyback.hook,
       abi: poolKeyOfAbi,
       functionName: "poolKeyOf",
       args: [
@@ -423,19 +460,26 @@ export async function prepareUserPay(
       ],
     });
     // A router converts the paid token first, so its pool is a different one.
-    if (uniswapV4PoolId(poolKey) !== decoded.poolId) return fallback;
+    if (uniswapV4PoolId(poolKey) !== buyback.poolId) return fallback;
     const quote = await quoteUniswapV4ExactInputSingle(client, {
       chainId,
       poolKey,
-      zeroForOne: !decoded.projectTokenIs0,
-      amountIn: decoded.amountToSwapWith,
+      zeroForOne: !buyback.projectTokenIs0,
+      amountIn: buyback.amountToSwapWith,
     });
     const minimumSwapAmountOut = slippageFloor(quote, slippageBps);
     // The pool loses to minting: leave the payment on the mint path.
-    if (minimumSwapAmountOut <= decoded.tokenCountWithoutHook) return fallback;
+    if (minimumSwapAmountOut <= buyback.tokenCountWithoutHook) return fallback;
+    const directMint = splitOf(
+      directMintOf(buyback, weight),
+      buyback.reservedPercent,
+    );
     return {
       metadata: buildUserPayMetadata({ chainId, tiers, minimumSwapAmountOut }),
-      preview: { beneficiaryTokenCount: quote, reservedTokenCount: 0n },
+      preview: {
+        beneficiaryTokenCount: quote + directMint.beneficiaryTokenCount,
+        reservedTokenCount: directMint.reservedTokenCount,
+      },
       minReturnedTokens: minimumSwapAmountOut,
     };
   } catch {
