@@ -64,8 +64,9 @@ describe("published core SDK surfaces", () => {
     expect(sdk.retryAfterOf({ retryAfter: 60 })).toBe(60);
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
     expect(v6.buildAutoIssueTx).toBeTypeOf("function");
-    expect(v6.quoteDirectPaySwap).toBeTypeOf("function");
-    expect(v6.buildDirectPaySwapTx).toBeTypeOf("function");
+    expect(v6.prepareUserPay).toBeTypeOf("function");
+    expect(v6.buildUserPayMetadata).toBeTypeOf("function");
+    expect("quoteDirectPaySwap" in v6).toBe(false);
     expect(v6.permit2TypedData).toBeTypeOf("function");
     expect(v6.netLoanProceeds).toBeTypeOf("function");
     expect(v6.build721RulesetMetadata).toBeTypeOf("function");

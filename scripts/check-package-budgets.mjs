@@ -8,7 +8,7 @@ const budgets = {
   "@bananapus/nana-sdk-core": {
     directory: "packages/core",
     // Includes the public Bendystraw transport, supported-chain definitions,
-    // direct-pay routing, Permit2 helpers, the viem error discriminators, the
+    // Permit2 helpers, the viem error discriminators, the
     // price-feed reachability probe, the Uniswap V4 LP-split-hook ABIs, and
     // tree-shakable loan/deployment and JB Center entry points in both ESM and
     // CJS formats, plus the router gateway, ratio feed, and preserved router/
