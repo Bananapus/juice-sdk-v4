@@ -278,8 +278,11 @@ const budgets = {
     // The Uniswap V3 quoter, a module of its own for router-converted pays,
     // adds eight artifacts: 1,583,013 B packed, 22,942,400 B unpacked, 1,722
     // files.
-    packed: 1_590_000,
-    unpacked: 22_960_000,
+    // Typed-only revert matching, the pay-retry rule and the write hold's
+    // release on a canonical revert change existing artifacts only:
+    // 1,587,702 B packed, 22,966,884 B unpacked, 1,722 files.
+    packed: 1_595_000,
+    unpacked: 22_980_000,
     entries: 1_722,
   },
   "@bananapus/nana-sdk-react": {

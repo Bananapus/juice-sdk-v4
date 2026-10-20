@@ -2091,8 +2091,9 @@ export function safeProposalIsHeldCall(
  * Ordinary wallet wrappers are allowed: the wallet's returned hash binds their
  * execution. A wallet-returned Safe proposal hash authenticates its execution
  * event even through a wrapper; an immediate execution hash additionally needs
- * exact reviewed calldata. A failure releases only after finality;
- * `finality: false` authenticates a canonical failure before it is final.
+ * exact reviewed calldata. A failure releases only after finality by
+ * default; `finality: false` authenticates a canonical failure before it is
+ * final (the write hold passes it for direct writes).
  * Throws on missing or inconsistent evidence; the caller retains its record.
  */
 export async function verifyReviewedWriteReceipt(

@@ -15,7 +15,10 @@ export * from "./projectPayers.js";
 export * from "./cashOut.js";
 export {
   decodePayFailure,
+  PAY_MAX_SLIPPAGE_BPS,
+  payRetrySlippageBps,
   type PayFailure,
+  type PayFailureAdjustable,
   type PayFailureReason,
 } from "./executionErrors.js";
 export * from "./nft.js";

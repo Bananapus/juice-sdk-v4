@@ -898,7 +898,9 @@ export function verifyDefifaNftReceipt(
 }
 
 /**
- * The exact reviewed action failed in a canonical finalized block. This closes
+ * The exact reviewed action failed: a direct call's own transaction reverted
+ * in a canonical block (no finality wait, as the write hold releases it), or
+ * a Safe execution failed in a canonical finalized block. This closes
  * only that attempt; retain its evidence and review any new intent separately.
  * A reverted Safe outer executor alone does not establish this outcome.
  */
@@ -909,14 +911,14 @@ export class DefifaNftTransactionRevertedError extends Error {
     readonly hash: Hex,
     readonly chainId: number,
   ) {
-    super("The reviewed Defifa transaction failed onchain and is finalized.");
+    super("The reviewed Defifa transaction failed onchain.");
   }
 }
 
 /**
  * Authenticate canonical execution using the SDK's existing transaction/Safe
  * proof owners, then prove native NFT effects. Only
- * DefifaNftTransactionRevertedError proves finalized failure. Retain context
+ * DefifaNftTransactionRevertedError proves failure. Retain context
  * and receipt on other errors and retry this read-only function; do not resend.
  */
 export async function verifyDefifaNftTransaction(
@@ -998,12 +1000,16 @@ export async function verifyDefifaNftTransaction(
       });
     } catch (error) {
       if (!(error instanceof RelayrDestinationRevertedError)) throw error;
-      // Exact call/account proof precedes finality. The existing reviewed-write
-      // owner rejects nonfinal receipts and reorgs before this attempt releases.
+      // Exact call/account proof comes first. The reviewed-write owner then
+      // proves the revert is in a canonical block, as the write hold does,
+      // without waiting for finality; a block it can't show canonical keeps
+      // this attempt pending.
       const status = await verifyReviewedWriteReceipt(
         proofClient,
         record,
         canonical,
+        undefined,
+        { finality: false },
       );
       if (status !== "failed") throw error;
       throw new DefifaNftTransactionRevertedError(

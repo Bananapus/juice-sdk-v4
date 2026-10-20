@@ -551,8 +551,8 @@ describe("canonical Defifa transaction verification", () => {
   });
 });
 
-describe("native finalized failure classification", () => {
-  test("authenticates and finalizes a reverted exact direct call before classifying it", async () => {
+describe("native failure classification", () => {
+  test("authenticates a reverted exact direct call in a canonical block and classifies it before finality", async () => {
     const run = proofFixture();
     run.receipt.status = "reverted";
     run.receipt.logs = [];
@@ -565,28 +565,23 @@ describe("native finalized failure classification", () => {
       DefifaNftTransactionRevertedError,
     );
     await expect(proof).rejects.toMatchObject({ hash, chainId: 84532 });
-    expect(run.client.getBlock).toHaveBeenCalledWith({ blockTag: "finalized" });
+    expect(run.client.getBlock).not.toHaveBeenCalledWith({
+      blockTag: "finalized",
+    });
     expect(run.client.getTransaction).toHaveBeenCalledTimes(1);
     expect(run.client.getTransactionReceipt).toHaveBeenCalledTimes(1);
   });
 
-  test.each(["not-final", "unavailable", "reorg"])(
-    "keeps a direct revert pending when finality is %s",
+  test.each(["unavailable", "reorg"])(
+    "keeps a direct revert pending when its block is %s",
     async (reason) => {
       let reads = 0;
       const run = proofFixture({
-        getBlock: async ({ blockTag }: { blockTag?: "finalized" }) => {
+        getBlock: async () => {
           reads += 1;
-          if (blockTag === "finalized") {
-            if (reason === "unavailable") throw new Error("RPC unavailable");
-            return {
-              hash: blockHash,
-              number: reason === "not-final" ? 122n : 123n,
-              timestamp: 100n,
-            };
-          }
+          if (reason === "unavailable") throw new Error("RPC unavailable");
           return {
-            hash: reason === "reorg" && reads > 2 ? otherHash : blockHash,
+            hash: reason === "reorg" && reads > 0 ? otherHash : blockHash,
             number: 123n,
           };
         },
@@ -620,7 +615,7 @@ describe("native finalized failure classification", () => {
     },
   );
 
-  test("requires the finalized proof owner's failed result before releasing a direct attempt", async () => {
+  test("requires the proof owner's failed result before releasing a direct attempt", async () => {
     const verify = vi
       .spyOn(recovery, "verifyReviewedWriteReceipt")
       .mockResolvedValue("success");

@@ -10,12 +10,12 @@ import {
   HELD_AWAY_SUCCESS_LINE,
   HELD_CONFIRMING_LINE,
   HELD_EXPIRED_LINE,
+  HELD_FAILED_LINE,
   HELD_RELEASED_ELSEWHERE_LINE,
   HELD_RELEASED_LINE,
   HELD_SUCCESS_LINE,
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_PENDING_LINE,
-  WRITE_HOLD_REVERTED_LINE,
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
 } from "./messages.js";
 import {
@@ -151,7 +151,7 @@ describe("the shared copy and guards", () => {
       HELD_SUCCESS_LINE,
     );
     expect(settledLine({ result: "failed", hash: HASH })).toBe(
-      WRITE_HOLD_REVERTED_LINE,
+      HELD_FAILED_LINE,
     );
     expect(settledLine({ result: "expired" })).toBe(HELD_EXPIRED_LINE);
   });

@@ -2008,7 +2008,41 @@ describe("a held write", () => {
     });
   });
 
-  it("holds a revert until it is final, through a reorg, and never offers a resend", async () => {
+  it("releases a direct revert in a canonical block at once, so the payer can send again", async () => {
+    const { hold } = setup();
+    const { chain, client, receiptOf } = fakeChain();
+    const handle = hold.open(ordinary);
+    await handle.send(client, wallet(async () => HASH).send);
+    // Pending: held, no exit, no second send.
+    await expect(handle.state(client)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      exit: false,
+    });
+    await expect(
+      handle.send(client, wallet(async () => OTHER).send),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    // Reverted in a canonical block, long before the finalized block (90).
+    chain.txs.push(sent(HASH, { block: 95n, status: "reverted" }));
+    const failed = {
+      status: "clear",
+      reservation: expect.any(String),
+      settled: { result: "failed", hash: HASH },
+    };
+    await expect(
+      handle.onReceipt(receiptOf(chain.txs[0]), client),
+    ).resolves.toEqual(failed);
+    await expect(handle.state(client)).resolves.toEqual({
+      ...failed,
+      checked: true,
+    });
+    await handle.send(client, wallet(async () => OTHER).send);
+    expect(handle.peek()).toMatchObject({
+      status: "pending-known-hash",
+      hash: OTHER,
+    });
+  });
+
+  it("holds a revert whose block the node no longer shows canonical, through a reorg, and never offers a resend", async () => {
     vi.useFakeTimers();
     const { hold } = setup();
     const { chain, client, receiptOf } = fakeChain();
@@ -2017,7 +2051,12 @@ describe("a held write", () => {
     handle.subscribe((state) => seen.push(state));
     await handle.send(client, wallet(async () => HASH).send);
     chain.txs.push(sent(HASH, { block: 95n, status: "reverted" }));
-    const reverted = await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    const receipt = receiptOf(chain.txs[0]);
+    // A reorg replaces that block before the receipt is checked, and the
+    // transaction waits to be mined again.
+    chain.reorged.set(95n, OTHER);
+    chain.txs[0] = sent(HASH);
+    const reverted = await handle.onReceipt(receipt, client);
     expect(reverted).toMatchObject({
       status: "ran-executed",
       executionHash: HASH,
@@ -2028,8 +2067,7 @@ describe("a held write", () => {
     await expect(
       handle.send(client, wallet(async () => OTHER).send),
     ).rejects.toBeInstanceOf(WriteHeldError);
-    // A reorg drops that block; the same transaction lands again, successfully.
-    chain.reorged.set(95n, OTHER);
+    // The same transaction lands again, successfully.
     chain.txs[0] = sent(HASH, { block: 97n });
     await vi.advanceTimersByTimeAsync(1_000);
     expect(seen[seen.length - 1]).toEqual({
@@ -2041,33 +2079,6 @@ describe("a held write", () => {
     expect(handle.peek().status).toBe("clear");
   });
 
-  it("releases a revert once a finalized block includes it", async () => {
-    vi.useFakeTimers();
-    const { hold } = setup();
-    const { chain, client, receiptOf } = fakeChain();
-    const handle = hold.open(ordinary);
-    await handle.send(client, wallet(async () => HASH).send);
-    chain.txs.push(sent(HASH, { block: 95n, status: "reverted" }));
-    await handle.onReceipt(receiptOf(chain.txs[0]), client);
-    // A reload looks again and still holds it.
-    await expect(handle.state(client)).resolves.toMatchObject({
-      status: "ran-executed",
-    });
-    chain.head = 120n;
-    chain.finalized = 96n;
-    await vi.advanceTimersByTimeAsync(1_000);
-    const failed = {
-      status: "clear",
-      reservation: expect.any(String),
-      settled: { result: "failed", hash: HASH },
-    };
-    expect(handle.peek()).toEqual(failed);
-    await expect(handle.state(client)).resolves.toEqual({
-      ...failed,
-      checked: true,
-    });
-  });
-
   it("stops looking after its attempts, and a later state() looks again", async () => {
     vi.useFakeTimers();
     const { hold } = setup();
@@ -2075,7 +2086,15 @@ describe("a held write", () => {
     const handle = hold.open(ordinary);
     await handle.send(client, wallet(async () => HASH).send);
     chain.txs.push(sent(HASH, { block: 95n, status: "reverted" }));
-    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    // The node can't show whether its block is canonical: unknown, held.
+    const read = client.getBlock.getMockImplementation()!;
+    client.getBlock.mockImplementation(async (args = {}) => {
+      if (args.blockNumber === 95n) throw new Error("unavailable");
+      return read(args);
+    });
+    await expect(
+      handle.onReceipt(receiptOf(chain.txs[0]), client),
+    ).resolves.toMatchObject({ status: "ran-executed", exit: false });
     const reads = () => client.getTransactionReceipt.mock.calls.length;
     const before = reads();
     await vi.advanceTimersByTimeAsync(10_000);

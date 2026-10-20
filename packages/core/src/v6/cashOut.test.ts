@@ -552,17 +552,26 @@ describe("hook-aware cash-out routing", () => {
     expect(
       classifyCashOutExecutionError({
         message: "execution reverted",
-        cause: { details: "reverted with signature 0xe2d708a9" },
+        cause: {
+          data: `0xe2d708a9${"0".repeat(63)}1${"0".repeat(63)}2`,
+        },
       }),
     ).toEqual({
       code: "BUYBACK_SLIPPAGE_EXCEEDED",
       selector: "0xe2d708a9",
     });
+    // Text and an untyped error name are not revert data.
+    expect(
+      classifyCashOutExecutionError({
+        message: "execution reverted",
+        cause: { details: "reverted with signature 0xe2d708a9" },
+      }),
+    ).toBeNull();
     expect(
       classifyCashOutExecutionError({
         cause: { errorName: "JBMultiTerminal_UnderMin" },
       }),
-    ).toEqual({ code: "TERMINAL_UNDER_MIN", selector: "0x6b2bb382" });
+    ).toBeNull();
     expect(
       classifyCashOutExecutionError(new Error("user rejected")),
     ).toBeNull();

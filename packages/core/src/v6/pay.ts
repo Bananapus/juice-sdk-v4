@@ -492,6 +492,9 @@ const poolKeyOfAbi = [
   },
 ] as const;
 
+/** `prepareUserPay`'s tolerance on its quote and fallback minimum: 1%. */
+export const PAY_DEFAULT_SLIPPAGE_BPS = 100n;
+
 /**
  * The buyback pool a payment's spec reports, and the terminal token it is
  * keyed to, or null. A router converts the paid token first, so its pool is
@@ -833,7 +836,7 @@ async function routedBuybackSpecOf(
  * which reads nothing else.
  *
  * @param args.slippageBps Tolerance on the pool quote and on the fallback
- * minimum. Defaults to 100 (1%).
+ * minimum. Defaults to {@link PAY_DEFAULT_SLIPPAGE_BPS}.
  * @param args.skipSplits Whether the beneficiary keeps the swapped tokens
  * without the reserved split. Defaults to true, as a person's pay card does;
  * pass false for payments that should honor the project's splits, such as
@@ -843,7 +846,7 @@ export async function prepareUserPay(
   client: PublicClient,
   {
     tiers,
-    slippageBps = 100n,
+    slippageBps = PAY_DEFAULT_SLIPPAGE_BPS,
     skipSplits = true,
     ...args
   }: PayArgs & {
