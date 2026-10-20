@@ -246,9 +246,15 @@ describe("decodePayFailure", () => {
           contractAddress: token,
         },
       );
-    expect(decodePayFailure(rejected("0xe2d708a9"))).toBeNull();
-    expect(decodePayFailure(rejected("JBMultiTerminal_UnderMin"))).toBeNull();
-    expect(classifyCashOutExecutionError(rejected("0x6b2bb382"))).toBeNull();
+    for (const memo of [
+      "0xe2d708a9",
+      "JBMultiTerminal_UnderMin",
+      "Hello\n\n0x6b2bb382",
+      "Hello\n\nJBMultiTerminal_UnderMin",
+    ]) {
+      expect(decodePayFailure(rejected(memo))).toBeNull();
+      expect(classifyCashOutExecutionError(rejected(memo))).toBeNull();
+    }
   });
 
   test("a decoded error's name matches in any case", () => {

@@ -43,7 +43,11 @@ function collectEvidence(
   for (const item of [record.raw, record.data, record.signature]) {
     next(item, false);
   }
-  for (const item of [record.shortMessage, record.message, record.details]) {
+  // A viem error's full message repeats the call it made, arguments and all;
+  // its short message and details are the error itself.
+  const message =
+    typeof record.shortMessage === "string" ? undefined : record.message;
+  for (const item of [record.shortMessage, message, record.details]) {
     next(item, true);
   }
   next(record.cause, false);
@@ -291,7 +295,7 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
  * The first known revert in an error. Revert data, in its own field or quoted
  * in the error's text, counts only as a bare selector or a selector with
  * exactly its arguments, never as the start of a longer value such as an
- * address or calldata, and the request viem quotes is left out. Amounts come
+ * address or calldata, and the call or request viem quotes is left out. Amounts come
  * from revert data or a decoded error; otherwise a selector or a whole error
  * name names the reason alone.
  */
@@ -320,15 +324,8 @@ export function matchKnownRevert(
     );
     return { known: match, args };
   };
-  // viem quotes the request (its body, and the call and its arguments); only
-  // the rest describes the revert.
-  const text = messages
-    .join("\n")
-    .replace(/request body:[^\n]*/gi, "")
-    .replace(
-      /(?:contract call|raw call arguments):[\s\S]*?(?:\n\s*\n|$)/gi,
-      "",
-    );
+  // An HTTP error's details can quote the request body.
+  const text = messages.join("\n").replace(/request body:[^\n]*/gi, "");
   const quoted = [
     ...text.matchAll(
       /(?<![0-9a-fx])0x[0-9a-f]{8}(?:[0-9a-f]{64})*(?![0-9a-f])/gi,
