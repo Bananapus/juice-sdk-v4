@@ -114,7 +114,7 @@ export type WriteHoldClient = Pick<
 
 /** How a held write ended, when the hold saw it end. */
 export type WriteHoldSettled =
-  /** Its verified receipt (a revert only once final); `acknowledged` once the user saw it. */
+  /** Its verified receipt in a canonical block (a Safe failure only once final); `acknowledged` once the user saw it. */
   | { result: "success" | "failed"; hash: Hex; acknowledged?: true }
   /** A Safe proposal's expiry before it ran is proven. */
   | { result: "expired" };
@@ -1442,7 +1442,8 @@ export function createWriteHold(
       /**
        * A receipt for the held write: an ordinary write's own hash, or a Safe
        * proposal's execution (`proof`: its whole batch). It releases only once
-       * verified, and a revert only once final.
+       * verified in a canonical block, a direct write's revert at once, and a
+       * Safe failure only once final.
        */
       async onReceipt(
         receipt: TransactionReceipt,

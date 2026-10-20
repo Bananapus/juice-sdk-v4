@@ -421,8 +421,8 @@ export function matchKnownRevert(
  * minimum, the buyback hook's minimum and floor, the router's conversion,
  * paused or unready projects, token approvals and balances, and NFT tiers.
  * A shortfall carries `received` and `minimum`, and `adjustable` when the
- * payer can relax a setting and retry; `zeroFill` says the payment would
- * settle nothing, which no setting fixes. Unknown reverts return null.
+ * payer can relax a setting and retry; `zeroFill` says the failing check
+ * settled nothing, which no setting fixes. Unknown reverts return null.
  */
 export function decodePayFailure(error: unknown): PayFailure | null {
   const matched = matchKnownRevert(error);
