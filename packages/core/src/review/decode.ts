@@ -478,7 +478,7 @@ export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
 
 // ── Uniswap Universal Router ─────────────────────────────────────────────────
 
-/** Universal Router sentinels the direct-pay swap builders use. */
+/** Universal Router sentinels in pool-swap transactions. */
 const UR_MSG_SENDER = "0x0000000000000000000000000000000000000001";
 const UR_ADDRESS_THIS = "0x0000000000000000000000000000000000000002";
 const UR_CONTRACT_BALANCE =
