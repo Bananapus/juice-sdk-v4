@@ -234,6 +234,21 @@ describe("module load", () => {
     expect([...work.values()].flat()).toEqual([]);
   }, 60_000);
 
+  // Modules split out so a page loads only what it calls. Each must stay as
+  // small as it was split to be: these are every module it loads.
+  test("the split-out modules load only what they were split with", () => {
+    const closure = (entry: string) => [...closureWork([entry]).keys()].sort();
+    expect(closure("src/v6/tierPrice.ts")).toEqual(["src/v6/tierPrice.ts"]);
+    expect(closure("src/review/reviewQueue.ts")).toEqual([
+      "src/review/reviewQueue.ts",
+    ]);
+    expect(closure("src/jbcenter/rpcClient.ts")).toEqual([
+      "src/jbcenter/rpcClient.ts",
+      "src/pause.ts",
+      "src/untrusted.ts",
+    ]);
+  });
+
   // parseAbi at module level runs on import and keeps viem's ABI parser in
   // every chunk that loads the module; write the parsed ABI `as const`.
   test("no module parses an ABI when it is imported", () => {

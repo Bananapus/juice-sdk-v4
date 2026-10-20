@@ -2,6 +2,7 @@ import {
   Kind,
   parse,
   type ConstValueNode,
+  type DocumentNode,
   type FragmentDefinitionNode,
   type SelectionSetNode,
   type TypeNode,
@@ -170,15 +171,28 @@ function validateSelectionSet(
 /**
  * Compile one static GraphQL document into the same runtime operation contract
  * used by every Bendystraw transport: operation name, bounded variables, and
- * recursive response-shape validation.
+ * recursive response-shape validation. Parses the document in the browser;
+ * {@link compileBendystrawDocument} takes one parsed at build time instead.
  */
 export function compileBendystrawOperation(
   query: string,
 ): BendystrawOperationContract {
   const cached = contracts.get(query);
   if (cached) return cached;
+  const contract = compileBendystrawDocument(parse(query));
+  contracts.set(query, contract);
+  return contract;
+}
 
-  const document = parse(query);
+/**
+ * {@link compileBendystrawOperation} for a document parsed ahead of time, such
+ * as `parse(query, { noLocation: true })` written out by the app's build, so
+ * the page does not bundle the GraphQL parser. The document must be the parse
+ * of the exact query the app sends.
+ */
+export function compileBendystrawDocument(
+  document: DocumentNode,
+): BendystrawOperationContract {
   const operations = document.definitions.filter(
     (definition) => definition.kind === Kind.OPERATION_DEFINITION,
   );
@@ -202,7 +216,7 @@ export function compileBendystrawOperation(
     ) ?? [],
   );
 
-  const contract: BendystrawOperationContract = {
+  return {
     operationName: operation.name?.value,
     validateData: (value): value is Record<string, unknown> =>
       isRecord(value) &&
@@ -221,8 +235,6 @@ export function compileBendystrawOperation(
       });
     },
   };
-  contracts.set(query, contract);
-  return contract;
 }
 
 /** The persisted-operation id a same-origin Bendystraw proxy accepts: the SHA-256 of the exact document. */
