@@ -8,7 +8,7 @@ import { chainConfig } from "viem/op-stack";
  * That barrel eagerly exposes every chain, including chains with runtime-only
  * modules which client bundlers cannot statically analyse.
  */
-export const mainnet = defineChain({
+export const mainnet = /* @__PURE__ */ defineChain({
   id: 1,
   name: "Ethereum",
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
@@ -35,7 +35,7 @@ export const mainnet = defineChain({
   },
 });
 
-export const sepolia = defineChain({
+export const sepolia = /* @__PURE__ */ defineChain({
   id: 11_155_111,
   name: "Sepolia",
   nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
@@ -64,7 +64,7 @@ export const sepolia = defineChain({
 
 const optimismSourceId = 1;
 
-export const optimism = defineChain({
+export const optimism = /* @__PURE__ */ defineChain({
   ...chainConfig,
   id: 10,
   name: "OP Mainnet",
@@ -111,7 +111,7 @@ export const optimism = defineChain({
 
 const sepoliaSourceId = 11_155_111;
 
-export const optimismSepolia = defineChain({
+export const optimismSepolia = /* @__PURE__ */ defineChain({
   ...chainConfig,
   id: 11_155_420,
   name: "OP Sepolia",
@@ -157,7 +157,7 @@ export const optimismSepolia = defineChain({
   sourceId: sepoliaSourceId,
 });
 
-export const base = defineChain({
+export const base = /* @__PURE__ */ defineChain({
   ...chainConfig,
   id: 8_453,
   name: "Base",
@@ -204,7 +204,7 @@ export const base = defineChain({
   sourceId: optimismSourceId,
 });
 
-export const baseSepolia = defineChain({
+export const baseSepolia = /* @__PURE__ */ defineChain({
   ...chainConfig,
   id: 84_532,
   network: "base-sepolia",
@@ -253,7 +253,7 @@ export const baseSepolia = defineChain({
   sourceId: sepoliaSourceId,
 });
 
-export const arbitrum = defineChain({
+export const arbitrum = /* @__PURE__ */ defineChain({
   id: 42_161,
   name: "Arbitrum One",
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
@@ -276,7 +276,7 @@ export const arbitrum = defineChain({
   },
 });
 
-export const arbitrumSepolia = defineChain({
+export const arbitrumSepolia = /* @__PURE__ */ defineChain({
   id: 421_614,
   name: "Arbitrum Sepolia",
   blockTime: 250,
