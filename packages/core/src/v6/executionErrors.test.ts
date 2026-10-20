@@ -9,7 +9,13 @@ import {
 } from "viem";
 import { describe, expect, test } from "vitest";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
-import { decodePayFailure } from "./executionErrors.js";
+import {
+  PAY_MAX_SLIPPAGE_BPS,
+  decodePayFailure,
+  payRetrySlippageBps,
+  type PayFailure,
+} from "./executionErrors.js";
+import { PAY_DEFAULT_SLIPPAGE_BPS } from "./pay.js";
 import { classifyCashOutExecutionError } from "./cashOut.js";
 
 // The V6 contracts' own signatures: a wrong selector in the SDK table fails here.
@@ -63,28 +69,17 @@ const errorString = (reason: string) =>
 
 describe("decodePayFailure", () => {
   test.each([
-    ["JBMultiTerminal_UnderMin", "TERMINAL_UNDER_MIN", "minimum", /minimum/],
+    ["JBMultiTerminal_UnderMin", "TERMINAL_UNDER_MIN", "minimum"],
     [
       "JBBuybackHook_SpecifiedSlippageExceeded",
       "BUYBACK_SLIPPAGE_EXCEEDED",
       "minimum",
-      /minimum/,
     ],
-    [
-      "JBBuybackHook_DerivedFloorNotMet",
-      "BUYBACK_DERIVED_FLOOR_NOT_MET",
-      undefined,
-      /wait/,
-    ],
-    [
-      "JBRouterTerminal_SlippageExceeded",
-      "ROUTER_SLIPPAGE_EXCEEDED",
-      "slippage",
-      /slippage/,
-    ],
+    ["JBBuybackHook_DerivedFloorNotMet", "BUYBACK_DERIVED_FLOOR_NOT_MET"],
+    ["JBRouterTerminal_SlippageExceeded", "ROUTER_SLIPPAGE_EXCEEDED"],
   ] as const)(
-    "%s carries what settled, the minimum it missed, and the setting to relax",
-    (name, reason, adjustable, suggests) => {
+    "%s carries what settled, the minimum it missed, and only a setting that fixes it",
+    (name, reason, adjustable?: "minimum") => {
       const failure = decodePayFailure(revert(name, [7_000n, 9_900n]));
       expect(failure).toEqual({
         reason,
@@ -94,54 +89,51 @@ describe("decodePayFailure", () => {
         ...(adjustable ? { adjustable } : {}),
         message: expect.stringMatching(/^[A-Z][^.]*\.$/),
       });
-      // The message suggests only the setting that changes the failing check.
-      expect(failure!.message).toMatch(suggests);
-      for (const other of ["minimum", "slippage"].filter(
-        (k) => k !== adjustable,
-      )) {
-        expect(failure!.message).not.toMatch(other);
-      }
+      // The message suggests lowering the minimum only when that is the fix,
+      // and never a slippage setting the router may not read.
+      expect(failure!.message.includes("minimum")).toBe(!!adjustable);
+      expect(failure!.message).not.toMatch(/slippage/i);
     },
   );
+
+  test.each([
+    ["JBMultiTerminal_UnderMin", "TERMINAL_UNDER_MIN"],
+    ["JBBuybackHook_SpecifiedSlippageExceeded", "BUYBACK_SLIPPAGE_EXCEEDED"],
+    ["JBRouterTerminal_SlippageExceeded", "ROUTER_SLIPPAGE_EXCEEDED"],
+  ])("%s that settles nothing suggests no setting", (name, reason) => {
+    const failure = decodePayFailure(revert(name, [0n, 9_900n]));
+    expect(failure).toEqual({
+      reason,
+      received: 0n,
+      minimum: 9_900n,
+      zeroFill: true,
+      message: expect.stringMatching(/^[A-Z][^.]*\.$/),
+    });
+    expect(failure!.message).toMatch(/no tokens|nothing/);
+    expect(failure!.message).not.toMatch(/minimum|slippage|try again/i);
+  });
+
+  test("a terminal shortfall that settles nothing says the payment returns no tokens", () => {
+    expect(
+      decodePayFailure(revert("JBMultiTerminal_UnderMin", [0n, 1n]))?.message,
+    ).toBe("This payment would return no tokens.");
+  });
 
   test.each([
     "JBMultiTerminal_UnderMin",
     "JBBuybackHook_SpecifiedSlippageExceeded",
     "JBBuybackHook_DerivedFloorNotMet",
     "JBRouterTerminal_SlippageExceeded",
-  ])("%s amounts at or above the minimum are not a shortfall", (name) => {
+  ])("%s at or above its minimum is not that revert", (name) => {
     for (const args of [
       [9_900n, 9_900n],
       [9_901n, 9_900n],
       [0n, 0n],
-    ]) {
-      const failure = decodePayFailure(revert(name, args));
-      expect(failure).not.toBeNull();
-      for (const key of ["received", "minimum", "zeroFill", "adjustable"]) {
-        expect(failure).not.toHaveProperty(key);
-      }
+    ] as const) {
+      expect(decodePayFailure(revert(name, args))).toBeNull();
+      expect(decodePayFailure({ cause: typed(name, args) })).toBeNull();
     }
   });
-
-  test.each([
-    ["JBMultiTerminal_UnderMin", "TERMINAL_UNDER_MIN"],
-    ["JBBuybackHook_SpecifiedSlippageExceeded", "BUYBACK_SLIPPAGE_EXCEEDED"],
-    ["JBRouterTerminal_SlippageExceeded", "ROUTER_SLIPPAGE_EXCEEDED"],
-  ])(
-    "%s that settles nothing does not suggest a lower minimum",
-    (name, reason) => {
-      const failure = decodePayFailure(revert(name, [0n, 9_900n]));
-      expect(failure).toMatchObject({
-        reason,
-        received: 0n,
-        minimum: 9_900n,
-        zeroFill: true,
-      });
-      expect(failure).not.toHaveProperty("adjustable");
-      expect(failure!.message).not.toMatch(/minimum|slippage|try again/i);
-      expect(failure!.message).toMatch(/^[A-Z][^.]*\.$/);
-    },
-  );
 
   test.each([
     [
@@ -188,10 +180,33 @@ describe("decodePayFailure", () => {
     ],
     ["JB721TiersHook_Overspending", [1n], "NFT_OVERSPENDING"],
   ] as const)("%s has no minimum to lower", (name, args, reason) => {
-    const failure = decodePayFailure(revert(name, args));
-    expect(failure?.reason).toBe(reason);
-    expect(failure).not.toHaveProperty("minimum");
-    expect(failure!.message).toMatch(/^[A-Z][^.]*\.$/);
+    for (const failure of [
+      decodePayFailure(revert(name, args)),
+      decodePayFailure({ cause: typed(name, args) }),
+    ]) {
+      expect(failure).toEqual({
+        reason,
+        message: expect.stringMatching(/^[A-Z][^.]*\.$/),
+      });
+    }
+  });
+
+  test("permit failures ask for a new signature, Permit2 failures for a Permit2 approval", () => {
+    const message = (name: string, args: readonly unknown[]) =>
+      decodePayFailure(revert(name, args))?.message;
+    for (const name of [
+      "JBMultiTerminal_PermitAllowanceNotEnough",
+      "JBRouterTerminal_PermitAllowanceNotEnough",
+      "JBRouterTerminalRegistry_PermitAllowanceNotEnough",
+      "JBRouterTerminalGateway_PermitAllowanceNotEnough",
+    ]) {
+      expect(message(name, [2n, 1n])).toMatch(/permit.*sign it again/);
+    }
+    expect(message("InsufficientAllowance", [2n])).toMatch(/Permit2 allowance/);
+    expect(message("AllowanceExpired", [1n])).toMatch(/Permit2 approval/);
+    expect(message("ERC20InsufficientAllowance", [token, 1n, 2n])).toMatch(
+      /token approval/,
+    );
   });
 
   test("reads the revert data from a viem simulation error", () => {
@@ -200,10 +215,11 @@ describe("decodePayFailure", () => {
       reason: "BUYBACK_SLIPPAGE_EXCEEDED",
       received: 1n,
       minimum: 2n,
+      adjustable: "minimum",
     });
   });
 
-  test("reads revert data a wallet nests in its error, after unrelated hex", () => {
+  test("reads revert data a wallet nests in its error", () => {
     const data = revert("JBMultiTerminal_UnderMin", [3n, 4n]);
     expect(
       decodePayFailure({
@@ -215,68 +231,38 @@ describe("decodePayFailure", () => {
       received: 3n,
       minimum: 4n,
     });
-  });
-
-  test("names the reason from a selector or a typed error alone, without amounts", () => {
-    expect(
-      decodePayFailure(
-        new BaseError("reverted", {
-          details: "reverted with signature 0xe2d708a9",
-        }),
-      ),
-    ).toEqual({
-      reason: "BUYBACK_SLIPPAGE_EXCEEDED",
-      message: expect.any(String),
-    });
-    const { abiItem } = typed("JBMultiTerminal_UnderMin", [5n, 6n]);
     expect(
       decodePayFailure({
-        cause: { errorName: "JBMultiTerminal_UnderMin", abiItem },
+        message: `eth_call failed for ${revert("JBBuybackHook_SpecifiedSlippageExceeded", [1n, 2n])}`,
+        cause: { data },
       }),
-    ).toEqual({ reason: "TERMINAL_UNDER_MIN", message: expect.any(String) });
+    ).toMatchObject({ reason: "TERMINAL_UNDER_MIN" });
   });
 
-  test("hex the request quotes is not a revert", () => {
-    const request = revert("JBBuybackHook_SpecifiedSlippageExceeded", [1n, 2n]);
-    // A rejected request whose address and calldata start with a known selector.
-    expect(
-      decodePayFailure({
-        shortMessage: "User rejected the request.",
-        details: `Request body: {"to":"0xe2d708a900000000000000000000000000000000","data":"${request}"}`,
-      }),
-    ).toBeNull();
-    // The revert the error carries wins over revert-shaped hex in its text.
-    expect(
-      decodePayFailure({
-        message: `eth_call failed for ${request}`,
-        cause: { data: revert("JBMultiTerminal_UnderMin", [3n, 4n]) },
-      }),
-    ).toMatchObject({
-      reason: "TERMINAL_UNDER_MIN",
-      received: 3n,
-      minimum: 4n,
-    });
-  });
-
-  test("a typed error keeps its amounts, and a bare selector still counts", () => {
-    expect(
-      decodePayFailure({ cause: typed("JBMultiTerminal_UnderMin", [5n, 6n]) }),
-    ).toMatchObject({
-      reason: "TERMINAL_UNDER_MIN",
-      received: 5n,
-      minimum: 6n,
-    });
-    expect(decodePayFailure("0x42b9988e")?.reason).toBe("NFT_OVERSPENDING");
-  });
-
-  test("an error name in text is not a revert", () => {
-    for (const text of [
+  test("text is never a revert, whatever it quotes", () => {
+    const underMin = revert("JBMultiTerminal_UnderMin", [3n, 4n]);
+    for (const error of [
       "execution reverted: JBTerminalStore_RulesetPaymentPaused",
       "execution reverted: jbmultiterminal_undermin",
+      new Error("JBMultiTerminal_UnderMin"),
+      new Error(underMin),
+      { message: `execution reverted: ${underMin}` },
+      { shortMessage: `reverted with the following reason:\n${underMin}` },
+      new BaseError("reverted", {
+        details: "reverted with signature 0xe2d708a9",
+      }),
+      {
+        shortMessage: "User rejected the request.",
+        details: `Request body: {\n"to":"0xe2d708a900000000000000000000000000000000",\n"data":"${underMin}"}`,
+      },
+      {
+        shortMessage: "Execution reverted for an unknown reason.",
+        message: `Raw Call Arguments:\n  to:    ${token}\n  data:  ${underMin}`,
+      },
     ]) {
-      expect(decodePayFailure(text)).toBeNull();
+      expect(decodePayFailure(error)).toBeNull();
+      expect(classifyCashOutExecutionError(error)).toBeNull();
     }
-    expect(decodePayFailure(new Error("JBMultiTerminal_UnderMin"))).toBeNull();
   });
 
   test("an Error(string) reason that spells a known revert is not one", () => {
@@ -291,104 +277,74 @@ describe("decodePayFailure", () => {
     }
   });
 
-  test("a decoded-looking error counts only when typed, and its amounts only when they are uint256", () => {
-    const { abiItem } = typed("JBMultiTerminal_UnderMin", [5n, 6n]);
-    const url = "https://example.com/claim";
-    // No ABI item: a name and arguments anyone can write.
-    expect(
-      decodePayFailure({
-        data: { errorName: "JBMultiTerminal_UnderMin", args: [url, url] },
-      }),
-    ).toBeNull();
-    expect(
-      decodePayFailure({
-        data: { errorName: "JBMultiTerminal_UnderMin", args: [5n, 6n] },
-      }),
-    ).toBeNull();
-    // An ABI item for another error, or with other types, does not match.
-    expect(
-      decodePayFailure({
-        data: {
-          errorName: "JBMultiTerminal_UnderMin",
-          abiItem: { ...abiItem, name: "JBMultiTerminal_UnderMinimum" },
-          args: [5n, 6n],
-        },
-      }),
-    ).toBeNull();
-    expect(
-      decodePayFailure({
-        data: {
-          errorName: "JBMultiTerminal_UnderMin",
-          abiItem: {
-            ...abiItem,
-            inputs: abiItem.inputs.map((input) => ({
-              ...input,
-              type: "string",
-            })),
-          },
-          args: [url, url],
-        },
-      }),
-    ).toBeNull();
-    // A typed error whose arguments are not uint256 names the reason alone.
-    for (const args of [
-      [url, url],
-      [5n],
-      [5n, 6n, 7n],
-      [-1n, 6n],
-      [5n, 2n ** 256n],
-      [5, 6],
-      undefined,
-    ]) {
-      expect(
-        decodePayFailure({
-          data: { errorName: "JBMultiTerminal_UnderMin", abiItem, args },
-        }),
-      ).toEqual({ reason: "TERMINAL_UNDER_MIN", message: expect.any(String) });
-    }
-    // An address argument must be an address.
-    expect(
-      decodePayFailure({
-        data: {
-          ...typed("ERC20InsufficientAllowance", [token, 1n, 2n]),
-          args: [url, 1n, 2n],
-        },
-      }),
-    ).toEqual({ reason: "ALLOWANCE_TOO_LOW", message: expect.any(String) });
-  });
-
-  test("a value that only starts with a selector is not a revert", () => {
-    const address = "0xe2d708a900000000000000000000000000000000";
-    expect(decodePayFailure(address)).toBeNull();
-    expect(decodePayFailure({ cause: { data: address } })).toBeNull();
-    expect(
-      decodePayFailure(`${revert("JBMultiTerminal_UnderMin", [3n, 4n])}00`),
-    ).toBeNull();
-    expect(
-      classifyCashOutExecutionError({ error: { data: address } }),
-    ).toBeNull();
-  });
-
-  test("revert data quoted in a message decodes, but the request viem quotes does not", () => {
+  test("revert data must be a known selector and exactly its arguments", () => {
     const underMin = revert("JBMultiTerminal_UnderMin", [3n, 4n]);
+    for (const value of [
+      "0x6b2bb382",
+      "0x42b9988e",
+      underMin.slice(0, -64),
+      `${underMin}${"0".repeat(64)}`,
+      `${underMin}00`,
+      "0xe2d708a900000000000000000000000000000000",
+      "0x08c379a0",
+    ]) {
+      expect(decodePayFailure(value)).toBeNull();
+      expect(decodePayFailure({ cause: { data: value } })).toBeNull();
+    }
+  });
+
+  test("a typed error keeps its amounts", () => {
     expect(
-      decodePayFailure({ message: `execution reverted: ${underMin}` }),
+      decodePayFailure({ cause: typed("JBMultiTerminal_UnderMin", [5n, 6n]) }),
     ).toMatchObject({
       reason: "TERMINAL_UNDER_MIN",
-      received: 3n,
-      minimum: 4n,
+      received: 5n,
+      minimum: 6n,
+      adjustable: "minimum",
     });
-    expect(
-      classifyCashOutExecutionError({
-        message: `execution reverted: ${underMin}`,
-      }),
-    ).toEqual({ code: "TERMINAL_UNDER_MIN", selector: "0x6b2bb382" });
-    expect(
-      decodePayFailure({
-        shortMessage: "Execution reverted for an unknown reason.",
-        message: `Raw Call Arguments:\n  to:    ${token}\n  data:  ${underMin}`,
-      }),
-    ).toBeNull();
+  });
+
+  test("a decoded-looking error counts only when typed against the ABI item with valid arguments", () => {
+    const valid = typed("JBMultiTerminal_UnderMin", [5n, 6n]);
+    const url = "https://example.com/claim";
+    for (const data of [
+      // No ABI item: a name and arguments anyone can write.
+      { errorName: valid.errorName, args: [url, url] },
+      { errorName: valid.errorName, args: [5n, 6n] },
+      // The name disagrees with the ABI item, or the item is another error.
+      { ...valid, errorName: "JBMultiTerminal_UnderMinimum" },
+      { ...valid, abiItem: { ...valid.abiItem, name: "Other" } },
+      { ...valid, abiItem: { ...valid.abiItem, type: "function" } },
+      {
+        ...valid,
+        abiItem: {
+          ...valid.abiItem,
+          inputs: valid.abiItem.inputs.map((input) => ({
+            ...input,
+            type: "string",
+          })),
+        },
+        args: [url, url],
+      },
+      // Arguments that are not two uint256 values.
+      ...[
+        [url, url],
+        [5n],
+        [5n, 6n, 7n],
+        [-1n, 6n],
+        [5n, 2n ** 256n],
+        [5, 6],
+        undefined,
+      ].map((args) => ({ ...valid, args })),
+      // An address argument must be an address.
+      {
+        ...typed("ERC20InsufficientAllowance", [token, 1n, 2n]),
+        args: [url, 1n, 2n],
+      },
+    ]) {
+      expect(decodePayFailure({ data })).toBeNull();
+      expect(classifyCashOutExecutionError({ data })).toBeNull();
+    }
   });
 
   test("a call's arguments that look like a revert are not one", () => {
@@ -406,29 +362,17 @@ describe("decodePayFailure", () => {
       "0xe2d708a9",
       "JBMultiTerminal_UnderMin",
       "Hello\n\n0x6b2bb382",
-      "Hello\n\nJBMultiTerminal_UnderMin",
+      revert("JBMultiTerminal_UnderMin", [3n, 4n]),
     ]) {
       expect(decodePayFailure(rejected(memo))).toBeNull();
       expect(classifyCashOutExecutionError(rejected(memo))).toBeNull();
     }
   });
 
-  test("a decoded error's name matches only its typed ABI item", () => {
-    expect(
-      classifyCashOutExecutionError({ errorName: "jbmultiterminal_undermin" }),
-    ).toBeNull();
-    expect(
-      classifyCashOutExecutionError(
-        typed("JBMultiTerminal_UnderMin", [3n, 4n]),
-      ),
-    ).toEqual({ code: "TERMINAL_UNDER_MIN", selector: "0x6b2bb382" });
-  });
-
   test("anything else is unknown", () => {
     expect(
       decodePayFailure(new Error("User rejected the request.")),
     ).toBeNull();
-    expect(decodePayFailure("0x08c379a0")).toBeNull();
     expect(decodePayFailure(undefined)).toBeNull();
     expect(decodePayFailure({})).toBeNull();
   });
@@ -441,8 +385,86 @@ describe("decodePayFailure", () => {
     });
     expect(
       classifyCashOutExecutionError(
+        typed("JBMultiTerminal_UnderMin", [3n, 4n]),
+      ),
+    ).toEqual({ code: "TERMINAL_UNDER_MIN", selector: "0x6b2bb382" });
+    expect(
+      classifyCashOutExecutionError(
         revert("JBTerminalStore_RulesetPaymentPaused", [5n, 9n]),
       ),
     ).toBeNull();
+  });
+});
+
+describe("payRetrySlippageBps", () => {
+  const message = "m";
+  const shortfall = (
+    received: bigint,
+    minimum: bigint,
+    reason: PayFailure["reason"] = "TERMINAL_UNDER_MIN",
+  ): PayFailure => ({
+    reason,
+    received,
+    minimum,
+    zeroFill: received === 0n,
+    adjustable: "minimum",
+    message,
+  });
+
+  test("adds the shortfall to the tolerance, rounded up to a half percent", () => {
+    expect(payRetrySlippageBps(shortfall(935n, 1_000n), 100n)).toBe(750n);
+    expect(
+      payRetrySlippageBps(
+        shortfall(999n, 1_000n, "BUYBACK_SLIPPAGE_EXCEEDED"),
+        100n,
+      ),
+    ).toBe(150n);
+    expect(payRetrySlippageBps(shortfall(999n, 1_000n), 0n)).toBe(50n);
+  });
+
+  test("reads the decoded failure end to end", () => {
+    const failure = decodePayFailure(
+      revert("JBMultiTerminal_UnderMin", [935n, 1_000n]),
+    );
+    expect(payRetrySlippageBps(failure, PAY_DEFAULT_SLIPPAGE_BPS)).toBe(750n);
+  });
+
+  test("stops at the cap, and offers nothing more there", () => {
+    expect(payRetrySlippageBps(shortfall(1n, 1_000n), 100n)).toBe(
+      PAY_MAX_SLIPPAGE_BPS,
+    );
+    expect(
+      payRetrySlippageBps(shortfall(1n, 1_000n), PAY_MAX_SLIPPAGE_BPS),
+    ).toBeNull();
+    expect(payRetrySlippageBps(shortfall(999n, 1_000n), 5_000n)).toBeNull();
+  });
+
+  test("offers nothing a lower minimum cannot fix", () => {
+    for (const name of [
+      "JBBuybackHook_DerivedFloorNotMet",
+      "JBRouterTerminal_SlippageExceeded",
+    ]) {
+      expect(
+        payRetrySlippageBps(decodePayFailure(revert(name, [1n, 2n])), 100n),
+      ).toBeNull();
+    }
+    expect(
+      payRetrySlippageBps(
+        decodePayFailure(revert("JBMultiTerminal_UnderMin", [0n, 2n])),
+        100n,
+      ),
+    ).toBeNull();
+    expect(payRetrySlippageBps(null, 100n)).toBeNull();
+    const { adjustable: _, ...unadjustable } = shortfall(1n, 2n);
+    expect(payRetrySlippageBps(unadjustable, 100n)).toBeNull();
+    for (const failure of [
+      shortfall(0n, 1_000n),
+      shortfall(1_000n, 1_000n),
+      shortfall(0 as unknown as bigint, 1_000n),
+      { reason: "TERMINAL_UNDER_MIN", adjustable: "minimum", message } as const,
+    ]) {
+      expect(payRetrySlippageBps(failure, 100n)).toBeNull();
+    }
+    expect(payRetrySlippageBps(shortfall(1n, 2n), -1n)).toBeNull();
   });
 });
