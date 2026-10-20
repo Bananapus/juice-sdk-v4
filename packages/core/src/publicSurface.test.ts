@@ -75,7 +75,7 @@ describe("published core SDK surfaces", () => {
     expect(v6.decodePayFailure).toBeTypeOf("function");
     expect(v6.payRetrySlippageBps).toBeTypeOf("function");
     expect(v6.PAY_DEFAULT_SLIPPAGE_BPS).toBe(100n);
-    expect(v6.PAY_MAX_SLIPPAGE_BPS).toBe(1_000n);
+    expect(v6.PAY_MAX_SLIPPAGE_BPS).toBe(4_950n);
     expect(v6.buildUserPayMetadata).toBeTypeOf("function");
     expect("quoteDirectPaySwap" in v6).toBe(false);
     expect(v6.permit2TypedData).toBeTypeOf("function");

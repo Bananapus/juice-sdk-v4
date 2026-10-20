@@ -569,13 +569,16 @@ describe("payRetrySlippageBps", () => {
     expect(payRetrySlippageBps(failure, PAY_DEFAULT_SLIPPAGE_BPS)).toBe(750n);
   });
 
-  test("stops at the cap, and offers nothing more there", () => {
-    expect(payRetrySlippageBps(shortfall(1n, 1_000n), 100n)).toBe(
-      PAY_MAX_SLIPPAGE_BPS,
-    );
-    expect(
-      payRetrySlippageBps(shortfall(1n, 1_000n), PAY_MAX_SLIPPAGE_BPS),
-    ).toBeNull();
+  test("stops at the 49.5% cap, and offers nothing more there", () => {
+    expect(PAY_MAX_SLIPPAGE_BPS).toBe(4_950n);
+    expect(payRetrySlippageBps(shortfall(1n, 1_000n), 100n)).toBe(4_950n);
+    // 1,000 + 6,500 needed: capped.
+    expect(payRetrySlippageBps(shortfall(350n, 1_000n), 1_000n)).toBe(4_950n);
+    // Just under the cap: rounded up to it, never past it.
+    expect(payRetrySlippageBps(shortfall(999n, 1_000n), 4_900n)).toBe(4_950n);
+    // Below the cap, the shortfall is added as usual.
+    expect(payRetrySlippageBps(shortfall(800n, 1_000n), 2_000n)).toBe(4_000n);
+    expect(payRetrySlippageBps(shortfall(1n, 1_000n), 4_950n)).toBeNull();
     expect(payRetrySlippageBps(shortfall(999n, 1_000n), 5_000n)).toBeNull();
   });
 
