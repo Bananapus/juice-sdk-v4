@@ -276,9 +276,9 @@ const budgets = {
     // artifacts, and the quoted pay's second preview a few kilobytes:
     // 1,571,557 B packed, 22,893,641 B unpacked, 1,714 files.
     // The Uniswap V3 quoter, a module of its own for router-converted pays,
-    // adds eight artifacts: 1,576,089 B packed, 22,931,921 B unpacked, 1,722
+    // adds eight artifacts: 1,583,013 B packed, 22,942,400 B unpacked, 1,722
     // files.
-    packed: 1_580_000,
+    packed: 1_590_000,
     unpacked: 22_960_000,
     entries: 1_722,
   },
@@ -316,7 +316,8 @@ const entryBudgets = [
   ["@bananapus/nana-sdk-core/chains", "mainnet", 450],
   ["@bananapus/nana-sdk-core/v6", "v6Address", 2_900],
   // The quoted pay's second preview: 10,276 B. Quoting a router's
-  // conversion (router reads, V3 quoter, accounting contexts): 11,286 B.
+  // conversion and previewing its destination (router reads, V3 quoter,
+  // accounting contexts): 11,553 B.
   ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 11_850],
   ["@bananapus/nana-sdk-core/v6/fee-buyback", "feeBuybackOptions", 3_300],
   ["@bananapus/nana-sdk-core/v6", "effectiveTierPrice", 200],
