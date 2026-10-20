@@ -8,7 +8,7 @@ import fs from "fs";
 import { format } from "prettier";
 import { resolve } from "node:path";
 import { aliasRouterAbis } from "./aliasRouterAbis.js";
-import { REVIEW_DECODER_ABIS, splitAbiModules } from "./splitAbiModules.js";
+import { splitAbiModules } from "./splitAbiModules.js";
 import {
   deploymentFilePath,
   getAllContractNames,
@@ -209,22 +209,31 @@ export { jbV6ContractAddress } from './addresses/jbV6ContractAddress.js'
   return content;
 }
 
+/** Write `dir` to hold exactly `modules`, removing any module no longer generated. */
+function writeModules(dir: string, modules: Record<string, string>) {
+  fs.mkdirSync(dir, { recursive: true });
+  for (const file of fs.readdirSync(dir)) {
+    if (!Object.hasOwn(modules, file.replace(/\.ts$/, "")))
+      fs.rmSync(`${dir}/${file}`);
+  }
+  for (const [name, module] of Object.entries(modules)) {
+    fs.writeFileSync(`${dir}/${name}.ts`, module);
+  }
+}
+
 async function addDefaultAddresses() {
   const filePath = "src/generated/juicebox.ts";
   const content = await buildDefaultAddressContent();
   const addressModules = await buildAddressModules();
   const bindings = splitAbiModules(
     aliasRouterAbis(fs.readFileSync(filePath, "utf8")),
-    REVIEW_DECODER_ABIS,
   );
-  fs.mkdirSync("src/generated/abi", { recursive: true });
-  for (const [name, module] of Object.entries(bindings.modules)) {
-    fs.writeFileSync(`src/generated/abi/${name}.ts`, module);
-  }
-  fs.mkdirSync("src/generated/addresses", { recursive: true });
-  for (const [name, module] of Object.entries(addressModules)) {
-    fs.writeFileSync(`src/generated/addresses/${name}.ts`, module);
-  }
+  if (!Object.keys(bindings.modules).length)
+    throw new Error(
+      `${filePath} declares no ABIs: run wagmi generate (npm run generate) first.`,
+    );
+  writeModules("src/generated/abi", bindings.modules);
+  writeModules("src/generated/addresses", addressModules);
   fs.writeFileSync(filePath, bindings.source + content);
   // Sticky owns receipt and constructor validation. Consume its checked export,
   // rather than teaching SDK generation a second artifact format.

@@ -9,7 +9,11 @@ import {
 } from "viem";
 import { describe, expect, test } from "vitest";
 import { JBOmnichainDeployerContracts } from "../contracts.js";
-import { jb721TiersHookAbi, jbContractAddress } from "../generated/juicebox.js";
+import {
+  jb721TiersHookAbi,
+  jbContractAddress,
+  jbOmnichainDeployerAbi,
+} from "../generated/juicebox.js";
 import {
   DISCOUNT_DENOMINATOR,
   JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES,
@@ -530,9 +534,11 @@ describe("getProject721Shop", () => {
     const client = {
       readContract: async ({
         address,
+        abi,
         functionName,
       }: {
         address: string;
+        abi: readonly unknown[];
         functionName: string;
       }) => {
         // currentRulesetOf -> [ruleset, metadata] with the deployer as data hook.
@@ -547,6 +553,12 @@ describe("getProject721Shop", () => {
           address.toLowerCase() === omniDeployer.toLowerCase() &&
           functionName === "tiered721HookOf"
         ) {
+          // The lookup reads with the deployer's own function, nothing more.
+          expect(abi).toEqual(
+            jbOmnichainDeployerAbi.filter(
+              (item) => "name" in item && item.name === "tiered721HookOf",
+            ),
+          );
           return [hook, false];
         }
         if (address === hook && functionName === "STORE") return store;

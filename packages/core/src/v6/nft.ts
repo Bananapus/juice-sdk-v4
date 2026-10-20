@@ -4,7 +4,6 @@ import {
   jb721TiersHookAbi,
   jb721TiersHookStoreAbi,
   jbV6ContractAddress,
-  jbOmnichainDeployerAbi,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
 import { isMissingContractFunctionError } from "../utils/errors.js";
@@ -17,6 +16,30 @@ import { getCurrentRuleset, type JBRulesetWithMetadata } from "./rulesets.js";
  * unlimited inventory.
  */
 export const TIER_UNLIMITED_SUPPLY = 999_999_999;
+
+/**
+ * The one JBOmnichainDeployer function the 721 hook lookup reads, so a page
+ * that resolves a hook does not load the deployer's whole ABI.
+ */
+const tiered721HookOfAbi = [
+  {
+    type: "function",
+    inputs: [
+      { name: "projectId", internalType: "uint256", type: "uint256" },
+      { name: "rulesetId", internalType: "uint256", type: "uint256" },
+    ],
+    name: "tiered721HookOf",
+    outputs: [
+      {
+        name: "hook",
+        internalType: "contract IJB721TiersHook",
+        type: "address",
+      },
+      { name: "useDataHookForCashOut", internalType: "bool", type: "bool" },
+    ],
+    stateMutability: "view",
+  },
+] as const;
 
 /**
  * JB721TiersHookStore's `DISCOUNT_DENOMINATOR`: a tier's `discountPercent` is
@@ -494,7 +517,7 @@ export async function resolveProject721Hook(
         // per-ruleset mapping.
         const [omniHook] = await client.readContract({
           address: omni,
-          abi: jbOmnichainDeployerAbi,
+          abi: tiered721HookOfAbi,
           functionName: "tiered721HookOf",
           args: [projectId, BigInt(ruleset.id)],
         });
