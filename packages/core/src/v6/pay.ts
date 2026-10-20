@@ -3,6 +3,7 @@ import {
   Hex,
   PublicClient,
   encodeAbiParameters,
+  getAddress,
   zeroAddress,
 } from "viem";
 import {
@@ -121,7 +122,8 @@ export interface PayPreview {
  * reports zero; the hook's pay specification carries the swap quote. This folds
  * it in with the router terminal's scoring rule (see
  * {@link effectivePayPreview}), for the hook the buyback registry resolves for
- * the project, 1.4 or 1.1.1. The swap figure ignores pool fees and price
+ * the project, 1.4 or 1.1.1, or for buyback 1.4 when the ruleset calls it
+ * directly. The swap figure ignores pool fees and price
  * impact, so use {@link prepareUserPay} for a payment's minimum.
  *
  * @param client A viem public client on the given chain.
@@ -320,6 +322,8 @@ async function readPay(
   buyback: BuybackPaySpec | null;
   /** The project's hook swaps with a spec this SDK cannot read. */
   unreadableSwap: boolean;
+  /** The buyback hook the ruleset calls directly, not through the registry. */
+  directBuybackHook: Address | null;
 }> {
   const [
     ruleset,
@@ -333,10 +337,15 @@ async function readPay(
     args: [projectId, token, amount, beneficiary, metadata],
   });
   // Only a payment with hook specs needs to know which one is the buyback hook.
-  const buybackHook =
+  const directBuybackHook =
     hookSpecifications.length > 0
-      ? await resolvedBuybackHookOf(client, chainId, projectId)
+      ? await directBuybackHookOf(client, chainId, projectId, ruleset)
       : null;
+  const buybackHook =
+    directBuybackHook ??
+    (hookSpecifications.length > 0
+      ? await resolvedBuybackHookOf(client, chainId, projectId)
+      : null);
   const reservedPercent = (ruleset.metadata >> 4n) & 0xffffn;
   const spec = buybackHook
     ? hookSpecifications.find(
@@ -357,7 +366,68 @@ async function readPay(
     buyback: spec ? decodeBuybackPaySpec(spec, reservedPercent) : null,
     unreadableSwap:
       !!spec && !spec.noop && !decodeBuybackPaySpec(spec, reservedPercent),
+    directBuybackHook,
   };
+}
+
+/**
+ * The buyback hook 1.4 when the ruleset's pay data hook is that hook itself, or
+ * the omnichain deployer forwarding to it, rather than the registry. The hook
+ * then reads only metadata keyed to its own address.
+ */
+// Only this read of the omnichain deployer: its full ABI would weigh on every pay card.
+const extraDataHookOfAbi = [
+  {
+    type: "function",
+    name: "extraDataHookOf",
+    stateMutability: "view",
+    inputs: [
+      { name: "projectId", type: "uint256" },
+      { name: "rulesetId", type: "uint256" },
+    ],
+    outputs: [
+      {
+        name: "hook",
+        type: "tuple",
+        components: [
+          { name: "dataHook", type: "address" },
+          { name: "useDataHookForPay", type: "bool" },
+          { name: "useDataHookForCashOut", type: "bool" },
+        ],
+      },
+    ],
+  },
+] as const;
+
+async function directBuybackHookOf(
+  client: PublicClient,
+  chainId: JBChainId,
+  projectId: bigint,
+  ruleset: { id: number | bigint; metadata: bigint },
+): Promise<Address | null> {
+  if (((ruleset.metadata >> 80n) & 1n) === 0n) return null;
+  let buyback: Address, omnichain: Address;
+  try {
+    buyback = v6Address("JBBuybackHook", chainId);
+    omnichain = v6Address("JBOmnichainDeployer", chainId);
+  } catch {
+    return null;
+  }
+  const is = (a: Address, b: Address) => a.toLowerCase() === b.toLowerCase();
+  const dataHook = getAddress(
+    `0x${(ruleset.metadata >> 82n).toString(16).padStart(40, "0").slice(-40)}`,
+  );
+  if (is(dataHook, buyback)) return buyback;
+  if (!is(dataHook, omnichain)) return null;
+  const extra = await client.readContract({
+    address: omnichain,
+    abi: extraDataHookOfAbi,
+    functionName: "extraDataHookOf",
+    args: [projectId, BigInt(ruleset.id)],
+  });
+  return extra.useDataHookForPay && is(extra.dataHook, buyback)
+    ? buyback
+    : null;
 }
 
 /** The buyback hook the registry resolves for a project, or null. */
@@ -433,26 +503,46 @@ const poolKeyOfAbi = [
  * entitlement when the hook would swap, since the hook never settles below it,
  * and the terminal's own issuance when it would not.
  *
+ * When the ruleset calls buyback hook 1.4 directly (or through the omnichain
+ * deployer) instead of through the registry, the metadata is keyed to the hook,
+ * which reads nothing else.
+ *
  * @param args.slippageBps Tolerance on the pool quote and on the fallback
  * minimum. Defaults to 100 (1%).
+ * @param args.skipSplits Whether the beneficiary keeps the swapped tokens
+ * without the reserved split. Defaults to true, as a person's pay card does;
+ * pass false for payments that should honor the project's splits, such as
+ * fees or revenue routed into a project.
  */
 export async function prepareUserPay(
   client: PublicClient,
   {
     tiers,
     slippageBps = 100n,
+    skipSplits = true,
     ...args
-  }: PayArgs & { tiers?: UserPayTiers; slippageBps?: bigint },
+  }: PayArgs & {
+    tiers?: UserPayTiers;
+    slippageBps?: bigint;
+    skipSplits?: boolean;
+  },
 ): Promise<PreparedUserPay> {
   const { chainId, projectId, token } = args;
-  const metadata = buildUserPayMetadata({ chainId, tiers });
+  let metadata = buildUserPayMetadata({ chainId, tiers, skipSplits });
+  let read = await readPay(client, { ...args, metadata });
+  // The direct hook ignores the registry's entry: preview again with its own.
+  const hook = read.directBuybackHook;
+  if (hook) {
+    metadata = buildUserPayMetadata({ chainId, tiers, skipSplits, hook });
+    read = await readPay(client, { ...args, metadata });
+  }
   const {
     preview,
     terminalBeneficiaryTokenCount,
     weight,
     buyback,
     unreadableSwap,
-  } = await readPay(client, { ...args, metadata });
+  } = read;
   if (unreadableSwap) {
     throw new Error(
       "The project's buyback hook swaps with an unknown specification, so no safe minimum can be set.",
@@ -499,7 +589,13 @@ export async function prepareUserPay(
       buyback.reservedPercent,
     );
     return {
-      metadata: buildUserPayMetadata({ chainId, tiers, minimumSwapAmountOut }),
+      metadata: buildUserPayMetadata({
+        chainId,
+        tiers,
+        minimumSwapAmountOut,
+        skipSplits,
+        ...(hook ? { hook } : {}),
+      }),
       preview: {
         beneficiaryTokenCount: quote + directMint.beneficiaryTokenCount,
         reservedTokenCount: directMint.reservedTokenCount,
@@ -596,8 +692,10 @@ export interface UserPayTiers {
 
 /**
  * The pay metadata a person's pay card sends: the buyback registry's quote
- * `(0, minimumSwapAmountOut, skipSplits=true)`, plus the 721 tiers when the
- * payment buys NFTs. Prefer {@link prepareUserPay}, which picks the minimum.
+ * `(0, minimumSwapAmountOut, skipSplits)`, plus the 721 tiers when the
+ * payment buys NFTs. Prefer {@link prepareUserPay}, which picks the minimum
+ * and the hook. `hook` keys the quote to a buyback hook the ruleset calls
+ * directly instead of to the registry.
  *
  * The registry rekeys its quote to the project's resolved hook. On buyback 1.4
  * the hook buys from the pool only when that gives the payer more than their
@@ -611,18 +709,20 @@ export function buildUserPayMetadata({
   chainId,
   tiers,
   minimumSwapAmountOut = 0n,
+  skipSplits = true,
+  hook = v6Address("JBBuybackHookRegistry", chainId),
 }: {
   chainId: JBChainId;
   tiers?: UserPayTiers;
   minimumSwapAmountOut?: bigint;
+  skipSplits?: boolean;
+  hook?: Address;
 }): Hex {
-  const ids = [
-    hookMetadataId(v6Address("JBBuybackHookRegistry", chainId), "pay"),
-  ];
+  const ids = [hookMetadataId(hook, "pay")];
   const data: Hex[] = [
     encodeAbiParameters(
       [{ type: "uint256" }, { type: "uint256" }, { type: "bool" }],
-      [0n, minimumSwapAmountOut, true],
+      [0n, minimumSwapAmountOut, skipSplits],
     ),
   ];
   if (tiers && tiers.tierIdsToMint.length > 0) {

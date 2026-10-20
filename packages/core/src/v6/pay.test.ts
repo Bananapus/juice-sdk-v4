@@ -9,6 +9,7 @@ import {
 import { describe, expect, test } from "vitest";
 import type { Address, Hex } from "viem";
 import { NATIVE_TOKEN } from "../constants.js";
+import { v6Address } from "./types.js";
 import { uniswapV4PoolId } from "./uniswapV4.js";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
 import {
@@ -497,7 +498,11 @@ describe("prepareUserPay", () => {
           hooks: Address;
         },
     quote = 10_000n as bigint | Error,
+    rulesetMetadata = ruleset.metadata,
+    extraDataHook,
   }: {
+    rulesetMetadata?: bigint;
+    extraDataHook?: { dataHook: Address; useDataHookForPay: boolean };
     terminalCounts?: readonly [bigint, bigint];
     spec?: Hex;
     noop?: boolean;
@@ -523,7 +528,7 @@ describe("prepareUserPay", () => {
         calls.push({ functionName, args });
         if (functionName === "previewPayFor") {
           return [
-            ruleset,
+            { ...ruleset, id: 9, metadata: rulesetMetadata },
             terminalCounts[0],
             terminalCounts[1],
             spec
@@ -534,6 +539,10 @@ describe("prepareUserPay", () => {
         if (functionName === "hookOf") {
           if (hook instanceof Error) throw hook;
           return hook;
+        }
+        if (functionName === "extraDataHookOf") {
+          if (!extraDataHook) throw new Error("not an omnichain project");
+          return { ...extraDataHook, useDataHookForCashOut: false };
         }
         return poolKey;
       },
@@ -700,6 +709,93 @@ describe("prepareUserPay", () => {
     await expect(prepareUserPay(client, args)).rejects.toThrow(
       /unknown specification/,
     );
+  });
+
+  test("skipSplits false honors the split: no pool quote, the split mint entitlement as the minimum", async () => {
+    const { client, calls } = mockClient({
+      spec: swapSpec({ skipSplits: false, tokenCountWithoutHook: 1_000n }),
+    });
+    const prepared = await prepareUserPay(client, {
+      ...args,
+      skipSplits: false,
+    });
+    expect(prepared.metadata).toEqual(
+      buildUserPayMetadata({ chainId: 8453, skipSplits: false }),
+    );
+    expect(
+      decodeAbiParameters(
+        [{ type: "uint256" }, { type: "uint256" }, { type: "bool" }],
+        sliceHex(prepared.metadata, 64),
+      ),
+    ).toEqual([0n, 0n, false]);
+    // The beneficiary's 80% of a 1,000-token mint, less 2 for rounding, less 1%.
+    expect(prepared.minReturnedTokens).toBe(790n);
+    expect(calls.some((c) => c.functionName === "poolKeyOf" || c.data)).toBe(
+      false,
+    );
+  });
+
+  // useDataHookForPay (bit 80) with the data hook packed at bits 82-241.
+  const dataHookMetadata = (hook: Address) =>
+    ruleset.metadata | (1n << 80n) | (BigInt(hook) << 82n);
+  const sentMetadata = (calls: { functionName?: string; args?: unknown }[]) =>
+    calls
+      .filter((c) => c.functionName === "previewPayFor")
+      .map((c) => (c.args as unknown[])[4]);
+
+  test("keys the quote to buyback 1.4 when the ruleset calls it directly", async () => {
+    const { client, calls } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      rulesetMetadata: dataHookMetadata(buybackHook),
+      hook: new Error("the registry is not on this route"),
+    });
+    const prepared = await prepareUserPay(client, args);
+    expect(prepared.metadata).toEqual(
+      buildUserPayMetadata({
+        chainId: 8453,
+        minimumSwapAmountOut: 9_900n,
+        hook: buybackHook,
+      }),
+    );
+    expect(prepared.minReturnedTokens).toBe(9_900n);
+    expect(sentMetadata(calls)).toEqual([
+      buildUserPayMetadata({ chainId: 8453 }),
+      buildUserPayMetadata({ chainId: 8453, hook: buybackHook }),
+    ]);
+    expect(calls.some((c) => c.functionName === "hookOf")).toBe(false);
+  });
+
+  test("keys the quote to buyback 1.4 behind the omnichain deployer, and to the registry otherwise", async () => {
+    const omnichainRuleset = dataHookMetadata(
+      v6Address("JBOmnichainDeployer", 8453),
+    );
+    const direct = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      rulesetMetadata: omnichainRuleset,
+      extraDataHook: { dataHook: buybackHook, useDataHookForPay: true },
+    });
+    expect((await prepareUserPay(direct.client, args)).metadata).toEqual(
+      buildUserPayMetadata({
+        chainId: 8453,
+        minimumSwapAmountOut: 9_900n,
+        hook: buybackHook,
+      }),
+    );
+    expect(
+      direct.calls.find((c) => c.functionName === "extraDataHookOf")!.args,
+    ).toEqual([projectId, 9n]);
+    const viaRegistry = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      rulesetMetadata: omnichainRuleset,
+      extraDataHook: { dataHook: registry, useDataHookForPay: true },
+    });
+    expect((await prepareUserPay(viaRegistry.client, args)).metadata).toEqual(
+      buildUserPayMetadata({ chainId: 8453, minimumSwapAmountOut: 9_900n }),
+    );
+    expect(sentMetadata(viaRegistry.calls)).toHaveLength(1);
   });
 });
 
