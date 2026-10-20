@@ -18,6 +18,7 @@ import {
 import { JBChainId } from "../types.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { slippageFloor } from "./cashOut.js";
+import { getAccountingContexts } from "./terminals.js";
 import { v6Address } from "./types.js";
 import {
   quoteUniswapV4ExactInputSingle,
@@ -490,12 +491,54 @@ const poolKeyOfAbi = [
 ] as const;
 
 /**
+ * The pool key of the buyback pool a payment's spec reports, or null. A router
+ * converts the paid token first, so its pool is keyed to another token the
+ * project accepts. The pool id is the key's hash, so a match proves the key.
+ */
+async function buybackPoolKeyOf(
+  client: PublicClient,
+  {
+    chainId,
+    hook,
+    projectId,
+    token,
+    poolId,
+  }: {
+    chainId: JBChainId;
+    hook: Address;
+    projectId: bigint;
+    token: Address;
+    poolId: Hex;
+  },
+) {
+  const keyOf = (t: Address) =>
+    client.readContract({
+      address: hook,
+      abi: poolKeyOfAbi,
+      functionName: "poolKeyOf",
+      args: [
+        projectId,
+        t.toLowerCase() === NATIVE_TOKEN.toLowerCase() ? zeroAddress : t,
+      ],
+    });
+  const paid = await keyOf(token);
+  if (uniswapV4PoolId(paid) === poolId) return paid;
+  const contexts = await getAccountingContexts(client, { chainId, projectId });
+  const keys = await Promise.all(
+    contexts
+      .filter((c) => c.token.toLowerCase() !== token.toLowerCase())
+      .map((c) => keyOf(c.token)),
+  );
+  return keys.find((k) => uniswapV4PoolId(k) === poolId) ?? null;
+}
+
+/**
  * Prepare a person's payment with {@link buildUserPayMetadata}: preview it,
  * and set the minimum the terminal enforces on the beneficiary's balance.
  *
- * When the project's buyback hook has a pool in the paid token, this quotes
- * that pool (fee and price impact included) and sends the slippage-floored
- * quote as an explicit minimum, so the payer gets the pool's rate whenever it
+ * When the project's buyback hook would swap, this quotes its pool (fee and
+ * price impact included) and sends the slippage-floored quote as an explicit
+ * minimum, so the payer gets the pool's rate whenever it
  * beats minting. The hook compares that minimum to the swap output plus the
  * leftover mint: the whole leftover mint when the swapped tokens go through
  * the reserved split (`skipSplits` false, and always on hook 1.1.1, which
@@ -507,10 +550,18 @@ const poolKeyOfAbi = [
  * which reaches zero on large buys against a thin pool and sends them to
  * minting even when the pool pays far more.
  *
- * Otherwise (no pool, a router converting the token first, or a failed quote)
- * the minimum is the payer's mint entitlement when the hook would swap, since
- * the hook never settles below it, and the terminal's own issuance when it
- * would not. If the payment then reverts, {@link decodePayFailure} says why.
+ * Behind a router terminal, its registry or its gateway, when the router
+ * converts the paid token first, the pool is the one in the token it converts
+ * to, and the quote is on the router's slippage-floored conversion, which the
+ * router reverts below. The preview is then that quote, so the payer usually
+ * receives a little more.
+ *
+ * Otherwise (no pool, or a failed quote) the minimum is the payer's mint
+ * entitlement when the hook would swap, since the hook never settles below it,
+ * and the terminal's own issuance when it would not. If the payment then
+ * reverts, {@link decodePayFailure} says why. To let the payer accept less,
+ * prepare again with a larger `slippageBps`: the hook's minimum is in the
+ * metadata, so lowering `minReturnedTokens` alone does not relax it.
  *
  * When the ruleset calls buyback hook 1.4 directly (or through the omnichain
  * deployer) instead of through the registry, the metadata is keyed to the hook,
@@ -571,19 +622,18 @@ export async function prepareUserPay(
   if (!buyback || buyback.amountToSwapWith === 0n) return fallback;
 
   try {
-    const poolKey = await client.readContract({
-      address: buyback.hook,
-      abi: poolKeyOfAbi,
-      functionName: "poolKeyOf",
-      args: [
-        projectId,
-        token.toLowerCase() === NATIVE_TOKEN.toLowerCase()
-          ? zeroAddress
-          : token,
-      ],
+    const poolKey = await buybackPoolKeyOf(client, {
+      chainId,
+      hook: buyback.hook,
+      projectId,
+      token,
+      poolId: buyback.poolId,
     });
-    // A router converts the paid token first, so its pool is a different one.
-    if (uniswapV4PoolId(poolKey) !== buyback.poolId) return fallback;
+    if (!poolKey) return fallback;
+    // Behind a router, `amountToSwapWith` is the router's slippage-floored
+    // conversion, which it reverts below. The hook does not scale an explicit
+    // minimum to what it is forwarded, so quoting this floor keeps the minimum
+    // reachable; a larger conversion only swaps more.
     const quote = await quoteUniswapV4ExactInputSingle(client, {
       chainId,
       poolKey,
@@ -609,10 +659,18 @@ export async function prepareUserPay(
         functionName: "previewPayFor",
         args: [projectId, token, args.amount, args.beneficiary, quotedMetadata],
       });
-    const swaps = quotedSpecs.some(
-      (s) => !s.noop && s.hook.toLowerCase() === buyback.hook.toLowerCase(),
+    // It must still swap, and in the quoted pool: a router may pick another route.
+    const quotedSpec = quotedSpecs.find(
+      (s) => s.hook.toLowerCase() === buyback.hook.toLowerCase(),
     );
-    if (!swaps) return fallback;
+    if (
+      !quotedSpec ||
+      quotedSpec.noop ||
+      decodeBuybackPaySpec(quotedSpec, buyback.reservedPercent)?.poolId !==
+        buyback.poolId
+    ) {
+      return fallback;
+    }
     // A router folds the hook's estimate into its counts, so only the
     // multi-terminal's own counts are known to be its issuance.
     const issuedByTerminal: PayPreview =

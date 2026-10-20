@@ -512,7 +512,13 @@ describe("prepareUserPay", () => {
     extraDataHook,
     specHook = buybackHook as Address,
     respond,
+    poolKeyOf,
+    contextTokens = [],
   }: {
+    /** The hook's pool per terminal token; defaults to `poolKey` for any. */
+    poolKeyOf?: (token: Address) => typeof poolKey;
+    /** The tokens the project accepts on the multi-terminal. */
+    contextTokens?: Address[];
     rulesetMetadata?: bigint;
     /** The hook the spec comes from. */
     specHook?: Address;
@@ -587,6 +593,16 @@ describe("prepareUserPay", () => {
         if (functionName === "extraDataHookOf") {
           if (!extraDataHook) throw new Error("not an omnichain project");
           return { ...extraDataHook, useDataHookForCashOut: false };
+        }
+        if (functionName === "accountingContextsOf") {
+          return contextTokens.map((token) => ({
+            token,
+            decimals: 18,
+            currency: 1,
+          }));
+        }
+        if (functionName === "poolKeyOf" && poolKeyOf) {
+          return poolKeyOf((args as [bigint, Address])[1]);
         }
         return poolKey;
       },
@@ -781,17 +797,186 @@ describe("prepareUserPay", () => {
     });
   });
 
-  test("behind a router, requires only the mint entitlement, not the optimistic preview", async () => {
-    // The router's own preview already folded the raw TWAP quote into 1,000.
-    const { client, calls } = mockClient({
-      terminalCounts: [1_000n, 0n],
-      spec: swapSpec({ poolId: `0x${"ab".repeat(32)}` }),
+  describe("behind a router that converts the paid token", () => {
+    // The router swaps ETH to USDC; the hook's pool is USDC/project token.
+    const usdcKey = { ...nativeKey, currency0: projectToken, currency1: usdc };
+    const routedSpec = swapSpec({
+      projectTokenIs0: true,
+      poolId: uniswapV4PoolId(usdcKey),
+      // The router's slippage-floored conversion of the 1,000 wei paid.
+      amountToSwapWith: 640n,
     });
-    const prepared = await prepareUserPay(client, args);
-    expect(prepared.preview.beneficiaryTokenCount).toBe(1_000n);
-    expect(prepared.minReturnedTokens).toBe(47n);
-    expect(prepared.metadata).toEqual(buildUserPayMetadata({ chainId: 8453 }));
-    expect(calls.some((c) => c.data)).toBe(false);
+    const keyByToken = (token: Address) =>
+      token.toLowerCase() === usdc.toLowerCase()
+        ? usdcKey
+        : { ...nativeKey, fee: 3_000 };
+    const routed = {
+      // The router's own preview already folded the raw TWAP quote into 1,000.
+      terminalCounts: [1_000n, 0n] as const,
+      spec: routedSpec,
+      poolKeyOf: keyByToken,
+      contextTokens: [NATIVE_TOKEN as Address, usdc],
+    };
+    const routerArgs = {
+      ...args,
+      terminal: v6Address("JBRouterTerminalRegistry", 8453),
+    };
+
+    test("quotes the pool in the converted token on the router's floored conversion", async () => {
+      const { client, calls } = mockClient(routed);
+      const prepared = await prepareUserPay(client, routerArgs);
+      expect(
+        calls
+          .filter((c) => c.functionName === "poolKeyOf")
+          .map((c) => (c.args as unknown[])[1]),
+      ).toEqual(["0x0000000000000000000000000000000000000000", usdc]);
+      expect(quotedArgs(calls)).toMatchObject({
+        poolKey: usdcKey,
+        zeroForOne: false,
+        exactAmount: 640n,
+      });
+      expect(prepared.metadata).toEqual(
+        buildUserPayMetadata({ chainId: 8453, minimumSwapAmountOut: 9_900n }),
+      );
+      expect(prepared.minReturnedTokens).toBe(9_900n);
+      expect(prepared.preview).toEqual({
+        beneficiaryTokenCount: 10_000n,
+        reservedTokenCount: 0n,
+      });
+    });
+
+    test.each([
+      "JBRouterTerminal",
+      "JBRouterTerminalRegistry",
+      "JBRouterTerminalGateway",
+    ] as const)(
+      "paid through %s, sends the same quote and leaves out its folded estimate",
+      async (entry) => {
+        const { client } = mockClient(routed);
+        const prepared = await prepareUserPay(client, {
+          ...args,
+          terminal: v6Address(entry, 8453),
+        });
+        expect(prepared.metadata).toEqual(
+          buildUserPayMetadata({
+            chainId: 8453,
+            minimumSwapAmountOut: 9_900n,
+          }),
+        );
+        expect(prepared.minReturnedTokens).toBe(9_900n);
+        expect(prepared.preview.beneficiaryTokenCount).toBe(10_000n);
+      },
+    );
+
+    test("an ERC-20 the router converts to the native token quotes the native pool", async () => {
+      const { client, calls } = mockClient({
+        ...routed,
+        spec: swapSpec({ amountToSwapWith: 640n }),
+        poolKeyOf: (token) =>
+          token === "0x0000000000000000000000000000000000000000"
+            ? nativeKey
+            : usdcKey,
+      });
+      const prepared = await prepareUserPay(client, {
+        ...routerArgs,
+        token: usdc,
+      });
+      expect(
+        calls
+          .filter((c) => c.functionName === "poolKeyOf")
+          .map((c) => (c.args as unknown[])[1]),
+      ).toEqual([usdc, "0x0000000000000000000000000000000000000000"]);
+      expect(quotedArgs(calls)).toMatchObject({
+        poolKey: nativeKey,
+        zeroForOne: true,
+        exactAmount: 640n,
+      });
+      expect(prepared.minReturnedTokens).toBe(9_900n);
+    });
+
+    test("keeps the NFT tiers beside the quote", async () => {
+      const tiers = {
+        metadataIdTarget:
+          "0x9999999999999999999999999999999999999999" as Address,
+        tierIdsToMint: [1n, 2n],
+      };
+      const { client } = mockClient(routed);
+      const prepared = await prepareUserPay(client, { ...routerArgs, tiers });
+      expect(prepared.metadata).toEqual(
+        buildUserPayMetadata({
+          chainId: 8453,
+          tiers,
+          minimumSwapAmountOut: 9_900n,
+        }),
+      );
+      expect(prepared.minReturnedTokens).toBe(9_900n);
+    });
+
+    test.each([
+      ["skipSplits false on 1.4", false, (m: Hex) => m],
+      ["hook 1.1.1", true, legacySpec],
+    ] as const)(
+      "%s: the quote is reminted through the split",
+      async (_, skipSplits, version) => {
+        const { client } = mockClient({
+          ...routed,
+          spec: version(
+            swapSpec({
+              projectTokenIs0: true,
+              poolId: uniswapV4PoolId(usdcKey),
+              amountToSwapWith: 640n,
+              tokenCountWithoutHook: 1_000n,
+              skipSplits,
+            }),
+          ),
+        });
+        const prepared = await prepareUserPay(client, {
+          ...routerArgs,
+          skipSplits,
+        });
+        expect(prepared.metadata).toEqual(
+          buildUserPayMetadata({
+            chainId: 8453,
+            minimumSwapAmountOut: 9_900n,
+            skipSplits,
+          }),
+        );
+        expect(prepared.preview).toEqual({
+          beneficiaryTokenCount: 8_000n,
+          reservedTokenCount: 2_000n,
+        });
+        expect(prepared.minReturnedTokens).toBe(7_920n);
+      },
+    );
+
+    test("falls back to the mint entitlement when no accepted token has the spec's pool", async () => {
+      const { client, calls } = mockClient({
+        ...routed,
+        spec: swapSpec({ poolId: `0x${"ab".repeat(32)}` }),
+      });
+      const prepared = await prepareUserPay(client, routerArgs);
+      expect(prepared.preview.beneficiaryTokenCount).toBe(1_000n);
+      expect(prepared.minReturnedTokens).toBe(47n);
+      expect(prepared.metadata).toEqual(
+        buildUserPayMetadata({ chainId: 8453 }),
+      );
+      expect(calls.some((c) => c.data)).toBe(false);
+    });
+
+    test("falls back when the quoted preview routes to another pool", async () => {
+      const { client } = mockClient({
+        ...routed,
+        respond: (metadata) =>
+          explicitMinimumOf(metadata) === 0n
+            ? {}
+            : { spec: swapSpec({ poolId: uniswapV4PoolId(nativeKey) }) },
+      });
+      const prepared = await prepareUserPay(client, routerArgs);
+      expect(prepared.metadata).toEqual(
+        buildUserPayMetadata({ chainId: 8453 }),
+      );
+      expect(prepared.minReturnedTokens).toBe(47n);
+    });
   });
 
   test("a failed quote falls back to the mint entitlement", async () => {
