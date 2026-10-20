@@ -10,6 +10,7 @@ import { describe, expect, test } from "vitest";
 import type { Address, Hex } from "viem";
 import { NATIVE_TOKEN } from "../constants.js";
 import { v6Address } from "./types.js";
+import { hookMetadataId } from "../utils/hook.js";
 import { uniswapV4PoolId } from "./uniswapV4.js";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
 import {
@@ -500,8 +501,18 @@ describe("prepareUserPay", () => {
     quote = 10_000n as bigint | Error,
     rulesetMetadata = ruleset.metadata,
     extraDataHook,
+    specHook = buybackHook as Address,
+    respond,
   }: {
     rulesetMetadata?: bigint;
+    /** The hook the spec comes from. */
+    specHook?: Address;
+    /** Answer each preview from the metadata it was sent, as a hook reading only its own entry does. */
+    respond?: (metadata: Hex) => {
+      spec?: Hex;
+      noop?: boolean;
+      terminalCounts?: readonly [bigint, bigint];
+    };
     extraDataHook?: { dataHook: Address; useDataHookForPay: boolean };
     terminalCounts?: readonly [bigint, bigint];
     spec?: Hex;
@@ -516,23 +527,43 @@ describe("prepareUserPay", () => {
     };
     quote?: bigint | Error;
   }) {
-    const calls: { functionName?: string; args?: unknown; data?: Hex }[] = [];
+    const calls: {
+      address?: Address;
+      functionName?: string;
+      args?: unknown;
+      data?: Hex;
+    }[] = [];
     const client = {
       async readContract({
+        address,
         functionName,
         args,
       }: {
+        address: Address;
         functionName: string;
         args: unknown;
       }) {
-        calls.push({ functionName, args });
+        calls.push({ address, functionName, args });
         if (functionName === "previewPayFor") {
+          const answer = {
+            spec,
+            noop,
+            terminalCounts,
+            ...respond?.((args as unknown[])[4] as Hex),
+          };
           return [
             { ...ruleset, id: 9, metadata: rulesetMetadata },
-            terminalCounts[0],
-            terminalCounts[1],
-            spec
-              ? [{ hook: buybackHook, noop, amount: 0n, metadata: spec }]
+            answer.terminalCounts[0],
+            answer.terminalCounts[1],
+            answer.spec
+              ? [
+                  {
+                    hook: specHook,
+                    noop: answer.noop,
+                    amount: 0n,
+                    metadata: answer.spec,
+                  },
+                ]
               : [],
           ];
         }
@@ -743,14 +774,40 @@ describe("prepareUserPay", () => {
       .filter((c) => c.functionName === "previewPayFor")
       .map((c) => (c.args as unknown[])[4]);
 
+  // Buyback 1.4 called directly reads only the entry keyed to its own address.
+  // Without one it mints through the split; with one it honors the entry's skipSplits.
+  const directHook =
+    (hookSpec: (skipSplits: boolean) => Hex) => (metadata: Hex) => {
+      const id = hookMetadataId(buybackHook, "pay").slice(2).toLowerCase();
+      if (!metadata.toLowerCase().includes(id))
+        return {
+          spec: hookSpec(false),
+          noop: false,
+          terminalCounts: [400n, 100n] as const,
+        };
+      const [, , skip] = decodeAbiParameters(
+        [{ type: "uint256" }, { type: "uint256" }, { type: "bool" }],
+        sliceHex(metadata, 64, 64 + 96),
+      );
+      return {
+        spec: hookSpec(skip),
+        noop: skip,
+        terminalCounts: [0n, 0n] as const,
+      };
+    };
+
   test("keys the quote to buyback 1.4 when the ruleset calls it directly", async () => {
     const { client, calls } = mockClient({
-      spec: swapSpec(),
-      noop: true,
+      respond: directHook((skipSplits) => swapSpec({ skipSplits })),
       rulesetMetadata: dataHookMetadata(buybackHook),
       hook: new Error("the registry is not on this route"),
     });
     const prepared = await prepareUserPay(client, args);
+    // The registry-keyed first preview minted 400 through the split; the hook-keyed one swaps.
+    expect(prepared.preview).toEqual({
+      beneficiaryTokenCount: 10_000n,
+      reservedTokenCount: 0n,
+    });
     expect(prepared.metadata).toEqual(
       buildUserPayMetadata({
         chainId: 8453,
@@ -766,13 +823,97 @@ describe("prepareUserPay", () => {
     expect(calls.some((c) => c.functionName === "hookOf")).toBe(false);
   });
 
+  test("skipSplits false on a direct buyback 1.4 keys the split-honoring entry to the hook", async () => {
+    const { client, calls } = mockClient({
+      respond: directHook((skipSplits) =>
+        swapSpec({ skipSplits, tokenCountWithoutHook: 1_000n }),
+      ),
+      rulesetMetadata: dataHookMetadata(buybackHook),
+      hook: new Error("the registry is not on this route"),
+    });
+    const prepared = await prepareUserPay(client, {
+      ...args,
+      skipSplits: false,
+    });
+    expect(prepared.metadata).toEqual(
+      buildUserPayMetadata({
+        chainId: 8453,
+        skipSplits: false,
+        hook: buybackHook,
+      }),
+    );
+    expect(prepared.minReturnedTokens).toBe(790n);
+    expect(sentMetadata(calls)).toEqual([
+      buildUserPayMetadata({ chainId: 8453, skipSplits: false }),
+      buildUserPayMetadata({
+        chainId: 8453,
+        skipSplits: false,
+        hook: buybackHook,
+      }),
+    ]);
+    expect(calls.some((c) => c.functionName === "poolKeyOf" || c.data)).toBe(
+      false,
+    );
+  });
+
+  test("a direct buyback 1.4 behind the router terminal is previewed through the router", async () => {
+    const router = v6Address("JBRouterTerminalRegistry", 8453);
+    const { client, calls } = mockClient({
+      respond: directHook((skipSplits) => swapSpec({ skipSplits })),
+      rulesetMetadata: dataHookMetadata(buybackHook),
+      hook: new Error("the registry is not on this route"),
+    });
+    const prepared = await prepareUserPay(client, {
+      ...args,
+      terminal: router,
+    });
+    expect(prepared.metadata).toEqual(
+      buildUserPayMetadata({
+        chainId: 8453,
+        minimumSwapAmountOut: 9_900n,
+        hook: buybackHook,
+      }),
+    );
+    const previews = calls.filter((c) => c.functionName === "previewPayFor");
+    expect(previews.map((c) => c.address)).toEqual([router, router]);
+  });
+
+  test("a custom data hook is not a direct buyback: one registry-keyed preview, no buyback spec", async () => {
+    const custom = "0xc0ffee0000000000000000000000000000000001" as const;
+    const { client, calls } = mockClient({
+      terminalCounts: [200n, 50n],
+      spec: swapSpec(),
+      specHook: custom,
+      rulesetMetadata: dataHookMetadata(custom),
+    });
+    const prepared = await prepareUserPay(client, args);
+    expect(prepared.metadata).toEqual(buildUserPayMetadata({ chainId: 8453 }));
+    expect(prepared.minReturnedTokens).toBe(198n);
+    expect(sentMetadata(calls)).toHaveLength(1);
+    expect(calls.some((c) => c.functionName === "hookOf")).toBe(true);
+  });
+
+  test("buyback 1.4 set as the data hook with pay disabled is not a direct route", async () => {
+    const { client, calls } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      // useDataHookForPay (bit 80) off.
+      rulesetMetadata: ruleset.metadata | (BigInt(buybackHook) << 82n),
+    });
+    const prepared = await prepareUserPay(client, args);
+    expect(prepared.metadata).toEqual(
+      buildUserPayMetadata({ chainId: 8453, minimumSwapAmountOut: 9_900n }),
+    );
+    expect(sentMetadata(calls)).toHaveLength(1);
+    expect(calls.some((c) => c.functionName === "hookOf")).toBe(true);
+  });
+
   test("keys the quote to buyback 1.4 behind the omnichain deployer, and to the registry otherwise", async () => {
     const omnichainRuleset = dataHookMetadata(
       v6Address("JBOmnichainDeployer", 8453),
     );
     const direct = mockClient({
-      spec: swapSpec(),
-      noop: true,
+      respond: directHook((skipSplits) => swapSpec({ skipSplits })),
       rulesetMetadata: omnichainRuleset,
       extraDataHook: { dataHook: buybackHook, useDataHookForPay: true },
     });

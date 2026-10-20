@@ -123,8 +123,11 @@ export interface PayPreview {
  * it in with the router terminal's scoring rule (see
  * {@link effectivePayPreview}), for the hook the buyback registry resolves for
  * the project, 1.4 or 1.1.1, or for buyback 1.4 when the ruleset calls it
- * directly. The swap figure ignores pool fees and price
- * impact, so use {@link prepareUserPay} for a payment's minimum.
+ * directly. It only recognizes that hook's spec: it sends `metadata` as given,
+ * and a direct hook reads only an entry keyed to its own address, so
+ * registry-keyed metadata is ignored there. {@link prepareUserPay} rekeys it.
+ * The swap figure ignores pool fees and price impact, so use
+ * {@link prepareUserPay} for a payment's minimum.
  *
  * @param client A viem public client on the given chain.
  * @param args.chainId The chain to preview on.
@@ -699,8 +702,9 @@ export interface UserPayTiers {
  *
  * The registry rekeys its quote to the project's resolved hook. On buyback 1.4
  * the hook buys from the pool only when that gives the payer more than their
- * share of a mint, and hands the swapped tokens over without the reserved
- * split. Minting still goes through the split. A zero swap amount swaps the
+ * share of a mint. With `skipSplits` true (the default) it hands the swapped
+ * tokens over without the reserved split; with false they go through the
+ * split. Minting always goes through the split. A zero swap amount swaps the
  * whole payment. A zero minimum routes by the hook's TWAP floor; a nonzero one
  * replaces it and reverts below it. The terminal's `minReturnedTokens` checks
  * the beneficiary's balance change, which counts the swapped tokens.
