@@ -1,6 +1,6 @@
 {
   "name": "@bananapus/nana-sdk-connect",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Moved to @me.jango/signa (/core, /wagmi, /react)",
   "type": "module",
   "repository": {
