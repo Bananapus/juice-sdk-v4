@@ -24,7 +24,7 @@ import {
   buildCashOutTx,
   type V6CashOutTxRequest,
 } from "./cashOut.js";
-import { effectiveTierPrice } from "./nft.js";
+import { effectiveTierPrice } from "./tierPrice.js";
 import {
   getProjectNftInventory,
   type ProjectDefifaInventory,

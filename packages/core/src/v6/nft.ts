@@ -17,6 +17,8 @@ import { getCurrentRuleset, type JBRulesetWithMetadata } from "./rulesets.js";
  */
 export const TIER_UNLIMITED_SUPPLY = 999_999_999;
 
+export { DISCOUNT_DENOMINATOR, effectiveTierPrice } from "./tierPrice.js";
+
 /**
  * The one JBOmnichainDeployer function the 721 hook lookup reads, so a page
  * that resolves a hook does not load the deployer's whole ABI.
@@ -40,12 +42,6 @@ const tiered721HookOfAbi = [
     stateMutability: "view",
   },
 ] as const;
-
-/**
- * JB721TiersHookStore's `DISCOUNT_DENOMINATOR`: a tier's `discountPercent` is
- * out of 200, so the shopper-facing "% off" is `discountPercent / 2`.
- */
-export const DISCOUNT_DENOMINATOR = 200n;
 
 /** The 721 tiers hook's ruleset-metadata bit which pauses eligible transfers. */
 export const JB721_RULESET_METADATA_PAUSE_TRANSFERS = 1 << 0;
@@ -367,24 +363,6 @@ export function buildTierCategoryPlan(
   }
 
   return { categoryByTierId, storeCategories };
-}
-
-/**
- * A tier's effective (discounted) price, matching the on-chain formula in
- * JB721TiersHookStore: `price - mulDiv(price, discountPercent, 200)` with
- * integer-floor division.
- *
- * @param price The tier's full (undiscounted) price.
- * @param discountPercent The tier's discount, out of 200 (`DISCOUNT_DENOMINATOR`).
- */
-export function effectiveTierPrice(
-  price: bigint,
-  discountPercent: number | bigint,
-): bigint {
-  let discount = BigInt(discountPercent);
-  if (discount <= 0n) return price;
-  if (discount > DISCOUNT_DENOMINATOR) discount = DISCOUNT_DENOMINATOR;
-  return price - (price * discount) / DISCOUNT_DENOMINATOR;
 }
 
 /**
