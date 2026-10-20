@@ -25,6 +25,12 @@ const abi = parseAbi([
   "error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed)",
   "error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)",
   "error JBMultiTerminal_NoMsgValueAllowed(uint256 value)",
+  "error JBRouterTerminal_PermitAllowanceNotEnough(uint256 amount, uint256 allowance)",
+  "error JBRouterTerminalRegistry_PermitAllowanceNotEnough(uint256 amount, uint256 allowanceAmount)",
+  "error JBRouterTerminalGateway_PermitAllowanceNotEnough(uint256 amount, uint256 allowance)",
+  "error JBRouterTerminal_NoMsgValueAllowed(uint256 value)",
+  "error JBRouterTerminalRegistry_NoMsgValueAllowed(uint256 value)",
+  "error JBRouterTerminalGateway_NoMsgValueAllowed(uint256 value)",
   "error JB721TiersHookStore_InsufficientSupplyRemaining(uint256 tierId)",
   "error JB721TiersHookStore_TierRemoved(uint256 tierId)",
   "error JB721TiersHookStore_UnrecognizedTier(uint256 tierId)",
@@ -66,6 +72,24 @@ describe("decodePayFailure", () => {
     ["ERC20InsufficientAllowance", [token, 1n, 2n], "ALLOWANCE_TOO_LOW"],
     ["ERC20InsufficientBalance", [token, 1n, 2n], "BALANCE_TOO_LOW"],
     ["JBMultiTerminal_NoMsgValueAllowed", [1n], "UNEXPECTED_ETH"],
+    [
+      "JBRouterTerminal_PermitAllowanceNotEnough",
+      [2n, 1n],
+      "ALLOWANCE_TOO_LOW",
+    ],
+    [
+      "JBRouterTerminalRegistry_PermitAllowanceNotEnough",
+      [2n, 1n],
+      "ALLOWANCE_TOO_LOW",
+    ],
+    [
+      "JBRouterTerminalGateway_PermitAllowanceNotEnough",
+      [2n, 1n],
+      "ALLOWANCE_TOO_LOW",
+    ],
+    ["JBRouterTerminal_NoMsgValueAllowed", [1n], "UNEXPECTED_ETH"],
+    ["JBRouterTerminalRegistry_NoMsgValueAllowed", [1n], "UNEXPECTED_ETH"],
+    ["JBRouterTerminalGateway_NoMsgValueAllowed", [1n], "UNEXPECTED_ETH"],
     ["JB721TiersHookStore_InsufficientSupplyRemaining", [3n], "NFT_SOLD_OUT"],
     ["JB721TiersHookStore_TierRemoved", [3n], "NFT_UNAVAILABLE"],
     ["JB721TiersHookStore_UnrecognizedTier", [3n], "NFT_UNAVAILABLE"],
@@ -123,6 +147,49 @@ describe("decodePayFailure", () => {
     expect(
       decodePayFailure({ cause: { errorName: "JBMultiTerminal_UnderMin" } }),
     ).toEqual({ reason: "TERMINAL_UNDER_MIN", message: expect.any(String) });
+  });
+
+  test("hex the request quotes is not a revert", () => {
+    const request = revert("JBBuybackHook_SpecifiedSlippageExceeded", [1n, 2n]);
+    // A rejected request whose address and calldata start with a known selector.
+    expect(
+      decodePayFailure({
+        shortMessage: "User rejected the request.",
+        details: `Request body: {"to":"0xe2d708a900000000000000000000000000000000","data":"${request}"}`,
+      }),
+    ).toBeNull();
+    // The revert the error carries wins over revert-shaped hex in its text.
+    expect(
+      decodePayFailure({
+        message: `eth_call failed for ${request}`,
+        cause: { data: revert("JBMultiTerminal_UnderMin", [3n, 4n]) },
+      }),
+    ).toMatchObject({
+      reason: "TERMINAL_UNDER_MIN",
+      received: 3n,
+      minimum: 4n,
+    });
+  });
+
+  test("a decoded error keeps its amounts, and a bare selector or name in text still counts", () => {
+    expect(
+      decodePayFailure({
+        cause: { errorName: "JBMultiTerminal_UnderMin", args: [5n, 6n] },
+      }),
+    ).toMatchObject({
+      reason: "TERMINAL_UNDER_MIN",
+      received: 5n,
+      minimum: 6n,
+    });
+    expect(decodePayFailure("0x42b9988e")?.reason).toBe("NFT_OVERSPENDING");
+    expect(
+      decodePayFailure(
+        "execution reverted: JBTerminalStore_RulesetPaymentPaused",
+      )?.reason,
+    ).toBe("PAYMENTS_PAUSED");
+    expect(
+      decodePayFailure("reverted: JBTerminalStore_RulesetPaymentPausedForever"),
+    ).toBeNull();
   });
 
   test("anything else is unknown", () => {

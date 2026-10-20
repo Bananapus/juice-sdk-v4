@@ -1,29 +1,54 @@
 import { Hex, decodeAbiParameters } from "viem";
 
-/** Every message, error name and revert payload in a viem or wallet error, however deeply nested. */
-function collectErrorText(
+/** What a viem or wallet error says about a revert, however deeply nested. */
+interface RevertEvidence {
+  /** Revert data the error carries as a value of its own. */
+  payloads: string[];
+  /** Decoded errors, with their arguments when the decoder kept them. */
+  decoded: { name: string; args?: readonly unknown[] }[];
+  /** Human-readable text, which can quote the request as well as the revert. */
+  messages: string[];
+}
+
+const HEX = /^0x[0-9a-f]*$/i;
+
+function collectEvidence(
   value: unknown,
+  evidence: RevertEvidence,
+  asMessage = false,
   seen = new Set<unknown>(),
   depth = 0,
-): string[] {
+): RevertEvidence {
   if (depth > 8 || value === null || value === undefined || seen.has(value)) {
-    return [];
+    return evidence;
   }
-  if (typeof value === "string") return [value];
-  if (typeof value !== "object") return [];
+  if (typeof value === "string") {
+    (!asMessage && HEX.test(value)
+      ? evidence.payloads
+      : evidence.messages
+    ).push(value);
+    return evidence;
+  }
+  if (typeof value !== "object") return evidence;
   seen.add(value);
   const record = value as Record<string, unknown>;
-  return [
-    record.shortMessage,
-    record.message,
-    record.details,
-    record.errorName,
-    record.signature,
-    record.raw,
-    record.data,
-    record.cause,
-    record.error,
-  ].flatMap((item) => collectErrorText(item, seen, depth + 1));
+  if (typeof record.errorName === "string") {
+    evidence.decoded.push({
+      name: record.errorName,
+      ...(Array.isArray(record.args) ? { args: record.args } : {}),
+    });
+  }
+  const next = (item: unknown, message: boolean) =>
+    collectEvidence(item, evidence, message, seen, depth + 1);
+  for (const item of [record.raw, record.data, record.signature]) {
+    next(item, false);
+  }
+  for (const item of [record.shortMessage, record.message, record.details]) {
+    next(item, true);
+  }
+  next(record.cause, false);
+  next(record.error, false);
+  return evidence;
 }
 
 /** Why a payment reverted, as a stable code apps and agents branch on. */
@@ -71,6 +96,9 @@ interface KnownRevert {
 }
 
 const LOWER_MINIMUM = "so lower your minimum or try again.";
+const ALLOWANCE_MESSAGE =
+  "The token approval is less than the payment, so approve the full amount and try again.";
+const UNEXPECTED_ETH_MESSAGE = "A payment in this token cannot also send ETH.";
 
 const KNOWN_REVERTS: readonly KnownRevert[] = [
   {
@@ -154,17 +182,30 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
     name: "JBMultiTerminal_PermitAllowanceNotEnough",
     selector: "0xc7e994ba",
     params: ["uint256", "uint256"],
-    message:
-      "The token approval is less than the payment, so approve the full amount and try again.",
+    message: ALLOWANCE_MESSAGE,
   },
   {
     reason: "ALLOWANCE_TOO_LOW",
     name: "ERC20InsufficientAllowance",
     selector: "0xfb8f41b2",
     params: ["address", "uint256", "uint256"],
-    message:
-      "The token approval is less than the payment, so approve the full amount and try again.",
+    message: ALLOWANCE_MESSAGE,
   },
+  ...(
+    [
+      ["JBRouterTerminal_PermitAllowanceNotEnough", "0x7686b38a"],
+      ["JBRouterTerminalRegistry_PermitAllowanceNotEnough", "0x3a521783"],
+      ["JBRouterTerminalGateway_PermitAllowanceNotEnough", "0x0f420d6e"],
+    ] as const
+  ).map(
+    ([name, selector]): KnownRevert => ({
+      reason: "ALLOWANCE_TOO_LOW",
+      name,
+      selector,
+      params: ["uint256", "uint256"],
+      message: ALLOWANCE_MESSAGE,
+    }),
+  ),
   {
     reason: "BALANCE_TOO_LOW",
     name: "ERC20InsufficientBalance",
@@ -177,8 +218,23 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
     name: "JBMultiTerminal_NoMsgValueAllowed",
     selector: "0x3ad385fd",
     params: ["uint256"],
-    message: "A payment in this token cannot also send ETH.",
+    message: UNEXPECTED_ETH_MESSAGE,
   },
+  ...(
+    [
+      ["JBRouterTerminal_NoMsgValueAllowed", "0x90b2b3e2"],
+      ["JBRouterTerminalRegistry_NoMsgValueAllowed", "0x0fa1a882"],
+      ["JBRouterTerminalGateway_NoMsgValueAllowed", "0x49ce25f0"],
+    ] as const
+  ).map(
+    ([name, selector]): KnownRevert => ({
+      reason: "UNEXPECTED_ETH",
+      name,
+      selector,
+      params: ["uint256"],
+      message: UNEXPECTED_ETH_MESSAGE,
+    }),
+  ),
   {
     reason: "NFT_SOLD_OUT",
     name: "JB721TiersHookStore_InsufficientSupplyRemaining",
@@ -217,8 +273,10 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
 ];
 
 /**
- * The first known revert in an error: its full revert data when present, so
- * the amounts decode, else its selector or error name alone.
+ * The first known revert in an error. Revert data and decoded errors are read
+ * before any text, so their amounts decode; text counts only a bare selector
+ * or a whole error name, never hex inside a longer value such as a request's
+ * address or calldata.
  */
 export function matchKnownRevert(
   error: unknown,
@@ -227,10 +285,15 @@ export function matchKnownRevert(
   const known = reasons
     ? KNOWN_REVERTS.filter((k) => reasons.includes(k.reason))
     : KNOWN_REVERTS;
-  const text = collectErrorText(error).join(" | ").toLowerCase();
-  if (!text) return null;
-  for (const [hex] of text.matchAll(/0x[0-9a-f]{8,}/g)) {
-    const match = known.find((k) => hex.startsWith(k.selector));
+  const { payloads, decoded, messages } = collectEvidence(error, {
+    payloads: [],
+    decoded: [],
+    messages: [],
+  });
+  const bySelector = (hex: string) =>
+    known.find((k) => hex.toLowerCase().startsWith(k.selector));
+  for (const hex of payloads) {
+    const match = bySelector(hex);
     const end = 10 + 64 * (match?.params.length ?? 0);
     if (!match || hex.length < end) continue;
     const args = decodeAbiParameters(
@@ -239,8 +302,17 @@ export function matchKnownRevert(
     );
     return { known: match, args };
   }
+  for (const { name, args } of decoded) {
+    const match = known.find((k) => k.name === name);
+    if (match) return { known: match, ...(args ? { args } : {}) };
+  }
+  const short = payloads.map(bySelector).find(Boolean);
+  if (short) return { known: short };
+  const text = messages.join(" | ");
   const match = known.find(
-    (k) => text.includes(k.selector) || text.includes(k.name.toLowerCase()),
+    (k) =>
+      new RegExp(`(?<![0-9a-fx])${k.selector}(?![0-9a-f])`, "i").test(text) ||
+      new RegExp(`\\b${k.name}\\b`).test(text),
   );
   return match ? { known: match } : null;
 }

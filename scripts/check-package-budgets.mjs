@@ -273,9 +273,10 @@ const budgets = {
     // artifacts. Packed size falls; the per-module declarations and maps
     // add: 1,561,709 B packed, 22,829,113 B unpacked, 1,706 files.
     // The pay and cash-out revert decoder, a module of its own, adds eight
-    // artifacts: 1,568,743 B packed, 22,874,775 B unpacked, 1,714 files.
-    packed: 1_575_000,
-    unpacked: 22_880_000,
+    // artifacts, and the quoted pay's second preview a few hundred bytes:
+    // 1,570,597 B packed, 22,887,175 B unpacked, 1,714 files.
+    packed: 1_580_000,
+    unpacked: 22_900_000,
     entries: 1_714,
   },
   "@bananapus/nana-sdk-react": {
