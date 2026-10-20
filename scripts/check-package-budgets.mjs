@@ -272,9 +272,11 @@ const budgets = {
     // and review queue in modules of their own, each eight ESM/CJS
     // artifacts. Packed size falls; the per-module declarations and maps
     // add: 1,561,709 B packed, 22,829,113 B unpacked, 1,706 files.
+    // The pay and cash-out revert decoder, a module of its own, adds eight
+    // artifacts: 1,568,743 B packed, 22,874,775 B unpacked, 1,714 files.
     packed: 1_575_000,
     unpacked: 22_880_000,
-    entries: 1_706,
+    entries: 1_714,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

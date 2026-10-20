@@ -72,6 +72,7 @@ describe("published core SDK surfaces", () => {
     expect(v6.buildDeployRevnetTx).toBeTypeOf("function");
     expect(v6.buildAutoIssueTx).toBeTypeOf("function");
     expect(v6.prepareUserPay).toBeTypeOf("function");
+    expect(v6.decodePayFailure).toBeTypeOf("function");
     expect(v6.buildUserPayMetadata).toBeTypeOf("function");
     expect("quoteDirectPaySwap" in v6).toBe(false);
     expect(v6.permit2TypedData).toBeTypeOf("function");

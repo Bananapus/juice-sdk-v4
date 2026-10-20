@@ -13,7 +13,7 @@ import {
 import { JBChainId } from "../types.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { NATIVE_TOKEN_CURRENCY_ID } from "./currency.js";
-import { collectErrorText } from "./executionErrors.js";
+import { matchKnownRevert } from "./executionErrors.js";
 import { v6Address } from "./types.js";
 import {
   buildUniswapV4ExactInputSwapTx,
@@ -589,31 +589,20 @@ export interface CashOutExecutionError {
   selector: Hex;
 }
 
-const CASH_OUT_EXECUTION_ERRORS: readonly (CashOutExecutionError & {
-  matchers: readonly string[];
-})[] = [
-  {
-    code: "BUYBACK_SLIPPAGE_EXCEEDED",
-    selector: "0xe2d708a9",
-    matchers: ["0xe2d708a9", "jbbuybackhook_specifiedslippageexceeded"],
-  },
-  {
-    code: "TERMINAL_UNDER_MIN",
-    selector: "0x6b2bb382",
-    matchers: ["0x6b2bb382", "jbmultiterminal_undermin"],
-  },
-] as const;
-
 /** Classify known cash-out errors through viem/wallet nested error shapes. */
 export function classifyCashOutExecutionError(
   error: unknown,
 ): CashOutExecutionError | null {
-  const text = collectErrorText(error).join(" | ").toLowerCase();
-  if (!text) return null;
-  const matched = CASH_OUT_EXECUTION_ERRORS.find(({ matchers }) =>
-    matchers.some((matcher) => text.includes(matcher)),
-  );
-  return matched ? { code: matched.code, selector: matched.selector } : null;
+  const matched = matchKnownRevert(error, [
+    "BUYBACK_SLIPPAGE_EXCEEDED",
+    "TERMINAL_UNDER_MIN",
+  ]);
+  return matched
+    ? {
+        code: matched.known.reason as CashOutExecutionErrorCode,
+        selector: matched.known.selector,
+      }
+    : null;
 }
 
 /**
