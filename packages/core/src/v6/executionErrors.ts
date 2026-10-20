@@ -363,7 +363,7 @@ export function matchKnownRevert(
     const data = `0x${lower.slice(10)}` as const;
     const args = validArgs(match, decodeAbiParameters(params, data));
     // Canonical encoding only: an address word with nonzero padding is not one.
-    if (args && encodeAbiParameters(params, args) === data) {
+    if (args && encodeAbiParameters(params, args as never) === data) {
       return { known: match, args };
     }
   }
