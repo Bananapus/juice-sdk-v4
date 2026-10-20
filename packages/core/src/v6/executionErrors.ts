@@ -339,9 +339,10 @@ function validArgs(known: KnownRevert, args: unknown) {
 
 /**
  * The first known revert in an error: revert data that is a known selector
- * and exactly its arguments, or else an error viem typed against the known
- * ABI item (same name and input types) with arguments of those types. Either
- * way a shortfall must settle below its minimum. Text never counts.
+ * and exactly its canonically encoded arguments, or, when the error carries
+ * no revert data, an error viem typed against the known ABI item (same name
+ * and input types) with arguments of those types. Either way a shortfall
+ * must settle below its minimum. Text never counts.
  */
 export function matchKnownRevert(
   error: unknown,
@@ -367,6 +368,9 @@ export function matchKnownRevert(
       return { known: match, args };
     }
   }
+  // Revert data, when the error carries any, is the evidence: viem types an
+  // error from data with padding or trailing bytes this table rejects.
+  if (payloads.length) return null;
   for (const { errorName, abiItem, args } of decoded) {
     const item = abiItem as {
       type?: unknown;

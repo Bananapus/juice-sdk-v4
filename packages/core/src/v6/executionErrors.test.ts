@@ -297,6 +297,26 @@ describe("decodePayFailure", () => {
     }
   });
 
+  test("a viem error typed from noncanonical revert data is not that revert", () => {
+    const wrapped = (data: `0x${string}`) =>
+      new ContractFunctionExecutionError(
+        new ContractFunctionRevertedError({ abi, data, functionName: "pay" }),
+        { abi, functionName: "pay" },
+      );
+    const underMin = revert("JBMultiTerminal_UnderMin", [935n, 1_000n]);
+    expect(decodePayFailure(wrapped(underMin))).toMatchObject({
+      reason: "TERMINAL_UNDER_MIN",
+      adjustable: "minimum",
+    });
+    for (const data of [
+      `${underMin}${"0".repeat(64)}`,
+      `0xecb6c1d6${"ff".repeat(12)}${"77".repeat(20)}`,
+    ] as const) {
+      expect(decodePayFailure(wrapped(data))).toBeNull();
+      expect(classifyCashOutExecutionError(wrapped(data))).toBeNull();
+    }
+  });
+
   test("a typed error keeps its amounts", () => {
     expect(
       decodePayFailure({ cause: typed("JBMultiTerminal_UnderMin", [5n, 6n]) }),
