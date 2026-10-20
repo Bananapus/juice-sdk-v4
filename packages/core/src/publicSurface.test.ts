@@ -38,6 +38,7 @@ describe("published core SDK surfaces", () => {
     expect(sdk.bendystrawProjectRefsFilters).toBeTypeOf("function");
     expect(sdk.createJBCenterClient).toBeTypeOf("function");
     expect(sdk.createJBCenterRpcProvider).toBeTypeOf("function");
+    expect(sdk.createJBCenterClient()).toBeInstanceOf(sdk.JBCenterRpcClient);
     expect(sdk.JBCENTER_DEFAULT_URL).toBe("https://juicebox.center");
     expect(sdk.JBCENTER_RPC_METHODS).toContain("eth_chainId");
     expect(sdk.JBCENTER_SPONSORED_CHAIN_IDS).toContain(8453);

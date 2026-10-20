@@ -17,6 +17,7 @@ const ENTRIES = [
   "src/untrusted.ts",
   "src/v6/distributions.ts",
   "src/jbcenter/rateLimit.ts",
+  "src/jbcenter/rpcClient.ts",
 ];
 
 /** True when evaluating `node` cannot call anything. */
@@ -175,7 +176,7 @@ function closureWork(
 
 describe("module load", () => {
   // Parsing every module in the closure takes seconds under coverage.
-  test("the Safe, Safe service, review decoder, untrusted-input, distribution and JB Center rate-limit modules, and every module they load, run nothing when imported", () => {
+  test("the Safe, Safe service, review decoder, untrusted-input, distribution, JB Center rate-limit and RPC client modules, and every module they load, run nothing when imported", () => {
     const work = closureWork(ENTRIES);
     expect([...work.values()].flat()).toEqual([]);
   }, 60_000);
