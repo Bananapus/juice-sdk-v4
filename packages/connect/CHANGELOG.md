@@ -1,5 +1,11 @@
 # @bananapus/nana-sdk-connect
 
+## 0.6.1
+
+### Patch Changes
+
+- 7d67f5f: Moved to `@me.jango/signa` 0.4.0 as `/core`, `/wagmi` and `/react`, with the same export names. This is the last release; the README says where everything went.
+
 ## 0.6.0
 
 ### Minor Changes
