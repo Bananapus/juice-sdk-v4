@@ -11,4 +11,4 @@ export {
   type CenterCallbackResult,
   type CenterCallbackWallet,
 } from "./callback.js";
-export * from "@me.jango/center-wallet";
+export * from "@me.jango/signa";
