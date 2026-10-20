@@ -613,24 +613,16 @@ export async function prepareUserPay(
       (s) => !s.noop && s.hook.toLowerCase() === buyback.hook.toLowerCase(),
     );
     if (!swaps) return fallback;
-    // A router folds the hook's estimate into zero terminal counts; only
-    // counts it reports as they are were issued by the terminal.
-    const folded = effectivePayPreview({
-      buybackHook: buyback.hook,
-      beneficiaryTokenCount: 0n,
-      reservedTokenCount: 0n,
-      weight,
-      reservedPercent: buyback.reservedPercent,
-      hookSpecifications: quotedSpecs,
-    });
-    const issuedByTerminal =
-      quotedBeneficiaryCount === folded.beneficiaryTokenCount &&
-      quotedReservedCount === folded.reservedTokenCount
-        ? { beneficiaryTokenCount: 0n, reservedTokenCount: 0n }
-        : {
+    // A router folds the hook's estimate into its counts, so only the
+    // multi-terminal's own counts are known to be its issuance.
+    const issuedByTerminal: PayPreview =
+      args.terminal.toLowerCase() ===
+      v6Address("JBMultiTerminal", chainId).toLowerCase()
+        ? {
             beneficiaryTokenCount: quotedBeneficiaryCount,
             reservedTokenCount: quotedReservedCount,
-          };
+          }
+        : { beneficiaryTokenCount: 0n, reservedTokenCount: 0n };
     const directMint = directMintOf(buyback, weight);
     // The swapped tokens skip the split, or are reminted through it with the
     // direct mint. The terminal's own issuance, such as for NFT splits, adds.

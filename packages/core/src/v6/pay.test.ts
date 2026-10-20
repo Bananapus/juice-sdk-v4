@@ -691,6 +691,7 @@ describe("prepareUserPay", () => {
     });
     const prepared = await prepareUserPay(client, {
       ...args,
+      terminal: v6Address("JBMultiTerminal", 8453),
       skipSplits: false,
     });
     expect(prepared.preview).toEqual({
@@ -698,6 +699,27 @@ describe("prepareUserPay", () => {
       reservedTokenCount: 2_040n,
     });
     expect(prepared.minReturnedTokens).toBe(7_920n + 160n);
+  });
+
+  test("counts the multi-terminal's issuance even when it equals the hook's estimate", async () => {
+    const quotedSpec = swapSpec({
+      rawSwapQuote: 12_000n,
+      minimumSwapAmountOut: 9_900n,
+    });
+    const { client } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      respond: (metadata) =>
+        explicitMinimumOf(metadata) === 0n
+          ? {}
+          : { spec: quotedSpec, terminalCounts: [12_000n, 0n] as const },
+    });
+    const prepared = await prepareUserPay(client, {
+      ...args,
+      terminal: v6Address("JBMultiTerminal", 8453),
+    });
+    expect(prepared.preview.beneficiaryTokenCount).toBe(22_000n);
+    expect(prepared.minReturnedTokens).toBe(21_900n);
   });
 
   test("does not count a router's folded estimate as terminal issuance", async () => {

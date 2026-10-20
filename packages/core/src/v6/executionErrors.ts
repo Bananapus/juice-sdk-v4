@@ -320,11 +320,15 @@ export function matchKnownRevert(
     );
     return { known: match, args };
   };
-  // viem quotes the request (its body, and the call's to/data lines); only the rest describes the revert.
+  // viem quotes the request (its body, and the call and its arguments); only
+  // the rest describes the revert.
   const text = messages
     .join("\n")
     .replace(/request body:[^\n]*/gi, "")
-    .replace(/^\s*(?:to|from|data):\s*0x[0-9a-f]*\s*$/gim, "");
+    .replace(
+      /(?:contract call|raw call arguments):[\s\S]*?(?:\n\s*\n|$)/gi,
+      "",
+    );
   const quoted = [
     ...text.matchAll(
       /(?<![0-9a-fx])0x[0-9a-f]{8}(?:[0-9a-f]{64})*(?![0-9a-f])/gi,
@@ -334,7 +338,9 @@ export function matchKnownRevert(
   const withArgs = found.find((m) => m.args);
   if (withArgs) return withArgs;
   for (const { name, args } of decoded) {
-    const match = known.find((k) => k.name === name);
+    const match = known.find(
+      (k) => k.name.toLowerCase() === name.toLowerCase(),
+    );
     if (match) return { known: match, ...(args ? { args } : {}) };
   }
   if (found[0]) return found[0];

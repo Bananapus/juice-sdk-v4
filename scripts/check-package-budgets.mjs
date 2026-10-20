@@ -312,7 +312,7 @@ const entryBudgets = [
   ["@bananapus/nana-sdk-core", "NATIVE_TOKEN", 150],
   ["@bananapus/nana-sdk-core/chains", "mainnet", 450],
   ["@bananapus/nana-sdk-core/v6", "v6Address", 2_900],
-  // The quoted pay's second preview and router check: 10,301 B.
+  // The quoted pay's second preview: 10,276 B.
   ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 10_800],
   ["@bananapus/nana-sdk-core/v6/fee-buyback", "feeBuybackOptions", 3_300],
   ["@bananapus/nana-sdk-core/v6", "effectiveTierPrice", 200],

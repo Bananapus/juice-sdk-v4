@@ -1,11 +1,13 @@
 import {
   BaseError,
+  UserRejectedRequestError,
   ContractFunctionExecutionError,
   ContractFunctionRevertedError,
   encodeErrorResult,
   parseAbi,
 } from "viem";
 import { describe, expect, test } from "vitest";
+import { jbMultiTerminalAbi } from "../generated/juicebox.js";
 import { decodePayFailure } from "./executionErrors.js";
 import { classifyCashOutExecutionError } from "./cashOut.js";
 
@@ -231,6 +233,28 @@ describe("decodePayFailure", () => {
     expect(
       decodePayFailure("execution reverted: jbmultiterminal_undermin")?.reason,
     ).toBe("TERMINAL_UNDER_MIN");
+  });
+
+  test("a call's arguments that look like a revert are not one", () => {
+    const rejected = (memo: string) =>
+      new ContractFunctionExecutionError(
+        new UserRejectedRequestError(new Error("rejected")),
+        {
+          abi: jbMultiTerminalAbi,
+          functionName: "pay",
+          args: [3n, token, 1_000n, token, 0n, memo, "0x"],
+          contractAddress: token,
+        },
+      );
+    expect(decodePayFailure(rejected("0xe2d708a9"))).toBeNull();
+    expect(decodePayFailure(rejected("JBMultiTerminal_UnderMin"))).toBeNull();
+    expect(classifyCashOutExecutionError(rejected("0x6b2bb382"))).toBeNull();
+  });
+
+  test("a decoded error's name matches in any case", () => {
+    expect(
+      classifyCashOutExecutionError({ errorName: "jbmultiterminal_undermin" }),
+    ).toEqual({ code: "TERMINAL_UNDER_MIN", selector: "0x6b2bb382" });
   });
 
   test("anything else is unknown", () => {
