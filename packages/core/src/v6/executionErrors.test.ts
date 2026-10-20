@@ -71,11 +71,8 @@ const errorString = (reason: string) =>
 describe("decodePayFailure", () => {
   test.each([
     ["JBMultiTerminal_UnderMin", "TERMINAL_UNDER_MIN", "minimum"],
-    [
-      "JBBuybackHook_SpecifiedSlippageExceeded",
-      "BUYBACK_SLIPPAGE_EXCEEDED",
-      "minimum",
-    ],
+    // Older hooks raise this for their own oracle floor too.
+    ["JBBuybackHook_SpecifiedSlippageExceeded", "BUYBACK_SLIPPAGE_EXCEEDED"],
     ["JBBuybackHook_DerivedFloorNotMet", "BUYBACK_DERIVED_FLOOR_NOT_MET"],
     ["JBRouterTerminal_SlippageExceeded", "ROUTER_SLIPPAGE_EXCEEDED"],
   ] as const)(
@@ -92,7 +89,9 @@ describe("decodePayFailure", () => {
       });
       // The message suggests lowering the minimum only when that is the fix,
       // and never a slippage setting the router may not read.
-      expect(failure!.message.includes("minimum")).toBe(!!adjustable);
+      expect(failure!.message.includes("lower your minimum")).toBe(
+        !!adjustable,
+      );
       expect(failure!.message).not.toMatch(/slippage/i);
     },
   );
@@ -216,7 +215,6 @@ describe("decodePayFailure", () => {
       reason: "BUYBACK_SLIPPAGE_EXCEEDED",
       received: 1n,
       minimum: 2n,
-      adjustable: "minimum",
     });
   });
 
@@ -433,12 +431,8 @@ describe("decodePayFailure", () => {
 
 describe("payRetrySlippageBps", () => {
   const message = "m";
-  const shortfall = (
-    received: bigint,
-    minimum: bigint,
-    reason: PayFailure["reason"] = "TERMINAL_UNDER_MIN",
-  ): PayFailure => ({
-    reason,
+  const shortfall = (received: bigint, minimum: bigint): PayFailure => ({
+    reason: "TERMINAL_UNDER_MIN",
     received,
     minimum,
     zeroFill: received === 0n,
@@ -448,12 +442,7 @@ describe("payRetrySlippageBps", () => {
 
   test("adds the shortfall to the tolerance, rounded up to a half percent", () => {
     expect(payRetrySlippageBps(shortfall(935n, 1_000n), 100n)).toBe(750n);
-    expect(
-      payRetrySlippageBps(
-        shortfall(999n, 1_000n, "BUYBACK_SLIPPAGE_EXCEEDED"),
-        100n,
-      ),
-    ).toBe(150n);
+    expect(payRetrySlippageBps(shortfall(999n, 1_000n), 100n)).toBe(150n);
     expect(payRetrySlippageBps(shortfall(999n, 1_000n), 0n)).toBe(50n);
   });
 
@@ -495,6 +484,7 @@ describe("payRetrySlippageBps", () => {
 
   test("offers nothing a lower minimum cannot fix", () => {
     for (const name of [
+      "JBBuybackHook_SpecifiedSlippageExceeded",
       "JBBuybackHook_DerivedFloorNotMet",
       "JBRouterTerminal_SlippageExceeded",
     ]) {

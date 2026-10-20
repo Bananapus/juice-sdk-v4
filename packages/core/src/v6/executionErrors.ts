@@ -69,12 +69,12 @@ export type PayFailureReason =
 
 /**
  * The setting a payer can relax so a retry clears the failing check.
- * `minimum` is the payer's token minimum: the terminal's `minReturnedTokens`
- * for `TERMINAL_UNDER_MIN`, the buyback hook's explicit minimum for
- * `BUYBACK_SLIPPAGE_EXCEEDED`. `prepareUserPay` floors both by its
- * `slippageBps`, and {@link payRetrySlippageBps} gives the tolerance to retry
- * with. The router's conversion minimum is not one: the router can derive it
- * from its own price oracle, which no payer setting moves.
+ * `minimum` is the terminal's `minReturnedTokens` (`TERMINAL_UNDER_MIN`),
+ * which `prepareUserPay` floors by its `slippageBps`;
+ * {@link payRetrySlippageBps} gives the tolerance to retry with. The buyback
+ * hook's and the router's minimums are not: older hooks revert with the same
+ * error for a floor they derive from their own price oracle, and the router
+ * can derive its own, which no payer setting moves.
  */
 export type PayFailureAdjustable = "minimum";
 
@@ -120,7 +120,6 @@ interface KnownRevert {
   zeroMessage?: string;
 }
 
-const LOWER_MINIMUM = "so lower your minimum or try again.";
 const PERMIT_MESSAGE =
   "The signed token permit covers less than the payment, so sign it again for the full amount.";
 const NO_TOKENS_MESSAGE = "This payment would return no tokens.";
@@ -133,8 +132,8 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
     selector: "0xe2d708a9",
     params: ["uint256", "uint256"],
     shortfall: [0, 1],
-    adjustable: "minimum",
-    message: `The price moved and this payment would get fewer tokens than your minimum, ${LOWER_MINIMUM}`,
+    message:
+      "The price moved and this payment would get fewer tokens than its minimum, so try again.",
     zeroMessage: NO_TOKENS_MESSAGE,
   },
   {
@@ -144,7 +143,8 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
     params: ["uint256", "uint256"],
     shortfall: [0, 1],
     adjustable: "minimum",
-    message: `This payment would get fewer tokens than your minimum, ${LOWER_MINIMUM}`,
+    message:
+      "This payment would get fewer tokens than your minimum, so lower your minimum or try again.",
     zeroMessage: NO_TOKENS_MESSAGE,
   },
   {
@@ -432,10 +432,10 @@ export const PAY_MAX_SLIPPAGE_BPS = 1_000n;
  * that `prepareUserPay` prepared with `currentBps` and that fell short of its
  * minimum: the current tolerance plus the shortfall, rounded up to a half
  * percent and capped at {@link PAY_MAX_SLIPPAGE_BPS}. Below the cap, a
- * minimum that is one slippage floor of a quote (the buyback hook's, or the
- * terminal's fallback minimum) would have been floored at or below what
- * settled. A terminal minimum that adds issuance to a floored quote, and any
- * candidate at the cap, may still fall short. Null unless the failure is `adjustable` by the
+ * terminal minimum that is one slippage floor of a quote (the fallback
+ * minimum) would have been floored at or below what settled. A terminal
+ * minimum that adds issuance to a floored quote, and any candidate at the
+ * cap, may still fall short. Null unless the failure is `adjustable` by the
  * minimum with a nonzero shortfall, or when the cap leaves nothing looser.
  *
  * It is a candidate, not permission: pass the tolerance of the attempt that
