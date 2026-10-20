@@ -28,6 +28,13 @@ import { SPLITS_TOTAL_PERCENT } from "../pureConstants.js";
 import type { JBChainId } from "../types.js";
 import { buildSplit, type JBSplit } from "./splits.js";
 import { validateStickyGroupId } from "./sticky.js";
+import {
+  classifySuckerTransport,
+  jbNativeSuckerV6ProbeAbi,
+  jbSuckerV6ViewAbi,
+  suckerBytes32ToAddress,
+  verifySuckerDestinationMint,
+} from "./suckers.js";
 import { v6Address } from "./types.js";
 
 /** The collector's public delivery, accounting and immutable identity surface. */
@@ -838,13 +845,6 @@ export async function verifyStickyCollectorRoute(
     );
   let destinationProjectId = sourceProjectId;
   if (deployment.sourceChainId !== home) {
-    const {
-      classifySuckerTransport,
-      jbNativeSuckerV6ProbeAbi,
-      jbSuckerV6ViewAbi,
-      suckerBytes32ToAddress,
-      verifySuckerDestinationMint,
-    } = await import("./suckers.js");
     const { sucker, backingToken } = args;
     if (!sucker || !backingToken)
       throw new Error("A direct Sticky source-to-home route is required.");

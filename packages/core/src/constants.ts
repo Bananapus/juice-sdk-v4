@@ -9,7 +9,7 @@ import {
   optimismSepolia,
   sepolia,
 } from "./chains.js";
-import { JBChainId, JBVersion } from "./types.js";
+import type { JBChainId, JBVersion } from "./types.js";
 
 /**
  * Representation of one ether.

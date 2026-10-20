@@ -20,8 +20,61 @@ const ENTRIES = [
   "src/jbcenter/rpcClient.ts",
 ];
 
-/** True when evaluating `node` cannot call anything. */
+/** True when a module-level declaration in `text` calls parseAbi on import. */
+function parsesAbiOnImport(file: string, text: string): boolean {
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+  let parsing = false;
+  const visit = (node: ts.Node, eager = false): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      /^parseAbi(Item|Parameters)?$/.test(node.expression.text)
+    ) {
+      parsing = true;
+    }
+    // A function's body runs on import only when it is called at once, as in
+    // a pure IIFE. Inside one, any callback may run too (`.flatMap(...)`).
+    if (!ts.isFunctionLike(node) || eager || isInvokedAtOnce(node)) {
+      const inBody = eager || ts.isFunctionLike(node);
+      ts.forEachChild(node, (child) => visit(child, inBody));
+    }
+  };
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (declaration.initializer) visit(declaration.initializer);
+    }
+  }
+  return parsing;
+}
+
+/** A function expression called where it is written: `(() => ...)()`. */
+function isInvokedAtOnce(node: ts.Node): boolean {
+  let callee: ts.Node = node;
+  while (ts.isParenthesizedExpression(callee.parent)) callee = callee.parent;
+  return (
+    ts.isCallExpression(callee.parent) && callee.parent.expression === callee
+  );
+}
+
+/**
+ * True when evaluating `node` cannot call anything. Bundlers keep a spread or
+ * computed key even inside a call marked pure; wrap those in a pure IIFE.
+ */
 function isInert(node: ts.Expression): boolean {
+  // A call marked /* @__PURE__ */ is one a bundler may drop when its result
+  // goes unused, as long as its arguments run nothing.
+  if (
+    ts.isCallExpression(node) &&
+    /[@#]__PURE__/.test(
+      node.getFullText().slice(0, node.getLeadingTriviaWidth()),
+    )
+  ) {
+    return (
+      (ts.isIdentifier(node.expression) || isInert(node.expression)) &&
+      node.arguments.every((argument) => isInert(argument))
+    );
+  }
   if (
     ts.isStringLiteral(node) ||
     ts.isNumericLiteral(node) ||
@@ -184,41 +237,53 @@ describe("module load", () => {
   // parseAbi at module level runs on import and keeps viem's ABI parser in
   // every chunk that loads the module; write the parsed ABI `as const`.
   test("no module parses an ABI when it is imported", () => {
-    const parsing: string[] = [];
-    for (const file of readdirSync("src", { recursive: true, encoding: "utf8" })
+    const parsing = readdirSync("src", { recursive: true, encoding: "utf8" })
       .filter((name) => /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name))
-      .map((name) => posix.join("src", name))) {
-      const source = ts.createSourceFile(
-        file,
-        readFileSync(file, "utf8"),
-        ts.ScriptTarget.Latest,
-        true,
-      );
-      for (const statement of source.statements) {
-        if (!ts.isVariableStatement(statement)) continue;
-        for (const declaration of statement.declarationList.declarations) {
-          const visit = (node: ts.Node): void => {
-            if (
-              ts.isCallExpression(node) &&
-              ts.isIdentifier(node.expression) &&
-              /^parseAbi(Item|Parameters)?$/.test(node.expression.text)
-            ) {
-              parsing.push(file);
-            }
-            if (!ts.isFunctionLike(node)) ts.forEachChild(node, visit);
-          };
-          if (declaration.initializer) visit(declaration.initializer);
-        }
-      }
-    }
+      .map((name) => posix.join("src", name))
+      .filter((file) => parsesAbiOnImport(file, readFileSync(file, "utf8")));
     expect(parsing).toEqual([]);
-  });
+    expect(parsesAbiOnImport("a.ts", 'const A = parseAbi(["x"]);')).toBe(true);
+    expect(
+      parsesAbiOnImport(
+        "a.ts",
+        'const A = /* @__PURE__ */ (() => ({ b: parseAbi(["x"]) }))();',
+      ),
+    ).toBe(true);
+    expect(
+      parsesAbiOnImport(
+        "a.ts",
+        "const A = /* @__PURE__ */ (() => s.flatMap((x) => parseAbi([x])))();",
+      ),
+    ).toBe(true);
+    expect(parsesAbiOnImport("a.ts", 'const A = () => parseAbi(["x"]);')).toBe(
+      false,
+    );
+  }, 60_000);
+
+  // esbuild wraps a module another imports with import() and then cannot drop
+  // unused declarations from it or the modules it loads (juicescan bundles
+  // with esbuild). Import SDK modules statically; apps choose what to lazy-load.
+  test("no module imports another SDK module with import()", () => {
+    const dynamic = readdirSync("src", { recursive: true, encoding: "utf8" })
+      .filter((name) => /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name))
+      .filter((name) =>
+        /\bimport\(\s*["']\.\.?\//.test(
+          readFileSync(posix.join("src", name), "utf8"),
+        ),
+      );
+    expect(dynamic).toEqual([]);
+  }, 60_000);
 
   test("flags a module-level call, spread, computed key, constructor or statement", () => {
     const work = (code: string) => moduleWork("sample.ts", code).length;
     expect(work('const A = getAddress("0x1");')).toBe(1);
     expect(work("const A = [...B];")).toBe(1);
+    expect(work("const A = { ...B };")).toBe(1);
+    expect(work("const A = /* @__PURE__ */ f({ ...B, c: 1 });")).toBe(1);
+    expect(work("const A = /* @__PURE__ */ f(g());")).toBe(1);
+    expect(work("const A = /* @__PURE__ */ (() => [...B])();")).toBe(0);
     expect(work("const A = { [key]: 1 };")).toBe(1);
+    expect(work("const A = /* @__PURE__ */ f({ [key]: 1 });")).toBe(1);
     expect(work("const A = new Map();")).toBe(1);
     expect(work("register();")).toBe(1);
     expect(work("class A { static b = c(); }")).toBe(1);
