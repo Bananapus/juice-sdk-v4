@@ -450,7 +450,8 @@ export function decodePayFailure(error: unknown): PayFailure | null {
 
 /**
  * The most tolerance {@link payRetrySlippageBps} offers: 49.5%, so a
- * loosened minimum stays above half the quote and never nears zero. Only
+ * loosened minimum stays at a nominal 50.5% of the quote (less integer
+ * rounding on tiny quotes) and never nears zero. Only
  * that helper applies it; `prepareUserPay`
  * takes any tolerance it is given.
  */
