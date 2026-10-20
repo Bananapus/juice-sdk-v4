@@ -814,7 +814,12 @@ async function routedBuybackSpecOf(
  * converts the paid token first with one swap, the pool is the one in the
  * token it converts to, quoted on what that swap is quoted to return. If the
  * conversion returns noticeably less, the hook's minimum reverts the payment.
- * Other routes, such as cashing a project token out first, keep the fallback.
+ * If it returns more, the hook mints once minting reaches the minimum, which
+ * happens only when the pool beats minting by less than `slippageBps` plus
+ * that gain. The payer still receives at least the minimum, and no fixed
+ * minimum avoids this when the pool's edge is inside the conversion's
+ * uncertainty. Other routes, such as cashing a project token out first, keep
+ * the fallback.
  *
  * Otherwise (no pool, or a failed quote) the minimum is the payer's mint
  * entitlement when the hook would swap, since the hook never settles below it,

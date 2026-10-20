@@ -1015,6 +1015,34 @@ describe("prepareUserPay", () => {
       expect(prepared.minReturnedTokens).toBe(712n);
     });
 
+    test("a conversion that beats its quote still clears the minimum if the hook mints instead", async () => {
+      // The pool beats minting by 2%: 10,200 for the 10,000 the hook should receive.
+      const { client } = mockClient({
+        ...routed,
+        spec: usdcSpec({
+          amountToSwapWith: 9_800n,
+          tokenCountWithoutHook: 9_800n,
+        }),
+        conversion: {
+          floor: 9_800n,
+          expected: 10_000n,
+          spec: usdcSpec({
+            amountToSwapWith: 10_000n,
+            tokenCountWithoutHook: 10_000n,
+          }),
+        },
+        quote: (amountIn) => (amountIn * 102n) / 100n,
+      });
+      const prepared = await prepareUserPay(client, routerArgs);
+      const minimum = explicitMinimumOf(prepared.metadata);
+      expect(minimum).toBe(10_098n);
+      // At a 1% better conversion the hook mints 10,100 (its noop rule),
+      // which still meets both minimums.
+      const mintedAtBetterConversion = 10_100n;
+      expect(mintedAtBetterConversion >= minimum).toBe(true);
+      expect(mintedAtBetterConversion >= prepared.minReturnedTokens).toBe(true);
+    });
+
     test("keeps the mint path when the pool loses to minting what the hook receives", async () => {
       const { client } = mockClient({
         ...routed,
