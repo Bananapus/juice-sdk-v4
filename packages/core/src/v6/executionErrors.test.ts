@@ -310,6 +310,8 @@ describe("decodePayFailure", () => {
     });
     for (const data of [
       `${underMin}${"0".repeat(64)}`,
+      `${underMin}00`,
+      `${underMin}${"0".repeat(62)}`,
       `0xecb6c1d6${"ff".repeat(12)}${"77".repeat(20)}`,
     ] as const) {
       expect(decodePayFailure(wrapped(data))).toBeNull();

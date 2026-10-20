@@ -6,8 +6,8 @@ import {
   maxUint256,
 } from "viem";
 
-/** A selector and whole 32-byte words: the only shape revert data takes. */
-const REVERT_SHAPE = /^0x[0-9a-f]{8}(?:[0-9a-f]{64})*$/i;
+/** Hex with at least a selector: revert data, well formed or not. */
+const REVERT_DATA = /^0x[0-9a-f]{8,}$/i;
 
 /**
  * What a viem or wallet error carries about a revert, however deeply nested:
@@ -28,7 +28,7 @@ function collectEvidence(
     return evidence;
   }
   if (typeof value === "string") {
-    if (REVERT_SHAPE.test(value)) evidence.payloads.push(value);
+    if (REVERT_DATA.test(value)) evidence.payloads.push(value);
     return evidence;
   }
   if (typeof value !== "object") return evidence;
@@ -369,7 +369,8 @@ export function matchKnownRevert(
     }
   }
   // Revert data, when the error carries any, is the evidence: viem types an
-  // error from data with padding or trailing bytes this table rejects.
+  // error from data with padding or trailing bytes this table rejects, even
+  // bytes short of a word.
   if (payloads.length) return null;
   for (const { errorName, abiItem, args } of decoded) {
     const item = abiItem as {
@@ -430,9 +431,11 @@ export const PAY_MAX_SLIPPAGE_BPS = 1_000n;
  * A candidate slippage tolerance, in basis points, for retrying a payment
  * that `prepareUserPay` prepared with `currentBps` and that fell short of its
  * minimum: the current tolerance plus the shortfall, rounded up to a half
- * percent and capped at {@link PAY_MAX_SLIPPAGE_BPS}. Below the cap it would
- * have floored the failed quote's minimum at or below what settled; at the
- * cap it may still fall short. Null unless the failure is `adjustable` by the
+ * percent and capped at {@link PAY_MAX_SLIPPAGE_BPS}. Below the cap, a
+ * minimum that is one slippage floor of a quote (the buyback hook's, or the
+ * terminal's fallback minimum) would have been floored at or below what
+ * settled. A terminal minimum that adds issuance to a floored quote, and any
+ * candidate at the cap, may still fall short. Null unless the failure is `adjustable` by the
  * minimum with a nonzero shortfall, or when the cap leaves nothing looser.
  *
  * It is a candidate, not permission: pass the tolerance of the attempt that
