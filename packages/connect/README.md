@@ -1,9 +1,24 @@
-# @bananapus/nana-sdk-connect
+# @bananapus/nana-sdk-connect (moved)
 
-Two ways into a Juicebox app: a passkey account powered by Juicebox Center, or an external wallet.
+This package moved to [`@me.jango/signa`](https://www.npmjs.com/package/@me.jango/signa) 0.4.0 and is
+deprecated. It gets no further releases. The export names are the same, so moving over only changes the
+import specifier:
 
-- `@bananapus/nana-sdk-connect/core`: `createConnectController(options)` (headless, no React or wagmi), `passkeyOption({ wallet, connected })`, and for the app's `/center/callback` page `deliverCenterCallback(url, { window })` then `completeCenterCallback(wallet, url)`. The passkey account opens Center in a popup and the page stays; the callback page hands its URL back to the page, which finishes the exchange and runs `connected`. A blocked popup falls back to a full-page redirect, where the callback page completes the exchange itself. With `passkeyOption({ frame: true })` Center opens in a frame the modal shows instead (`JBConnectModal` renders it, sized by the page inside); the callback page hands its URL up to the framing page through the same `deliverCenterCallback`. Center serves the sign-in framed only for apps its operator admits to frame (`WALLET_FRAMEABLE_APP_ORIGINS`), and the page inside offers "Open as a page" when it cannot continue there. The modal answers the frame's size reports with its own resolved theme (the `--jb-connect-*` custom properties and its font), so the Center page inside takes the app's colours, font and corners. The frame delegates passkey prompts and creation to Center's origin by name (it has no `src`, so the browser could not take the origin from one), so a new user can sign up inside it.
-- `@bananapus/nana-sdk-connect/wagmi`: `centerAccountConnector({ wallet, read })`, a read-only Base connector for the passkey account.
-- `@bananapus/nana-sdk-connect/react`: `<JBConnectModal open controller onClose />`, themed with `--jb-connect-*` custom properties (`--jb-connect-pad` is the dialog's inset, which the Center frame bleeds through); the primary button names the platform prompt (Touch ID, Face ID, Windows Hello) unless `passkeyLabel` overrides it.
+| Before                              | After                   |
+| ----------------------------------- | ----------------------- |
+| `@bananapus/nana-sdk-connect/core`  | `@me.jango/signa/core`  |
+| `@bananapus/nana-sdk-connect/wagmi` | `@me.jango/signa/wagmi` |
+| `@bananapus/nana-sdk-connect/react` | `@me.jango/signa/react` |
 
-The passkey account signs nothing in the app. Payments go through Center's review flow.
+```sh
+npm uninstall @bananapus/nana-sdk-connect
+npm install @me.jango/signa
+```
+
+React and wagmi stay optional peers. The sign-in copy now says Signa ("Powered by Signa", "Signa
+account"); option ids and message types (`juicebox-center`, `juicebox-center:*`) are unchanged.
+Two wallet-client changes arrive in the same switch. A payment can end `refused`: Signa retired the
+approval and never sends it, so clear it and review a fresh one. And `payFailure` is the SDK's own
+`PayFailure` (bigint amounts, with `zeroFill` and `adjustable`), ready for `payRetrySlippageBps`.
+
+Source and docs: https://github.com/mejango/signa/tree/main/wallet-client

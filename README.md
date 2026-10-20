@@ -1388,11 +1388,11 @@ const chartPoints = downsampleTimeSeries(
 
 ## Packages
 
-| Package                                             | Description                                                          | NPM                                                                                                                               |
-| --------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| [`@bananapus/nana-sdk-core`](./packages/core)       | Core utilities, contract bindings, and data types                    | [![npm](https://img.shields.io/npm/v/@bananapus/nana-sdk-core.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-core)       |
-| [`@bananapus/nana-sdk-react`](./packages/react)     | React hooks, contexts, and components                                | [![npm](https://img.shields.io/npm/v/@bananapus/nana-sdk-react.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-react)     |
-| [`@bananapus/nana-sdk-connect`](./packages/connect) | Sign in with a Juicebox Center passkey account or an external wallet | [![npm](https://img.shields.io/npm/v/@bananapus/nana-sdk-connect.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-connect) |
+| Package                                             | Description                                       | NPM                                                                                                                               |
+| --------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| [`@bananapus/nana-sdk-core`](./packages/core)       | Core utilities, contract bindings, and data types | [![npm](https://img.shields.io/npm/v/@bananapus/nana-sdk-core.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-core)       |
+| [`@bananapus/nana-sdk-react`](./packages/react)     | React hooks, contexts, and components             | [![npm](https://img.shields.io/npm/v/@bananapus/nana-sdk-react.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-react)     |
+| [`@bananapus/nana-sdk-connect`](./packages/connect) | Deprecated: moved to `@me.jango/signa`            | [![npm](https://img.shields.io/npm/v/@bananapus/nana-sdk-connect.svg)](https://www.npmjs.com/package/@bananapus/nana-sdk-connect) |
 
 ### Core Package Features
 

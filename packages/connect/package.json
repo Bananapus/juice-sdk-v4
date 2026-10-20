@@ -1,7 +1,7 @@
 {
   "name": "@bananapus/nana-sdk-connect",
   "version": "0.6.0",
-  "description": "Sign in to a Juicebox app with a passkey account from Juicebox Center or an external wallet",
+  "description": "Moved to @me.jango/signa (/core, /wagmi, /react)",
   "type": "module",
   "repository": {
     "type": "git",
