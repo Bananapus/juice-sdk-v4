@@ -1,2 +1,3 @@
 .contract-source/
 packages/core/src/generated/abi/
+packages/core/src/generated/addresses/

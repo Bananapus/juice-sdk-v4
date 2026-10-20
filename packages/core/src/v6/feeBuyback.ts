@@ -7,7 +7,7 @@ import {
   type Hex,
 } from "viem";
 import {
-  jbContractAddress,
+  jbV6ContractAddress,
   jbContractAddressHistory,
 } from "../generated/juicebox.js";
 
@@ -344,7 +344,7 @@ export function feeBuybackOptions(
   chainId: number,
   beneficiary: Address,
 ): Required<FeeOptions> {
-  const current = jbContractAddress["6"] as Readonly<
+  const current = jbV6ContractAddress as Readonly<
     Partial<Record<string, Readonly<Record<string, string>>>>
   >;
   const history = jbContractAddressHistory["6"] as Readonly<

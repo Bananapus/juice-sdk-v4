@@ -3,7 +3,7 @@ import { JBOmnichainDeployerContracts } from "../contracts.js";
 import {
   jb721TiersHookAbi,
   jb721TiersHookStoreAbi,
-  jbContractAddress,
+  jbV6ContractAddress,
   jbOmnichainDeployerAbi,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
@@ -486,7 +486,7 @@ export async function resolveProject721Hook(
       dataHook &&
       dataHook !== zeroAddress
     ) {
-      const omni = jbContractAddress["6"][
+      const omni = jbV6ContractAddress[
         JBOmnichainDeployerContracts.JBOmnichainDeployer
       ]?.[chainId] as Address | undefined;
       if (omni && dataHook.toLowerCase() === omni.toLowerCase()) {
