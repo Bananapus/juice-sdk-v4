@@ -166,9 +166,9 @@ type Held<S extends string, Extra> = {
  * - `looks-done`: the app's effect read shows the call took effect. Nothing
  *   is released on that alone: its line says so, and the exit is offered at
  *   once (with the `warning` when it has a hash);
- * - `ran-executed`: the chain shows it ran (a Safe execution, or a revert
- *   not final yet). It is kept until its result settles it, and never offered
- *   a resend.
+ * - `ran-executed`: the chain shows it ran (a Safe execution not final yet,
+ *   or a revert whose block isn't shown canonical). It is kept until its
+ *   result settles it, and never offered a resend.
  */
 export type WriteHoldState = WriteHoldStateOf & {
   /** Only while holds last in this tab alone: {@link WRITE_HOLD_IN_TAB_LINE}. */
@@ -424,8 +424,11 @@ function classify(record: ReviewedWriteRecoveryRecord | null): WriteHoldState {
  * - A send checks, reserves and hands the call to the wallet under one lock
  *   per exact call (Web Locks, or the SDK's fallback), so two flows or tabs
  *   can never both reserve it.
- * - A verified successful receipt releases at once. A revert holds until a
- *   canonical finalized block includes it. A Safe proposal proven executed
+ * - A verified receipt in a canonical block releases at once, a revert too:
+ *   the payer reviews and sends again without waiting for finality. A reorg
+ *   that later re-includes the reverted transaction could run it after a
+ *   resend; that rare risk is accepted for the faster retry. A Safe
+ *   failure holds until a canonical finalized block includes it. A Safe proposal proven executed
  *   is kept through reload until its execution's receipt settles it; one
  *   proven expired releases. One another Safe transaction replaced is never
  *   released on its own: the user's exit ends it.
@@ -640,11 +643,16 @@ export function createWriteHold(
       client: WriteHoldClient,
       proof?: Parameters<typeof verifyReviewedWriteReceipt>[3],
     ): Promise<WriteHoldState> {
+      // A direct write's own reverted transaction, in a canonical block,
+      // releases at once so the payer can review and send again; a Safe
+      // failure waits for finality. A block the node no longer shows as
+      // canonical proves nothing and keeps the hold.
       const verdict = await verifyReviewedWriteReceipt(
         client as never,
         record,
         receipt,
         proof,
+        { finality: record.safe },
       ).catch(() => null);
       if (verdict && release(record)) {
         const settled = {

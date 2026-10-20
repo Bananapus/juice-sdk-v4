@@ -13,7 +13,7 @@ import {
   HELD_SUCCESS_LINE,
   WRITE_HOLD_MINED_LINE,
   WRITE_HOLD_PENDING_LINE,
-  WRITE_HOLD_REVERTED_LINE,
+  HELD_FAILED_LINE,
 } from "./messages.js";
 import {
   WriteHeldError,
@@ -232,7 +232,7 @@ export function settledLine(settled: WriteHoldSettled): string {
     ? HELD_SUCCESS_LINE
     : settled.result === "expired"
       ? HELD_EXPIRED_LINE
-      : WRITE_HOLD_REVERTED_LINE;
+      : HELD_FAILED_LINE;
 }
 
 /**

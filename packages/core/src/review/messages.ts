@@ -87,7 +87,7 @@ export const WRITE_HOLD_IN_TAB_LINE =
 export const WRITE_HOLD_PENDING_LINE =
   "Still pending in your wallet. Speed it up or cancel it there.";
 
-/** A write that reverted onchain, held until that is final so a retry can't double it. */
+/** A write that reverted onchain, held until its block is shown canonical (a Safe failure, until final) so a retry can't double it. */
 export const WRITE_HOLD_REVERTED_LINE =
   "This transaction failed onchain. You can try again in a few minutes.";
 
@@ -138,6 +138,10 @@ export const HELD_EXIT_LABEL = "I checked my wallet";
 
 /** The exit button where only the hold is released (an app-wide notice). */
 export const HELD_RELEASE_LABEL = "I checked my wallet. Release it";
+
+/** A held write settled as failed on authenticated evidence: released, so the user can send again. */
+export const HELD_FAILED_LINE =
+  "This transaction failed onchain. Review it and try again.";
 
 /** A held write settled with success on authenticated evidence. */
 export const HELD_SUCCESS_LINE = "Your transaction went through.";

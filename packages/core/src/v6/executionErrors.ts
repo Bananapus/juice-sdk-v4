@@ -3,6 +3,7 @@ import {
   decodeAbiParameters,
   encodeAbiParameters,
   isAddress,
+  keccak256,
   maxUint256,
 } from "viem";
 
@@ -69,12 +70,16 @@ export type PayFailureReason =
 
 /**
  * The setting a payer can relax so a retry clears the failing check.
- * `minimum` is the terminal's `minReturnedTokens` (`TERMINAL_UNDER_MIN`),
- * which `prepareUserPay` floors by its `slippageBps`;
- * {@link payRetrySlippageBps} gives the tolerance to retry with. The buyback
- * hook's and the router's minimums are not: older hooks revert with the same
- * error for a floor they derive from their own price oracle, and the router
- * can derive its own, which no payer setting moves.
+ * `minimum` is the payer's token minimum: the terminal's `minReturnedTokens`
+ * (`TERMINAL_UNDER_MIN`) or the buyback hook's explicit minimum in the pay
+ * metadata (`BUYBACK_SLIPPAGE_EXCEEDED`). `prepareUserPay` floors both by its
+ * `slippageBps`, so the fix is preparing again with the larger tolerance
+ * {@link payRetrySlippageBps} gives; lowering only `minReturnedTokens` leaves
+ * the hook's minimum where it was. Buyback hooks before 1.4 raise the same
+ * error for a floor they derive from their own price oracle, which no
+ * tolerance moves: the fresh preparation's simulation shows that. The
+ * router's conversion minimum is never adjustable: the router can derive it
+ * itself.
  */
 export type PayFailureAdjustable = "minimum";
 
@@ -91,9 +96,10 @@ export interface PayFailure {
   /** The minimum it fell short of. */
   minimum?: bigint;
   /**
-   * Set with `received`: true when the payment would settle nothing, so a
-   * lower minimum is no fix and `message` does not suggest one. Absent means
-   * unknown, not a fill.
+   * Set with `received`: true when the failing check settled nothing, so a
+   * lower minimum is no fix and `message` does not suggest one. For the
+   * buyback hook that is the part it checked, not always the whole payment.
+   * Absent means unknown, not a fill.
    */
   zeroFill?: boolean;
   /**
@@ -122,6 +128,11 @@ interface KnownRevert {
 
 const PERMIT_MESSAGE =
   "The signed token permit covers less than the payment, so sign it again for the full amount.";
+/** A shortfall known only by its selector: no amounts to say a lower minimum helps. */
+const SHORTFALL_MESSAGE =
+  "This payment would get fewer tokens than its minimum, so try again.";
+/** `JBRouterTerminalGateway_RouteFailed(bytes32 errorHash)`: the hash is the inner revert's selector's. */
+const ROUTE_FAILED = "0xa4ceb15e";
 const NO_TOKENS_MESSAGE = "This payment would return no tokens.";
 const UNEXPECTED_ETH_MESSAGE = "A payment in this token cannot also send ETH.";
 
@@ -132,9 +143,9 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
     selector: "0xe2d708a9",
     params: ["uint256", "uint256"],
     shortfall: [0, 1],
+    adjustable: "minimum",
     message:
-      "The price moved and this payment would get fewer tokens than its minimum, so try again.",
-    zeroMessage: NO_TOKENS_MESSAGE,
+      "The price moved and this payment would get fewer tokens than your minimum, so lower your minimum or try again.",
   },
   {
     reason: "TERMINAL_UNDER_MIN",
@@ -339,7 +350,8 @@ function validArgs(known: KnownRevert, args: unknown) {
 
 /**
  * The first known revert in an error: revert data that is a known selector
- * and exactly its canonically encoded arguments, or, when the error carries
+ * and exactly its canonically encoded arguments, or the router gateway's
+ * `RouteFailed` naming a known selector (with no arguments), or, when the error carries
  * no revert data, an error viem typed against the known ABI item (same name
  * and input types) with arguments of those types. Either way a shortfall
  * must settle below its minimum. Text never counts.
@@ -347,13 +359,20 @@ function validArgs(known: KnownRevert, args: unknown) {
 export function matchKnownRevert(
   error: unknown,
   reasons?: readonly PayFailureReason[],
-): { known: KnownRevert; args: readonly unknown[] } | null {
+): { known: KnownRevert; args?: readonly unknown[] } | null {
   const known = reasons
     ? KNOWN_REVERTS.filter((k) => reasons.includes(k.reason))
     : KNOWN_REVERTS;
   const { payloads, decoded } = collectEvidence(error);
   for (const hex of payloads) {
     const lower = hex.toLowerCase();
+    // The router gateway wraps a failed route, keeping only its selector.
+    if (lower.startsWith(ROUTE_FAILED) && lower.length === 10 + 64) {
+      const errorHash = `0x${lower.slice(10)}`;
+      const wrapped = known.find((k) => keccak256(k.selector) === errorHash);
+      if (wrapped) return { known: wrapped };
+      continue;
+    }
     const match = known.find(
       (k) =>
         lower.startsWith(k.selector) &&
@@ -407,6 +426,12 @@ export function decodePayFailure(error: unknown): PayFailure | null {
   if (!matched) return null;
   const { known, args } = matched;
   if (!known.shortfall) return { reason: known.reason, message: known.message };
+  if (!args) {
+    return {
+      reason: known.reason,
+      message: known.adjustable ? SHORTFALL_MESSAGE : known.message,
+    };
+  }
   const received = args[known.shortfall[0]] as bigint;
   const minimum = args[known.shortfall[1]] as bigint;
   const zeroFill = received === 0n;

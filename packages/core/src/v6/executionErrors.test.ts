@@ -5,7 +5,9 @@ import {
   ContractFunctionRevertedError,
   decodeErrorResult,
   encodeErrorResult,
+  keccak256,
   parseAbi,
+  slice,
 } from "viem";
 import { describe, expect, test } from "vitest";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
@@ -71,8 +73,11 @@ const errorString = (reason: string) =>
 describe("decodePayFailure", () => {
   test.each([
     ["JBMultiTerminal_UnderMin", "TERMINAL_UNDER_MIN", "minimum"],
-    // Older hooks raise this for their own oracle floor too.
-    ["JBBuybackHook_SpecifiedSlippageExceeded", "BUYBACK_SLIPPAGE_EXCEEDED"],
+    [
+      "JBBuybackHook_SpecifiedSlippageExceeded",
+      "BUYBACK_SLIPPAGE_EXCEEDED",
+      "minimum",
+    ],
     ["JBBuybackHook_DerivedFloorNotMet", "BUYBACK_DERIVED_FLOOR_NOT_MET"],
     ["JBRouterTerminal_SlippageExceeded", "ROUTER_SLIPPAGE_EXCEEDED"],
   ] as const)(
@@ -96,9 +101,18 @@ describe("decodePayFailure", () => {
     },
   );
 
+  test("a buyback shortfall that settles nothing does not claim the whole payment returns nothing", () => {
+    // The hook checks only the part it swaps; the rest can still mint.
+    const failure = decodePayFailure(
+      revert("JBBuybackHook_SpecifiedSlippageExceeded", [0n, 1n]),
+    );
+    expect(failure).toMatchObject({ received: 0n, zeroFill: true });
+    expect(failure).not.toHaveProperty("adjustable");
+    expect(failure!.message).not.toMatch(/no tokens|nothing/);
+  });
+
   test.each([
     ["JBMultiTerminal_UnderMin", "TERMINAL_UNDER_MIN"],
-    ["JBBuybackHook_SpecifiedSlippageExceeded", "BUYBACK_SLIPPAGE_EXCEEDED"],
     ["JBRouterTerminal_SlippageExceeded", "ROUTER_SLIPPAGE_EXCEEDED"],
   ])("%s that settles nothing suggests no setting", (name, reason) => {
     const failure = decodePayFailure(revert(name, [0n, 9_900n]));
@@ -215,6 +229,7 @@ describe("decodePayFailure", () => {
       reason: "BUYBACK_SLIPPAGE_EXCEEDED",
       received: 1n,
       minimum: 2n,
+      adjustable: "minimum",
     });
   });
 
@@ -315,6 +330,69 @@ describe("decodePayFailure", () => {
       expect(decodePayFailure(wrapped(data))).toBeNull();
       expect(classifyCashOutExecutionError(wrapped(data))).toBeNull();
     }
+  });
+
+  test("the router gateway's RouteFailed names the reason its hash fingerprints, without amounts", () => {
+    const gateway = parseAbi([
+      "error JBRouterTerminalGateway_RouteFailed(bytes32 errorHash)",
+    ]);
+    // The gateway hashes only the first four bytes of the inner revert.
+    const routeFailed = (inner: `0x${string}`) =>
+      encodeErrorResult({
+        abi: gateway,
+        errorName: "JBRouterTerminalGateway_RouteFailed",
+        args: [keccak256(slice(inner, 0, 4))],
+      });
+    for (const [name, args, reason, message] of [
+      [
+        "JBMultiTerminal_UnderMin",
+        [3n, 4n],
+        "TERMINAL_UNDER_MIN",
+        /^This payment would get fewer tokens than its minimum, so try again\.$/,
+      ],
+      [
+        "JBBuybackHook_SpecifiedSlippageExceeded",
+        [3n, 4n],
+        "BUYBACK_SLIPPAGE_EXCEEDED",
+        /^This payment would get fewer tokens than its minimum, so try again\.$/,
+      ],
+      [
+        "JBRouterTerminal_SlippageExceeded",
+        [3n, 4n],
+        "ROUTER_SLIPPAGE_EXCEEDED",
+        /converting/,
+      ],
+      [
+        "JBMultiTerminal_TokenNotAccepted",
+        [token],
+        "TOKEN_NOT_ACCEPTED",
+        /does not accept/,
+      ],
+    ] as const) {
+      const failure = decodePayFailure(
+        simulated(routeFailed(revert(name, args))),
+      );
+      expect(failure).toEqual({ reason, message: expect.any(String) });
+      expect(failure!.message).toMatch(message);
+      expect(payRetrySlippageBps(failure, 100n)).toBeNull();
+    }
+    // Unknown inner errors, gas exhaustion's empty hash and malformed words are not known.
+    for (const data of [
+      routeFailed("0xdeadbeef"),
+      encodeErrorResult({
+        abi: gateway,
+        errorName: "JBRouterTerminalGateway_RouteFailed",
+        args: [keccak256("0x")],
+      }),
+      `${routeFailed(revert("JBMultiTerminal_UnderMin", [3n, 4n]))}00`,
+    ] as const) {
+      expect(decodePayFailure(data)).toBeNull();
+    }
+    expect(
+      classifyCashOutExecutionError(
+        routeFailed(revert("JBMultiTerminal_UnderMin", [3n, 4n])),
+      ),
+    ).toEqual({ code: "TERMINAL_UNDER_MIN", selector: "0x6b2bb382" });
   });
 
   test("a typed error keeps its amounts", () => {
@@ -443,6 +521,14 @@ describe("payRetrySlippageBps", () => {
   test("adds the shortfall to the tolerance, rounded up to a half percent", () => {
     expect(payRetrySlippageBps(shortfall(935n, 1_000n), 100n)).toBe(750n);
     expect(payRetrySlippageBps(shortfall(999n, 1_000n), 100n)).toBe(150n);
+    expect(
+      payRetrySlippageBps(
+        decodePayFailure(
+          revert("JBBuybackHook_SpecifiedSlippageExceeded", [999n, 1_000n]),
+        ),
+        100n,
+      ),
+    ).toBe(150n);
     expect(payRetrySlippageBps(shortfall(999n, 1_000n), 0n)).toBe(50n);
   });
 
@@ -484,7 +570,6 @@ describe("payRetrySlippageBps", () => {
 
   test("offers nothing a lower minimum cannot fix", () => {
     for (const name of [
-      "JBBuybackHook_SpecifiedSlippageExceeded",
       "JBBuybackHook_DerivedFloorNotMet",
       "JBRouterTerminal_SlippageExceeded",
     ]) {
