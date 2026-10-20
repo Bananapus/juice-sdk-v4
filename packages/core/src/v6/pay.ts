@@ -322,17 +322,21 @@ async function readPay(
   unreadableSwap: boolean;
 }> {
   const [
-    [ruleset, beneficiaryTokenCount, reservedTokenCount, hookSpecifications],
-    buybackHook,
-  ] = await Promise.all([
-    client.readContract({
-      address: terminal,
-      abi: jbMultiTerminalAbi,
-      functionName: "previewPayFor",
-      args: [projectId, token, amount, beneficiary, metadata],
-    }),
-    resolvedBuybackHookOf(client, chainId, projectId),
-  ]);
+    ruleset,
+    beneficiaryTokenCount,
+    reservedTokenCount,
+    hookSpecifications,
+  ] = await client.readContract({
+    address: terminal,
+    abi: jbMultiTerminalAbi,
+    functionName: "previewPayFor",
+    args: [projectId, token, amount, beneficiary, metadata],
+  });
+  // Only a payment with hook specs needs to know which one is the buyback hook.
+  const buybackHook =
+    hookSpecifications.length > 0
+      ? await resolvedBuybackHookOf(client, chainId, projectId)
+      : null;
   const reservedPercent = (ruleset.metadata >> 4n) & 0xffffn;
   const spec = buybackHook
     ? hookSpecifications.find(

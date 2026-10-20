@@ -678,6 +678,15 @@ describe("prepareUserPay", () => {
     expect((await prepareUserPay(client, args)).minReturnedTokens).toBe(198n);
   });
 
+  test("a payment without hook specs never needs the registry", async () => {
+    const { client, calls } = mockClient({
+      terminalCounts: [200n, 50n],
+      hook: new Error("rpc down"),
+    });
+    expect((await prepareUserPay(client, args)).minReturnedTokens).toBe(198n);
+    expect(calls.some((c) => c.functionName === "hookOf")).toBe(false);
+  });
+
   test("an unreadable registry fails instead of dropping the minimum", async () => {
     const { client } = mockClient({
       spec: swapSpec(),
