@@ -562,7 +562,7 @@ describe("hook-aware cash-out routing", () => {
       classifyCashOutExecutionError({
         cause: { errorName: "JBMultiTerminal_UnderMin" },
       }),
-    ).toEqual({ code: "TERMINAL_UNDER_MIN", selector: "0x6b2bb382" });
+    ).toBeNull();
     expect(
       classifyCashOutExecutionError(new Error("user rejected")),
     ).toBeNull();

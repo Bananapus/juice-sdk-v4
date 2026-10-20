@@ -16,6 +16,7 @@ export * from "./cashOut.js";
 export {
   decodePayFailure,
   type PayFailure,
+  type PayFailureAdjustable,
   type PayFailureReason,
 } from "./executionErrors.js";
 export * from "./nft.js";

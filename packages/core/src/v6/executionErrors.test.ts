@@ -3,6 +3,7 @@ import {
   UserRejectedRequestError,
   ContractFunctionExecutionError,
   ContractFunctionRevertedError,
+  decodeErrorResult,
   encodeErrorResult,
   parseAbi,
 } from "viem";
@@ -44,22 +45,103 @@ const abi = parseAbi([
 const token = "0x7777777777777777777777777777777777777777" as const;
 const revert = (errorName: string, args: readonly unknown[]) =>
   encodeErrorResult({ abi, errorName, args } as never);
+/** What viem's decoder makes of revert data: the error typed against its ABI item. */
+const typed = (errorName: string, args: readonly unknown[]) =>
+  decodeErrorResult({ abi, data: revert(errorName, args) });
+/** A viem simulation error for revert data. */
+const simulated = (data: `0x${string}`) =>
+  new ContractFunctionExecutionError(
+    new ContractFunctionRevertedError({ abi: [], data, functionName: "pay" }),
+    { abi: [], functionName: "pay" },
+  );
+const errorString = (reason: string) =>
+  encodeErrorResult({
+    abi: parseAbi(["error Error(string)"]),
+    errorName: "Error",
+    args: [reason],
+  });
 
 describe("decodePayFailure", () => {
   test.each([
+    ["JBMultiTerminal_UnderMin", "TERMINAL_UNDER_MIN", "minimum", /minimum/],
+    [
+      "JBBuybackHook_SpecifiedSlippageExceeded",
+      "BUYBACK_SLIPPAGE_EXCEEDED",
+      "minimum",
+      /minimum/,
+    ],
+    [
+      "JBBuybackHook_DerivedFloorNotMet",
+      "BUYBACK_DERIVED_FLOOR_NOT_MET",
+      undefined,
+      /wait/,
+    ],
+    [
+      "JBRouterTerminal_SlippageExceeded",
+      "ROUTER_SLIPPAGE_EXCEEDED",
+      "slippage",
+      /slippage/,
+    ],
+  ] as const)(
+    "%s carries what settled, the minimum it missed, and the setting to relax",
+    (name, reason, adjustable, suggests) => {
+      const failure = decodePayFailure(revert(name, [7_000n, 9_900n]));
+      expect(failure).toEqual({
+        reason,
+        received: 7_000n,
+        minimum: 9_900n,
+        zeroFill: false,
+        ...(adjustable ? { adjustable } : {}),
+        message: expect.stringMatching(/^[A-Z][^.]*\.$/),
+      });
+      // The message suggests only the setting that changes the failing check.
+      expect(failure!.message).toMatch(suggests);
+      for (const other of ["minimum", "slippage"].filter(
+        (k) => k !== adjustable,
+      )) {
+        expect(failure!.message).not.toMatch(other);
+      }
+    },
+  );
+
+  test.each([
+    "JBMultiTerminal_UnderMin",
+    "JBBuybackHook_SpecifiedSlippageExceeded",
+    "JBBuybackHook_DerivedFloorNotMet",
+    "JBRouterTerminal_SlippageExceeded",
+  ])("%s amounts at or above the minimum are not a shortfall", (name) => {
+    for (const args of [
+      [9_900n, 9_900n],
+      [9_901n, 9_900n],
+      [0n, 0n],
+    ]) {
+      const failure = decodePayFailure(revert(name, args));
+      expect(failure).not.toBeNull();
+      for (const key of ["received", "minimum", "zeroFill", "adjustable"]) {
+        expect(failure).not.toHaveProperty(key);
+      }
+    }
+  });
+
+  test.each([
     ["JBMultiTerminal_UnderMin", "TERMINAL_UNDER_MIN"],
     ["JBBuybackHook_SpecifiedSlippageExceeded", "BUYBACK_SLIPPAGE_EXCEEDED"],
-    ["JBBuybackHook_DerivedFloorNotMet", "BUYBACK_DERIVED_FLOOR_NOT_MET"],
     ["JBRouterTerminal_SlippageExceeded", "ROUTER_SLIPPAGE_EXCEEDED"],
-  ])("%s carries what settled and the minimum it missed", (name, reason) => {
-    const failure = decodePayFailure(revert(name, [7_000n, 9_900n]));
-    expect(failure).toMatchObject({
-      reason,
-      received: 7_000n,
-      minimum: 9_900n,
-    });
-    expect(failure!.message).toMatch(/^[A-Z][^.]*\.$/);
-  });
+  ])(
+    "%s that settles nothing does not suggest a lower minimum",
+    (name, reason) => {
+      const failure = decodePayFailure(revert(name, [0n, 9_900n]));
+      expect(failure).toMatchObject({
+        reason,
+        received: 0n,
+        minimum: 9_900n,
+        zeroFill: true,
+      });
+      expect(failure).not.toHaveProperty("adjustable");
+      expect(failure!.message).not.toMatch(/minimum|slippage|try again/i);
+      expect(failure!.message).toMatch(/^[A-Z][^.]*\.$/);
+    },
+  );
 
   test.each([
     [
@@ -114,11 +196,7 @@ describe("decodePayFailure", () => {
 
   test("reads the revert data from a viem simulation error", () => {
     const data = revert("JBBuybackHook_SpecifiedSlippageExceeded", [1n, 2n]);
-    const error = new ContractFunctionExecutionError(
-      new ContractFunctionRevertedError({ abi: [], data, functionName: "pay" }),
-      { abi: [], functionName: "pay" },
-    );
-    expect(decodePayFailure(error)).toMatchObject({
+    expect(decodePayFailure(simulated(data))).toMatchObject({
       reason: "BUYBACK_SLIPPAGE_EXCEEDED",
       received: 1n,
       minimum: 2n,
@@ -139,7 +217,7 @@ describe("decodePayFailure", () => {
     });
   });
 
-  test("names the reason from a selector or error name alone, without amounts", () => {
+  test("names the reason from a selector or a typed error alone, without amounts", () => {
     expect(
       decodePayFailure(
         new BaseError("reverted", {
@@ -150,8 +228,11 @@ describe("decodePayFailure", () => {
       reason: "BUYBACK_SLIPPAGE_EXCEEDED",
       message: expect.any(String),
     });
+    const { abiItem } = typed("JBMultiTerminal_UnderMin", [5n, 6n]);
     expect(
-      decodePayFailure({ cause: { errorName: "JBMultiTerminal_UnderMin" } }),
+      decodePayFailure({
+        cause: { errorName: "JBMultiTerminal_UnderMin", abiItem },
+      }),
     ).toEqual({ reason: "TERMINAL_UNDER_MIN", message: expect.any(String) });
   });
 
@@ -177,25 +258,103 @@ describe("decodePayFailure", () => {
     });
   });
 
-  test("a decoded error keeps its amounts, and a bare selector or name in text still counts", () => {
+  test("a typed error keeps its amounts, and a bare selector still counts", () => {
     expect(
-      decodePayFailure({
-        cause: { errorName: "JBMultiTerminal_UnderMin", args: [5n, 6n] },
-      }),
+      decodePayFailure({ cause: typed("JBMultiTerminal_UnderMin", [5n, 6n]) }),
     ).toMatchObject({
       reason: "TERMINAL_UNDER_MIN",
       received: 5n,
       minimum: 6n,
     });
     expect(decodePayFailure("0x42b9988e")?.reason).toBe("NFT_OVERSPENDING");
+  });
+
+  test("an error name in text is not a revert", () => {
+    for (const text of [
+      "execution reverted: JBTerminalStore_RulesetPaymentPaused",
+      "execution reverted: jbmultiterminal_undermin",
+    ]) {
+      expect(decodePayFailure(text)).toBeNull();
+    }
+    expect(decodePayFailure(new Error("JBMultiTerminal_UnderMin"))).toBeNull();
+  });
+
+  test("an Error(string) reason that spells a known revert is not one", () => {
+    for (const reason of [
+      "JBMultiTerminal_UnderMin",
+      "0x6b2bb382",
+      revert("JBMultiTerminal_UnderMin", [3n, 4n]),
+    ]) {
+      const error = simulated(errorString(reason));
+      expect(decodePayFailure(error)).toBeNull();
+      expect(classifyCashOutExecutionError(error)).toBeNull();
+    }
+  });
+
+  test("a decoded-looking error counts only when typed, and its amounts only when they are uint256", () => {
+    const { abiItem } = typed("JBMultiTerminal_UnderMin", [5n, 6n]);
+    const url = "https://example.com/claim";
+    // No ABI item: a name and arguments anyone can write.
     expect(
-      decodePayFailure(
-        "execution reverted: JBTerminalStore_RulesetPaymentPaused",
-      )?.reason,
-    ).toBe("PAYMENTS_PAUSED");
-    expect(
-      decodePayFailure("reverted: JBTerminalStore_RulesetPaymentPausedForever"),
+      decodePayFailure({
+        data: { errorName: "JBMultiTerminal_UnderMin", args: [url, url] },
+      }),
     ).toBeNull();
+    expect(
+      decodePayFailure({
+        data: { errorName: "JBMultiTerminal_UnderMin", args: [5n, 6n] },
+      }),
+    ).toBeNull();
+    // An ABI item for another error, or with other types, does not match.
+    expect(
+      decodePayFailure({
+        data: {
+          errorName: "JBMultiTerminal_UnderMin",
+          abiItem: { ...abiItem, name: "JBMultiTerminal_UnderMinimum" },
+          args: [5n, 6n],
+        },
+      }),
+    ).toBeNull();
+    expect(
+      decodePayFailure({
+        data: {
+          errorName: "JBMultiTerminal_UnderMin",
+          abiItem: {
+            ...abiItem,
+            inputs: abiItem.inputs.map((input) => ({
+              ...input,
+              type: "string",
+            })),
+          },
+          args: [url, url],
+        },
+      }),
+    ).toBeNull();
+    // A typed error whose arguments are not uint256 names the reason alone.
+    for (const args of [
+      [url, url],
+      [5n],
+      [5n, 6n, 7n],
+      [-1n, 6n],
+      [5n, 2n ** 256n],
+      [5, 6],
+      undefined,
+    ]) {
+      expect(
+        decodePayFailure({
+          data: { errorName: "JBMultiTerminal_UnderMin", abiItem, args },
+        }),
+      ).toEqual({ reason: "TERMINAL_UNDER_MIN", message: expect.any(String) });
+    }
+    // An address argument must be an address.
+    expect(
+      decodePayFailure({
+        data: {
+          ...typed("ERC20InsufficientAllowance", [token, 1n, 2n]),
+          args: [url, 1n, 2n],
+        },
+      }),
+    ).toEqual({ reason: "ALLOWANCE_TOO_LOW", message: expect.any(String) });
   });
 
   test("a value that only starts with a selector is not a revert", () => {
@@ -230,9 +389,6 @@ describe("decodePayFailure", () => {
         message: `Raw Call Arguments:\n  to:    ${token}\n  data:  ${underMin}`,
       }),
     ).toBeNull();
-    expect(
-      decodePayFailure("execution reverted: jbmultiterminal_undermin")?.reason,
-    ).toBe("TERMINAL_UNDER_MIN");
   });
 
   test("a call's arguments that look like a revert are not one", () => {
@@ -257,9 +413,14 @@ describe("decodePayFailure", () => {
     }
   });
 
-  test("a decoded error's name matches in any case", () => {
+  test("a decoded error's name matches only its typed ABI item", () => {
     expect(
       classifyCashOutExecutionError({ errorName: "jbmultiterminal_undermin" }),
+    ).toBeNull();
+    expect(
+      classifyCashOutExecutionError(
+        typed("JBMultiTerminal_UnderMin", [3n, 4n]),
+      ),
     ).toEqual({ code: "TERMINAL_UNDER_MIN", selector: "0x6b2bb382" });
   });
 
