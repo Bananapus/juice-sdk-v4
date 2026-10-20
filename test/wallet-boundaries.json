@@ -59,7 +59,7 @@
     },
     {
       "file": "packages/core/src/v6/feeBuyback.ts",
-      "line": 213,
+      "line": 269,
       "api": "request",
       "boundary": "Read only eth_blockNumber and an eth_simulateV1 of the reviewed call pinned to that block, bounded by an 8 second timeout. Never sign or send; the result only labels the fee route.",
       "test": "packages/core/src/v6/feeBuyback.test.ts"

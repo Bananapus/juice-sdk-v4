@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { posix } from "node:path";
 import ts from "typescript";
 import { describe, expect, test } from "vitest";
@@ -180,6 +180,39 @@ describe("module load", () => {
     const work = closureWork(ENTRIES);
     expect([...work.values()].flat()).toEqual([]);
   }, 60_000);
+
+  // parseAbi at module level runs on import and keeps viem's ABI parser in
+  // every chunk that loads the module; write the parsed ABI `as const`.
+  test("no module parses an ABI when it is imported", () => {
+    const parsing: string[] = [];
+    for (const file of readdirSync("src", { recursive: true, encoding: "utf8" })
+      .filter((name) => /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name))
+      .map((name) => posix.join("src", name))) {
+      const source = ts.createSourceFile(
+        file,
+        readFileSync(file, "utf8"),
+        ts.ScriptTarget.Latest,
+        true,
+      );
+      for (const statement of source.statements) {
+        if (!ts.isVariableStatement(statement)) continue;
+        for (const declaration of statement.declarationList.declarations) {
+          const visit = (node: ts.Node): void => {
+            if (
+              ts.isCallExpression(node) &&
+              ts.isIdentifier(node.expression) &&
+              /^parseAbi(Item|Parameters)?$/.test(node.expression.text)
+            ) {
+              parsing.push(file);
+            }
+            if (!ts.isFunctionLike(node)) ts.forEachChild(node, visit);
+          };
+          if (declaration.initializer) visit(declaration.initializer);
+        }
+      }
+    }
+    expect(parsing).toEqual([]);
+  });
 
   test("flags a module-level call, spread, computed key, constructor or statement", () => {
     const work = (code: string) => moduleWork("sample.ts", code).length;

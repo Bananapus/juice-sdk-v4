@@ -2,7 +2,6 @@ import {
   decodeEventLog,
   formatUnits,
   numberToHex,
-  parseAbi,
   type Address,
   type Hex,
 } from "viem";
@@ -13,13 +12,70 @@ import {
 
 // Shared by every Juicebox client. Simulation results are
 // advisory estimates only; the existing transaction simulation/authorization remains mandatory.
-const abi = parseAbi([
-  "event Mint(uint256 indexed projectId,uint256 leftoverAmount,uint256 tokenCount,address caller)",
-  "event Swap(uint256 indexed projectId,uint256 amountToSwapWith,bytes32 indexed poolId,uint256 amountReceived,address caller)",
-  "event Pay(uint256 indexed rulesetId,uint256 indexed rulesetCycleNumber,uint256 indexed projectId,address payer,address beneficiary,uint256 amount,uint256 newlyIssuedTokenCount,string memo,bytes metadata,address caller)",
-  "event MintTokens(address indexed beneficiary,uint256 indexed projectId,uint256 tokenCount,uint256 beneficiaryTokenCount,string memo,uint256 reservedPercent,address caller)",
-  "event ProcessFee(uint256 indexed projectId,address indexed token,uint256 indexed amount,bool wasHeld,address beneficiary,address caller)",
-]);
+const abi = [
+  {
+    name: "Mint",
+    type: "event",
+    inputs: [
+      { type: "uint256", name: "projectId", indexed: true },
+      { type: "uint256", name: "leftoverAmount" },
+      { type: "uint256", name: "tokenCount" },
+      { type: "address", name: "caller" },
+    ],
+  },
+  {
+    name: "Swap",
+    type: "event",
+    inputs: [
+      { type: "uint256", name: "projectId", indexed: true },
+      { type: "uint256", name: "amountToSwapWith" },
+      { type: "bytes32", name: "poolId", indexed: true },
+      { type: "uint256", name: "amountReceived" },
+      { type: "address", name: "caller" },
+    ],
+  },
+  {
+    name: "Pay",
+    type: "event",
+    inputs: [
+      { type: "uint256", name: "rulesetId", indexed: true },
+      { type: "uint256", name: "rulesetCycleNumber", indexed: true },
+      { type: "uint256", name: "projectId", indexed: true },
+      { type: "address", name: "payer" },
+      { type: "address", name: "beneficiary" },
+      { type: "uint256", name: "amount" },
+      { type: "uint256", name: "newlyIssuedTokenCount" },
+      { type: "string", name: "memo" },
+      { type: "bytes", name: "metadata" },
+      { type: "address", name: "caller" },
+    ],
+  },
+  {
+    name: "MintTokens",
+    type: "event",
+    inputs: [
+      { type: "address", name: "beneficiary", indexed: true },
+      { type: "uint256", name: "projectId", indexed: true },
+      { type: "uint256", name: "tokenCount" },
+      { type: "uint256", name: "beneficiaryTokenCount" },
+      { type: "string", name: "memo" },
+      { type: "uint256", name: "reservedPercent" },
+      { type: "address", name: "caller" },
+    ],
+  },
+  {
+    name: "ProcessFee",
+    type: "event",
+    inputs: [
+      { type: "uint256", name: "projectId", indexed: true },
+      { type: "address", name: "token", indexed: true },
+      { type: "uint256", name: "amount", indexed: true },
+      { type: "bool", name: "wasHeld" },
+      { type: "address", name: "beneficiary" },
+      { type: "address", name: "caller" },
+    ],
+  },
+] as const;
 export type Fee = {
   key: string;
   projectId: bigint;

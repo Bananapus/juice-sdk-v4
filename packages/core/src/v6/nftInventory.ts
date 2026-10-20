@@ -1,4 +1,4 @@
-import { type Address, type PublicClient, parseAbi, zeroAddress } from "viem";
+import { type Address, type PublicClient, zeroAddress } from "viem";
 import {
   jb721TiersHookStoreAbi,
   jbProjectsAbi,
@@ -20,19 +20,85 @@ import {
 // Native read interface and deployment addresses: @ballkidz/defifa@1.0.2,
 // DefifaHook/DefifaDeployer; source revision d3c46dd4fe9a093cc46ed5eb2106395d2a19b860.
 // Defifa's pay metadata is (address,uint16[]), NOT JB721's (bool,uint16[]).
-const defifaReadAbi = parseAbi([
-  "function store() view returns (address)",
-  "function CODE_ORIGIN() view returns (address)",
-  "function projectId() view returns (uint256)",
-  "function gamePhaseReporter() view returns (address)",
-  "function gamePotReporter() view returns (address)",
-  "function pricingCurrency() view returns (uint256)",
-  "function contractURI() view returns (string)",
-  "function tierNameOf(uint256) view returns (string)",
-  "function currentSupplyOfTier(uint256) view returns (uint256)",
-  "function currentGamePotOf(uint256,bool) view returns (uint256,address,uint256)",
-  "function currentGamePhaseOf(uint256) view returns (uint8)",
-]);
+const defifaReadAbi = [
+  {
+    name: "store",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "CODE_ORIGIN",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "projectId",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "gamePhaseReporter",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "gamePotReporter",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "pricingCurrency",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "contractURI",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "string" }],
+  },
+  {
+    name: "tierNameOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ type: "uint256" }],
+    outputs: [{ type: "string" }],
+  },
+  {
+    name: "currentSupplyOfTier",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ type: "uint256" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "currentGamePotOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ type: "uint256" }, { type: "bool" }],
+    outputs: [{ type: "uint256" }, { type: "address" }, { type: "uint256" }],
+  },
+  {
+    name: "currentGamePhaseOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ type: "uint256" }],
+    outputs: [{ type: "uint8" }],
+  },
+] as const;
 
 export interface ProjectDefifaTier extends Project721Tier {
   /** Authoritative onchain range/team name, independent of URI resolution. */
