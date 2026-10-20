@@ -27,6 +27,7 @@ export {
   type DefifaHolding,
 } from "./defifaHoldings.js";
 export * from "./tokens.js";
+export * from "./uniswapV3.js";
 export * from "./uniswapV4.js";
 export * from "./uniswapV4Fees.js";
 export * from "./permissions.js";
