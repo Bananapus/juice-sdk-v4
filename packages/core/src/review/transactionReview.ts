@@ -7,6 +7,19 @@ import {
   type Address,
   type Hex,
 } from "viem";
+import {
+  requestTransactionReview,
+  TransactionReviewCancelledError,
+} from "./reviewQueue.js";
+
+export type { FundingChainOption } from "./reviewQueue.js";
+export {
+  registerFundingChainSelectionHandler,
+  registerTransactionReviewHandler,
+  requireFundingChainSelection,
+  requireTransactionReview,
+  TransactionReviewCancelledError,
+} from "./reviewQueue.js";
 
 /**
  * How review prompts name a chain and link its explorer. Apps pass their own
@@ -69,32 +82,6 @@ export type TransactionReviewOptions = Omit<
   contractName?: string;
 };
 
-type TransactionReviewHandler = (
-  request: TransactionReviewRequest,
-) => Promise<boolean>;
-
-const transactionReviewHandlers: TransactionReviewHandler[] = [];
-
-/** The person closed a review or a funding-chain choice. Nothing was sent; apps need not show an error. */
-export class TransactionReviewCancelledError extends Error {
-  constructor(message = "Review closed. Nothing was sent.") {
-    super(message);
-    this.name = "TransactionReviewCancelledError";
-  }
-}
-
-export type FundingChainOption = {
-  chainId: number;
-  /** The chain and its quoted cost, from {@link fundingChainLabel}. */
-  label: string;
-};
-
-type FundingChainSelectionHandler = (
-  options: readonly FundingChainOption[],
-  /** The option to preselect, or null when the person must pick one of several. */
-  initialChainId: number | null,
-) => Promise<number | null>;
-
 /** "Base (~0.000123 ETH)": a chain and the relay fee quoted on it. */
 export function fundingChainLabel(
   chainName: string,
@@ -105,101 +92,6 @@ export function fundingChainLabel(
     maximumSignificantDigits: 3,
   }).format(Number(exact));
   return `${chainName} (${shown === exact ? "" : "~"}${shown} ETH)`;
-}
-
-const fundingChainSelectionHandlers: FundingChainSelectionHandler[] = [];
-
-export function registerFundingChainSelectionHandler(
-  handler: FundingChainSelectionHandler,
-): () => void {
-  fundingChainSelectionHandlers.push(handler);
-  return () => {
-    const index = fundingChainSelectionHandlers.lastIndexOf(handler);
-    if (index >= 0) fundingChainSelectionHandlers.splice(index, 1);
-  };
-}
-
-/**
- * Asks where to pay a relay fee. The connected chain is preselected when it is
- * quoted, and so is a lone quote; otherwise the person picks. The exact payment
- * still gets its own review.
- */
-export async function requireFundingChainSelection(
-  options: readonly FundingChainOption[],
-  preferredChainId?: number,
-): Promise<number> {
-  const snapshot = options.map((option) => ({ ...option }));
-  const chainIds = new Set(snapshot.map((option) => option.chainId));
-  if (
-    !snapshot.length ||
-    chainIds.size !== snapshot.length ||
-    snapshot.some(
-      (option) =>
-        !Number.isSafeInteger(option.chainId) ||
-        option.chainId <= 0 ||
-        !option.label.trim(),
-    )
-  ) {
-    throw new Error(
-      "No valid funding chain choices are available. Request a new quote.",
-    );
-  }
-  const handler =
-    fundingChainSelectionHandlers[fundingChainSelectionHandlers.length - 1];
-  if (!handler) {
-    throw new Error(
-      "Funding chain selection is unavailable. Reload the page before continuing.",
-    );
-  }
-  const initialChainId =
-    preferredChainId !== undefined && chainIds.has(preferredChainId)
-      ? preferredChainId
-      : snapshot.length === 1
-        ? snapshot[0].chainId
-        : null;
-  const selected = await handler(snapshot, initialChainId);
-  if (selected === null) {
-    throw new TransactionReviewCancelledError(
-      "Funding chain selection cancelled. Nothing was sent.",
-    );
-  }
-  if (!chainIds.has(selected)) {
-    throw new Error(
-      "The selected funding chain is not available in this quote.",
-    );
-  }
-  return selected;
-}
-
-/**
- * The provider registers the only UI capable of approving a transaction.
- * Keeping the entry point in a small client module lets non-React wallet
- * helpers (Safe and Relayr) use the same mandatory review queue.
- */
-export function registerTransactionReviewHandler(
-  handler: TransactionReviewHandler,
-): () => void {
-  transactionReviewHandlers.push(handler);
-  return () => {
-    const index = transactionReviewHandlers.lastIndexOf(handler);
-    if (index >= 0) transactionReviewHandlers.splice(index, 1);
-  };
-}
-
-async function requestTransactionReview(
-  request: TransactionReviewRequest,
-): Promise<boolean> {
-  if (!request.calls.length && !request.authorization) {
-    throw new Error("There is no transaction to review.");
-  }
-  const transactionReviewHandler =
-    transactionReviewHandlers[transactionReviewHandlers.length - 1];
-  if (!transactionReviewHandler) {
-    throw new Error(
-      "Transaction review is unavailable. Reload the page before continuing.",
-    );
-  }
-  return transactionReviewHandler(request);
 }
 
 /** Encode once for review using the same ABI/function/args passed to wagmi. */
@@ -254,14 +146,6 @@ export function requestContractTransactionReview(
     }
     return true;
   });
-}
-
-export async function requireTransactionReview(
-  request: TransactionReviewRequest,
-): Promise<void> {
-  if (!(await requestTransactionReview(request))) {
-    throw new TransactionReviewCancelledError();
-  }
 }
 
 export async function requireContractTransactionReview(
