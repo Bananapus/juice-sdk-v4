@@ -7,8 +7,8 @@ import {
   maxUint256,
 } from "viem";
 
-/** Hex with at least a selector: revert data, well formed or not. */
-const REVERT_DATA = /^0x[0-9a-f]{8,}$/i;
+/** Nonempty hex: revert data, well formed or not, even short of a selector. */
+const REVERT_DATA = /^0x[0-9a-f]+$/i;
 
 /**
  * What a viem or wallet error carries about a revert, however deeply nested:
@@ -146,6 +146,9 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
     adjustable: "minimum",
     message:
       "The price moved and this payment would get fewer tokens than your minimum, so lower your minimum or try again.",
+    // The hook checks only the part it buys with; the rest can still mint.
+    zeroMessage:
+      "The price moved and the part of this payment that buys tokens would get none, so try again.",
   },
   {
     reason: "TERMINAL_UNDER_MIN",

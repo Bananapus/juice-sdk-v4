@@ -108,7 +108,7 @@ describe("decodePayFailure", () => {
     );
     expect(failure).toMatchObject({ received: 0n, zeroFill: true });
     expect(failure).not.toHaveProperty("adjustable");
-    expect(failure!.message).not.toMatch(/no tokens|nothing/);
+    expect(failure!.message).not.toMatch(/no tokens|nothing|minimum|slippage/);
   });
 
   test.each([
@@ -307,6 +307,17 @@ describe("decodePayFailure", () => {
     ]) {
       expect(decodePayFailure(value)).toBeNull();
       expect(decodePayFailure({ cause: { data: value } })).toBeNull();
+    }
+  });
+
+  test("revert data of any length, even short of a selector, rules out a typed copy", () => {
+    const data = typed("JBMultiTerminal_UnderMin", [935n, 1_000n]);
+    expect(decodePayFailure({ data })).toMatchObject({
+      adjustable: "minimum",
+    });
+    for (const raw of ["0x12", "0x1234", "0x123456", "0xdeadbeef"]) {
+      expect(decodePayFailure({ raw, data })).toBeNull();
+      expect(classifyCashOutExecutionError({ raw, data })).toBeNull();
     }
   });
 
