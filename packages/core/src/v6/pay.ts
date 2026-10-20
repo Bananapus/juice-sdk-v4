@@ -602,7 +602,7 @@ export async function prepareUserPay(
     });
     // The hook rejects a minimum it cannot route, such as on a pool with no
     // liquidity in range, and then the payment stays on the mint path.
-    const [, terminalBeneficiaryCount, terminalReservedCount, quotedSpecs] =
+    const [, quotedBeneficiaryCount, quotedReservedCount, quotedSpecs] =
       await client.readContract({
         address: args.terminal,
         abi: jbMultiTerminalAbi,
@@ -613,6 +613,24 @@ export async function prepareUserPay(
       (s) => !s.noop && s.hook.toLowerCase() === buyback.hook.toLowerCase(),
     );
     if (!swaps) return fallback;
+    // A router folds the hook's estimate into zero terminal counts; only
+    // counts it reports as they are were issued by the terminal.
+    const folded = effectivePayPreview({
+      buybackHook: buyback.hook,
+      beneficiaryTokenCount: 0n,
+      reservedTokenCount: 0n,
+      weight,
+      reservedPercent: buyback.reservedPercent,
+      hookSpecifications: quotedSpecs,
+    });
+    const issuedByTerminal =
+      quotedBeneficiaryCount === folded.beneficiaryTokenCount &&
+      quotedReservedCount === folded.reservedTokenCount
+        ? { beneficiaryTokenCount: 0n, reservedTokenCount: 0n }
+        : {
+            beneficiaryTokenCount: quotedBeneficiaryCount,
+            reservedTokenCount: quotedReservedCount,
+          };
     const directMint = directMintOf(buyback, weight);
     // The swapped tokens skip the split, or are reminted through it with the
     // direct mint. The terminal's own issuance, such as for NFT splits, adds.
@@ -624,8 +642,9 @@ export async function prepareUserPay(
         beneficiaryTokenCount:
           (buyback.skipSplits ? swapTokenCount : 0n) +
           split.beneficiaryTokenCount +
-          terminalBeneficiaryCount,
-        reservedTokenCount: split.reservedTokenCount + terminalReservedCount,
+          issuedByTerminal.beneficiaryTokenCount,
+        reservedTokenCount:
+          split.reservedTokenCount + issuedByTerminal.reservedTokenCount,
       };
     };
     return {

@@ -24,6 +24,8 @@ const abi = parseAbi([
   "error JBMultiTerminal_PermitAllowanceNotEnough(uint256 amount, uint256 allowance)",
   "error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed)",
   "error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)",
+  "error InsufficientAllowance(uint256 amount)",
+  "error AllowanceExpired(uint256 deadline)",
   "error JBMultiTerminal_NoMsgValueAllowed(uint256 value)",
   "error JBRouterTerminal_PermitAllowanceNotEnough(uint256 amount, uint256 allowance)",
   "error JBRouterTerminalRegistry_PermitAllowanceNotEnough(uint256 amount, uint256 allowanceAmount)",
@@ -71,6 +73,8 @@ describe("decodePayFailure", () => {
     ["JBMultiTerminal_PermitAllowanceNotEnough", [2n, 1n], "ALLOWANCE_TOO_LOW"],
     ["ERC20InsufficientAllowance", [token, 1n, 2n], "ALLOWANCE_TOO_LOW"],
     ["ERC20InsufficientBalance", [token, 1n, 2n], "BALANCE_TOO_LOW"],
+    ["InsufficientAllowance", [2n], "ALLOWANCE_TOO_LOW"],
+    ["AllowanceExpired", [1n], "ALLOWANCE_EXPIRED"],
     ["JBMultiTerminal_NoMsgValueAllowed", [1n], "UNEXPECTED_ETH"],
     [
       "JBRouterTerminal_PermitAllowanceNotEnough",
@@ -190,6 +194,43 @@ describe("decodePayFailure", () => {
     expect(
       decodePayFailure("reverted: JBTerminalStore_RulesetPaymentPausedForever"),
     ).toBeNull();
+  });
+
+  test("a value that only starts with a selector is not a revert", () => {
+    const address = "0xe2d708a900000000000000000000000000000000";
+    expect(decodePayFailure(address)).toBeNull();
+    expect(decodePayFailure({ cause: { data: address } })).toBeNull();
+    expect(
+      decodePayFailure(`${revert("JBMultiTerminal_UnderMin", [3n, 4n])}00`),
+    ).toBeNull();
+    expect(
+      classifyCashOutExecutionError({ error: { data: address } }),
+    ).toBeNull();
+  });
+
+  test("revert data quoted in a message decodes, but the request viem quotes does not", () => {
+    const underMin = revert("JBMultiTerminal_UnderMin", [3n, 4n]);
+    expect(
+      decodePayFailure({ message: `execution reverted: ${underMin}` }),
+    ).toMatchObject({
+      reason: "TERMINAL_UNDER_MIN",
+      received: 3n,
+      minimum: 4n,
+    });
+    expect(
+      classifyCashOutExecutionError({
+        message: `execution reverted: ${underMin}`,
+      }),
+    ).toEqual({ code: "TERMINAL_UNDER_MIN", selector: "0x6b2bb382" });
+    expect(
+      decodePayFailure({
+        shortMessage: "Execution reverted for an unknown reason.",
+        message: `Raw Call Arguments:\n  to:    ${token}\n  data:  ${underMin}`,
+      }),
+    ).toBeNull();
+    expect(
+      decodePayFailure("execution reverted: jbmultiterminal_undermin")?.reason,
+    ).toBe("TERMINAL_UNDER_MIN");
   });
 
   test("anything else is unknown", () => {

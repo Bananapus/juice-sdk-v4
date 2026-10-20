@@ -700,6 +700,33 @@ describe("prepareUserPay", () => {
     expect(prepared.minReturnedTokens).toBe(7_920n + 160n);
   });
 
+  test("does not count a router's folded estimate as terminal issuance", async () => {
+    // The router reports the hook's 12,000 estimate in place of zero counts.
+    const { client } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      respond: (metadata) =>
+        explicitMinimumOf(metadata) === 0n
+          ? {}
+          : {
+              spec: swapSpec({
+                rawSwapQuote: 12_000n,
+                minimumSwapAmountOut: 9_900n,
+              }),
+              terminalCounts: [12_000n, 0n] as const,
+            },
+    });
+    const prepared = await prepareUserPay(client, {
+      ...args,
+      terminal: v6Address("JBRouterTerminalRegistry", 8453),
+    });
+    expect(prepared.preview).toEqual({
+      beneficiaryTokenCount: 10_000n,
+      reservedTokenCount: 0n,
+    });
+    expect(prepared.minReturnedTokens).toBe(9_900n);
+  });
+
   test("looks up an ERC-20 pool by the token and swaps toward currency0", async () => {
     const usdcKey = { ...nativeKey, currency0: projectToken, currency1: usdc };
     const { client, calls } = mockClient({

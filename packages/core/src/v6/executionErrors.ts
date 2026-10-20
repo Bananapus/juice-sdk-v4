@@ -63,6 +63,7 @@ export type PayFailureReason =
   | "PAYMENTS_PAUSED"
   | "NO_RULESET"
   | "ALLOWANCE_TOO_LOW"
+  | "ALLOWANCE_EXPIRED"
   | "BALANCE_TOO_LOW"
   | "UNEXPECTED_ETH"
   | "NFT_SOLD_OUT"
@@ -207,6 +208,20 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
     }),
   ),
   {
+    reason: "ALLOWANCE_TOO_LOW",
+    name: "InsufficientAllowance",
+    selector: "0xf96fb071",
+    params: ["uint256"],
+    message: ALLOWANCE_MESSAGE,
+  },
+  {
+    reason: "ALLOWANCE_EXPIRED",
+    name: "AllowanceExpired",
+    selector: "0xd81b2f2e",
+    params: ["uint256"],
+    message: "The token approval has expired, so approve it again and retry.",
+  },
+  {
     reason: "BALANCE_TOO_LOW",
     name: "ERC20InsufficientBalance",
     selector: "0xe450d38c",
@@ -273,10 +288,12 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
 ];
 
 /**
- * The first known revert in an error. Revert data and decoded errors are read
- * before any text, so their amounts decode; text counts only a bare selector
- * or a whole error name, never hex inside a longer value such as a request's
- * address or calldata.
+ * The first known revert in an error. Revert data, in its own field or quoted
+ * in the error's text, counts only as a bare selector or a selector with
+ * exactly its arguments, never as the start of a longer value such as an
+ * address or calldata, and the request viem quotes is left out. Amounts come
+ * from revert data or a decoded error; otherwise a selector or a whole error
+ * name names the reason alone.
  */
 export function matchKnownRevert(
   error: unknown,
@@ -290,29 +307,39 @@ export function matchKnownRevert(
     decoded: [],
     messages: [],
   });
-  const bySelector = (hex: string) =>
-    known.find((k) => hex.toLowerCase().startsWith(k.selector));
-  for (const hex of payloads) {
-    const match = bySelector(hex);
-    const end = 10 + 64 * (match?.params.length ?? 0);
-    if (!match || hex.length < end) continue;
+  // A revert is its selector alone, or its selector and exactly its arguments.
+  const exact = (hex: string) => {
+    const lower = hex.toLowerCase();
+    const match = known.find((k) => lower.startsWith(k.selector));
+    if (!match) return null;
+    if (lower.length === 10) return { known: match };
+    if (lower.length !== 10 + 64 * match.params.length) return null;
     const args = decodeAbiParameters(
       match.params.map((type) => ({ type })),
-      `0x${hex.slice(10, end)}`,
+      `0x${lower.slice(10)}`,
     );
     return { known: match, args };
-  }
+  };
+  // viem quotes the request (its body, and the call's to/data lines); only the rest describes the revert.
+  const text = messages
+    .join("\n")
+    .replace(/request body:[^\n]*/gi, "")
+    .replace(/^\s*(?:to|from|data):\s*0x[0-9a-f]*\s*$/gim, "");
+  const quoted = [
+    ...text.matchAll(
+      /(?<![0-9a-fx])0x[0-9a-f]{8}(?:[0-9a-f]{64})*(?![0-9a-f])/gi,
+    ),
+  ].map(([hex]) => hex);
+  const found = [...payloads, ...quoted].map(exact).filter((m) => !!m);
+  const withArgs = found.find((m) => m.args);
+  if (withArgs) return withArgs;
   for (const { name, args } of decoded) {
     const match = known.find((k) => k.name === name);
     if (match) return { known: match, ...(args ? { args } : {}) };
   }
-  const short = payloads.map(bySelector).find(Boolean);
-  if (short) return { known: short };
-  const text = messages.join(" | ");
-  const match = known.find(
-    (k) =>
-      new RegExp(`(?<![0-9a-fx])${k.selector}(?![0-9a-f])`, "i").test(text) ||
-      new RegExp(`\\b${k.name}\\b`).test(text),
+  if (found[0]) return found[0];
+  const match = known.find((k) =>
+    new RegExp(`\\b${k.name}\\b`, "i").test(text),
   );
   return match ? { known: match } : null;
 }
