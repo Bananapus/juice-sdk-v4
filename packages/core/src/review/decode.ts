@@ -29,7 +29,7 @@ import { jbRouterTerminalRegistryAbi } from "../generated/abi/jbRouterTerminalRe
 import { jbSplitsAbi } from "../generated/abi/jbSplitsAbi.js";
 import { jbTokensAbi } from "../generated/abi/jbTokensAbi.js";
 import {
-  jbContractAddress,
+  jbV6ContractAddress,
   jbContractAddressHistory,
 } from "../generated/juicebox.js";
 import {
@@ -108,7 +108,7 @@ function namedAddresses(): Map<string, string> {
     Record<string, Readonly<Record<string, AddressTable>>>
   >;
   for (const [contract, table] of Object.entries(
-    jbContractAddress["6"] as Readonly<Record<string, AddressTable>>,
+    jbV6ContractAddress as Readonly<Record<string, AddressTable>>,
   )) {
     add(table, contract in history ? `${contract} (current)` : contract);
   }

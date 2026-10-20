@@ -15,9 +15,9 @@ import {
   jbMultiTerminalAbi,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
-import { getJBContractAddress } from "../utils/contracts.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { slippageFloor } from "./cashOut.js";
+import { v6Address } from "./types.js";
 import {
   quoteUniswapV4ExactInputSingle,
   uniswapV4PoolId,
@@ -368,7 +368,7 @@ async function resolvedBuybackHookOf(
 ): Promise<Address | null> {
   let registry: Address;
   try {
-    registry = getJBContractAddress("JBBuybackHookRegistry", 6, chainId);
+    registry = v6Address("JBBuybackHookRegistry", chainId);
   } catch {
     return null;
   }
@@ -617,10 +617,7 @@ export function buildUserPayMetadata({
   minimumSwapAmountOut?: bigint;
 }): Hex {
   const ids = [
-    hookMetadataId(
-      getJBContractAddress("JBBuybackHookRegistry", 6, chainId),
-      "pay",
-    ),
+    hookMetadataId(v6Address("JBBuybackHookRegistry", chainId), "pay"),
   ];
   const data: Hex[] = [
     encodeAbiParameters(

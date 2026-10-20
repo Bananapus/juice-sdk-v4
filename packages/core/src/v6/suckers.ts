@@ -17,7 +17,7 @@ import {
   jbDirectoryAbi,
   jbSuckerRegistryAbi,
 } from "../generated/juicebox.js";
-import { JBChainId } from "../types.js";
+import type { JBChainId } from "../types.js";
 import { v6Address } from "./types.js";
 
 /**
@@ -288,18 +288,19 @@ export const jbNativeSuckerV6ProbeAbi = [
  * Reusable v6 JBSucker ABI: transaction builders, bridge-state views, the
  * outbox event, and the permissionless accounting-sync entrypoint.
  */
-export const jbSuckerV6Abi = [
-  ...jbSuckerV6ViewAbi,
-  insertToSuckerOutboxEvent,
-  ...jbSuckerV6WriteAbi,
-  {
-    type: "function",
-    name: "syncAccountingData",
-    stateMutability: "payable",
-    inputs: [],
-    outputs: [],
-  },
-] as const;
+export const jbSuckerV6Abi = /* @__PURE__ */ (() =>
+  [
+    ...jbSuckerV6ViewAbi,
+    insertToSuckerOutboxEvent,
+    ...jbSuckerV6WriteAbi,
+    {
+      type: "function",
+      name: "syncAccountingData",
+      stateMutability: "payable",
+      inputs: [],
+      outputs: [],
+    },
+  ] as const)();
 
 /**
  * A leaf of a v6 sucker's merkle tree, representing tokens bridged for one beneficiary.

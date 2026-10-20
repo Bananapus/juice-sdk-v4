@@ -38,6 +38,13 @@ describe("published core SDK surfaces", () => {
     expect(sdk.bendystrawProjectRefsFilters).toBeTypeOf("function");
     expect(sdk.createJBCenterClient).toBeTypeOf("function");
     expect(sdk.createJBCenterRpcProvider).toBeTypeOf("function");
+    expect(sdk.createJBCenterClient()).toBeInstanceOf(sdk.JBCenterRpcClient);
+    expect(sdk.jbContractAddress).toEqual({
+      "4": sdk.jbV4ContractAddress,
+      "5": sdk.jbV5ContractAddress,
+      "6": sdk.jbV6ContractAddress,
+    });
+    expect(sdk.jbContractAddress["6"]).toBe(sdk.jbV6ContractAddress);
     expect(sdk.JBCENTER_DEFAULT_URL).toBe("https://juicebox.center");
     expect(sdk.JBCENTER_RPC_METHODS).toContain("eth_chainId");
     expect(sdk.JBCENTER_SPONSORED_CHAIN_IDS).toContain(8453);

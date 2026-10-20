@@ -4,7 +4,6 @@ import {
   isAddress,
   keccak256,
   toHex,
-  parseAbi,
   zeroAddress,
   type Address,
   type Hex,
@@ -380,10 +379,33 @@ function rememberReview(session: SafeRelayrSession): void {
     reviewedIntents.delete(reviewedIntents.values().next().value!);
 }
 
-const SAFE_STATE_ABI = parseAbi([
-  "function nonce() view returns (uint256)",
-  "function getTransactionHash(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 _nonce) view returns (bytes32)",
-]);
+const SAFE_STATE_ABI = [
+  {
+    name: "nonce",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "getTransactionHash",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { type: "address", name: "to" },
+      { type: "uint256", name: "value" },
+      { type: "bytes", name: "data" },
+      { type: "uint8", name: "operation" },
+      { type: "uint256", name: "safeTxGas" },
+      { type: "uint256", name: "baseGas" },
+      { type: "uint256", name: "gasPrice" },
+      { type: "address", name: "gasToken" },
+      { type: "address", name: "refundReceiver" },
+      { type: "uint256", name: "_nonce" },
+    ],
+    outputs: [{ type: "bytes32" }],
+  },
+] as const;
 
 /** A nonce reserves its Safe on its chain even when signature bytes or the proposed intent change. */
 export function safeRelayrReservationKey(

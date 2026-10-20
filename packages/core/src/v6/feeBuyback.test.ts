@@ -724,11 +724,9 @@ describe("fee review helpers", () => {
   it("trusts nothing for a contract the address table lacks", async () => {
     vi.resetModules();
     vi.doMock("../generated/juicebox.js", () => ({
-      jbContractAddress: {
-        "6": {
-          JBMultiTerminal: { 8453: terminal },
-          JBController: { 8453: controller },
-        },
+      jbV6ContractAddress: {
+        JBMultiTerminal: { 8453: terminal },
+        JBController: { 8453: controller },
       },
       jbContractAddressHistory: { "6": {} },
     }));

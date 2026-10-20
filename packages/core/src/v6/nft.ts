@@ -3,8 +3,7 @@ import { JBOmnichainDeployerContracts } from "../contracts.js";
 import {
   jb721TiersHookAbi,
   jb721TiersHookStoreAbi,
-  jbContractAddress,
-  jbOmnichainDeployerAbi,
+  jbV6ContractAddress,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
 import { isMissingContractFunctionError } from "../utils/errors.js";
@@ -18,11 +17,31 @@ import { getCurrentRuleset, type JBRulesetWithMetadata } from "./rulesets.js";
  */
 export const TIER_UNLIMITED_SUPPLY = 999_999_999;
 
+export { DISCOUNT_DENOMINATOR, effectiveTierPrice } from "./tierPrice.js";
+
 /**
- * JB721TiersHookStore's `DISCOUNT_DENOMINATOR`: a tier's `discountPercent` is
- * out of 200, so the shopper-facing "% off" is `discountPercent / 2`.
+ * The one JBOmnichainDeployer function the 721 hook lookup reads, so a page
+ * that resolves a hook does not load the deployer's whole ABI.
  */
-export const DISCOUNT_DENOMINATOR = 200n;
+const tiered721HookOfAbi = [
+  {
+    type: "function",
+    inputs: [
+      { name: "projectId", internalType: "uint256", type: "uint256" },
+      { name: "rulesetId", internalType: "uint256", type: "uint256" },
+    ],
+    name: "tiered721HookOf",
+    outputs: [
+      {
+        name: "hook",
+        internalType: "contract IJB721TiersHook",
+        type: "address",
+      },
+      { name: "useDataHookForCashOut", internalType: "bool", type: "bool" },
+    ],
+    stateMutability: "view",
+  },
+] as const;
 
 /** The 721 tiers hook's ruleset-metadata bit which pauses eligible transfers. */
 export const JB721_RULESET_METADATA_PAUSE_TRANSFERS = 1 << 0;
@@ -347,24 +366,6 @@ export function buildTierCategoryPlan(
 }
 
 /**
- * A tier's effective (discounted) price, matching the on-chain formula in
- * JB721TiersHookStore: `price - mulDiv(price, discountPercent, 200)` with
- * integer-floor division.
- *
- * @param price The tier's full (undiscounted) price.
- * @param discountPercent The tier's discount, out of 200 (`DISCOUNT_DENOMINATOR`).
- */
-export function effectiveTierPrice(
-  price: bigint,
-  discountPercent: number | bigint,
-): bigint {
-  let discount = BigInt(discountPercent);
-  if (discount <= 0n) return price;
-  if (discount > DISCOUNT_DENOMINATOR) discount = DISCOUNT_DENOMINATOR;
-  return price - (price * discount) / DISCOUNT_DENOMINATOR;
-}
-
-/**
  * A single 721 tier a project sells.
  */
 export interface Project721Tier {
@@ -486,7 +487,7 @@ export async function resolveProject721Hook(
       dataHook &&
       dataHook !== zeroAddress
     ) {
-      const omni = jbContractAddress["6"][
+      const omni = jbV6ContractAddress[
         JBOmnichainDeployerContracts.JBOmnichainDeployer
       ]?.[chainId] as Address | undefined;
       if (omni && dataHook.toLowerCase() === omni.toLowerCase()) {
@@ -494,7 +495,7 @@ export async function resolveProject721Hook(
         // per-ruleset mapping.
         const [omniHook] = await client.readContract({
           address: omni,
-          abi: jbOmnichainDeployerAbi,
+          abi: tiered721HookOfAbi,
           functionName: "tiered721HookOf",
           args: [projectId, BigInt(ruleset.id)],
         });

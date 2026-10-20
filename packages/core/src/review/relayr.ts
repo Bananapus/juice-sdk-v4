@@ -13,7 +13,7 @@ import {
 } from "viem";
 import {
   erc2771ForwarderAbi,
-  jbContractAddress,
+  jbV6ContractAddress,
 } from "../generated/juicebox.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import { isDefiniteWalletRejection } from "./contractWrite.js";
@@ -1287,7 +1287,7 @@ export function relayrRecordChain(
 function forwarderOn(chainId: number): Address | undefined {
   return relayrSupportsChain(chainId)
     ? (
-        jbContractAddress["6"].ERC2771Forwarder as Readonly<
+        jbV6ContractAddress.ERC2771Forwarder as Readonly<
           Record<string, Address>
         >
       )[chainId]

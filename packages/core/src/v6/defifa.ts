@@ -10,7 +10,6 @@ import {
   erc20Abi,
   erc721Abi,
   isAddress,
-  parseAbi,
   parseEventLogs,
   zeroAddress,
 } from "viem";
@@ -25,7 +24,7 @@ import {
   buildCashOutTx,
   type V6CashOutTxRequest,
 } from "./cashOut.js";
-import { effectiveTierPrice } from "./nft.js";
+import { effectiveTierPrice } from "./tierPrice.js";
 import {
   getProjectNftInventory,
   type ProjectDefifaInventory,
@@ -43,15 +42,57 @@ import {
 } from "../review/writeRecovery.js";
 
 // @ballkidz/defifa 1.0.2 native getters. Provenance belongs to nftInventory.
-const defifaActionAbi = parseAbi([
-  "function defaultAttestationDelegate() view returns (address)",
-  "function getTierDelegateOf(address,uint256) view returns (address)",
-  "function gamePhaseReporter() view returns (address)",
-  "function noContestTriggeredFor(uint256) view returns (bool)",
-  "function tokensClaimableFor(uint256[]) view returns (uint256,uint256)",
-  "function DEFIFA_TOKEN() view returns (address)",
-  "function BASE_PROTOCOL_TOKEN() view returns (address)",
-]);
+const defifaActionAbi = [
+  {
+    name: "defaultAttestationDelegate",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "getTierDelegateOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ type: "address" }, { type: "uint256" }],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "gamePhaseReporter",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "noContestTriggeredFor",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ type: "uint256" }],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    name: "tokensClaimableFor",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ type: "uint256[]" }],
+    outputs: [{ type: "uint256" }, { type: "uint256" }],
+  },
+  {
+    name: "DEFIFA_TOKEN",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "BASE_PROTOCOL_TOKEN",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+] as const;
 
 /** Adapter RPC/review budget, not a native protocol supply or metadata limit. */
 export const MAX_DEFIFA_ACTION_NFTS = 128;
@@ -507,10 +548,29 @@ export async function prepareDefifaTransfer(
   return { inventory, transaction };
 }
 
-const defifaEffectAbi = parseAbi([
-  "event Mint(uint256 indexed tokenId,uint256 indexed tierId,address indexed beneficiary,uint256 totalAmountContributed,address caller)",
-  "event ClaimedTokens(address indexed beneficiary,uint256 defifaTokenAmount,uint256 baseProtocolTokenAmount,address caller)",
-]);
+const defifaEffectAbi = [
+  {
+    name: "Mint",
+    type: "event",
+    inputs: [
+      { type: "uint256", name: "tokenId", indexed: true },
+      { type: "uint256", name: "tierId", indexed: true },
+      { type: "address", name: "beneficiary", indexed: true },
+      { type: "uint256", name: "totalAmountContributed" },
+      { type: "address", name: "caller" },
+    ],
+  },
+  {
+    name: "ClaimedTokens",
+    type: "event",
+    inputs: [
+      { type: "address", name: "beneficiary", indexed: true },
+      { type: "uint256", name: "defifaTokenAmount" },
+      { type: "uint256", name: "baseProtocolTokenAmount" },
+      { type: "address", name: "caller" },
+    ],
+  },
+] as const;
 
 export interface DefifaNftReceiptContext {
   /** Retain these authenticated native identities alongside the reviewed request. */

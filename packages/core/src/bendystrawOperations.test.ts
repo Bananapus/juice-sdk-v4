@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
+import { parse } from "graphql";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   bendystrawOperationId,
+  compileBendystrawDocument,
   compileBendystrawOperation,
   requestPersistedBendystraw,
   resolvePersistedBendystrawRequest,
@@ -23,6 +25,48 @@ afterEach(() => {
 });
 
 describe("Bendystraw operation contracts", () => {
+  it("compiles a document parsed at build time to the same contract", () => {
+    // What an app's build writes out: the parse, without locations, as JSON.
+    const prebuilt = JSON.parse(
+      JSON.stringify(parse(PROJECTS, { noLocation: true })),
+    );
+    const fromQuery = compileBendystrawOperation(PROJECTS);
+    const fromDocument = compileBendystrawDocument(prebuilt);
+    expect(fromDocument.operationName).toBe(fromQuery.operationName);
+    for (const variables of [
+      { where: { version: 6 }, limit: 25 },
+      { where: {}, limit: 25, extra: true },
+      { where: {} },
+      { where: {}, limit: 1.5 },
+      [],
+    ]) {
+      expect(fromDocument.validateVariables(variables)).toBe(
+        fromQuery.validateVariables(variables),
+      );
+    }
+    for (const data of [
+      { projects: { totalCount: 1, items: [] } },
+      {
+        projects: {
+          totalCount: 1,
+          items: [{ chainId: 1, projectId: 1, version: 6, name: "a" }],
+        },
+      },
+      { projects: { totalCount: 1, items: [{ chainId: 1 }] } },
+      { projects: { items: [] } },
+      null,
+    ]) {
+      expect(fromDocument.validateData(data)).toBe(
+        fromQuery.validateData(data),
+      );
+    }
+    expect(() =>
+      compileBendystrawDocument(
+        parse("query A { projects { totalCount } } query B { x }"),
+      ),
+    ).toThrow("exactly one operation");
+  });
+
   it("names the operation, bounds its variables and requires every selected field", () => {
     const contract = compileBendystrawOperation(PROJECTS);
     expect(compileBendystrawOperation(PROJECTS)).toBe(contract);

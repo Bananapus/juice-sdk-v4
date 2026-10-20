@@ -1,7 +1,6 @@
 import {
   BaseError,
   ContractFunctionRevertedError,
-  parseAbi,
   isAddress,
   zeroAddress,
   type Address,
@@ -11,11 +10,27 @@ import { jb721TiersHookStoreAbi } from "../generated/juicebox.js";
 import type { JBChainId } from "../types.js";
 import { getProjectNftInventory } from "./nftInventory.js";
 
-const ownershipAbi = parseAbi([
-  "function ownerOf(uint256) view returns (address)",
-  "function balanceOf(address) view returns (uint256)",
-  "error ERC721NonexistentToken(uint256 tokenId)",
-]);
+const ownershipAbi = [
+  {
+    name: "ownerOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ type: "uint256" }],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "balanceOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "ERC721NonexistentToken",
+    type: "error",
+    inputs: [{ type: "uint256", name: "tokenId" }],
+  },
+] as const;
 const tokenMultiplier = 1_000_000_000n;
 export type DefifaHolding = { tokenId: bigint; tierId: number };
 type MintedTier = {

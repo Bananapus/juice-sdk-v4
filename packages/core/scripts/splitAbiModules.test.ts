@@ -1,14 +1,14 @@
 import { readdirSync, readFileSync } from "node:fs";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
-import { REVIEW_DECODER_ABIS, splitAbiModules } from "./splitAbiModules.js";
+import { declaredAbis, splitAbiModules } from "./splitAbiModules.js";
 
 const abi = `[
   { type: 'function', name: 'pay', inputs: [], outputs: [] },
 ] as const`;
 const declaration = (name: string) => `export const ${name} = ${abi}`;
 
-describe("review decoder ABI modules", () => {
+describe("generated ABI modules", () => {
   it("moves each named ABI to its own module and re-exports it in place", () => {
     const source = [
       declaration("jbControllerAbi"),
@@ -40,13 +40,50 @@ describe("review decoder ABI modules", () => {
     );
   });
 
+  it("splits every declared ABI by default and points its aliases at the module", () => {
+    const source = [
+      declaration("jbRouterTerminalAbi"),
+      "export { jbRouterTerminalAbi as jbRouterTerminalV1Abi }",
+      declaration("jbControllerV5Abi"),
+    ].join("\n\n");
+
+    const split = splitAbiModules(source);
+
+    expect(split.source).toBe(
+      [
+        "export { jbRouterTerminalAbi } from './abi/jbRouterTerminalAbi.js'",
+        "export { jbRouterTerminalAbi as jbRouterTerminalV1Abi } from './abi/jbRouterTerminalAbi.js'",
+        "export { jbControllerV5Abi } from './abi/jbControllerV5Abi.js'",
+      ].join("\n\n"),
+    );
+    expect(Object.keys(split.modules)).toEqual([
+      "jbRouterTerminalAbi",
+      "jbControllerV5Abi",
+    ]);
+    expect(declaredAbis(split.source)).toEqual([]);
+  });
+
   it("refuses a name the generated bindings do not declare", () => {
     expect(() =>
       splitAbiModules(declaration("jbControllerAbi"), ["jbControllerV9Abi"]),
     ).toThrow("The generated bindings have no jbControllerV9Abi.");
   });
 
-  it("is the set the decoder reads, each from its own module", () => {
+  it("leaves no ABI in the generated bindings, each in a module of its own", () => {
+    const bindings = readFileSync("src/generated/juicebox.ts", "utf8");
+    expect(declaredAbis(bindings)).toEqual([]);
+    const modules = [
+      ...bindings.matchAll(
+        /^export \{ (\w+Abi) \} from '\.\/abi\/(\w+)\.js'$/gm,
+      ),
+    ].map(([, name, module]) => {
+      expect(module).toBe(name);
+      return `${name}.ts`;
+    });
+    expect(readdirSync("src/generated/abi").sort()).toEqual(modules.sort());
+  });
+
+  it("is where the decoder reads each generated ABI from", () => {
     const source = ts.createSourceFile(
       "src/review/decode.ts",
       readFileSync("src/review/decode.ts", "utf8"),
@@ -71,14 +108,9 @@ describe("review decoder ABI modules", () => {
         }
       }
     }
-    expect(generated.map(([name]) => name).sort()).toEqual(
-      [...REVIEW_DECODER_ABIS].sort(),
-    );
+    expect(generated.length).toBeGreaterThan(0);
     for (const [name, specifier] of generated) {
       expect(specifier).toBe(`../generated/abi/${name}.js`);
     }
-    expect(readdirSync("src/generated/abi").sort()).toEqual(
-      REVIEW_DECODER_ABIS.map((name) => `${name}.ts`).sort(),
-    );
   });
 });

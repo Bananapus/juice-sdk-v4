@@ -1,6 +1,6 @@
 import { Address, PublicClient, zeroAddress } from "viem";
 import {
-  jbContractAddress,
+  jbV6ContractAddress,
   jbContractAddressHistory,
   jbDirectoryAbi,
   jbMultiTerminalAbi,
@@ -188,7 +188,7 @@ export async function resolveRouterPath(
   }
 
   const deployedGateway = (
-    jbContractAddress["6"].JBRouterTerminalGateway as Partial<
+    jbV6ContractAddress.JBRouterTerminalGateway as Partial<
       Record<JBChainId, Address>
     >
   )[chainId];
@@ -209,7 +209,7 @@ export async function resolveRouterPath(
   }
 
   const routerDeployments: Partial<Record<JBChainId, Address>>[] = [
-    jbContractAddress["6"].JBRouterTerminal,
+    jbV6ContractAddress.JBRouterTerminal,
     ...Object.values(jbContractAddressHistory["6"].JBRouterTerminal),
   ];
   const isKnownRouter = routerDeployments.some(

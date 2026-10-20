@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gzipSync } from "node:zlib";
+import { build } from "esbuild";
 
 const repositoryUrl = "https://github.com/Bananapus/juice-sdk-v4";
 const budgets = {
@@ -264,9 +266,15 @@ const budgets = {
     // 22,368,314 B unpacked and 922 entries.
     // Verified Sticky source/home families add one generated module (eight
     // ESM/CJS artifacts): 1,567,282 B packed, 22,498,259 B unpacked, 930 files.
+    // Load-size splits: every generated ABI in a module of its own (89 more
+    // modules), one deployment table per version (four modules), and the JB
+    // Center RPC client, sucker deployer maps, Sticky collectors, tier price
+    // and review queue in modules of their own, each eight ESM/CJS
+    // artifacts. Packed size falls; the per-module declarations and maps
+    // add: 1,561,709 B packed, 22,829,113 B unpacked, 1,706 files.
     packed: 1_575_000,
-    unpacked: 22_520_000,
-    entries: 930,
+    unpacked: 22_880_000,
+    entries: 1_706,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
@@ -288,7 +296,67 @@ const budgets = {
   },
 };
 
+// What an app pays up front for one import: the built ESM entry bundled with
+// esbuild (minified, peer and wallet libraries external), in gzip bytes.
+// Each ceiling sits about 5% above the size measured when the import was cut
+// down (2026-10-20, before: createJBCenterRpcProvider 20,263 B, NATIVE_TOKEN
+// 10,161, v6Address 7,298, prepareUserPay 17,603, feeBuybackOptions 7,891),
+// so an import that starts pulling in another table, ABI or client fails here
+// before it reaches a page. GraphQL counts for the build-time Bendystraw
+// compiler: keeping its parser out is what that entry is for.
+const entryBudgets = [
+  ["@bananapus/nana-sdk-core/jbcenter", "createJBCenterRpcProvider", 2_900],
+  ["@bananapus/nana-sdk-core", "NATIVE_TOKEN", 150],
+  ["@bananapus/nana-sdk-core/chains", "mainnet", 450],
+  ["@bananapus/nana-sdk-core/v6", "v6Address", 2_900],
+  ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 10_300],
+  ["@bananapus/nana-sdk-core/v6/fee-buyback", "feeBuybackOptions", 3_300],
+  ["@bananapus/nana-sdk-core/v6", "effectiveTierPrice", 200],
+  ["@bananapus/nana-sdk-core/review", "registerTransactionReviewHandler", 250],
+  [
+    "@bananapus/nana-sdk-core/bendystraw-operations",
+    "compileBendystrawDocument",
+    1_900,
+    { bundleGraphql: true },
+  ],
+];
+const external = [
+  "viem",
+  "viem/*",
+  "ox",
+  "ox/*",
+  "abitype",
+  "wagmi",
+  "wagmi/*",
+  "@wagmi/*",
+  "react",
+  "react/*",
+  "react-dom",
+  "@tanstack/*",
+];
+
 const failures = [];
+for (const [entry, name, ceiling, options] of entryBudgets) {
+  const { outputFiles } = await build({
+    stdin: {
+      contents: `export { ${name} } from "${entry}";`,
+      resolveDir: process.cwd(),
+    },
+    bundle: true,
+    minify: true,
+    format: "esm",
+    platform: "browser",
+    external: options?.bundleGraphql ? external : [...external, "graphql"],
+    write: false,
+    logLevel: "error",
+  });
+  const size = gzipSync(outputFiles[0].contents, { level: 9 }).length;
+  if (size > ceiling) {
+    failures.push(`${name} from ${entry} loads ${size} B gzip > ${ceiling} B`);
+  }
+  console.log(`${name} from ${entry}: ${size} B gzip (ceiling ${ceiling} B)`);
+}
+
 for (const [workspace, budget] of Object.entries(budgets)) {
   const manifest = JSON.parse(
     readFileSync(join(process.cwd(), budget.directory, "package.json"), "utf8"),
