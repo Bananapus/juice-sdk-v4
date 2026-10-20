@@ -13,6 +13,7 @@ import {
 import { JBChainId } from "../types.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { NATIVE_TOKEN_CURRENCY_ID } from "./currency.js";
+import { collectErrorText } from "./executionErrors.js";
 import { v6Address } from "./types.js";
 import {
   buildUniswapV4ExactInputSwapTx,
@@ -603,36 +604,11 @@ const CASH_OUT_EXECUTION_ERRORS: readonly (CashOutExecutionError & {
   },
 ] as const;
 
-function collectCashOutErrorText(
-  value: unknown,
-  seen = new Set<unknown>(),
-  depth = 0,
-): string[] {
-  if (depth > 8 || value === null || value === undefined || seen.has(value)) {
-    return [];
-  }
-  if (typeof value === "string") return [value];
-  if (typeof value !== "object") return [];
-  seen.add(value);
-  const record = value as Record<string, unknown>;
-  return [
-    record.shortMessage,
-    record.message,
-    record.details,
-    record.errorName,
-    record.signature,
-    record.raw,
-    record.data,
-    record.cause,
-    record.error,
-  ].flatMap((item) => collectCashOutErrorText(item, seen, depth + 1));
-}
-
 /** Classify known cash-out errors through viem/wallet nested error shapes. */
 export function classifyCashOutExecutionError(
   error: unknown,
 ): CashOutExecutionError | null {
-  const text = collectCashOutErrorText(error).join(" | ").toLowerCase();
+  const text = collectErrorText(error).join(" | ").toLowerCase();
   if (!text) return null;
   const matched = CASH_OUT_EXECUTION_ERRORS.find(({ matchers }) =>
     matchers.some((matcher) => text.includes(matcher)),
