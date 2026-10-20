@@ -5,13 +5,15 @@ import {
   encodeAbiParameters,
   encodeFunctionData,
   sliceHex,
+  zeroAddress,
 } from "viem";
 import { describe, expect, test } from "vitest";
 import type { Address, Hex } from "viem";
 import { NATIVE_TOKEN } from "../constants.js";
 import { v6Address } from "./types.js";
+import { UNISWAP_V3_QUOTER_V2_ADDRESSES } from "./uniswapV3.js";
 import { hookMetadataId } from "../utils/hook.js";
-import { uniswapV4PoolId } from "./uniswapV4.js";
+import { uniswapV4PoolId, type UniswapV4PoolKey } from "./uniswapV4.js";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
 import {
   build721PayMetadata,
@@ -28,6 +30,9 @@ const terminal = "0x1111111111111111111111111111111111111111" as const;
 const projectId = 3n;
 const beneficiary = "0x2222222222222222222222222222222222222222" as const;
 const usdc = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as const;
+const weth = "0x4200000000000000000000000000000000000006" as const;
+const v3Pool = "0x5555555555555555555555555555555555555555" as const;
+const destination = "0x6666666666666666666666666666666666666666" as const;
 
 describe("pay", () => {
   test("buildPayTx sets value for native token payments", () => {
@@ -507,12 +512,19 @@ describe("prepareUserPay", () => {
           tickSpacing: number;
           hooks: Address;
         },
-    quote = 10_000n as bigint | Error,
+    quote = 10_000n as bigint | Error | ((amountIn: bigint) => bigint),
+    conversion,
     rulesetMetadata = ruleset.metadata,
     extraDataHook,
     specHook = buybackHook as Address,
     respond,
+    poolKeyOf,
+    contextTokens = [],
   }: {
+    /** The hook's pool per terminal token; defaults to `poolKey` for any. */
+    poolKeyOf?: (token: Address) => typeof poolKey;
+    /** The tokens the project accepts on the multi-terminal. */
+    contextTokens?: Address[];
     rulesetMetadata?: bigint;
     /** The hook the spec comes from. */
     specHook?: Address;
@@ -534,13 +546,24 @@ describe("prepareUserPay", () => {
       tickSpacing: number;
       hooks: Address;
     };
-    quote?: bigint | Error;
+    quote?: bigint | Error | ((amountIn: bigint) => bigint);
+    /** The router's conversion: its floor, the quoted return, and its pool. */
+    conversion?: {
+      floor: bigint;
+      expected: bigint;
+      v4Key?: UniswapV4PoolKey;
+      /** The spec the destination returns for the expected conversion. */
+      spec: Hex;
+      /** The project whose token is paid in, if it is one. */
+      sourceProjectId?: bigint;
+    };
   }) {
     const calls: {
       address?: Address;
       functionName?: string;
       args?: unknown;
       data?: Hex;
+      to?: Address;
     }[] = [];
     const client = {
       async readContract({
@@ -588,15 +611,87 @@ describe("prepareUserPay", () => {
           if (!extraDataHook) throw new Error("not an omnichain project");
           return { ...extraDataHook, useDataHookForCashOut: false };
         }
+        if (functionName === "accountingContextsOf") {
+          return contextTokens.map((token) => ({
+            token,
+            decimals: 18,
+            currency: 1,
+          }));
+        }
+        if (functionName === "wrappedNativeToken") return weth;
+        if (functionName === "projectIdOf") {
+          return conversion?.sourceProjectId ?? 0n;
+        }
+        if (functionName === "primaryTerminalOf") return destination;
+        if (functionName === "previewTerminalPayOf") {
+          return [
+            { ...ruleset, id: 9, metadata: rulesetMetadata },
+            0n,
+            0n,
+            [
+              {
+                hook: specHook,
+                noop: true,
+                amount: 0n,
+                metadata: conversion!.spec,
+              },
+            ],
+          ];
+        }
+        if (functionName === "previewSwapAmountOutOf") {
+          if (!conversion) throw new Error("no route");
+          return conversion.floor;
+        }
+        if (functionName === "discoverBestPool") {
+          return {
+            isV4: !!conversion?.v4Key,
+            v3Pool: conversion?.v4Key ? zeroAddress : v3Pool,
+            v4Key: conversion?.v4Key ?? {
+              currency0: zeroAddress,
+              currency1: zeroAddress,
+              fee: 0,
+              tickSpacing: 0,
+              hooks: zeroAddress,
+            },
+          };
+        }
+        if (functionName === "fee") return 500;
+        if (functionName === "poolKeyOf" && poolKeyOf) {
+          return poolKeyOf((args as [bigint, Address])[1]);
+        }
         return poolKey;
       },
-      async call({ data }: { data: Hex }) {
-        calls.push({ data });
-        if (quote instanceof Error) throw quote;
+      async call({ data, to }: { data: Hex; to: Address }) {
+        calls.push({ data, to });
+        if (to === UNISWAP_V3_QUOTER_V2_ADDRESSES[8453]) {
+          return {
+            data: encodeAbiParameters(
+              [
+                { type: "uint256" },
+                { type: "uint160" },
+                { type: "uint32" },
+                { type: "uint256" },
+              ],
+              [conversion!.expected, 0n, 0, 0n],
+            ),
+          };
+        }
+        const [params] = decodeFunctionData({ abi: quoterAbi, data }).args;
+        const amountOut =
+          conversion?.v4Key &&
+          uniswapV4PoolId(params.poolKey) === uniswapV4PoolId(conversion.v4Key)
+            ? conversion.expected
+            : quote;
+        if (amountOut instanceof Error) throw amountOut;
         return {
           data: encodeAbiParameters(
             [{ type: "uint256" }, { type: "uint256" }],
-            [quote, 0n],
+            [
+              typeof amountOut === "function"
+                ? amountOut(params.exactAmount)
+                : amountOut,
+              0n,
+            ],
           ),
         };
       },
@@ -625,8 +720,12 @@ describe("prepareUserPay", () => {
       reservedPercent: 2_000n,
       ...overrides,
     });
-  const quotedArgs = (calls: { data?: Hex }[]) => {
-    const data = calls.find((c) => c.data)!.data!;
+  // The last V4 quote is the buyback pool's; a router's conversion comes first.
+  const quotedArgs = (calls: { data?: Hex; to?: Address }[]) => {
+    const quotes = calls.filter(
+      (c) => c.data && c.to !== UNISWAP_V3_QUOTER_V2_ADDRESSES[8453],
+    );
+    const data = quotes[quotes.length - 1].data!;
     const [params] = decodeFunctionData({ abi: quoterAbi, data }).args;
     return params;
   };
@@ -781,17 +880,369 @@ describe("prepareUserPay", () => {
     });
   });
 
-  test("behind a router, requires only the mint entitlement, not the optimistic preview", async () => {
-    // The router's own preview already folded the raw TWAP quote into 1,000.
-    const { client, calls } = mockClient({
-      terminalCounts: [1_000n, 0n],
-      spec: swapSpec({ poolId: `0x${"ab".repeat(32)}` }),
+  describe("behind a router that converts the paid token", () => {
+    // The router swaps ETH to USDC; the hook's pool is USDC/project token.
+    const usdcKey = { ...nativeKey, currency0: projectToken, currency1: usdc };
+    const usdcSpec = (
+      overrides: Partial<Parameters<typeof buybackPaySpec>[0]> = {},
+    ) =>
+      swapSpec({
+        projectTokenIs0: true,
+        poolId: uniswapV4PoolId(usdcKey),
+        ...overrides,
+      });
+    const keyByToken = (token: Address) =>
+      token.toLowerCase() === usdc.toLowerCase()
+        ? usdcKey
+        : { ...nativeKey, fee: 3_000 };
+    // The router's preview gave the hook its 640 floor; the swap is quoted to return 800.
+    const routed = {
+      // The router's own preview already folded the raw TWAP quote into 1,000.
+      terminalCounts: [1_000n, 0n] as const,
+      spec: usdcSpec({ amountToSwapWith: 640n }),
+      poolKeyOf: keyByToken,
+      contextTokens: [NATIVE_TOKEN as Address, usdc],
+      conversion: {
+        floor: 640n,
+        expected: 800n,
+        spec: usdcSpec({ amountToSwapWith: 800n }),
+      },
+    };
+    const routerArgs = {
+      ...args,
+      terminal: v6Address("JBRouterTerminalRegistry", 8453),
+    };
+    const reads = (
+      calls: { functionName?: string; args?: unknown }[],
+      names: string[],
+    ) =>
+      calls
+        .filter((c) => names.includes(c.functionName!))
+        .map((c) => [c.functionName, c.args]);
+    const fellBack = (prepared: {
+      metadata: Hex;
+      minReturnedTokens: bigint;
+    }) => {
+      expect(prepared.metadata).toEqual(
+        buildUserPayMetadata({ chainId: 8453 }),
+      );
+      expect(prepared.minReturnedTokens).toBe(47n);
+    };
+
+    test("quotes the pool in the converted token on what the hook receives from the quoted conversion", async () => {
+      const { client, calls } = mockClient(routed);
+      const prepared = await prepareUserPay(client, routerArgs);
+      expect(
+        calls
+          .filter((c) => c.functionName === "poolKeyOf")
+          .map((c) => (c.args as unknown[])[1]),
+      ).toEqual([zeroAddress, usdc]);
+      expect(
+        reads(calls, [
+          "projectIdOf",
+          "previewSwapAmountOutOf",
+          "discoverBestPool",
+          "primaryTerminalOf",
+          "previewTerminalPayOf",
+        ]),
+      ).toEqual([
+        ["projectIdOf", [NATIVE_TOKEN]],
+        ["previewSwapAmountOutOf", [NATIVE_TOKEN, usdc, 1000n, "0x"]],
+        ["discoverBestPool", [weth, usdc]],
+        ["primaryTerminalOf", [projectId, usdc]],
+        [
+          "previewTerminalPayOf",
+          [
+            destination,
+            projectId,
+            usdc,
+            800n,
+            beneficiary,
+            buildUserPayMetadata({ chainId: 8453 }),
+          ],
+        ],
+      ]);
+      const v3Quote = calls.find(
+        (c) => c.to === UNISWAP_V3_QUOTER_V2_ADDRESSES[8453],
+      )!;
+      expect(
+        decodeFunctionData({ abi: v3QuoterAbi, data: v3Quote.data! }).args[0],
+      ).toEqual({
+        tokenIn: weth,
+        tokenOut: usdc,
+        amountIn: 1000n,
+        fee: 500,
+        sqrtPriceLimitX96: 0n,
+      });
+      expect(quotedArgs(calls)).toMatchObject({
+        poolKey: usdcKey,
+        zeroForOne: false,
+        exactAmount: 800n,
+      });
+      expect(prepared.metadata).toEqual(
+        buildUserPayMetadata({ chainId: 8453, minimumSwapAmountOut: 9_900n }),
+      );
+      expect(prepared.minReturnedTokens).toBe(9_900n);
+      expect(prepared.preview).toEqual({
+        beneficiaryTokenCount: 10_000n,
+        reservedTokenCount: 0n,
+      });
     });
-    const prepared = await prepareUserPay(client, args);
-    expect(prepared.preview.beneficiaryTokenCount).toBe(1_000n);
-    expect(prepared.minReturnedTokens).toBe(47n);
-    expect(prepared.metadata).toEqual(buildUserPayMetadata({ chainId: 8453 }));
-    expect(calls.some((c) => c.data)).toBe(false);
+
+    test("sets the minimum above what the hook would mint for the quoted conversion, after a fixed NFT split", async () => {
+      // A 400 split leaves the hook 400 of the 800 floor, and 600 of the 1,000
+      // conversion; minting gives 1 per unit, the pool 1.2.
+      const { client, calls } = mockClient({
+        ...routed,
+        spec: usdcSpec({
+          amountToSwapWith: 400n,
+          tokenCountWithoutHook: 400n,
+        }),
+        conversion: {
+          floor: 800n,
+          expected: 1_000n,
+          spec: usdcSpec({
+            amountToSwapWith: 600n,
+            tokenCountWithoutHook: 600n,
+          }),
+        },
+        quote: (amountIn) => (amountIn * 12n) / 10n,
+      });
+      const prepared = await prepareUserPay(client, routerArgs);
+      expect(quotedArgs(calls)).toMatchObject({ exactAmount: 600n });
+      // Above the 600 the hook would mint, so it swaps for 720.
+      expect(explicitMinimumOf(prepared.metadata)).toBe(712n);
+      expect(prepared.minReturnedTokens).toBe(712n);
+    });
+
+    test("a conversion that beats its quote still clears the minimum if the hook mints instead", async () => {
+      // The pool beats minting by 2%: 10,200 for the 10,000 the hook should receive.
+      const { client } = mockClient({
+        ...routed,
+        spec: usdcSpec({
+          amountToSwapWith: 9_800n,
+          tokenCountWithoutHook: 9_800n,
+        }),
+        conversion: {
+          floor: 9_800n,
+          expected: 10_000n,
+          spec: usdcSpec({
+            amountToSwapWith: 10_000n,
+            tokenCountWithoutHook: 10_000n,
+          }),
+        },
+        quote: (amountIn) => (amountIn * 102n) / 100n,
+      });
+      const prepared = await prepareUserPay(client, routerArgs);
+      const minimum = explicitMinimumOf(prepared.metadata);
+      expect(minimum).toBe(10_098n);
+      // At a 1% better conversion the hook mints 10,100 (its noop rule),
+      // which still meets both minimums.
+      const mintedAtBetterConversion = 10_100n;
+      expect(mintedAtBetterConversion >= minimum).toBe(true);
+      expect(mintedAtBetterConversion >= prepared.minReturnedTokens).toBe(true);
+    });
+
+    test("keeps the mint path when the pool loses to minting what the hook receives", async () => {
+      const { client } = mockClient({
+        ...routed,
+        conversion: {
+          ...routed.conversion,
+          spec: usdcSpec({
+            amountToSwapWith: 800n,
+            tokenCountWithoutHook: 10_000n,
+          }),
+        },
+      });
+      fellBack(await prepareUserPay(client, routerArgs));
+    });
+
+    test("quotes a V4 conversion pool, native side as the zero currency", async () => {
+      const conversionKey = {
+        currency0: zeroAddress,
+        currency1: usdc,
+        fee: 500,
+        tickSpacing: 10,
+        hooks: zeroAddress,
+      } as const;
+      const { client, calls } = mockClient({
+        ...routed,
+        conversion: { ...routed.conversion, v4Key: conversionKey },
+      });
+      const prepared = await prepareUserPay(client, routerArgs);
+      const v4Quotes = calls
+        .filter((c) => c.data)
+        .map((c) => decodeFunctionData({ abi: quoterAbi, data: c.data! }));
+      expect(v4Quotes[0].args[0]).toMatchObject({
+        poolKey: conversionKey,
+        zeroForOne: true,
+        exactAmount: 1000n,
+      });
+      expect(quotedArgs(calls)).toMatchObject({ exactAmount: 800n });
+      expect(prepared.minReturnedTokens).toBe(9_900n);
+    });
+
+    test("falls back for a project token, which the router cashes out first", async () => {
+      const { client, calls } = mockClient({
+        ...routed,
+        conversion: { ...routed.conversion, sourceProjectId: 5n },
+      });
+      fellBack(await prepareUserPay(client, routerArgs));
+      expect(calls.some((c) => c.data)).toBe(false);
+    });
+
+    test.each([
+      ["the router has no direct swap", undefined],
+      [
+        "the hook was previewed on more than the router's floor",
+        { ...routed.conversion, floor: 500n },
+      ],
+      [
+        "the quote is below the router's own floor",
+        { ...routed.conversion, expected: 600n },
+      ],
+      [
+        "the quoted conversion reaches another pool",
+        { ...routed.conversion, spec: swapSpec() },
+      ],
+    ])("falls back to the mint entitlement when %s", async (_, conversion) => {
+      const { client } = mockClient({ ...routed, conversion });
+      fellBack(await prepareUserPay(client, routerArgs));
+    });
+
+    test.each([
+      "JBRouterTerminal",
+      "JBRouterTerminalRegistry",
+      "JBRouterTerminalGateway",
+    ] as const)(
+      "paid through %s, sends the same quote and leaves out its folded estimate",
+      async (entry) => {
+        const { client } = mockClient(routed);
+        const prepared = await prepareUserPay(client, {
+          ...args,
+          terminal: v6Address(entry, 8453),
+        });
+        expect(prepared.metadata).toEqual(
+          buildUserPayMetadata({
+            chainId: 8453,
+            minimumSwapAmountOut: 9_900n,
+          }),
+        );
+        expect(prepared.minReturnedTokens).toBe(9_900n);
+        expect(prepared.preview.beneficiaryTokenCount).toBe(10_000n);
+      },
+    );
+
+    test("an ERC-20 the router converts to the native token quotes the native pool", async () => {
+      const { client, calls } = mockClient({
+        ...routed,
+        spec: swapSpec({ amountToSwapWith: 640n }),
+        conversion: {
+          ...routed.conversion,
+          spec: swapSpec({ amountToSwapWith: 800n }),
+        },
+        poolKeyOf: (token) => (token === zeroAddress ? nativeKey : usdcKey),
+      });
+      const prepared = await prepareUserPay(client, {
+        ...routerArgs,
+        token: usdc,
+      });
+      expect(
+        calls
+          .filter((c) => c.functionName === "poolKeyOf")
+          .map((c) => (c.args as unknown[])[1]),
+      ).toEqual([usdc, zeroAddress]);
+      expect(
+        reads(calls, ["previewSwapAmountOutOf", "discoverBestPool"]),
+      ).toEqual([
+        ["previewSwapAmountOutOf", [usdc, NATIVE_TOKEN, 1000n, "0x"]],
+        ["discoverBestPool", [usdc, weth]],
+      ]);
+      expect(quotedArgs(calls)).toMatchObject({
+        poolKey: nativeKey,
+        zeroForOne: true,
+        exactAmount: 800n,
+      });
+      expect(prepared.minReturnedTokens).toBe(9_900n);
+    });
+
+    test("keeps the NFT tiers beside the quote", async () => {
+      const tiers = {
+        metadataIdTarget:
+          "0x9999999999999999999999999999999999999999" as Address,
+        tierIdsToMint: [1n, 2n],
+      };
+      const { client } = mockClient(routed);
+      const prepared = await prepareUserPay(client, { ...routerArgs, tiers });
+      expect(prepared.metadata).toEqual(
+        buildUserPayMetadata({
+          chainId: 8453,
+          tiers,
+          minimumSwapAmountOut: 9_900n,
+        }),
+      );
+      expect(prepared.minReturnedTokens).toBe(9_900n);
+    });
+
+    test.each([
+      ["skipSplits false on 1.4", false, (m: Hex) => m],
+      ["hook 1.1.1", true, legacySpec],
+    ] as const)(
+      "%s: the quote is reminted through the split",
+      async (_, skipSplits, version) => {
+        const spec = (amountToSwapWith: bigint) =>
+          version(
+            usdcSpec({
+              amountToSwapWith,
+              tokenCountWithoutHook: 1_000n,
+              skipSplits,
+            }),
+          );
+        const { client } = mockClient({
+          ...routed,
+          spec: spec(640n),
+          conversion: { ...routed.conversion, spec: spec(800n) },
+        });
+        const prepared = await prepareUserPay(client, {
+          ...routerArgs,
+          skipSplits,
+        });
+        expect(prepared.metadata).toEqual(
+          buildUserPayMetadata({
+            chainId: 8453,
+            minimumSwapAmountOut: 9_900n,
+            skipSplits,
+          }),
+        );
+        expect(prepared.preview).toEqual({
+          beneficiaryTokenCount: 8_000n,
+          reservedTokenCount: 2_000n,
+        });
+        expect(prepared.minReturnedTokens).toBe(7_920n);
+      },
+    );
+
+    test("falls back to the mint entitlement when no accepted token has the spec's pool", async () => {
+      const { client, calls } = mockClient({
+        ...routed,
+        spec: swapSpec({ poolId: `0x${"ab".repeat(32)}` }),
+      });
+      const prepared = await prepareUserPay(client, routerArgs);
+      expect(prepared.preview.beneficiaryTokenCount).toBe(1_000n);
+      fellBack(prepared);
+      expect(calls.some((c) => c.data)).toBe(false);
+    });
+
+    test("falls back when the quoted preview routes to another pool", async () => {
+      const { client } = mockClient({
+        ...routed,
+        respond: (metadata) =>
+          explicitMinimumOf(metadata) === 0n
+            ? {}
+            : { spec: swapSpec({ poolId: uniswapV4PoolId(nativeKey) }) },
+      });
+      fellBack(await prepareUserPay(client, routerArgs));
+    });
   });
 
   test("a failed quote falls back to the mint entitlement", async () => {
@@ -1141,6 +1592,28 @@ describe("prepareUserPay", () => {
     expect(sentMetadata(viaRegistry.calls)).toHaveLength(2);
   });
 });
+
+const v3QuoterAbi = [
+  {
+    type: "function",
+    name: "quoteExactInputSingle",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "params",
+        type: "tuple",
+        components: [
+          { name: "tokenIn", type: "address" },
+          { name: "tokenOut", type: "address" },
+          { name: "amountIn", type: "uint256" },
+          { name: "fee", type: "uint24" },
+          { name: "sqrtPriceLimitX96", type: "uint160" },
+        ],
+      },
+    ],
+    outputs: [],
+  },
+] as const;
 
 const quoterAbi = [
   {

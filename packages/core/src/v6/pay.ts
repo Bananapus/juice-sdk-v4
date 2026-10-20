@@ -18,10 +18,13 @@ import {
 import { JBChainId } from "../types.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { slippageFloor } from "./cashOut.js";
+import { getAccountingContexts } from "./terminals.js";
 import { v6Address } from "./types.js";
+import { quoteUniswapV3ExactInputSingle } from "./uniswapV3.js";
 import {
   quoteUniswapV4ExactInputSingle,
   uniswapV4PoolId,
+  uniswapV4SwapDirection,
 } from "./uniswapV4.js";
 
 /**
@@ -490,12 +493,312 @@ const poolKeyOfAbi = [
 ] as const;
 
 /**
+ * The buyback pool a payment's spec reports, and the terminal token it is
+ * keyed to, or null. A router converts the paid token first, so its pool is
+ * keyed to another token the project accepts. The pool id is the key's hash,
+ * so a match proves the key.
+ */
+async function buybackPoolOf(
+  client: PublicClient,
+  {
+    chainId,
+    hook,
+    projectId,
+    token,
+    poolId,
+  }: {
+    chainId: JBChainId;
+    hook: Address;
+    projectId: bigint;
+    token: Address;
+    poolId: Hex;
+  },
+) {
+  const poolOf = async (terminalToken: Address) => ({
+    terminalToken,
+    key: await client.readContract({
+      address: hook,
+      abi: poolKeyOfAbi,
+      functionName: "poolKeyOf",
+      args: [
+        projectId,
+        terminalToken.toLowerCase() === NATIVE_TOKEN.toLowerCase()
+          ? zeroAddress
+          : terminalToken,
+      ],
+    }),
+  });
+  const paid = await poolOf(token);
+  if (uniswapV4PoolId(paid.key) === poolId) return paid;
+  const contexts = await getAccountingContexts(client, { chainId, projectId });
+  const pools = await Promise.all(
+    contexts
+      .filter((c) => c.token.toLowerCase() !== token.toLowerCase())
+      .map((c) => poolOf(c.token)),
+  );
+  return pools.find((p) => uniswapV4PoolId(p.key) === poolId) ?? null;
+}
+
+type PreviewPayFor = Extract<
+  (typeof jbMultiTerminalAbi)[number],
+  { name: "previewPayFor" }
+>;
+const previewPayForOutputs = jbMultiTerminalAbi.find(
+  (item): item is PreviewPayFor =>
+    item.type === "function" && item.name === "previewPayFor",
+)!.outputs;
+
+// Only these reads of the router and core: their full ABIs would weigh on every pay card.
+const routerConversionAbi = [
+  {
+    type: "function",
+    name: "projectIdOf",
+    stateMutability: "view",
+    inputs: [{ name: "token", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "primaryTerminalOf",
+    stateMutability: "view",
+    inputs: [
+      { name: "projectId", type: "uint256" },
+      { name: "token", type: "address" },
+    ],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "previewTerminalPayOf",
+    stateMutability: "view",
+    inputs: [
+      { name: "destTerminal", type: "address" },
+      { name: "projectId", type: "uint256" },
+      { name: "token", type: "address" },
+      { name: "amount", type: "uint256" },
+      { name: "beneficiary", type: "address" },
+      { name: "metadata", type: "bytes" },
+    ],
+    outputs: previewPayForOutputs,
+  },
+  {
+    type: "function",
+    name: "wrappedNativeToken",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "previewSwapAmountOutOf",
+    stateMutability: "view",
+    inputs: [
+      { name: "tokenIn", type: "address" },
+      { name: "tokenOut", type: "address" },
+      { name: "amount", type: "uint256" },
+      { name: "metadata", type: "bytes" },
+    ],
+    outputs: [{ name: "amountOut", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "discoverBestPool",
+    stateMutability: "view",
+    inputs: [
+      { name: "normalizedTokenIn", type: "address" },
+      { name: "normalizedTokenOut", type: "address" },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "isV4", type: "bool" },
+          { name: "v3Pool", type: "address" },
+          {
+            name: "v4Key",
+            type: "tuple",
+            components: [
+              { name: "currency0", type: "address" },
+              { name: "currency1", type: "address" },
+              { name: "fee", type: "uint24" },
+              { name: "tickSpacing", type: "int24" },
+              { name: "hooks", type: "address" },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+] as const;
+
+const v3PoolFeeAbi = [
+  {
+    type: "function",
+    name: "fee",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint24" }],
+  },
+] as const;
+
+/**
+ * What the router terminal's swap of the whole payment into `tokenOut` is
+ * quoted to return (fee and price impact included), and the floor it reverts
+ * below, from the pool the router picks. Null when the route is not that one
+ * swap, such as when the router cashes a project token out first.
+ */
+async function routerConversionOf(
+  client: PublicClient,
+  {
+    chainId,
+    tokenIn,
+    tokenOut,
+    amount,
+  }: {
+    chainId: JBChainId;
+    tokenIn: Address;
+    tokenOut: Address;
+    amount: bigint;
+  },
+): Promise<{ expected: bigint; floor: bigint } | null> {
+  const router = v6Address("JBRouterTerminal", chainId);
+  const [sourceProjectId, wrapped] = await Promise.all([
+    client.readContract({
+      address: v6Address("JBTokens", chainId),
+      abi: routerConversionAbi,
+      functionName: "projectIdOf",
+      args: [tokenIn],
+    }),
+    client.readContract({
+      address: router,
+      abi: routerConversionAbi,
+      functionName: "wrappedNativeToken",
+    }),
+  ]);
+  // The router cashes a project token out before any swap.
+  if (sourceProjectId !== 0n) return null;
+  const isNative = (t: Address) =>
+    t.toLowerCase() === NATIVE_TOKEN.toLowerCase() ||
+    t.toLowerCase() === zeroAddress;
+  const wrap = (t: Address) => (isNative(t) ? wrapped : t);
+  const [floor, pool] = await Promise.all([
+    client.readContract({
+      address: router,
+      abi: routerConversionAbi,
+      functionName: "previewSwapAmountOutOf",
+      args: [tokenIn, tokenOut, amount, "0x"],
+    }),
+    client.readContract({
+      address: router,
+      abi: routerConversionAbi,
+      functionName: "discoverBestPool",
+      args: [wrap(tokenIn), wrap(tokenOut)],
+    }),
+  ]);
+  let expected: bigint;
+  if (pool.isV4) {
+    // V4 pools hold the native token itself, which the router uses for wrapped input.
+    const unwrap = (t: Address) =>
+      wrap(t).toLowerCase() === wrapped.toLowerCase() ? zeroAddress : t;
+    const zeroForOne = uniswapV4SwapDirection({
+      poolKey: pool.v4Key,
+      tokenIn: unwrap(tokenIn),
+      tokenOut: unwrap(tokenOut),
+    });
+    if (zeroForOne === null) return null;
+    expected = await quoteUniswapV4ExactInputSingle(client, {
+      chainId,
+      poolKey: pool.v4Key,
+      zeroForOne,
+      amountIn: amount,
+    });
+  } else {
+    expected = await quoteUniswapV3ExactInputSingle(client, {
+      chainId,
+      tokenIn: wrap(tokenIn),
+      tokenOut: wrap(tokenOut),
+      fee: await client.readContract({
+        address: pool.v3Pool,
+        abi: v3PoolFeeAbi,
+        functionName: "fee",
+      }),
+      amountIn: amount,
+    });
+  }
+  return expected >= floor ? { expected, floor } : null;
+}
+
+/**
+ * The buyback spec the destination returns when the router's conversion
+ * returns what it is quoted to, and the router's floor. The hook's input is
+ * the conversion less anything taken before it, such as an NFT split, and the
+ * hook mints instead of swapping once minting that input reaches a fixed
+ * minimum, so the minimum is set from this spec. Null when the route is not
+ * one swap of the whole payment.
+ */
+async function routedBuybackSpecOf(
+  client: PublicClient,
+  {
+    chainId,
+    projectId,
+    tokenIn,
+    tokenOut,
+    amount,
+    beneficiary,
+    metadata,
+    hook,
+    reservedPercent,
+  }: {
+    chainId: JBChainId;
+    projectId: bigint;
+    tokenIn: Address;
+    tokenOut: Address;
+    amount: bigint;
+    beneficiary: Address;
+    metadata: Hex;
+    hook: Address;
+    reservedPercent: bigint;
+  },
+): Promise<{ spec: BuybackPaySpec; floor: bigint } | null> {
+  const conversion = await routerConversionOf(client, {
+    chainId,
+    tokenIn,
+    tokenOut,
+    amount,
+  });
+  if (!conversion) return null;
+  const destination = await client.readContract({
+    address: v6Address("JBDirectory", chainId),
+    abi: routerConversionAbi,
+    functionName: "primaryTerminalOf",
+    args: [projectId, tokenOut],
+  });
+  const [, , , specs] = await client.readContract({
+    address: v6Address("JBRouterTerminal", chainId),
+    abi: routerConversionAbi,
+    functionName: "previewTerminalPayOf",
+    args: [
+      destination,
+      projectId,
+      tokenOut,
+      conversion.expected,
+      beneficiary,
+      metadata,
+    ],
+  });
+  const raw = specs.find((s) => s.hook.toLowerCase() === hook.toLowerCase());
+  const spec = raw && decodeBuybackPaySpec(raw, reservedPercent);
+  return spec ? { spec, floor: conversion.floor } : null;
+}
+
+/**
  * Prepare a person's payment with {@link buildUserPayMetadata}: preview it,
  * and set the minimum the terminal enforces on the beneficiary's balance.
  *
- * When the project's buyback hook has a pool in the paid token, this quotes
- * that pool (fee and price impact included) and sends the slippage-floored
- * quote as an explicit minimum, so the payer gets the pool's rate whenever it
+ * When the project's buyback hook would swap, this quotes its pool (fee and
+ * price impact included) and sends the slippage-floored quote as an explicit
+ * minimum, so the payer gets the pool's rate whenever it
  * beats minting. The hook compares that minimum to the swap output plus the
  * leftover mint: the whole leftover mint when the swapped tokens go through
  * the reserved split (`skipSplits` false, and always on hook 1.1.1, which
@@ -507,10 +810,23 @@ const poolKeyOfAbi = [
  * which reaches zero on large buys against a thin pool and sends them to
  * minting even when the pool pays far more.
  *
- * Otherwise (no pool, a router converting the token first, or a failed quote)
- * the minimum is the payer's mint entitlement when the hook would swap, since
- * the hook never settles below it, and the terminal's own issuance when it
- * would not. If the payment then reverts, {@link decodePayFailure} says why.
+ * Behind a router terminal, its registry or its gateway, when the router
+ * converts the paid token first with one swap, the pool is the one in the
+ * token it converts to, quoted on what that swap is quoted to return. If the
+ * conversion returns noticeably less, the hook's minimum reverts the payment.
+ * If it returns more, the hook mints once minting reaches the minimum, which
+ * happens only when the pool beats minting by less than `slippageBps` plus
+ * that gain. The payer still receives at least the minimum, and no fixed
+ * minimum avoids this when the pool's edge is inside the conversion's
+ * uncertainty. Other routes, such as cashing a project token out first, keep
+ * the fallback.
+ *
+ * Otherwise (no pool, or a failed quote) the minimum is the payer's mint
+ * entitlement when the hook would swap, since the hook never settles below it,
+ * and the terminal's own issuance when it would not. If the payment then
+ * reverts, {@link decodePayFailure} says why. To let the payer accept less,
+ * prepare again with a larger `slippageBps`: the hook's minimum is in the
+ * metadata, so lowering `minReturnedTokens` alone does not relax it.
  *
  * When the ruleset calls buyback hook 1.4 directly (or through the omnichain
  * deployer) instead of through the registry, the metadata is keyed to the hook,
@@ -571,28 +887,51 @@ export async function prepareUserPay(
   if (!buyback || buyback.amountToSwapWith === 0n) return fallback;
 
   try {
-    const poolKey = await client.readContract({
-      address: buyback.hook,
-      abi: poolKeyOfAbi,
-      functionName: "poolKeyOf",
-      args: [
-        projectId,
-        token.toLowerCase() === NATIVE_TOKEN.toLowerCase()
-          ? zeroAddress
-          : token,
-      ],
+    const pool = await buybackPoolOf(client, {
+      chainId,
+      hook: buyback.hook,
+      projectId,
+      token,
+      poolId: buyback.poolId,
     });
-    // A router converts the paid token first, so its pool is a different one.
-    if (uniswapV4PoolId(poolKey) !== buyback.poolId) return fallback;
+    if (!pool) return fallback;
+    let swap = buyback;
+    if (pool.terminalToken !== token) {
+      // A router converts the payment first, and its preview gave the hook the
+      // router's slippage floor. A minimum quoted on that would let a normal
+      // conversion mint while the pool pays more, so quote what the hook
+      // receives when the conversion returns its quote. A conversion well
+      // below its quote then fails with a reason.
+      const routed = await routedBuybackSpecOf(client, {
+        chainId,
+        projectId,
+        tokenIn: token,
+        tokenOut: pool.terminalToken,
+        amount: args.amount,
+        beneficiary: args.beneficiary,
+        metadata,
+        hook: buyback.hook,
+        reservedPercent: buyback.reservedPercent,
+      });
+      // The floor preview must be this route's: no more than the floor reached the hook.
+      if (
+        !routed ||
+        routed.floor < buyback.amountToSwapWith ||
+        routed.spec.poolId !== buyback.poolId
+      ) {
+        return fallback;
+      }
+      swap = routed.spec;
+    }
     const quote = await quoteUniswapV4ExactInputSingle(client, {
       chainId,
-      poolKey,
-      zeroForOne: !buyback.projectTokenIs0,
-      amountIn: buyback.amountToSwapWith,
+      poolKey: pool.key,
+      zeroForOne: !swap.projectTokenIs0,
+      amountIn: swap.amountToSwapWith,
     });
     const minimumSwapAmountOut = slippageFloor(quote, slippageBps);
     // The pool loses to minting: leave the payment on the mint path.
-    if (minimumSwapAmountOut <= buyback.tokenCountWithoutHook) return fallback;
+    if (minimumSwapAmountOut <= swap.tokenCountWithoutHook) return fallback;
     const quotedMetadata = buildUserPayMetadata({
       chainId,
       tiers,
@@ -609,10 +948,18 @@ export async function prepareUserPay(
         functionName: "previewPayFor",
         args: [projectId, token, args.amount, args.beneficiary, quotedMetadata],
       });
-    const swaps = quotedSpecs.some(
-      (s) => !s.noop && s.hook.toLowerCase() === buyback.hook.toLowerCase(),
+    // It must still swap, and in the quoted pool: a router may pick another route.
+    const quotedSpec = quotedSpecs.find(
+      (s) => s.hook.toLowerCase() === buyback.hook.toLowerCase(),
     );
-    if (!swaps) return fallback;
+    if (
+      !quotedSpec ||
+      quotedSpec.noop ||
+      decodeBuybackPaySpec(quotedSpec, buyback.reservedPercent)?.poolId !==
+        buyback.poolId
+    ) {
+      return fallback;
+    }
     // A router folds the hook's estimate into its counts, so only the
     // multi-terminal's own counts are known to be its issuance.
     const issuedByTerminal: PayPreview =
@@ -623,16 +970,16 @@ export async function prepareUserPay(
             reservedTokenCount: quotedReservedCount,
           }
         : { beneficiaryTokenCount: 0n, reservedTokenCount: 0n };
-    const directMint = directMintOf(buyback, weight);
+    const directMint = directMintOf(swap, weight);
     // The swapped tokens skip the split, or are reminted through it with the
     // direct mint. The terminal's own issuance, such as for NFT splits, adds.
     const settle = (swapTokenCount: bigint): PayPreview => {
-      const split = buyback.skipSplits
-        ? splitOf(directMint, buyback.reservedPercent)
-        : splitOf(swapTokenCount + directMint, buyback.reservedPercent);
+      const split = swap.skipSplits
+        ? splitOf(directMint, swap.reservedPercent)
+        : splitOf(swapTokenCount + directMint, swap.reservedPercent);
       return {
         beneficiaryTokenCount:
-          (buyback.skipSplits ? swapTokenCount : 0n) +
+          (swap.skipSplits ? swapTokenCount : 0n) +
           split.beneficiaryTokenCount +
           issuedByTerminal.beneficiaryTokenCount,
         reservedTokenCount:
