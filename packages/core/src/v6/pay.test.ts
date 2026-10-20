@@ -639,7 +639,7 @@ describe("prepareUserPay", () => {
     });
     const prepared = await prepareUserPay(client, args);
     expect(prepared.preview.beneficiaryTokenCount).toBe(1_000n);
-    expect(prepared.minReturnedTokens).toBe(49n);
+    expect(prepared.minReturnedTokens).toBe(47n);
     expect(prepared.metadata).toEqual(buildUserPayMetadata({ chainId: 8453 }));
     expect(calls.some((c) => c.data)).toBe(false);
   });
@@ -651,7 +651,7 @@ describe("prepareUserPay", () => {
     });
     const prepared = await prepareUserPay(client, args);
     expect(prepared.preview.beneficiaryTokenCount).toBe(900n);
-    expect(prepared.minReturnedTokens).toBe(49n);
+    expect(prepared.minReturnedTokens).toBe(47n);
   });
 
   test("hook 1.1.1 is not quoted and requires the beneficiary's split of a mint", async () => {
@@ -666,17 +666,31 @@ describe("prepareUserPay", () => {
       beneficiaryTokenCount: 1_200n,
       reservedTokenCount: 300n,
     });
-    expect(prepared.minReturnedTokens).toBe(792n);
+    expect(prepared.minReturnedTokens).toBe(790n);
     expect(calls.some((c) => c.functionName === "poolKeyOf")).toBe(false);
   });
 
-  test("an unresolved hook keeps the terminal's own counts", async () => {
+  test("a project with no buyback hook keeps the terminal's own counts", async () => {
     const { client } = mockClient({
       terminalCounts: [200n, 50n],
-      spec: swapSpec(),
-      hook: new Error("no registry"),
+      hook: "0x0000000000000000000000000000000000000000",
     });
     expect((await prepareUserPay(client, args)).minReturnedTokens).toBe(198n);
+  });
+
+  test("an unreadable registry fails instead of dropping the minimum", async () => {
+    const { client } = mockClient({
+      spec: swapSpec(),
+      hook: new Error("rpc down"),
+    });
+    await expect(prepareUserPay(client, args)).rejects.toThrow("rpc down");
+  });
+
+  test("a swapping hook with an unknown spec fails instead of dropping the minimum", async () => {
+    const { client } = mockClient({ spec: sliceHex(swapSpec(), 0, 16 * 32) });
+    await expect(prepareUserPay(client, args)).rejects.toThrow(
+      /unknown specification/,
+    );
   });
 });
 

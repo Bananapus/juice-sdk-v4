@@ -318,6 +318,8 @@ async function readPay(
   terminalBeneficiaryTokenCount: bigint;
   weight: bigint;
   buyback: BuybackPaySpec | null;
+  /** The project's hook swaps with a spec this SDK cannot read. */
+  unreadableSwap: boolean;
 }> {
   const [
     [ruleset, beneficiaryTokenCount, reservedTokenCount, hookSpecifications],
@@ -349,6 +351,8 @@ async function readPay(
     terminalBeneficiaryTokenCount: beneficiaryTokenCount,
     weight: ruleset.weight,
     buyback: spec ? decodeBuybackPaySpec(spec, reservedPercent) : null,
+    unreadableSwap:
+      !!spec && !spec.noop && !decodeBuybackPaySpec(spec, reservedPercent),
   };
 }
 
@@ -358,18 +362,23 @@ async function resolvedBuybackHookOf(
   chainId: JBChainId,
   projectId: bigint,
 ): Promise<Address | null> {
+  let registry: Address;
   try {
-    const hook = await client.readContract({
-      address: getJBContractAddress("JBBuybackHookRegistry", 6, chainId),
-      abi: jbBuybackHookRegistryAbi,
-      functionName: "hookOf",
-      args: [projectId],
-    });
-    return hook === zeroAddress ? null : hook;
+    registry = getJBContractAddress("JBBuybackHookRegistry", 6, chainId);
   } catch {
     return null;
   }
+  // A failed read throws: guessing "no hook" would drop the payment's minimum.
+  const hook = await client.readContract({
+    address: registry,
+    abi: jbBuybackHookRegistryAbi,
+    functionName: "hookOf",
+    args: [projectId],
+  });
+  return hook === zeroAddress ? null : hook;
 }
+
+const maxBigInt = (a: bigint, b: bigint) => (a > b ? a : b);
 
 /** A pay card's whole payment: what to send, what to show, what to require. */
 export interface PreparedUserPay {
@@ -433,14 +442,25 @@ export async function prepareUserPay(
 ): Promise<PreparedUserPay> {
   const { chainId, projectId, token } = args;
   const metadata = buildUserPayMetadata({ chainId, tiers });
-  const { preview, terminalBeneficiaryTokenCount, weight, buyback } =
-    await readPay(client, { ...args, metadata });
+  const {
+    preview,
+    terminalBeneficiaryTokenCount,
+    weight,
+    buyback,
+    unreadableSwap,
+  } = await readPay(client, { ...args, metadata });
+  if (unreadableSwap) {
+    throw new Error(
+      "The project's buyback hook swaps with an unknown specification, so no safe minimum can be set.",
+    );
+  }
   const fallback: PreparedUserPay = {
     metadata,
     preview,
     minReturnedTokens: slippageFloor(
       buyback && !buyback.noop
-        ? mintEntitlementOf(buyback, weight)
+        ? // The swap and the leftover mint each round down once.
+          maxBigInt(mintEntitlementOf(buyback, weight) - 2n, 0n)
         : terminalBeneficiaryTokenCount,
       slippageBps,
     ),
