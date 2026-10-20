@@ -16,6 +16,7 @@ import {
   type PayFailure,
 } from "./executionErrors.js";
 import { PAY_DEFAULT_SLIPPAGE_BPS } from "./pay.js";
+import { slippageFloor } from "./cashOut.js";
 import { classifyCashOutExecutionError } from "./cashOut.js";
 
 // The V6 contracts' own signatures: a wrong selector in the SDK table fails here.
@@ -287,6 +288,9 @@ describe("decodePayFailure", () => {
       `${underMin}00`,
       "0xe2d708a900000000000000000000000000000000",
       "0x08c379a0",
+      // An address word with nonzero padding.
+      `0xecb6c1d6${"ff".repeat(12)}${"77".repeat(20)}`,
+      `0xfb8f41b2${"01".repeat(12)}${"77".repeat(20)}${revert("JBMultiTerminal_UnderMin", [1n, 2n]).slice(10)}`,
     ]) {
       expect(decodePayFailure(value)).toBeNull();
       expect(decodePayFailure({ cause: { data: value } })).toBeNull();
@@ -311,6 +315,15 @@ describe("decodePayFailure", () => {
       // No ABI item: a name and arguments anyone can write.
       { errorName: valid.errorName, args: [url, url] },
       { errorName: valid.errorName, args: [5n, 6n] },
+      // ABI inputs with holes, whose types were never given.
+      {
+        ...valid,
+        abiItem: { ...valid.abiItem, inputs: new Array(2) },
+      },
+      {
+        ...valid,
+        abiItem: { ...valid.abiItem, inputs: [valid.abiItem.inputs[0], ,] },
+      },
       // The name disagrees with the ABI item, or the item is another error.
       { ...valid, errorName: "JBMultiTerminal_UnderMinimum" },
       { ...valid, abiItem: { ...valid.abiItem, name: "Other" } },
@@ -420,6 +433,25 @@ describe("payRetrySlippageBps", () => {
       ),
     ).toBe(150n);
     expect(payRetrySlippageBps(shortfall(999n, 1_000n), 0n)).toBe(50n);
+  });
+
+  test("below the cap, the candidate floors the failed quote at or below what settled", () => {
+    for (const quote of [1n, 7n, 1_000n, 123_456_789n, 10n ** 24n + 7n]) {
+      for (const currentBps of [0n, 1n, 50n, 100n, 333n, 900n]) {
+        const minimum = slippageFloor(quote, currentBps);
+        for (const received of [1n, minimum / 2n, minimum - 1n]) {
+          if (received <= 0n || received >= minimum) continue;
+          const next = payRetrySlippageBps(
+            shortfall(received, minimum),
+            currentBps,
+          );
+          expect(next).not.toBeNull();
+          if (next! < PAY_MAX_SLIPPAGE_BPS) {
+            expect(slippageFloor(quote, next!)).toBeLessThanOrEqual(received);
+          }
+        }
+      }
+    }
   });
 
   test("reads the decoded failure end to end", () => {

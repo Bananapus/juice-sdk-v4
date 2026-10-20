@@ -1,4 +1,10 @@
-import { Hex, decodeAbiParameters, isAddress, maxUint256 } from "viem";
+import {
+  Hex,
+  decodeAbiParameters,
+  encodeAbiParameters,
+  isAddress,
+  maxUint256,
+} from "viem";
 
 /** A selector and whole 32-byte words: the only shape revert data takes. */
 const REVERT_SHAPE = /^0x[0-9a-f]{8}(?:[0-9a-f]{64})*$/i;
@@ -352,16 +358,14 @@ export function matchKnownRevert(
         lower.startsWith(k.selector) &&
         lower.length === 10 + 64 * k.params.length,
     );
-    const args =
-      match &&
-      validArgs(
-        match,
-        decodeAbiParameters(
-          match.params.map((type) => ({ type })),
-          `0x${lower.slice(10)}`,
-        ),
-      );
-    if (match && args) return { known: match, args };
+    if (!match) continue;
+    const params = match.params.map((type) => ({ type }));
+    const data = `0x${lower.slice(10)}` as const;
+    const args = validArgs(match, decodeAbiParameters(params, data));
+    // Canonical encoding only: an address word with nonzero padding is not one.
+    if (args && encodeAbiParameters(params, args) === data) {
+      return { known: match, args };
+    }
   }
   for (const { errorName, abiItem, args } of decoded) {
     const item = abiItem as {
@@ -376,7 +380,7 @@ export function matchKnownRevert(
         item.name === k.name &&
         Array.isArray(item.inputs) &&
         item.inputs.length === k.params.length &&
-        item.inputs.every((input, i) => input?.type === k.params[i]),
+        k.params.every((type, i) => item.inputs?.[i]?.type === type),
     );
     const valid = match && validArgs(match, args);
     if (match && valid) return { known: match, args: valid };
@@ -413,18 +417,24 @@ export function decodePayFailure(error: unknown): PayFailure | null {
 
 /**
  * The most tolerance {@link payRetrySlippageBps} offers: 10%, the cap Signa's
- * `prepare_pay` enforces, so a retry never opens a payment to a sandwich
- * taking more than a tenth of it.
+ * `prepare_pay` enforces. Only that helper applies it; `prepareUserPay`
+ * takes any tolerance it is given.
  */
 export const PAY_MAX_SLIPPAGE_BPS = 1_000n;
 
 /**
- * The slippage tolerance, in basis points, that would have let a payment
- * through whose `minimum` `prepareUserPay` floored by `currentBps`: the
- * current tolerance plus the shortfall, rounded up to a half percent and
- * capped at {@link PAY_MAX_SLIPPAGE_BPS}. Null unless the failure is
- * `adjustable` by the minimum with a nonzero shortfall, or when the cap
- * leaves nothing looser to offer.
+ * A candidate slippage tolerance, in basis points, for retrying a payment
+ * that `prepareUserPay` prepared with `currentBps` and that fell short of its
+ * minimum: the current tolerance plus the shortfall, rounded up to a half
+ * percent and capped at {@link PAY_MAX_SLIPPAGE_BPS}. Below the cap it would
+ * have floored the failed quote's minimum at or below what settled; at the
+ * cap it may still fall short. Null unless the failure is `adjustable` by the
+ * minimum with a nonzero shortfall, or when the cap leaves nothing looser.
+ *
+ * It is a candidate, not permission: pass the tolerance of the attempt that
+ * failed (never reapply one failure to the last result, which ratchets to the
+ * cap), offer it only within what the payer agreed to, show the new minimum,
+ * and prepare and simulate the payment again before sending it.
  */
 export function payRetrySlippageBps(
   failure: PayFailure | null,
