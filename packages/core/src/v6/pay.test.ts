@@ -472,6 +472,15 @@ describe("buildUserPayMetadata", () => {
   });
 });
 
+// The minimum in the quote entry buildUserPayMetadata puts first.
+const explicitMinimumOf = (metadata: Hex) =>
+  metadata.length < 2 + 160 * 2
+    ? 0n
+    : decodeAbiParameters(
+        [{ type: "uint256" }, { type: "uint256" }, { type: "bool" }],
+        sliceHex(metadata, 64, 160),
+      )[1];
+
 describe("prepareUserPay", () => {
   const projectToken = "0x7777777777777777777777777777777777777777" as const;
   const nativeKey = {
@@ -509,13 +518,13 @@ describe("prepareUserPay", () => {
     specHook?: Address;
     /** Answer each preview from the metadata it was sent, as a hook reading only its own entry does. */
     respond?: (metadata: Hex) => {
-      spec?: Hex;
+      spec?: Hex | Error;
       noop?: boolean;
       terminalCounts?: readonly [bigint, bigint];
     };
     extraDataHook?: { dataHook: Address; useDataHookForPay: boolean };
     terminalCounts?: readonly [bigint, bigint];
-    spec?: Hex;
+    spec?: Hex | Error;
     noop?: boolean;
     hook?: Address | Error;
     poolKey?: {
@@ -545,12 +554,16 @@ describe("prepareUserPay", () => {
       }) {
         calls.push({ address, functionName, args });
         if (functionName === "previewPayFor") {
+          const sent = (args as unknown[])[4] as Hex;
+          // A hook given an explicit minimum above minting swaps.
+          const explicit = explicitMinimumOf(sent) !== 0n;
           const answer = {
             spec,
-            noop,
+            noop: noop && !explicit,
             terminalCounts,
-            ...respond?.((args as unknown[])[4] as Hex),
+            ...respond?.(sent),
           };
+          if (answer.spec instanceof Error) throw answer.spec;
           return [
             { ...ruleset, id: 9, metadata: rulesetMetadata },
             answer.terminalCounts[0],
@@ -639,6 +652,103 @@ describe("prepareUserPay", () => {
     });
   });
 
+  test("keeps the mint path when the hook rejects the quoted minimum", async () => {
+    // The quoter crossed to liquidity beyond the current tick; the hook sees none.
+    const { client } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      terminalCounts: [40n, 10n],
+      respond: (metadata) =>
+        explicitMinimumOf(metadata) === 0n
+          ? {}
+          : { spec: new Error("JBBuybackHook_SpecifiedSlippageExceeded") },
+    });
+    expect(await prepareUserPay(client, args)).toEqual({
+      metadata: buildUserPayMetadata({ chainId: 8453 }),
+      preview: { beneficiaryTokenCount: 40n, reservedTokenCount: 10n },
+      minReturnedTokens: 39n,
+    });
+  });
+
+  test("keeps the mint path when the quoted preview does not swap", async () => {
+    const { client } = mockClient({
+      spec: swapSpec(),
+      terminalCounts: [40n, 10n],
+      respond: () => ({ noop: true }),
+    });
+    expect((await prepareUserPay(client, args)).metadata).toEqual(
+      buildUserPayMetadata({ chainId: 8453 }),
+    );
+  });
+
+  test("adds what the terminal issues itself beside the swap, such as for NFT splits", async () => {
+    const { client } = mockClient({
+      spec: swapSpec({ skipSplits: false, tokenCountWithoutHook: 1_000n }),
+      respond: (metadata) =>
+        explicitMinimumOf(metadata) === 0n
+          ? {}
+          : { terminalCounts: [160n, 40n] as const },
+    });
+    const prepared = await prepareUserPay(client, {
+      ...args,
+      terminal: v6Address("JBMultiTerminal", 8453),
+      skipSplits: false,
+    });
+    expect(prepared.preview).toEqual({
+      beneficiaryTokenCount: 8_160n,
+      reservedTokenCount: 2_040n,
+    });
+    expect(prepared.minReturnedTokens).toBe(7_920n + 160n);
+  });
+
+  test("counts the multi-terminal's issuance even when it equals the hook's estimate", async () => {
+    const quotedSpec = swapSpec({
+      rawSwapQuote: 12_000n,
+      minimumSwapAmountOut: 9_900n,
+    });
+    const { client } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      respond: (metadata) =>
+        explicitMinimumOf(metadata) === 0n
+          ? {}
+          : { spec: quotedSpec, terminalCounts: [12_000n, 0n] as const },
+    });
+    const prepared = await prepareUserPay(client, {
+      ...args,
+      terminal: v6Address("JBMultiTerminal", 8453),
+    });
+    expect(prepared.preview.beneficiaryTokenCount).toBe(22_000n);
+    expect(prepared.minReturnedTokens).toBe(21_900n);
+  });
+
+  test("does not count a router's folded estimate as terminal issuance", async () => {
+    // The router reports the hook's 12,000 estimate in place of zero counts.
+    const { client } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      respond: (metadata) =>
+        explicitMinimumOf(metadata) === 0n
+          ? {}
+          : {
+              spec: swapSpec({
+                rawSwapQuote: 12_000n,
+                minimumSwapAmountOut: 9_900n,
+              }),
+              terminalCounts: [12_000n, 0n] as const,
+            },
+    });
+    const prepared = await prepareUserPay(client, {
+      ...args,
+      terminal: v6Address("JBRouterTerminalRegistry", 8453),
+    });
+    expect(prepared.preview).toEqual({
+      beneficiaryTokenCount: 10_000n,
+      reservedTokenCount: 0n,
+    });
+    expect(prepared.minReturnedTokens).toBe(9_900n);
+  });
+
   test("looks up an ERC-20 pool by the token and swaps toward currency0", async () => {
     const usdcKey = { ...nativeKey, currency0: projectToken, currency1: usdc };
     const { client, calls } = mockClient({
@@ -694,11 +804,36 @@ describe("prepareUserPay", () => {
     expect(prepared.minReturnedTokens).toBe(47n);
   });
 
-  test("hook 1.1.1 is not quoted and requires the beneficiary's split of a mint", async () => {
+  test("quotes hook 1.1.1 too: it ignores skipSplits, so the quote is reminted through the split", async () => {
     const { client, calls } = mockClient({
+      spec: legacySpec(swapSpec({ tokenCountWithoutHook: 1_000n })),
+    });
+    const prepared = await prepareUserPay(client, args);
+    // 1.1.1 reads only (amountToSwapWith, minimum) and requires swap + leftover mint >= 9,900.
+    expect(
+      decodeAbiParameters(
+        [{ type: "uint256" }, { type: "uint256" }],
+        sliceHex(prepared.metadata, 64, 128),
+      ),
+    ).toEqual([0n, 9_900n]);
+    expect(prepared.metadata).toEqual(
+      buildUserPayMetadata({ chainId: 8453, minimumSwapAmountOut: 9_900n }),
+    );
+    // The ruleset's 20% split of the 10,000 quote, and of the 9,900 minimum.
+    expect(prepared.preview).toEqual({
+      beneficiaryTokenCount: 8_000n,
+      reservedTokenCount: 2_000n,
+    });
+    expect(prepared.minReturnedTokens).toBe(7_920n);
+    expect(quotedArgs(calls)).toMatchObject({ exactAmount: 800n });
+  });
+
+  test("hook 1.1.1 without a quote requires the beneficiary's split of a mint", async () => {
+    const { client } = mockClient({
       spec: legacySpec(
         swapSpec({ tokenCountWithoutHook: 1_000n, rawSwapQuote: 1_500n }),
       ),
+      quote: new Error("quoter reverted"),
     });
     const prepared = await prepareUserPay(client, args);
     // 1,500 swapped, reminted through the ruleset's 20% split.
@@ -707,7 +842,7 @@ describe("prepareUserPay", () => {
       reservedTokenCount: 300n,
     });
     expect(prepared.minReturnedTokens).toBe(790n);
-    expect(calls.some((c) => c.functionName === "poolKeyOf")).toBe(false);
+    expect(prepared.metadata).toEqual(buildUserPayMetadata({ chainId: 8453 }));
   });
 
   test("a project with no buyback hook keeps the terminal's own counts", async () => {
@@ -742,9 +877,80 @@ describe("prepareUserPay", () => {
     );
   });
 
-  test("skipSplits false honors the split: no pool quote, the split mint entitlement as the minimum", async () => {
+  test("skipSplits false sends the quote as the minimum on the whole issuance, and requires the beneficiary's split of it", async () => {
     const { client, calls } = mockClient({
+      spec: swapSpec({
+        skipSplits: false,
+        tokenCountWithoutHook: 1_000n,
+        reservedPercent: 1_667n,
+      }),
+      noop: true,
+    });
+    const prepared = await prepareUserPay(client, {
+      ...args,
+      skipSplits: false,
+    });
+    // The hook compares swap + leftover mint, before the split, to 9,900.
+    expect(prepared.metadata).toEqual(
+      buildUserPayMetadata({
+        chainId: 8453,
+        minimumSwapAmountOut: 9_900n,
+        skipSplits: false,
+      }),
+    );
+    expect(
+      decodeAbiParameters(
+        [{ type: "uint256" }, { type: "uint256" }, { type: "bool" }],
+        sliceHex(prepared.metadata, 64),
+      ),
+    ).toEqual([0n, 9_900n, false]);
+    // The controller mints 83.33% of it to the beneficiary, rounded down.
+    expect(prepared.preview).toEqual({
+      beneficiaryTokenCount: 8_333n,
+      reservedTokenCount: 1_667n,
+    });
+    expect(prepared.minReturnedTokens).toBe(8_249n);
+    expect(quotedArgs(calls)).toMatchObject({
+      zeroForOne: true,
+      exactAmount: 800n,
+    });
+  });
+
+  test("a direct mint leg joins the split with the swap, or is split alone when the swap skips it", async () => {
+    // 200 wei minted directly at weight 1e18 / weightRatio 1e18: 200 tokens.
+    const honored = mockClient({
+      spec: swapSpec({
+        skipSplits: false,
+        tokenCountWithoutHook: 1_000n,
+        reservedPercent: 1_667n,
+        amountToMintWith: 200n,
+      }),
+    });
+    const split = await prepareUserPay(honored.client, {
+      ...args,
+      skipSplits: false,
+    });
+    expect(split.preview).toEqual({
+      beneficiaryTokenCount: 8_499n,
+      reservedTokenCount: 1_701n,
+    });
+    expect(split.minReturnedTokens).toBe(8_416n);
+
+    const skipped = mockClient({
+      spec: swapSpec({ amountToMintWith: 200n }),
+    });
+    const skip = await prepareUserPay(skipped.client, args);
+    expect(skip.preview).toEqual({
+      beneficiaryTokenCount: 10_160n,
+      reservedTokenCount: 40n,
+    });
+    expect(skip.minReturnedTokens).toBe(10_060n);
+  });
+
+  test("skipSplits false without a quote falls back to the split mint entitlement", async () => {
+    const { client } = mockClient({
       spec: swapSpec({ skipSplits: false, tokenCountWithoutHook: 1_000n }),
+      quote: new Error("quoter reverted"),
     });
     const prepared = await prepareUserPay(client, {
       ...args,
@@ -753,17 +959,8 @@ describe("prepareUserPay", () => {
     expect(prepared.metadata).toEqual(
       buildUserPayMetadata({ chainId: 8453, skipSplits: false }),
     );
-    expect(
-      decodeAbiParameters(
-        [{ type: "uint256" }, { type: "uint256" }, { type: "bool" }],
-        sliceHex(prepared.metadata, 64),
-      ),
-    ).toEqual([0n, 0n, false]);
     // The beneficiary's 80% of a 1,000-token mint, less 2 for rounding, less 1%.
     expect(prepared.minReturnedTokens).toBe(790n);
-    expect(calls.some((c) => c.functionName === "poolKeyOf" || c.data)).toBe(
-      false,
-    );
   });
 
   // useDataHookForPay (bit 80) with the data hook packed at bits 82-241.
@@ -791,7 +988,7 @@ describe("prepareUserPay", () => {
       );
       return {
         spec: hookSpec(skip),
-        noop: skip,
+        noop: skip && explicitMinimumOf(metadata) === 0n,
         terminalCounts: [0n, 0n] as const,
       };
     };
@@ -816,9 +1013,11 @@ describe("prepareUserPay", () => {
       }),
     );
     expect(prepared.minReturnedTokens).toBe(9_900n);
+    // Registry-keyed, hook-keyed, then the quoted minimum checked.
     expect(sentMetadata(calls)).toEqual([
       buildUserPayMetadata({ chainId: 8453 }),
       buildUserPayMetadata({ chainId: 8453, hook: buybackHook }),
+      prepared.metadata,
     ]);
     expect(calls.some((c) => c.functionName === "hookOf")).toBe(false);
   });
@@ -838,11 +1037,12 @@ describe("prepareUserPay", () => {
     expect(prepared.metadata).toEqual(
       buildUserPayMetadata({
         chainId: 8453,
+        minimumSwapAmountOut: 9_900n,
         skipSplits: false,
         hook: buybackHook,
       }),
     );
-    expect(prepared.minReturnedTokens).toBe(790n);
+    expect(prepared.minReturnedTokens).toBe(7_920n);
     expect(sentMetadata(calls)).toEqual([
       buildUserPayMetadata({ chainId: 8453, skipSplits: false }),
       buildUserPayMetadata({
@@ -850,10 +1050,9 @@ describe("prepareUserPay", () => {
         skipSplits: false,
         hook: buybackHook,
       }),
+      prepared.metadata,
     ]);
-    expect(calls.some((c) => c.functionName === "poolKeyOf" || c.data)).toBe(
-      false,
-    );
+    expect(quotedArgs(calls)).toMatchObject({ exactAmount: 800n });
   });
 
   test("a direct buyback 1.4 behind the router terminal is previewed through the router", async () => {
@@ -875,7 +1074,7 @@ describe("prepareUserPay", () => {
       }),
     );
     const previews = calls.filter((c) => c.functionName === "previewPayFor");
-    expect(previews.map((c) => c.address)).toEqual([router, router]);
+    expect(previews.map((c) => c.address)).toEqual([router, router, router]);
   });
 
   test("a custom data hook is not a direct buyback: one registry-keyed preview, no buyback spec", async () => {
@@ -904,7 +1103,10 @@ describe("prepareUserPay", () => {
     expect(prepared.metadata).toEqual(
       buildUserPayMetadata({ chainId: 8453, minimumSwapAmountOut: 9_900n }),
     );
-    expect(sentMetadata(calls)).toHaveLength(1);
+    expect(sentMetadata(calls)).toEqual([
+      buildUserPayMetadata({ chainId: 8453 }),
+      prepared.metadata,
+    ]);
     expect(calls.some((c) => c.functionName === "hookOf")).toBe(true);
   });
 
@@ -936,7 +1138,7 @@ describe("prepareUserPay", () => {
     expect((await prepareUserPay(viaRegistry.client, args)).metadata).toEqual(
       buildUserPayMetadata({ chainId: 8453, minimumSwapAmountOut: 9_900n }),
     );
-    expect(sentMetadata(viaRegistry.calls)).toHaveLength(1);
+    expect(sentMetadata(viaRegistry.calls)).toHaveLength(2);
   });
 });
 

@@ -493,18 +493,24 @@ const poolKeyOfAbi = [
  * Prepare a person's payment with {@link buildUserPayMetadata}: preview it,
  * and set the minimum the terminal enforces on the beneficiary's balance.
  *
- * When the project's buyback hook honors `skipSplits` and its pool is in the
- * paid token, this quotes that pool (fee and price impact included) and sends
- * the slippage-floored quote as an explicit minimum. The hook then swaps
- * whenever the pool beats the payer's share of a mint, and reverts below the
- * floor. Without it the hook routes by its TWAP floor, which reaches zero on
- * large buys against a thin pool and sends them to minting even when the pool
- * pays far more.
+ * When the project's buyback hook has a pool in the paid token, this quotes
+ * that pool (fee and price impact included) and sends the slippage-floored
+ * quote as an explicit minimum, so the payer gets the pool's rate whenever it
+ * beats minting. The hook compares that minimum to the swap output plus the
+ * leftover mint: the whole leftover mint when the swapped tokens go through
+ * the reserved split (`skipSplits` false, and always on hook 1.1.1, which
+ * ignores `skipSplits`), its beneficiary share when they skip it. The
+ * terminal minimum is the beneficiary's part of that guarantee, plus what the
+ * terminal issues itself (such as for NFT splits). The quoted payment is
+ * previewed again first, and stays on the mint path if the hook would not
+ * swap with that minimum. Without a quote the hook routes by its TWAP floor,
+ * which reaches zero on large buys against a thin pool and sends them to
+ * minting even when the pool pays far more.
  *
- * Otherwise (no pool, hook 1.1.1, a router converting the token first, or a
- * failed quote) the hook routes by TWAP. The minimum is then the payer's mint
- * entitlement when the hook would swap, since the hook never settles below it,
- * and the terminal's own issuance when it would not.
+ * Otherwise (no pool, a router converting the token first, or a failed quote)
+ * the minimum is the payer's mint entitlement when the hook would swap, since
+ * the hook never settles below it, and the terminal's own issuance when it
+ * would not. If the payment then reverts, {@link decodePayFailure} says why.
  *
  * When the ruleset calls buyback hook 1.4 directly (or through the omnichain
  * deployer) instead of through the registry, the metadata is keyed to the hook,
@@ -562,7 +568,7 @@ export async function prepareUserPay(
       slippageBps,
     ),
   };
-  if (!buyback?.skipSplits || buyback.amountToSwapWith === 0n) return fallback;
+  if (!buyback || buyback.amountToSwapWith === 0n) return fallback;
 
   try {
     const poolKey = await client.readContract({
@@ -587,23 +593,56 @@ export async function prepareUserPay(
     const minimumSwapAmountOut = slippageFloor(quote, slippageBps);
     // The pool loses to minting: leave the payment on the mint path.
     if (minimumSwapAmountOut <= buyback.tokenCountWithoutHook) return fallback;
-    const directMint = splitOf(
-      directMintOf(buyback, weight),
-      buyback.reservedPercent,
+    const quotedMetadata = buildUserPayMetadata({
+      chainId,
+      tiers,
+      minimumSwapAmountOut,
+      skipSplits,
+      ...(hook ? { hook } : {}),
+    });
+    // The hook rejects a minimum it cannot route, such as on a pool with no
+    // liquidity in range, and then the payment stays on the mint path.
+    const [, quotedBeneficiaryCount, quotedReservedCount, quotedSpecs] =
+      await client.readContract({
+        address: args.terminal,
+        abi: jbMultiTerminalAbi,
+        functionName: "previewPayFor",
+        args: [projectId, token, args.amount, args.beneficiary, quotedMetadata],
+      });
+    const swaps = quotedSpecs.some(
+      (s) => !s.noop && s.hook.toLowerCase() === buyback.hook.toLowerCase(),
     );
+    if (!swaps) return fallback;
+    // A router folds the hook's estimate into its counts, so only the
+    // multi-terminal's own counts are known to be its issuance.
+    const issuedByTerminal: PayPreview =
+      args.terminal.toLowerCase() ===
+      v6Address("JBMultiTerminal", chainId).toLowerCase()
+        ? {
+            beneficiaryTokenCount: quotedBeneficiaryCount,
+            reservedTokenCount: quotedReservedCount,
+          }
+        : { beneficiaryTokenCount: 0n, reservedTokenCount: 0n };
+    const directMint = directMintOf(buyback, weight);
+    // The swapped tokens skip the split, or are reminted through it with the
+    // direct mint. The terminal's own issuance, such as for NFT splits, adds.
+    const settle = (swapTokenCount: bigint): PayPreview => {
+      const split = buyback.skipSplits
+        ? splitOf(directMint, buyback.reservedPercent)
+        : splitOf(swapTokenCount + directMint, buyback.reservedPercent);
+      return {
+        beneficiaryTokenCount:
+          (buyback.skipSplits ? swapTokenCount : 0n) +
+          split.beneficiaryTokenCount +
+          issuedByTerminal.beneficiaryTokenCount,
+        reservedTokenCount:
+          split.reservedTokenCount + issuedByTerminal.reservedTokenCount,
+      };
+    };
     return {
-      metadata: buildUserPayMetadata({
-        chainId,
-        tiers,
-        minimumSwapAmountOut,
-        skipSplits,
-        ...(hook ? { hook } : {}),
-      }),
-      preview: {
-        beneficiaryTokenCount: quote + directMint.beneficiaryTokenCount,
-        reservedTokenCount: directMint.reservedTokenCount,
-      },
-      minReturnedTokens: minimumSwapAmountOut,
+      metadata: quotedMetadata,
+      preview: settle(quote),
+      minReturnedTokens: settle(minimumSwapAmountOut).beneficiaryTokenCount,
     };
   } catch {
     return fallback;

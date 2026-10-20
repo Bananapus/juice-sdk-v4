@@ -272,9 +272,12 @@ const budgets = {
     // and review queue in modules of their own, each eight ESM/CJS
     // artifacts. Packed size falls; the per-module declarations and maps
     // add: 1,561,709 B packed, 22,829,113 B unpacked, 1,706 files.
-    packed: 1_575_000,
-    unpacked: 22_880_000,
-    entries: 1_706,
+    // The pay and cash-out revert decoder, a module of its own, adds eight
+    // artifacts, and the quoted pay's second preview a few kilobytes:
+    // 1,571,557 B packed, 22,893,641 B unpacked, 1,714 files.
+    packed: 1_580_000,
+    unpacked: 22_900_000,
+    entries: 1_714,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
@@ -309,7 +312,8 @@ const entryBudgets = [
   ["@bananapus/nana-sdk-core", "NATIVE_TOKEN", 150],
   ["@bananapus/nana-sdk-core/chains", "mainnet", 450],
   ["@bananapus/nana-sdk-core/v6", "v6Address", 2_900],
-  ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 10_300],
+  // The quoted pay's second preview: 10,276 B.
+  ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 10_800],
   ["@bananapus/nana-sdk-core/v6/fee-buyback", "feeBuybackOptions", 3_300],
   ["@bananapus/nana-sdk-core/v6", "effectiveTierPrice", 200],
   ["@bananapus/nana-sdk-core/review", "registerTransactionReviewHandler", 250],

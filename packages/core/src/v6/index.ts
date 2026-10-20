@@ -13,6 +13,11 @@ export * from "./priceFeeds.js";
 export * from "./permit2.js";
 export * from "./projectPayers.js";
 export * from "./cashOut.js";
+export {
+  decodePayFailure,
+  type PayFailure,
+  type PayFailureReason,
+} from "./executionErrors.js";
 export * from "./nft.js";
 export * from "./nftInventory.js";
 export * from "./defifa.js";
