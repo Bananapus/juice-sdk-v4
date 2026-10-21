@@ -503,21 +503,41 @@ const poolKeyOfAbi = [
 ] as const;
 
 /**
- * Whether a preview reverted with the buyback hook's
- * `JBBuybackHook_SpecifiedSlippageExceeded`, which viem keeps as `raw` on the
- * error's cause chain. The full revert decoder would weigh on every pay card.
+ * The revert data on viem's error cause chain: `raw` for contract reads,
+ * `data` for plain calls. The full revert decoder would weigh on every pay card.
  */
-function rejectsMinimum(error: unknown): boolean {
+function revertDataOf(error: unknown): string | undefined {
   for (
-    let e = error as { cause?: unknown; raw?: unknown } | undefined;
+    let e = error as
+      | { cause?: unknown; raw?: unknown; data?: unknown }
+      | undefined;
     e;
     e = e.cause as typeof e
   ) {
-    if (typeof e.raw === "string" && e.raw.startsWith("0xe2d708a9")) {
-      return true;
-    }
+    if (typeof e.raw === "string") return e.raw;
+    if (typeof e.data === "string" && e.data.startsWith("0x")) return e.data;
   }
-  return false;
+  return undefined;
+}
+
+/** Whether a preview reverted with `JBBuybackHook_SpecifiedSlippageExceeded`. */
+function rejectsMinimum(error: unknown): boolean {
+  return !!revertDataOf(error)?.startsWith("0xe2d708a9");
+}
+
+/**
+ * Whether a V4 quote reverted because the pool cannot fill the whole amount:
+ * `NotEnoughLiquidity(poolId)`, which the quoter wraps in
+ * `UnexpectedRevertBytes(bytes)`. That answer is the pool's state, not a
+ * dropped read, so retrying or warning the payer would not change it.
+ */
+function poolCannotFill(error: unknown): boolean {
+  const data = revertDataOf(error);
+  return (
+    !!data &&
+    (data.startsWith("0x7a5ed734") ||
+      (data.startsWith("0x6190b2b0") && data.slice(138, 146) === "7a5ed734"))
+  );
 }
 
 /** `prepareUserPay`'s tolerance on its quote and fallback minimum: 1%. */
@@ -803,12 +823,17 @@ async function routerConversionOf(
       tokenOut: unwrap(tokenOut),
     });
     if (zeroForOne === null) return null;
-    expected = await quoteUniswapV4ExactInputSingle(client, {
-      chainId,
-      poolKey: pool.v4Key,
-      zeroForOne,
-      amountIn: amount,
-    });
+    try {
+      expected = await quoteUniswapV4ExactInputSingle(client, {
+        chainId,
+        poolKey: pool.v4Key,
+        zeroForOne,
+        amountIn: amount,
+      });
+    } catch (error) {
+      if (poolCannotFill(error)) return null;
+      throw error;
+    }
   } else {
     expected = await quoteUniswapV3ExactInputSingle(client, {
       chainId,
@@ -943,7 +968,8 @@ async function routedBuybackSpecOf(
  * the minimum is what minting the quoted conversion issues, instead of the
  * router's floor.
  *
- * Otherwise (no pool, or a failed quote) the minimum is the payer's mint
+ * Otherwise (no pool, a pool that cannot fill the swap, or a failed quote) the
+ * minimum is the payer's mint
  * entitlement when the hook would swap, since the hook never settles below it,
  * and the terminal's own issuance when it would not. A quote whose reads fail
  * twice returns `quoteFailed`, so the app can say the pool's rate is not
@@ -1114,12 +1140,19 @@ export async function prepareUserPay(
       }
       swap = routed.spec;
     }
-    const quote = await quoteUniswapV4ExactInputSingle(client, {
-      chainId,
-      poolKey: pool.key,
-      zeroForOne: !swap.projectTokenIs0,
-      amountIn: swap.amountToSwapWith,
-    });
+    let quote: bigint;
+    try {
+      quote = await quoteUniswapV4ExactInputSingle(client, {
+        chainId,
+        poolKey: pool.key,
+        zeroForOne: !swap.projectTokenIs0,
+        amountIn: swap.amountToSwapWith,
+      });
+    } catch (error) {
+      // The hook mints when its pool cannot fill, so the mint minimum holds.
+      if (poolCannotFill(error)) return fallback;
+      throw error;
+    }
     const minimumSwapAmountOut = slippageFloor(quote, slippageBps);
     // The pool loses to minting: leave the payment on the mint path.
     if (minimumSwapAmountOut <= swap.tokenCountWithoutHook) return fallback;
