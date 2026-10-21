@@ -525,7 +525,10 @@ describe("prepareUserPay", () => {
     terminals = [v6Address("JBMultiTerminal", 8453)],
     registryTerminal = v6Address("JBRouterTerminal", 8453),
     gatewayRouter = v6Address("JBRouterTerminal", 8453),
+    primaryTerminal = destination as Address,
   }: {
+    /** The directory's primary terminal for the converted token. */
+    primaryTerminal?: Address;
     /** The project's terminals in the directory. */
     terminals?: Address[];
     /** The terminal the router registry holds for the project. */
@@ -638,7 +641,7 @@ describe("prepareUserPay", () => {
         if (functionName === "projectIdOf") {
           return conversion?.sourceProjectId ?? 0n;
         }
-        if (functionName === "primaryTerminalOf") return destination;
+        if (functionName === "primaryTerminalOf") return primaryTerminal;
         if (functionName === "previewTerminalPayOf") {
           return [
             { ...ruleset, id: 9, metadata: rulesetMetadata },
@@ -1132,6 +1135,7 @@ describe("prepareUserPay", () => {
       const minting = {
         terminalCounts: [640n, 160n] as const,
         contextTokens: [usdc as Address],
+        primaryTerminal: v6Address("JBMultiTerminal", 8453),
         conversion: {
           floor: 640n,
           expected: 800n,
@@ -1164,7 +1168,7 @@ describe("prepareUserPay", () => {
             [
               "previewTerminalPayOf",
               [
-                destination,
+                v6Address("JBMultiTerminal", 8453),
                 projectId,
                 usdc,
                 800n,
@@ -1180,6 +1184,10 @@ describe("prepareUserPay", () => {
         [
           "the project has another terminal, whose token the router may pick",
           { terminals: [v6Address("JBMultiTerminal", 8453), v3Pool] },
+        ],
+        [
+          "the project's one terminal is another, whose tokens the router picks from",
+          { terminals: [v3Pool] },
         ],
         ["the registry holds another router", { registryTerminal: v3Pool }],
         [

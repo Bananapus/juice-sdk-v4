@@ -691,41 +691,45 @@ const v3PoolFeeAbi = [
 ] as const;
 
 /**
- * The router a payment to `terminal` reaches: the router itself, the router
- * behind the gateway, or the one the registry holds for the project (which
- * may be a gateway). Null for any other terminal, or on a chain without the
- * router.
+ * Whether a payment to `terminal` reaches the current router: directly,
+ * through the gateway, or through the registry's terminal for the project
+ * (which may be the gateway). The conversion reads quote that router.
  */
-async function underlyingRouterOf(
+async function reachesRouter(
   client: PublicClient,
   chainId: JBChainId,
   projectId: bigint,
   terminal: Address,
-): Promise<Address | null> {
-  let registry: Address, gateway: Address;
-  try {
-    registry = v6Address("JBRouterTerminalRegistry", chainId);
-    gateway = v6Address("JBRouterTerminalGateway", chainId);
-  } catch {
-    return null;
-  }
-  const is = (a: Address, b: Address) => a.toLowerCase() === b.toLowerCase();
-  let reached = is(terminal, registry)
-    ? await client.readContract({
-        address: registry,
+): Promise<boolean> {
+  const addressOf = (name: Parameters<typeof v6Address>[0]) => {
+    try {
+      return v6Address(name, chainId).toLowerCase();
+    } catch {
+      return null;
+    }
+  };
+  let reached = terminal.toLowerCase();
+  if (reached === addressOf("JBRouterTerminalRegistry")) {
+    reached = (
+      await client.readContract({
+        address: terminal,
         abi: routerConversionAbi,
         functionName: "terminalOf",
         args: [projectId],
       })
-    : terminal;
-  if (is(reached, gateway)) {
-    reached = await client.readContract({
-      address: gateway,
-      abi: routerConversionAbi,
-      functionName: "ROUTER",
-    });
+    ).toLowerCase();
   }
-  return reached;
+  if (reached === addressOf("JBRouterTerminalGateway")) {
+    reached = (
+      await client.readContract({
+        address: reached as Address,
+        abi: routerConversionAbi,
+        functionName: "ROUTER",
+      })
+    ).toLowerCase();
+  }
+  const router = addressOf("JBRouterTerminal");
+  return router !== null && reached === router;
 }
 
 /**
@@ -1027,7 +1031,7 @@ export async function prepareUserPay(
     // ponytail: one accepted token only; multi-token projects need the
     // router's route pick exposed.
     return withRetry(async () => {
-      const [terminals, contexts, router] = await Promise.all([
+      const [terminals, contexts, viaRouter] = await Promise.all([
         client.readContract({
           address: v6Address("JBDirectory", chainId),
           abi: routerConversionAbi,
@@ -1035,18 +1039,15 @@ export async function prepareUserPay(
           args: [projectId],
         }),
         getAccountingContexts(client, { chainId, projectId }),
-        underlyingRouterOf(client, chainId, projectId, args.terminal),
+        reachesRouter(client, chainId, projectId, args.terminal),
       ]);
       const tokenOut = contexts.length === 1 ? contexts[0].token : null;
       if (
-        !router ||
+        !viaRouter ||
         !tokenOut ||
-        tokenOut.toLowerCase() === token.toLowerCase() ||
         terminals.length !== 1 ||
         terminals[0].toLowerCase() !==
-          v6Address("JBMultiTerminal", chainId).toLowerCase() ||
-        router.toLowerCase() !==
-          v6Address("JBRouterTerminal", chainId).toLowerCase()
+          v6Address("JBMultiTerminal", chainId).toLowerCase()
       ) {
         return fallback;
       }
