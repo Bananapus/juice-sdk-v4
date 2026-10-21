@@ -1,4 +1,6 @@
 import {
+  ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
   PublicClient,
   decodeAbiParameters,
   decodeFunctionData,
@@ -553,7 +555,9 @@ describe("prepareUserPay", () => {
       expected: bigint;
       v4Key?: UniswapV4PoolKey;
       /** The spec the destination returns for the expected conversion. */
-      spec: Hex;
+      spec?: Hex;
+      /** The destination's counts for the expected conversion. */
+      counts?: readonly [bigint, bigint];
       /** The project whose token is paid in, if it is one. */
       sourceProjectId?: bigint;
     };
@@ -626,16 +630,18 @@ describe("prepareUserPay", () => {
         if (functionName === "previewTerminalPayOf") {
           return [
             { ...ruleset, id: 9, metadata: rulesetMetadata },
-            0n,
-            0n,
-            [
-              {
-                hook: specHook,
-                noop: true,
-                amount: 0n,
-                metadata: conversion!.spec,
-              },
-            ],
+            conversion!.counts?.[0] ?? 0n,
+            conversion!.counts?.[1] ?? 0n,
+            conversion!.spec
+              ? [
+                  {
+                    hook: specHook,
+                    noop: true,
+                    amount: 0n,
+                    metadata: conversion!.spec,
+                  },
+                ]
+              : [],
           ];
         }
         if (functionName === "previewSwapAmountOutOf") {
@@ -760,13 +766,40 @@ describe("prepareUserPay", () => {
       respond: (metadata) =>
         explicitMinimumOf(metadata) === 0n
           ? {}
-          : { spec: new Error("JBBuybackHook_SpecifiedSlippageExceeded") },
+          : {
+              spec: new ContractFunctionExecutionError(
+                new ContractFunctionRevertedError({
+                  abi: [],
+                  functionName: "previewPayFor",
+                  data: `0xe2d708a9${encodeAbiParameters(
+                    [{ type: "uint256" }, { type: "uint256" }],
+                    [9_000n, 9_900n],
+                  ).slice(2)}`,
+                }),
+                { abi: [], functionName: "previewPayFor" },
+              ),
+            },
     });
     expect(await prepareUserPay(client, args)).toEqual({
       metadata: buildUserPayMetadata({ chainId: 8453 }),
       preview: { beneficiaryTokenCount: 40n, reservedTokenCount: 10n },
       minReturnedTokens: 39n,
     });
+  });
+
+  test("says so when the quoted preview fails for another reason", async () => {
+    const { client } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      terminalCounts: [40n, 10n],
+      respond: (metadata) =>
+        explicitMinimumOf(metadata) === 0n
+          ? {}
+          : { spec: new Error("request timed out") },
+    });
+    const prepared = await prepareUserPay(client, args);
+    expect(prepared.minReturnedTokens).toBe(39n);
+    expect(prepared.quoteFailed).toBe(true);
   });
 
   test("keeps the mint path when the quoted preview does not swap", async () => {
@@ -1082,6 +1115,72 @@ describe("prepareUserPay", () => {
       expect(prepared.minReturnedTokens).toBe(9_900n);
     });
 
+    describe("without a buyback hook", () => {
+      // The router previews minting its 640 floor; the swap is quoted to return 800.
+      const minting = {
+        terminalCounts: [640n, 160n] as const,
+        contextTokens: [usdc as Address],
+        conversion: {
+          floor: 640n,
+          expected: 800n,
+          counts: [800n, 200n] as const,
+        },
+      };
+
+      test("requires what minting the quoted conversion issues", async () => {
+        const { client, calls } = mockClient(minting);
+        const prepared = await prepareUserPay(client, routerArgs);
+        expect(prepared).toEqual({
+          metadata: buildUserPayMetadata({ chainId: 8453 }),
+          preview: { beneficiaryTokenCount: 800n, reservedTokenCount: 200n },
+          minReturnedTokens: 792n,
+        });
+        expect(reads(calls, ["previewTerminalPayOf"])).toEqual([
+          [
+            "previewTerminalPayOf",
+            [
+              destination,
+              projectId,
+              usdc,
+              800n,
+              beneficiary,
+              buildUserPayMetadata({ chainId: 8453 }),
+            ],
+          ],
+        ]);
+      });
+
+      test.each([
+        ["the project accepts more than one token", [usdc, weth]],
+        ["the project accepts the paid token", [NATIVE_TOKEN]],
+      ])("keeps the router's floor when %s", async (_, contextTokens) => {
+        const { client } = mockClient({
+          ...minting,
+          contextTokens: contextTokens as Address[],
+        });
+        const prepared = await prepareUserPay(client, routerArgs);
+        expect(prepared.minReturnedTokens).toBe(633n);
+        expect(prepared.quoteFailed).toBeUndefined();
+      });
+
+      test("keeps the router's floor for a project token, which the router cashes out first", async () => {
+        const { client } = mockClient({
+          ...minting,
+          conversion: { ...minting.conversion, sourceProjectId: 5n },
+        });
+        expect(
+          (await prepareUserPay(client, routerArgs)).minReturnedTokens,
+        ).toBe(633n);
+      });
+
+      test("says so when the conversion cannot be quoted", async () => {
+        const { client } = mockClient({ ...minting, conversion: undefined });
+        const prepared = await prepareUserPay(client, routerArgs);
+        expect(prepared.minReturnedTokens).toBe(633n);
+        expect(prepared.quoteFailed).toBe(true);
+      });
+    });
+
     test("falls back for a project token, which the router cashes out first", async () => {
       const { client, calls } = mockClient({
         ...routed,
@@ -1253,6 +1352,22 @@ describe("prepareUserPay", () => {
     const prepared = await prepareUserPay(client, args);
     expect(prepared.preview.beneficiaryTokenCount).toBe(900n);
     expect(prepared.minReturnedTokens).toBe(47n);
+    expect(prepared.quoteFailed).toBe(true);
+  });
+
+  test("retries a quote whose read fails once", async () => {
+    let reads = 0;
+    const { client } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      quote: () => {
+        if (reads++ === 0) throw new Error("request timed out");
+        return 10_000n;
+      },
+    });
+    const prepared = await prepareUserPay(client, args);
+    expect(prepared.minReturnedTokens).toBe(9_900n);
+    expect(prepared.quoteFailed).toBeUndefined();
   });
 
   test("quotes hook 1.1.1 too: it ignores skipSplits, so the quote is reminted through the split", async () => {
