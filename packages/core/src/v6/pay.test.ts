@@ -2,6 +2,7 @@ import {
   ContractFunctionExecutionError,
   ContractFunctionRevertedError,
   PublicClient,
+  RpcRequestError,
   decodeAbiParameters,
   decodeFunctionData,
   encodeAbiParameters,
@@ -26,6 +27,24 @@ import {
   prepareUserPay,
   previewPay,
 } from "./pay.js";
+
+/**
+ * The V4 quoter's revert for a pool that cannot fill the amount, as viem
+ * surfaces it: `UnexpectedRevertBytes(NotEnoughLiquidity(poolId))` on the RPC
+ * error (captured from Base Sepolia project 1, 2026-10-21).
+ */
+const cannotFill = () =>
+  Object.assign(new Error("Execution reverted"), {
+    cause: new RpcRequestError({
+      body: {},
+      url: "",
+      error: {
+        code: 3,
+        message: "execution reverted",
+        data: "0x6190b2b0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000247a5ed734c27b63594c20a2d82447e4e79a37f8714f99ead096c0e37af6ff4ab22405a5f200000000000000000000000000000000000000000000000000000000",
+      },
+    }),
+  });
 
 const chainId = 11155111;
 const terminal = "0x1111111111111111111111111111111111111111" as const;
@@ -564,7 +583,7 @@ describe("prepareUserPay", () => {
     /** The router's conversion: its floor, the quoted return, and its pool. */
     conversion?: {
       floor: bigint;
-      expected: bigint;
+      expected: bigint | Error;
       v4Key?: UniswapV4PoolKey;
       /** The spec the destination returns for the expected conversion. */
       spec?: Hex;
@@ -693,7 +712,7 @@ describe("prepareUserPay", () => {
                 { type: "uint32" },
                 { type: "uint256" },
               ],
-              [conversion!.expected, 0n, 0, 0n],
+              [conversion!.expected as bigint, 0n, 0, 0n],
             ),
           };
         }
@@ -1130,6 +1149,26 @@ describe("prepareUserPay", () => {
       expect(prepared.minReturnedTokens).toBe(9_900n);
     });
 
+    test("a V4 conversion pool that cannot fill keeps the fallback without a warning", async () => {
+      const { client } = mockClient({
+        ...routed,
+        conversion: {
+          ...routed.conversion,
+          expected: cannotFill(),
+          v4Key: {
+            currency0: zeroAddress,
+            currency1: usdc,
+            fee: 500,
+            tickSpacing: 10,
+            hooks: zeroAddress,
+          },
+        },
+      });
+      const prepared = await prepareUserPay(client, routerArgs);
+      fellBack(prepared);
+      expect(prepared.quoteFailed).toBeUndefined();
+    });
+
     describe("without a buyback hook", () => {
       // The router previews minting its 640 floor; the swap is quoted to return 800.
       const minting = {
@@ -1438,6 +1477,30 @@ describe("prepareUserPay", () => {
     expect(prepared.preview.beneficiaryTokenCount).toBe(900n);
     expect(prepared.minReturnedTokens).toBe(47n);
     expect(prepared.quoteFailed).toBe(true);
+  });
+
+  test("a pool that cannot fill the swap keeps the mint minimum without a retry or a warning", async () => {
+    const { client, calls } = mockClient({
+      spec: swapSpec({ rawSwapQuote: 900n, minimumSwapAmountOut: 600n }),
+      quote: cannotFill(),
+    });
+    expect(await prepareUserPay(client, args)).toEqual({
+      metadata: buildUserPayMetadata({ chainId: 8453 }),
+      preview: { beneficiaryTokenCount: 900n, reservedTokenCount: 0n },
+      minReturnedTokens: 47n,
+    });
+    expect(calls.filter((c) => c.data)).toHaveLength(1);
+  });
+
+  test("warns when a quote fails with data that is not a revert", async () => {
+    // A decoder error carries the response as data, which may hold any bytes.
+    const { client } = mockClient({
+      spec: swapSpec({ rawSwapQuote: 900n, minimumSwapAmountOut: 600n }),
+      quote: Object.assign(new Error("Data size too small"), {
+        data: (cannotFill().cause as { data: Hex }).data,
+      }),
+    });
+    expect((await prepareUserPay(client, args)).quoteFailed).toBe(true);
   });
 
   test("retries a quote whose read fails once", async () => {
