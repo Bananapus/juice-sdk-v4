@@ -558,6 +558,8 @@ describe("prepareUserPay", () => {
       spec?: Hex;
       /** The destination's counts for the expected conversion. */
       counts?: readonly [bigint, bigint];
+      /** The destination's counts at the floor; defaults to `terminalCounts`. */
+      floorCounts?: readonly [bigint, bigint];
       /** The project whose token is paid in, if it is one. */
       sourceProjectId?: bigint;
     };
@@ -628,10 +630,14 @@ describe("prepareUserPay", () => {
         }
         if (functionName === "primaryTerminalOf") return destination;
         if (functionName === "previewTerminalPayOf") {
+          const counts =
+            (args as unknown[])[3] === conversion!.floor
+              ? (conversion!.floorCounts ?? terminalCounts)
+              : conversion!.counts;
           return [
             { ...ruleset, id: 9, metadata: rulesetMetadata },
-            conversion!.counts?.[0] ?? 0n,
-            conversion!.counts?.[1] ?? 0n,
+            counts?.[0] ?? 0n,
+            counts?.[1] ?? 0n,
             conversion!.spec
               ? [
                   {
@@ -1135,19 +1141,61 @@ describe("prepareUserPay", () => {
           preview: { beneficiaryTokenCount: 800n, reservedTokenCount: 200n },
           minReturnedTokens: 792n,
         });
-        expect(reads(calls, ["previewTerminalPayOf"])).toEqual([
-          [
+        // At the floor, the destination's preview is the router's: it picked this route.
+        expect(reads(calls, ["previewTerminalPayOf"])).toEqual(
+          [800n, 640n].map((amount) => [
             "previewTerminalPayOf",
             [
               destination,
               projectId,
               usdc,
-              800n,
+              amount,
               beneficiary,
               buildUserPayMetadata({ chainId: 8453 }),
             ],
-          ],
-        ]);
+          ]),
+        );
+      });
+
+      test("keeps the router's floor when it picks another terminal's token", async () => {
+        // Another terminal's token previews 700 at its floor, beating USDC's 640.
+        const { client } = mockClient({
+          ...minting,
+          terminalCounts: [700n, 175n],
+          conversion: { ...minting.conversion, floorCounts: [640n, 160n] },
+        });
+        const prepared = await prepareUserPay(client, routerArgs);
+        expect(prepared.minReturnedTokens).toBe(693n);
+        expect(prepared.quoteFailed).toBeUndefined();
+      });
+
+      test("keeps the floor without a warning when the router only wraps the native token", async () => {
+        const { client, calls } = mockClient({
+          ...minting,
+          contextTokens: [weth],
+        });
+        const prepared = await prepareUserPay(client, routerArgs);
+        expect(prepared.minReturnedTokens).toBe(633n);
+        expect(prepared.quoteFailed).toBeUndefined();
+        expect(calls.some((c) => c.data)).toBe(false);
+      });
+
+      test("keeps the floor on a chain without a router", async () => {
+        const { client } = mockClient(minting);
+        const prepared = await prepareUserPay(client, {
+          ...args,
+          chainId: 11155420,
+        });
+        expect(prepared.minReturnedTokens).toBe(633n);
+      });
+
+      test("leaves another terminal's payment alone", async () => {
+        const { client, calls } = mockClient(minting);
+        const prepared = await prepareUserPay(client, args);
+        expect(prepared.minReturnedTokens).toBe(633n);
+        expect(
+          calls.some((c) => c.functionName === "accountingContextsOf"),
+        ).toBe(false);
       });
 
       test.each([

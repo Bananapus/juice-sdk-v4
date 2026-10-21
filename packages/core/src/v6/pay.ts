@@ -709,6 +709,8 @@ async function routerConversionOf(
     t.toLowerCase() === NATIVE_TOKEN.toLowerCase() ||
     t.toLowerCase() === zeroAddress;
   const wrap = (t: Address) => (isNative(t) ? wrapped : t);
+  // The router wraps or unwraps the native token 1:1, without a pool.
+  if (wrap(tokenIn).toLowerCase() === wrap(tokenOut).toLowerCase()) return null;
   const [floor, pool] = await Promise.all([
     client.readContract({
       address: router,
@@ -794,24 +796,28 @@ async function quotedRoutePreviewOf(
     functionName: "primaryTerminalOf",
     args: [projectId, tokenOut],
   });
-  const [, beneficiaryTokenCount, reservedTokenCount, specs] =
-    await client.readContract({
-      address: v6Address("JBRouterTerminal", chainId),
-      abi: routerConversionAbi,
-      functionName: "previewTerminalPayOf",
-      args: [
-        destination,
-        projectId,
-        tokenOut,
-        conversion.expected,
-        beneficiary,
-        metadata,
-      ],
-    });
+  const previewAt = async (converted: bigint) => {
+    const [, beneficiaryTokenCount, reservedTokenCount, specs] =
+      await client.readContract({
+        address: v6Address("JBRouterTerminal", chainId),
+        abi: routerConversionAbi,
+        functionName: "previewTerminalPayOf",
+        args: [
+          destination,
+          projectId,
+          tokenOut,
+          converted,
+          beneficiary,
+          metadata,
+        ],
+      });
+    return { preview: { beneficiaryTokenCount, reservedTokenCount }, specs };
+  };
   return {
-    preview: { beneficiaryTokenCount, reservedTokenCount },
-    specs,
+    ...(await previewAt(conversion.expected)),
     floor: conversion.floor,
+    /** The destination's preview at the router's floor. */
+    atFloor: () => previewAt(conversion.floor),
   };
 }
 
@@ -957,13 +963,28 @@ export async function prepareUserPay(
   const isRouter =
     args.terminal.toLowerCase() !==
     v6Address("JBMultiTerminal", chainId).toLowerCase();
-  if (!buyback && isRouter) {
+  const isRouterEntry = (
+    [
+      "JBRouterTerminal",
+      "JBRouterTerminalRegistry",
+      "JBRouterTerminalGateway",
+    ] as const
+  ).some((name) => {
+    try {
+      return (
+        v6Address(name, chainId).toLowerCase() === args.terminal.toLowerCase()
+      );
+    } catch {
+      return false;
+    }
+  });
+  if (!buyback && isRouterEntry) {
     // The router previews minting on its conversion's floor, which sits up to
     // its sigmoid slippage below the pool's quote. Require what minting the
-    // quoted conversion issues. With more than one accepted token the router
-    // picks the one it converts to at execution, so the floor stays.
-    // ponytail: single accepted token only; add the router's route pick when
-    // multi-token projects need it.
+    // quoted conversion issues, once the router's own preview shows it picked
+    // this route: it ranks every terminal's tokens by their floors.
+    // ponytail: the multi-terminal's one accepted token only; try each
+    // accepted token when multi-token projects need it.
     return withRetry(async () => {
       const contexts = await getAccountingContexts(client, {
         chainId,
@@ -982,16 +1003,21 @@ export async function prepareUserPay(
         beneficiary: args.beneficiary,
         metadata,
       });
-      return routed
-        ? {
-            metadata,
-            preview: routed.preview,
-            minReturnedTokens: slippageFloor(
-              routed.preview.beneficiaryTokenCount,
-              slippageBps,
-            ),
-          }
-        : fallback;
+      if (
+        !routed ||
+        (await routed.atFloor()).preview.beneficiaryTokenCount !==
+          terminalBeneficiaryTokenCount
+      ) {
+        return fallback;
+      }
+      return {
+        metadata,
+        preview: routed.preview,
+        minReturnedTokens: slippageFloor(
+          routed.preview.beneficiaryTokenCount,
+          slippageBps,
+        ),
+      };
     });
   }
   if (!buyback || buyback.amountToSwapWith === 0n) return fallback;

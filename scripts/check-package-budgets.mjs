@@ -282,7 +282,7 @@ const budgets = {
     // release on a canonical revert change existing artifacts only:
     // 1,587,702 B packed, 22,966,884 B unpacked, 1,722 files.
     // The pay quote's retry and the router's quoted mint minimum change
-    // existing artifacts only: 1,590,486 B packed, 22,980,631 B unpacked,
+    // existing artifacts only: 1,591,162 B packed, 22,983,907 B unpacked,
     // 1,722 files.
     packed: 1_595_000,
     unpacked: 22_990_000,
@@ -324,7 +324,7 @@ const entryBudgets = [
   // The quoted pay's second preview: 10,276 B. Quoting a router's
   // conversion and previewing its destination (router reads, V3 quoter,
   // accounting contexts): 11,553 B. The quote's retry and the router's
-  // quoted mint minimum: 11,830 B.
+  // quoted mint minimum: 11,933 B.
   ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 12_000],
   ["@bananapus/nana-sdk-core/v6/fee-buyback", "feeBuybackOptions", 3_300],
   ["@bananapus/nana-sdk-core/v6", "effectiveTierPrice", 200],
