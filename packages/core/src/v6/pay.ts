@@ -467,11 +467,15 @@ export interface PreparedUserPay {
   minReturnedTokens: bigint;
   /**
    * True when a pool quote could not be read, even on a retry, so the minimum
-   * is only the mint-based fallback. Show the payer that the pool's rate is
-   * not protected.
+   * is only the mint-based fallback. Show the payer
+   * {@link PAY_QUOTE_FAILED_MESSAGE} and a way to quote again.
    */
   quoteFailed?: boolean;
 }
+
+/** What to tell the payer when {@link PreparedUserPay.quoteFailed} is set. */
+export const PAY_QUOTE_FAILED_MESSAGE =
+  "Couldn't read the pool's price, so this payment's minimum is only the mint rate.";
 
 const poolKeyOfAbi = [
   {
