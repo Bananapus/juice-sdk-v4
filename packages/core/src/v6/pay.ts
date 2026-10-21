@@ -504,18 +504,20 @@ const poolKeyOfAbi = [
 
 /**
  * The revert data on viem's error cause chain: `raw` for contract reads,
- * `data` for plain calls. The full revert decoder would weigh on every pay card.
+ * `data` on the RPC's execution-reverted error (code 3) for plain calls. Other
+ * errors' `data`, such as a decoder's, is not a revert. The full revert decoder
+ * would weigh on every pay card.
  */
 function revertDataOf(error: unknown): string | undefined {
   for (
     let e = error as
-      | { cause?: unknown; raw?: unknown; data?: unknown }
+      | { cause?: unknown; raw?: unknown; data?: unknown; code?: unknown }
       | undefined;
     e;
     e = e.cause as typeof e
   ) {
     if (typeof e.raw === "string") return e.raw;
-    if (typeof e.data === "string" && e.data.startsWith("0x")) return e.data;
+    if (e.code === 3 && typeof e.data === "string") return e.data;
   }
   return undefined;
 }
@@ -532,11 +534,10 @@ function rejectsMinimum(error: unknown): boolean {
  * dropped read, so retrying or warning the payer would not change it.
  */
 function poolCannotFill(error: unknown): boolean {
-  const data = revertDataOf(error);
-  return (
-    !!data &&
-    (data.startsWith("0x7a5ed734") ||
-      (data.startsWith("0x6190b2b0") && data.slice(138, 146) === "7a5ed734"))
+  // Selector, then the bytes' offset (0x20) and length (0x24: a selector and
+  // a pool ID), then NotEnoughLiquidity's selector.
+  return !!revertDataOf(error)?.startsWith(
+    `0x6190b2b0${"20".padStart(64, "0")}${"24".padStart(64, "0")}7a5ed734`,
   );
 }
 

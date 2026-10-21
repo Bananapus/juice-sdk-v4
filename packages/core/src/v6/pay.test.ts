@@ -1492,6 +1492,17 @@ describe("prepareUserPay", () => {
     expect(calls.filter((c) => c.data)).toHaveLength(1);
   });
 
+  test("warns when a quote fails with data that is not a revert", async () => {
+    // A decoder error carries the response as data, which may hold any bytes.
+    const { client } = mockClient({
+      spec: swapSpec({ rawSwapQuote: 900n, minimumSwapAmountOut: 600n }),
+      quote: Object.assign(new Error("Data size too small"), {
+        data: (cannotFill().cause as { data: Hex }).data,
+      }),
+    });
+    expect((await prepareUserPay(client, args)).quoteFailed).toBe(true);
+  });
+
   test("retries a quote whose read fails once", async () => {
     let reads = 0;
     const { client } = mockClient({
