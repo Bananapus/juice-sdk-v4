@@ -733,14 +733,11 @@ async function routerConversionOf(
 }
 
 /**
- * The buyback spec the destination returns when the router's conversion
- * returns what it is quoted to, and the router's floor. The hook's input is
- * the conversion less anything taken before it, such as an NFT split, and the
- * hook mints instead of swapping once minting that input reaches a fixed
- * minimum, so the minimum is set from this spec. Null when the route is not
- * one swap of the whole payment.
+ * The destination terminal's preview of a router payment whose conversion
+ * returns what it is quoted to, and the router's floor. Null when the route is
+ * not one swap of the whole payment.
  */
-async function routedBuybackSpecOf(
+async function quotedRoutePreviewOf(
   client: PublicClient,
   {
     chainId,
@@ -750,8 +747,6 @@ async function routedBuybackSpecOf(
     amount,
     beneficiary,
     metadata,
-    hook,
-    reservedPercent,
   }: {
     chainId: JBChainId;
     projectId: bigint;
@@ -760,10 +755,8 @@ async function routedBuybackSpecOf(
     amount: bigint;
     beneficiary: Address;
     metadata: Hex;
-    hook: Address;
-    reservedPercent: bigint;
   },
-): Promise<{ spec: BuybackPaySpec; floor: bigint } | null> {
+) {
   const conversion = await routerConversionOf(client, {
     chainId,
     tokenIn,
@@ -777,22 +770,53 @@ async function routedBuybackSpecOf(
     functionName: "primaryTerminalOf",
     args: [projectId, tokenOut],
   });
-  const [, , , specs] = await client.readContract({
-    address: v6Address("JBRouterTerminal", chainId),
-    abi: routerConversionAbi,
-    functionName: "previewTerminalPayOf",
-    args: [
-      destination,
-      projectId,
-      tokenOut,
-      conversion.expected,
-      beneficiary,
-      metadata,
-    ],
-  });
-  const raw = specs.find((s) => s.hook.toLowerCase() === hook.toLowerCase());
+  const [, beneficiaryTokenCount, reservedTokenCount, specs] =
+    await client.readContract({
+      address: v6Address("JBRouterTerminal", chainId),
+      abi: routerConversionAbi,
+      functionName: "previewTerminalPayOf",
+      args: [
+        destination,
+        projectId,
+        tokenOut,
+        conversion.expected,
+        beneficiary,
+        metadata,
+      ],
+    });
+  return {
+    preview: { beneficiaryTokenCount, reservedTokenCount },
+    specs,
+    floor: conversion.floor,
+  };
+}
+
+/**
+ * The buyback spec the destination returns when the router's conversion
+ * returns what it is quoted to, and the router's floor. The hook's input is
+ * the conversion less anything taken before it, such as an NFT split, and the
+ * hook mints instead of swapping once minting that input reaches a fixed
+ * minimum, so the minimum is set from this spec. Null when the route is not
+ * one swap of the whole payment.
+ */
+async function routedBuybackSpecOf(
+  client: PublicClient,
+  {
+    hook,
+    reservedPercent,
+    ...route
+  }: Parameters<typeof quotedRoutePreviewOf>[1] & {
+    hook: Address;
+    reservedPercent: bigint;
+  },
+): Promise<{ spec: BuybackPaySpec; floor: bigint } | null> {
+  const routed = await quotedRoutePreviewOf(client, route);
+  if (!routed) return null;
+  const raw = routed.specs.find(
+    (s) => s.hook.toLowerCase() === hook.toLowerCase(),
+  );
   const spec = raw && decodeBuybackPaySpec(raw, reservedPercent);
-  return spec ? { spec, floor: conversion.floor } : null;
+  return spec ? { spec, floor: routed.floor } : null;
 }
 
 /**
