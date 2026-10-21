@@ -475,7 +475,7 @@ export interface PreparedUserPay {
 
 /** What to tell the payer when {@link PreparedUserPay.quoteFailed} is set. */
 export const PAY_QUOTE_FAILED_MESSAGE =
-  "Couldn't read the pool's price, so this payment's minimum is only the mint rate.";
+  "Couldn't load the market price, so this payment's minimum may be lower than usual.";
 
 const poolKeyOfAbi = [
   {
