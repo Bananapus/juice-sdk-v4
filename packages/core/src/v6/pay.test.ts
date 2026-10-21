@@ -522,7 +522,16 @@ describe("prepareUserPay", () => {
     respond,
     poolKeyOf,
     contextTokens = [],
+    terminals = [v6Address("JBMultiTerminal", 8453)],
+    registryTerminal = v6Address("JBRouterTerminal", 8453),
+    gatewayRouter = v6Address("JBRouterTerminal", 8453),
   }: {
+    /** The project's terminals in the directory. */
+    terminals?: Address[];
+    /** The terminal the router registry holds for the project. */
+    registryTerminal?: Address;
+    /** The router behind the gateway. */
+    gatewayRouter?: Address;
     /** The hook's pool per terminal token; defaults to `poolKey` for any. */
     poolKeyOf?: (token: Address) => typeof poolKey;
     /** The tokens the project accepts on the multi-terminal. */
@@ -558,8 +567,6 @@ describe("prepareUserPay", () => {
       spec?: Hex;
       /** The destination's counts for the expected conversion. */
       counts?: readonly [bigint, bigint];
-      /** The destination's counts at the floor; defaults to `terminalCounts`. */
-      floorCounts?: readonly [bigint, bigint];
       /** The project whose token is paid in, if it is one. */
       sourceProjectId?: bigint;
     };
@@ -625,19 +632,18 @@ describe("prepareUserPay", () => {
           }));
         }
         if (functionName === "wrappedNativeToken") return weth;
+        if (functionName === "terminalsOf") return terminals;
+        if (functionName === "terminalOf") return registryTerminal;
+        if (functionName === "ROUTER") return gatewayRouter;
         if (functionName === "projectIdOf") {
           return conversion?.sourceProjectId ?? 0n;
         }
         if (functionName === "primaryTerminalOf") return destination;
         if (functionName === "previewTerminalPayOf") {
-          const counts =
-            (args as unknown[])[3] === conversion!.floor
-              ? (conversion!.floorCounts ?? terminalCounts)
-              : conversion!.counts;
           return [
             { ...ruleset, id: 9, metadata: rulesetMetadata },
-            counts?.[0] ?? 0n,
-            counts?.[1] ?? 0n,
+            conversion!.counts?.[0] ?? 0n,
+            conversion!.counts?.[1] ?? 0n,
             conversion!.spec
               ? [
                   {
@@ -1133,40 +1139,62 @@ describe("prepareUserPay", () => {
         },
       };
 
-      test("requires what minting the quoted conversion issues", async () => {
-        const { client, calls } = mockClient(minting);
-        const prepared = await prepareUserPay(client, routerArgs);
-        expect(prepared).toEqual({
-          metadata: buildUserPayMetadata({ chainId: 8453 }),
-          preview: { beneficiaryTokenCount: 800n, reservedTokenCount: 200n },
-          minReturnedTokens: 792n,
-        });
-        // At the floor, the destination's preview is the router's: it picked this route.
-        expect(reads(calls, ["previewTerminalPayOf"])).toEqual(
-          [800n, 640n].map((amount) => [
-            "previewTerminalPayOf",
+      test.each([
+        ["JBRouterTerminal", {}],
+        ["JBRouterTerminalRegistry", {}],
+        ["JBRouterTerminalGateway", {}],
+        [
+          "JBRouterTerminalRegistry",
+          { registryTerminal: v6Address("JBRouterTerminalGateway", 8453) },
+        ],
+      ] as const)(
+        "paid through %s, requires what minting the quoted conversion issues",
+        async (entry, path) => {
+          const { client, calls } = mockClient({ ...minting, ...path });
+          const prepared = await prepareUserPay(client, {
+            ...args,
+            terminal: v6Address(entry, 8453),
+          });
+          expect(prepared).toEqual({
+            metadata: buildUserPayMetadata({ chainId: 8453 }),
+            preview: { beneficiaryTokenCount: 800n, reservedTokenCount: 200n },
+            minReturnedTokens: 792n,
+          });
+          expect(reads(calls, ["previewTerminalPayOf"])).toEqual([
             [
-              destination,
-              projectId,
-              usdc,
-              amount,
-              beneficiary,
-              buildUserPayMetadata({ chainId: 8453 }),
+              "previewTerminalPayOf",
+              [
+                destination,
+                projectId,
+                usdc,
+                800n,
+                beneficiary,
+                buildUserPayMetadata({ chainId: 8453 }),
+              ],
             ],
-          ]),
-        );
-      });
+          ]);
+        },
+      );
 
-      test("keeps the router's floor when it picks another terminal's token", async () => {
-        // Another terminal's token previews 700 at its floor, beating USDC's 640.
-        const { client } = mockClient({
-          ...minting,
-          terminalCounts: [700n, 175n],
-          conversion: { ...minting.conversion, floorCounts: [640n, 160n] },
-        });
+      test.each([
+        [
+          "the project has another terminal, whose token the router may pick",
+          { terminals: [v6Address("JBMultiTerminal", 8453), v3Pool] },
+        ],
+        ["the registry holds another router", { registryTerminal: v3Pool }],
+        [
+          "the registry's gateway forwards to another router",
+          {
+            registryTerminal: v6Address("JBRouterTerminalGateway", 8453),
+            gatewayRouter: v3Pool,
+          },
+        ],
+      ])("keeps the router's floor when %s", async (_, path) => {
+        const { client, calls } = mockClient({ ...minting, ...path });
         const prepared = await prepareUserPay(client, routerArgs);
-        expect(prepared.minReturnedTokens).toBe(693n);
+        expect(prepared.minReturnedTokens).toBe(633n);
         expect(prepared.quoteFailed).toBeUndefined();
+        expect(calls.some((c) => c.data)).toBe(false);
       });
 
       test("keeps the floor without a warning when the router only wraps the native token", async () => {
@@ -1187,6 +1215,7 @@ describe("prepareUserPay", () => {
           chainId: 11155420,
         });
         expect(prepared.minReturnedTokens).toBe(633n);
+        expect(prepared.quoteFailed).toBeUndefined();
       });
 
       test("leaves another terminal's payment alone", async () => {
@@ -1194,7 +1223,7 @@ describe("prepareUserPay", () => {
         const prepared = await prepareUserPay(client, args);
         expect(prepared.minReturnedTokens).toBe(633n);
         expect(
-          calls.some((c) => c.functionName === "accountingContextsOf"),
+          calls.some((c) => c.functionName === "previewSwapAmountOutOf"),
         ).toBe(false);
       });
 

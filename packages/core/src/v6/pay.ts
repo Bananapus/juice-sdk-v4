@@ -610,6 +610,27 @@ const routerConversionAbi = [
   },
   {
     type: "function",
+    name: "terminalsOf",
+    stateMutability: "view",
+    inputs: [{ name: "projectId", type: "uint256" }],
+    outputs: [{ name: "", type: "address[]" }],
+  },
+  {
+    type: "function",
+    name: "terminalOf",
+    stateMutability: "view",
+    inputs: [{ name: "projectId", type: "uint256" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "ROUTER",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
     name: "wrappedNativeToken",
     stateMutability: "view",
     inputs: [],
@@ -668,6 +689,44 @@ const v3PoolFeeAbi = [
     outputs: [{ name: "", type: "uint24" }],
   },
 ] as const;
+
+/**
+ * The router a payment to `terminal` reaches: the router itself, the router
+ * behind the gateway, or the one the registry holds for the project (which
+ * may be a gateway). Null for any other terminal, or on a chain without the
+ * router.
+ */
+async function underlyingRouterOf(
+  client: PublicClient,
+  chainId: JBChainId,
+  projectId: bigint,
+  terminal: Address,
+): Promise<Address | null> {
+  let registry: Address, gateway: Address;
+  try {
+    registry = v6Address("JBRouterTerminalRegistry", chainId);
+    gateway = v6Address("JBRouterTerminalGateway", chainId);
+  } catch {
+    return null;
+  }
+  const is = (a: Address, b: Address) => a.toLowerCase() === b.toLowerCase();
+  let reached = is(terminal, registry)
+    ? await client.readContract({
+        address: registry,
+        abi: routerConversionAbi,
+        functionName: "terminalOf",
+        args: [projectId],
+      })
+    : terminal;
+  if (is(reached, gateway)) {
+    reached = await client.readContract({
+      address: gateway,
+      abi: routerConversionAbi,
+      functionName: "ROUTER",
+    });
+  }
+  return reached;
+}
 
 /**
  * What the router terminal's swap of the whole payment into `tokenOut` is
@@ -796,28 +855,24 @@ async function quotedRoutePreviewOf(
     functionName: "primaryTerminalOf",
     args: [projectId, tokenOut],
   });
-  const previewAt = async (converted: bigint) => {
-    const [, beneficiaryTokenCount, reservedTokenCount, specs] =
-      await client.readContract({
-        address: v6Address("JBRouterTerminal", chainId),
-        abi: routerConversionAbi,
-        functionName: "previewTerminalPayOf",
-        args: [
-          destination,
-          projectId,
-          tokenOut,
-          converted,
-          beneficiary,
-          metadata,
-        ],
-      });
-    return { preview: { beneficiaryTokenCount, reservedTokenCount }, specs };
-  };
+  const [, beneficiaryTokenCount, reservedTokenCount, specs] =
+    await client.readContract({
+      address: v6Address("JBRouterTerminal", chainId),
+      abi: routerConversionAbi,
+      functionName: "previewTerminalPayOf",
+      args: [
+        destination,
+        projectId,
+        tokenOut,
+        conversion.expected,
+        beneficiary,
+        metadata,
+      ],
+    });
   return {
-    ...(await previewAt(conversion.expected)),
+    preview: { beneficiaryTokenCount, reservedTokenCount },
+    specs,
     floor: conversion.floor,
-    /** The destination's preview at the router's floor. */
-    atFloor: () => previewAt(conversion.floor),
   };
 }
 
@@ -963,35 +1018,36 @@ export async function prepareUserPay(
   const isRouter =
     args.terminal.toLowerCase() !==
     v6Address("JBMultiTerminal", chainId).toLowerCase();
-  const isRouterEntry = (
-    [
-      "JBRouterTerminal",
-      "JBRouterTerminalRegistry",
-      "JBRouterTerminalGateway",
-    ] as const
-  ).some((name) => {
-    try {
-      return (
-        v6Address(name, chainId).toLowerCase() === args.terminal.toLowerCase()
-      );
-    } catch {
-      return false;
-    }
-  });
-  if (!buyback && isRouterEntry) {
+  if (!buyback && isRouter) {
     // The router previews minting on its conversion's floor, which sits up to
     // its sigmoid slippage below the pool's quote. Require what minting the
-    // quoted conversion issues, once the router's own preview shows it picked
-    // this route: it ranks every terminal's tokens by their floors.
-    // ponytail: the multi-terminal's one accepted token only; try each
-    // accepted token when multi-token projects need it.
+    // quoted conversion issues when the router has only that route: the
+    // project's one terminal is the multi-terminal, accepting one token, and
+    // the payment reaches the router these reads quote.
+    // ponytail: one accepted token only; multi-token projects need the
+    // router's route pick exposed.
     return withRetry(async () => {
-      const contexts = await getAccountingContexts(client, {
-        chainId,
-        projectId,
-      });
+      const [terminals, contexts, router] = await Promise.all([
+        client.readContract({
+          address: v6Address("JBDirectory", chainId),
+          abi: routerConversionAbi,
+          functionName: "terminalsOf",
+          args: [projectId],
+        }),
+        getAccountingContexts(client, { chainId, projectId }),
+        underlyingRouterOf(client, chainId, projectId, args.terminal),
+      ]);
       const tokenOut = contexts.length === 1 ? contexts[0].token : null;
-      if (!tokenOut || tokenOut.toLowerCase() === token.toLowerCase()) {
+      if (
+        !router ||
+        !tokenOut ||
+        tokenOut.toLowerCase() === token.toLowerCase() ||
+        terminals.length !== 1 ||
+        terminals[0].toLowerCase() !==
+          v6Address("JBMultiTerminal", chainId).toLowerCase() ||
+        router.toLowerCase() !==
+          v6Address("JBRouterTerminal", chainId).toLowerCase()
+      ) {
         return fallback;
       }
       const routed = await quotedRoutePreviewOf(client, {
@@ -1003,13 +1059,7 @@ export async function prepareUserPay(
         beneficiary: args.beneficiary,
         metadata,
       });
-      if (
-        !routed ||
-        (await routed.atFloor()).preview.beneficiaryTokenCount !==
-          terminalBeneficiaryTokenCount
-      ) {
-        return fallback;
-      }
+      if (!routed) return fallback;
       return {
         metadata,
         preview: routed.preview,
