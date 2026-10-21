@@ -15,24 +15,6 @@ import type { Address, Hex } from "viem";
 import { NATIVE_TOKEN } from "../constants.js";
 import { v6Address } from "./types.js";
 import { UNISWAP_V3_QUOTER_V2_ADDRESSES } from "./uniswapV3.js";
-
-/**
- * The V4 quoter's revert for a pool that cannot fill the amount, as viem
- * surfaces it: `UnexpectedRevertBytes(NotEnoughLiquidity(poolId))` on the RPC
- * error (captured from Base Sepolia project 1, 2026-10-21).
- */
-const cannotFill = () =>
-  new Error("Execution reverted", {
-    cause: new RpcRequestError({
-      body: {},
-      url: "",
-      error: {
-        code: 3,
-        message: "execution reverted",
-        data: "0x6190b2b0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000247a5ed734c27b63594c20a2d82447e4e79a37f8714f99ead096c0e37af6ff4ab22405a5f200000000000000000000000000000000000000000000000000000000",
-      },
-    }),
-  });
 import { hookMetadataId } from "../utils/hook.js";
 import { uniswapV4PoolId, type UniswapV4PoolKey } from "./uniswapV4.js";
 import { jbMultiTerminalAbi } from "../generated/juicebox.js";
@@ -45,6 +27,24 @@ import {
   prepareUserPay,
   previewPay,
 } from "./pay.js";
+
+/**
+ * The V4 quoter's revert for a pool that cannot fill the amount, as viem
+ * surfaces it: `UnexpectedRevertBytes(NotEnoughLiquidity(poolId))` on the RPC
+ * error (captured from Base Sepolia project 1, 2026-10-21).
+ */
+const cannotFill = () =>
+  Object.assign(new Error("Execution reverted"), {
+    cause: new RpcRequestError({
+      body: {},
+      url: "",
+      error: {
+        code: 3,
+        message: "execution reverted",
+        data: "0x6190b2b0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000247a5ed734c27b63594c20a2d82447e4e79a37f8714f99ead096c0e37af6ff4ab22405a5f200000000000000000000000000000000000000000000000000000000",
+      },
+    }),
+  });
 
 const chainId = 11155111;
 const terminal = "0x1111111111111111111111111111111111111111" as const;
