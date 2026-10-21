@@ -465,7 +465,17 @@ export interface PreparedUserPay {
   metadata: Hex;
   preview: PayPreview;
   minReturnedTokens: bigint;
+  /**
+   * True when a pool quote could not be read, even on a retry, so the minimum
+   * is only the mint-based fallback. Show the payer
+   * {@link PAY_QUOTE_FAILED_MESSAGE} and a way to quote again.
+   */
+  quoteFailed?: boolean;
 }
+
+/** What to tell the payer when {@link PreparedUserPay.quoteFailed} is set. */
+export const PAY_QUOTE_FAILED_MESSAGE =
+  "Couldn't read the pool's price, so this payment's minimum is only the mint rate.";
 
 const poolKeyOfAbi = [
   {
@@ -491,6 +501,24 @@ const poolKeyOfAbi = [
     ],
   },
 ] as const;
+
+/**
+ * Whether a preview reverted with the buyback hook's
+ * `JBBuybackHook_SpecifiedSlippageExceeded`, which viem keeps as `raw` on the
+ * error's cause chain. The full revert decoder would weigh on every pay card.
+ */
+function rejectsMinimum(error: unknown): boolean {
+  for (
+    let e = error as { cause?: unknown; raw?: unknown } | undefined;
+    e;
+    e = e.cause as typeof e
+  ) {
+    if (typeof e.raw === "string" && e.raw.startsWith("0xe2d708a9")) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /** `prepareUserPay`'s tolerance on its quote and fallback minimum: 1%. */
 export const PAY_DEFAULT_SLIPPAGE_BPS = 100n;
@@ -586,6 +614,27 @@ const routerConversionAbi = [
   },
   {
     type: "function",
+    name: "terminalsOf",
+    stateMutability: "view",
+    inputs: [{ name: "projectId", type: "uint256" }],
+    outputs: [{ name: "", type: "address[]" }],
+  },
+  {
+    type: "function",
+    name: "terminalOf",
+    stateMutability: "view",
+    inputs: [{ name: "projectId", type: "uint256" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "ROUTER",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
     name: "wrappedNativeToken",
     stateMutability: "view",
     inputs: [],
@@ -646,6 +695,48 @@ const v3PoolFeeAbi = [
 ] as const;
 
 /**
+ * Whether a payment to `terminal` reaches the current router: directly,
+ * through the gateway, or through the registry's terminal for the project
+ * (which may be the gateway). The conversion reads quote that router.
+ */
+async function reachesRouter(
+  client: PublicClient,
+  chainId: JBChainId,
+  projectId: bigint,
+  terminal: Address,
+): Promise<boolean> {
+  const addressOf = (name: Parameters<typeof v6Address>[0]) => {
+    try {
+      return v6Address(name, chainId).toLowerCase();
+    } catch {
+      return null;
+    }
+  };
+  let reached = terminal.toLowerCase();
+  if (reached === addressOf("JBRouterTerminalRegistry")) {
+    reached = (
+      await client.readContract({
+        address: terminal,
+        abi: routerConversionAbi,
+        functionName: "terminalOf",
+        args: [projectId],
+      })
+    ).toLowerCase();
+  }
+  if (reached === addressOf("JBRouterTerminalGateway")) {
+    reached = (
+      await client.readContract({
+        address: reached as Address,
+        abi: routerConversionAbi,
+        functionName: "ROUTER",
+      })
+    ).toLowerCase();
+  }
+  const router = addressOf("JBRouterTerminal");
+  return router !== null && reached === router;
+}
+
+/**
  * What the router terminal's swap of the whole payment into `tokenOut` is
  * quoted to return (fee and price impact included), and the floor it reverts
  * below, from the pool the router picks. Null when the route is not that one
@@ -685,6 +776,8 @@ async function routerConversionOf(
     t.toLowerCase() === NATIVE_TOKEN.toLowerCase() ||
     t.toLowerCase() === zeroAddress;
   const wrap = (t: Address) => (isNative(t) ? wrapped : t);
+  // The router wraps or unwraps the native token 1:1, without a pool.
+  if (wrap(tokenIn).toLowerCase() === wrap(tokenOut).toLowerCase()) return null;
   const [floor, pool] = await Promise.all([
     client.readContract({
       address: router,
@@ -733,14 +826,11 @@ async function routerConversionOf(
 }
 
 /**
- * The buyback spec the destination returns when the router's conversion
- * returns what it is quoted to, and the router's floor. The hook's input is
- * the conversion less anything taken before it, such as an NFT split, and the
- * hook mints instead of swapping once minting that input reaches a fixed
- * minimum, so the minimum is set from this spec. Null when the route is not
- * one swap of the whole payment.
+ * The destination terminal's preview of a router payment whose conversion
+ * returns what it is quoted to, and the router's floor. Null when the route is
+ * not one swap of the whole payment.
  */
-async function routedBuybackSpecOf(
+async function quotedRoutePreviewOf(
   client: PublicClient,
   {
     chainId,
@@ -750,8 +840,6 @@ async function routedBuybackSpecOf(
     amount,
     beneficiary,
     metadata,
-    hook,
-    reservedPercent,
   }: {
     chainId: JBChainId;
     projectId: bigint;
@@ -760,10 +848,8 @@ async function routedBuybackSpecOf(
     amount: bigint;
     beneficiary: Address;
     metadata: Hex;
-    hook: Address;
-    reservedPercent: bigint;
   },
-): Promise<{ spec: BuybackPaySpec; floor: bigint } | null> {
+) {
   const conversion = await routerConversionOf(client, {
     chainId,
     tokenIn,
@@ -777,22 +863,53 @@ async function routedBuybackSpecOf(
     functionName: "primaryTerminalOf",
     args: [projectId, tokenOut],
   });
-  const [, , , specs] = await client.readContract({
-    address: v6Address("JBRouterTerminal", chainId),
-    abi: routerConversionAbi,
-    functionName: "previewTerminalPayOf",
-    args: [
-      destination,
-      projectId,
-      tokenOut,
-      conversion.expected,
-      beneficiary,
-      metadata,
-    ],
-  });
-  const raw = specs.find((s) => s.hook.toLowerCase() === hook.toLowerCase());
+  const [, beneficiaryTokenCount, reservedTokenCount, specs] =
+    await client.readContract({
+      address: v6Address("JBRouterTerminal", chainId),
+      abi: routerConversionAbi,
+      functionName: "previewTerminalPayOf",
+      args: [
+        destination,
+        projectId,
+        tokenOut,
+        conversion.expected,
+        beneficiary,
+        metadata,
+      ],
+    });
+  return {
+    preview: { beneficiaryTokenCount, reservedTokenCount },
+    specs,
+    floor: conversion.floor,
+  };
+}
+
+/**
+ * The buyback spec the destination returns when the router's conversion
+ * returns what it is quoted to, and the router's floor. The hook's input is
+ * the conversion less anything taken before it, such as an NFT split, and the
+ * hook mints instead of swapping once minting that input reaches a fixed
+ * minimum, so the minimum is set from this spec. Null when the route is not
+ * one swap of the whole payment.
+ */
+async function routedBuybackSpecOf(
+  client: PublicClient,
+  {
+    hook,
+    reservedPercent,
+    ...route
+  }: Parameters<typeof quotedRoutePreviewOf>[1] & {
+    hook: Address;
+    reservedPercent: bigint;
+  },
+): Promise<{ spec: BuybackPaySpec; floor: bigint } | null> {
+  const routed = await quotedRoutePreviewOf(client, route);
+  if (!routed) return null;
+  const raw = routed.specs.find(
+    (s) => s.hook.toLowerCase() === hook.toLowerCase(),
+  );
   const spec = raw && decodeBuybackPaySpec(raw, reservedPercent);
-  return spec ? { spec, floor: conversion.floor } : null;
+  return spec ? { spec, floor: routed.floor } : null;
 }
 
 /**
@@ -822,11 +939,15 @@ async function routedBuybackSpecOf(
  * that gain. The payer still receives at least the minimum, and no fixed
  * minimum avoids this when the pool's edge is inside the conversion's
  * uncertainty. Other routes, such as cashing a project token out first, keep
- * the fallback.
+ * the fallback. When the project has no buyback hook and accepts one token,
+ * the minimum is what minting the quoted conversion issues, instead of the
+ * router's floor.
  *
  * Otherwise (no pool, or a failed quote) the minimum is the payer's mint
  * entitlement when the hook would swap, since the hook never settles below it,
- * and the terminal's own issuance when it would not. If the payment then
+ * and the terminal's own issuance when it would not. A quote whose reads fail
+ * twice returns `quoteFailed`, so the app can say the pool's rate is not
+ * protected. If the payment then
  * reverts, {@link decodePayFailure} says why. To let the payer accept less,
  * prepare again with a larger `slippageBps`: the hook's minimum is in the
  * metadata, so lowering `minReturnedTokens` alone does not relax it.
@@ -887,9 +1008,76 @@ export async function prepareUserPay(
       slippageBps,
     ),
   };
+  // A failed read is retried once: a dropped request must not silently weaken
+  // the minimum.
+  const withRetry = async (
+    prepare: () => Promise<PreparedUserPay>,
+  ): Promise<PreparedUserPay> => {
+    try {
+      return await prepare();
+    } catch {
+      try {
+        return await prepare();
+      } catch {
+        return { ...fallback, quoteFailed: true };
+      }
+    }
+  };
+  const isRouter =
+    args.terminal.toLowerCase() !==
+    v6Address("JBMultiTerminal", chainId).toLowerCase();
+  if (!buyback && isRouter) {
+    // The router previews minting on its conversion's floor, which sits up to
+    // its sigmoid slippage below the pool's quote. Require what minting the
+    // quoted conversion issues when the router has only that route: the
+    // project's one terminal is the multi-terminal, accepting one token, and
+    // the payment reaches the router these reads quote.
+    // ponytail: one accepted token only; multi-token projects need the
+    // router's route pick exposed.
+    return withRetry(async () => {
+      const [terminals, contexts, viaRouter] = await Promise.all([
+        client.readContract({
+          address: v6Address("JBDirectory", chainId),
+          abi: routerConversionAbi,
+          functionName: "terminalsOf",
+          args: [projectId],
+        }),
+        getAccountingContexts(client, { chainId, projectId }),
+        reachesRouter(client, chainId, projectId, args.terminal),
+      ]);
+      const tokenOut = contexts.length === 1 ? contexts[0].token : null;
+      if (
+        !viaRouter ||
+        !tokenOut ||
+        terminals.length !== 1 ||
+        terminals[0].toLowerCase() !==
+          v6Address("JBMultiTerminal", chainId).toLowerCase()
+      ) {
+        return fallback;
+      }
+      const routed = await quotedRoutePreviewOf(client, {
+        chainId,
+        projectId,
+        tokenIn: token,
+        tokenOut,
+        amount: args.amount,
+        beneficiary: args.beneficiary,
+        metadata,
+      });
+      if (!routed) return fallback;
+      return {
+        metadata,
+        preview: routed.preview,
+        minReturnedTokens: slippageFloor(
+          routed.preview.beneficiaryTokenCount,
+          slippageBps,
+        ),
+      };
+    });
+  }
   if (!buyback || buyback.amountToSwapWith === 0n) return fallback;
 
-  try {
+  return withRetry(async () => {
     const pool = await buybackPoolOf(client, {
       chainId,
       hook: buyback.hook,
@@ -944,13 +1132,20 @@ export async function prepareUserPay(
     });
     // The hook rejects a minimum it cannot route, such as on a pool with no
     // liquidity in range, and then the payment stays on the mint path.
-    const [, quotedBeneficiaryCount, quotedReservedCount, quotedSpecs] =
-      await client.readContract({
+    let quotedPreview;
+    try {
+      quotedPreview = await client.readContract({
         address: args.terminal,
         abi: jbMultiTerminalAbi,
         functionName: "previewPayFor",
         args: [projectId, token, args.amount, args.beneficiary, quotedMetadata],
       });
+    } catch (error) {
+      if (rejectsMinimum(error)) return fallback;
+      throw error;
+    }
+    const [, quotedBeneficiaryCount, quotedReservedCount, quotedSpecs] =
+      quotedPreview;
     // It must still swap, and in the quoted pool: a router may pick another route.
     const quotedSpec = quotedSpecs.find(
       (s) => s.hook.toLowerCase() === buyback.hook.toLowerCase(),
@@ -965,14 +1160,12 @@ export async function prepareUserPay(
     }
     // A router folds the hook's estimate into its counts, so only the
     // multi-terminal's own counts are known to be its issuance.
-    const issuedByTerminal: PayPreview =
-      args.terminal.toLowerCase() ===
-      v6Address("JBMultiTerminal", chainId).toLowerCase()
-        ? {
-            beneficiaryTokenCount: quotedBeneficiaryCount,
-            reservedTokenCount: quotedReservedCount,
-          }
-        : { beneficiaryTokenCount: 0n, reservedTokenCount: 0n };
+    const issuedByTerminal: PayPreview = isRouter
+      ? { beneficiaryTokenCount: 0n, reservedTokenCount: 0n }
+      : {
+          beneficiaryTokenCount: quotedBeneficiaryCount,
+          reservedTokenCount: quotedReservedCount,
+        };
     const directMint = directMintOf(swap, weight);
     // The swapped tokens skip the split, or are reminted through it with the
     // direct mint. The terminal's own issuance, such as for NFT splits, adds.
@@ -994,9 +1187,7 @@ export async function prepareUserPay(
       preview: settle(quote),
       minReturnedTokens: settle(minimumSwapAmountOut).beneficiaryTokenCount,
     };
-  } catch {
-    return fallback;
-  }
+  });
 }
 
 /**

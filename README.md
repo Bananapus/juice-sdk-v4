@@ -1593,27 +1593,39 @@ import { createPublicClient, createWalletClient, http } from "viem";
 import { sepolia } from "viem/chains";
 import {
   resolvePaymentTerminal,
+  prepareUserPay,
   buildPayTx,
+  PAY_QUOTE_FAILED_MESSAGE,
 } from "@bananapus/nana-sdk-core/v6";
 
 const client = createPublicClient({ chain: sepolia, transport: http() });
 const wallet = createWalletClient({ chain: sepolia, transport: http() });
 
-const { address: terminal } = await resolvePaymentTerminal(client, {
+const pay = {
   chainId: sepolia.id,
-  projectId: 4n,
-  token: "0x000000000000000000000000000000000000EEEe",
-});
-const request = buildPayTx({
-  chainId: sepolia.id,
-  terminal,
   projectId: 4n,
   token: "0x000000000000000000000000000000000000EEEe",
   amount: 10n ** 18n,
   beneficiary: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+} as const;
+const { address: terminal } = await resolvePaymentTerminal(client, pay);
+// The metadata (the buyback hook's pool-or-mint choice), the preview, and the
+// minimum the terminal enforces, quoted from the pool with 1% slippage.
+const prepared = await prepareUserPay(client, { ...pay, terminal });
+if (prepared.quoteFailed) console.warn(PAY_QUOTE_FAILED_MESSAGE);
+const request = buildPayTx({
+  ...pay,
+  terminal,
+  minReturnedTokens: prepared.minReturnedTokens,
+  metadata: prepared.metadata,
 });
 await wallet.writeContract({ account: "0xYourAccount", ...request });
 ```
+
+Send payments with `prepareUserPay`'s metadata and minimum. `buildPayTx`
+defaults to a zero minimum and empty metadata, which lets the buyback hook
+route by its TWAP floor and a router by its slippage floor, and leaves the
+payment open to sandwiching.
 
 Use `resolveRouterPath` to display a project's registry-selected router path. It
 reads `terminalOf(projectId)`, respecting pinned terminals and cohort defaults,

@@ -1,4 +1,6 @@
 import {
+  ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
   PublicClient,
   decodeAbiParameters,
   decodeFunctionData,
@@ -520,7 +522,19 @@ describe("prepareUserPay", () => {
     respond,
     poolKeyOf,
     contextTokens = [],
+    terminals = [v6Address("JBMultiTerminal", 8453)],
+    registryTerminal = v6Address("JBRouterTerminal", 8453),
+    gatewayRouter = v6Address("JBRouterTerminal", 8453),
+    primaryTerminal = destination as Address,
   }: {
+    /** The directory's primary terminal for the converted token. */
+    primaryTerminal?: Address;
+    /** The project's terminals in the directory. */
+    terminals?: Address[];
+    /** The terminal the router registry holds for the project. */
+    registryTerminal?: Address;
+    /** The router behind the gateway. */
+    gatewayRouter?: Address;
     /** The hook's pool per terminal token; defaults to `poolKey` for any. */
     poolKeyOf?: (token: Address) => typeof poolKey;
     /** The tokens the project accepts on the multi-terminal. */
@@ -553,7 +567,9 @@ describe("prepareUserPay", () => {
       expected: bigint;
       v4Key?: UniswapV4PoolKey;
       /** The spec the destination returns for the expected conversion. */
-      spec: Hex;
+      spec?: Hex;
+      /** The destination's counts for the expected conversion. */
+      counts?: readonly [bigint, bigint];
       /** The project whose token is paid in, if it is one. */
       sourceProjectId?: bigint;
     };
@@ -619,23 +635,28 @@ describe("prepareUserPay", () => {
           }));
         }
         if (functionName === "wrappedNativeToken") return weth;
+        if (functionName === "terminalsOf") return terminals;
+        if (functionName === "terminalOf") return registryTerminal;
+        if (functionName === "ROUTER") return gatewayRouter;
         if (functionName === "projectIdOf") {
           return conversion?.sourceProjectId ?? 0n;
         }
-        if (functionName === "primaryTerminalOf") return destination;
+        if (functionName === "primaryTerminalOf") return primaryTerminal;
         if (functionName === "previewTerminalPayOf") {
           return [
             { ...ruleset, id: 9, metadata: rulesetMetadata },
-            0n,
-            0n,
-            [
-              {
-                hook: specHook,
-                noop: true,
-                amount: 0n,
-                metadata: conversion!.spec,
-              },
-            ],
+            conversion!.counts?.[0] ?? 0n,
+            conversion!.counts?.[1] ?? 0n,
+            conversion!.spec
+              ? [
+                  {
+                    hook: specHook,
+                    noop: true,
+                    amount: 0n,
+                    metadata: conversion!.spec,
+                  },
+                ]
+              : [],
           ];
         }
         if (functionName === "previewSwapAmountOutOf") {
@@ -760,13 +781,40 @@ describe("prepareUserPay", () => {
       respond: (metadata) =>
         explicitMinimumOf(metadata) === 0n
           ? {}
-          : { spec: new Error("JBBuybackHook_SpecifiedSlippageExceeded") },
+          : {
+              spec: new ContractFunctionExecutionError(
+                new ContractFunctionRevertedError({
+                  abi: [],
+                  functionName: "previewPayFor",
+                  data: `0xe2d708a9${encodeAbiParameters(
+                    [{ type: "uint256" }, { type: "uint256" }],
+                    [9_000n, 9_900n],
+                  ).slice(2)}`,
+                }),
+                { abi: [], functionName: "previewPayFor" },
+              ),
+            },
     });
     expect(await prepareUserPay(client, args)).toEqual({
       metadata: buildUserPayMetadata({ chainId: 8453 }),
       preview: { beneficiaryTokenCount: 40n, reservedTokenCount: 10n },
       minReturnedTokens: 39n,
     });
+  });
+
+  test("says so when the quoted preview fails for another reason", async () => {
+    const { client } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      terminalCounts: [40n, 10n],
+      respond: (metadata) =>
+        explicitMinimumOf(metadata) === 0n
+          ? {}
+          : { spec: new Error("request timed out") },
+    });
+    const prepared = await prepareUserPay(client, args);
+    expect(prepared.minReturnedTokens).toBe(39n);
+    expect(prepared.quoteFailed).toBe(true);
   });
 
   test("keeps the mint path when the quoted preview does not swap", async () => {
@@ -1082,6 +1130,142 @@ describe("prepareUserPay", () => {
       expect(prepared.minReturnedTokens).toBe(9_900n);
     });
 
+    describe("without a buyback hook", () => {
+      // The router previews minting its 640 floor; the swap is quoted to return 800.
+      const minting = {
+        terminalCounts: [640n, 160n] as const,
+        contextTokens: [usdc as Address],
+        primaryTerminal: v6Address("JBMultiTerminal", 8453),
+        conversion: {
+          floor: 640n,
+          expected: 800n,
+          counts: [800n, 200n] as const,
+        },
+      };
+
+      test.each([
+        ["JBRouterTerminal", {}],
+        ["JBRouterTerminalRegistry", {}],
+        ["JBRouterTerminalGateway", {}],
+        [
+          "JBRouterTerminalRegistry",
+          { registryTerminal: v6Address("JBRouterTerminalGateway", 8453) },
+        ],
+      ] as const)(
+        "paid through %s, requires what minting the quoted conversion issues",
+        async (entry, path) => {
+          const { client, calls } = mockClient({ ...minting, ...path });
+          const prepared = await prepareUserPay(client, {
+            ...args,
+            terminal: v6Address(entry, 8453),
+          });
+          expect(prepared).toEqual({
+            metadata: buildUserPayMetadata({ chainId: 8453 }),
+            preview: { beneficiaryTokenCount: 800n, reservedTokenCount: 200n },
+            minReturnedTokens: 792n,
+          });
+          expect(reads(calls, ["previewTerminalPayOf"])).toEqual([
+            [
+              "previewTerminalPayOf",
+              [
+                v6Address("JBMultiTerminal", 8453),
+                projectId,
+                usdc,
+                800n,
+                beneficiary,
+                buildUserPayMetadata({ chainId: 8453 }),
+              ],
+            ],
+          ]);
+        },
+      );
+
+      test.each([
+        [
+          "the project has another terminal, whose token the router may pick",
+          { terminals: [v6Address("JBMultiTerminal", 8453), v3Pool] },
+        ],
+        [
+          "the project's one terminal is another, whose tokens the router picks from",
+          { terminals: [v3Pool] },
+        ],
+        ["the registry holds another router", { registryTerminal: v3Pool }],
+        [
+          "the registry's gateway forwards to another router",
+          {
+            registryTerminal: v6Address("JBRouterTerminalGateway", 8453),
+            gatewayRouter: v3Pool,
+          },
+        ],
+      ])("keeps the router's floor when %s", async (_, path) => {
+        const { client, calls } = mockClient({ ...minting, ...path });
+        const prepared = await prepareUserPay(client, routerArgs);
+        expect(prepared.minReturnedTokens).toBe(633n);
+        expect(prepared.quoteFailed).toBeUndefined();
+        expect(calls.some((c) => c.data)).toBe(false);
+      });
+
+      test("keeps the floor without a warning when the router only wraps the native token", async () => {
+        const { client, calls } = mockClient({
+          ...minting,
+          contextTokens: [weth],
+        });
+        const prepared = await prepareUserPay(client, routerArgs);
+        expect(prepared.minReturnedTokens).toBe(633n);
+        expect(prepared.quoteFailed).toBeUndefined();
+        expect(calls.some((c) => c.data)).toBe(false);
+      });
+
+      test("keeps the floor on a chain without a router", async () => {
+        const { client } = mockClient(minting);
+        const prepared = await prepareUserPay(client, {
+          ...args,
+          chainId: 11155420,
+        });
+        expect(prepared.minReturnedTokens).toBe(633n);
+        expect(prepared.quoteFailed).toBeUndefined();
+      });
+
+      test("leaves another terminal's payment alone", async () => {
+        const { client, calls } = mockClient(minting);
+        const prepared = await prepareUserPay(client, args);
+        expect(prepared.minReturnedTokens).toBe(633n);
+        expect(
+          calls.some((c) => c.functionName === "previewSwapAmountOutOf"),
+        ).toBe(false);
+      });
+
+      test.each([
+        ["the project accepts more than one token", [usdc, weth]],
+        ["the project accepts the paid token", [NATIVE_TOKEN]],
+      ])("keeps the router's floor when %s", async (_, contextTokens) => {
+        const { client } = mockClient({
+          ...minting,
+          contextTokens: contextTokens as Address[],
+        });
+        const prepared = await prepareUserPay(client, routerArgs);
+        expect(prepared.minReturnedTokens).toBe(633n);
+        expect(prepared.quoteFailed).toBeUndefined();
+      });
+
+      test("keeps the router's floor for a project token, which the router cashes out first", async () => {
+        const { client } = mockClient({
+          ...minting,
+          conversion: { ...minting.conversion, sourceProjectId: 5n },
+        });
+        expect(
+          (await prepareUserPay(client, routerArgs)).minReturnedTokens,
+        ).toBe(633n);
+      });
+
+      test("says so when the conversion cannot be quoted", async () => {
+        const { client } = mockClient({ ...minting, conversion: undefined });
+        const prepared = await prepareUserPay(client, routerArgs);
+        expect(prepared.minReturnedTokens).toBe(633n);
+        expect(prepared.quoteFailed).toBe(true);
+      });
+    });
+
     test("falls back for a project token, which the router cashes out first", async () => {
       const { client, calls } = mockClient({
         ...routed,
@@ -1253,6 +1437,22 @@ describe("prepareUserPay", () => {
     const prepared = await prepareUserPay(client, args);
     expect(prepared.preview.beneficiaryTokenCount).toBe(900n);
     expect(prepared.minReturnedTokens).toBe(47n);
+    expect(prepared.quoteFailed).toBe(true);
+  });
+
+  test("retries a quote whose read fails once", async () => {
+    let reads = 0;
+    const { client } = mockClient({
+      spec: swapSpec(),
+      noop: true,
+      quote: () => {
+        if (reads++ === 0) throw new Error("request timed out");
+        return 10_000n;
+      },
+    });
+    const prepared = await prepareUserPay(client, args);
+    expect(prepared.minReturnedTokens).toBe(9_900n);
+    expect(prepared.quoteFailed).toBeUndefined();
   });
 
   test("quotes hook 1.1.1 too: it ignores skipSplits, so the quote is reminted through the split", async () => {
