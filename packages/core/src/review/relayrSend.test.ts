@@ -5,6 +5,7 @@ import {
   toFunctionSelector,
   type Address,
   type Hex,
+  type PublicClient,
 } from "viem";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -42,6 +43,7 @@ import {
 } from "./relayrSend.js";
 import { TransactionReviewCancelledError } from "./reviewQueue.js";
 import type { SafeRelayrSession } from "./safeRelayr.js";
+import { openStepHold } from "./send.js";
 import { selfReviewingAdapter } from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
 
@@ -473,22 +475,39 @@ describe("runRelayrReviewed", () => {
         }),
     );
     const action = { account: ACCOUNT, scope: "launch:3" };
-    const first = runRelayrReviewed(
-      [CALL],
-      { ...action, paymentChainId: 10 },
-      deps,
+    const outcome = (run: Promise<unknown>) =>
+      run.then(
+        () => "paid",
+        (error: unknown) =>
+          error instanceof WriteHeldError ? "held" : (error as Error).message,
+      );
+    const first = outcome(
+      runRelayrReviewed([CALL], { ...action, paymentChainId: 10 }, deps),
     );
-    const second = runRelayrReviewed(
-      [CALL],
-      { ...action, paymentChainId: 8453 },
-      deps,
+    // Another window's wallet, with its own network.
+    let baseChain = 8453;
+    const base = {
+      ...deps,
+      adapter: {
+        ...deps.adapter,
+        chainId: () => baseChain,
+        switchChain: async (chainId: number) => {
+          baseChain = chainId;
+        },
+      },
+    };
+    const second = outcome(
+      runRelayrReviewed([CALL], { ...action, paymentChainId: 8453 }, base),
     );
     await vi.waitFor(() =>
       expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1),
     );
     fail(new Error("timeout"));
-    await expect(first).rejects.toThrow("timeout");
-    await expect(second).rejects.toBeInstanceOf(WriteHeldError);
+    // Whichever reserved first reached the wallet; the other was held.
+    expect((await Promise.all([first, second])).sort()).toEqual([
+      "held",
+      "timeout",
+    ]);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
 
@@ -662,6 +681,46 @@ describe("payRelayrReviewed", () => {
       payRelayrReviewed(quote, 8453, { account: ACCOUNT }, deps),
     ).rejects.toBeInstanceOf(WriteHeldError);
     expect(prompts).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("never pays a bundle again once a payment of it succeeded", async () => {
+    const { deps, chain } = relayrSetup();
+    const prompts = reviewUi();
+    const quote = quoteFor();
+    quote.payment_info.push({ ...quote.payment_info[0], chain: 8453 });
+    await payRelayrReviewed(quote, 10, { account: ACCOUNT }, deps);
+    // Recovery reads the hold, which settles the proven payment.
+    const state = await openStepHold(deps.hold, ACCOUNT, false, {
+      chainId: 10,
+      to: RELAYR_PAYMENT_ADDRESS,
+      data: "0x",
+      intent: `relayr:${UUIDS[0]}`,
+    }).state(chain.client as unknown as PublicClient);
+    expect(state.status === "clear" && state.settled?.result).toBe("success");
+    await expect(
+      payRelayrReviewed(quote, 8453, { account: ACCOUNT }, deps),
+    ).rejects.toThrow("already paid");
+    expect(prompts).toHaveLength(1);
+  });
+
+  it("does not hold other chains' payments while one wallet stalls before reserving", async () => {
+    const { deps, wallet } = relayrSetup();
+    reviewUi();
+    const quote = quoteFor();
+    quote.payment_info.push({ ...quote.payment_info[0], chain: 8453 });
+    const stalled = {
+      ...deps,
+      adapter: {
+        ...deps.adapter,
+        chainId: () => 10,
+        switchChain: () => new Promise<void>(() => {}),
+      },
+    };
+    void payRelayrReviewed(quote, 8453, { account: ACCOUNT }, stalled).catch(
+      () => undefined,
+    );
+    await payRelayrReviewed(quote, 10, { account: ACCOUNT }, deps);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
 

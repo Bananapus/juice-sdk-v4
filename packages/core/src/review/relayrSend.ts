@@ -325,23 +325,34 @@ async function postBundle(
 }
 
 /**
- * Refuses while a payment held under `intent` on any of `chainIds` may still
- * land: the hold's key names its chain, and another chain could pay too.
+ * A namespace a payment is held under, on every chain that could fund it:
+ * the hold's key names its chain, and another chain could pay too.
+ * `paidOnce`: a payment that succeeded under it ends it (a bundle is paid
+ * once).
  */
+type PaymentIntent = {
+  key: string;
+  funding: readonly number[];
+  paidOnce?: boolean;
+};
+
+/** Refuses while a payment held under `intent` may still land, or, for `paidOnce`, once one succeeded. */
 function requireIntentClear(
   deps: ReviewedSendDeps,
   account: Address,
-  intent: string,
-  chainIds: readonly number[],
+  intent: PaymentIntent,
 ): void {
-  for (const chainId of chainIds) {
+  for (const chainId of intent.funding) {
     const state = openStepHold(deps.hold, account, false, {
       chainId,
       to: RELAYR_PAYMENT_ADDRESS,
       data: "0x",
-      intent,
+      intent: intent.key,
     }).peek();
     if (state.status !== "clear") throw new WriteHeldError(state);
+    if (intent.paidOnce && state.settled?.result === "success") {
+      throw new Error("This Relayr quote is already paid. Do not pay again.");
+    }
   }
 }
 
@@ -558,7 +569,7 @@ async function sendPayment(
      * refused while one held under it on any of `funding` may still land.
      * The check and the reservation run under one lock across tabs.
      */
-    intent?: { key: string; funding: readonly number[] };
+    intent?: PaymentIntent;
     /** Async rechecks after the review, before the simulation. */
     recheck?: () => Promise<void>;
     /** Runs after the hold reserves, right before the wallet opens. */
@@ -607,7 +618,19 @@ async function sendPayment(
           return details;
         },
         beforeWrite: async () => {
-          await gate.beforeSend();
+          const { intent } = hooks;
+          // Only the check and the reservation are under the lock: never a
+          // chain switch, simulation or wallet that might not answer.
+          await (intent
+            ? browserLocks().request(
+                `nana-sdk:relayr-payment:${account.toLowerCase()}:${intent.key}`,
+                { mode: "exclusive" },
+                async () => {
+                  requireIntentClear(deps, account, intent);
+                  await gate.beforeSend();
+                },
+              )
+            : gate.beforeSend());
           try {
             await hooks.onSending?.();
           } catch (error) {
@@ -667,21 +690,10 @@ async function sendPayment(
       }),
     );
   };
-  const { intent } = hooks;
-  const send = (): Promise<Hex> =>
-    intent
-      ? (browserLocks().request(
-          `nana-sdk:relayr-payment:${account.toLowerCase()}:${intent.key}`,
-          { mode: "exclusive" },
-          async () => {
-            requireIntentClear(deps, account, intent.key, intent.funding);
-            return attempt();
-          },
-        ) as unknown as Promise<Hex>)
-      : attempt();
   let hash: Hex;
   try {
-    hash = await send();
+    if (hooks.intent) requireIntentClear(deps, account, hooks.intent);
+    hash = await attempt();
   } catch (error) {
     // Saved as sending, refused by a final gate, never given to the wallet.
     if (saved && !invoked && !(error instanceof RelayrPaymentNotSentError)) {
@@ -761,8 +773,9 @@ export async function payRelayrReviewed(
     funding: relayrPaymentChains(
       quote.expectedTransactions.map((binding) => binding.chain),
     ),
+    paidOnce: true,
   };
-  requireIntentClear(deps, account, intent.key, intent.funding);
+  requireIntentClear(deps, account, intent);
   await reviewPayment(details, account, action);
   return { hash: await sendPayment(details, account, deps, { intent }) };
 }
@@ -809,7 +822,7 @@ export async function runRelayrReviewed(
   }
   const intent = action.scope ? { key: action.scope, funding } : undefined;
   // An earlier payment of this action may still land: nothing is asked.
-  if (intent) requireIntentClear(deps, account, intent.key, funding);
+  if (intent) requireIntentClear(deps, account, intent);
   let cap = await relayrFeeCap(calls, account, paymentChainId, clientFor);
   const prepared = [
     ...requests.map(

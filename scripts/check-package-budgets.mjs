@@ -304,9 +304,9 @@ const budgets = {
     // A Safe execTransaction settled by the Safe's own event:
     // 1,673,734 B packed, 23,530,747 B unpacked, 1,794 files.
     // Reviewed Relayr signing, payment and polling in a module of its own
-    // (8 artifacts): 1,696,683 B packed, 23,658,449 B unpacked, 1,802 files.
-    packed: 1_698_000,
-    unpacked: 23_668_000,
+    // (8 artifacts): 1,698,092 B packed, 23,664,539 B unpacked, 1,802 files.
+    packed: 1_700_000,
+    unpacked: 23_670_000,
     entries: 1_802,
   },
   "@bananapus/nana-sdk-react": {
