@@ -25,6 +25,7 @@ import {
   RELAYR_PAYMENT_ADDRESS,
   RELAYR_PAYMENT_GAS,
   RELAYR_PAYMENT_SELECTOR,
+  RelayrPaymentNotSentError,
   relayrForwardRequest,
   type RelayrEntry,
   type RelayrQuote,
@@ -439,6 +440,42 @@ describe("runRelayrReviewed", () => {
     expect(signTypedData).toHaveBeenCalledTimes(1);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
+  it("holds the scope on every funding chain, so another chain cannot pay it again", async () => {
+    const { deps, wallet, signTypedData } = relayrSetup();
+    fakeRelayr(() => 100n);
+    const prompts = reviewUi();
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(new Error("timeout"));
+    await expect(
+      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "launch:2" }, deps),
+    ).rejects.toThrow("timeout");
+    await expect(
+      runRelayrReviewed(
+        [CALL],
+        { account: ACCOUNT, scope: "launch:2", paymentChainId: 8453 },
+        deps,
+      ),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    expect(prompts).toHaveLength(1);
+    expect(signTypedData).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-quotes when the quote lapses while the fresh review is open", async () => {
+    const { deps, wallet } = relayrSetup();
+    const relayr = fakeRelayr((from) => (from === ACCOUNT ? 2_000n : 1_000n));
+    const real = Date.now();
+    let now = real;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    const prompts = reviewUi(async (prompt) => {
+      if (prompts.length === 2) now = real + 590_000;
+      return prompt.confirmation;
+    });
+    const result = await runRelayrReviewed([CALL], { account: ACCOUNT }, deps);
+    expect(prompts).toHaveLength(2);
+    const signed = relayr.posts.filter(({ from }) => from === ACCOUNT);
+    expect(signed).toHaveLength(2);
+    expect(result.uuid).toBe(signed[1].uuid);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("payRelayrReviewed", () => {
@@ -565,6 +602,21 @@ describe("payRelayrReviewed", () => {
     );
     expect(hash).toBe(replacement);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+  it("keeps a wallet's own not-sent error from reading as not sent", async () => {
+    const { deps, wallet } = relayrSetup();
+    reviewUi();
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(
+      new RelayrPaymentNotSentError(new Error("wallet said so")),
+    );
+    const error = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      { account: ACCOUNT },
+      deps,
+    ).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(RelayrPaymentNotSentError);
   });
 });
 
@@ -767,5 +819,36 @@ describe("safeRelayrWalletDeps", () => {
       amount: "500",
       bundleUuid: UUIDS[0],
     });
+  });
+  it("reports an account change after the attempt was saved as not sent", async () => {
+    const { deps, wallet } = relayrSetup();
+    reviewUi();
+    const deadline = Math.floor(Date.now() / 1_000) + 600;
+    const session = {
+      id: "s",
+      account: ACCOUNT,
+      executions: [execution()],
+      quote: { bundle_uuid: UUIDS[0] },
+      payments: [],
+    } as unknown as SafeRelayrSession;
+    await expect(
+      safeRelayrWalletDeps(deps).sendPayment({
+        session,
+        payment: {
+          chain: 10,
+          amount: "500",
+          calldata: paymentCalldata(UUIDS[0], deadline),
+          target: RELAYR_PAYMENT_ADDRESS,
+          token: RELAYR_NATIVE_TOKEN,
+          payment_deadline: deadline,
+        },
+        beforeSend: async () => {},
+        onSending: async () => {
+          wallet.state.account = OTHER;
+        },
+        onSent: async () => {},
+      }),
+    ).rejects.toBeInstanceOf(RelayrPaymentNotSentError);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 });

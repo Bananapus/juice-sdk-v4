@@ -4,7 +4,6 @@ import {
   decodeFunctionResult,
   encodeFunctionData,
   formatEther,
-  parseAbi,
   type Address,
   type Hex,
   type PublicClient,
@@ -39,6 +38,7 @@ import {
   relayrPaymentDetails,
   relayrPaymentOptions,
   RelayrPaymentNotSentError,
+  relayrWalletPaymentError,
   relayrStateIsFailed,
   relayrStateIsSuccess,
   relayrSupportsChains,
@@ -106,12 +106,27 @@ const POLL_INTERVAL_MS = 2_500;
 const POLL_TIMEOUT_MS = 5 * 60_000;
 /** How many times an expired quote is replaced before the action stops. */
 const QUOTE_ATTEMPTS = 3;
-const BALANCE_OF_ABI = parseAbi([
-  "function balanceOf(address owner) view returns (uint256)",
-]);
-const RELAYR_PAYMENT_ABI = parseAbi([
-  "function prepayment(bytes16 payment_uuid, uint40 deadline) payable",
-]);
+const BALANCE_OF_ABI = [
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "owner", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+] as const;
+const RELAYR_PAYMENT_ABI = [
+  {
+    type: "function",
+    name: "prepayment",
+    stateMutability: "payable",
+    inputs: [
+      { name: "payment_uuid", type: "bytes16" },
+      { name: "deadline", type: "uint40" },
+    ],
+    outputs: [],
+  },
+] as const;
 
 const ACCOUNT_CHANGED = "The connected account changed. Review again.";
 const ORDINARY_WALLET =
@@ -529,7 +544,10 @@ async function sendPayment(
   const handle = openStepHold(deps.hold, account, false, call);
   const held = handle.peek();
   if (held.status !== "clear") throw new WriteHeldError(held);
-  const hash = await handle.send<Hex>(client, (gate) =>
+  /** The attempt is saved (`onSending`), and the wallet not yet asked. */
+  let saved = false;
+  let invoked = false;
+  const send = handle.send<Hex>(client, (gate) =>
     submitReviewedContractWrite({
       request: call,
       expectedAccount: account,
@@ -540,6 +558,8 @@ async function sendPayment(
       currentAccount: () => adapter.account(),
       reverify: async () => {
         await hooks.recheck?.();
+        // A lapsed payment would only revert in simulation.
+        if (quoteExpired(details.deadline)) throw new QuoteExpiredError();
         await requireRelayrPaymentRuntime(client);
       },
       simulate: async () => {
@@ -557,6 +577,7 @@ async function sendPayment(
           gate.onRejected();
           throw error;
         }
+        saved = true;
       },
       beforeSend: () => {
         try {
@@ -591,16 +612,33 @@ async function sendPayment(
         await hooks.onSent?.(submitted);
       },
       // The pinned contract and gas, never the quote's word.
-      write: ({ chainId, calldata, amount }) =>
-        adapter.sendTransaction({
-          chainId,
-          to: RELAYR_PAYMENT_ADDRESS,
-          data: calldata,
-          value: amount,
-          gas: RELAYR_PAYMENT_GAS,
-        }),
+      write: async ({ chainId, calldata, amount }) => {
+        invoked = true;
+        try {
+          return await adapter.sendTransaction({
+            chainId,
+            to: RELAYR_PAYMENT_ADDRESS,
+            data: calldata,
+            value: amount,
+            gas: RELAYR_PAYMENT_GAS,
+          });
+        } catch (error) {
+          // Only the wallet's own 4001 says it declined.
+          throw relayrWalletPaymentError(error);
+        }
+      },
     }),
   );
+  let hash: Hex;
+  try {
+    hash = await send;
+  } catch (error) {
+    // Saved as sending, refused by a final gate, never given to the wallet.
+    if (saved && !invoked && !(error instanceof RelayrPaymentNotSentError)) {
+      throw new RelayrPaymentNotSentError(error);
+    }
+    throw error;
+  }
   // A wallet that sped the payment up mined it under another hash.
   const mined = (await waitForTrackedReceipt(client, hash)).transactionHash;
   if (mined.toLowerCase() !== hash.toLowerCase()) await hooks.onSent?.(mined);
@@ -711,16 +749,20 @@ export async function runRelayrReviewed(
       "Choose a Relayr funding chain in the same network family as these destinations.",
     );
   }
-  if (action.scope) {
-    // An earlier run's payment of this action may still land: nothing is asked.
-    const state = openStepHold(deps.hold, account, false, {
-      chainId: paymentChainId,
-      to: RELAYR_PAYMENT_ADDRESS,
-      data: "0x",
-      intent: action.scope,
-    }).peek();
-    if (state.status !== "clear") throw new WriteHeldError(state);
-  }
+  /** An earlier payment of this action, on any chain that could fund it, may still land. */
+  const requireScopeClear = () => {
+    if (!action.scope) return;
+    for (const chainId of funding) {
+      const state = openStepHold(deps.hold, account, false, {
+        chainId,
+        to: RELAYR_PAYMENT_ADDRESS,
+        data: "0x",
+        intent: action.scope,
+      }).peek();
+      if (state.status !== "clear") throw new WriteHeldError(state);
+    }
+  };
+  requireScopeClear();
   let cap = await relayrFeeCap(calls, account, paymentChainId, clientFor);
   const prepared = [
     ...requests.map(
@@ -771,7 +813,10 @@ export async function runRelayrReviewed(
     try {
       const paymentHash = await sendPayment(details, account, deps, {
         ...(action.scope ? { intent: action.scope } : {}),
-        recheck: () => verifyForwardedEntries(entries, account, clientFor),
+        recheck: async () => {
+          requireScopeClear();
+          await verifyForwardedEntries(entries, account, clientFor);
+        },
       });
       return {
         uuid: quote.bundle_uuid,
@@ -780,8 +825,9 @@ export async function runRelayrReviewed(
       };
     } catch (error) {
       const expired =
-        error instanceof RelayrPaymentNotSentError &&
-        (error as { cause?: unknown }).cause instanceof QuoteExpiredError;
+        error instanceof QuoteExpiredError ||
+        (error instanceof RelayrPaymentNotSentError &&
+          (error as { cause?: unknown }).cause instanceof QuoteExpiredError);
       if (!expired || attempt >= QUOTE_ATTEMPTS) throw error;
     }
   }
