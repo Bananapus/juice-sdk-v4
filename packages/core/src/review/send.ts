@@ -651,6 +651,10 @@ async function send(
         : undefined;
     /** The reservation this step's send took. */
     let reserved: string | undefined;
+    /** A proposal of exactly this call its Safe already queued, sent in its place. */
+    let queued:
+      | Awaited<ReturnType<typeof findPendingSafeAppProposal>>
+      | undefined;
     const hash = await handles[step].send<Hex>(client, (gate) => {
       // Under the hold's own check of the call, before anything reserves.
       if (generation(handles[step]) !== reviewedGenerations[step]) {
@@ -684,39 +688,29 @@ async function send(
             value: sending.value,
             ...(blockNumber === undefined ? {} : { blockNumber }),
           };
-          const [, estimate, queued] = await Promise.all([
+          const [, estimate, found] = await Promise.all([
             simulateStateChangingTransaction(client, {
               from: account,
               ...tx,
             }),
             // A Safe app signs the sent gas as safeTxGas; 0 makes a failed call revert.
             safe ? undefined : client.estimateGas({ account, ...tx }),
-            // A Safe app never proposes a call its Safe already queued.
+            // A Safe app never proposes again a call its Safe already queued exactly.
             safe && hasSafeService(sending.chainId)
               ? findPendingSafeAppProposal(
                   client,
                   sending.chainId,
                   account,
                   sending,
+                  hold.safeService,
+                  true,
                 )
               : null,
           ]);
+          queued = found;
           return {
             ...sending,
             gas: estimate === undefined ? 0n : gasWithHeadroom(estimate),
-            // Reused only when it runs exactly the reviewed call.
-            queued:
-              queued &&
-              sameCall(
-                {
-                  ...queued.call,
-                  value: queued.call.value ?? 0n,
-                  chainId: sending.chainId,
-                },
-                sending,
-              )
-                ? queued.proposalHash
-                : undefined,
           };
         },
         beforeWrite: async () => {
@@ -755,9 +749,12 @@ async function send(
         },
         onBeforeWriteAborted: released,
         onWriteRejected: released,
-        onWriteSubmitted: (submitted) => gate.afterSubmit(submitted),
-        write: async ({ chainId, to, data, value, gas, queued }) =>
-          queued ?? adapter.sendTransaction({ chainId, to, data, value, gas }),
+        // An adopted proposal's nonce lets the hold prove its execution onchain.
+        onWriteSubmitted: (submitted) =>
+          gate.afterSubmit(submitted, queued?.tx),
+        write: async ({ chainId, to, data, value, gas }) =>
+          queued?.proposalHash ??
+          adapter.sendTransaction({ chainId, to, data, value, gas }),
         onPhase: (phase) => progress(phase),
         guard: action.guard,
       });

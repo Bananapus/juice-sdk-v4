@@ -720,7 +720,12 @@ export function buildReviewModel(
   try {
     return readModel(request);
   } catch {
-    return unreadableModel(request);
+    try {
+      return unreadableModel(request);
+    } catch {
+      // Even its parts can't be read: the warning alone.
+      return unreadableModel(null);
+    }
   }
 }
 

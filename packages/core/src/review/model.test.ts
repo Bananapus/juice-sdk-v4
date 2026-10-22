@@ -224,6 +224,28 @@ describe("buildReviewModel", () => {
       ).toBe(true);
       expect(model.id).toMatch(/^0x[\da-f]{64}$/u);
     }
+    // Not even its parts read: the warning alone.
+    const hostile = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new Error("no");
+        },
+      },
+    );
+    for (const input of [
+      hostile,
+      { ...pay, context: [hostile] },
+      Object.defineProperty({ ...pay, calls: [null] }, "title", {
+        get: () => {
+          throw new Error("no");
+        },
+      }),
+    ]) {
+      expect(
+        buildReviewModel(input as TransactionReviewRequest).warnings,
+      ).toEqual([expect.objectContaining({ code: "unreadable" })]);
+    }
     // What it can read still shows: the calls it could decode, and the raw bytes of the rest.
     const model = buildReviewModel({
       ...pay,

@@ -1098,7 +1098,8 @@ type SafeQueueClient = Parameters<typeof readBoundedSafeNonce>[0] & {
  * that enforces its deadline is passed over when that numbered block is past
  * the deadline: it can no longer run. Without a numbered block, matching
  * proposals remain held. Throws when the block, the nonce or the queue can't
- * be read.
+ * be read. With `exact`, only a proposal of exactly `call`, stamp included,
+ * is found.
  */
 export async function findPendingSafeAppProposal(
   client: SafeQueueClient,
@@ -1106,6 +1107,7 @@ export async function findPendingSafeAppProposal(
   safe: Address,
   call: SafeAppCall,
   service?: SafeServiceOptions,
+  exact = false,
 ): Promise<{
   tx: SafeQueuedTransaction;
   proposalHash: Hex;
@@ -1126,7 +1128,8 @@ export async function findPendingSafeAppProposal(
     await listPendingSafeTransactions(chainId, safe, Number(nonce), service)
   ).flatMap((tx) => {
     const proposed = proposedCall(tx);
-    return proposed && sameCall(heldCall(proposed), held)
+    return proposed &&
+      (exact ? sameCall(proposed, call) : sameCall(heldCall(proposed), held))
       ? [{ tx, call: proposed, deadline: stampedDeadline(proposed, chainId) }]
       : [];
   });

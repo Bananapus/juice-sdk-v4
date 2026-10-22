@@ -124,6 +124,9 @@ export function fakeChain() {
     /** The connected Safe's nonce, and what Safe's service queues from it. */
     safeNonce: 0n,
     safeQueue: [] as SafeQueuedTransaction[],
+    /** How Safe's service answers a queue read. */
+    safeService: async (queue: SafeQueuedTransaction[]) =>
+      new Response(JSON.stringify({ next: null, results: queue })),
   };
   const receipt = (hash: Hex) =>
     ({
@@ -280,19 +283,14 @@ export function setup() {
       ) => work({ name, mode: "exclusive" })) as LockManager["request"],
     },
     settle: { intervalMs: 1_000, attempts: 1 },
+    // Safe's service lists the connected Safe's queue; any other read is the test's own.
+    safeService: {
+      fetch: (input, init) =>
+        String(input).includes(`/safes/${ACCOUNT}/multisig-transactions/?`)
+          ? chain.state.safeService(chain.state.safeQueue)
+          : globalThis.fetch(input, init),
+    },
   });
-  // Safe's service lists the connected Safe's queue; any other fetch fails.
-  const unexpected = globalThis.fetch;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request) =>
-      String(input).includes(`/safes/${ACCOUNT}/multisig-transactions/`)
-        ? new Response(
-            JSON.stringify({ next: null, results: chain.state.safeQueue }),
-          )
-        : unexpected(input),
-    ),
-  );
   const progress: ReviewedProgress[] = [];
   const deps = {
     adapter: wallet.adapter as WalletAdapter,

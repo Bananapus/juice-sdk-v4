@@ -435,7 +435,7 @@ describe("sendReviewed", () => {
   });
 
   it("a Safe app reuses a queued proposal of the exact call, never a near match", async () => {
-    const { wallet, deps, chain } = setup();
+    const { wallet, deps, chain, hold, holdOf } = setup();
     wallet.state.safe = true;
     const prompts = reviewUi();
     const call = payCall();
@@ -452,6 +452,10 @@ describe("sendReviewed", () => {
     });
     expect(prompts).toHaveLength(1);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    // Held as that proposal, with its nonce, so its execution can be proven onchain.
+    expect(hold.open({ ...holdOf(call), safe: true }).peek()).toMatchObject({
+      record: { hash: exact, safeNonce: "4" },
+    });
 
     // Only near matches queued: the wallet proposes it.
     const other = setup();
@@ -466,25 +470,30 @@ describe("sendReviewed", () => {
     expect(other.wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
 
-  it("a Safe app sends nothing when its queue can't be read", async () => {
-    const { wallet, deps } = setup();
+  it("a Safe app sends nothing when its queue can't be read, or hangs", async () => {
+    const { wallet, deps, chain } = setup();
     wallet.state.safe = true;
     reviewUi();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("down", { status: 503 })),
-    );
+    chain.state.safeService = async () => new Response("down", { status: 503 });
     await expect(sendReviewed(action([payCall()]), deps)).rejects.toThrow();
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
-    expect(globalThis.fetch).toHaveBeenCalled();
+
+    // A read that never answers ends, holding nothing.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      chain.state.safeService = () => new Promise<never>(() => {});
+      const hung = sendReviewed(action([payCall()]), deps);
+      const settled = expect(hung).rejects.toThrow("did not answer in time");
+      await vi.advanceTimersByTimeAsync(8_000);
+      await settled;
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
 
     // Nothing was reserved: once the queue reads, the same action proposes.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () => new Response(JSON.stringify({ next: null, results: [] })),
-      ),
-    );
+    chain.state.safeService = async (queue) =>
+      new Response(JSON.stringify({ next: null, results: queue }));
     await expect(
       sendReviewed(action([payCall()]), deps),
     ).resolves.toMatchObject({ status: "proposed" });
