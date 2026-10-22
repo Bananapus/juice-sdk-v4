@@ -36,6 +36,12 @@ describe("buildReviewModel", () => {
       calls: [{ ...call, data: `${call.data.slice(0, -2)}${lastByte}` as Hex }],
     };
     expect(buildReviewModel(changedData).id).not.toBe(id);
+    // The gas a wallet or Safe signs is part of what is sent.
+    for (const changed of [{ gas: 1n }, { safeTxGas: 0n }]) {
+      expect(
+        buildReviewModel({ ...pay, calls: [{ ...call, ...changed }] }).id,
+      ).not.toBe(id);
+    }
 
     const context = [{ label: "Pay", value: "0.01 ETH" }];
     const withContext = buildReviewModel({ ...pay, context });
@@ -52,8 +58,8 @@ describe("buildReviewModel", () => {
   it("keeps id when only warnings or enrichment change", () => {
     const { id } = buildReviewModel(pay);
     const [call] = pay.calls;
-    // A nonzero safeTxGas adds a warning; a label, contract name or a missing
-    // ABI only change what the review explains.
+    // A label, contract name or a missing ABI only change what the review
+    // explains; the missing ABI adds a warning.
     const enriched = buildReviewModel({
       ...pay,
       title: "Another title",
@@ -62,16 +68,58 @@ describe("buildReviewModel", () => {
           ...call,
           label: "Pay with 4 decimals",
           contractName: "Terminal",
-          safeTxGas: 1n,
           abi: undefined,
         },
       ],
     });
     expect(enriched.calls[0].warnings.map((warning) => warning.code)).toEqual([
-      "safe-gas-nonzero",
       "abi-unavailable",
     ]);
     expect(enriched.id).toBe(id);
+  });
+
+  it("binds the authorization by type and keeps a copy of it", () => {
+    const authorization = {
+      domain: { chainId: 1n },
+      message: { amount: 5n, $bigint: "1" },
+    };
+    const request: TransactionReviewRequest = {
+      ...pay,
+      kind: "authorization",
+      authorization,
+    };
+    const model = buildReviewModel(request);
+    expect(
+      buildReviewModel({
+        ...request,
+        authorization: { ...authorization, domain: { chainId: "1" } },
+      }).id,
+    ).not.toBe(model.id);
+    expect(
+      buildReviewModel({
+        ...request,
+        authorization: {
+          domain: { chainId: { $bigint: "1" } },
+          message: authorization.message,
+        },
+      }).id,
+    ).not.toBe(model.id);
+    expect(
+      buildReviewModel({
+        ...request,
+        authorization: {
+          message: authorization.message,
+          domain: { chainId: 1n },
+        },
+      }).id,
+    ).toBe(model.id);
+
+    authorization.message.amount = 6n;
+    expect(model.authorization).toEqual({
+      domain: { chainId: 1n },
+      message: { amount: 5n, $bigint: "1" },
+    });
+    expect(buildReviewModel(request).id).not.toBe(model.id);
   });
 
   it("treats context as display only", () => {

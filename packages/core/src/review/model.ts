@@ -24,7 +24,6 @@ import {
   type V4PlanStep,
 } from "./decode.js";
 import {
-  bigintAsString,
   transactionReviewJson,
   type TransactionReviewCall,
   type TransactionReviewRequest,
@@ -91,9 +90,9 @@ export type ReviewCallModel = {
 export type ReviewModel = {
   /**
    * keccak256 of the canonical JSON of the binding fields only: kind, each
-   * call's chainId, from, to, value and data, authorization, message and
-   * context. Enrichment, warnings and simulation are excluded and may change
-   * after mint.
+   * call's chainId, from, to, value, gas, safeTxGas and data, authorization,
+   * message and context. Enrichment, warnings and simulation are excluded and
+   * may change after mint.
    */
   id: Hex;
   /** "message" is an authorization signed as a plain message rather than typed data. */
@@ -104,7 +103,7 @@ export type ReviewModel = {
   /** The site's summary rows, in the order given, shown first. */
   context: ReviewContextRow[];
   calls: ReviewCallModel[];
-  /** The exact typed data (or message envelope) a signature commits to. */
+  /** A copy of the exact typed data (or message envelope) a signature commits to. */
   authorization: unknown | null;
   /** The exact personal_sign text, when the request carries it. */
   message: string | null;
@@ -266,15 +265,21 @@ function reviewCall(call: TransactionReviewCall): ReviewCallModel {
   };
 }
 
-/** Objects with their keys sorted at every depth, so equal data encodes alike. */
+/**
+ * JSON-ready data with object keys sorted at every depth, so equal data
+ * encodes alike, and a bigint tagged as `{ $bigint }` so it never encodes like
+ * a string. A key that starts with `$` gains another, so no input can forge
+ * the tag.
+ */
 function canonical(value: unknown): unknown {
+  if (typeof value === "bigint") return { $bigint: value.toString() };
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.keys(value)
         .sort()
         .map((key) => [
-          key,
+          key.startsWith("$") ? `$${key}` : key,
           canonical((value as Record<string, unknown>)[key]),
         ]),
     );
@@ -299,7 +304,8 @@ export function buildReviewModel(
         : "authorization"
       : "transaction";
   const context = (request.context ?? []).map((row) => ({ ...row }));
-  const authorization = request.authorization ?? null;
+  // A copy, so the request changing after review never changes what the model shows.
+  const authorization = structuredClone(request.authorization ?? null);
   const message = null;
   const binding = {
     kind,
@@ -308,6 +314,8 @@ export function buildReviewModel(
       from: call.from ?? null,
       to: call.to,
       value: call.value ?? 0n,
+      gas: call.gas ?? null,
+      safeTxGas: call.safeTxGas ?? null,
       data: call.data,
     })),
     authorization,
@@ -315,7 +323,7 @@ export function buildReviewModel(
     context,
   };
   return {
-    id: keccak256(toHex(JSON.stringify(canonical(binding), bigintAsString))),
+    id: keccak256(toHex(JSON.stringify(canonical(binding)))),
     kind,
     title: request.title ?? null,
     description: reviewDescription(request),

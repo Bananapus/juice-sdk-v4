@@ -180,12 +180,11 @@ export function transactionReviewJson(
       ? { authorization: request.authorization, resultingCall: calls }
       : { authorization: request.authorization }
     : calls;
-  return JSON.stringify(payload, bigintAsString, 2);
-}
-
-/** A JSON.stringify replacer that writes each bigint as its decimal string. */
-export function bigintAsString(_: string, value: unknown): unknown {
-  return typeof value === "bigint" ? value.toString() : value;
+  return JSON.stringify(
+    payload,
+    (_, value) => (typeof value === "bigint" ? value.toString() : value),
+    2,
+  );
 }
 
 /** A website/-style prompt which keeps the exact reviewed RPC call intact. */
