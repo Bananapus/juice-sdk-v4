@@ -349,6 +349,9 @@ const entryBudgets = [
   // quoted mint minimum: 12,018 B.
   ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 12_200],
   ["@bananapus/nana-sdk-core/v6/fee-buyback", "feeBuybackOptions", 3_300],
+  // With every version's address table: 10,488 B. With the v6 table only:
+  // 5,002 B.
+  ["@bananapus/nana-sdk-core", "resolveSuckers", 5_250],
   ["@bananapus/nana-sdk-core/v6", "effectiveTierPrice", 200],
   ["@bananapus/nana-sdk-core/review", "registerTransactionReviewHandler", 250],
   [

@@ -4,7 +4,6 @@ import { describe, expect, test, vi } from "vitest";
 import {
   jbContractAddress,
   jbSuckerRegistryAbi,
-  jbSuckerRegistryV5Abi,
 } from "../generated/juicebox.js";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
 import { getSuckerPairs, resolveSuckers } from "./suckerPairs.js";
@@ -73,33 +72,33 @@ describe("getSuckerPairs", () => {
     ]);
   });
 
-  test("uses the v5 registry ABI and the returned EVM address directly", async () => {
-    const fixture = config({
-      1: (request) => {
-        expect(request.abi).toBe(jbSuckerRegistryV5Abi);
-        expect(request.address).toBe(
-          jbContractAddress["5"].JBSuckerRegistry[1],
-        );
-        return [
-          { local: localSucker, remote: remoteSucker, remoteChainId: 10n },
-        ];
-      },
-      10: (request) => {
-        expect(request.address).toBe(remoteSucker);
-        // A v5 `address` return decodes identically under the bytes32 entry.
-        if (request.functionName === "peer") return paddedLocal;
-        return 12n;
-      },
-    });
+  test("refuses a v4 or v5 read before any registry call", async () => {
+    const fixture = config({});
 
     await expect(
       getSuckerPairs({
         config: fixture.config,
         chainId: 1,
         projectId: 7n,
-        version: 5,
+        version: 5 as 6,
       }),
-    ).resolves.toEqual([{ peerChainId: 10, projectId: 12n }]);
+    ).rejects.toThrow("Sucker groups are read for Juicebox V6 only, not V5.");
+    expect(fixture.getClient).not.toHaveBeenCalled();
+  });
+
+  test("reads the v6 registry when no version is named", async () => {
+    const fixture = config({
+      1: (request) => {
+        expect(request.address).toBe(
+          jbContractAddress["6"].JBSuckerRegistry[1],
+        );
+        return [];
+      },
+    });
+
+    await expect(
+      getSuckerPairs({ config: fixture.config, chainId: 1, projectId: 7n }),
+    ).resolves.toEqual([]);
   });
 
   test("rejects a cleared remote instead of truncating it to a bogus address", async () => {
