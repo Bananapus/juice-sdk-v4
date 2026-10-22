@@ -1312,7 +1312,7 @@ npm install @bananapus/nana-sdk-react @bananapus/nana-sdk-core
 npm install @bananapus/nana-sdk-core
 ```
 
-Writes go through core's reviewed path: `sendReviewed(action, deps)` from `@bananapus/nana-sdk-core/review` reviews, sends and confirms in one step, and `runRelayrReviewed` does the same for a Relayr bundle. The React Relayr hooks are deprecated in favor of it.
+Writes go through core's reviewed path: `sendReviewed(action, deps)` from `@bananapus/nana-sdk-core/review` reviews one action, then sends each step (a Safe wallet gets a proposal instead), and `runRelayrReviewed` reviews a Relayr bundle once, then pays its quote. The React Relayr hooks are deprecated in favor of it.
 
 ## Quick Start
 
