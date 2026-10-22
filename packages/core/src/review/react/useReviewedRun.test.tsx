@@ -125,7 +125,9 @@ describe("useReviewedRun", () => {
       error: REVIEWED_ENGINE_LOAD_LINE,
     });
     expect(seen.current!.error).toBe(REVIEWED_ENGINE_LOAD_LINE);
-    expect((seen.current!.failure as Error).cause).toBe(loadFailure);
+    expect((seen.current!.failure as { cause?: unknown }).cause).toBe(
+      loadFailure,
+    );
   });
 
   test("keeps the raw failure with its cause for site decoders", async () => {
