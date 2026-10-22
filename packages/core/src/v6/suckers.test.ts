@@ -623,9 +623,47 @@ describe("suckers", () => {
       );
       return {
         readContract,
-        client: { readContract } as unknown as PublicClient,
+        client: {
+          readContract,
+          getChainId: async () => 11155111,
+        } as unknown as PublicClient,
       };
     };
+
+    test("fails closed when the client is connected to another chain", async () => {
+      const { readContract } = registry(10n);
+      const client = {
+        readContract,
+        getChainId: async () => 8453,
+      } as unknown as PublicClient;
+      await expect(
+        getRegisteredSucker(client, {
+          chainId: 11155111,
+          projectId: 4n,
+          remoteChainId: 10,
+          sucker: registered,
+        }),
+      ).rejects.toMatchObject({
+        name: "UnverifiedSuckerError",
+        reason: "unreadable",
+      });
+      expect(readContract).not.toHaveBeenCalled();
+    });
+
+    test("types a destination it can't compare", async () => {
+      const { client } = registry(10n);
+      await expect(
+        getRegisteredSucker(client, {
+          chainId: 11155111,
+          projectId: 4n,
+          remoteChainId: Number.NaN as JBChainId,
+          sucker: registered,
+        }),
+      ).rejects.toMatchObject({
+        name: "UnverifiedSuckerError",
+        reason: "unreadable",
+      });
+    });
 
     test("returns the registry's address for a listed sucker toward the destination", async () => {
       const { client } = registry(10n);
@@ -676,6 +714,7 @@ describe("suckers", () => {
         readContract: vi.fn(async () => {
           throw failure;
         }),
+        getChainId: async () => 11155111,
       } as unknown as PublicClient;
       const error = await getRegisteredSucker(client, {
         chainId: 11155111,

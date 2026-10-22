@@ -1194,7 +1194,9 @@ export class UnverifiedSuckerError extends Error {
  * The project's sucker at `sucker`, as the JBSuckerRegistry on `chainId` lists
  * it (active or deprecated), bridging to `remoteChainId`. Use the returned
  * address for `toRemote` and its fee reads: an indexer's sucker address only
- * says which registered sucker a movement sits in.
+ * says which registered sucker a movement sits in. This confirms identity, not
+ * that the sucker still sends: once a deprecated sucker stops sending, its
+ * `toRemote` reverts in simulation.
  *
  * @throws UnverifiedSuckerError `unregistered` when the registry does not list
  * the address for the project or the sucker bridges to another chain,
@@ -1214,31 +1216,32 @@ export async function getRegisteredSucker(
     sucker: Address;
   },
 ): Promise<Address> {
-  let registered: Address | undefined;
-  let peerChainId: bigint;
   try {
+    if ((await client.getChainId()) !== chainId) {
+      throw new Error(`The client is not connected to chain ${chainId}.`);
+    }
     const suckers = await getContract({
       address: v6Address("JBSuckerRegistry", chainId),
       abi: jbSuckerRegistryAbi,
       client,
     }).read.allSuckersOf([projectId]);
-    registered = suckers.find(
+    const registered = suckers.find(
       (local) => local.toLowerCase() === sucker.toLowerCase(),
     );
     if (!registered) throw new UnverifiedSuckerError("unregistered");
-    peerChainId = await getContract({
+    const peerChainId = await getContract({
       address: registered,
       abi: jbSuckerV6ViewAbi,
       client,
     }).read.peerChainId();
+    if (peerChainId !== BigInt(remoteChainId)) {
+      throw new UnverifiedSuckerError("unregistered");
+    }
+    return registered;
   } catch (error) {
     if (error instanceof UnverifiedSuckerError) throw error;
     throw new UnverifiedSuckerError("unreadable", error);
   }
-  if (peerChainId !== BigInt(remoteChainId)) {
-    throw new UnverifiedSuckerError("unregistered");
-  }
-  return registered;
 }
 
 /**
