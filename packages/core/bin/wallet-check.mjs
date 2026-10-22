@@ -105,7 +105,7 @@ const selfReviewingApis = new Set([
   "signaWalletAdapter",
 ]);
 const guardedNames = new Set([
-  "registerTransactionReviewHandler",
+  "registerReviewHandler",
   ...selfReviewingApis,
 ]);
 const signingRpcMethods = new Set([
@@ -273,7 +273,7 @@ for (const filePath of new Set(
       if (
         directApis.has(imported) ||
         selfReviewingApis.has(imported) ||
-        imported === "registerTransactionReviewHandler"
+        imported === "registerReviewHandler"
       )
         aliases.set(specifier.name.text, imported);
     }
@@ -393,7 +393,7 @@ for (const filePath of new Set(
     }
     if (ts.isCallExpression(node)) {
       const callee = calleeOf(node.expression, aliases)?.name;
-      if (callee === "registerTransactionReviewHandler") {
+      if (callee === "registerReviewHandler") {
         discovered.push({ file: here, line: lineOf(node), api: callee });
       }
       if (selfReviewingApis.has(callee) && !selfReviewing.has(here)) {

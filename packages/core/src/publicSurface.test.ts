@@ -94,7 +94,16 @@ describe("published core SDK surfaces", () => {
 
   test("exports the shared web-client runtime boundaries", () => {
     expect(review.submitReviewedContractWrite).toBeTypeOf("function");
-    expect(review.requireContractTransactionReview).toBeTypeOf("function");
+    expect(review.registerReviewHandler).toBeTypeOf("function");
+    // 4.0 has one review path: core's prompt and its minted confirmation.
+    for (const removed of [
+      "registerTransactionReviewHandler",
+      "requestTransactionReview",
+      "requireTransactionReview",
+      "requestContractTransactionReview",
+      "requireContractTransactionReview",
+    ])
+      expect(review).not.toHaveProperty(removed);
     expect(review.gasWithinCap).toBeTypeOf("function");
     expect(bendystrawOperations.compileBendystrawOperation).toBeTypeOf(
       "function",

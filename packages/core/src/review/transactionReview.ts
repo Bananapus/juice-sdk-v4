@@ -1,26 +1,13 @@
 "use client";
 
-import { ReviewLineError } from "./lineError.js";
-import {
-  encodeFunctionData,
-  formatEther,
-  type Abi,
-  type Address,
-  type Hex,
-} from "viem";
-import {
-  requestTransactionReview,
-  TransactionReviewCancelledError,
-} from "./reviewQueue.js";
+import { formatEther, type Abi, type Address, type Hex } from "viem";
 import type { PrettyStep } from "./decode.js";
 import type { ReviewContextRow, ReviewModel } from "./model.js";
 
 export type { FundingChainOption } from "./reviewQueue.js";
 export {
   registerFundingChainSelectionHandler,
-  registerTransactionReviewHandler,
   requireFundingChainSelection,
-  requireTransactionReview,
   TransactionReviewCancelledError,
 } from "./reviewQueue.js";
 
@@ -88,26 +75,6 @@ export type TransactionReviewRequest = {
   context?: readonly ReviewContextRow[];
 };
 
-export type ContractTransactionReviewCall = {
-  chainId: number;
-  address: Address;
-  abi: Abi;
-  functionName: string;
-  args?: readonly unknown[];
-  value?: bigint;
-  gas?: bigint;
-  safeTxGas?: bigint;
-  account?: Address;
-};
-
-export type TransactionReviewOptions = Omit<
-  TransactionReviewRequest,
-  "calls"
-> & {
-  label?: string;
-  contractName?: string;
-};
-
 /** "Base (~0.000123 ETH)": a chain and the relay fee quoted on it. */
 export function fundingChainLabel(
   chainName: string,
@@ -118,69 +85,6 @@ export function fundingChainLabel(
     maximumSignificantDigits: 3,
   }).format(Number(exact));
   return `${chainName} (${shown === exact ? "" : "~"}${shown} ETH)`;
-}
-
-/** Encode once for review using the same ABI/function/args passed to wagmi. */
-function contractCallForReview(
-  call: ContractTransactionReviewCall,
-  options: Pick<TransactionReviewOptions, "label" | "contractName"> = {},
-): TransactionReviewCall {
-  const data = encodeFunctionData({
-    abi: call.abi,
-    functionName: call.functionName,
-    args: call.args,
-  });
-  return {
-    chainId: call.chainId,
-    to: call.address,
-    data,
-    value: call.value,
-    gas: call.gas,
-    safeTxGas: call.safeTxGas,
-    from: call.account,
-    abi: call.abi,
-    functionName: call.functionName,
-    args: call.args,
-    label: options.label,
-    contractName: options.contractName,
-  };
-}
-
-export function requestContractTransactionReview(
-  call: ContractTransactionReviewCall,
-  options: TransactionReviewOptions = {},
-): Promise<boolean> {
-  const { label, contractName, ...requestOptions } = options;
-  const reviewed = contractCallForReview(call, { label, contractName });
-  return requestTransactionReview({
-    ...requestOptions,
-    calls: [reviewed],
-  }).then((approved) => {
-    if (!approved) return false;
-    const current = contractCallForReview(call, { label, contractName });
-    if (
-      current.chainId !== reviewed.chainId ||
-      current.to.toLowerCase() !== reviewed.to.toLowerCase() ||
-      (current.value ?? 0n) !== (reviewed.value ?? 0n) ||
-      current.gas !== reviewed.gas ||
-      current.safeTxGas !== reviewed.safeTxGas ||
-      current.data !== reviewed.data
-    ) {
-      throw new ReviewLineError(
-        "Transaction data changed after review. Nothing was sent; review it again.",
-      );
-    }
-    return true;
-  });
-}
-
-export async function requireContractTransactionReview(
-  call: ContractTransactionReviewCall,
-  options: TransactionReviewOptions = {},
-): Promise<void> {
-  if (!(await requestContractTransactionReview(call, options))) {
-    throw new TransactionReviewCancelledError();
-  }
 }
 
 export function transactionReviewJson(

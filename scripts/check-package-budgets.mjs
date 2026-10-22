@@ -367,7 +367,7 @@ const entryBudgets = [
   // 5,002 B.
   ["@bananapus/nana-sdk-core", "resolveSuckers", 5_250],
   ["@bananapus/nana-sdk-core/v6", "effectiveTierPrice", 200],
-  ["@bananapus/nana-sdk-core/review", "registerTransactionReviewHandler", 250],
+  ["@bananapus/nana-sdk-core/review", "registerReviewHandler", 250],
   [
     "@bananapus/nana-sdk-core/bendystraw-operations",
     "compileBendystrawDocument",

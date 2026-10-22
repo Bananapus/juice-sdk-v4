@@ -2,7 +2,6 @@
 
 import { ReviewLineError } from "./lineError.js";
 import type { ReviewConfirmation, ReviewPrompt } from "./confirm.js";
-import type { TransactionReviewRequest } from "./transactionReview.js";
 
 /**
  * The review queue: the handlers the app's review UI registers and the calls
@@ -23,12 +22,6 @@ type FundingChainSelectionHandler = (
   /** The option to preselect, or null when the person must pick one of several. */
   initialChainId: number | null,
 ) => Promise<number | null>;
-
-type TransactionReviewHandler = (
-  request: TransactionReviewRequest,
-) => Promise<boolean>;
-
-const transactionReviewHandlers: TransactionReviewHandler[] = [];
 
 type ReviewHandler = (
   prompt: ReviewPrompt,
@@ -110,21 +103,6 @@ export async function requireFundingChainSelection(
 }
 
 /**
- * The provider registers the only UI capable of approving a transaction.
- * Keeping the entry point in a small client module lets non-React wallet
- * helpers (Safe and Relayr) use the same mandatory review queue.
- */
-export function registerTransactionReviewHandler(
-  handler: TransactionReviewHandler,
-): () => void {
-  transactionReviewHandlers.push(handler);
-  return () => {
-    const index = transactionReviewHandlers.lastIndexOf(handler);
-    if (index >= 0) transactionReviewHandlers.splice(index, 1);
-  };
-}
-
-/**
  * Registers the review UI that answers {@link ReviewPrompt}s: it returns the
  * prompt's `confirmation` to confirm, or null to cancel. The latest
  * registration answers.
@@ -140,28 +118,4 @@ export function registerReviewHandler(handler: ReviewHandler): () => void {
 /** The handler that answers the next prompt, if one is registered. */
 export function currentReviewHandler(): ReviewHandler | undefined {
   return reviewHandlers[reviewHandlers.length - 1];
-}
-
-export async function requestTransactionReview(
-  request: TransactionReviewRequest,
-): Promise<boolean> {
-  if (!request.calls.length && !request.authorization) {
-    throw new ReviewLineError("There is no transaction to review.");
-  }
-  const transactionReviewHandler =
-    transactionReviewHandlers[transactionReviewHandlers.length - 1];
-  if (!transactionReviewHandler) {
-    throw new ReviewLineError(
-      "Transaction review is unavailable. Reload the page before continuing.",
-    );
-  }
-  return transactionReviewHandler(request);
-}
-
-export async function requireTransactionReview(
-  request: TransactionReviewRequest,
-): Promise<void> {
-  if (!(await requestTransactionReview(request))) {
-    throw new TransactionReviewCancelledError();
-  }
 }

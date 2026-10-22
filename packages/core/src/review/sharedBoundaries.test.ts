@@ -1,4 +1,4 @@
-import { parseAbi, type Address, type PublicClient } from "viem";
+import { type Address, type PublicClient } from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { submitReviewedContractWrite } from "./contractWrite.js";
 import { gasWithinCap } from "./gas.js";
@@ -6,19 +6,13 @@ import {
   buildTransactionDebugPrompt,
   buildTransactionReviewPrompt,
   registerFundingChainSelectionHandler,
-  registerTransactionReviewHandler,
-  requireContractTransactionReview,
   requireFundingChainSelection,
   fundingChainLabel,
-  requireTransactionReview,
-  requestContractTransactionReview,
-  TransactionReviewCancelledError,
   transactionReviewJson,
 } from "./transactionReview.js";
 
 const TARGET = "0x3333333333333333333333333333333333333333" as Address;
 const ALICE = "0x1111111111111111111111111111111111111111" as Address;
-const abi = parseAbi(["function pay(uint256 projectId, uint256 amount)"]);
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -71,70 +65,8 @@ describe("funding chain selection", () => {
   });
 });
 
-describe("contract call review", () => {
-  it("approves the exact encoded call, refuses one changed after review, and cancels on a closed review", async () => {
-    const call = {
-      chainId: 10,
-      address: TARGET,
-      abi,
-      functionName: "pay",
-      args: [7n, 1n] as const,
-      account: ALICE,
-    };
-    const review = vi.fn<
-      Parameters<typeof registerTransactionReviewHandler>[0]
-    >(async () => true);
-    const unregister = registerTransactionReviewHandler(review);
-    try {
-      await expect(
-        requestContractTransactionReview(call, {
-          label: "Pay",
-          contractName: "Terminal",
-        }),
-      ).resolves.toBe(true);
-      expect(review.mock.calls[0][0].calls[0]).toMatchObject({
-        to: TARGET,
-        label: "Pay",
-        contractName: "Terminal",
-        from: ALICE,
-      });
-
-      const mutable = { ...call, args: [7n, 1n] as readonly [bigint, bigint] };
-      review.mockImplementationOnce(async () => {
-        mutable.args = [7n, 2n];
-        return true;
-      });
-      await expect(requestContractTransactionReview(mutable)).rejects.toThrow(
-        "changed after review",
-      );
-
-      review.mockResolvedValueOnce(false);
-      await expect(requestContractTransactionReview(call)).resolves.toBe(false);
-      review.mockResolvedValueOnce(false);
-      await expect(requireContractTransactionReview(call)).rejects.toThrow(
-        "Review closed",
-      );
-      await expect(
-        requireContractTransactionReview(call),
-      ).resolves.toBeUndefined();
-    } finally {
-      unregister();
-    }
-  });
-});
-
 describe("raw review", () => {
-  it("cancels when the reviewer closes it and serializes an authorization on its own", async () => {
-    const unregister = registerTransactionReviewHandler(async () => false);
-    try {
-      await expect(
-        requireTransactionReview({
-          calls: [{ chainId: 10, to: TARGET, data: "0x" }],
-        }),
-      ).rejects.toThrow("Review closed");
-    } finally {
-      unregister();
-    }
+  it("serializes an authorization on its own", () => {
     expect(
       JSON.parse(
         transactionReviewJson({
@@ -249,15 +181,6 @@ describe("app guard", () => {
 });
 
 describe("signed gas in review", () => {
-  const call = {
-    chainId: 10,
-    address: TARGET,
-    abi,
-    functionName: "pay" as const,
-    args: [1n, 2n] as const,
-    account: ALICE,
-  };
-
   it("shows the gas a signature commits to, and only then", () => {
     const json = (fields: { gas?: bigint; safeTxGas?: bigint }) =>
       JSON.parse(
@@ -273,34 +196,11 @@ describe("signed gas in review", () => {
     });
   });
 
-  it("refuses to send when the reviewed gas or safeTxGas changes after approval", async () => {
-    const unregister = registerTransactionReviewHandler(async () => true);
-    try {
-      const gas = { ...call, gas: 100_000n, safeTxGas: 0n };
-      const approve = requestContractTransactionReview(gas);
-      gas.gas = 200_000n;
-      await expect(approve).rejects.toThrow("changed after review");
-      const safe = { ...call, safeTxGas: 0n };
-      const approveSafe = requestContractTransactionReview(safe);
-      safe.safeTxGas = 50_000n;
-      await expect(approveSafe).rejects.toThrow("changed after review");
-      await expect(
-        requestContractTransactionReview({ ...call, gas: 1n, safeTxGas: 0n }),
-      ).resolves.toBe(true);
-    } finally {
-      unregister();
-    }
-  });
-
   it("raises one cancellation error apps can tell from failures", async () => {
-    const unregister = registerTransactionReviewHandler(async () => false);
     const unregisterChooser = registerFundingChainSelectionHandler(
       async () => null,
     );
     try {
-      await expect(
-        requireContractTransactionReview(call),
-      ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
       await expect(
         requireFundingChainSelection([{ chainId: 10, label: "OP Mainnet" }]),
       ).rejects.toMatchObject({
@@ -309,7 +209,6 @@ describe("signed gas in review", () => {
       });
     } finally {
       unregisterChooser();
-      unregister();
     }
   });
 });
