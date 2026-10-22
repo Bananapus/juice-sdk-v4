@@ -271,14 +271,22 @@ export async function proposeReviewedSafeTransaction(
     );
   } catch (error) {
     // The service may have queued it and lost its answer: a retry must find
-    // it, not propose the same calls again at the next nonce.
+    // it, not propose the same calls again at the next nonce. Only this
+    // owner's own signature on the record proves this proposal landed.
     const queued = await readSafeTransaction(
       chainId,
       safe,
       safeTxHash,
       service,
     ).then(
-      () => true,
+      (record) =>
+        Array.isArray(record.confirmations) &&
+        record.confirmations.some(
+          (confirmation) =>
+            typeof confirmation?.owner === "string" &&
+            isAddressEqual(confirmation.owner, account) &&
+            confirmation.signature?.toLowerCase() === signature.toLowerCase(),
+        ),
       () => false,
     );
     if (!queued) throw error;

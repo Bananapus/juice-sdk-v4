@@ -396,7 +396,12 @@ describe("proposeReviewedSafeTransaction answers", () => {
     const call = payCall();
     const lost = service([], {
       post: 502,
-      recorded: transferTx({ to: call.to, data: call.data, value: "7" }),
+      recorded: transferTx({
+        to: call.to,
+        data: call.data,
+        value: "7",
+        confirmations: [{ owner: ACCOUNT, signature: SIGNATURE }],
+      }),
     });
     const { safeTxHash } = await proposeReviewedSafeTransaction(
       { chainId: 10, safe: SAFE, calls: [call], service: lost.options },
@@ -409,6 +414,26 @@ describe("proposeReviewedSafeTransaction answers", () => {
         transferTx({ to: call.to, data: call.data, value: "7" }),
       ),
     );
+    // The same transaction queued by another owner is not this proposal.
+    await expect(
+      proposeReviewedSafeTransaction(
+        {
+          chainId: 10,
+          safe: SAFE,
+          calls: [call],
+          service: service([], {
+            post: 502,
+            recorded: transferTx({
+              to: call.to,
+              data: call.data,
+              value: "7",
+              confirmations: [{ owner: OTHER, signature: OTHER_SIGNATURE }],
+            }),
+          }).options,
+        },
+        deps,
+      ),
+    ).rejects.toThrow("Safe's transaction service refused");
     // Refused and not queued: the service's refusal stands.
     await expect(
       proposeReviewedSafeTransaction(
@@ -440,7 +465,7 @@ describe("proposeReviewedSafeTransaction answers", () => {
       "The Safe policy or nonce changed. Review the transaction again.",
     );
     expect(changing.posts()).toEqual([]);
-    expect(wallet.adapter.signTypedData).toHaveBeenCalledTimes(3);
+    expect(wallet.adapter.signTypedData).toHaveBeenCalledTimes(4);
   });
 });
 

@@ -300,8 +300,8 @@ const budgets = {
     // signReviewed in a module of its own (8 artifacts): 1,652,260 B packed,
     // 23,433,569 B unpacked, 1,786 files.
     // The reviewed Safe path in a module of its own (8 artifacts):
-    // 1,660,297 B packed, 23,491,596 B unpacked, 1,794 files.
-    packed: 1_662_000,
+    // 1,662,032 B packed, 23,505,344 B unpacked, 1,794 files.
+    packed: 1_664_000,
     unpacked: 23_510_000,
     entries: 1_794,
   },
