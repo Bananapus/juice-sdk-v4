@@ -1509,7 +1509,7 @@ a settlement guarantee.
 
 ### Prerequisites
 
-- Node.js 22.23.1 (`nvm use` reads the repository pin)
+- Node.js 22.23.4 (`nvm use` reads the repository pin)
 - npm 10.9.8
 
 ### Setup

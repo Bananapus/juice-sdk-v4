@@ -22,7 +22,7 @@ The SDK is the shared contract boundary for the frontends. Pull requests therefo
 - `npm run check:package` dry-runs both npm tarballs, rejects compiled tests/build caches, and caps packed size, unpacked size, and file count so generated growth is visible before it reaches every frontend consumer.
 - `npm run check` runs protocol parity, the wallet and formatting-debt inventories, deterministic type/coverage checks, both builds, package budgets, and generated-binding checks from a locked install. Run `npm run audit:prod` separately because advisory data is registry-backed and changes independently of the lockfile.
 
-Use Node 22.23.1 from `.nvmrc` and npm 10.9.8 from `packageManager` for the release-equivalent result.
+Use Node 22.23.4 from `.nvmrc` and npm 10.9.8 from `packageManager` for the release-equivalent result.
 
 CI and release use Ubuntu 24.04 and pin every reusable GitHub Action to a full
 commit SHA. Every checkout disables persisted credentials; the release action
