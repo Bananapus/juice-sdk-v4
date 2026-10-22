@@ -1089,38 +1089,43 @@ export async function prepareUserPay(
     readFailed = true;
     throw error;
   };
-  const watched = {
-    ...client,
-    async readContract(parameters: unknown) {
-      let result: unknown;
-      try {
-        result = await client.readContract(parameters as never);
-      } catch (error) {
-        lost(error);
-      }
-      return result ?? lost(new Error("The read returned nothing."));
-    },
-    async call(parameters: unknown) {
-      let result: Awaited<ReturnType<PublicClient["call"]>> | undefined;
-      try {
-        result = await client.call(parameters as never);
-      } catch (error) {
-        lost(error);
-      }
-      if (!result?.data) readFailed = true;
-      return result;
-    },
-  } as unknown as PublicClient;
+  const watched = (
+    !swaps
+      ? client
+      : {
+          ...client,
+          async readContract(parameters: unknown) {
+            let result: unknown;
+            try {
+              result = await client.readContract(parameters as never);
+            } catch (error) {
+              lost(error);
+            }
+            return result ?? lost(new Error("The read returned nothing."));
+          },
+          async call(parameters: unknown) {
+            let result: Awaited<ReturnType<PublicClient["call"]>> | undefined;
+            try {
+              result = await client.call(parameters as never);
+            } catch (error) {
+              lost(error);
+            }
+            if (!result?.data) readFailed = true;
+            return result;
+          },
+        }
+  ) as PublicClient;
   // A failed read is retried once: a dropped request must not silently weaken
   // the minimum.
   const withRetry = async (
     prepare: () => Promise<PreparedUserPay>,
   ): Promise<PreparedUserPay> => {
     try {
+      readFailed = false;
       return await prepare();
-    } catch (error) {
-      if (error instanceof PaySwapQuoteFailedError) throw error;
+    } catch {
       try {
+        readFailed = false;
         return await prepare();
       } catch (error) {
         if (error instanceof PaySwapQuoteFailedError) throw error;

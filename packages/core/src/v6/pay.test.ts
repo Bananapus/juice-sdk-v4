@@ -1323,6 +1323,27 @@ describe("prepareUserPay", () => {
       );
     });
 
+    test("keeps a routed pay the hook would mint unchanged when a read resolves to nothing", async () => {
+      const { client } = mockClient({
+        ...routed,
+        spec: usdcSpec({ amountToSwapWith: 640n }),
+        noop: true,
+      });
+      const readContract = client.readContract;
+      const withNothing = {
+        ...client,
+        readContract: async (request: { functionName: string }) =>
+          request.functionName === "projectIdOf"
+            ? undefined
+            : readContract(request as never),
+      } as never;
+      const prepared = await prepareUserPay(withNothing, routerArgs);
+      expect(prepared.metadata).toEqual(
+        buildUserPayMetadata({ chainId: 8453 }),
+      );
+      expect(prepared.quoteFailed).toBeUndefined();
+    });
+
     test.each(["projectIdOf", "previewSwapAmountOutOf"])(
       "refuses when the router's %s read resolves to nothing",
       async (functionName) => {
@@ -1663,6 +1684,42 @@ describe("prepareUserPay", () => {
       const prepared = await prepareUserPay(client, args);
       expect(prepared.minReturnedTokens).toBe(39n);
       expect(prepared.quoteFailed).toBeUndefined();
+    });
+
+    test("retries a quoted preview whose swap it couldn't read once", async () => {
+      let previews = 0;
+      const { client } = mockClient({
+        spec: swapSpec(),
+        respond: (metadata) =>
+          explicitMinimumOf(metadata) !== 0n && previews++ === 0
+            ? { spec: "0x1234" }
+            : {},
+      });
+      expect((await prepareUserPay(client, args)).minReturnedTokens).toBe(
+        9_900n,
+      );
+    });
+
+    test("a read that recovers on the retry doesn't refuse a swap too large to quote", async () => {
+      let pools = 0;
+      const { client } = mockClient({
+        spec: swapSpec({ amountToSwapWith: 1n << 128n }),
+      });
+      const readContract = client.readContract;
+      const prepared = await prepareUserPay(
+        {
+          ...client,
+          readContract: async (request: { functionName: string }) => {
+            if (request.functionName === "poolKeyOf" && pools++ === 0) {
+              throw new Error("request timed out");
+            }
+            return readContract(request as never);
+          },
+        } as never,
+        args,
+      );
+      expect(prepared.minReturnedTokens).toBe(47n);
+      expect(prepared.quoteFailed).toBe(true);
     });
 
     test("keeps a pay the hook would mint unchanged when its quote fails", async () => {
