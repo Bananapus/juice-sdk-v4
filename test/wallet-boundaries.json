@@ -17,7 +17,7 @@
     },
     {
       "file": "packages/core/src/review/sequence.ts",
-      "line": 118,
+      "line": 119,
       "api": "request",
       "boundary": "Take the reviewed sequence's lock across windows (Web Locks, or the IndexedDB lease without them) around each compare-and-set of its saved journal. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/sequence.test.ts"
@@ -122,21 +122,21 @@
     },
     {
       "file": "packages/core/src/review/relayrSend.ts",
-      "line": 435,
+      "line": 442,
       "api": "signTypedData",
       "boundary": "Sign a stand-in ForwardRequest with a key generated in memory for one fee quote. It never reaches the user's wallet, is never saved, and leaves only inside the stand-in request posted to Relayr.",
       "test": "packages/core/src/review/relayrSend.test.ts"
     },
     {
       "file": "packages/core/src/review/relayrSend.ts",
-      "line": 699,
+      "line": 728,
       "api": "sendTransaction",
-      "boundary": "Send a Relayr payment the person reviewed (or one within the reviewed fee cap) through the WalletAdapter, to the pinned payment contract and gas only (0 for a Safe app, whose proposal payRelayrReviewed alone allows), under its write hold, after the runtime, simulation, expiry, account, chain and Safe-mode gates.",
+      "boundary": "Send a Relayr payment the person reviewed (or one within the reviewed fee cap) through the WalletAdapter, to the pinned payment contract and gas only (0 for a Safe app, whose proposal payRelayrReviewed alone allows, and which adopts its queued proposal of the exact payment instead of proposing again), under its write hold, after the runtime, simulation, expiry, account, chain and Safe-mode gates.",
       "test": "packages/core/src/review/relayrSend.test.ts"
     },
     {
       "file": "packages/core/src/review/relayrSend.ts",
-      "line": 641,
+      "line": 668,
       "api": "request",
       "boundary": "Take the Relayr payment lock across tabs (Web Locks, or the IndexedDB lease without them) for one account and payment namespace, around only the check that no payment under it on any funding chain may land (or, for a bundle, already succeeded) and the hold's reservation. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/relayrSend.test.ts"

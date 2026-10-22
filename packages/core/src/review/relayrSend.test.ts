@@ -46,6 +46,7 @@ import type { SafeRelayrSession } from "./safeRelayr.js";
 import { openStepHold } from "./send.js";
 import { selfReviewingAdapter } from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
+import { SubmittedContractWriteError } from "./contractWrite.js";
 
 const FORWARDER = jbV6ContractAddress.ERC2771Forwarder[10] as Address;
 const PROJECTS = jbV6ContractAddress.JBProjects[10] as Address;
@@ -765,6 +766,35 @@ describe("payRelayrReviewed", () => {
     ).rejects.toBeInstanceOf(WriteHeldError);
   });
 
+  it("lets a Safe adopt its queued proposal of the exact payment, never proposing twice", async () => {
+    const first = relayrSetup();
+    first.wallet.state.safe = true;
+    reviewUi();
+    await payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, first.deps);
+    const [[payment]] = first.wallet.adapter.sendTransaction.mock.calls;
+    resetReviewUi();
+
+    const { deps, wallet, chain } = relayrSetup();
+    wallet.state.safe = true;
+    reviewUi();
+    const exact = chain.queueProposal({
+      to: payment.to,
+      data: payment.data,
+      value: payment.value,
+    });
+    const sent: Hex[] = [];
+    await expect(
+      payRelayrReviewed(
+        quoteFor(),
+        10,
+        { account: ACCOUNT, onSent: async (hash) => void sent.push(hash) },
+        deps,
+      ),
+    ).resolves.toEqual({ safeTxHash: exact });
+    expect(sent).toEqual([exact]);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
   it("refuses a payment contract whose code is not Relayr's, before the wallet", async () => {
     const { deps, wallet, chain } = relayrSetup();
     (
@@ -806,7 +836,7 @@ describe("payRelayrReviewed", () => {
   });
 
   it("proves the payment under the hash it was mined", async () => {
-    const { deps, wallet, chain } = relayrSetup();
+    const { deps, chain } = relayrSetup();
     reviewUi();
     const replacement = `0x${"99".repeat(32)}` as Hex;
     const original = chain.client.waitForTransactionReceipt;
@@ -822,6 +852,32 @@ describe("payRelayrReviewed", () => {
       deps,
     )) as { hash: Hex };
     expect(hash).toBe(replacement);
+  });
+
+  it("never reads a site's failure to record the mined hash as a refusal", async () => {
+    const { deps, wallet, chain } = relayrSetup();
+    reviewUi();
+    const replacement = `0x${"99".repeat(32)}` as Hex;
+    const original = chain.client.waitForTransactionReceipt;
+    chain.client.waitForTransactionReceipt = vi.fn(async ({ hash }) => {
+      const tx = chain.state.sent.get(hash)!;
+      chain.mine(replacement, tx);
+      return original({ hash: replacement });
+    }) as typeof original;
+    await expect(
+      payRelayrReviewed(
+        quoteFor(),
+        10,
+        {
+          account: ACCOUNT,
+          onSent: async (sent) => {
+            if (sent === replacement)
+              throw Object.assign(new Error("no"), { code: 4001 });
+          },
+        },
+        deps,
+      ),
+    ).rejects.toBeInstanceOf(SubmittedContractWriteError);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
   it("holds a quote's payment on every funding chain", async () => {

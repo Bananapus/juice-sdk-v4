@@ -14,9 +14,16 @@ import {
   jbV6ContractAddress,
 } from "../generated/juicebox.js";
 import { multiSendCallsOf } from "../safe.js";
-import { SAFE_EXEC_ABI } from "../safeService.js";
+import {
+  findPendingSafeAppProposal,
+  hasSafeService,
+  SAFE_EXEC_ABI,
+} from "../safeService.js";
 import { promptReview } from "./confirm.js";
-import { submitReviewedContractWrite } from "./contractWrite.js";
+import {
+  SubmittedContractWriteError,
+  submitReviewedContractWrite,
+} from "./contractWrite.js";
 import { decodeReviewCall } from "./decodeCall.js";
 import { buildReviewModel, type ReviewContextRow } from "./model.js";
 import { waitForTrackedReceipt } from "./receipt.js";
@@ -608,6 +615,8 @@ async function sendPayment(
   /** The attempt is saved (`onSending`), and the wallet not yet asked. */
   let saved = false;
   let invoked = false;
+  /** A proposal of exactly this payment its Safe already queued, sent in its place. */
+  let queued: Awaited<ReturnType<typeof findPendingSafeAppProposal>> = null;
   const attempt = () => {
     const held = handle.peek();
     if (held.status !== "clear") throw new WriteHeldError(held);
@@ -627,10 +636,28 @@ async function sendPayment(
           await requireRelayrPaymentRuntime(client);
         },
         simulate: async () => {
-          await simulateRelayrPayment(client, {
-            from: account,
-            payment: details,
-          });
+          const [, found] = await Promise.all([
+            simulateRelayrPayment(client, {
+              from: account,
+              payment: details,
+            }),
+            // A Safe never proposes again a payment it already queued exactly.
+            safe && hasSafeService(details.chainId)
+              ? findPendingSafeAppProposal(
+                  client,
+                  details.chainId,
+                  account,
+                  {
+                    to: RELAYR_PAYMENT_ADDRESS,
+                    data: details.calldata,
+                    value: details.amount,
+                  },
+                  deps.hold.safeService,
+                  true,
+                )
+              : null,
+          ]);
+          queued = found;
           return details;
         },
         beforeWrite: async () => {
@@ -689,12 +716,14 @@ async function sendPayment(
         onBeforeWriteAborted: () => gate.onRejected(),
         onWriteRejected: () => gate.onRejected(),
         onWriteSubmitted: async (submitted) => {
-          gate.afterSubmit(submitted);
+          gate.afterSubmit(submitted, queued?.tx);
           await hooks.onSent?.(submitted);
         },
         // The pinned contract and gas, never the quote's word.
         write: async ({ chainId, calldata, amount }) => {
+          // An adopted proposal is already with the Safe: never "not sent".
           invoked = true;
+          if (queued) return queued.proposalHash;
           try {
             return await adapter.sendTransaction({
               chainId,
@@ -726,7 +755,13 @@ async function sendPayment(
   if (safe) return hash;
   // A wallet that sped the payment up mined it under another hash.
   const mined = (await waitForTrackedReceipt(client, hash)).transactionHash;
-  if (mined.toLowerCase() !== hash.toLowerCase()) await hooks.onSent?.(mined);
+  if (mined.toLowerCase() !== hash.toLowerCase()) {
+    try {
+      await hooks.onSent?.(mined);
+    } catch (error) {
+      throw new SubmittedContractWriteError(mined, error);
+    }
+  }
   await verifyRelayrPayment(client, {
     hash: mined,
     from: account,

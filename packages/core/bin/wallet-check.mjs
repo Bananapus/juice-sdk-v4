@@ -30,6 +30,8 @@ const excluded = [];
 const globPattern = (glob) =>
   new RegExp(
     `^${glob
+      .replaceAll("\\", "/")
+      .replace(/^(?:\.\/)+/, "")
       .split(/(\*\*\/|\*\*|\*|\?)/)
       .map((part) =>
         part === "**/"

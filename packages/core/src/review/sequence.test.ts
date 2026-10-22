@@ -406,7 +406,8 @@ describe("reviewed sequences", () => {
         approveCall(),
         payCall(12n, {
           intent: "pay:1",
-          legacy: [{ call: { to: older.to, data: older.data, value: 7n } }],
+          // The value as hex: the hold reads it as 7 wei, and so does discard.
+          legacy: [{ call: { to: older.to, data: older.data, value: "0x7" } }],
         }),
       ],
       1,
@@ -644,6 +645,35 @@ describe("reviewed sequences", () => {
     expect(prompts).toHaveLength(0);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toBeNull();
+  });
+
+  it("reads a record with a malformed legacy source as none", async () => {
+    reviewUi();
+    const { record, storage } = await interrupted(
+      [approveCall(), payCall(9n, { intent: "pay:1", legacy: ["pay:0"] })],
+      1,
+    );
+    const key = `nana-sdk:sequence:${ACCOUNT.toLowerCase()}:${SCOPE}`;
+    const raw = storage.getItem(key)!;
+    expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toMatchObject({
+      id: record.id,
+    });
+    for (const legacy of [
+      [null],
+      [{ call: { to: "0x12", data: "0x" } }],
+      [{ call: { to: OTHER, data: "0x", value: "-1" } }],
+      [{ match: { to: OTHER, selector: "0x1234" } }],
+      [7],
+      "pay:0",
+    ]) {
+      const saved = JSON.parse(raw);
+      saved.sequence.o.calls[1].o.legacy = legacy;
+      storage.setItem(key, JSON.stringify(saved));
+      expect(
+        findReviewedSequence(SCOPE, ACCOUNT, { storage }),
+        JSON.stringify(legacy),
+      ).toBeNull();
+    }
   });
 
   it("reads an unreadable or foreign record as none", () => {

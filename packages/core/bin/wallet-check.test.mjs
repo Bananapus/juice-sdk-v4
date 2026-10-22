@@ -290,6 +290,16 @@ describe("nana-wallet-check", () => {
       run(dir, "--exclude", "src/**/generated/**", "--exclude", "**/*.test.ts")
         .status,
     ).toBe(0);
+    // However the pattern spells the path.
+    expect(
+      run(
+        dir,
+        "--exclude",
+        "./src/generated/b.ts",
+        "--exclude",
+        "src\\a.test.ts",
+      ).status,
+    ).toBe(0);
     // An exclusion names paths, never more than its pattern says.
     expect(run(dir, "--exclude", "src/*.test.ts").out).toContain(
       "src/generated/b.ts:1:sendTransaction",
