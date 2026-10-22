@@ -70,6 +70,13 @@ export type ReviewedCall = {
   to: Address;
   data: Hex;
   value?: bigint;
+  /**
+   * The exact gas limit to send with, when the app fixes it (a saved gas
+   * envelope, say). It is shown and bound in the review, simulated and sent
+   * as it is, never estimated or padded. A Safe app proposes with safeTxGas 0
+   * whatever this is.
+   */
+  gas?: bigint;
   /** When given, `data` must be exactly this function's encoding of `args`. */
   abi?: Abi;
   functionName?: string;
@@ -175,12 +182,14 @@ type SentCall = Readonly<{
   to: Address;
   data: Hex;
   value: bigint;
+  gas?: bigint;
 }>;
 
 const CHANGED =
   "Transaction data changed after review. Nothing was sent; review it again.";
 const MISMATCHED =
   "This call's data does not match its arguments. Nothing was sent.";
+const BAD_GAS = "This call's gas limit is not valid. Nothing was sent.";
 /** The refusal when the connected account is not the one an action was built for. */
 export const REVIEWED_ACCOUNT_CHANGED_LINE =
   "The connected account changed. Review again.";
@@ -201,8 +210,11 @@ function exact(call: ReviewedCall): {
     "abi" | "functionName" | "args" | "label" | "contractName"
   >;
 } {
-  const { chainId, to, data, value, abi, functionName, args, label } = call;
-  const { contractName } = call;
+  const { chainId, to, data, value, gas, abi, functionName, args } = call;
+  const { label, contractName } = call;
+  if (gas !== undefined && (typeof gas !== "bigint" || gas <= 0n)) {
+    throw new Error(BAD_GAS);
+  }
   if (abi && functionName) {
     const encoded = encodeFunctionData({
       abi,
@@ -214,7 +226,13 @@ function exact(call: ReviewedCall): {
     }
   }
   return {
-    sent: Object.freeze({ chainId, to, data, value: value ?? 0n }),
+    sent: Object.freeze({
+      chainId,
+      to,
+      data,
+      value: value ?? 0n,
+      ...(gas === undefined ? {} : { gas }),
+    }),
     shown: { abi, functionName, args, label, contractName },
   };
 }
@@ -224,7 +242,8 @@ function sameCall(a: SentCall, b: SentCall): boolean {
     a.chainId === b.chainId &&
     a.to.toLowerCase() === b.to.toLowerCase() &&
     a.data.toLowerCase() === b.data.toLowerCase() &&
-    a.value === b.value
+    a.value === b.value &&
+    a.gas === b.gas
   );
 }
 
@@ -321,6 +340,7 @@ async function reviewSimulation(
             to: sent[index].to,
             data: sent[index].data,
             value: sent[index].value,
+            gas: sent[index].gas,
             label: labelOf(calls[index], index),
             dependsOnPrior: calls[index].dependsOnPrior,
           })),
@@ -332,6 +352,7 @@ async function reviewSimulation(
           to: sent[steps[0]].to,
           data: sent[steps[0]].data,
           value: sent[steps[0]].value,
+          gas: sent[steps[0]].gas,
           ...(minimum === undefined
             ? {}
             : { blockNumber: await notBefore(client, minimum) }),
@@ -559,10 +580,11 @@ async function send(
   }
 
   const request = (safe: boolean): TransactionReviewRequest => ({
-    calls: snapshots.map(({ sent, shown }) => ({
+    calls: snapshots.map(({ sent: { gas, ...sent }, shown }) => ({
       ...sent,
       from: account,
-      ...(safe ? { safeTxGas: 0n } : {}),
+      // A Safe app signs safeTxGas 0, never the app's gas.
+      ...(safe ? { safeTxGas: 0n } : gas === undefined ? {} : { gas }),
       ...(shown.abi ? { abi: shown.abi } : {}),
       ...(shown.functionName ? { functionName: shown.functionName } : {}),
       ...(shown.args ? { args: shown.args } : {}),
@@ -664,7 +686,11 @@ async function send(
     handle.peek().reservation ?? null;
   const reviewedGenerations = handles.map(generation);
   const model = buildReviewModel(request(safe));
-  const simulation = reviewSimulation(account, calls, sent, blocks, clientFor);
+  /** What each step runs as: a Safe app's call is proposed with safeTxGas 0, not the app's gas. */
+  const run: readonly SentCall[] = safe
+    ? sent.map(({ gas: _gas, ...call }) => call)
+    : sent;
+  const simulation = reviewSimulation(account, calls, run, blocks, clientFor);
   const enriched = Promise.all([
     enrichReviewModel(model, clientFor).catch(() => model),
     simulation,
@@ -804,13 +830,17 @@ async function send(
             value: sending.value,
             ...(blockNumber === undefined ? {} : { blockNumber }),
           };
+          const { gas } = run[step];
           const [, estimate, found] = await Promise.all([
             simulateStateChangingTransaction(client, {
               from: account,
               ...tx,
+              gas,
             }),
             // A Safe app signs the sent gas as safeTxGas; 0 makes a failed call revert.
-            safe ? undefined : client.estimateGas({ account, ...tx }),
+            safe || gas !== undefined
+              ? undefined
+              : client.estimateGas({ account, ...tx }),
             // A Safe app never proposes again a call its Safe already queued exactly.
             safe && hasSafeService(sending.chainId)
               ? findPendingSafeAppProposal(
@@ -826,7 +856,7 @@ async function send(
           queued = found;
           return {
             ...sending,
-            gas: estimate === undefined ? 0n : gasWithHeadroom(estimate),
+            gas: safe ? 0n : (gas ?? gasWithHeadroom(estimate!)),
           };
         },
         beforeWrite: async () => {

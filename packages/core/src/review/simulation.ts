@@ -71,6 +71,8 @@ export type SimulatedSequenceCall = {
   to: Address;
   data: Hex;
   value?: bigint;
+  /** The exact gas limit the call is sent with, when the app fixed it. */
+  gas?: bigint;
   /** Names the call in a failure message. */
   label: string;
   /** Needs an earlier call's effect (an allowance, a hook), so it cannot run alone. */
@@ -171,7 +173,12 @@ export async function simulateCallSequence(
   try {
     const simulated = await client.simulateCalls({
       account: from,
-      calls: calls.map(({ to, data, value }) => ({ to, data, value })),
+      calls: calls.map(({ to, data, value, gas }) => ({
+        to,
+        data,
+        value,
+        ...(gas === undefined ? {} : { gas }),
+      })),
     });
     sequence = simulated.results.map((result) =>
       result.status === "failure"
@@ -207,6 +214,7 @@ export async function simulateCallSequence(
         to: call.to,
         data: call.data,
         value: call.value,
+        gas: call.gas,
       });
     } catch (error) {
       throw withCause(

@@ -9,7 +9,14 @@ import type {
 /** The raw calls a self-reviewing wallet (Signa) decodes and confirms on its own page. */
 export type SelfReviewedRequest = {
   account: Address;
-  calls: readonly { chainId: number; to: Address; data: Hex; value: bigint }[];
+  calls: readonly {
+    chainId: number;
+    to: Address;
+    data: Hex;
+    value: bigint;
+    /** The exact gas limit the app fixed for the call, when it did. */
+    gas?: bigint;
+  }[];
 };
 
 /**

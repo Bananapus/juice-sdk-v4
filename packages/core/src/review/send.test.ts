@@ -109,6 +109,108 @@ describe("sendReviewed", () => {
     });
   });
 
+  it("shows, binds, simulates and sends an app's exact gas, never estimating it", async () => {
+    const { wallet, deps, chain } = setup();
+    const prompts = reviewUi();
+    const call = payCall(5n, { gas: 300_000n });
+    await sendReviewed(action([call]), deps);
+    const [prompt] = prompts;
+    expect(prompt.model.calls[0].gas).toBe(300_000n);
+    const shown = {
+      chainId: 10,
+      to: TERMINAL,
+      data: call.data,
+      value: 7n,
+      from: ACCOUNT,
+      abi: PAY_ABI,
+      functionName: "pay",
+      args: call.args,
+      label: "Pay",
+    };
+    expect(prompt.model.id).toBe(
+      buildReviewModel({ calls: [{ ...shown, gas: 300_000n }] }).id,
+    );
+    expect(prompt.model.id).not.toBe(buildReviewModel({ calls: [shown] }).id);
+    expect(chain.client.estimateGas).not.toHaveBeenCalled();
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledWith({
+      chainId: 10,
+      to: TERMINAL,
+      data: call.data,
+      value: 7n,
+      gas: 300_000n,
+    });
+    // Both simulations, at review and before the wallet, ran at exactly that gas.
+    const simulated = chain.client.request.mock.calls.filter(
+      ([request]) => (request as { method: string }).method === "eth_call",
+    );
+    expect(simulated.length).toBeGreaterThanOrEqual(2);
+    for (const [request] of simulated)
+      expect(request).toMatchObject({
+        params: [
+          expect.objectContaining({ gas: numberToHex(300_000n) }),
+          "latest",
+        ],
+      });
+  });
+
+  it("simulates a sequence at each call's exact gas", async () => {
+    const { deps, chain } = setup();
+    reviewUi();
+    await sendReviewed(
+      action(
+        [
+          { ...approveCall(), gas: 90_000n },
+          payCall(5n, { dependsOnPrior: true }),
+        ],
+        { scope: "pay" },
+      ),
+      deps,
+    );
+    expect(chain.client.simulateCalls).toHaveBeenCalledWith(
+      expect.objectContaining({
+        calls: [
+          expect.objectContaining({ gas: 90_000n }),
+          expect.not.objectContaining({ gas: expect.anything() }),
+        ],
+      }),
+    );
+  });
+
+  it("refuses an exact gas changed after review, or one that is not positive", async () => {
+    const { wallet, deps } = setup();
+    const prompts = reviewUi();
+    const call = payCall(5n, { gas: 300_000n });
+    await expect(
+      sendReviewed(
+        action([call], { reverify: async () => void (call.gas = 400_000n) }),
+        deps,
+      ),
+    ).rejects.toThrow(CHANGED);
+    expect(prompts).toHaveLength(1);
+    for (const gas of [0n, -1n, 5 as unknown as bigint])
+      await expect(
+        sendReviewed(action([payCall(5n, { gas })]), deps),
+      ).rejects.toThrow(
+        "This call's gas limit is not valid. Nothing was sent.",
+      );
+    expect(prompts).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("a Safe app proposes with safeTxGas 0 whatever gas the app set", async () => {
+    const { wallet, deps } = setup();
+    wallet.state.safe = true;
+    const prompts = reviewUi();
+    await sendReviewed(action([payCall(5n, { gas: 300_000n })]), deps);
+    expect(prompts[0].model.calls[0]).toMatchObject({
+      gas: null,
+      safeTxGas: 0n,
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ gas: 0n }),
+    );
+  });
+
   it("refuses calldata that is not its arguments' encoding before any review", async () => {
     const { wallet, deps } = setup();
     const prompts = reviewUi();
@@ -659,6 +761,31 @@ describe("sendReviewed", () => {
       status: "done",
       hashes: [`0x${"ab".repeat(32)}`],
       receipts: [],
+    });
+  });
+
+  it("hands a self-reviewing wallet an app's exact gas", async () => {
+    const { deps } = setup();
+    const submit = vi.fn(async () => `0x${"ab".repeat(32)}` as Hex);
+    const previews: { calls: { gas: bigint | null }[] }[] = [];
+    const call = payCall(5n, { gas: 300_000n });
+    await sendReviewed(action([call]), {
+      ...deps,
+      adapter: selfReviewingAdapter({ account: () => ACCOUNT, submit }),
+      onPreview: (model) => previews.push(model),
+    });
+    expect(previews[0].calls[0].gas).toBe(300_000n);
+    expect(submit).toHaveBeenCalledWith({
+      account: ACCOUNT,
+      calls: [
+        {
+          chainId: 10,
+          to: TERMINAL,
+          data: call.data,
+          value: 7n,
+          gas: 300_000n,
+        },
+      ],
     });
   });
 
