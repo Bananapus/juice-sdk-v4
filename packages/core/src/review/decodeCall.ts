@@ -168,6 +168,7 @@ function decodeExactly(
  * of the known contract at `to` on `chainId`, else by its selector across the
  * SDK's ABIs and ERC-20. A decode counts only when the arguments re-encode to
  * exactly `data`; otherwise the call has no ABI and the review shows it raw.
+ * The gas a wallet or Safe signs passes through, so it stays bound in the id.
  */
 export function decodeReviewCall(call: {
   chainId: number;
@@ -175,6 +176,8 @@ export function decodeReviewCall(call: {
   data: Hex;
   value?: bigint;
   from?: Address;
+  gas?: bigint;
+  safeTxGas?: bigint;
 }): TransactionReviewCall {
   const raw: TransactionReviewCall = {
     chainId: call.chainId,
@@ -182,6 +185,8 @@ export function decodeReviewCall(call: {
     data: call.data,
     ...(call.value === undefined ? {} : { value: call.value }),
     ...(call.from === undefined ? {} : { from: call.from }),
+    ...(call.gas === undefined ? {} : { gas: call.gas }),
+    ...(call.safeTxGas === undefined ? {} : { safeTxGas: call.safeTxGas }),
   };
   if (!/^0x[0-9a-f]{8}/iu.test(call.data)) return raw;
   const selector = call.data.slice(0, 10).toLowerCase();

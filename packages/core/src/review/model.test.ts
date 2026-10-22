@@ -216,6 +216,37 @@ describe("review roles, amounts and warnings", () => {
     ]);
     expect(codes(unlimited)).toEqual(["unlimited-approval"]);
     expect(codes(one(approve(8453, usdc, maxUint256 - 1n)))).toEqual([]);
+    // Positions decide, not the ABI's argument names.
+    const unnamed = [
+      {
+        type: "function",
+        name: "approve",
+        stateMutability: "nonpayable",
+        inputs: [{ type: "address" }, { type: "uint256" }],
+        outputs: [{ type: "bool" }],
+      },
+    ] as const satisfies Abi;
+    const anonymous = one(
+      call(8453, usdc, unnamed, "approve", [BOB, maxUint256]),
+    );
+    expect(anonymous.roles).toEqual(unlimited.roles);
+    expect(anonymous.tokenAmounts).toEqual(unlimited.tokenAmounts);
+    expect(codes(anonymous)).toEqual(["unlimited-approval"]);
+  });
+
+  it("shows a native payment's value as its amount", () => {
+    const [paid] = pay.calls;
+    const args = [...paid.args!];
+    args[2] = 0n;
+    const [reviewed] = buildReviewModel({
+      calls: [call(8453, paid.to, paid.abi!, "pay", args)].map((unpaid) => ({
+        ...unpaid,
+        value: 10n ** 18n,
+      })),
+    }).calls;
+    expect(reviewed.tokenAmounts).toEqual([
+      { token: "native", amount: 10n ** 18n, decimals: 18, symbol: "ETH" },
+    ]);
   });
 
   it("names pay beneficiary and cashOut beneficiary", () => {
@@ -259,6 +290,12 @@ describe("review roles, amounts and warnings", () => {
     ]);
     const transfer = one(call(1, TOKEN, ownable, "transferOwnership", [BOB]));
     expect(codes(transfer)).toEqual(["unknown-contract", "owner-action"]);
+    const toProject = fn("transferOwnershipToProject", [
+      { type: "uint256", name: "projectId" },
+    ]);
+    expect(
+      codes(one(call(1, TOKEN, toProject, "transferOwnershipToProject", [4n]))),
+    ).toContain("owner-action");
     expect(transfer.roles).toEqual([
       { role: "owner", address: BOB, name: null },
     ]);

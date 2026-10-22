@@ -174,15 +174,44 @@ const ROLE_OF: Readonly<Record<string, ReviewRole["role"]>> = {
   operator: "operator",
 };
 
-/** ERC-20 and Permit2 calls that move or approve `amount` (or `value`) of a token. */
-const TOKEN_AMOUNT_FUNCTIONS = new Set([
-  "approve",
-  "increaseAllowance",
-  "transfer",
-  "transferFrom",
-]);
+/** Where a token call's arguments sit, by position, so ABI names never decide them. */
+type TokenCall = {
+  token?: number;
+  spender?: number;
+  recipient?: number;
+  amount?: number;
+};
 
-const APPROVALS = new Set(["approve", "increaseAllowance"]);
+/**
+ * ERC-20 and Permit2 approvals and transfers by signature. ERC-721 shares
+ * `approve(address,uint256)` and `transferFrom(address,address,uint256)`;
+ * where the ABI names the last argument `tokenId`, it is a token ID, not an
+ * amount.
+ */
+const TOKEN_CALLS: Readonly<Record<string, TokenCall>> = {
+  "approve(address,uint256)": { spender: 0, amount: 1 },
+  "increaseAllowance(address,uint256)": { spender: 0, amount: 1 },
+  "transfer(address,uint256)": { recipient: 0, amount: 1 },
+  "transferFrom(address,address,uint256)": { recipient: 1, amount: 2 },
+  "approve(address,address,uint160,uint48)": {
+    token: 0,
+    spender: 1,
+    amount: 2,
+  },
+};
+
+/** The token call `fn` is, with no amount for an ERC-721 token ID; null for any other function. */
+function tokenCallOf(fn: AbiFunction): TokenCall | null {
+  const shape =
+    TOKEN_CALLS[
+      `${fn.name}(${fn.inputs.map((input) => input.type).join(",")})`
+    ];
+  if (!shape) return null;
+  return shape.amount !== undefined &&
+    fn.inputs[shape.amount].name === "tokenId"
+    ? { ...shape, amount: undefined }
+    : shape;
+}
 
 /** Calls that change a contract's owner, a Safe's owners or threshold, or what else can act as the Safe. */
 const OWNER_ACTIONS = new Set([
@@ -195,6 +224,7 @@ const OWNER_ACTIONS = new Set([
   "enableModule",
   "setGuard",
   "setFallbackHandler",
+  "transferOwnershipToProject",
 ]);
 
 /** MultiSend's `transactions` argument is where its decoded calls show. */
@@ -336,22 +366,27 @@ function reviewRoles(
 ): ReviewRole[] {
   const roles: ReviewRole[] = [];
   const seen = new Set<string>();
+  const add = (role: ReviewRole["role"] | undefined, address: unknown) => {
+    if (!role || typeof address !== "string") return;
+    const key = `${role}:${address.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    roles.push({
+      role,
+      address: address as Address,
+      name: knownAddressName(call.chainId, address),
+    });
+  };
+  const tokenCall = tokenCallOf(fn);
+  if (tokenCall?.spender !== undefined) {
+    add("spender", call.args?.[tokenCall.spender]);
+  }
+  if (tokenCall?.recipient !== undefined) {
+    add("recipient", call.args?.[tokenCall.recipient]);
+  }
   fn.inputs.forEach((input, index) => {
     for (const [name, address] of addressArguments(input, call.args?.[index])) {
-      const role =
-        ROLE_OF[name] ??
-        (name === "to" && TOKEN_AMOUNT_FUNCTIONS.has(fn.name)
-          ? "recipient"
-          : undefined);
-      if (!role || typeof address !== "string") continue;
-      const key = `${role}:${address.toLowerCase()}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      roles.push({
-        role,
-        address: address as Address,
-        name: knownAddressName(call.chainId, address),
-      });
+      add(ROLE_OF[name], address);
     }
   });
   return roles;
@@ -369,44 +404,79 @@ function knownToken(
     : { decimals: null, symbol: null };
 }
 
-/** The amount and its input, for a terminal payment or an ERC-20 or Permit2 approval or transfer. */
-function tokenAmountOf(
-  call: TransactionReviewCall,
-  fn: AbiFunction,
-): { amount: ReviewTokenAmount; input: AbiParameter } | null {
-  const argument = (names: readonly string[]) => {
-    const index = fn.inputs.findIndex((input) =>
-      names.includes(input.name ?? ""),
-    );
-    return index < 0
-      ? null
-      : { input: fn.inputs[index], value: call.args?.[index] };
-  };
-  const payment = fn.name === "pay" || fn.name === "addToBalanceOf";
-  if (!payment && !TOKEN_AMOUNT_FUNCTIONS.has(fn.name)) return null;
-  const amount = argument(payment ? ["amount"] : ["amount", "value"]);
-  if (
-    !amount?.input.type.startsWith("uint") ||
-    typeof amount.value !== "bigint"
-  ) {
-    return null;
-  }
-  const tokenArgument = argument(["token"]);
-  if (payment && !tokenArgument) return null;
-  const address = tokenArgument ? tokenArgument.value : call.to;
-  if (typeof address !== "string") return null;
+function tokenAmount(
+  chainId: number,
+  address: unknown,
+  amount: unknown,
+): ReviewTokenAmount | null {
+  if (typeof address !== "string" || typeof amount !== "bigint") return null;
   const token =
     address.toLowerCase() === NATIVE_TOKEN.toLowerCase()
       ? "native"
       : (address as Address);
-  return {
-    amount: {
-      token,
-      amount: amount.value,
-      ...knownToken(call.chainId, token),
-    },
-    input: amount.input,
-  };
+  return { token, amount, ...knownToken(chainId, token) };
+}
+
+/**
+ * What a terminal payment sends, or what an ERC-20 or Permit2 approval or
+ * transfer moves. A native payment sends the call's value, whatever its
+ * `amount` argument says.
+ */
+function tokenAmountOf(
+  call: TransactionReviewCall,
+  fn: AbiFunction,
+): ReviewTokenAmount | null {
+  const args = call.args ?? [];
+  if (fn.name === "pay" || fn.name === "addToBalanceOf") {
+    const token = fn.inputs.findIndex((input) => input.name === "token");
+    const amount = fn.inputs.findIndex((input) => input.name === "amount");
+    if (token < 0 || amount < 0) return null;
+    const native =
+      typeof args[token] === "string" &&
+      (args[token] as string).toLowerCase() === NATIVE_TOKEN.toLowerCase();
+    return tokenAmount(
+      call.chainId,
+      args[token],
+      native ? (call.value ?? 0n) : args[amount],
+    );
+  }
+  const tokenCall = tokenCallOf(fn);
+  if (tokenCall?.amount === undefined) return null;
+  return tokenAmount(
+    call.chainId,
+    tokenCall.token === undefined ? call.to : args[tokenCall.token],
+    args[tokenCall.amount],
+  );
+}
+
+/** An approval of the type's largest amount, which never runs down. */
+function isUnlimitedApproval(
+  call: TransactionReviewCall,
+  fn: AbiFunction,
+): boolean {
+  const tokenCall = tokenCallOf(fn);
+  if (tokenCall?.spender === undefined || tokenCall.amount === undefined) {
+    return false;
+  }
+  const bits = BigInt(fn.inputs[tokenCall.amount].type.slice(4) || 256);
+  return call.args?.[tokenCall.amount] === (1n << bits) - 1n;
+}
+
+/** An operator grant, or an ERC-721 approval of an address other than zero. */
+function grantsPermission(
+  call: TransactionReviewCall,
+  fn: AbiFunction,
+): boolean {
+  if (fn.name === "setPermissionsFor") return true;
+  if (fn.name === "setApprovalForAll") return call.args?.[1] === true;
+  const tokenCall = tokenCallOf(fn);
+  const spender =
+    tokenCall?.spender === undefined ? null : call.args?.[tokenCall.spender];
+  return (
+    tokenCall?.amount === undefined &&
+    typeof spender === "string" &&
+    !/^0x0{40}$/iu.test(spender)
+  );
 }
 
 function reviewArguments(
@@ -467,23 +537,17 @@ function reviewCall(call: TransactionReviewCall): ReviewCallModel {
   if (contractName === null && call.data.length >= 10) {
     warnings.push({ code: "unknown-contract", text: UNKNOWN_CONTRACT });
   }
-  const tokenAmount = fn ? tokenAmountOf(call, fn) : null;
-  if (fn && tokenAmount && APPROVALS.has(fn.name)) {
-    const bits = BigInt(tokenAmount.input.type.slice(4) || 256);
-    if (tokenAmount.amount.amount === (1n << bits) - 1n) {
-      warnings.push({ code: "unlimited-approval", text: UNLIMITED_APPROVAL });
-    }
+  if (fn && isUnlimitedApproval(call, fn)) {
+    warnings.push({ code: "unlimited-approval", text: UNLIMITED_APPROVAL });
   }
   if (fn && OWNER_ACTIONS.has(fn.name)) {
     warnings.push({ code: "owner-action", text: OWNER_ACTION });
   }
-  if (
-    fn?.name === "setPermissionsFor" ||
-    (fn?.name === "setApprovalForAll" && call.args?.[1] === true)
-  ) {
+  if (fn && grantsPermission(call, fn)) {
     warnings.push({ code: "permission-grant", text: PERMISSION_GRANT });
   }
-  const tokenAmounts = tokenAmount ? [tokenAmount.amount] : [];
+  const amount = fn ? tokenAmountOf(call, fn) : null;
+  const tokenAmounts = amount ? [amount] : [];
   return {
     chainId: call.chainId,
     from: call.from ?? null,

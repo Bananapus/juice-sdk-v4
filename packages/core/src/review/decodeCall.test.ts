@@ -29,6 +29,17 @@ describe("decodeReviewCall", () => {
     const { label: _label, ...unlabeled } = pay;
     const withAbi = buildReviewModel({ calls: [unlabeled] });
     expect(buildReviewModel({ calls: [decoded] })).toEqual(withAbi);
+
+    // The gas a wallet or Safe signs stays bound.
+    const signed = { ...unlabeled, gas: 400_000n, safeTxGas: 1n };
+    const { gas, safeTxGas } = signed;
+    expect(
+      buildReviewModel({
+        calls: [
+          decodeReviewCall({ chainId, to, data, value, from, gas, safeTxGas }),
+        ],
+      }).id,
+    ).toBe(buildReviewModel({ calls: [signed] }).id);
   });
 
   it("decodes an ERC-20 approve to an unknown address by selector", () => {
@@ -67,6 +78,12 @@ describe("decodeReviewCall", () => {
       "tokenId",
     ]);
     expect(model.tokenAmounts).toEqual([]);
+    expect(model.roles).toEqual([
+      { role: "spender", address: BOB, name: null },
+    ]);
+    expect(model.warnings.map((warning) => warning.code)).toEqual([
+      "permission-grant",
+    ]);
     expect(decoded.abi).toEqual([
       jbProjectsAbi.find(
         (item) => item.type === "function" && item.name === "approve",
