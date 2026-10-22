@@ -73,49 +73,49 @@
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 101,
+      "line": 111,
       "api": "sendTransaction",
       "boundary": "The WalletAdapter boundary: send exactly the reviewed target, calldata, value and gas from the connected account, naming the call's chain so viem refuses a wallet on another one. Reached only from sendReviewed after the core-minted confirmation.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 117,
+      "line": 128,
       "api": "signTypedData",
       "boundary": "The WalletAdapter boundary: sign the exact typed data from the connected account.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 121,
+      "line": 133,
       "api": "signMessage",
       "boundary": "The WalletAdapter boundary: sign the exact message from the connected account.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 125,
+      "line": 137,
       "api": "sendCalls",
       "boundary": "The WalletAdapter boundary: send the exact calls as one wallet batch from the connected account on the named chain.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 715,
+      "line": 726,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action.",
       "test": "packages/core/src/review/send.test.ts"
     },
     {
       "file": "packages/core/src/review/sign.ts",
-      "line": 362,
+      "line": 365,
       "api": "signTypedData",
       "boundary": "signPrepared hands the WalletAdapter typed data core built from its own Safe, forwarder and Permit2 constants, inside submitReviewedContractWrite's account and chain checks, only after core's own confirmation for the model that shows that exact typed data.",
       "test": "packages/core/src/review/sign.test.ts"
     },
     {
       "file": "packages/core/src/review/sign.ts",
-      "line": 363,
+      "line": 366,
       "api": "signMessage",
       "boundary": "signPrepared hands the WalletAdapter the exact message text the confirmed model shows, inside submitReviewedContractWrite's account check, only after core's own confirmation.",
       "test": "packages/core/src/review/sign.test.ts"

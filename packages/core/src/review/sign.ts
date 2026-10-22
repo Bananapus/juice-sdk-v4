@@ -334,6 +334,8 @@ export async function signPrepared(
   prepared: readonly PreparedSignature[],
   account: Address,
   adapter: WalletAdapter,
+  /** The caller's final gate before each signature; it throws to stop. */
+  beforeSign?: () => void,
 ): Promise<Hex[]> {
   const signatures: Hex[] = [];
   for (const { chainId, typedData, message } of prepared) {
@@ -351,6 +353,7 @@ export async function signPrepared(
           currentAccount: () => adapter.account(),
           simulate: async () => undefined,
           beforeSend: () => {
+            beforeSign?.();
             if (typedData && adapter.chainId() !== chainId) {
               throw new Error(
                 "Your wallet changed networks. Review the signature again.",

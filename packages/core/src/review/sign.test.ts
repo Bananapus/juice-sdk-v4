@@ -532,4 +532,42 @@ describe("signReviewed", () => {
     expect(fake.adapter.signMessage).not.toHaveBeenCalled();
     expect(fake.adapter.sendTransaction).not.toHaveBeenCalled();
   });
+
+  it("checks the action again before each signature", async () => {
+    const { wallet: fake, deps } = setup();
+    reviewUi();
+    let open = true;
+    fake.adapter.signMessage.mockImplementation(async () => {
+      // The first signature changes what the action depends on.
+      open = false;
+      return "0x01";
+    });
+    const messages = ["one", "two"].map((message) => ({
+      kind: "message" as const,
+      chainId: 10,
+      message,
+    }));
+    const assertWriteState = () => {
+      if (!open) throw new Error("The project changed.");
+    };
+    await expect(
+      sendReviewed(
+        action([payCall()], { signatures: messages, assertWriteState }),
+        deps,
+      ),
+    ).rejects.toThrow("The project changed.");
+    expect(fake.adapter.signMessage).toHaveBeenCalledTimes(1);
+
+    // A call changed while the review was open stops the signing too.
+    const call = payCall(7n);
+    reviewUi(async (prompt) => {
+      call.value = 8n;
+      return prompt.confirmation;
+    });
+    await expect(
+      sendReviewed(action([call], { signatures: messages }), deps),
+    ).rejects.toThrow("Transaction data changed after review");
+    expect(fake.adapter.signMessage).toHaveBeenCalledTimes(1);
+    expect(fake.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
 });

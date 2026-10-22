@@ -556,15 +556,26 @@ async function send(
   await promptReview(model, simulation, enriched);
   let signed: { signatures?: Hex[] } = {};
   if (prepared.length) {
-    // The action's own gates, before the wallet signs for it.
-    action.guard?.();
-    action.assertWriteState?.();
-    handles.forEach((handle, step) => {
-      if (generation(handle) !== reviewedGenerations[step]) {
-        throw new WriteHoldStaleReviewError();
-      }
-    });
-    signed = { signatures: await signPrepared(prepared, account, adapter) };
+    // The action's own gates, last before the wallet opens for each signature.
+    const stillReviewed = () => {
+      action.guard?.();
+      action.assertWriteState?.();
+      calls.forEach((call, step) => {
+        let now: SentCall;
+        try {
+          now = exact(call).sent;
+        } catch {
+          throw new Error(CHANGED);
+        }
+        if (!sameCall(now, sent[step])) throw new Error(CHANGED);
+        if (generation(handles[step]) !== reviewedGenerations[step]) {
+          throw new WriteHoldStaleReviewError();
+        }
+      });
+    };
+    signed = {
+      signatures: await signPrepared(prepared, account, adapter, stillReviewed),
+    };
   }
 
   // Saved before the first wallet call, once the review is confirmed.

@@ -66,6 +66,16 @@ async function connection(options: {
   return { account: asked, client };
 }
 
+/** Refuses a signature once the account has changed since `connection` read it. */
+function unchanged(
+  options: { account: () => Address | undefined },
+  account: Address,
+): void {
+  if (options.account()?.toLowerCase() !== account.toLowerCase()) {
+    throw new Error("The connected account changed. Review again.");
+  }
+}
+
 /**
  * The chain a write is sent on: the client's own when it is that chain, so
  * its formatters apply. viem checks the wallet is on it before sending.
@@ -109,6 +119,7 @@ export function viemWalletAdapter(options: {
     },
     async signTypedData(typedData) {
       const { account, client } = await connection(options);
+      unchanged(options, account);
       // viem does not check the wallet's chain against the domain's.
       const chainId = typedData.domain?.chainId;
       if (chainId !== undefined && options.chainId() !== Number(chainId)) {
@@ -118,6 +129,7 @@ export function viemWalletAdapter(options: {
     },
     async signMessage(message) {
       const { account, client } = await connection(options);
+      unchanged(options, account);
       return client.signMessage({ account, message });
     },
     async sendCalls(chainId, calls) {

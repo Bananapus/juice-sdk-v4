@@ -144,6 +144,36 @@ describe("wallet adapters", () => {
     expect(client.sendTransaction.mock.calls.length).toBe(sends);
   });
 
+  it("viemWalletAdapter refuses to sign once the account moved after connecting", async () => {
+    const client = walletClient();
+    for (const sign of [
+      (adapter: ReturnType<typeof viemWalletAdapter>) =>
+        adapter.signMessage("hi"),
+      (adapter: ReturnType<typeof viemWalletAdapter>) =>
+        adapter.signTypedData({
+          domain: { chainId: 10 },
+          types: { Note: [{ name: "text", type: "string" }] },
+          primaryType: "Note",
+          message: { text: "hi" },
+        }),
+    ]) {
+      let reads = 0;
+      const adapter = viemWalletAdapter({
+        walletClient: async () => client as unknown as WalletClient,
+        // The connection's two reads see ACCOUNT; the next sees another.
+        account: () => (reads++ < 2 ? ACCOUNT : TARGET),
+        chainId: () => 10,
+        isSafe: () => false,
+        switchChain: async () => undefined,
+      });
+      await expect(sign(adapter)).rejects.toThrow(
+        "The connected account changed",
+      );
+    }
+    expect(client.signMessage).not.toHaveBeenCalled();
+    expect(client.signTypedData).not.toHaveBeenCalled();
+  });
+
   it("selfReviewingAdapter refuses every other method with 4200", async () => {
     const submit = vi.fn(async () => HASH);
     const adapter = selfReviewingAdapter({ account: () => ACCOUNT, submit });
