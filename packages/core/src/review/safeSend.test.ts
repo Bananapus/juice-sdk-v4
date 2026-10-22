@@ -29,8 +29,10 @@ import {
   TERMINAL,
   unregister,
 } from "./__fixtures__/reviewedSend.js";
+import { safeExecutionIntent } from "./intents.js";
 import { TransactionReviewCancelledError } from "./reviewQueue.js";
 import { selfReviewingAdapter, type SelfReviewedRequest } from "./wallet.js";
+import { WriteHeldError } from "./writeHold.js";
 import {
   confirmReviewedSafeTransaction,
   executeReviewedSafeTransaction,
@@ -111,7 +113,10 @@ function transferTx(
 }
 
 /** Safe's transaction service: the queue it lists and every request it got. */
-function service(pending: SafeQueuedTransaction[] = []) {
+function service(
+  pending: SafeQueuedTransaction[] = [],
+  answers: { post?: number; recorded?: SafeQueuedTransaction } = {},
+) {
   const requests: { url: string; method: string; body?: unknown }[] = [];
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? "GET";
@@ -120,7 +125,19 @@ function service(pending: SafeQueuedTransaction[] = []) {
       method,
       ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}),
     });
-    if (method === "POST") return new Response(null, { status: 201 });
+    if (method === "POST") {
+      return new Response(null, { status: answers.post ?? 201 });
+    }
+    if (!url.includes("?")) {
+      const { recorded } = answers;
+      return recorded
+        ? Response.json({
+            ...recorded,
+            safe: SAFE,
+            safeTxHash: safeTransactionHash(10, SAFE, recorded),
+          })
+        : new Response(null, { status: 404 });
+    }
     return Response.json({
       next: null,
       results: pending.map((tx) => ({
@@ -372,6 +389,61 @@ describe("proposeReviewedSafeTransaction", () => {
   });
 });
 
+describe("proposeReviewedSafeTransaction answers", () => {
+  it("finds a proposal the service queued but whose answer was lost, and posts nothing when the Safe changed during the last queue read", async () => {
+    const { wallet, deps } = signing();
+    reviewUi();
+    const call = payCall();
+    const lost = service([], {
+      post: 502,
+      recorded: transferTx({ to: call.to, data: call.data, value: "7" }),
+    });
+    const { safeTxHash } = await proposeReviewedSafeTransaction(
+      { chainId: 10, safe: SAFE, calls: [call], service: lost.options },
+      deps,
+    );
+    expect(safeTxHash).toBe(
+      safeTransactionHash(
+        10,
+        SAFE,
+        transferTx({ to: call.to, data: call.data, value: "7" }),
+      ),
+    );
+    // Refused and not queued: the service's refusal stands.
+    await expect(
+      proposeReviewedSafeTransaction(
+        {
+          chainId: 10,
+          safe: SAFE,
+          calls: [call],
+          service: service([], { post: 400 }).options,
+        },
+        deps,
+      ),
+    ).rejects.toThrow("Safe's transaction service refused");
+
+    let reads = 0;
+    const changing = service();
+    const fetch = changing.options.fetch;
+    changing.options.fetch = (async (...args: Parameters<typeof fetch>) => {
+      if ((args[1]?.method ?? "GET") === "GET" && ++reads === 2) {
+        live.identity = identity({ threshold: 2 });
+      }
+      return fetch(...args);
+    }) as typeof fetch;
+    await expect(
+      proposeReviewedSafeTransaction(
+        { chainId: 10, safe: SAFE, calls: [call], service: changing.options },
+        deps,
+      ),
+    ).rejects.toThrow(
+      "The Safe policy or nonce changed. Review the transaction again.",
+    );
+    expect(changing.posts()).toEqual([]);
+    expect(wallet.adapter.signTypedData).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe("confirmReviewedSafeTransaction", () => {
   it("refuses a queued tx whose hash no longer matches", async () => {
     const { wallet, deps } = signing();
@@ -503,6 +575,7 @@ describe("executeReviewedSafeTransaction", () => {
         chainId: 10,
         account: ACCOUNT,
         call: { to: SAFE, data: sent.data, value: 0n },
+        namespace: safeExecutionIntent({ chainId: 10, safe: SAFE, safeTxHash }),
       }),
       undefined,
     );
@@ -567,6 +640,54 @@ describe("executeReviewedSafeTransaction", () => {
         ),
       }),
     );
+  });
+
+  it("holds one execution per Safe transaction, whatever signatures it carries", async () => {
+    const { wallet, deps, chain } = signing();
+    const prompts = reviewUi();
+    chain.state.ethCall = () => TRUE;
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(
+      new Error("Request timed out."),
+    );
+    await expect(
+      executeReviewedSafeTransaction(
+        { chainId: 10, safe: SAFE, tx: signedTx() },
+        deps,
+      ),
+    ).rejects.toThrow("Request timed out.");
+    // More signatures change the calldata, not the Safe transaction.
+    await expect(
+      executeReviewedSafeTransaction(
+        {
+          chainId: 10,
+          safe: SAFE,
+          tx: signedTx({
+            confirmations: [
+              {
+                owner: ACCOUNT,
+                signature: SIGNATURE.replace(/ab$/, "1c") as Hex,
+              },
+              { owner: OTHER, signature: OTHER_SIGNATURE },
+            ],
+          }),
+        },
+        deps,
+      ),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    expect(prompts).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+
+    // The Safe itself, connected as a Safe app, is refused before review.
+    wallet.state.account = SAFE;
+    await expect(
+      executeReviewedSafeTransaction(
+        { chainId: 10, safe: SAFE, tx: signedTx() },
+        deps,
+      ),
+    ).rejects.toThrow(
+      "A Safe can't execute its own queued transaction from inside itself. Execute it from an owner's wallet.",
+    );
+    expect(prompts).toHaveLength(1);
   });
 
   it("requires enough current-owner approvals before review", async () => {

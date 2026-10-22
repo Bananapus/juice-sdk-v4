@@ -17,6 +17,7 @@ import {
   listPendingSafeTransactions,
   nextProposalNonce,
   proposeSafeTransaction,
+  readSafeTransaction,
   requireSafeExecutionSuccess,
   SAFE_EXEC_ABI,
   safeBatchProposalFor,
@@ -31,6 +32,7 @@ import {
   type SafeQueuedTransaction,
   type SafeServiceOptions,
 } from "../safeService.js";
+import { safeExecutionIntent } from "./intents.js";
 import type { ReviewContextRow } from "./model.js";
 import { waitForTrackedReceipt } from "./receipt.js";
 import {
@@ -137,10 +139,12 @@ async function signAsOwner(
     tx: SafeQueuedTransaction;
     context?: readonly ReviewContextRow[];
     title?: string;
+    /** The caller's last read before posting, ahead of the final Safe check. */
+    beforePost?: () => Promise<void>;
   },
   deps: ReviewedSendDeps,
 ): Promise<Hex> {
-  const { chainId, safe, account, tx, context, title } = input;
+  const { chainId, safe, account, tx, context, title, beforePost } = input;
   const client = deps.clientFor(chainId);
   const before = await liveSafe(client, safe);
   requireSigner(before, account);
@@ -157,6 +161,7 @@ async function signAsOwner(
     },
     deps,
   );
+  await beforePost?.();
   await unchanged();
   return signature;
 }
@@ -232,28 +237,52 @@ export async function proposeReviewedSafeTransaction(
   const tx = build(nonce);
   const safeTxHash = safeTransactionHash(chainId, safe, tx);
   const signature = await signAsOwner(
-    { chainId, safe, account, tx, context, title },
+    {
+      chainId,
+      safe,
+      account,
+      tx,
+      context,
+      title,
+      // Another proposal queued at this nonce meanwhile would be replaced by this one.
+      beforePost: async () => {
+        const since = await listPendingSafeTransactions(
+          chainId,
+          safe,
+          state.nonce,
+          service,
+        );
+        if (since.some((other) => other.nonce === nonce)) {
+          throw new Error(
+            `Another proposal took Safe nonce ${nonce} during review. Nothing was proposed; review it again.`,
+          );
+        }
+      },
+    },
     deps,
   );
-  // Another proposal queued at this nonce meanwhile would be replaced by this one.
-  const queuedSince = await listPendingSafeTransactions(
-    chainId,
-    safe,
-    state.nonce,
-    service,
-  );
-  if (queuedSince.some((other) => other.nonce === nonce)) {
-    throw new Error(
-      `Another proposal took Safe nonce ${nonce} during review. Nothing was proposed; review it again.`,
+  try {
+    await proposeSafeTransaction(
+      chainId,
+      safe,
+      tx,
+      { sender: account, signature, origin },
+      service,
     );
+  } catch (error) {
+    // The service may have queued it and lost its answer: a retry must find
+    // it, not propose the same calls again at the next nonce.
+    const queued = await readSafeTransaction(
+      chainId,
+      safe,
+      safeTxHash,
+      service,
+    ).then(
+      () => true,
+      () => false,
+    );
+    if (!queued) throw error;
   }
-  await proposeSafeTransaction(
-    chainId,
-    safe,
-    tx,
-    { sender: account, signature, origin },
-    service,
-  );
   return { safeTxHash };
 }
 
@@ -320,6 +349,13 @@ export async function executeReviewedSafeTransaction(
   const { chainId, safe, context } = input;
   const tx = snapshot(input.tx);
   const account = connectedAccount(deps);
+  // A Safe app wraps the call in a transaction of its own Safe, which spends
+  // the nonce this one is signed for.
+  if (isAddressEqual(account, safe)) {
+    throw new Error(
+      "A Safe can't execute its own queued transaction from inside itself. Execute it from an owner's wallet.",
+    );
+  }
   const safeTxHash = canonicalSafeTxHash(chainId, safe, tx);
   const client = deps.clientFor(chainId);
   const state = await liveSafe(client, safe);
@@ -395,6 +431,7 @@ export async function executeReviewedSafeTransaction(
           args,
           label: `Execute Safe transaction #${tx.nonce}`,
           contractName: "Safe",
+          intent: safeExecutionIntent({ chainId, safe, safeTxHash }),
         },
       ],
       ...(context ? { context } : {}),
