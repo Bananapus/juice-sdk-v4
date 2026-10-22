@@ -644,6 +644,19 @@ describe("sendReviewed", () => {
     });
     expect(hold.open(holdOf(call)).peek().status).toBe("clear");
 
+    // A rejection's name without code 4001 may have broadcast: it stays held.
+    const named = payCall(6n);
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(
+      Object.assign(new Error("Rejected?"), {
+        name: "UserRejectedRequestError",
+        code: -32000,
+      }),
+    );
+    await expect(sendReviewed(action([named]), deps)).rejects.toThrow(
+      "Rejected?",
+    );
+    expect(hold.open(holdOf(named)).peek().status).toBe("held-no-hash");
+
     wallet.adapter.sendTransaction.mockRejectedValueOnce(
       new Error("The request took too long to respond."),
     );
@@ -656,8 +669,8 @@ describe("sendReviewed", () => {
     await expect(sendReviewed(action([call]), deps)).rejects.toBeInstanceOf(
       WriteHeldError,
     );
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
-    expect(prompts).toHaveLength(2);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(3);
+    expect(prompts).toHaveLength(3);
   });
 
   it("a Safe-connected wallet's first step becomes a proposal and the action stops there", async () => {
