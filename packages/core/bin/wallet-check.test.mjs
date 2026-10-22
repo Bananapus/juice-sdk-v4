@@ -12,7 +12,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 
-const bin = resolve(dirname(fileURLToPath(import.meta.url)), "wallet-check.mjs");
+const bin = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "wallet-check.mjs",
+);
 const typescriptModules = resolve(
   dirname(createRequire(import.meta.url).resolve("typescript/package.json")),
   "..",
@@ -84,7 +87,8 @@ describe("nana-wallet-check", () => {
 
   it("fails an uninventoried registerTransactionReviewHandler call", () => {
     const dir = project({
-      "handler.ts": "const x = 1;\nregisterTransactionReviewHandler(() => true);\n",
+      "handler.ts":
+        "const x = 1;\nregisterTransactionReviewHandler(() => true);\n",
     });
     const { status, out } = run(dir);
     expect(status).toBe(1);
@@ -104,18 +108,26 @@ describe("nana-wallet-check", () => {
     const dir = project({
       "import.ts":
         'const x = 1;\nimport { useThing } from "@bananapus/nana-sdk-react/hooks";\n',
-      "dynamic.ts": 'export const load = () => import("@bananapus/nana-sdk-react");\n',
+      "dynamic.ts":
+        'export const load = () => import("@bananapus/nana-sdk-react");\n',
     });
-    const { status, out } = run(dir, "--forbid-import", "@bananapus/nana-sdk-react");
+    const { status, out } = run(
+      dir,
+      "--forbid-import",
+      "@bananapus/nana-sdk-react",
+    );
     expect(status).toBe(1);
-    expect(out).toContain("src/import.ts:2:import @bananapus/nana-sdk-react/hooks");
+    expect(out).toContain(
+      "src/import.ts:2:import @bananapus/nana-sdk-react/hooks",
+    );
     expect(out).toContain("src/dynamic.ts:1:import @bananapus/nana-sdk-react");
     expect(run(dir).status).toBe(0);
   });
 
   it("fails a self-reviewing adapter call outside selfReviewing files", () => {
     const files = {
-      "adapter.ts": "const x = 1;\nexport const a = selfReviewingAdapter({});\n",
+      "adapter.ts":
+        "const x = 1;\nexport const a = selfReviewingAdapter({});\n",
       "signa.ts": "export const a = signaWalletAdapter({});\n",
     };
     const { status, out } = run(project(files));
@@ -132,7 +144,8 @@ describe("nana-wallet-check", () => {
     const dir = project(
       {
         "parent.ts": "const x = 1;\nrun({ reviewedInParent: true });\n",
-        "handler.ts": "const x = 1;\nregisterTransactionReviewHandler(() => true);\n",
+        "handler.ts":
+          "const x = 1;\nregisterTransactionReviewHandler(() => true);\n",
       },
       [
         ["parent.ts", 2, "reviewedInParent"],
@@ -144,16 +157,43 @@ describe("nana-wallet-check", () => {
 
   it.each([
     ["element access", 'wallet["sendTransaction"]({});', "sendTransaction"],
-    ["parenthesized member", "(wallet.sendTransaction)({});", "sendTransaction"],
+    [
+      "parenthesized member",
+      "(wallet.sendTransaction)({});",
+      "sendTransaction",
+    ],
     ["call", "wallet.sendTransaction.call(wallet, {});", "sendTransaction"],
-    ["member alias", "const send = wallet.sendTransaction;\nsend({});", "sendTransaction"],
+    [
+      "member alias",
+      "const send = wallet.sendTransaction;\nsend({});",
+      "sendTransaction",
+    ],
     [
       "required destructuring",
       'const { sendTransaction: send } = require("viem/actions");\nsend(wallet, {});',
       "sendTransaction",
     ],
-    ["template rpc method", "provider.send(`personal_sign`, []);", "rpc:personal_sign"],
-    ["quoted reviewedInParent", 'run({ "reviewedInParent": true });', "reviewedInParent"],
+    ["deployContract", "wallet.deployContract({});", "deployContract"],
+    [
+      "call on an imported action",
+      'import { sendTransaction as send } from "viem/actions";\nsend.call(null, wallet, {});',
+      "sendTransaction",
+    ],
+    [
+      "parameter destructuring",
+      "function pay({ sendTransaction: send }, tx) {\n  return send(tx);\n}",
+      "sendTransaction",
+    ],
+    [
+      "template rpc method",
+      "provider.send(`personal_sign`, []);",
+      "rpc:personal_sign",
+    ],
+    [
+      "quoted reviewedInParent",
+      'run({ "reviewedInParent": true });',
+      "reviewedInParent",
+    ],
   ])("fails %s", (_name, text, api) => {
     const { status, out } = run(project({ "case.js": `${text}\n` }));
     expect(status).toBe(1);
@@ -174,9 +214,14 @@ describe("nana-wallet-check", () => {
   it("forbids import-equals and ignores type-only imports", () => {
     const dir = project({
       "eq.ts": 'import sdk = require("@bananapus/nana-sdk-react");\n',
-      "types.ts": 'import type { T } from "@bananapus/nana-sdk-react";\nexport type { U } from "@bananapus/nana-sdk-react";\n',
+      "types.ts":
+        'import type { T } from "@bananapus/nana-sdk-react";\nexport type { U } from "@bananapus/nana-sdk-react";\n',
     });
-    const { status, out } = run(dir, "--forbid-import", "@bananapus/nana-sdk-react");
+    const { status, out } = run(
+      dir,
+      "--forbid-import",
+      "@bananapus/nana-sdk-react",
+    );
     expect(status).toBe(1);
     expect(out).toContain("src/eq.ts:1:import @bananapus/nana-sdk-react");
     expect(out).not.toContain("src/types.ts");
@@ -190,6 +235,35 @@ describe("nana-wallet-check", () => {
     const { status, out } = run(dir);
     expect(status).toBe(1);
     expect(out).toContain("src/linked/x.ts:1:sendTransaction");
+  });
+
+  it("accepts inline type-only imports, string values and overlapping roots", () => {
+    const dir = project({
+      "ok.ts":
+        'import { type T } from "@bananapus/nana-sdk-react";\nexport const labels = { note: "reviewedInParent" };\n',
+    });
+    const result = spawnSync(
+      process.execPath,
+      [
+        bin,
+        "--root",
+        "src",
+        "--root",
+        "src",
+        "--inventory",
+        "inventory.json",
+        "--forbid-import",
+        "@bananapus/nana-sdk-react",
+      ],
+      { cwd: dir, encoding: "utf8" },
+    );
+    expect(result.status).toBe(0);
+  });
+
+  it("survives a symlink loop", () => {
+    const dir = project({ "ok.ts": "export const a = 1;\n" });
+    symlinkSync(join(dir, "src"), join(dir, "src", "loop"));
+    expect(run(dir).status).toBe(0);
   });
 
   it("matches inventory paths however they are spelled", () => {

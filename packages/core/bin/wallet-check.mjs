@@ -1,5 +1,11 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { relative, resolve } from "node:path";
 
@@ -41,6 +47,9 @@ if (productionRoots.length === 0 || !inventoryArg) {
 const inventory = JSON.parse(readFileSync(resolve(inventoryArg), "utf8"));
 
 const directApis = new Set([
+  "deployContract",
+  "deployContractAsync",
+  "useDeployContract",
   "sendCalls",
   "sendCallsAsync",
   "sendRawTransaction",
@@ -68,7 +77,14 @@ const directApis = new Set([
   "writeContractsAsync",
 ]);
 const memberApis = new Set([...directApis, "request"]);
-const selfReviewingApis = new Set(["selfReviewingAdapter", "signaWalletAdapter"]);
+const selfReviewingApis = new Set([
+  "selfReviewingAdapter",
+  "signaWalletAdapter",
+]);
+const guardedNames = new Set([
+  "registerTransactionReviewHandler",
+  ...selfReviewingApis,
+]);
 const signingRpcMethods = new Set([
   "eth_sendTransaction",
   "eth_sendRawTransaction",
@@ -97,13 +113,15 @@ const sourceKinds = {
   ".cjs": ts.ScriptKind.JS,
 };
 
-function productionFiles(directory) {
+function productionFiles(directory, ancestors = []) {
+  const real = realpathSync(directory);
+  if (ancestors.includes(real)) return [];
   return readdirSync(directory).flatMap((name) => {
     const path = resolve(directory, name);
     const stat = statSync(path);
     if (stat.isDirectory()) {
       if (name === "generated" || name === "node_modules") return [];
-      return productionFiles(path);
+      return productionFiles(path, [...ancestors, real]);
     }
     if (!stat.isFile() || !sourceExtension.test(name)) return [];
     if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(name)) return [];
@@ -149,7 +167,7 @@ function calleeOf(expression, aliases) {
   if (member === null) return null;
   if (["call", "apply", "bind"].includes(member)) {
     const inner = calleeOf(callee.expression, aliases);
-    if (inner && inner.member) return inner;
+    if (inner && (inner.member || directApis.has(inner.name))) return inner;
   }
   return { name: member, member: true };
 }
@@ -165,11 +183,14 @@ function apiOf(call, aliases) {
 const discovered = [];
 const forbidden = [];
 const selfReviewing = new Set(
-  (Array.isArray(inventory.selfReviewing) ? inventory.selfReviewing : []).map((file) =>
-    typeof file === "string" ? relative(resolve("."), resolve(file)) : file,
+  (Array.isArray(inventory.selfReviewing) ? inventory.selfReviewing : []).map(
+    (file) =>
+      typeof file === "string" ? relative(resolve("."), resolve(file)) : file,
   ),
 );
-for (const filePath of productionRoots.flatMap(productionFiles)) {
+for (const filePath of new Set(
+  productionRoots.flatMap((root) => productionFiles(root)),
+)) {
   const sourceText = readFileSync(filePath, "utf8");
   const source = ts.createSourceFile(
     filePath,
@@ -195,23 +216,41 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
     }
   }
 
+  function aliasPattern(pattern) {
+    for (const element of pattern.elements) {
+      if (!ts.isIdentifier(element.name)) continue;
+      const key = element.propertyName;
+      const exposed = !key
+        ? element.name.text
+        : ts.isComputedPropertyName(key)
+          ? ts.isStringLiteralLike(key.expression)
+            ? key.expression.text
+            : null
+          : key.text;
+      if (directApis.has(exposed)) aliases.set(element.name.text, exposed);
+    }
+  }
+
   function collectAliases(node) {
-    if (ts.isVariableDeclaration(node)) {
-      if (ts.isObjectBindingPattern(node.name)) {
-        for (const element of node.name.elements) {
-          if (!ts.isIdentifier(element.name)) continue;
-          const exposed = element.propertyName
-            ? element.propertyName.text ?? element.propertyName.getText(source)
-            : element.name.text;
-          if (directApis.has(exposed)) aliases.set(element.name.text, exposed);
-        }
-      } else if (ts.isIdentifier(node.name) && node.initializer) {
-        const initializer = unwrap(node.initializer);
-        const name = memberNameOf(initializer);
-        if (name !== null && directApis.has(name)) aliases.set(node.name.text, name);
-        else if (ts.isIdentifier(initializer) && aliases.has(initializer.text)) {
-          aliases.set(node.name.text, aliases.get(initializer.text));
-        }
+    if (
+      (ts.isVariableDeclaration(node) || ts.isParameter(node)) &&
+      ts.isObjectBindingPattern(node.name)
+    ) {
+      aliasPattern(node.name);
+    } else if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer
+    ) {
+      const initializer = unwrap(node.initializer);
+      const name = memberNameOf(initializer);
+      if (name !== null && (directApis.has(name) || guardedNames.has(name))) {
+        aliases.set(node.name.text, name);
+      } else if (
+        ts.isIdentifier(initializer) &&
+        aliases.has(initializer.text)
+      ) {
+        aliases.set(node.name.text, aliases.get(initializer.text));
       }
     }
     ts.forEachChild(node, collectAliases);
@@ -231,7 +270,16 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
       const typeOnly = ts.isImportDeclaration(node)
         ? node.importClause?.isTypeOnly
         : node.isTypeOnly;
-      return typeOnly ? null : node.moduleSpecifier;
+      const named = ts.isImportDeclaration(node)
+        ? node.importClause?.namedBindings
+        : node.exportClause;
+      const allTypeOnly =
+        named &&
+        (ts.isNamedImports(named) || ts.isNamedExports(named)) &&
+        named.elements.length > 0 &&
+        !node.importClause?.name &&
+        named.elements.every((element) => element.isTypeOnly);
+      return typeOnly || allTypeOnly ? null : node.moduleSpecifier;
     }
     if (
       ts.isImportEqualsDeclaration(node) &&
@@ -261,7 +309,8 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
       !ts.isPropertySignature(node.parent)
         ? node
         : ts.isStringLiteralLike(node) &&
-            (ts.isPropertyAssignment(node.parent) ||
+            ((ts.isPropertyAssignment(node.parent) &&
+              node.parent.name === node) ||
               ts.isComputedPropertyName(node.parent) ||
               ts.isElementAccessExpression(node.parent))
           ? node
@@ -273,7 +322,8 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
     if (
       specifier &&
       forbiddenImports.some(
-        (spec) => specifier.text === spec || specifier.text.startsWith(`${spec}/`),
+        (spec) =>
+          specifier.text === spec || specifier.text.startsWith(`${spec}/`),
       )
     ) {
       forbidden.push(`${here}:${lineOf(specifier)}:import ${specifier.text}`);
@@ -284,7 +334,9 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
         discovered.push({ file: here, line: lineOf(node), api: callee });
       }
       if (selfReviewingApis.has(callee) && !selfReviewing.has(here)) {
-        forbidden.push(`${here}:${lineOf(node)}:${callee} outside selfReviewing`);
+        forbidden.push(
+          `${here}:${lineOf(node)}:${callee} outside selfReviewing`,
+        );
       }
       const api = apiOf(node, aliases);
       if (api) discovered.push({ file: here, line: lineOf(node), api });
