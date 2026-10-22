@@ -173,7 +173,7 @@ describe("runRelayrReviewed", () => {
     const relayr = fakeRelayr(() => 100n);
     const prompts = reviewUi();
     await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT }, deps),
+      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
     ).rejects.toThrow("does not trust the canonical forwarder");
     expect(prompts).toHaveLength(0);
     expect(relayr.fetch).not.toHaveBeenCalled();
@@ -187,7 +187,11 @@ describe("runRelayrReviewed", () => {
     const prompts = reviewUi();
     const result = await runRelayrReviewed(
       [CALL],
-      { account: ACCOUNT, context: [{ label: "Project", value: "#1" }] },
+      {
+        account: ACCOUNT,
+        scope: "action",
+        context: [{ label: "Project", value: "#1" }],
+      },
       deps,
     );
     expect(prompts).toHaveLength(1);
@@ -246,7 +250,7 @@ describe("runRelayrReviewed", () => {
       return null;
     });
     await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT }, deps),
+      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
     ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
     expect(shown).toBe(`Up to ${formatEther(withMargin(4_000n))} ETH`);
     expect(signTypedData).not.toHaveBeenCalled();
@@ -263,7 +267,11 @@ describe("runRelayrReviewed", () => {
       return null;
     });
     await expect(
-      runRelayrReviewed([{ ...CALL, value: 5n }], { account: ACCOUNT }, deps),
+      runRelayrReviewed(
+        [{ ...CALL, value: 5n }],
+        { account: ACCOUNT, scope: "action" },
+        deps,
+      ),
     ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
     const probe = relayrForwardRequest(relayr.posts[1].entries[0])!;
     expect(probe.to.toLowerCase()).toBe(PROJECTS.toLowerCase());
@@ -282,7 +290,11 @@ describe("runRelayrReviewed", () => {
       return null;
     });
     await expect(
-      runRelayrReviewed([{ ...CALL, value: 5n }], { account: ACCOUNT }, deps),
+      runRelayrReviewed(
+        [{ ...CALL, value: 5n }],
+        { account: ACCOUNT, scope: "action" },
+        deps,
+      ),
     ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
     // Estimated through the forwarder as the real sender.
     expect(chain.client.estimateGas).toHaveBeenCalledWith(
@@ -315,7 +327,11 @@ describe("runRelayrReviewed", () => {
       return ethCall(params);
     };
     const prompts = reviewUi();
-    const result = await runRelayrReviewed([CALL], { account: ACCOUNT }, deps);
+    const result = await runRelayrReviewed(
+      [CALL],
+      { account: ACCOUNT, scope: "action" },
+      deps,
+    );
     expect(prompts).toHaveLength(1);
     expect(relayr.posts.filter(({ from }) => from === ACCOUNT)).toHaveLength(2);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
@@ -335,7 +351,7 @@ describe("runRelayrReviewed", () => {
       return null;
     });
     await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT }, deps),
+      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
     ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
     expect(prompts).toHaveLength(2);
     const fresh = prompts[1].model;
@@ -349,7 +365,11 @@ describe("runRelayrReviewed", () => {
     const { deps, wallet } = relayrSetup();
     fakeRelayr((from) => (from === ACCOUNT ? 2_000n : 1_000n));
     const prompts = reviewUi();
-    await runRelayrReviewed([CALL], { account: ACCOUNT }, deps);
+    await runRelayrReviewed(
+      [CALL],
+      { account: ACCOUNT, scope: "action" },
+      deps,
+    );
     expect(prompts).toHaveLength(2);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledWith(
       expect.objectContaining({ value: 2_000n }),
@@ -365,6 +385,7 @@ describe("runRelayrReviewed", () => {
       [CALL],
       {
         account: ACCOUNT,
+        scope: "action",
         signatures: [{ kind: "message", chainId: 10, message: "List it" }],
       },
       deps,
@@ -382,7 +403,7 @@ describe("runRelayrReviewed", () => {
     );
     reviewUi();
     await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT }, deps),
+      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
     ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
     expect(relayr.posts.filter(({ from }) => from === ACCOUNT)).toHaveLength(0);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
@@ -399,7 +420,7 @@ describe("runRelayrReviewed", () => {
     );
     reviewUi();
     await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT }, deps),
+      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
     ).rejects.toThrow("trusted forwarder changed");
     expect(relayr.posts.filter(({ from }) => from === ACCOUNT)).toHaveLength(0);
   });
@@ -409,11 +430,15 @@ describe("runRelayrReviewed", () => {
     fakeRelayr(() => 100n);
     const prompts = reviewUi();
     await expect(
-      runRelayrReviewed([CALL, CALL], { account: ACCOUNT }, deps),
+      runRelayrReviewed(
+        [CALL, CALL],
+        { account: ACCOUNT, scope: "action" },
+        deps,
+      ),
     ).rejects.toThrow("one call per supported destination");
     wallet.state.safe = true;
     await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT }, deps),
+      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
     ).rejects.toThrow("ordinary wallet");
     const signa = selfReviewingAdapter({
       account: () => ACCOUNT,
@@ -422,7 +447,7 @@ describe("runRelayrReviewed", () => {
     await expect(
       runRelayrReviewed(
         [CALL],
-        { account: ACCOUNT },
+        { account: ACCOUNT, scope: "action" },
         { ...deps, adapter: signa },
       ),
     ).rejects.toMatchObject({ code: 4200 });
@@ -444,6 +469,50 @@ describe("runRelayrReviewed", () => {
     expect(signTypedData).toHaveBeenCalledTimes(1);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
+  it("requires a scope", async () => {
+    const { deps, signTypedData } = relayrSetup();
+    const relayr = fakeRelayr(() => 100n);
+    const prompts = reviewUi();
+    for (const scope of [undefined, "", "  "]) {
+      await expect(
+        runRelayrReviewed(
+          [CALL],
+          { account: ACCOUNT, scope } as unknown as Parameters<
+            typeof runRelayrReviewed
+          >[1],
+          deps,
+        ),
+      ).rejects.toThrow("needs its scope");
+    }
+    expect(prompts).toHaveLength(0);
+    expect(relayr.fetch).not.toHaveBeenCalled();
+    expect(signTypedData).not.toHaveBeenCalled();
+  });
+
+  it("never pays a scope again after its bundle was paid", async () => {
+    const { deps, wallet, chain, signTypedData } = relayrSetup();
+    fakeRelayr(() => 100n);
+    const prompts = reviewUi();
+    const action = { account: ACCOUNT, scope: "launch:paid" };
+    await runRelayrReviewed([CALL], action, deps);
+    // Recovery reads the hold, which settles the proven payment.
+    const state = await openStepHold(deps.hold, ACCOUNT, false, {
+      chainId: 10,
+      to: RELAYR_PAYMENT_ADDRESS,
+      data: "0x",
+      intent: action.scope,
+    }).state(chain.client as unknown as PublicClient);
+    expect(state.status === "clear" && state.settled?.result).toBe("success");
+    for (const paymentChainId of [10, 8453]) {
+      await expect(
+        runRelayrReviewed([CALL], { ...action, paymentChainId }, deps),
+      ).rejects.toThrow("already succeeded");
+    }
+    expect(prompts).toHaveLength(1);
+    expect(signTypedData).toHaveBeenCalledTimes(1);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
   it("holds the scope on every funding chain, so another chain cannot pay it again", async () => {
     const { deps, wallet, signTypedData } = relayrSetup();
     fakeRelayr(() => 100n);
@@ -518,7 +587,11 @@ describe("runRelayrReviewed", () => {
       (quote) => (quote === 1 ? 10 : 600),
     );
     const prompts = reviewUi();
-    const result = await runRelayrReviewed([CALL], { account: ACCOUNT }, deps);
+    const result = await runRelayrReviewed(
+      [CALL],
+      { account: ACCOUNT, scope: "action" },
+      deps,
+    );
     expect(prompts).toHaveLength(1);
     expect(result.uuid).toBe(relayr.posts[2].uuid);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
@@ -534,7 +607,11 @@ describe("runRelayrReviewed", () => {
       if (prompts.length === 2) now = real + 590_000;
       return prompt.confirmation;
     });
-    const result = await runRelayrReviewed([CALL], { account: ACCOUNT }, deps);
+    const result = await runRelayrReviewed(
+      [CALL],
+      { account: ACCOUNT, scope: "action" },
+      deps,
+    );
     expect(prompts).toHaveLength(2);
     const signed = relayr.posts.filter(({ from }) => from === ACCOUNT);
     expect(signed).toHaveLength(2);
@@ -729,7 +806,7 @@ describe("payRelayrReviewed", () => {
     expect(state.status === "clear" && state.settled?.result).toBe("success");
     await expect(
       payRelayrReviewed(quote, 8453, { account: ACCOUNT }, deps),
-    ).rejects.toThrow("already paid");
+    ).rejects.toThrow("already succeeded");
     expect(prompts).toHaveLength(1);
   });
 

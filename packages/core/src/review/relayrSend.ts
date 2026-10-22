@@ -352,7 +352,9 @@ function requireIntentClear(
     }).peek();
     if (state.status !== "clear") throw new WriteHeldError(state);
     if (intent.paidOnce && state.settled?.result === "success") {
-      throw new Error("This Relayr quote is already paid. Do not pay again.");
+      throw new Error(
+        "This Relayr payment already succeeded. Do not pay again.",
+      );
     }
   }
 }
@@ -794,14 +796,15 @@ export async function payRelayrReviewed(
  * signs the requests, posts them for the quote that binds them, and pays it
  * without asking again when its fee is at most the cap. A higher fee opens
  * one fresh review of the payment first. A quote that expires before the
- * wallet opens is replaced the same way. `scope` holds the payment, so the
- * same action is not paid twice.
+ * wallet opens is replaced the same way. `scope`, the site's stable key for
+ * the action, is required: it holds the payment on every funding chain, so
+ * the action is never paid twice, even after a paid run.
  */
 export async function runRelayrReviewed(
   calls: readonly RelayrReviewedCall[],
   action: {
     account: Address;
-    scope?: string;
+    scope: string;
     context?: readonly ReviewContextRow[];
     title?: string;
     /** Further signatures for the same review, signed after the requests. */
@@ -812,7 +815,10 @@ export async function runRelayrReviewed(
   deps: ReviewedSendDeps,
 ): Promise<{ uuid: string; paymentHash: Hex; signatures?: Hex[] }> {
   const { adapter, clientFor } = deps;
-  const { account } = action;
+  const { account, scope } = action;
+  if (typeof scope !== "string" || !scope.trim()) {
+    throw new Error("A relayed action needs its scope. Nothing was sent.");
+  }
   requireOrdinaryWallet(adapter, account);
   const requests = await forwardRequests(calls, account, clientFor);
   const funding = relayrPaymentChains(requests.map(({ chainId }) => chainId));
@@ -827,9 +833,9 @@ export async function runRelayrReviewed(
       "Choose a Relayr funding chain in the same network family as these destinations.",
     );
   }
-  const intent = action.scope ? { key: action.scope, funding } : undefined;
-  // An earlier payment of this action may still land: nothing is asked.
-  if (intent) requireIntentClear(deps, account, intent);
+  const intent = { key: scope, funding, paidOnce: true };
+  // An earlier payment of this action may still land, or landed: nothing is asked.
+  requireIntentClear(deps, account, intent);
   let cap = await relayrFeeCap(calls, account, paymentChainId, clientFor);
   const prepared = [
     ...requests.map(
@@ -879,7 +885,7 @@ export async function runRelayrReviewed(
         cap = details.amount;
       }
       const paymentHash = await sendPayment(details, account, deps, {
-        ...(intent ? { intent } : {}),
+        intent,
         recheck: () => verifyForwardedEntries(entries, account, clientFor),
       });
       return {
