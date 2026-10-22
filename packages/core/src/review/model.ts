@@ -159,7 +159,8 @@ const UNKNOWN_CONTRACT =
   "This destination is not a contract the app recognizes. Check the address before continuing.";
 const UNLIMITED_APPROVAL =
   "Unlimited approval: the spender can move all of this token you hold, now and later.";
-const OWNER_ACTION = "This changes who controls the contract.";
+const OWNER_ACTION =
+  "This changes who or what controls this contract or project.";
 const PERMISSION_GRANT = "This lets another address act for you.";
 const DECIMALS_UNKNOWN =
   "The token's decimals could not be read, so its amount shows in base units.";
@@ -213,7 +214,10 @@ function tokenCallOf(fn: AbiFunction): TokenCall | null {
     : shape;
 }
 
-/** Calls that change a contract's owner, a Safe's owners or threshold, or what else can act as the Safe. */
+/**
+ * Calls that change a contract's owner, a Safe's owners or threshold, what
+ * else can act as the Safe, or a project's controller or terminals.
+ */
 const OWNER_ACTIONS = new Set([
   "transferOwnership",
   "renounceOwnership",
@@ -225,6 +229,8 @@ const OWNER_ACTIONS = new Set([
   "setGuard",
   "setFallbackHandler",
   "transferOwnershipToProject",
+  "setControllerOf",
+  "setTerminalsOf",
 ]);
 
 /** MultiSend's `transactions` argument is where its decoded calls show. */

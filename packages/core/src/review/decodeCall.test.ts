@@ -1,7 +1,15 @@
-import { encodeFunctionData, erc20Abi, type Address, type Hex } from "viem";
+import {
+  encodeFunctionData,
+  erc20Abi,
+  zeroAddress,
+  type Address,
+  type Hex,
+} from "viem";
 import { describe, expect, it } from "vitest";
 import { jbContractAddress } from "../generated/addresses/jbContractAddress.js";
+import { jbDirectoryAbi } from "../generated/abi/jbDirectoryAbi.js";
 import { jbProjectsAbi } from "../generated/abi/jbProjectsAbi.js";
+import { SAFE_EXEC_ABI } from "../safeService.js";
 import { REVIEW_REQUESTS } from "./__fixtures__/review-requests.js";
 import { decodeReviewCall } from "./decodeCall.js";
 import { buildReviewModel } from "./model.js";
@@ -88,6 +96,63 @@ describe("decodeReviewCall", () => {
       jbProjectsAbi.find(
         (item) => item.type === "function" && item.name === "approve",
       ),
+    ]);
+  });
+
+  it("keeps a selector the known contract's ABI lacks raw", () => {
+    const transfer = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: "transfer",
+      args: [BOB, 5n],
+    });
+    expect(
+      decodeReviewCall({ chainId: BASE, to: PROJECTS, data: transfer }),
+    ).toEqual({ chainId: BASE, to: PROJECTS, data: transfer });
+  });
+
+  it("decodes a controller change and a Safe DELEGATECALL with their warnings", () => {
+    const v6 = jbContractAddress["6"] as unknown as Record<
+      string,
+      Record<number, Address>
+    >;
+    const controllerChange = decodeReviewCall({
+      chainId: BASE,
+      to: v6.JBDirectory[BASE],
+      data: encodeFunctionData({
+        abi: jbDirectoryAbi,
+        functionName: "setControllerOf",
+        args: [4n, UNKNOWN],
+      }),
+    });
+    const execution = decodeReviewCall({
+      chainId: BASE,
+      to: UNKNOWN,
+      data: encodeFunctionData({
+        abi: SAFE_EXEC_ABI,
+        functionName: "execTransaction",
+        args: [
+          UNKNOWN,
+          0n,
+          "0x",
+          1,
+          0n,
+          0n,
+          0n,
+          zeroAddress,
+          zeroAddress,
+          "0x",
+        ],
+      }),
+    });
+    const [directory, safe] = buildReviewModel({
+      calls: [controllerChange, execution],
+    }).calls;
+    expect(directory.warnings.map((warning) => warning.code)).toEqual([
+      "owner-action",
+    ]);
+    expect(safe.warnings.map((warning) => warning.code)).toEqual([
+      "delegatecall",
+      "unknown-contract",
     ]);
   });
 

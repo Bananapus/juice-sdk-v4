@@ -52,6 +52,7 @@ import { stickyHookAbi } from "../generated/abi/stickyHookAbi.js";
 import { stickyRewardReceiverFactoryAbi } from "../generated/abi/stickyRewardReceiverFactoryAbi.js";
 import type { jbV6ContractAddress } from "../generated/juicebox.js";
 import { MULTI_SEND_ABI, SAFE_CREATE_ABI } from "../safe.js";
+import { SAFE_EXEC_ABI } from "../safeService.js";
 import { permit2Abi } from "../v6/permit2.js";
 import { stickySourceCollectorAbi } from "../v6/sticky.js";
 import { knownAddressName } from "./decode.js";
@@ -133,6 +134,7 @@ function functionsBySelector(): ReadonlyMap<string, AbiFunction> {
     ...Object.values(reviewAbis()),
     MULTI_SEND_ABI,
     SAFE_CREATE_ABI,
+    SAFE_EXEC_ABI,
   ]) {
     for (const item of abi) {
       if (item.type !== "function") continue;
@@ -166,7 +168,9 @@ function decodeExactly(
 /**
  * A raw call as the review takes it, decoded by the SDK alone: with the ABI
  * of the known contract at `to` on `chainId`, else by its selector across the
- * SDK's ABIs and ERC-20. A decode counts only when the arguments re-encode to
+ * SDK's ABIs and ERC-20. A selector ERC-20 shares with ERC-721 (`approve`,
+ * `transferFrom`) reads as ERC-20 at an address the SDK does not know; the
+ * review flags that destination `unknown-contract`. A decode counts only when the arguments re-encode to
  * exactly `data`; otherwise the call has no ABI and the review shows it raw.
  * The gas a wallet or Safe signs passes through, so it stays bound in the id.
  */
@@ -194,13 +198,15 @@ export function decodeReviewCall(call: {
     / \((?:current|home chain \d+)\)$/u,
     "",
   );
-  const own = name
-    ? reviewAbis()[name]?.find(
-        (item): item is AbiFunction =>
-          item.type === "function" && toFunctionSelector(item) === selector,
+  // A known contract's ABI is the whole truth about it: a selector it lacks
+  // stays raw rather than reading as another contract's function.
+  const own = name ? reviewAbis()[name] : undefined;
+  const item = own
+    ? own.find(
+        (entry): entry is AbiFunction =>
+          entry.type === "function" && toFunctionSelector(entry) === selector,
       )
-    : undefined;
-  const item = own ?? functionsBySelector().get(selector);
+    : functionsBySelector().get(selector);
   const decoded = item ? decodeExactly(item, call.data) : null;
   return decoded ? { ...raw, ...decoded } : raw;
 }
