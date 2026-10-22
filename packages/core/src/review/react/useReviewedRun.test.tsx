@@ -68,9 +68,35 @@ describe("useReviewedRun", () => {
     reviewUi(async () => null);
     await expect(run({ calls: [payCall(6n)] })).resolves.toBeNull();
     expect(seen.current!.error).toBeNull();
+    expect(seen.current!.failure).toBeNull();
 
     act(() => seen.current!.reset());
     expect(seen.current!.phase).toBe("idle");
+  });
+
+  test("keeps the raw failure with its cause for site decoders", async () => {
+    reviewUi();
+    const { wallet, deps } = setup();
+    const cause = { data: "0x08c379a0" };
+    const thrown = Object.assign(new Error("execution reverted"), { cause });
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(thrown);
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await expect(run({ calls: [payCall()] })).resolves.toBeNull();
+    expect(seen.current!.failure).toBe(thrown);
+    expect((seen.current!.failure as typeof thrown).cause).toBe(cause);
+    expect(seen.current!.error).toBeTruthy();
+
+    // A new run clears it, and a cancel leaves none.
+    reviewUi(async () => null);
+    await expect(run({ calls: [payCall(6n)] })).resolves.toBeNull();
+    expect(seen.current!.failure).toBeNull();
+
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(thrown);
+    reviewUi();
+    await run({ calls: [payCall(7n)] });
+    expect(seen.current!.failure).toBe(thrown);
+    act(() => seen.current!.reset());
+    expect(seen.current!.failure).toBeNull();
   });
 
   test("refuses a multi-call run without scope", async () => {

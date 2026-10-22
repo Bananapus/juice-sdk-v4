@@ -1,8 +1,11 @@
 /**
- * Test-only resets, so nothing leaks from one test into the next. Never
+ * Test-only resets and fixtures, so nothing leaks from one test into the next. Never
  * import this entry from production code: it drops this tab's holds.
  */
 import { TAB } from "./review/tabState.js";
+
+/** One review request per decoder route, for each client's rendering tests. */
+export { REVIEW_REQUESTS } from "./review/reviewRequests.js";
 
 const tab = globalThis as Record<symbol, unknown>;
 

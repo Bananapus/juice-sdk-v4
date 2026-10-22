@@ -434,6 +434,63 @@ describe("sendReviewed", () => {
     });
   });
 
+  it("a Safe app reuses a queued proposal of the exact call, never a near match", async () => {
+    const { wallet, deps, chain } = setup();
+    wallet.state.safe = true;
+    const prompts = reviewUi();
+    const call = payCall();
+    // Near matches: another amount, value, target, or the same bytes as a DELEGATECALL.
+    chain.queueProposal({ ...call, data: payCall(6n).data });
+    chain.queueProposal({ ...call, value: 8n });
+    chain.queueProposal({ ...call, to: OTHER });
+    chain.queueProposal(call, { operation: 1 });
+    const exact = chain.queueProposal(call);
+    await expect(sendReviewed(action([call]), deps)).resolves.toEqual({
+      status: "proposed",
+      step: 0,
+      safeTxHash: exact,
+    });
+    expect(prompts).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+
+    // Only near matches queued: the wallet proposes it.
+    const other = setup();
+    other.wallet.state.safe = true;
+    other.chain.queueProposal({ ...call, data: payCall(6n).data });
+    other.chain.queueProposal(call, { operation: 1 });
+    await expect(sendReviewed(action([call]), other.deps)).resolves.toEqual({
+      status: "proposed",
+      step: 0,
+      safeTxHash: `0x${"1".padStart(64, "0")}`,
+    });
+    expect(other.wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("a Safe app sends nothing when its queue can't be read", async () => {
+    const { wallet, deps } = setup();
+    wallet.state.safe = true;
+    reviewUi();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("down", { status: 503 })),
+    );
+    await expect(sendReviewed(action([payCall()]), deps)).rejects.toThrow();
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(globalThis.fetch).toHaveBeenCalled();
+
+    // Nothing was reserved: once the queue reads, the same action proposes.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () => new Response(JSON.stringify({ next: null, results: [] })),
+      ),
+    );
+    await expect(
+      sendReviewed(action([payCall()]), deps),
+    ).resolves.toMatchObject({ status: "proposed" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
   it("self-reviewing adapter gets raw calls and no prompt", async () => {
     const { deps } = setup();
     const prompts = reviewUi();

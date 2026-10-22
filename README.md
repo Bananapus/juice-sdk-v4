@@ -1029,7 +1029,9 @@ In tests, import the resets from the test-only entry,
 entry exports them): `resetWriteHoldsForTests()` stops every controller's
 settle polls and tab listeners and drops this tab's lock queues and
 held-write memory; `resetSafeRelayrForTests()` stops every Safe Relayr watch
-and forgets its remembered reviews. Call them in `afterEach`.
+and forgets its remembered reviews. Call them in `afterEach`. The same entry
+exports `REVIEW_REQUESTS`, one review request per decoder route, for each
+client's dialog rendering tests.
 
 ### Shared intents
 
@@ -1312,7 +1314,7 @@ npm install @bananapus/nana-sdk-react @bananapus/nana-sdk-core
 npm install @bananapus/nana-sdk-core
 ```
 
-Writes go through core's reviewed path: `sendReviewed(action, deps)` from `@bananapus/nana-sdk-core/review` reviews one action, then sends each step (a Safe wallet gets a proposal instead), and `runRelayrReviewed` reviews a Relayr bundle once, then pays its quote. The React Relayr hooks are deprecated in favor of it.
+Writes go through core's reviewed path: `sendReviewed(action, deps)` from `@bananapus/nana-sdk-core/review` reviews one action, then sends each step (a Safe wallet gets a proposal instead, or the one its Safe already queued for exactly that call), and `runRelayrReviewed` reviews a Relayr bundle once, then pays its quote. The React Relayr hooks are deprecated in favor of it.
 
 ## Quick Start
 

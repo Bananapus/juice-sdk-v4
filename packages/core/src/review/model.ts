@@ -40,6 +40,10 @@ import {
 export type ReviewContextRow = {
   label: string;
   value: string;
+  /** Further lines of the value, shown under it in order (each signer, say). */
+  lines?: readonly string[];
+  /** A short note under the row, such as what the action leaves to do. */
+  note?: string;
   strong?: boolean;
   mono?: boolean;
 };
@@ -55,7 +59,8 @@ export type ReviewWarningCode =
   | "decimals-unknown"
   | "possible-token-id"
   | "simulation-failed"
-  | "simulation-unavailable";
+  | "simulation-unavailable"
+  | "unreadable";
 
 export type ReviewWarning = { code: ReviewWarningCode; text: string };
 
@@ -185,6 +190,8 @@ const OWNER_ACTION =
 const PERMISSION_GRANT = "This lets another address act for you.";
 const DECIMALS_UNKNOWN =
   "The token's decimals could not be read, so its amount shows in base units.";
+const UNREADABLE =
+  "Part of this request can't be read here. Check it in your wallet before continuing.";
 const POSSIBLE_TOKEN_ID =
   "ERC-721 NFTs use this same function, so this number may be an NFT's token ID rather than an amount.";
 
@@ -703,10 +710,21 @@ function bindingCall(call: TransactionReviewCall): unknown {
 /**
  * The plain-data review of a request: what every client's review dialog
  * shows, decoded once. `context` is display only and never feeds `calls`.
+ * It never throws: a request it can't read or bind exactly gets a model with
+ * an `unreadable` warning, showing what it can read, and an id that matches
+ * no other model.
  */
 export function buildReviewModel(
   request: TransactionReviewRequest,
 ): ReviewModel {
+  try {
+    return readModel(request);
+  } catch {
+    return unreadableModel(request);
+  }
+}
+
+function readModel(request: TransactionReviewRequest): ReviewModel {
   // Copies, so the request changing after review never changes what the model shows.
   const signatures = (request.signatures ?? []).map(reviewSignature);
   const signsMessage =
@@ -722,7 +740,10 @@ export function buildReviewModel(
           ? "message"
           : "authorization"
         : "transaction";
-  const context = (request.context ?? []).map((row) => ({ ...row }));
+  const context = (request.context ?? []).map((row) => ({
+    ...row,
+    ...(row.lines ? { lines: [...row.lines] } : {}),
+  }));
   const authorization = structuredClone(request.authorization ?? null);
   const messages = signatures.filter((signature) => signature.message !== null);
   const message = messages.length === 1 ? messages[0].message : null;
@@ -757,6 +778,104 @@ export function buildReviewModel(
     signatures,
     rawJson: transactionReviewJson(request),
     warnings: [],
+  };
+}
+
+/** `read()`, or `fallback` when it throws. */
+function attempt<T>(read: () => T, fallback: T): T {
+  try {
+    return read();
+  } catch {
+    return fallback;
+  }
+}
+
+const text = (value: unknown): string =>
+  typeof value === "string" ? value : "";
+
+/** The parts of a request {@link readModel} could not take whole, each read on its own. */
+function unreadableModel(input: unknown): ReviewModel {
+  const request = (input && typeof input === "object" ? input : {}) as Record<
+    string,
+    unknown
+  >;
+  const list = (value: unknown): unknown[] =>
+    Array.isArray(value) ? value : [];
+  const warning: ReviewWarning = { code: "unreadable", text: UNREADABLE };
+  return {
+    id: keccak256(toHex(globalThis.crypto.randomUUID())),
+    kind: request.kind === "authorization" ? "authorization" : "transaction",
+    title: typeof request.title === "string" ? request.title : null,
+    description: attempt(
+      () => reviewDescription(request as TransactionReviewRequest),
+      "",
+    ),
+    confirmLabel:
+      typeof request.confirmLabel === "string" ? request.confirmLabel : null,
+    context: list(request.context).map((row) => {
+      const item = (row ?? {}) as Record<string, unknown>;
+      return {
+        label: text(item.label),
+        value: text(item.value),
+        ...(Array.isArray(item.lines) ? { lines: item.lines.map(text) } : {}),
+        ...(typeof item.note === "string" ? { note: item.note } : {}),
+        ...(item.strong === true ? { strong: true } : {}),
+        ...(item.mono === true ? { mono: true } : {}),
+      };
+    }),
+    calls: list(request.calls).map(
+      (call) =>
+        attempt<ReviewCallModel | null>(
+          () => reviewCall(call as TransactionReviewCall),
+          null,
+        ) ?? rawCall(call),
+    ),
+    authorization: attempt(
+      () => structuredClone(request.authorization ?? null),
+      null,
+    ),
+    message: null,
+    signatures: list(request.signatures).flatMap((signature) =>
+      attempt(
+        () => [reviewSignature(signature as TransactionReviewSignature)],
+        [],
+      ),
+    ),
+    rawJson: attempt(
+      () => transactionReviewJson(request as TransactionReviewRequest),
+      "",
+    ),
+    warnings: [warning],
+  };
+}
+
+/** A call {@link reviewCall} could not read: its destination, value and bytes, as far as they read. */
+function rawCall(input: unknown): ReviewCallModel {
+  const call = (input ?? {}) as Record<string, unknown>;
+  const data =
+    typeof call.data === "string" && /^0x[\da-f]*$/iu.test(call.data)
+      ? (call.data as Hex)
+      : "0x";
+  const value = typeof call.value === "bigint" ? call.value : 0n;
+  return {
+    chainId: typeof call.chainId === "number" ? call.chainId : 0,
+    from: null,
+    to: text(call.to) as Address,
+    contractName: null,
+    value,
+    valueText: nativeValue(value),
+    gas: null,
+    safeTxGas: null,
+    label: typeof call.label === "string" ? call.label : null,
+    functionName: null,
+    selector: data.slice(0, 10) as Hex,
+    byteLength: (data.length - 2) / 2,
+    args: null,
+    calls: null,
+    roles: [],
+    tokenAmounts: [],
+    nft: null,
+    warnings: [{ code: "unreadable", text: UNREADABLE }],
   };
 }
 

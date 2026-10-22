@@ -1,4 +1,5 @@
 import {
+  encodeAbiParameters,
   encodeFunctionData,
   erc20Abi,
   numberToHex,
@@ -9,6 +10,11 @@ import {
   type TypedDataDefinition,
 } from "viem";
 import { vi } from "vitest";
+import {
+  canonicalSafeTxHash,
+  safeProposalFor,
+  type SafeQueuedTransaction,
+} from "../../safeService.js";
 import {
   registerReviewHandler,
   type ReviewConfirmation,
@@ -115,6 +121,9 @@ export function fakeChain() {
     status: "success" as "success" | "reverted",
     /** The logs every receipt carries. */
     logs: [] as unknown[],
+    /** The connected Safe's nonce, and what Safe's service queues from it. */
+    safeNonce: 0n,
+    safeQueue: [] as SafeQueuedTransaction[],
   };
   const receipt = (hash: Hex) =>
     ({
@@ -133,6 +142,13 @@ export function fakeChain() {
     chain: { id: 10, name: "OP Mainnet" },
     request: vi.fn(
       async ({ method, params }: { method: string; params: unknown[] }) => {
+        const [call] = params as [{ to?: Address; data?: Hex }];
+        if (
+          method === "eth_call" &&
+          call.to?.toLowerCase() === ACCOUNT.toLowerCase() &&
+          call.data?.startsWith("0xaffed0e0")
+        )
+          return encodeAbiParameters([{ type: "uint256" }], [state.safeNonce]);
         if (method === "eth_call") return state.ethCall(params);
         if (method === "eth_getBlockByNumber") {
           return {
@@ -192,7 +208,23 @@ export function fakeChain() {
     state.nonce += 1;
     state.mined.set(hash, state.head);
   };
-  return { state, client, mine };
+  /** Safe's service queues `call` in the connected Safe at the next nonce. */
+  const queueProposal = (
+    call: { to: Address; data: Hex; value?: bigint },
+    extra: Partial<SafeQueuedTransaction> = {},
+  ) => {
+    const tx = {
+      ...safeProposalFor(
+        call,
+        Number(state.safeNonce) + state.safeQueue.length,
+      ),
+      ...extra,
+    };
+    const safeTxHash = canonicalSafeTxHash(10, ACCOUNT, tx);
+    state.safeQueue.push({ ...tx, safeTxHash } as SafeQueuedTransaction);
+    return safeTxHash;
+  };
+  return { state, client, mine, queueProposal };
 }
 
 function fakeWallet(chain: ReturnType<typeof fakeChain>) {
@@ -249,6 +281,18 @@ export function setup() {
     },
     settle: { intervalMs: 1_000, attempts: 1 },
   });
+  // Safe's service lists the connected Safe's queue; any other fetch fails.
+  const unexpected = globalThis.fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) =>
+      String(input).includes(`/safes/${ACCOUNT}/multisig-transactions/`)
+        ? new Response(
+            JSON.stringify({ next: null, results: chain.state.safeQueue }),
+          )
+        : unexpected(input),
+    ),
+  );
   const progress: ReviewedProgress[] = [];
   const deps = {
     adapter: wallet.adapter as WalletAdapter,

@@ -122,6 +122,8 @@ describe("published core SDK surfaces", () => {
 
   test("keeps the review decoders on their own lazily loaded entry point", () => {
     expect(Object.keys(reviewDecode).sort()).toEqual([
+      "addressLabel",
+      "currencyLabel",
       "describeJBHookMetadata",
       "describePermissionsData",
       "describeSafeInitializer",
@@ -341,7 +343,7 @@ describe("published core SDK surfaces", () => {
       "resetWriteHoldsForTests",
       "resetWriteRecoveryForTests",
     ];
-    expect(Object.keys(testing).sort()).toEqual(resets);
+    expect(Object.keys(testing).sort()).toEqual(["REVIEW_REQUESTS", ...resets]);
     const reviewSafeRelayr = await import("./review/safeRelayr.js");
     for (const entry of [sdk, review, reviewRelayr, reviewSafeRelayr])
       for (const name of resets) expect(entry).not.toHaveProperty(name);

@@ -308,9 +308,12 @@ const budgets = {
     // The nana-wallet-check bin (one file; its test is not packed).
     // getRegisteredSucker and the pay swap-quote refusal, no files:
     // 1,706,925 B packed, 23,703,923 B unpacked, 1,803 files.
-    packed: 1_712_000,
-    unpacked: 23_760_000,
-    entries: 1_803,
+    // The review fixture requests on /testing, a module of its own (8
+    // artifacts), the raw run failure, queued Safe proposal reuse and the
+    // never-throwing review model: MEASURED.
+    packed: 1_720_000,
+    unpacked: 23_810_000,
+    entries: 1_811,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

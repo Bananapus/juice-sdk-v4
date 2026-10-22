@@ -155,13 +155,13 @@ export function knownAddressName(
 }
 
 /** "Name | 0x…" for a known address, otherwise the address. */
-function addressLabel(chainId: number, address: string): string {
+export function addressLabel(chainId: number, address: string): string {
   const name = knownAddressName(chainId, address);
   return name ? `${name} | ${address}` : address;
 }
 
 /** Like {@link addressLabel}, for a Uniswap currency, where address zero is native ETH. */
-function currencyLabel(chainId: number, currency: string): string {
+export function currencyLabel(chainId: number, currency: string): string {
   return currency.toLowerCase() === zeroAddress
     ? `native ETH | ${currency}`
     : addressLabel(chainId, currency);

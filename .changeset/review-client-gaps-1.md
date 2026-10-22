@@ -1,0 +1,5 @@
+---
+"@bananapus/nana-sdk-core": minor
+---
+
+Review gaps found moving juicebox-money onto the reviewed path. `useReviewedRun` keeps the value a failed run threw, with its cause chain, as `failure` (null on success and cancel), so a site can decode it (a slippage retry, say) beside the friendly `error`. A Safe-connected wallet reuses a proposal its Safe already queued for exactly the reviewed call (same Safe, chain, target, value, calldata, and a zero-refund CALL) instead of proposing it again; a near match is never reused, and a queue that can't be read sends nothing. `ReviewContextRow` takes `lines` (a value over several lines) and a `note`, both bound into the model's id. `buildReviewModel` never throws: a request it can't read or bind exactly gets a model with an `unreadable` warning (a new `ReviewWarningCode`), the parts it could read, and an id that matches no other model. `/review/decode` exports `addressLabel` and `currencyLabel`, and `/testing` exports the review fixture requests as `REVIEW_REQUESTS`.

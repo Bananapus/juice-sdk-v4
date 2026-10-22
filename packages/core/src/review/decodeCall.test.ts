@@ -10,7 +10,7 @@ import { jbContractAddress } from "../generated/addresses/jbContractAddress.js";
 import { jbDirectoryAbi } from "../generated/abi/jbDirectoryAbi.js";
 import { jbProjectsAbi } from "../generated/abi/jbProjectsAbi.js";
 import { SAFE_EXEC_ABI } from "../safeService.js";
-import { REVIEW_REQUESTS } from "./__fixtures__/review-requests.js";
+import { REVIEW_REQUESTS } from "./reviewRequests.js";
 import { decodeReviewCall } from "./decodeCall.js";
 import { buildReviewModel } from "./model.js";
 

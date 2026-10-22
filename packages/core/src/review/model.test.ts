@@ -9,7 +9,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { jbContractAddress } from "../generated/addresses/jbContractAddress.js";
 import { USDC_ADDRESSES } from "../pureConstants.js";
-import { REVIEW_REQUESTS } from "./__fixtures__/review-requests.js";
+import { REVIEW_REQUESTS } from "./reviewRequests.js";
 import expectedModels from "./__fixtures__/review-models.json" with { type: "json" };
 import {
   buildReviewModel,
@@ -144,13 +144,23 @@ describe("buildReviewModel", () => {
       }).id,
     ).toBe(model.id);
 
+    // Data it can't bind exactly is never bound as something else: the
+    // model says so, and its id matches no other model.
     for (const unbindable of [new Number(1), new Date(0), Number.NaN]) {
-      expect(() =>
+      const unread = buildReviewModel({
+        ...request,
+        authorization: { message: { amount: unbindable } },
+      });
+      expect(unread.warnings.map((warning) => warning.code)).toEqual([
+        "unreadable",
+      ]);
+      expect(unread.id).not.toBe(model.id);
+      expect(
         buildReviewModel({
           ...request,
           authorization: { message: { amount: unbindable } },
-        }),
-      ).toThrow(/cannot bind|only bind plain data/);
+        }).id,
+      ).not.toBe(unread.id);
     }
 
     authorization.message.amount = 6n;
@@ -172,6 +182,62 @@ describe("buildReviewModel", () => {
     expect(shown.context).not.toBe(context);
     expect(shown.calls).toEqual(plain.calls);
     expect(shown.rawJson).toBe(plain.rawJson);
+  });
+
+  it("copies a context row's lines and note, and binds them", () => {
+    const signers = ["0xaa", "0xbb"];
+    const row = {
+      label: "Signers",
+      value: "2 of 2",
+      lines: signers,
+      note: "Each signer must confirm.",
+    };
+    const shown = buildReviewModel({ ...pay, context: [row] });
+    expect(shown.context).toEqual([row]);
+    signers.push("0xcc");
+    expect(shown.context[0].lines).toEqual(["0xaa", "0xbb"]);
+    expect(buildReviewModel({ ...pay, context: [row] }).id).not.toBe(shown.id);
+    expect(
+      buildReviewModel({ ...pay, context: [{ ...row, note: "Other." }] }).id,
+    ).not.toBe(buildReviewModel({ ...pay, context: [row] }).id);
+  });
+
+  it("never throws: whatever it can't read, it shows with a warning", () => {
+    const [call] = pay.calls;
+    const unexpected: unknown[] = [
+      null,
+      undefined,
+      "pay",
+      { calls: "pay" },
+      { ...pay, calls: [{ ...call, data: 7 }] },
+      { ...pay, calls: [{ ...call, abi: "nope" }] },
+      { ...pay, calls: [null, call] },
+      { ...pay, signatures: [{ kind: "permit2", typedData: { a: () => 1 } }] },
+      { ...pay, context: [{ label: "Pay", value: new Date(0) }] },
+      { ...pay, authorization: { amount: Symbol("x") } },
+    ];
+    for (const input of unexpected) {
+      const model = buildReviewModel(input as TransactionReviewRequest);
+      expect(
+        model.warnings.some((warning) => warning.code === "unreadable"),
+        String(input),
+      ).toBe(true);
+      expect(model.id).toMatch(/^0x[\da-f]{64}$/u);
+    }
+    // What it can read still shows: the calls it could decode, and the raw bytes of the rest.
+    const model = buildReviewModel({
+      ...pay,
+      calls: [{ ...call, abi: "nope" } as never, call],
+      context: [{ label: "When", value: new Date(0) as never }],
+    });
+    expect(model.calls).toHaveLength(2);
+    expect(model.calls[1]).toEqual(buildReviewModel(pay).calls[0]);
+    expect(model.calls[0]).toMatchObject({
+      to: call.to,
+      selector: call.data.slice(0, 10),
+      args: null,
+    });
+    expect(model.context).toEqual([{ label: "When", value: "" }]);
   });
 });
 

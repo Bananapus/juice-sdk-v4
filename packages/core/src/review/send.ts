@@ -12,7 +12,11 @@ import {
   type ReviewedWritePhase,
 } from "./contractWrite.js";
 import { gasWithHeadroom } from "./gas.js";
-import { isSafeExecTransaction } from "../safeService.js";
+import {
+  findPendingSafeAppProposal,
+  hasSafeService,
+  isSafeExecTransaction,
+} from "../safeService.js";
 import {
   WRITE_HOLD_CALL_FAILED_LINE,
   WRITE_HOLD_REVERTED_LINE,
@@ -680,17 +684,39 @@ async function send(
             value: sending.value,
             ...(blockNumber === undefined ? {} : { blockNumber }),
           };
-          const [, estimate] = await Promise.all([
+          const [, estimate, queued] = await Promise.all([
             simulateStateChangingTransaction(client, {
               from: account,
               ...tx,
             }),
             // A Safe app signs the sent gas as safeTxGas; 0 makes a failed call revert.
             safe ? undefined : client.estimateGas({ account, ...tx }),
+            // A Safe app never proposes a call its Safe already queued.
+            safe && hasSafeService(sending.chainId)
+              ? findPendingSafeAppProposal(
+                  client,
+                  sending.chainId,
+                  account,
+                  sending,
+                )
+              : null,
           ]);
           return {
             ...sending,
             gas: estimate === undefined ? 0n : gasWithHeadroom(estimate),
+            // Reused only when it runs exactly the reviewed call.
+            queued:
+              queued &&
+              sameCall(
+                {
+                  ...queued.call,
+                  value: queued.call.value ?? 0n,
+                  chainId: sending.chainId,
+                },
+                sending,
+              )
+                ? queued.proposalHash
+                : undefined,
           };
         },
         beforeWrite: async () => {
@@ -730,8 +756,8 @@ async function send(
         onBeforeWriteAborted: released,
         onWriteRejected: released,
         onWriteSubmitted: (submitted) => gate.afterSubmit(submitted),
-        write: ({ chainId, to, data, value, gas }) =>
-          adapter.sendTransaction({ chainId, to, data, value, gas }),
+        write: async ({ chainId, to, data, value, gas, queued }) =>
+          queued ?? adapter.sendTransaction({ chainId, to, data, value, gas }),
         onPhase: (phase) => progress(phase),
         guard: action.guard,
       });
