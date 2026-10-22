@@ -190,6 +190,31 @@ describe("useReviewedRun", () => {
     expect(seen.current).toMatchObject({ phase: "done", step: 1, total: 2 });
   });
 
+  test("follows the held step as its hold changes", async () => {
+    reviewUi();
+    const { wallet, chain, deps, hold, holdOf } = setup();
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(
+      new Error("The request took too long to respond."),
+    );
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const call = payCall();
+    // An ambiguous failure: nothing refused it, but its step is held now.
+    await expect(
+      run({ calls: [call], scope: "pay:project-1" }),
+    ).resolves.toBeNull();
+    expect(seen.current!.held).toMatchObject({
+      phase: "held",
+      state: { status: "held-no-hash" },
+    });
+    // Released elsewhere (the user checked their wallet): it shows clear.
+    const handle = hold.open(holdOf(call));
+    const state = await handle.state(chain.client as never);
+    await act(async () => {
+      await handle.exit(state, { checkedWallet: true }, chain.client as never);
+    });
+    expect(seen.current!.held).toBeNull();
+  });
+
   test("shows a Safe proposal's hash", async () => {
     reviewUi();
     const { wallet, deps } = setup();

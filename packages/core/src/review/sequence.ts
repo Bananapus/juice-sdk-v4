@@ -52,22 +52,48 @@ function sequenceKey(scope: string, account: Address): string {
   return `${PREFIX}${account.toLowerCase()}:${scope}`;
 }
 
+export const REVIEWED_SEQUENCE_UNSAVABLE_LINE =
+  "This action has an argument that can't be saved to resume it. Nothing was sent.";
+
 /**
  * JSON with every value tagged, so no saved argument can read as another
- * kind: a bigint is `{ n }`, every object `{ o }`.
+ * kind: a bigint is `{ n }`, every plain object `{ o }`. Anything else that
+ * JSON would change (bytes, a class instance, a hole in an array) is
+ * refused, never saved as something else.
  */
-const encode = (value: unknown): unknown =>
-  typeof value === "bigint"
-    ? { n: value.toString() }
-    : Array.isArray(value)
-      ? value.map(encode)
-      : value && typeof value === "object"
-        ? {
-            o: Object.fromEntries(
-              Object.entries(value).map(([key, item]) => [key, encode(item)]),
-            ),
-          }
-        : value;
+const encode = (value: unknown): unknown => {
+  if (typeof value === "bigint") return { n: value.toString() };
+  if (Array.isArray(value))
+    return value.map((item) => {
+      if (item === undefined) throw new Error(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
+      return encode(item);
+    });
+  if (value && typeof value === "object") {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null)
+      throw new Error(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
+    return {
+      o: Object.fromEntries(
+        Object.entries(value).flatMap(([key, item]) =>
+          item === undefined ? [] : [[key, encode(item)]],
+        ),
+      ),
+    };
+  }
+  if (
+    value === undefined ||
+    typeof value === "function" ||
+    typeof value === "symbol" ||
+    (typeof value === "number" && !Number.isFinite(value))
+  )
+    throw new Error(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
+  return value;
+};
+
+/** Refuse, before any review, calls that could not be saved exactly. */
+export function assertSavableCalls(calls: readonly ReviewedCall[]): void {
+  encode(calls);
+}
 
 const decode = (value: unknown): unknown =>
   Array.isArray(value)
@@ -83,8 +109,9 @@ const decode = (value: unknown): unknown =>
           )
       : value;
 
+/** The sequence's id stays a top-level field, as the held-write storage reconciles records by it. */
 const serialize = (record: ReviewedSequenceRecord) =>
-  JSON.stringify(encode(record));
+  JSON.stringify({ id: record.id, sequence: encode(record) });
 
 /** Run `work` under the sequence's lock across windows: every compare and change of its saved value. */
 function locked<T>(key: string, work: () => T): Promise<T> {
@@ -96,12 +123,14 @@ function locked<T>(key: string, work: () => T): Promise<T> {
 function parse(raw: string | null, key: string): ReviewedSequenceRecord | null {
   if (raw === null) return null;
   try {
-    const record = decode(JSON.parse(raw)) as ReviewedSequenceRecord;
+    const saved = JSON.parse(raw) as { id?: unknown; sequence?: unknown };
+    const record = decode(saved.sequence) as ReviewedSequenceRecord;
     /** Only the next step can be in flight. */
     const step = (value: unknown) => value === record.completed.length;
     const valid =
       record.version === 1 &&
       typeof record.id === "string" &&
+      saved.id === record.id &&
       isAddress(record.account, { strict: false }) &&
       typeof record.scope === "string" &&
       sequenceKey(record.scope, record.account) === key &&

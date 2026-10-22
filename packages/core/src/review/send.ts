@@ -22,6 +22,7 @@ import {
 } from "./model.js";
 import { waitForTrackedReceipt } from "./receipt.js";
 import {
+  assertSavableCalls,
   readReviewedSequence,
   removeReviewedSequence,
   REVIEWED_SEQUENCE_MOVED_LINE,
@@ -297,6 +298,28 @@ function simulationWarning(
   return undefined;
 }
 
+/** The write hold one step is sent under: its intent's, or its exact call's. */
+export function openStepHold(
+  hold: WriteHold,
+  account: Address,
+  safe: boolean,
+  call: Pick<
+    ReviewedCall,
+    "chainId" | "to" | "data" | "value" | "intent" | "legacy"
+  >,
+) {
+  return hold.open(
+    {
+      chainId: call.chainId,
+      account,
+      safe,
+      call: { to: call.to, data: call.data, value: call.value ?? 0n },
+      ...(call.intent ? { namespace: call.intent } : {}),
+    },
+    call.legacy ? { legacy: [...call.legacy] } : undefined,
+  );
+}
+
 /**
  * Sends one reviewed action: one call, or a sequence (approve then pay, say),
  * reviewed once and sent without asking again.
@@ -362,15 +385,11 @@ export async function resumeReviewed(
   if (saved.sending) {
     const { step, reservation } = saved.sending;
     const call = saved.calls[step];
-    const handle = deps.hold.open(
-      {
-        chainId: call.chainId,
-        account: saved.account,
-        safe: deps.adapter.isSafe(),
-        call: { to: call.to, data: call.data, value: call.value ?? 0n },
-        ...(call.intent ? { namespace: call.intent } : {}),
-      },
-      call.legacy ? { legacy: [...call.legacy] } : undefined,
+    const handle = openStepHold(
+      deps.hold,
+      saved.account,
+      deps.adapter.isSafe(),
+      call,
     );
     const state = await handle.state(deps.clientFor(call.chainId));
     if (state.status !== "clear") throw new WriteHeldError(state);
@@ -469,6 +488,7 @@ async function send(
     const saved = readReviewedSequence(scope!, account, storage);
     // A fresh run refuses while an earlier run of the same action is unfinished.
     if (saved.record) throw new Error(REVIEWED_SEQUENCE_UNFINISHED_LINE);
+    assertSavableCalls(calls);
     expected = saved.raw;
   }
   /** Where the remaining steps start in the whole action. */
@@ -476,20 +496,11 @@ async function send(
 
   const safe = adapter.isSafe();
   const handles = calls.map((call, step) =>
-    hold.open(
-      {
-        chainId: sent[step].chainId,
-        account,
-        safe,
-        call: {
-          to: sent[step].to,
-          data: sent[step].data,
-          value: sent[step].value,
-        },
-        ...(call.intent ? { namespace: call.intent } : {}),
-      },
-      call.legacy ? { legacy: [...call.legacy] } : undefined,
-    ),
+    openStepHold(hold, account, safe, {
+      intent: call.intent,
+      legacy: call.legacy,
+      ...sent[step],
+    }),
   );
   // A step its hold already holds is refused before the review opens.
   for (const handle of handles) {

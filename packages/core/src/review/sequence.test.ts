@@ -19,6 +19,7 @@ import {
   REVIEWED_SEQUENCE_MOVED_LINE,
   REVIEWED_SEQUENCE_UNCERTAIN_LINE,
   REVIEWED_SEQUENCE_UNFINISHED_LINE,
+  REVIEWED_SEQUENCE_UNSAVABLE_LINE,
 } from "./sequence.js";
 import { WriteHeldError, type WriteHold } from "./writeHold.js";
 
@@ -488,6 +489,14 @@ describe("reviewed sequences", () => {
     };
     const { deps, record } = await interrupted([approveCall(), note], 1);
     expect(record.calls[1].args).toEqual(args);
+    // Saved with its id on top, as the held-write storage reconciles by it.
+    expect(
+      JSON.parse(
+        deps.storage!.getItem(
+          `nana-sdk:sequence:${ACCOUNT.toLowerCase()}:${SCOPE}`,
+        )!,
+      ).id,
+    ).toBe(record.id);
     await expect(resumeReviewed(record, {}, deps)).resolves.toMatchObject({
       status: "done",
     });
@@ -546,6 +555,34 @@ describe("reviewed sequences", () => {
     const reverify = vi.fn(async (_call: ReviewedCall, _index: number) => {});
     await resumeReviewed(record, { reverify }, deps);
     expect(reverify.mock.calls.map(([, index]) => index)).toEqual([1, 2]);
+  });
+
+  it("refuses, before any review, an argument it could not save exactly", async () => {
+    const prompts = reviewUi();
+    const { wallet, deps, storage } = setup();
+    const abi = [
+      {
+        type: "function",
+        name: "put",
+        stateMutability: "nonpayable",
+        inputs: [{ name: "data", type: "bytes" }],
+        outputs: [],
+      },
+    ] as const;
+    const bytes = new Uint8Array([1]);
+    const put: ReviewedCall = {
+      chainId: 10,
+      to: OTHER,
+      data: encodeFunctionData({ abi, functionName: "put", args: ["0x01"] }),
+      // Bytes kept as an array of bytes, which JSON would turn into an object.
+      args: [bytes],
+    };
+    await expect(
+      sendReviewed(action([approveCall(), put], { scope: SCOPE }), deps),
+    ).rejects.toThrow(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
+    expect(prompts).toHaveLength(0);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toBeNull();
   });
 
   it("reads an unreadable or foreign record as none", () => {

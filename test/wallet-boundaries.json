@@ -17,7 +17,7 @@
     },
     {
       "file": "packages/core/src/review/sequence.ts",
-      "line": 91,
+      "line": 118,
       "api": "request",
       "boundary": "Take the reviewed sequence's lock across windows (Web Locks, or the IndexedDB lease without them) around each compare-and-set of its saved journal. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/sequence.test.ts"
@@ -101,7 +101,7 @@
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 663,
+      "line": 674,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action.",
       "test": "packages/core/src/review/send.test.ts"
