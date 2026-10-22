@@ -1,3 +1,7 @@
+import { ReviewLineError } from "./lineError.js";
+
+export { ReviewLineError };
+
 /** Presentation only: saved recovery evidence and original SDK errors stay unchanged. */
 export function transactionMessage(message: string): string {
   const formatted = message
@@ -26,12 +30,6 @@ export function transactionMessage(message: string): string {
 /** The line for a raw node, RPC or wallet error: its own text can quote a request or its URL. */
 export const NETWORK_ERROR_LINE =
   "The network returned an error. Check your wallet's activity before you try again.";
-
-/**
- * An error the SDK raised with its own one-line message, which
- * {@link errorLine} shows. Any other error's text never reaches the UI.
- */
-export class ReviewLineError extends Error {}
 
 /**
  * The line to show for a thrown value: the message of an SDK error

@@ -1,4 +1,4 @@
-import { ReviewLineError } from "./transaction-message.js";
+import { ReviewLineError } from "./lineError.js";
 import { isAddress, isHex, type Address, type Hex } from "viem";
 import { isHexBytes, uint256 } from "../untrusted.js";
 import type { ReviewedCall } from "./send.js";

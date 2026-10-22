@@ -728,9 +728,7 @@ describe("sendReviewed", () => {
       sendReviewed(
         action([reviewed], {
           reverify: async () => {
-            (reviewed as { adoptIgnoringArgs: number[] }).adoptIgnoringArgs = [
-              0, 1,
-            ];
+            reviewed.adoptIgnoringArgs = [0, 1];
           },
         }),
         changed.deps,

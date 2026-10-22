@@ -1,4 +1,4 @@
-import { ReviewLineError } from "./review/transaction-message.js";
+import { ReviewLineError } from "./review/lineError.js";
 /** The longest delay setTimeout holds (about 24.8 days): a longer one fires at once. */
 const MAX_TIMER_MS = 2_147_483_647;
 

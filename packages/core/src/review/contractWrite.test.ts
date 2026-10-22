@@ -1,6 +1,6 @@
 import { BaseError, UserRejectedRequestError, type Address } from "viem";
 import { describe, expect, it, vi } from "vitest";
-import { ReviewLineError } from "./transaction-message.js";
+import { ReviewLineError } from "./lineError.js";
 import {
   isDefiniteWalletRejection,
   SubmittedContractWriteError,

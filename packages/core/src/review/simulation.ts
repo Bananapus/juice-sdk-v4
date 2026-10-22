@@ -1,4 +1,4 @@
-import { ReviewLineError } from "./transaction-message.js";
+import { ReviewLineError } from "./lineError.js";
 import { numberToHex, type Address, type Hex, type PublicClient } from "viem";
 
 /** A generous explicit gas ceiling for a reviewed state-changing preflight. */

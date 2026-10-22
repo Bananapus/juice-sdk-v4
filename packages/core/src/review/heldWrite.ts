@@ -1,4 +1,4 @@
-import { ReviewLineError } from "./transaction-message.js";
+import { ReviewLineError } from "./lineError.js";
 import type { Hex, TransactionReceipt } from "viem";
 import {
   hasSafeService,

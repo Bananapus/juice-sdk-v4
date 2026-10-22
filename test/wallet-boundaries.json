@@ -3,21 +3,21 @@
   "sites": [
     {
       "file": "packages/core/src/review/writeRecovery.ts",
-      "line": 1752,
+      "line": 1772,
       "api": "request",
       "boundary": "Acquire an exclusive Web Locks lock (or, without Web Locks, an IndexedDB lease across tabs) for one account, chain and stable namespace, or one exact call. Coordinate durable reservation, wallet handoff and canonical recovery across tabs; this request is browser coordination and never a wallet RPC.",
       "test": "packages/core/src/review/writeRecovery.test.ts"
     },
     {
       "file": "packages/core/src/review/writeRecovery.ts",
-      "line": 822,
+      "line": 824,
       "api": "request",
       "boundary": "Take this tab's own queue for a write action before claiming the cross-tab IndexedDB lease. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/writeRecovery.test.ts"
     },
     {
       "file": "packages/core/src/review/sequence.ts",
-      "line": 119,
+      "line": 121,
       "api": "request",
       "boundary": "Take the reviewed sequence's lock across windows (Web Locks, or the IndexedDB lease without them) around each compare-and-set of its saved journal. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/sequence.test.ts"
@@ -59,49 +59,49 @@
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 162,
+      "line": 169,
       "api": "sendTransaction",
       "boundary": "The WalletAdapter boundary: send exactly the reviewed target, calldata, value and gas from the connected account, naming the call's chain so viem refuses a wallet on another one. Reached only from sendReviewed after the core-minted confirmation.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 180,
+      "line": 189,
       "api": "signTypedData",
       "boundary": "The WalletAdapter boundary: sign the exact typed data from the connected account.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 186,
+      "line": 195,
       "api": "signMessage",
       "boundary": "The WalletAdapter boundary: sign the exact message from the connected account.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 190,
+      "line": 199,
       "api": "sendCalls",
       "boundary": "The WalletAdapter boundary: send the exact calls as one wallet batch from the connected account on the named chain.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 968,
+      "line": 984,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the app's exact gas or else the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action. A Safe app whose Safe already queued that call (exact bytes, or the same target, value, operation and function with every arg equal but those its adoptIgnoringArgs lists) returns that proposal's hash instead and opens no wallet.",
       "test": "packages/core/src/review/send.test.ts"
     },
     {
       "file": "packages/core/src/review/sign.ts",
-      "line": 377,
+      "line": 384,
       "api": "signTypedData",
       "boundary": "signPrepared hands the WalletAdapter typed data core built from its own Safe, forwarder and Permit2 constants, inside submitReviewedContractWrite's account and chain checks, only after core's own confirmation for the model that shows that exact typed data.",
       "test": "packages/core/src/review/sign.test.ts"
     },
     {
       "file": "packages/core/src/review/sign.ts",
-      "line": 378,
+      "line": 385,
       "api": "signMessage",
       "boundary": "signPrepared hands the WalletAdapter the exact message text the confirmed model shows, inside submitReviewedContractWrite's account check, only after core's own confirmation.",
       "test": "packages/core/src/review/sign.test.ts"
