@@ -59,70 +59,70 @@
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 114,
+      "line": 162,
       "api": "sendTransaction",
       "boundary": "The WalletAdapter boundary: send exactly the reviewed target, calldata, value and gas from the connected account, naming the call's chain so viem refuses a wallet on another one. Reached only from sendReviewed after the core-minted confirmation.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 132,
+      "line": 180,
       "api": "signTypedData",
       "boundary": "The WalletAdapter boundary: sign the exact typed data from the connected account.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 138,
+      "line": 186,
       "api": "signMessage",
       "boundary": "The WalletAdapter boundary: sign the exact message from the connected account.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 142,
+      "line": 190,
       "api": "sendCalls",
       "boundary": "The WalletAdapter boundary: send the exact calls as one wallet batch from the connected account on the named chain.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 888,
+      "line": 940,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action. A Safe app whose Safe already queued exactly that call returns that proposal's hash instead and opens no wallet.",
       "test": "packages/core/src/review/send.test.ts"
     },
     {
       "file": "packages/core/src/review/sign.ts",
-      "line": 373,
+      "line": 377,
       "api": "signTypedData",
       "boundary": "signPrepared hands the WalletAdapter typed data core built from its own Safe, forwarder and Permit2 constants, inside submitReviewedContractWrite's account and chain checks, only after core's own confirmation for the model that shows that exact typed data.",
       "test": "packages/core/src/review/sign.test.ts"
     },
     {
       "file": "packages/core/src/review/sign.ts",
-      "line": 374,
+      "line": 378,
       "api": "signMessage",
       "boundary": "signPrepared hands the WalletAdapter the exact message text the confirmed model shows, inside submitReviewedContractWrite's account check, only after core's own confirmation.",
       "test": "packages/core/src/review/sign.test.ts"
     },
     {
       "file": "packages/core/src/review/relayrSend.ts",
-      "line": 442,
+      "line": 434,
       "api": "signTypedData",
       "boundary": "Sign a stand-in ForwardRequest with a key generated in memory for one fee quote. It never reaches the user's wallet, is never saved, and leaves only inside the stand-in request posted to Relayr.",
       "test": "packages/core/src/review/relayrSend.test.ts"
     },
     {
       "file": "packages/core/src/review/relayrSend.ts",
-      "line": 728,
+      "line": 720,
       "api": "sendTransaction",
       "boundary": "Send a Relayr payment the person reviewed (or one within the reviewed fee cap) through the WalletAdapter, to the pinned payment contract and gas only (0 for a Safe app, whose proposal payRelayrReviewed alone allows, and which adopts its queued proposal of the exact payment instead of proposing again), under its write hold, after the runtime, simulation, expiry, account, chain and Safe-mode gates.",
       "test": "packages/core/src/review/relayrSend.test.ts"
     },
     {
       "file": "packages/core/src/review/relayrSend.ts",
-      "line": 668,
+      "line": 660,
       "api": "request",
       "boundary": "Take the Relayr payment lock across tabs (Web Locks, or the IndexedDB lease without them) for one account and payment namespace, around only the check that no payment under it on any funding chain may land (or, for a bundle, already succeeded) and the hold's reservation. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/relayrSend.test.ts"
