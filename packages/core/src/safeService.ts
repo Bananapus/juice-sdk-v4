@@ -1099,7 +1099,9 @@ type SafeQueueClient = Parameters<typeof readBoundedSafeNonce>[0] & {
  * the deadline: it can no longer run. Without a numbered block, matching
  * proposals remain held. Throws when the block, the nonce or the queue can't
  * be read. With `exact`, only a proposal of exactly `call`, stamp included,
- * is found.
+ * is found, or with `normalize` too, one to the same target with the same
+ * value whose data normalizes alike (a normalizer that throws matches
+ * nothing).
  */
 export async function findPendingSafeAppProposal(
   client: SafeQueueClient,
@@ -1108,6 +1110,7 @@ export async function findPendingSafeAppProposal(
   call: SafeAppCall,
   service?: SafeServiceOptions,
   exact = false,
+  normalize?: (data: Hex) => Hex,
 ): Promise<{
   tx: SafeQueuedTransaction;
   proposalHash: Hex;
@@ -1124,12 +1127,25 @@ export async function findPendingSafeAppProposal(
     throw new Error("Could not read the Safe nonce.");
   }
   const held = heldCall(call);
+  /** Whether `proposed` is `call` as the app normalizes calldata. */
+  const normalizedAlike = (proposed: SafeAppCall) => {
+    try {
+      return sameCall(
+        { ...proposed, data: normalize!(proposed.data) },
+        { ...call, data: normalize!(call.data) },
+      );
+    } catch {
+      return false;
+    }
+  };
   const queued = (
     await listPendingSafeTransactions(chainId, safe, Number(nonce), service)
   ).flatMap((tx) => {
     const proposed = proposedCall(tx);
     return proposed &&
-      (exact ? sameCall(proposed, call) : sameCall(heldCall(proposed), held))
+      (exact
+        ? sameCall(proposed, call) || (!!normalize && normalizedAlike(proposed))
+        : sameCall(heldCall(proposed), held))
       ? [{ tx, call: proposed, deadline: stampedDeadline(proposed, chainId) }]
       : [];
   });

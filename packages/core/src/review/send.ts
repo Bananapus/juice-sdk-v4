@@ -81,6 +81,15 @@ export type ReviewedCall = {
    * whatever this is.
    */
   gas?: bigint;
+  /**
+   * For a Safe app only: the calldata a proposal its Safe already queued is
+   * compared by, so a retry whose only change is a fresh stamp (a deadline)
+   * adopts that proposal instead of proposing twice. It must keep every
+   * field that decides what runs (recipients, amounts); the target, value
+   * and operation must match as they are. Unset compares exact bytes. Never
+   * saved: a resumed step compares exact bytes.
+   */
+  normalizeData?: (data: Hex) => Hex;
   /** When given, `data` must be exactly this function's encoding of `args`. */
   abi?: Abi;
   functionName?: string;
@@ -257,6 +266,14 @@ function exact(call: ReviewedCall): {
     }),
     shown: { abi, functionName, args, label, contractName },
   };
+}
+
+/** A call as its journal saves it: without its normalizer, a function. */
+function unsaved({
+  normalizeData: _normalizeData,
+  ...call
+}: ReviewedCall): ReviewedCall {
+  return call;
 }
 
 function sameCall(a: SentCall, b: SentCall): boolean {
@@ -683,7 +700,7 @@ async function send(
     const saved = readReviewedSequence(scope!, account, storage);
     // A fresh run refuses while an earlier run of the same action is unfinished.
     if (saved.record) throw new Error(REVIEWED_SEQUENCE_UNFINISHED_LINE);
-    assertSavableCalls(calls);
+    assertSavableCalls(calls.map(unsaved));
     expected = saved.raw;
   }
   /** Where the remaining steps start in the whole action. */
@@ -761,7 +778,7 @@ async function send(
         modelId: model.id,
         // What was reviewed, read once above.
         calls: calls.map((call, step) => ({
-          ...call,
+          ...unsaved(call),
           ...snapshots[step].shown,
           ...snapshots[step].sent,
         })),
@@ -875,6 +892,7 @@ async function send(
                   sending,
                   hold.safeService,
                   true,
+                  call.normalizeData,
                 )
               : null,
           ]);

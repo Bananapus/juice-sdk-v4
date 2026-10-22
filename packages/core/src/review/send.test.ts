@@ -668,6 +668,44 @@ describe("sendReviewed", () => {
     expect(other.wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
 
+  it("a Safe app adopts a queued proposal its call's normalizer matches, only to the same target, value and operation", async () => {
+    const { wallet, deps, chain } = setup();
+    wallet.state.safe = true;
+    const prompts = reviewUi();
+    // Its last word stands in for a fresh deadline.
+    const normalizeData = (data: Hex) =>
+      `${data.slice(0, -64)}${"0".repeat(64)}` as Hex;
+    const call = payCall(5n, { normalizeData });
+    const older = payCall(6n);
+    chain.queueProposal({ ...older, value: 8n });
+    chain.queueProposal({ ...older, to: OTHER });
+    chain.queueProposal(older, { operation: 1 });
+    const queued = chain.queueProposal(older);
+    await expect(
+      sendReviewed(action([call], { scope: "liquidity" }), deps),
+    ).resolves.toEqual({ status: "proposed", step: 0, safeTxHash: queued });
+    expect(prompts).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+
+    // Without a normalizer, or with one that refuses, the wallet proposes it.
+    for (const extra of [
+      {},
+      {
+        normalizeData: (): Hex => {
+          throw new Error("not mine");
+        },
+      },
+    ]) {
+      const other = setup();
+      other.wallet.state.safe = true;
+      other.chain.queueProposal(older);
+      await expect(
+        sendReviewed(action([payCall(5n, extra)]), other.deps),
+      ).resolves.toMatchObject({ status: "proposed" });
+      expect(other.wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+    }
+  });
+
   it("a Safe app sends nothing when its queue can't be read, or hangs", async () => {
     const { wallet, deps, chain } = setup();
     wallet.state.safe = true;
