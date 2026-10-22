@@ -26,3 +26,18 @@ export function pause(
     if (signal?.aborted) onAbort();
   });
 }
+
+/** `promise`, or a rejection once `ms` passes first. */
+export async function timeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("timed out")), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}

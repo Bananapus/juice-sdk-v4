@@ -76,6 +76,7 @@ import type { TransactionReviewCall } from "./transactionReview.js";
 import { unsupportedWalletRequest, type WalletAdapter } from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
 import { browserLocks } from "./writeRecovery.js";
+import { timeout } from "../pause.js";
 
 // Relayr runs ERC-2771 forward requests for one prepaid payment. Everything
 // here asks the person once through core's review, then signs and pays only
@@ -401,20 +402,6 @@ function paymentOn(quote: RelayrQuote, chainId: number): RelayrPaymentDetails {
 
 function withMargin(fee: bigint): bigint {
   return (fee * RELAYR_FEE_MARGIN_BPS + 9_999n) / 10_000n;
-}
-
-async function timeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error("timed out")), ms);
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 /**
