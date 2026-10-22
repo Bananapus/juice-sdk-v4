@@ -17,6 +17,7 @@ import {
   jb721TiersHookStoreAbi,
   jbMultiTerminalAbi,
 } from "../generated/juicebox.js";
+import { ReviewLineError } from "../review/lineError.js";
 import type { JBChainId } from "../types.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import {
@@ -109,14 +110,14 @@ export function defifaPhaseAllowsCashOut(phase: number): boolean {
 
 function assertActionSize(count: number): void {
   if (count < 1 || count > MAX_DEFIFA_ACTION_NFTS)
-    throw new Error(
+    throw new ReviewLineError(
       `Defifa preparations accept 1–${MAX_DEFIFA_ACTION_NFTS} NFTs per action.`,
     );
 }
 
 function address(value: Address, label: string, allowZero = false): Address {
   if (!isAddress(value) || (!allowZero && value === zeroAddress))
-    throw new Error(
+    throw new ReviewLineError(
       `${label} must be a valid${allowZero ? "" : " nonzero"} address.`,
     );
   return value;
@@ -155,7 +156,7 @@ export function buildDefifaPayMetadata({
         (index > 0 && id < tierIdsToMint[index - 1]!),
     )
   ) {
-    throw new Error(
+    throw new ReviewLineError(
       "Defifa tier IDs must be nonempty, ascending positive uint16 values; repeats mint multiple NFTs.",
     );
   }
@@ -187,7 +188,7 @@ async function actionContext(
   address(args.account, "Defifa account");
   if (args.expectedHook) address(args.expectedHook, "Defifa expected hook");
   if (args.projectId <= 0n)
-    throw new Error("Defifa projectId must be positive.");
+    throw new ReviewLineError("Defifa projectId must be positive.");
   const inventory = await getProjectNftInventory(client, {
     chainId: args.chainId,
     projectId: args.projectId,
@@ -195,9 +196,11 @@ async function actionContext(
     blockNumber,
   });
   if (inventory?.protocol !== "defifa")
-    throw new Error("Project is not an authenticated native Defifa game.");
+    throw new ReviewLineError(
+      "Project is not an authenticated native Defifa game.",
+    );
   if (args.expectedHook && !sameAddress(inventory.hook, args.expectedHook))
-    throw new Error("Defifa collection changed since review.");
+    throw new ReviewLineError("Defifa collection changed since review.");
   const snapshot = {
     ...client,
     readContract: (parameters: Parameters<PublicClient["readContract"]>[0]) =>
@@ -220,7 +223,9 @@ async function paymentTerminal(
     token: inventory.pricing.token,
   });
   if (terminal.isRouter)
-    throw new Error("Defifa settlement token has no primary terminal.");
+    throw new ReviewLineError(
+      "Defifa settlement token has no primary terminal.",
+    );
   const context = await snapshot.readContract({
     address: terminal.address,
     abi: jbMultiTerminalAbi,
@@ -232,7 +237,7 @@ async function paymentTerminal(
     Number(context.currency) !== inventory.pricing.currency ||
     Number(context.decimals) !== inventory.pricing.decimals
   )
-    throw new Error(
+    throw new ReviewLineError(
       "Defifa terminal accounting does not match native pricing.",
     );
   return terminal.address;
@@ -287,7 +292,7 @@ export async function prepareDefifaPay(
     inventory.ruleset.metadata.pausePay ||
     !inventory.ruleset.metadata.useDataHookForPay
   )
-    throw new Error("Defifa NFT entry is not open.");
+    throw new ReviewLineError("Defifa NFT entry is not open.");
   const counts = new Map<bigint, bigint>();
   for (const tierId of args.tierIdsToMint)
     counts.set(tierId, (counts.get(tierId) ?? 0n) + 1n);
@@ -307,7 +312,7 @@ export async function prepareDefifaPay(
           args: [inventory.hook, tierId, false],
         });
         if (BigInt(tier.id) !== tierId || BigInt(tier.remainingSupply) < count)
-          throw new Error(
+          throw new ReviewLineError(
             `Defifa tier ${tierId} is unavailable for the selected quantity.`,
           );
         return {
@@ -400,7 +405,9 @@ async function requireOwner(
     args: [tokenId],
   });
   if (!sameAddress(owner, account))
-    throw new Error(`Defifa NFT ${tokenId} is not owned by the sender.`);
+    throw new ReviewLineError(
+      `Defifa NFT ${tokenId} is not owned by the sender.`,
+    );
 }
 
 /** Fresh owner/phase checks and exact cashOutTokensOf simulation, with no ERC721 approval. */
@@ -420,12 +427,14 @@ export async function prepareDefifaCashOut(
   );
   const minimumReclaim = args.minimumReclaim ?? 0n;
   if (minimumReclaim < 0n)
-    throw new Error("Defifa minimum reclaim cannot be negative.");
+    throw new ReviewLineError("Defifa minimum reclaim cannot be negative.");
   const tokenIds = [...args.tokenIds];
   build721CashOutMetadata({ metadataIdTarget: beneficiary, tokenIds });
   const { inventory, snapshot } = await actionContext(client, args);
   if (!defifaPhaseAllowsCashOut(inventory.phase))
-    throw new Error("Defifa NFT cash-out is not available in this phase.");
+    throw new ReviewLineError(
+      "Defifa NFT cash-out is not available in this phase.",
+    );
   if (inventory.phase === 5) {
     const reporter = await snapshot.readContract({
       address: inventory.hook,
@@ -439,7 +448,9 @@ export async function prepareDefifaCashOut(
       args: [args.projectId],
     });
     if (!activated)
-      throw new Error("Defifa no-contest must be activated before refunds.");
+      throw new ReviewLineError(
+        "Defifa no-contest must be activated before refunds.",
+      );
   }
   await Promise.all(
     tokenIds.map((tokenId) =>
@@ -530,7 +541,8 @@ export async function prepareDefifaTransfer(
 }> {
   args = { ...args };
   address(args.recipient, "Defifa recipient");
-  if (args.tokenId <= 0n) throw new Error("Defifa tokenId must be positive.");
+  if (args.tokenId <= 0n)
+    throw new ReviewLineError("Defifa tokenId must be positive.");
   const { inventory, snapshot } = await actionContext(client, args);
   await requireOwner(snapshot, inventory.hook, args.tokenId, args.account);
   const transaction: DefifaTransferTxRequest = {
@@ -584,7 +596,7 @@ export interface DefifaNftReceiptContext {
 
 function requireNativeMetadata(metadata: Hex, expected: Hex): void {
   if (expected.toLowerCase() !== metadata.toLowerCase())
-    throw new Error(
+    throw new ReviewLineError(
       "Receipt does not prove the exact reviewed Defifa NFT effects.",
     );
 }
@@ -641,7 +653,7 @@ export async function restoreDefifaNftReceiptContext(
   args = { ...args, receipt: { ...args.receipt } };
   const saved = parseReviewedWriteRecoveryRecord(args.record);
   function fail(): never {
-    throw new Error(
+    throw new ReviewLineError(
       "Saved call is not the reviewed native Defifa action. Keep this attempt pending.",
     );
   }
@@ -767,11 +779,11 @@ export function verifyDefifaNftReceipt(
   address(account, "Defifa receipt account");
   const deployment = defifaDeployments[transaction.chainId];
   if (!deployment || !sameAddress(implementation, deployment.implementation))
-    throw new Error(
+    throw new ReviewLineError(
       "Defifa receipt context does not match the pinned chain implementation.",
     );
   if (receipt.status !== "success")
-    throw new Error("Defifa transaction did not succeed.");
+    throw new ReviewLineError("Defifa transaction did not succeed.");
   const hookLogs = receipt.logs.filter((log) => sameAddress(log.address, hook));
   const transfers = parseEventLogs({
     abi: erc721Abi,
@@ -779,7 +791,7 @@ export function verifyDefifaNftReceipt(
     logs: hookLogs,
   });
   const fail = () => {
-    throw new Error(
+    throw new ReviewLineError(
       "Receipt does not prove the exact reviewed Defifa NFT effects.",
     );
   };
@@ -953,7 +965,7 @@ export async function verifyDefifaNftTransaction(
     canonical.transactionHash.toLowerCase() !==
       receipt.transactionHash.toLowerCase()
   )
-    throw new Error(
+    throw new ReviewLineError(
       "Defifa receipt identity is unavailable or changed; keep this transaction pending.",
     );
   // Both existing proof owners read this same exact transaction/receipt. Reuse
@@ -985,7 +997,7 @@ export async function verifyDefifaNftTransaction(
       );
   } else {
     if (!sameAddress(actual.from, account))
-      throw new Error(
+      throw new ReviewLineError(
         "Defifa transaction sender does not match the reviewed account.",
       );
     try {
@@ -1031,7 +1043,7 @@ export async function verifyDefifaNftTransaction(
         log.transactionIndex !== canonical.transactionIndex,
     )
   )
-    throw new Error(
+    throw new ReviewLineError(
       "Defifa receipt logs are not bound to the canonical transaction.",
     );
   verifyDefifaNftReceipt(context, canonical);

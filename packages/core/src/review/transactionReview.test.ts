@@ -1,5 +1,5 @@
-import { encodeFunctionData, parseAbi, type Address } from "viem";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { type Address } from "viem";
+import { describe, expect, it } from "vitest";
 import {
   buildTransactionReviewPrompt,
   transactionReviewJson,
@@ -8,7 +8,6 @@ import {
 
 const TARGET = "0x1111111111111111111111111111111111111111" as Address;
 const RECIPIENT = "0x2222222222222222222222222222222222222222" as Address;
-const ABI = parseAbi(["function transfer(address recipient, uint256 amount)"]);
 
 const EXPLORERS: Record<number, string> = {
   1: "https://etherscan.io",

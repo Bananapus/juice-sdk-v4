@@ -10,6 +10,7 @@ import {
 } from "viem";
 import { describe, expect, test } from "vitest";
 import { NATIVE_TOKEN } from "../constants.js";
+import { errorLine } from "../review/transaction-message.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { build721PayMetadata } from "./pay.js";
 import { build721CashOutMetadata } from "./cashOut.js";
@@ -387,9 +388,15 @@ describe("fresh Defifa payment preparation", () => {
     "refuses closed phase %s before preparing a payment",
     async (phase) => {
       const { client } = fixture({ currentGamePhaseOf: phase });
-      await expect(
-        prepareDefifaPay(client, { ...args, tierIdsToMint: [1n] }),
-      ).rejects.toThrow("entry is not open");
+      const refused = prepareDefifaPay(client, {
+        ...args,
+        tierIdsToMint: [1n],
+      });
+      await expect(refused).rejects.toThrow("entry is not open");
+      // A reverify that runs it shows its line, not the network one.
+      expect(errorLine(await refused.catch((error: unknown) => error))).toBe(
+        "Defifa NFT entry is not open.",
+      );
     },
   );
   test.each([

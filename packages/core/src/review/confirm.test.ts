@@ -1,6 +1,6 @@
 import { REVIEWED_SIMULATION_FAILED_LINE } from "./messages.js";
 import type { Address, Hex } from "viem";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   promptReview,
   registerReviewHandler,
@@ -10,6 +10,7 @@ import {
 } from "./confirm.js";
 import { buildReviewModel, type ReviewModel } from "./model.js";
 import { TransactionReviewCancelledError } from "./reviewQueue.js";
+import { promptReviewForTests } from "../testing.js";
 
 const TARGET = "0x2222222222222222222222222222222222222222" as Address;
 const NOT_CONFIRMED =
@@ -94,6 +95,60 @@ describe("core-issued review confirmation", () => {
     await expect(first).resolves.toBeUndefined();
   });
 
+  it("an abort closes a pending prompt as cancelled, and spends its confirmation", async () => {
+    const model = modelOf("0x12345678");
+    const prompts: ReviewPrompt[] = [];
+    const answers: ((value: ReviewConfirmation | null) => void)[] = [];
+    answer(
+      (prompt) =>
+        new Promise((resolve) => {
+          prompts.push(prompt);
+          answers.push(resolve);
+        }),
+    );
+    const controller = new AbortController();
+    const pending = promptReview(
+      model,
+      passed,
+      Promise.resolve(model),
+      controller.signal,
+    );
+    await Promise.resolve();
+    expect(prompts[0].signal.aborted).toBe(false);
+    controller.abort();
+    expect(prompts[0].signal.aborted).toBe(true);
+    await expect(pending).rejects.toBeInstanceOf(
+      TransactionReviewCancelledError,
+    );
+    // The dialog's late confirm confirms nothing, here or in another prompt.
+    answers[0](prompts[0].confirmation);
+    answer(async () => prompts[0].confirmation);
+    await expect(ask(model)).rejects.toThrow(NOT_CONFIRMED);
+  });
+
+  it("an already aborted signal never opens the prompt", async () => {
+    let asked = 0;
+    answer(async (prompt) => {
+      asked += 1;
+      return prompt.confirmation;
+    });
+    const model = modelOf("0x12345678");
+    await expect(
+      promptReview(model, passed, Promise.resolve(model), AbortSignal.abort()),
+    ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
+    expect(asked).toBe(0);
+  });
+
+  it("an abort after the confirmation changes nothing", async () => {
+    const model = modelOf("0x12345678");
+    const controller = new AbortController();
+    answer(async (prompt) => prompt.confirmation);
+    await expect(
+      promptReview(model, passed, Promise.resolve(model), controller.signal),
+    ).resolves.toBeUndefined();
+    controller.abort();
+  });
+
   it("null cancels with TransactionReviewCancelledError", async () => {
     answer(async () => null);
     const cancelled = ask(modelOf("0x12345678"));
@@ -149,5 +204,54 @@ describe("core-issued review confirmation", () => {
     await expect(
       ask(model, new Promise<ReviewSimulation>(() => {})),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("promptReviewForTests", () => {
+  const request = {
+    title: "Pay",
+    calls: [{ chainId: 10, to: TARGET, data: "0x12345678" as Hex }],
+  };
+
+  it("prompts the registered handler with core's model and reports its answer", async () => {
+    const seen: ReviewPrompt[] = [];
+    answer(async (prompt) => {
+      seen.push(prompt);
+      return prompt.confirmation;
+    });
+    const { model, outcome } = promptReviewForTests(request);
+    expect(model.id).toBe(buildReviewModel(request).id);
+    await expect(outcome).resolves.toBe("confirmed");
+    expect(seen[0].model.id).toBe(model.id);
+    await expect(seen[0].simulation).resolves.toEqual({ status: "passed" });
+
+    answer(async () => null);
+    await expect(promptReviewForTests(request).outcome).resolves.toBe(
+      "cancelled",
+    );
+    answer(async () => true as unknown as ReviewConfirmation);
+    await expect(promptReviewForTests(request).outcome).rejects.toThrow(
+      NOT_CONFIRMED,
+    );
+  });
+
+  it("passes the simulation a test gives, and withdraws on abort", async () => {
+    const seen: ReviewPrompt[] = [];
+    answer((prompt) => {
+      seen.push(prompt);
+      return new Promise(() => {});
+    });
+    const controller = new AbortController();
+    const { outcome } = promptReviewForTests(request, {
+      simulation: { status: "failed", message: "reverted" },
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => expect(seen).toHaveLength(1));
+    await expect(seen[0].simulation).resolves.toEqual({
+      status: "failed",
+      message: "reverted",
+    });
+    controller.abort();
+    await expect(outcome).resolves.toBe("cancelled");
   });
 });

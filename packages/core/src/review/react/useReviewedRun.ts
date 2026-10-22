@@ -1,6 +1,7 @@
 import { ReviewLineError } from "../lineError.js";
 import {
   createHeldWriteView,
+  discardReviewedSequence,
   errorLine,
   findReviewedSequence,
   isDefiniteWalletRejection,
@@ -49,7 +50,8 @@ export type UseReviewedRunDeps = ReviewedSendDeps & {
   /**
    * Loads the send engine, so the app chooses whether a page's first load
    * carries it: `() => import("@bananapus/nana-sdk-core/review")` keeps it
-   * out. The hook calls it once mounted, so a run does not wait on it.
+   * out. The hook calls it once mounted, so a run does not wait on it, and
+   * again only after a load failed.
    */
   engine: () => Promise<ReviewedEngine>;
 };
@@ -99,11 +101,24 @@ export type UseReviewedRunResult = {
    */
   held: HeldWriteView | null;
   reset: () => void;
+  /**
+   * Loads the send engine now (on hover, focus or pointerdown of the action),
+   * so the review opens without a wait. Safe to call any number of times: it
+   * loads once, and again only after a load failed.
+   */
+  preload: () => void;
+  /**
+   * Drops the unfinished sequence saved under `scope` for the connected
+   * account (one whose step was released, say), so the action is reviewed
+   * fresh, every step again. Refused while one of its steps is still held,
+   * and while a run of this hook is open. Nothing saved is a no-op.
+   */
+  discard: (scope: string) => Promise<void>;
 } & HeldViewActions;
 
 type RunState = Omit<
   UseReviewedRunResult,
-  "run" | "reset" | "held" | keyof HeldViewActions
+  "run" | "reset" | "held" | "preload" | "discard" | keyof HeldViewActions
 >;
 
 const IDLE: RunState = {
@@ -129,6 +144,9 @@ const sent = ({ chainId, to, data, value, gas }: ReviewedCall) => [
 export const REVIEWED_RUN_SCOPE_LINE =
   "This action has more than one step and no scope to resume it by. Nothing was sent.";
 
+export const REVIEWED_RUN_BUSY_LINE =
+  "This action is still running. Wait for it to finish, then try again.";
+
 /**
  * The one reviewed-send hook every site shares: its state, progress and
  * error lines. A site's own hook only builds `deps` from its wallet library;
@@ -147,6 +165,10 @@ export function useReviewedRun(
   } | null>(null);
   /** The latest run: an earlier one's late answers change nothing. */
   const latest = useRef(0);
+  /** How many runs are open: a discard waits for none. */
+  const open = useRef(0);
+  /** The engine's load, shared by every preload and run until one fails. */
+  const loading = useRef<Promise<ReviewedEngine> | null>(null);
   const view = useMemo(
     () =>
       watched
@@ -174,11 +196,21 @@ export function useReviewedRun(
   );
   useEffect(() => view?.start(), [view]);
   const engine = deps?.engine;
-  useEffect(() => {
-    engine?.().catch(() => {
-      /* A run loads it again, and reports its failure. */
+  const load = (from: () => Promise<ReviewedEngine>) => {
+    const pending = (loading.current ??= from());
+    pending.catch(() => {
+      // A failed load is tried again by the next preload or run.
+      if (loading.current === pending) loading.current = null;
     });
-  }, [engine]);
+    return pending;
+  };
+  const preload = () => {
+    if (engine)
+      load(engine).catch(() => {
+        /* A run loads it again, and reports its failure. */
+      });
+  };
+  useEffect(preload, [engine]);
   const shown = useSyncExternalStore(
     view?.subscribe ?? none,
     view?.get ?? idle,
@@ -199,8 +231,21 @@ export function useReviewedRun(
       setState(IDLE);
       setWatched(null);
     },
+    preload,
+    discard: async (scope) => {
+      if (open.current) throw new ReviewLineError(REVIEWED_RUN_BUSY_LINE);
+      if (!deps?.account) throw new ReviewLineError("Connect a wallet first.");
+      const { storage } = deps;
+      const saved = findReviewedSequence(scope, deps.account, { storage });
+      if (saved) await discardReviewedSequence(saved, { storage });
+      if (open.current) return;
+      latest.current += 1;
+      setState(IDLE);
+      setWatched(null);
+    },
     run: async (action) => {
       const id = ++latest.current;
+      open.current += 1;
       const update = (next: Partial<RunState>) => {
         if (latest.current === id) setState((now) => ({ ...now, ...next }));
       };
@@ -250,16 +295,16 @@ export function useReviewedRun(
           throw new ReviewLineError(REVIEWED_ACCOUNT_CHANGED_LINE);
         if (action.calls.length > 1 && action.scope === undefined)
           throw new ReviewLineError(REVIEWED_RUN_SCOPE_LINE);
-        const { resumeReviewed, sendReviewed } = await deps
-          .engine()
-          .catch((cause: unknown) => {
+        const { resumeReviewed, sendReviewed } = await load(deps.engine).catch(
+          (cause: unknown) => {
             throw Object.assign(
               new ReviewLineError(REVIEWED_ENGINE_LOAD_LINE),
               {
                 cause,
               },
             );
-          });
+          },
+        );
         const { account, guard } = deps;
         const tracked: ReviewedSendDeps = {
           ...deps,
@@ -293,13 +338,6 @@ export function useReviewedRun(
         const result = saved
           ? await resumeReviewed(saved, { ...action, guard }, tracked)
           : await sendReviewed({ ...action, account, guard }, tracked);
-        if (result.status === "done" && saved && !result.receipts.length)
-          // Its last step settled while away: nothing was left to send.
-          update({
-            phase: "done",
-            step: saved.calls.length - 1,
-            total: saved.calls.length,
-          });
         if (result.status === "proposed") void follow();
         return result;
       } catch (error) {
@@ -312,6 +350,8 @@ export function useReviewedRun(
         return line === null
           ? null
           : { status: "failed", error: line, failure: error };
+      } finally {
+        open.current -= 1;
       }
     },
   };

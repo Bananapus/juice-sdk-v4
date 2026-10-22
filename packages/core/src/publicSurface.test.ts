@@ -352,7 +352,12 @@ describe("published core SDK surfaces", () => {
       "resetWriteHoldsForTests",
       "resetWriteRecoveryForTests",
     ];
-    expect(Object.keys(testing).sort()).toEqual(["REVIEW_REQUESTS", ...resets]);
+    expect(Object.keys(testing).sort()).toEqual([
+      "REVIEW_REQUESTS",
+      "promptReviewForTests",
+      ...resets,
+    ]);
+    expect(review).not.toHaveProperty("promptReviewForTests");
     const reviewSafeRelayr = await import("./review/safeRelayr.js");
     for (const entry of [sdk, review, reviewRelayr, reviewSafeRelayr])
       for (const name of resets) expect(entry).not.toHaveProperty(name);

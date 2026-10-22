@@ -1,4 +1,4 @@
-import { ReviewLineError } from "./lineError.js";
+import { ReviewedCallRevertedError, ReviewLineError } from "./lineError.js";
 import {
   encodeFunctionData,
   type Abi,
@@ -23,7 +23,6 @@ import {
 import {
   REVIEWED_ACCOUNT_CHANGED_LINE,
   WRITE_HOLD_CALL_FAILED_LINE,
-  WRITE_HOLD_REVERTED_LINE,
   WRITE_HOLD_SAFE_UNCONFIRMED_LINE,
 } from "./messages.js";
 import {
@@ -115,6 +114,13 @@ export type ReviewedCall = {
   simulationBlockNumber?: bigint;
 };
 
+/** Where the step before this one confirmed. */
+export type ReviewedPriorBlock = {
+  chainId: number;
+  blockNumber: bigint;
+  blockHash: Hex;
+};
+
 export type ReviewedAction = {
   account: Address;
   calls: readonly ReviewedCall[];
@@ -127,8 +133,17 @@ export type ReviewedAction = {
   description?: string;
   confirmLabel?: string;
   context?: readonly ReviewContextRow[];
-  /** A stale-state check before each step; it throws to stop with nothing sent. */
-  reverify?: (call: ReviewedCall, index: number) => Promise<void>;
+  /**
+   * A stale-state check before each step; it throws to stop with nothing
+   * sent. `prior` is where the previous step of the action confirmed (on its
+   * own chain), so the check can read state at or after it; undefined for
+   * the first step.
+   */
+  reverify?: (
+    call: ReviewedCall,
+    index: number,
+    prior: ReviewedPriorBlock | undefined,
+  ) => Promise<void>;
   /** The final synchronous gate before the wallet opens. */
   assertWriteState?: () => void;
   /** Refuses the action, before anything else (view-as, say). */
@@ -157,6 +172,21 @@ export type ReviewedAction = {
     hash: Hex,
     sent: { safe: boolean; adopted: boolean },
   ) => void | Promise<void>;
+  /**
+   * Awaited once a step's receipt shows it succeeded and its progress is
+   * saved, before the next step. A throw is ignored: the step went through.
+   */
+  onConfirmed?: (
+    call: ReviewedCall,
+    step: number,
+    receipt: TransactionReceipt,
+  ) => void | Promise<void>;
+  /**
+   * Withdraws the review while it is open: the run ends as cancelled with
+   * nothing sent, and the prompt's own `signal` aborts so its UI closes.
+   * Once the review is confirmed it changes nothing.
+   */
+  signal?: AbortSignal;
   /**
    * The site's key for this action (`payIntent(...)`, say). When set, the
    * action is journaled once its review is confirmed, before the first
@@ -191,24 +221,6 @@ export type ReviewedResult = (
   /** The action's `signatures`, signed in order, when it had any. */
   signatures?: Hex[];
 };
-
-/**
- * A step's transaction was mined and reverted: nothing of it to resume, and
- * the action can be reviewed again. `receipt` is the mined receipt, so a
- * site can close its own record of the attempt.
- */
-export class ReviewedCallRevertedError extends ReviewLineError {
-  readonly name = "ReviewedCallRevertedError";
-
-  constructor(
-    /** The step's index in the whole action. */
-    readonly step: number,
-    readonly hash: Hex,
-    readonly receipt: TransactionReceipt,
-  ) {
-    super(WRITE_HOLD_REVERTED_LINE);
-  }
-}
 
 /** The exact bytes a step sends. */
 type SentCall = Readonly<{
@@ -527,6 +539,8 @@ export async function resumeReviewed(
     | "beforeWallet"
     | "onUnsent"
     | "onSubmitted"
+    | "onConfirmed"
+    | "signal"
   >,
   deps: ReviewedSendDeps,
 ): Promise<ReviewedResult> {
@@ -573,6 +587,8 @@ export async function resumeReviewed(
     }
     if (saved.completed.length === saved.calls.length) {
       await removeReviewedSequence(saved, storage, expected);
+      const total = saved.calls.length;
+      deps.onProgress?.({ step: total - 1, total, phase: "done" });
       return { status: "done", hashes: saved.completed, receipts: [] };
     }
     expected = await saveReviewedSequence(saved, storage, expected);
@@ -756,7 +772,7 @@ async function send(
     const warning = simulationWarning(simulated);
     return warning ? { ...read, warnings: [...read.warnings, warning] } : read;
   });
-  await promptReview(model, simulation, enriched);
+  await promptReview(model, simulation, enriched, action.signal);
   let signed: { signatures?: Hex[] } = {};
   if (prepared.length) {
     // The action's own gates, last before the wallet opens for each signature.
@@ -842,6 +858,25 @@ async function send(
     };
     const client = clientFor(reviewed.chainId);
     const prior = receipts[step - 1];
+    /** Where the step before this one confirmed: this run's receipt, or a resumed run's last completed step. */
+    const confirmedBefore = async (): Promise<
+      ReviewedPriorBlock | undefined
+    > => {
+      if (prior)
+        return {
+          chainId: sent[step - 1].chainId,
+          blockNumber: prior.blockNumber,
+          blockHash: prior.blockHash,
+        };
+      const done = resuming?.record;
+      if (step > 0 || !done?.completed.length) return undefined;
+      const { chainId } = done.calls[done.completed.length - 1];
+      const { blockNumber, blockHash } = await waitForTrackedReceipt(
+        clientFor(chainId),
+        done.completed[done.completed.length - 1],
+      );
+      return { chainId, blockNumber, blockHash };
+    };
     const priorBlock =
       call.dependsOnPrior &&
       prior &&
@@ -878,7 +913,8 @@ async function send(
         },
         currentAccount: () => adapter.account(),
         reverify: async () => {
-          await action.reverify?.(call, at);
+          if (action.reverify)
+            await action.reverify(call, at, await confirmedBefore());
           unchanged();
         },
         simulate: async (sending) => {
@@ -1052,6 +1088,11 @@ async function send(
       delete journal.sending;
       journal.completed.push(hash);
       await keep();
+    }
+    try {
+      await action.onConfirmed?.(call, at, receipt);
+    } catch {
+      /* The step went through whatever the site's callback does. */
     }
   }
   onProgress?.({ step: total - 1, total, phase: "done" });

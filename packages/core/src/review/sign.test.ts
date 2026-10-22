@@ -331,6 +331,81 @@ describe("signReviewed", () => {
     );
   });
 
+  it("a message shows the calls it authorizes, decoded as transactions are", async () => {
+    const { adapter } = wallet();
+    const prompts = reviewUi();
+    const data = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [SPENDER, 5n],
+    });
+    const message = (value: bigint): ReviewedSignature => ({
+      kind: "message",
+      chainId: 10,
+      message: "List it",
+      calls: [{ chainId: 10, to: USDC, data, value }],
+    });
+    await signReviewed([message(0n)], signed, { adapter });
+    const [shown] = prompts[0].model.signatures[0].calls;
+    expect(shown).toMatchObject({
+      chainId: 10,
+      to: USDC,
+      value: 0n,
+      functionName: "approve",
+    });
+    await signReviewed([message(1n)], signed, { adapter });
+    expect(prompts[1].model.id).not.toBe(prompts[0].model.id);
+    expect(adapter.signMessage).toHaveBeenCalledWith("List it");
+  });
+
+  it("refuses a message whose calls it cannot show", async () => {
+    const { adapter } = wallet();
+    reviewUi();
+    const refused = (call: unknown, line: string) =>
+      expect(
+        signReviewed(
+          [
+            {
+              kind: "message",
+              chainId: 10,
+              message: "hi",
+              calls: [call],
+            } as ReviewedSignature,
+          ],
+          signed,
+          { adapter },
+        ),
+      ).rejects.toThrow(line);
+    await refused(
+      { chainId: 10, to: "0x12", data: "0x" },
+      "Invalid call target address",
+    );
+    await refused({ chainId: 10, to: USDC, data: "0x1" }, "Invalid call data");
+    await refused(
+      { chainId: 10, to: USDC, data: "0x", value: -1n },
+      "Invalid call value",
+    );
+    await refused({ chainId: 0, to: USDC, data: "0x" }, "Invalid chain ID");
+    expect(adapter.signMessage).not.toHaveBeenCalled();
+  });
+
+  it("an aborted signature review signs nothing", async () => {
+    const { adapter } = wallet();
+    const prompts = reviewUi(() => new Promise(() => {}));
+    const controller = new AbortController();
+    const signing = signReviewed(
+      [{ kind: "message", chainId: 10, message: "hi" }],
+      { ...signed, signal: controller.signal },
+      { adapter },
+    );
+    await vi.waitFor(() => expect(prompts).toHaveLength(1));
+    controller.abort();
+    await expect(signing).rejects.toBeInstanceOf(
+      TransactionReviewCancelledError,
+    );
+    expect(adapter.signMessage).not.toHaveBeenCalled();
+  });
+
   it("permit2 model names spender and expiry", async () => {
     const { adapter } = wallet();
     const prompts = reviewUi();

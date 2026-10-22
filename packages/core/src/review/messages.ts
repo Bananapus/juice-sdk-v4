@@ -97,7 +97,7 @@ export const WRITE_HOLD_SAFE_UNCONFIRMED_LINE =
 
 /** A Safe execution whose transaction landed while the Safe's own call failed (ExecutionFailure). */
 export const WRITE_HOLD_CALL_FAILED_LINE =
-  "The Safe ran this transaction, but its call failed (ExecutionFailure). Nothing it was meant to do happened.";
+  "The Safe ran this transaction, but its call failed, so nothing changed. Review it and try again.";
 
 /** A held write the chain can't check (saved with no nonce to look at). The exit is offered. */
 export const WRITE_HOLD_UNCHECKED_LINE =
@@ -125,7 +125,7 @@ export const WRITE_HOLD_SAFE_UNPROVEN_LINE =
 
 /** A held write whose transaction is mined but whose result can't be read yet. No exit yet. */
 export const WRITE_HOLD_MINED_LINE =
-  "Your transaction is onchain, but its result can't be read yet.";
+  "Your transaction is onchain, but its result can't be read yet. Check your wallet before sending again.";
 
 /** A send whose review went stale because another window's attempt of the same write ended meanwhile. */
 export const WRITE_HOLD_STALE_REVIEW_LINE =
@@ -155,7 +155,8 @@ export const HELD_FAILED_LINE =
 export const HELD_SUCCESS_LINE = "Your transaction went through.";
 
 /** A held Safe proposal proven expired before it ran. */
-export const HELD_EXPIRED_LINE = "Your Safe proposal expired before it ran.";
+export const HELD_EXPIRED_LINE =
+  "Your Safe proposal expired before it ran. Propose it again.";
 
 /** A success the hold settled while the user was away: shown until they say to send again. */
 export const HELD_AWAY_SUCCESS_LINE = "This went through while you were away.";
@@ -165,7 +166,7 @@ export const HELD_SEND_AGAIN_LABEL = "Send it again";
 
 /** A saved attempt that can't be shown here: absence of evidence is never permission to send. */
 export const SAVED_ATTEMPT_CHECK_LINE =
-  "This transaction may already be in your wallet, and it cannot be confirmed from here.";
+  "This transaction may already be in your wallet. Check your wallet before sending again.";
 
 /** The warning under it. */
 export const SAVED_ATTEMPT_CHECK_WARNING =

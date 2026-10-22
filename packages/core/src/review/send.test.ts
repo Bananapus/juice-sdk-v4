@@ -35,11 +35,8 @@ import {
   findReviewedSequence,
   REVIEWED_SEQUENCE_HELD_LINE,
 } from "./sequence.js";
-import {
-  ReviewedCallRevertedError,
-  sendReviewed,
-  type ReviewedCall,
-} from "./send.js";
+import { ReviewedCallRevertedError } from "./lineError.js";
+import { sendReviewed, type ReviewedCall } from "./send.js";
 import { selfReviewingAdapter, WALLET_NOT_READY_LINE } from "./wallet.js";
 import { WriteHeldError, WriteHoldStaleReviewError } from "./writeHold.js";
 
