@@ -6,6 +6,7 @@ import {
   type Hex,
   type PublicClient,
   type TransactionReceipt,
+  type TypedDataDefinition,
 } from "viem";
 import { vi } from "vitest";
 import {
@@ -112,6 +113,8 @@ export function fakeChain() {
       { to: Address; data: Hex; value: bigint; nonce: number }
     >(),
     status: "success" as "success" | "reverted",
+    /** The logs every receipt carries. */
+    logs: [] as unknown[],
   };
   const receipt = (hash: Hex) =>
     ({
@@ -122,7 +125,7 @@ export function fakeChain() {
       transactionIndex: 0,
       from: ACCOUNT,
       to: state.sent.get(hash)?.to ?? TERMINAL,
-      logs: [],
+      logs: state.logs,
     }) as unknown as TransactionReceipt;
   const notFound = (name: string) =>
     Object.assign(new Error("not found"), { name });
@@ -215,9 +218,11 @@ function fakeWallet(chain: ReturnType<typeof fakeChain>) {
         return hash;
       },
     ),
-    signTypedData: vi.fn(async () => {
-      throw new Error("unused");
-    }),
+    signTypedData: vi.fn(
+      async (_typedData: TypedDataDefinition): Promise<Hex> => {
+        throw new Error("unused");
+      },
+    ),
     signMessage: vi.fn(async (_message: string): Promise<Hex> => {
       throw new Error("unused");
     }),

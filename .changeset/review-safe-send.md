@@ -1,0 +1,5 @@
+---
+"@bananapus/nana-sdk-core": minor
+---
+
+`proposeReviewedSafeTransaction`, `confirmReviewedSafeTransaction` and `executeReviewedSafeTransaction` give every client one reviewed Safe path. A proposal is one zero-refund Safe transaction (a CALL, or a MultiSendCallOnly batch for several calls) signed after one review through `signReviewed`, at the nonce after everything queued; a queued proposal of the same calls is confirmed instead of proposed twice. A confirmation signs exactly the queued fields, read once, and refuses a record whose fields do not hash to the hash it advertises, a gas refund, or a passed nonce. An execution goes through `sendReviewed` and its write hold, checks before the wallet opens that the Safe's policy and nonce are unchanged and that `execTransaction` simulates to true, and succeeds only on the Safe's own ExecutionSuccess for the exact hash. Every path first proves the Safe onchain (a recognized Safe with every module read) and that the connected wallet signs for it, and a proposal or confirmation is posted only when the Safe did not change while the wallet was open.
