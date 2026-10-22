@@ -22,9 +22,10 @@ import {
 } from "./model.js";
 import { waitForTrackedReceipt } from "./receipt.js";
 import {
-  findReviewedSequence,
+  readReviewedSequence,
   removeReviewedSequence,
   REVIEWED_SEQUENCE_MOVED_LINE,
+  REVIEWED_SEQUENCE_UNCERTAIN_LINE,
   REVIEWED_SEQUENCE_UNFINISHED_LINE,
   saveReviewedSequence,
   type ReviewedSequenceRecord,
@@ -121,6 +122,8 @@ const CHANGED =
 const MISMATCHED =
   "This call's data does not match its arguments. Nothing was sent.";
 const ACCOUNT_CHANGED = "The connected account changed. Review again.";
+const NOT_SAVED =
+  "This action's progress could not be saved. Nothing was sent; review it again.";
 const SIMULATION_UNAVAILABLE =
   "Simulation unavailable. This could not be checked before you confirm; it is checked again before your wallet opens.";
 
@@ -344,18 +347,21 @@ export async function resumeReviewed(
 ): Promise<ReviewedResult> {
   action.guard?.();
   const storage = deps.storage ?? createHeldWriteStorage();
-  const saved = findReviewedSequence(record.scope, record.account, {
+  const { raw, record: saved } = readReviewedSequence(
+    record.scope,
+    record.account,
     storage,
-  });
+  );
   if (!saved || saved.id !== record.id)
     throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
+  let expected = raw;
   const connected = deps.adapter.account();
   if (!connected) throw new Error("Connect a wallet first.");
   if (connected.toLowerCase() !== saved.account.toLowerCase())
     throw new Error(ACCOUNT_CHANGED);
-  const inFlight = saved.proposed?.step ?? saved.sending;
-  if (inFlight !== undefined) {
-    const call = saved.calls[inFlight];
+  if (saved.sending) {
+    const { step, reservation } = saved.sending;
+    const call = saved.calls[step];
     const handle = deps.hold.open(
       {
         chainId: call.chainId,
@@ -368,6 +374,10 @@ export async function resumeReviewed(
     );
     const state = await handle.state(deps.clientFor(call.chainId));
     if (state.status !== "clear") throw new WriteHeldError(state);
+    // Only the step's own reservation's outcome decides it: a later one of
+    // the same call or intent hides it.
+    if (state.reservation !== reservation)
+      throw new Error(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
     delete saved.sending;
     delete saved.proposed;
     if (state.settled?.result === "success") {
@@ -376,10 +386,10 @@ export async function resumeReviewed(
       saved.completed.push(state.settled.hash);
     }
     if (saved.completed.length === saved.calls.length) {
-      removeReviewedSequence(saved, storage);
+      removeReviewedSequence(saved, storage, expected);
       return { status: "done", hashes: saved.completed, receipts: [] };
     }
-    saveReviewedSequence(saved, storage);
+    expected = saveReviewedSequence(saved, storage, expected);
   }
   return send(
     {
@@ -389,14 +399,19 @@ export async function resumeReviewed(
       scope: saved.scope,
     },
     deps,
-    { record: saved, storage },
+    { record: saved, storage, raw: expected },
   );
 }
 
 async function send(
   action: ReviewedAction,
   deps: ReviewedSendDeps,
-  resuming?: { record: ReviewedSequenceRecord; storage: HeldWriteStorage },
+  resuming?: {
+    record: ReviewedSequenceRecord;
+    storage: HeldWriteStorage;
+    /** The value saved at its key, as this run last read or wrote it. */
+    raw: string | null;
+  },
 ): Promise<ReviewedResult> {
   const { adapter, clientFor, hold, onProgress } = deps;
   action.guard?.();
@@ -445,13 +460,14 @@ async function send(
     scope === undefined
       ? undefined
       : (resuming?.storage ?? deps.storage ?? createHeldWriteStorage());
-  // A fresh run refuses while an earlier run of the same action is unfinished.
-  if (
-    storage &&
-    !resuming &&
-    findReviewedSequence(scope!, account, { storage })
-  )
-    throw new Error(REVIEWED_SEQUENCE_UNFINISHED_LINE);
+  /** The journal's saved value as this run last read or wrote it. */
+  let expected = resuming?.raw ?? null;
+  if (storage && !resuming) {
+    const saved = readReviewedSequence(scope!, account, storage);
+    // A fresh run refuses while an earlier run of the same action is unfinished.
+    if (saved.record) throw new Error(REVIEWED_SEQUENCE_UNFINISHED_LINE);
+    expected = saved.raw;
+  }
   /** Where the remaining steps start in the whole action. */
   const offset = resuming?.record.completed.length ?? 0;
 
@@ -515,8 +531,8 @@ async function send(
         })),
         completed: [],
       };
-    // Refused when another window's run of this action began meanwhile.
-    saveReviewedSequence(journal, storage);
+    // Refused when another window changed it meanwhile.
+    expected = saveReviewedSequence(journal, storage, expected);
   }
   /**
    * Progress after a send is saved as it can be: the step's saved
@@ -525,8 +541,8 @@ async function send(
   const keep = () => {
     try {
       if (journal!.completed.length === journal!.calls.length)
-        removeReviewedSequence(journal!, storage!);
-      else saveReviewedSequence(journal!, storage!);
+        removeReviewedSequence(journal!, storage!, expected);
+      else expected = saveReviewedSequence(journal!, storage!, expected);
     } catch {
       /* Another window owns the sequence now; the hold still holds the step. */
     }
@@ -607,9 +623,11 @@ async function send(
         beforeWrite: async () => {
           await gate.beforeSend();
           if (!journal) return;
-          journal.sending = at;
           try {
-            saveReviewedSequence(journal, storage!);
+            const { reservation } = handles[step].peek();
+            if (reservation === undefined) throw new Error(NOT_SAVED);
+            journal.sending = { step: at, reservation };
+            expected = saveReviewedSequence(journal, storage!, expected);
           } catch (error) {
             // Reserved, and the wallet never opened.
             delete journal.sending;
@@ -658,7 +676,6 @@ async function send(
     }
     if (safe) {
       if (journal) {
-        delete journal.sending;
         journal.proposed = { step: at, safeTxHash: hash };
         keep();
       }

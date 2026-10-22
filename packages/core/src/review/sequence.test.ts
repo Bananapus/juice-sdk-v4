@@ -17,6 +17,7 @@ import {
   findReviewedSequence,
   REVIEWED_SEQUENCE_HELD_LINE,
   REVIEWED_SEQUENCE_MOVED_LINE,
+  REVIEWED_SEQUENCE_UNCERTAIN_LINE,
   REVIEWED_SEQUENCE_UNFINISHED_LINE,
 } from "./sequence.js";
 import { WriteHeldError, type WriteHold } from "./writeHold.js";
@@ -117,8 +118,14 @@ describe("reviewed sequences", () => {
       deps,
     );
     expect(saved).toEqual([
-      expect.objectContaining({ completed: [], sending: 0 }),
-      expect.objectContaining({ completed: [hashOf(1)], sending: 1 }),
+      expect.objectContaining({
+        completed: [],
+        sending: { step: 0, reservation: expect.any(String) },
+      }),
+      expect.objectContaining({
+        completed: [hashOf(1)],
+        sending: { step: 1, reservation: expect.any(String) },
+      }),
     ]);
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toBeNull();
   });
@@ -144,6 +151,7 @@ describe("reviewed sequences", () => {
               ...handle,
               state: async () => ({
                 status: "clear",
+                reservation: proposal.reservation,
                 settled: { result: "success", hash: execution },
               }),
               acknowledge: vi.fn(async () => handle.peek()),
@@ -213,7 +221,10 @@ describe("reviewed sequences", () => {
       expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2),
     );
     const record = findReviewedSequence(SCOPE, ACCOUNT, { storage })!;
-    expect(record).toMatchObject({ completed: [hashOf(1)], sending: 1 });
+    expect(record).toMatchObject({
+      completed: [hashOf(1)],
+      sending: { step: 1, reservation: expect.any(String) },
+    });
 
     // The pay landed: its hold settles it, and nothing is reviewed or sent again.
     await expect(resumeReviewed(record, {}, deps)).resolves.toEqual({
@@ -268,7 +279,10 @@ describe("reviewed sequences", () => {
       ),
     ).rejects.toThrow(timeout().message);
     const held = findReviewedSequence(SCOPE, ACCOUNT, { storage })!;
-    expect(held).toMatchObject({ completed: [], sending: 0 });
+    expect(held).toMatchObject({
+      completed: [],
+      sending: { step: 0, reservation: expect.any(String) },
+    });
     expect(() => discardReviewedSequence(held, { storage })).toThrow(
       REVIEWED_SEQUENCE_HELD_LINE,
     );
@@ -289,7 +303,10 @@ describe("reviewed sequences", () => {
     const later = findReviewedSequence(SCOPE, ACCOUNT, {
       storage: second.storage,
     })!;
-    expect(later).toMatchObject({ completed: [hashOf(1)], sending: 1 });
+    expect(later).toMatchObject({
+      completed: [hashOf(1)],
+      sending: { step: 1, reservation: expect.any(String) },
+    });
     expect(() =>
       discardReviewedSequence(later, { storage: second.storage }),
     ).toThrow(REVIEWED_SEQUENCE_HELD_LINE);
@@ -299,8 +316,25 @@ describe("reviewed sequences", () => {
       [approveCall(), payCall(6n, { intent: "pay:1" })],
       1,
     );
+    // Unless the same call was sent since without its intent, and is held.
+    const exact = await interrupted(
+      [approveCall(), payCall(7n, { intent: "pay:1" })],
+      1,
+    );
+    exact.wallet.adapter.sendTransaction.mockRejectedValueOnce(timeout());
+    await expect(
+      sendReviewed(action([payCall(7n)]), exact.deps),
+    ).rejects.toThrow(timeout().message);
+    expect(() =>
+      discardReviewedSequence(exact.record, { storage: exact.storage }),
+    ).toThrow(REVIEWED_SEQUENCE_HELD_LINE);
+
     discardReviewedSequence(record, { storage: other });
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage: other })).toBeNull();
+    // A record another window moved on (or removed) is not discarded.
+    expect(() => discardReviewedSequence(record, { storage: other })).toThrow(
+      REVIEWED_SEQUENCE_MOVED_LINE,
+    );
   });
 
   it("a run another window began meanwhile sends nothing", async () => {
@@ -313,7 +347,11 @@ describe("reviewed sequences", () => {
       const ours = JSON.parse(storage.getItem(key)!);
       storage.setItem(
         key,
-        JSON.stringify({ ...ours, id: "other", sending: 0 }),
+        JSON.stringify({
+          ...ours,
+          id: "other",
+          sending: { step: 0, reservation: "r" },
+        }),
       );
       return 21_000n;
     });
@@ -324,6 +362,78 @@ describe("reviewed sequences", () => {
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     expect(deps.hold.open(holdOf(call)).peek().status).toBe("clear");
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })?.id).toBe("other");
+  });
+
+  it("a resume confirmed after another window finished the sequence sends nothing", async () => {
+    let first = true;
+    let confirmA!: () => void;
+    const prompts = reviewUi(async (prompt) => {
+      if (!first) return prompt.confirmation;
+      first = false;
+      await new Promise<void>((resolve) => (confirmA = resolve));
+      return prompt.confirmation;
+    });
+    const { wallet, deps, storage, record } = await (async () => {
+      const context = setup();
+      first = false;
+      const result = await interrupted(
+        [approveCall(), payCall(5n), payCall(6n)],
+        1,
+        context,
+      );
+      first = true;
+      return result;
+    })();
+    const sends = wallet.adapter.sendTransaction.mock.calls.length;
+    const a = resumeReviewed(record, {}, deps);
+    await vi.waitFor(() => expect(prompts).toHaveLength(2));
+    // Window B resumes and finishes it while A's review is open.
+    await expect(resumeReviewed(record, {}, deps)).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toBeNull();
+    const after = wallet.adapter.sendTransaction.mock.calls.length;
+    confirmA();
+    await expect(a).rejects.toThrow(REVIEWED_SEQUENCE_MOVED_LINE);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(after);
+    expect(after - sends).toBe(2);
+    expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toBeNull();
+  });
+
+  it("refuses to decide a step another send of the same call has since replaced", async () => {
+    const prompts = reviewUi();
+    const { wallet, chain, deps, storage, hold, holdOf } = setup();
+    const pay = payCall(5n);
+    const wait =
+      chain.client.waitForTransactionReceipt.getMockImplementation()!;
+    chain.client.waitForTransactionReceipt.mockImplementation(async (args) =>
+      args.hash === hashOf(2) ? new Promise(() => {}) : wait(args),
+    );
+    void sendReviewed(action([approveCall(), pay], { scope: SCOPE }), deps);
+    await vi.waitFor(() =>
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2),
+    );
+    const record = findReviewedSequence(SCOPE, ACCOUNT, { storage })!;
+    // A view settles the pay and the user acknowledges it; then the same
+    // call is tried again and refused (4001): a newer reservation.
+    const handle = hold.open(holdOf(pay));
+    const settled = await handle.state(chain.client as never);
+    await handle.acknowledge(
+      (settled as { settled: { result: "success"; hash: Hex } }).settled,
+    );
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(rejected());
+    await expect(sendReviewed(action([pay]), deps)).rejects.toMatchObject({
+      code: 4001,
+    });
+    const sends = wallet.adapter.sendTransaction.mock.calls.length;
+    await expect(resumeReviewed(record, {}, deps)).rejects.toThrow(
+      REVIEWED_SEQUENCE_UNCERTAIN_LINE,
+    );
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(sends);
+    expect(prompts).toHaveLength(2);
+    // Nothing is held: the user can discard it and start again.
+    discardReviewedSequence(record, { storage });
+    expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toBeNull();
   });
 
   it("a changed account cannot resume another account's sequence", async () => {

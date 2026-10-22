@@ -26,6 +26,7 @@ export {
   findReviewedSequence,
   REVIEWED_SEQUENCE_HELD_LINE,
   REVIEWED_SEQUENCE_MOVED_LINE,
+  REVIEWED_SEQUENCE_UNCERTAIN_LINE,
   REVIEWED_SEQUENCE_UNFINISHED_LINE,
   type ReviewedSequenceRecord,
 } from "./sequence.js";

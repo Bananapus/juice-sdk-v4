@@ -23,9 +23,13 @@ export type ReviewedSequenceRecord = {
   calls: ReviewedCall[];
   /** Each completed step's transaction hash, in order: step `completed.length` is next. */
   completed: Hex[];
-  /** The step whose wallet call opened and whose receipt was not seen yet: its hold decides it. */
-  sending?: number;
-  /** A Safe-connected step's proposal, waiting for its signers. */
+  /**
+   * The step whose wallet call opened and whose receipt was not seen yet,
+   * with its write hold's reservation: only that reservation's outcome
+   * decides it.
+   */
+  sending?: { step: number; reservation: string };
+  /** A Safe-connected step's proposal, waiting for its signers (`sending` names its reservation). */
   proposed?: { step: number; safeTxHash: Hex };
 };
 
@@ -35,6 +39,8 @@ export const REVIEWED_SEQUENCE_UNFINISHED_LINE =
   "An earlier run of this action is unfinished. Resume it or discard it.";
 export const REVIEWED_SEQUENCE_MOVED_LINE =
   "This action moved on in another window. Nothing was sent; resume it again.";
+export const REVIEWED_SEQUENCE_UNCERTAIN_LINE =
+  "This step's outcome can't be confirmed here, so nothing was sent. Check your wallet's activity, then discard this action to start again.";
 
 const PREFIX = "nana-sdk:sequence:";
 
@@ -84,9 +90,13 @@ function parse(raw: string | null, key: string): ReviewedSequenceRecord | null {
       Array.isArray(record.completed) &&
       record.completed.length < record.calls.length &&
       record.completed.every((hash) => isHex(hash)) &&
-      (record.sending === undefined || step(record.sending)) &&
+      (record.sending === undefined ||
+        (step(record.sending.step) &&
+          typeof record.sending.reservation === "string")) &&
       (record.proposed === undefined ||
-        (step(record.proposed.step) && isHex(record.proposed.safeTxHash)));
+        (step(record.proposed.step) &&
+          record.sending?.step === record.proposed.step &&
+          isHex(record.proposed.safeTxHash)));
     return valid ? record : null;
   } catch {
     return null;
@@ -95,16 +105,22 @@ function parse(raw: string | null, key: string): ReviewedSequenceRecord | null {
 
 /** Whether anything of `record` was sent, or is in flight: only then is there a run to resume. */
 const begun = (record: ReviewedSequenceRecord) =>
-  record.completed.length > 0 ||
-  record.sending !== undefined ||
-  record.proposed !== undefined;
+  record.completed.length > 0 || record.sending !== undefined;
 
-function read(
-  record: Pick<ReviewedSequenceRecord, "scope" | "account">,
+/**
+ * What is saved for `scope` and `account`: the raw value, which a run
+ * passes back as `expected` to change it, and the unfinished sequence it
+ * holds (one with a step sent or in flight), if any.
+ */
+export function readReviewedSequence(
+  scope: string,
+  account: Address,
   storage: HeldWriteStorage,
-): ReviewedSequenceRecord | null {
-  const key = sequenceKey(record.scope, record.account);
-  return parse(storage.getItem(key), key);
+): { raw: string | null; record: ReviewedSequenceRecord | null } {
+  const key = sequenceKey(scope, account);
+  const raw = storage.getItem(key);
+  const record = parse(raw, key);
+  return { raw, record: record && begun(record) ? record : null };
 }
 
 /**
@@ -116,43 +132,42 @@ export function findReviewedSequence(
   account: Address,
   options: Options = {},
 ): ReviewedSequenceRecord | null {
-  const saved = read(
-    { scope, account },
+  return readReviewedSequence(
+    scope,
+    account,
     options.storage ?? createHeldWriteStorage(),
-  );
-  return saved && begun(saved) ? saved : null;
+  ).record;
 }
 
-/** Whether `saved` is another run's progress that `record` must not overwrite. */
-const ahead = (
-  saved: ReviewedSequenceRecord | null,
-  record: ReviewedSequenceRecord,
-) =>
-  !!saved &&
-  begun(saved) &&
-  (saved.id !== record.id || saved.completed.length > record.completed.length);
-
 /**
- * Save `record`, refusing to overwrite another run's progress: a different
- * sequence with a step sent, or more completed steps of this one.
+ * Save `record` over exactly `expected`, the value this run last read or
+ * wrote at its key, so another window's change since (a step it sent, or
+ * the sequence it finished and removed) is never overwritten. Returns the
+ * value written, the next `expected`.
  */
 export function saveReviewedSequence(
   record: ReviewedSequenceRecord,
   storage: HeldWriteStorage,
-): void {
-  if (ahead(read(record, storage), record))
+  expected: string | null,
+): string {
+  const key = sequenceKey(record.scope, record.account);
+  if (storage.getItem(key) !== expected)
     throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
-  storage.setItem(sequenceKey(record.scope, record.account), serialize(record));
+  const raw = serialize(record);
+  storage.setItem(key, raw);
+  return raw;
 }
 
-/** Remove `record` if it is still the one saved at its key, and no further along. */
+/** Remove `record` if its key still holds exactly `expected`. */
 export function removeReviewedSequence(
   record: ReviewedSequenceRecord,
   storage: HeldWriteStorage,
+  expected: string | null,
 ): void {
-  const saved = read(record, storage);
-  if (saved?.id === record.id && !ahead(saved, record))
-    storage.removeItem(sequenceKey(record.scope, record.account));
+  const key = sequenceKey(record.scope, record.account);
+  if (storage.getItem(key) !== expected)
+    throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
+  storage.removeItem(key);
 }
 
 /**
@@ -172,8 +187,7 @@ function heldStep(
     ).some(({ record: held }) =>
       held.namespace !== undefined
         ? namespaces.includes(held.namespace)
-        : !call.intent &&
-          held.call.to.toLowerCase() === call.to.toLowerCase() &&
+        : held.call.to.toLowerCase() === call.to.toLowerCase() &&
           held.call.data.toLowerCase() === call.data.toLowerCase() &&
           held.call.value === String(call.value ?? 0n),
     );
@@ -183,13 +197,21 @@ function heldStep(
 /**
  * Drop an unfinished sequence, so the action can be reviewed fresh. Refused
  * while any remaining step is held (sent, or proposed, and not yet settled):
- * its hold decides it first.
+ * its hold decides it first. Refused too when the saved sequence is no
+ * longer `record` (another window moved it on).
  */
 export function discardReviewedSequence(
   record: ReviewedSequenceRecord,
   options: Options = {},
 ): void {
   const storage = options.storage ?? createHeldWriteStorage();
-  if (heldStep(record, storage)) throw new Error(REVIEWED_SEQUENCE_HELD_LINE);
-  removeReviewedSequence(record, storage);
+  const { raw, record: saved } = readReviewedSequence(
+    record.scope,
+    record.account,
+    storage,
+  );
+  if (!saved || serialize(saved) !== serialize(record))
+    throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
+  if (heldStep(saved, storage)) throw new Error(REVIEWED_SEQUENCE_HELD_LINE);
+  removeReviewedSequence(saved, storage, raw);
 }
