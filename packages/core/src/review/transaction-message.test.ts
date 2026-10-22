@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { transactionMessage } from "./index.js";
+import { errorLine, NETWORK_ERROR_LINE, transactionMessage } from "./index.js";
 
 describe("transaction diagnostic presentation", () => {
   it.each([
@@ -79,5 +79,36 @@ describe("transaction diagnostic presentation", () => {
     "GS013 on Ethereum. Keep the original bundle pending.",
   ])("leaves technical and unrelated text intact: %s", (message) => {
     expect(transactionMessage(message)).toBe(message);
+  });
+});
+
+describe("errorLine", () => {
+  it("shows the SDK's own lines and never a raw node error's text", () => {
+    expect(errorLine(new Error("Relayr HTTP 429"))).toBe(
+      "Transaction request failed (HTTP 429)",
+    );
+    expect(
+      errorLine(
+        Object.assign(new Error("This wallet request is not supported."), {
+          code: 4200,
+        }),
+      ),
+    ).toBe("This wallet request is not supported.");
+    for (const raw of [
+      Object.assign(new Error("header not found"), { code: -32000 }),
+      Object.assign(
+        new Error(
+          "Missing or invalid parameters.\n\nURL: https://node.example/key\nDetails: header not found",
+        ),
+        {
+          name: "InvalidInputRpcError",
+          shortMessage: "Missing or invalid parameters.",
+          details: "header not found",
+        },
+      ),
+      "header not found",
+      { code: -32000, message: "header not found" },
+    ])
+      expect(errorLine(raw)).toBe(NETWORK_ERROR_LINE);
   });
 });

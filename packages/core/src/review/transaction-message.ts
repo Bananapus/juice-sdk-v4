@@ -22,3 +22,29 @@ export function transactionMessage(message: string): string {
     ? message
     : formatted.replace(/^([a-z])/, (letter) => letter.toUpperCase());
 }
+
+/** The line for a raw node, RPC or wallet error: its own text can quote a request or its URL. */
+export const NETWORK_ERROR_LINE =
+  "The network returned an error. Check your wallet's activity before you try again.";
+
+/**
+ * The line to show for a thrown value: the SDK's own message, presented by
+ * {@link transactionMessage}, or {@link NETWORK_ERROR_LINE} for a raw node,
+ * RPC or wallet error (a viem error, a JSON-RPC code) and anything not an
+ * Error. An EIP-1193 provider error (4xxx) keeps its message.
+ */
+export function errorLine(error: unknown): string {
+  if (!(error instanceof Error)) return NETWORK_ERROR_LINE;
+  const { code, shortMessage, details } = error as {
+    code?: unknown;
+    shortMessage?: unknown;
+    details?: unknown;
+  };
+  if (
+    typeof shortMessage === "string" ||
+    typeof details === "string" ||
+    (typeof code === "number" && (code < 4000 || code > 4999))
+  )
+    return NETWORK_ERROR_LINE;
+  return transactionMessage(error.message);
+}

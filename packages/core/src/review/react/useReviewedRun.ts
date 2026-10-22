@@ -1,12 +1,13 @@
 import {
   createHeldWriteView,
+  errorLine,
   findReviewedSequence,
   isDefiniteWalletRejection,
   openStepHold,
   resumeReviewed,
   REVIEWED_ACCOUNT_CHANGED_LINE,
   sendReviewed,
-  transactionMessage,
+  settledLine,
   TransactionReviewCancelledError,
   type HeldWriteView,
   type ReviewedAction,
@@ -31,11 +32,18 @@ import {
   none,
   type HeldViewActions,
 } from "./heldView.js";
-import type { Address, Hex } from "viem";
+import type { Address, Hex, TransactionReceipt } from "viem";
 
 export type UseReviewedRunDeps = ReviewedSendDeps & {
   account: Address | undefined;
   guard?: () => void;
+};
+
+/** A run that failed: `error` is the line to show, `failure` the value thrown. */
+export type ReviewedRunFailed = {
+  status: "failed";
+  error: string;
+  failure: unknown;
 };
 
 export type UseReviewedRunResult = {
@@ -43,14 +51,14 @@ export type UseReviewedRunResult = {
    * Review and send `action` once. A `scope` with an unfinished sequence
    * of the same calls saved resumes it instead: only its remaining steps
    * are reviewed and sent. Other calls under that scope are refused until
-   * it is resumed or discarded. Null when nothing finished: the user cancelled (`error` stays
-   * null), or it failed (`error` says why). An `account` (the one the calls
-   * were built for) refuses the run before its review unless it is the
-   * connected one.
+   * it is resumed or discarded. Null when the user cancelled; `failed`, with
+   * the same `error` and `failure` the hook shows, when it failed. An
+   * `account` (the one the calls were built for) refuses the run before its
+   * review unless it is the connected one.
    */
   run: (
     action: Omit<ReviewedAction, "account" | "guard"> & { account?: Address },
-  ) => Promise<ReviewedResult | null>;
+  ) => Promise<ReviewedResult | ReviewedRunFailed | null>;
   phase: ReviewedProgress["phase"] | "idle";
   step: number;
   total: number;
@@ -62,6 +70,12 @@ export type UseReviewedRunResult = {
   failure: unknown;
   hash: Hex | null;
   safeTxHash: Hex | null;
+  /**
+   * The receipt that settled a followed Safe proposal (or held step), once
+   * its hold settled it: `phase` is then "done" on success, and `error`
+   * says why on a failure or expiry.
+   */
+  receipt: TransactionReceipt | null;
   /**
    * After a run that did not finish: the hold of its step still in flight
    * (the saved sequence's, or the first of its calls held), followed as it
@@ -85,6 +99,7 @@ const IDLE: RunState = {
   failure: null,
   hash: null,
   safeTxHash: null,
+  receipt: null,
 };
 
 /** The bytes a call sends, for comparing two actions. */
@@ -115,7 +130,24 @@ export function useReviewedRun(
   const view = useMemo(
     () =>
       watched
-        ? createHeldWriteView(watched.handle, { client: watched.client })
+        ? createHeldWriteView(watched.handle, {
+            client: watched.client,
+            // The followed step's end ends the run: a proposal never stays proposed.
+            onSettled: (settled, receipt) =>
+              setState((now) =>
+                settled.result === "success"
+                  ? {
+                      ...now,
+                      phase: "done",
+                      hash: settled.hash,
+                      receipt,
+                      error: null,
+                      failure: null,
+                    }
+                  : { ...IDLE, error: settledLine(settled), receipt },
+              ),
+            onReleased: () => setState(IDLE),
+          })
         : undefined,
     [watched],
   );
@@ -234,17 +266,12 @@ export function useReviewedRun(
         const cancelled =
           error instanceof TransactionReviewCancelledError ||
           isDefiniteWalletRejection(error);
-        update({
-          ...IDLE,
-          error: cancelled
-            ? null
-            : transactionMessage(
-                error instanceof Error ? error.message : String(error),
-              ),
-          failure: cancelled ? null : error,
-        });
+        const line = cancelled ? null : errorLine(error);
+        update({ ...IDLE, error: line, failure: cancelled ? null : error });
         follow();
-        return null;
+        return line === null
+          ? null
+          : { status: "failed", error: line, failure: error };
       }
     },
   };
