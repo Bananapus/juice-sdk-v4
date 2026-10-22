@@ -26,8 +26,13 @@ import {
 } from "./__fixtures__/reviewedSend.js";
 import type { ReviewConfirmation } from "./confirm.js";
 import { SubmittedContractWriteError } from "./contractWrite.js";
+import { WRITE_HOLD_REVERTED_LINE } from "./messages.js";
 import { buildReviewModel } from "./model.js";
-import { sendReviewed, type ReviewedCall } from "./send.js";
+import {
+  ReviewedCallRevertedError,
+  sendReviewed,
+  type ReviewedCall,
+} from "./send.js";
 import { selfReviewingAdapter, WALLET_NOT_READY_LINE } from "./wallet.js";
 import { WriteHeldError, WriteHoldStaleReviewError } from "./writeHold.js";
 
@@ -268,6 +273,30 @@ describe("sendReviewed", () => {
     }
     expect(prompts).toHaveLength(0);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("a mined revert carries its receipt and never traps the action", async () => {
+    const { wallet, deps, chain } = setup();
+    const prompts = reviewUi();
+    chain.state.status = "reverted";
+    const call = payCall();
+    const failure = await sendReviewed(action([call]), deps).catch(
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(ReviewedCallRevertedError);
+    expect((failure as Error).message).toBe(WRITE_HOLD_REVERTED_LINE);
+    expect(failure).toMatchObject({
+      step: 0,
+      hash: `0x${"1".padStart(64, "0")}`,
+      receipt: expect.objectContaining({ status: "reverted" }),
+    });
+    // The same action can be reviewed and sent again.
+    chain.state.status = "success";
+    await expect(sendReviewed(action([call]), deps)).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(prompts).toHaveLength(2);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 
   it("refuses calldata that is not its arguments' encoding before any review", async () => {

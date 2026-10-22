@@ -180,6 +180,24 @@ export type ReviewedResult = (
   signatures?: Hex[];
 };
 
+/**
+ * A step's transaction was mined and reverted: nothing of it to resume, and
+ * the action can be reviewed again. `receipt` is the mined receipt, so a
+ * site can close its own record of the attempt.
+ */
+export class ReviewedCallRevertedError extends Error {
+  readonly name = "ReviewedCallRevertedError";
+
+  constructor(
+    /** The step's index in the whole action. */
+    readonly step: number,
+    readonly hash: Hex,
+    readonly receipt: TransactionReceipt,
+  ) {
+    super(WRITE_HOLD_REVERTED_LINE);
+  }
+}
+
 /** The exact bytes a step sends. */
 type SentCall = Readonly<{
   chainId: number;
@@ -986,7 +1004,7 @@ async function send(
         delete journal.sending;
         await keep();
       }
-      throw new Error(WRITE_HOLD_REVERTED_LINE);
+      throw new ReviewedCallRevertedError(at, hash, receipt);
     }
     receipts.push(receipt);
     if (journal) {
