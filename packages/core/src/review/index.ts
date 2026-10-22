@@ -21,3 +21,11 @@ export {
 } from "./confirm.js";
 export * from "./wallet.js";
 export * from "./send.js";
+export {
+  discardReviewedSequence,
+  findReviewedSequence,
+  REVIEWED_SEQUENCE_HELD_LINE,
+  REVIEWED_SEQUENCE_MOVED_LINE,
+  REVIEWED_SEQUENCE_UNFINISHED_LINE,
+  type ReviewedSequenceRecord,
+} from "./sequence.js";

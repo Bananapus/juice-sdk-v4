@@ -29,7 +29,7 @@ import {
 export const ACCOUNT = "0x1111111111111111111111111111111111111111" as Address;
 export const OTHER = "0x3333333333333333333333333333333333333333" as Address;
 export const TERMINAL = "0x2222222222222222222222222222222222222222" as Address;
-export const TOKEN = "0x4444444444444444444444444444444444444444" as Address;
+const TOKEN = "0x4444444444444444444444444444444444444444" as Address;
 export const NOT_CONFIRMED =
   "This review was not confirmed here. Nothing was sent; review it again.";
 export const CHANGED =
@@ -192,7 +192,7 @@ export function fakeChain() {
   return { state, client, mine };
 }
 
-export function fakeWallet(chain: ReturnType<typeof fakeChain>) {
+function fakeWallet(chain: ReturnType<typeof fakeChain>) {
   const state = {
     account: ACCOUNT as Address | undefined,
     chainId: 10,
@@ -228,11 +228,12 @@ export function fakeWallet(chain: ReturnType<typeof fakeChain>) {
 export function setup() {
   const chain = fakeChain();
   const wallet = fakeWallet(chain);
+  const storage = createHeldWriteStorage({
+    durable: () => undefined,
+    memory: new Map(),
+  });
   const hold = createWriteHold({
-    storage: createHeldWriteStorage({
-      durable: () => undefined,
-      memory: new Map(),
-    }),
+    storage,
     // Web Locks that are always free: these tests send one step at a time.
     locks: {
       request: (async (
@@ -249,6 +250,7 @@ export function setup() {
     clientFor: () => chain.client as unknown as PublicClient,
     hold,
     onProgress: (step: ReviewedProgress) => progress.push(step),
+    storage,
   };
   const holdOf = (call: ReviewedCall): ReviewedWriteRecoveryInput => ({
     chainId: call.chainId,
@@ -256,7 +258,7 @@ export function setup() {
     safe: false,
     call: { to: call.to, data: call.data, value: call.value ?? 0n },
   });
-  return { chain, wallet, hold, deps, progress, holdOf };
+  return { chain, wallet, hold, deps, progress, holdOf, storage };
 }
 
 /** Each registered review UI's unregister, latest last. */

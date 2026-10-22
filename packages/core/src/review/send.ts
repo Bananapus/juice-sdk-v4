@@ -22,6 +22,14 @@ import {
 } from "./model.js";
 import { waitForTrackedReceipt } from "./receipt.js";
 import {
+  findReviewedSequence,
+  removeReviewedSequence,
+  REVIEWED_SEQUENCE_MOVED_LINE,
+  REVIEWED_SEQUENCE_UNFINISHED_LINE,
+  saveReviewedSequence,
+  type ReviewedSequenceRecord,
+} from "./sequence.js";
+import {
   revertDetail,
   simulateCallSequence,
   simulateStateChangingTransaction,
@@ -33,6 +41,10 @@ import {
   WriteHoldStaleReviewError,
   type WriteHold,
 } from "./writeHold.js";
+import {
+  createHeldWriteStorage,
+  type HeldWriteStorage,
+} from "./writeRecovery.js";
 
 export type ReviewedCall = {
   chainId: number;
@@ -65,6 +77,13 @@ export type ReviewedAction = {
   assertWriteState?: () => void;
   /** Refuses the action, before anything else (view-as, say). */
   guard?: () => void;
+  /**
+   * The site's key for this action (`payIntent(...)`, say). When set, the
+   * action is journaled once its review is confirmed, before the first
+   * wallet call, so {@link resumeReviewed} can finish it without sending a
+   * completed step again.
+   */
+  scope?: string;
 };
 
 export type ReviewedSendDeps = {
@@ -74,6 +93,8 @@ export type ReviewedSendDeps = {
   onProgress?: (progress: ReviewedProgress) => void;
   /** Self-reviewing adapters only: the model core would have shown. */
   onPreview?: (model: ReviewModel) => void;
+  /** Where sequences are journaled: the hold's storage (the browser's, by default). */
+  storage?: HeldWriteStorage;
 };
 
 export type ReviewedProgress = {
@@ -300,6 +321,83 @@ export async function sendReviewed(
   action: ReviewedAction,
   deps: ReviewedSendDeps,
 ): Promise<ReviewedResult> {
+  return send(action, deps);
+}
+
+/**
+ * Finish a sequence {@link sendReviewed} saved under `record.scope`: the step
+ * whose wallet call opened is decided by its write hold first (still held is
+ * refused; a settled success counts as completed, its receipt's hash
+ * recorded), then every remaining step, and only those, is reviewed once
+ * more as one fresh model and sent as `sendReviewed` sends. `reverify` gets
+ * each step's original index in the action. Only `record.account` can resume
+ * it. The result's `hashes` are every completed step's, `receipts` this
+ * run's.
+ */
+export async function resumeReviewed(
+  record: ReviewedSequenceRecord,
+  action: Pick<
+    ReviewedAction,
+    "reverify" | "assertWriteState" | "guard" | "context" | "title"
+  >,
+  deps: ReviewedSendDeps,
+): Promise<ReviewedResult> {
+  action.guard?.();
+  const storage = deps.storage ?? createHeldWriteStorage();
+  const saved = findReviewedSequence(record.scope, record.account, {
+    storage,
+  });
+  if (!saved || saved.id !== record.id)
+    throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
+  const connected = deps.adapter.account();
+  if (!connected) throw new Error("Connect a wallet first.");
+  if (connected.toLowerCase() !== saved.account.toLowerCase())
+    throw new Error(ACCOUNT_CHANGED);
+  const inFlight = saved.proposed?.step ?? saved.sending;
+  if (inFlight !== undefined) {
+    const call = saved.calls[inFlight];
+    const handle = deps.hold.open(
+      {
+        chainId: call.chainId,
+        account: saved.account,
+        safe: deps.adapter.isSafe(),
+        call: { to: call.to, data: call.data, value: call.value ?? 0n },
+        ...(call.intent ? { namespace: call.intent } : {}),
+      },
+      call.legacy ? { legacy: [...call.legacy] } : undefined,
+    );
+    const state = await handle.state(deps.clientFor(call.chainId));
+    if (state.status !== "clear") throw new WriteHeldError(state);
+    delete saved.sending;
+    delete saved.proposed;
+    if (state.settled?.result === "success") {
+      // This sequence's own step: it is recorded, never offered again.
+      await handle.acknowledge(state.settled);
+      saved.completed.push(state.settled.hash);
+    }
+    if (saved.completed.length === saved.calls.length) {
+      removeReviewedSequence(saved, storage);
+      return { status: "done", hashes: saved.completed, receipts: [] };
+    }
+    saveReviewedSequence(saved, storage);
+  }
+  return send(
+    {
+      ...action,
+      account: saved.account,
+      calls: saved.calls.slice(saved.completed.length),
+      scope: saved.scope,
+    },
+    deps,
+    { record: saved, storage },
+  );
+}
+
+async function send(
+  action: ReviewedAction,
+  deps: ReviewedSendDeps,
+  resuming?: { record: ReviewedSequenceRecord; storage: HeldWriteStorage },
+): Promise<ReviewedResult> {
   const { adapter, clientFor, hold, onProgress } = deps;
   action.guard?.();
   const { account } = action;
@@ -342,6 +440,21 @@ export async function sendReviewed(
     return { status: "done", hashes: [hash], receipts: [] };
   }
 
+  const { scope } = action;
+  const storage =
+    scope === undefined
+      ? undefined
+      : (resuming?.storage ?? deps.storage ?? createHeldWriteStorage());
+  // A fresh run refuses while an earlier run of the same action is unfinished.
+  if (
+    storage &&
+    !resuming &&
+    findReviewedSequence(scope!, account, { storage })
+  )
+    throw new Error(REVIEWED_SEQUENCE_UNFINISHED_LINE);
+  /** Where the remaining steps start in the whole action. */
+  const offset = resuming?.record.completed.length ?? 0;
+
   const safe = adapter.isSafe();
   const handles = calls.map((call, step) =>
     hold.open(
@@ -383,13 +496,51 @@ export async function sendReviewed(
   });
   await promptReview(model, simulation, enriched);
 
+  // Saved before the first wallet call, once the review is confirmed.
+  let journal: ReviewedSequenceRecord | undefined;
+  if (storage) {
+    if (resuming) journal = { ...resuming.record, modelId: model.id };
+    else
+      journal = {
+        version: 1,
+        id: globalThis.crypto.randomUUID(),
+        account,
+        scope: scope!,
+        modelId: model.id,
+        // What was reviewed, read once above.
+        calls: calls.map((call, step) => ({
+          ...call,
+          ...snapshots[step].shown,
+          ...snapshots[step].sent,
+        })),
+        completed: [],
+      };
+    // Refused when another window's run of this action began meanwhile.
+    saveReviewedSequence(journal, storage);
+  }
+  /**
+   * Progress after a send is saved as it can be: the step's saved
+   * `sending` mark already lets its hold decide it on resume.
+   */
+  const keep = () => {
+    try {
+      if (journal!.completed.length === journal!.calls.length)
+        removeReviewedSequence(journal!, storage!);
+      else saveReviewedSequence(journal!, storage!);
+    } catch {
+      /* Another window owns the sequence now; the hold still holds the step. */
+    }
+  };
+
   const hashes: Hex[] = [];
   const receipts: TransactionReceipt[] = [];
-  const total = calls.length;
+  const total = offset + calls.length;
   for (const [step, call] of calls.entries()) {
     const reviewed = sent[step];
+    /** This step's index in the whole action. */
+    const at = offset + step;
     const progress = (phase: ReviewedProgress["phase"], hash?: Hex) =>
-      onProgress?.({ step, total, phase, ...(hash ? { hash } : {}) });
+      onProgress?.({ step: at, total, phase, ...(hash ? { hash } : {}) });
     const unchanged = () => {
       let now: SentCall;
       try {
@@ -412,6 +563,14 @@ export async function sendReviewed(
       if (generation(handles[step]) !== reviewedGenerations[step]) {
         throw new WriteHoldStaleReviewError();
       }
+      /** Nothing was sent: the hold lets go, and the step is no longer in flight. */
+      const released = () => {
+        gate.onRejected();
+        if (journal) {
+          delete journal.sending;
+          keep();
+        }
+      };
       return submitReviewedContractWrite({
         request: reviewed,
         expectedAccount: account,
@@ -422,7 +581,7 @@ export async function sendReviewed(
         },
         currentAccount: () => adapter.account(),
         reverify: async () => {
-          await action.reverify?.(call, step);
+          await action.reverify?.(call, at);
           unchanged();
         },
         simulate: async (sending) => {
@@ -433,7 +592,10 @@ export async function sendReviewed(
             ...(blockNumber === undefined ? {} : { blockNumber }),
           };
           const [, estimate] = await Promise.all([
-            simulateStateChangingTransaction(client, { from: account, ...tx }),
+            simulateStateChangingTransaction(client, {
+              from: account,
+              ...tx,
+            }),
             // A Safe app signs the sent gas as safeTxGas; 0 makes a failed call revert.
             safe ? undefined : client.estimateGas({ account, ...tx }),
           ]);
@@ -442,7 +604,19 @@ export async function sendReviewed(
             gas: estimate === undefined ? 0n : gasWithHeadroom(estimate),
           };
         },
-        beforeWrite: () => gate.beforeSend(),
+        beforeWrite: async () => {
+          await gate.beforeSend();
+          if (!journal) return;
+          journal.sending = at;
+          try {
+            saveReviewedSequence(journal, storage!);
+          } catch (error) {
+            // Reserved, and the wallet never opened.
+            delete journal.sending;
+            gate.onRejected();
+            throw error;
+          }
+        },
         beforeSend: () => {
           action.assertWriteState?.();
           unchanged();
@@ -461,8 +635,8 @@ export async function sendReviewed(
             throw new Error(ACCOUNT_CHANGED);
           }
         },
-        onBeforeWriteAborted: () => gate.onRejected(),
-        onWriteRejected: () => gate.onRejected(),
+        onBeforeWriteAborted: released,
+        onWriteRejected: released,
         onWriteSubmitted: (submitted) => gate.afterSubmit(submitted),
         write: ({ chainId, to, data, value, gas }) =>
           adapter.sendTransaction({ chainId, to, data, value, gas }),
@@ -483,17 +657,38 @@ export async function sendReviewed(
       }
     }
     if (safe) {
+      if (journal) {
+        delete journal.sending;
+        journal.proposed = { step: at, safeTxHash: hash };
+        keep();
+      }
       progress("proposed", hash);
-      return { status: "proposed", step, safeTxHash: hash };
+      return { status: "proposed", step: at, safeTxHash: hash };
     }
     progress("receipt", hash);
     const receipt = await waitForTrackedReceipt(client, hash);
     // The hold checks the receipt itself and settles, so the same call (or
     // intent) can be reviewed and sent again without waiting on a view.
     await handles[step].state(client).catch(() => undefined);
-    if (receipt.status !== "success") throw new Error(WRITE_HOLD_REVERTED_LINE);
+    if (receipt.status !== "success") {
+      // It ran and reverted: nothing of it to resume.
+      if (journal) {
+        delete journal.sending;
+        keep();
+      }
+      throw new Error(WRITE_HOLD_REVERTED_LINE);
+    }
     receipts.push(receipt);
+    if (journal) {
+      delete journal.sending;
+      journal.completed.push(hash);
+      keep();
+    }
   }
   onProgress?.({ step: total - 1, total, phase: "done" });
-  return { status: "done", hashes, receipts };
+  return {
+    status: "done",
+    hashes: journal ? [...journal.completed] : hashes,
+    receipts,
+  };
 }
