@@ -24,6 +24,8 @@ import {
   buildPayTx,
   buildUserPayMetadata,
   effectivePayPreview,
+  PAY_SWAP_QUOTE_FAILED_MESSAGE,
+  PaySwapQuoteFailedError,
   prepareUserPay,
   previewPay,
 } from "./pay.js";
@@ -1314,8 +1316,14 @@ describe("prepareUserPay", () => {
       expect(calls.some((c) => c.data)).toBe(false);
     });
 
+    test("refuses when the router can't preview its conversion", async () => {
+      const { client } = mockClient({ ...routed, conversion: undefined });
+      await expect(prepareUserPay(client, routerArgs)).rejects.toBeInstanceOf(
+        PaySwapQuoteFailedError,
+      );
+    });
+
     test.each([
-      ["the router has no direct swap", undefined],
       [
         "the hook was previewed on more than the router's floor",
         { ...routed.conversion, floor: 500n },
@@ -1468,17 +1476,6 @@ describe("prepareUserPay", () => {
     });
   });
 
-  test("a failed quote falls back to the mint entitlement", async () => {
-    const { client } = mockClient({
-      spec: swapSpec({ rawSwapQuote: 900n, minimumSwapAmountOut: 600n }),
-      quote: new Error("quoter reverted"),
-    });
-    const prepared = await prepareUserPay(client, args);
-    expect(prepared.preview.beneficiaryTokenCount).toBe(900n);
-    expect(prepared.minReturnedTokens).toBe(47n);
-    expect(prepared.quoteFailed).toBe(true);
-  });
-
   test("a pool that cannot fill the swap keeps the mint minimum without a retry or a warning", async () => {
     const { client, calls } = mockClient({
       spec: swapSpec({ rawSwapQuote: 900n, minimumSwapAmountOut: 600n }),
@@ -1492,7 +1489,7 @@ describe("prepareUserPay", () => {
     expect(calls.filter((c) => c.data)).toHaveLength(1);
   });
 
-  test("warns when a quote fails with data that is not a revert", async () => {
+  test("refuses when a quote fails with data that is not a revert", async () => {
     // A decoder error carries the response as data, which may hold any bytes.
     const { client } = mockClient({
       spec: swapSpec({ rawSwapQuote: 900n, minimumSwapAmountOut: 600n }),
@@ -1500,7 +1497,9 @@ describe("prepareUserPay", () => {
         data: (cannotFill().cause as { data: Hex }).data,
       }),
     });
-    expect((await prepareUserPay(client, args)).quoteFailed).toBe(true);
+    await expect(prepareUserPay(client, args)).rejects.toBeInstanceOf(
+      PaySwapQuoteFailedError,
+    );
   });
 
   test("retries a quote whose read fails once", async () => {
@@ -1516,6 +1515,90 @@ describe("prepareUserPay", () => {
     const prepared = await prepareUserPay(client, args);
     expect(prepared.minReturnedTokens).toBe(9_900n);
     expect(prepared.quoteFailed).toBeUndefined();
+  });
+
+  describe("on a swap route", () => {
+    // A mint entitlement of 2 floors to a zero minimum.
+    const tinySpec = swapSpec({ tokenCountWithoutHook: 2n });
+    const refused = async (prepared: Promise<unknown>) => {
+      const error = await prepared.then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+      expect(error).toBeInstanceOf(PaySwapQuoteFailedError);
+      expect(error).toMatchObject({
+        code: "PAY_SWAP_QUOTE_FAILED",
+        message: PAY_SWAP_QUOTE_FAILED_MESSAGE,
+      });
+      return error as PaySwapQuoteFailedError;
+    };
+
+    test("refuses a failed quote instead of a zero minimum", async () => {
+      const failure = new Error("quoter reverted");
+      const { client } = mockClient({ spec: tinySpec, quote: failure });
+      expect((await refused(prepareUserPay(client, args))).cause).toBe(failure);
+    });
+
+    test("refuses a failed quote even when the mint minimum is not zero", async () => {
+      const { client } = mockClient({
+        spec: swapSpec({ rawSwapQuote: 900n, minimumSwapAmountOut: 600n }),
+        quote: new Error("quoter reverted"),
+      });
+      await refused(prepareUserPay(client, args));
+    });
+
+    test("refuses a quote that comes back empty", async () => {
+      const { client } = mockClient({ spec: tinySpec });
+      await refused(
+        prepareUserPay(
+          { ...client, call: async () => ({ data: undefined }) } as never,
+          args,
+        ),
+      );
+    });
+
+    test("refuses a quote it can't decode", async () => {
+      const { client } = mockClient({ spec: tinySpec });
+      await refused(
+        prepareUserPay(
+          { ...client, call: async () => ({ data: "0x1234" }) } as never,
+          args,
+        ),
+      );
+    });
+
+    test("refuses a quoted preview whose swap it can't read", async () => {
+      const { client } = mockClient({
+        spec: swapSpec(),
+        respond: (metadata) =>
+          explicitMinimumOf(metadata) === 0n ? {} : { spec: "0x1234" },
+      });
+      await refused(prepareUserPay(client, args));
+    });
+
+    test("refuses a mint-path minimum that computes to zero", async () => {
+      // No accepted token has the spec's pool, so nothing is quoted.
+      const { client, calls } = mockClient({
+        spec: swapSpec({
+          tokenCountWithoutHook: 2n,
+          poolId: `0x${"ab".repeat(32)}`,
+        }),
+      });
+      await refused(prepareUserPay(client, args));
+      expect(calls.some((c) => c.data)).toBe(false);
+    });
+
+    test("keeps a pay the hook would mint unchanged when its quote fails", async () => {
+      const { client } = mockClient({
+        spec: tinySpec,
+        noop: true,
+        terminalCounts: [40n, 10n],
+        quote: new Error("quoter reverted"),
+      });
+      const prepared = await prepareUserPay(client, args);
+      expect(prepared.minReturnedTokens).toBe(39n);
+      expect(prepared.quoteFailed).toBe(true);
+    });
   });
 
   test("quotes hook 1.1.1 too: it ignores skipSplits, so the quote is reminted through the split", async () => {
@@ -1547,7 +1630,7 @@ describe("prepareUserPay", () => {
       spec: legacySpec(
         swapSpec({ tokenCountWithoutHook: 1_000n, rawSwapQuote: 1_500n }),
       ),
-      quote: new Error("quoter reverted"),
+      quote: cannotFill(),
     });
     const prepared = await prepareUserPay(client, args);
     // 1,500 swapped, reminted through the ruleset's 20% split.
@@ -1664,7 +1747,7 @@ describe("prepareUserPay", () => {
   test("skipSplits false without a quote falls back to the split mint entitlement", async () => {
     const { client } = mockClient({
       spec: swapSpec({ skipSplits: false, tokenCountWithoutHook: 1_000n }),
-      quote: new Error("quoter reverted"),
+      quote: cannotFill(),
     });
     const prepared = await prepareUserPay(client, {
       ...args,
