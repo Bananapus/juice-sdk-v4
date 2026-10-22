@@ -1,10 +1,15 @@
 import {
+  erc20Abi,
   keccak256,
   toHex,
   type AbiFunction,
+  type AbiParameter,
   type Address,
   type Hex,
+  type PublicClient,
 } from "viem";
+import { NATIVE_TOKEN } from "../constants.js";
+import { USDC_ADDRESSES } from "../pureConstants.js";
 import {
   describeJBHookMetadata,
   describePermissionsData,
@@ -16,6 +21,7 @@ import {
   describeV4UnlockData,
   functionFromCall,
   knownAddressName,
+  namedValue,
   nativeValue,
   readableValue,
   reviewDescription,
@@ -52,19 +58,47 @@ export type ReviewWarningCode =
 export type ReviewWarning = { code: ReviewWarningCode; text: string };
 
 /**
+ * One ABI value. `text` is {@link readableValue}'s output. A tuple's
+ * `children` are its components, by name; an array's are its elements, named
+ * `[0]`, `[1]`, …. Any other value has none.
+ */
+export type ReviewValue = {
+  name: string;
+  type: string;
+  text: string;
+  children: ReviewValue[] | null;
+};
+
+/**
  * One ABI input of a decoded call. `text` is {@link readableValue}'s output,
  * except where the review states it more precisely (a Safe `operation`, a
  * Universal Router deadline). A decoder's readable view rides along in
  * `steps`, `v4Plan` or `nested`; a Universal Router `execute` plan rides on
  * its `commands` argument.
  */
-export type ReviewArgument = {
-  name: string;
-  type: string;
-  text: string;
+export type ReviewArgument = ReviewValue & {
   steps: PrettyStep[] | null;
   v4Plan: V4PlanStep[] | null;
   nested: ReviewCallModel[] | null;
+};
+
+/** An address the call gives a part, read from the argument's name. */
+export type ReviewRole = {
+  role: "spender" | "recipient" | "beneficiary" | "owner" | "operator";
+  address: Address;
+  name: string | null;
+};
+
+/**
+ * An amount of a token the call moves or approves, in base units. `decimals`
+ * and `symbol` are null until known: native ETH and USDC are known at once,
+ * any other token after {@link enrichReviewModel} reads it.
+ */
+export type ReviewTokenAmount = {
+  token: Address | "native";
+  amount: bigint;
+  decimals: number | null;
+  symbol: string | null;
 };
 
 export type ReviewCallModel = {
@@ -84,6 +118,8 @@ export type ReviewCallModel = {
   args: ReviewArgument[] | null;
   /** The calls a batching destination makes, in order. A MultiSend's show in its `transactions` argument instead. */
   calls: ReviewCallModel[] | null;
+  roles: ReviewRole[];
+  tokenAmounts: ReviewTokenAmount[];
   warnings: ReviewWarning[];
 };
 
@@ -118,6 +154,48 @@ const DELEGATECALL =
   "DELEGATECALL: runs foreign code with the Safe's own storage and funds";
 const ABI_UNAVAILABLE =
   "This call’s ABI is not available in this flow. Check the complete calldata in Raw before continuing.";
+
+const UNKNOWN_CONTRACT =
+  "This destination is not a contract the app recognizes. Check the address before continuing.";
+const UNLIMITED_APPROVAL =
+  "Unlimited approval: the spender can move all of this token you hold, now and later.";
+const OWNER_ACTION = "This changes who controls the contract.";
+const PERMISSION_GRANT = "This lets another address act for you.";
+const DECIMALS_UNKNOWN =
+  "The token's decimals could not be read, so its amount shows in base units.";
+
+/** Address arguments that give the address a part, by argument name. */
+const ROLE_OF: Readonly<Record<string, ReviewRole["role"]>> = {
+  spender: "spender",
+  recipient: "recipient",
+  beneficiary: "beneficiary",
+  owner: "owner",
+  newOwner: "owner",
+  operator: "operator",
+};
+
+/** ERC-20 and Permit2 calls that move or approve `amount` (or `value`) of a token. */
+const TOKEN_AMOUNT_FUNCTIONS = new Set([
+  "approve",
+  "increaseAllowance",
+  "transfer",
+  "transferFrom",
+]);
+
+const APPROVALS = new Set(["approve", "increaseAllowance"]);
+
+/** Calls that change a contract's owner, a Safe's owners or threshold, or what else can act as the Safe. */
+const OWNER_ACTIONS = new Set([
+  "transferOwnership",
+  "renounceOwnership",
+  "addOwnerWithThreshold",
+  "removeOwner",
+  "swapOwner",
+  "changeThreshold",
+  "enableModule",
+  "setGuard",
+  "setFallbackHandler",
+]);
 
 /** MultiSend's `transactions` argument is where its decoded calls show. */
 function nestsCallsInArgument(fn: AbiFunction | null): boolean {
@@ -191,6 +269,146 @@ function specialArgument(
     : null;
 }
 
+function reviewValue(
+  parameter: AbiParameter,
+  value: unknown,
+  chainId: number,
+): ReviewValue {
+  return {
+    name: parameter.name ?? "",
+    type: parameter.type,
+    text: readableValue(parameter.type, value, chainId),
+    children: reviewChildren(parameter, value, chainId),
+  };
+}
+
+function reviewChildren(
+  parameter: AbiParameter,
+  value: unknown,
+  chainId: number,
+): ReviewValue[] | null {
+  const array = /^(.*)\[\d*\]$/u.exec(parameter.type);
+  if (array && Array.isArray(value)) {
+    return value.map((item, index) =>
+      reviewValue(
+        { ...parameter, name: `[${index}]`, type: array[1] } as AbiParameter,
+        item,
+        chainId,
+      ),
+    );
+  }
+  if ("components" in parameter && Array.isArray(parameter.components)) {
+    return parameter.components.map((component, index) =>
+      reviewValue(
+        component,
+        namedValue(value, component.name ?? "", index),
+        chainId,
+      ),
+    );
+  }
+  return null;
+}
+
+/** Every address argument, a tuple's components and an array's elements included, under its own name. */
+function addressArguments(
+  parameter: AbiParameter,
+  value: unknown,
+): [string, unknown][] {
+  const array = /^(.*)\[\d*\]$/u.exec(parameter.type);
+  if (array && Array.isArray(value)) {
+    const item = { ...parameter, type: array[1] } as AbiParameter;
+    return value.flatMap((element) => addressArguments(item, element));
+  }
+  if ("components" in parameter && Array.isArray(parameter.components)) {
+    return parameter.components.flatMap((component, index) =>
+      addressArguments(
+        component,
+        namedValue(value, component.name ?? "", index),
+      ),
+    );
+  }
+  return parameter.type === "address" ? [[parameter.name ?? "", value]] : [];
+}
+
+function reviewRoles(
+  call: TransactionReviewCall,
+  fn: AbiFunction,
+): ReviewRole[] {
+  const roles: ReviewRole[] = [];
+  const seen = new Set<string>();
+  fn.inputs.forEach((input, index) => {
+    for (const [name, address] of addressArguments(input, call.args?.[index])) {
+      const role =
+        ROLE_OF[name] ??
+        (name === "to" && TOKEN_AMOUNT_FUNCTIONS.has(fn.name)
+          ? "recipient"
+          : undefined);
+      if (!role || typeof address !== "string") continue;
+      const key = `${role}:${address.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      roles.push({
+        role,
+        address: address as Address,
+        name: knownAddressName(call.chainId, address),
+      });
+    }
+  });
+  return roles;
+}
+
+/** Native ETH and USDC need no read. */
+function knownToken(
+  chainId: number,
+  token: Address | "native",
+): Pick<ReviewTokenAmount, "decimals" | "symbol"> {
+  if (token === "native") return { decimals: 18, symbol: "ETH" };
+  const usdc = USDC_ADDRESSES[chainId as keyof typeof USDC_ADDRESSES];
+  return usdc?.toLowerCase() === token.toLowerCase()
+    ? { decimals: 6, symbol: "USDC" }
+    : { decimals: null, symbol: null };
+}
+
+/** The amount and its input, for a terminal payment or an ERC-20 or Permit2 approval or transfer. */
+function tokenAmountOf(
+  call: TransactionReviewCall,
+  fn: AbiFunction,
+): { amount: ReviewTokenAmount; input: AbiParameter } | null {
+  const argument = (names: readonly string[]) => {
+    const index = fn.inputs.findIndex((input) =>
+      names.includes(input.name ?? ""),
+    );
+    return index < 0
+      ? null
+      : { input: fn.inputs[index], value: call.args?.[index] };
+  };
+  const payment = fn.name === "pay" || fn.name === "addToBalanceOf";
+  if (!payment && !TOKEN_AMOUNT_FUNCTIONS.has(fn.name)) return null;
+  const amount = argument(payment ? ["amount"] : ["amount", "value"]);
+  if (
+    !amount?.input.type.startsWith("uint") ||
+    typeof amount.value !== "bigint"
+  ) {
+    return null;
+  }
+  const tokenArgument = argument(["token"]);
+  if (payment && !tokenArgument) return null;
+  const address = tokenArgument ? tokenArgument.value : call.to;
+  if (typeof address !== "string") return null;
+  const token =
+    address.toLowerCase() === NATIVE_TOKEN.toLowerCase()
+      ? "native"
+      : (address as Address);
+  return {
+    amount: {
+      token,
+      amount: amount.value,
+      ...knownToken(call.chainId, token),
+    },
+    input: amount.input,
+  };
+}
+
 function reviewArguments(
   call: TransactionReviewCall,
   fn: AbiFunction,
@@ -198,9 +416,7 @@ function reviewArguments(
   const values = call.args ?? [];
   const plain = fn.inputs.map(
     (input, index): ReviewArgument => ({
-      name: input.name ?? "",
-      type: input.type,
-      text: readableValue(input.type, values[index], call.chainId),
+      ...reviewValue(input, values[index], call.chainId),
       steps: null,
       v4Plan: null,
       nested: null,
@@ -246,11 +462,33 @@ function reviewCall(call: TransactionReviewCall): ReviewCallModel {
       warnings.push({ code: "delegatecall", text: DELEGATECALL });
     }
   }
+  const contractName =
+    call.contractName ?? knownAddressName(call.chainId, call.to);
+  if (contractName === null && call.data.length >= 10) {
+    warnings.push({ code: "unknown-contract", text: UNKNOWN_CONTRACT });
+  }
+  const tokenAmount = fn ? tokenAmountOf(call, fn) : null;
+  if (fn && tokenAmount && APPROVALS.has(fn.name)) {
+    const bits = BigInt(tokenAmount.input.type.slice(4) || 256);
+    if (tokenAmount.amount.amount === (1n << bits) - 1n) {
+      warnings.push({ code: "unlimited-approval", text: UNLIMITED_APPROVAL });
+    }
+  }
+  if (fn && OWNER_ACTIONS.has(fn.name)) {
+    warnings.push({ code: "owner-action", text: OWNER_ACTION });
+  }
+  if (
+    fn?.name === "setPermissionsFor" ||
+    (fn?.name === "setApprovalForAll" && call.args?.[1] === true)
+  ) {
+    warnings.push({ code: "permission-grant", text: PERMISSION_GRANT });
+  }
+  const tokenAmounts = tokenAmount ? [tokenAmount.amount] : [];
   return {
     chainId: call.chainId,
     from: call.from ?? null,
     to: call.to,
-    contractName: call.contractName ?? knownAddressName(call.chainId, call.to),
+    contractName,
     value: call.value ?? 0n,
     valueText: nativeValue(call.value),
     gas: call.gas ?? null,
@@ -261,7 +499,9 @@ function reviewCall(call: TransactionReviewCall): ReviewCallModel {
     byteLength: Math.max(0, (call.data.length - 2) / 2),
     args,
     calls: batched ? batched.map(reviewCall) : null,
-    warnings,
+    roles: fn ? reviewRoles(call, fn) : [],
+    tokenAmounts,
+    warnings: withDecimalsWarning(warnings, tokenAmounts),
   };
 }
 
@@ -349,4 +589,136 @@ export function buildReviewModel(
     rawJson: transactionReviewJson(request),
     warnings: [],
   };
+}
+
+/** `warnings` with one `decimals-unknown` last when any amount's decimals are unknown. */
+function withDecimalsWarning(
+  warnings: readonly ReviewWarning[],
+  tokenAmounts: readonly ReviewTokenAmount[],
+): ReviewWarning[] {
+  const kept = warnings.filter(
+    (warning) => warning.code !== "decimals-unknown",
+  );
+  return tokenAmounts.some((amount) => amount.decimals === null)
+    ? [...kept, { code: "decimals-unknown", text: DECIMALS_UNKNOWN }]
+    : kept;
+}
+
+type TokenReader = Pick<PublicClient, "readContract">;
+
+/** A token's decimals and symbol, each null when its read fails or returns something else. */
+async function readToken(
+  client: TokenReader | undefined,
+  token: Address,
+): Promise<Pick<ReviewTokenAmount, "decimals" | "symbol">> {
+  const read = async (functionName: "decimals" | "symbol") => {
+    if (!client) return null;
+    try {
+      return await client.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName,
+      });
+    } catch {
+      return null;
+    }
+  };
+  const [decimals, symbol] = await Promise.all([
+    read("decimals"),
+    read("symbol"),
+  ]);
+  return {
+    decimals:
+      typeof decimals === "number" &&
+      Number.isInteger(decimals) &&
+      decimals >= 0 &&
+      decimals <= 255
+        ? decimals
+        : null,
+    symbol:
+      typeof symbol === "string" && symbol.trim() && symbol.length <= 32
+        ? symbol.trim()
+        : null,
+  };
+}
+
+/** Every call the model shows, the ones inside other calls and arguments included. */
+function eachCall(
+  calls: readonly ReviewCallModel[],
+  visit: (call: ReviewCallModel) => void,
+): void {
+  for (const call of calls) {
+    visit(call);
+    eachCall(call.calls ?? [], visit);
+    for (const argument of call.args ?? []) {
+      eachCall(argument.nested ?? [], visit);
+    }
+  }
+}
+
+/**
+ * The model with each token's decimals and symbol read from the token, once
+ * per token per chain. A failed read leaves them null, never zero, and keeps
+ * the `decimals-unknown` warning. The id is unchanged: the reads only explain
+ * the amounts the calls already carry.
+ */
+export async function enrichReviewModel(
+  model: ReviewModel,
+  clientFor: (chainId: number) => TokenReader | undefined,
+): Promise<ReviewModel> {
+  const reads = new Map<
+    string,
+    Promise<Pick<ReviewTokenAmount, "decimals" | "symbol">>
+  >();
+  const key = (chainId: number, token: Address) =>
+    `${chainId}:${token.toLowerCase()}`;
+  eachCall(model.calls, (call) => {
+    for (const { token, decimals, symbol } of call.tokenAmounts) {
+      if (token === "native" || (decimals !== null && symbol !== null)) {
+        continue;
+      }
+      const id = key(call.chainId, token);
+      if (reads.has(id)) continue;
+      let client: TokenReader | undefined;
+      try {
+        client = clientFor(call.chainId);
+      } catch {
+        client = undefined;
+      }
+      reads.set(id, readToken(client, token));
+    }
+  });
+  const read = new Map(
+    await Promise.all(
+      [...reads].map(async ([id, pending]) => [id, await pending] as const),
+    ),
+  );
+  const enrich = (call: ReviewCallModel): ReviewCallModel => {
+    const tokenAmounts = call.tokenAmounts.map((amount) => {
+      const found =
+        amount.token === "native"
+          ? undefined
+          : read.get(key(call.chainId, amount.token));
+      return found
+        ? {
+            ...amount,
+            decimals: amount.decimals ?? found.decimals,
+            symbol: amount.symbol ?? found.symbol,
+          }
+        : amount;
+    });
+    return {
+      ...call,
+      args:
+        call.args?.map((argument) =>
+          argument.nested
+            ? { ...argument, nested: argument.nested.map(enrich) }
+            : argument,
+        ) ?? null,
+      calls: call.calls?.map(enrich) ?? null,
+      tokenAmounts,
+      warnings: withDecimalsWarning(call.warnings, tokenAmounts),
+    };
+  };
+  return { ...model, calls: model.calls.map(enrich) };
 }
