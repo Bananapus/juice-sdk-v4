@@ -11,7 +11,11 @@ import {
   reviewUi,
   setup,
 } from "../__fixtures__/reviewedSend.js";
-import { HELD_EXPIRED_LINE, HELD_FAILED_LINE } from "../messages.js";
+import {
+  HELD_EXPIRED_LINE,
+  HELD_FAILED_LINE,
+  REVIEWED_ENGINE_LOAD_LINE,
+} from "../messages.js";
 import { NETWORK_ERROR_LINE } from "../transaction-message.js";
 import { REVIEWED_SEQUENCE_UNFINISHED_LINE } from "../sequence.js";
 import {
@@ -56,8 +60,13 @@ afterEach(() => {
 });
 
 /** Mounts the hook. */
-function harness(given: Omit<UseReviewedRunDeps, "engine"> | null) {
-  const deps = given && { ...given, engine: () => import("../send.js") };
+function harness(
+  given:
+    | (Omit<UseReviewedRunDeps, "engine"> &
+        Partial<Pick<UseReviewedRunDeps, "engine">>)
+    | null,
+) {
+  const deps = given && { engine: () => import("../send.js"), ...given };
   const seen: { current?: UseReviewedRunResult } = {};
   function Probe() {
     seen.current = useReviewedRun(deps);
@@ -99,6 +108,24 @@ describe("useReviewedRun", () => {
 
     act(() => seen.current!.reset());
     expect(seen.current!.phase).toBe("idle");
+  });
+
+  test("shows its own line when the send engine does not load", async () => {
+    reviewUi();
+    const { deps } = setup();
+    const loadFailure = new Error("Header not found.");
+    const { seen, run } = harness({
+      ...deps,
+      account: ACCOUNT,
+      engine: () => Promise.reject(loadFailure),
+    });
+    const result = await run({ calls: [payCall()] });
+    expect(result).toMatchObject({
+      status: "failed",
+      error: REVIEWED_ENGINE_LOAD_LINE,
+    });
+    expect(seen.current!.error).toBe(REVIEWED_ENGINE_LOAD_LINE);
+    expect((seen.current!.failure as Error).cause).toBe(loadFailure);
   });
 
   test("keeps the raw failure with its cause for site decoders", async () => {

@@ -61,6 +61,8 @@ export function errorLine(error: unknown): string {
     /:\/\/|\n/.test(message) ||
     // The SDK's lines are sentences; a node's own text ("header not found",
     // "nonce too low") is not. Relayr's HTTP refusals are presented above.
+    // ponytail: shape, not provenance; a plain Error with sentence text from
+    // app code still shows. Brand the SDK's errors if that ever matters.
     !(/^[A-Z].*[.)]$/.test(message) || /^Relayr HTTP \d+\b/.test(message))
   )
     return NETWORK_ERROR_LINE;

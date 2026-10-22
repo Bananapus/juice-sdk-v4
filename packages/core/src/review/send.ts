@@ -88,7 +88,9 @@ export type ReviewedCall = {
    * compared by, so a retry whose only change is a fresh stamp (a deadline)
    * adopts that proposal instead of proposing twice. It must keep every
    * field that decides what runs (recipients, amounts); the target, value
-   * and operation must match as they are. Unset compares exact bytes. Never
+   * and operation must match as they are. It must be pure: it is app code
+   * trusted like the call itself, and one whose output changes after review
+   * can match a different queued proposal. Unset compares exact bytes. Never
    * saved: a resumed step compares exact bytes.
    */
   normalizeData?: (data: Hex) => Hex;

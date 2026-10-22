@@ -190,3 +190,7 @@ export const SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL =
 /** The refusal when the connected account is not the one an action was built for. */
 export const REVIEWED_ACCOUNT_CHANGED_LINE =
   "The connected account changed. Review again.";
+
+/** The refusal when the app's send engine loader fails: a failed chunk load stays cached until a reload. */
+export const REVIEWED_ENGINE_LOAD_LINE =
+  "This page could not load the review. Nothing was sent; reload the page and try again.";

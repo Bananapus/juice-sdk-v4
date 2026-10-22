@@ -5,6 +5,7 @@ import {
   isDefiniteWalletRejection,
   openStepHold,
   REVIEWED_ACCOUNT_CHANGED_LINE,
+  REVIEWED_ENGINE_LOAD_LINE,
   settledLine,
   TransactionReviewCancelledError,
   walletReady,
@@ -247,7 +248,13 @@ export function useReviewedRun(
           throw new Error(REVIEWED_ACCOUNT_CHANGED_LINE);
         if (action.calls.length > 1 && action.scope === undefined)
           throw new Error(REVIEWED_RUN_SCOPE_LINE);
-        const { resumeReviewed, sendReviewed } = await deps.engine();
+        const { resumeReviewed, sendReviewed } = await deps
+          .engine()
+          .catch((cause: unknown) => {
+            throw Object.assign(new Error(REVIEWED_ENGINE_LOAD_LINE), {
+              cause,
+            });
+          });
         const { account, guard } = deps;
         const tracked: ReviewedSendDeps = {
           ...deps,
