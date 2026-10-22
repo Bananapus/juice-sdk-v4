@@ -1,4 +1,4 @@
-import type { Hex } from "viem";
+import { encodeFunctionData, type Hex } from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ACCOUNT,
@@ -137,6 +137,8 @@ describe("reviewed sequences", () => {
     wallet.state.safe = true;
     /** The Safe's executions, by proposal: what the hold proves once signers run it. */
     const executed = new Map<Hex, Hex>();
+    /** A settlement the hold could not save: the step reads clear with nothing to show. */
+    let lost = false;
     const hold: WriteHold = {
       ...context.hold,
       open: (...args) => {
@@ -146,17 +148,25 @@ describe("reviewed sequences", () => {
           proposal.status !== "clear" && proposal.record.hash
             ? executed.get(proposal.record.hash)
             : undefined;
-        return execution
+        return lost && proposal.status !== "clear"
           ? {
               ...handle,
               state: async () => ({
                 status: "clear",
                 reservation: proposal.reservation,
-                settled: { result: "success", hash: execution },
               }),
-              acknowledge: vi.fn(async () => handle.peek()),
             }
-          : handle;
+          : execution
+            ? {
+                ...handle,
+                state: async () => ({
+                  status: "clear",
+                  reservation: proposal.reservation,
+                  settled: { result: "success", hash: execution },
+                }),
+                acknowledge: vi.fn(async () => handle.peek()),
+              }
+            : handle;
       },
     };
     const deps = { ...context.deps, hold };
@@ -181,6 +191,11 @@ describe("reviewed sequences", () => {
     );
     expect(prompts).toHaveLength(1);
 
+    lost = true;
+    await expect(resumeReviewed(record, {}, deps)).rejects.toThrow(
+      REVIEWED_SEQUENCE_UNCERTAIN_LINE,
+    );
+    lost = false;
     executed.set(hashOf(1), hashOf(0xe1));
     const second = await resumeReviewed(record, {}, deps);
     expect(prompts).toHaveLength(2);
@@ -283,7 +298,7 @@ describe("reviewed sequences", () => {
       completed: [],
       sending: { step: 0, reservation: expect.any(String) },
     });
-    expect(() => discardReviewedSequence(held, { storage })).toThrow(
+    await expect(discardReviewedSequence(held, { storage })).rejects.toThrow(
       REVIEWED_SEQUENCE_HELD_LINE,
     );
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).not.toBeNull();
@@ -307,9 +322,9 @@ describe("reviewed sequences", () => {
       completed: [hashOf(1)],
       sending: { step: 1, reservation: expect.any(String) },
     });
-    expect(() =>
+    await expect(
       discardReviewedSequence(later, { storage: second.storage }),
-    ).toThrow(REVIEWED_SEQUENCE_HELD_LINE);
+    ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
 
     // A step the wallet refused (4001) holds nothing: the sequence can go.
     const { record, storage: other } = await interrupted(
@@ -325,16 +340,29 @@ describe("reviewed sequences", () => {
     await expect(
       sendReviewed(action([payCall(7n)]), exact.deps),
     ).rejects.toThrow(timeout().message);
-    expect(() =>
+    await expect(
       discardReviewedSequence(exact.record, { storage: exact.storage }),
-    ).toThrow(REVIEWED_SEQUENCE_HELD_LINE);
+    ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
 
-    discardReviewedSequence(record, { storage: other });
+    // Or under another intent.
+    const renamed = await interrupted(
+      [approveCall(), payCall(8n, { intent: "pay:1" })],
+      1,
+    );
+    renamed.wallet.adapter.sendTransaction.mockRejectedValueOnce(timeout());
+    await expect(
+      sendReviewed(action([payCall(8n, { intent: "pay:2" })]), renamed.deps),
+    ).rejects.toThrow(timeout().message);
+    await expect(
+      discardReviewedSequence(renamed.record, { storage: renamed.storage }),
+    ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
+
+    await discardReviewedSequence(record, { storage: other });
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage: other })).toBeNull();
     // A record another window moved on (or removed) is not discarded.
-    expect(() => discardReviewedSequence(record, { storage: other })).toThrow(
-      REVIEWED_SEQUENCE_MOVED_LINE,
-    );
+    await expect(
+      discardReviewedSequence(record, { storage: other }),
+    ).rejects.toThrow(REVIEWED_SEQUENCE_MOVED_LINE);
   });
 
   it("a run another window began meanwhile sends nothing", async () => {
@@ -343,16 +371,9 @@ describe("reviewed sequences", () => {
     const call = payCall();
     const key = `nana-sdk:sequence:${ACCOUNT.toLowerCase()}:${SCOPE}`;
     // Another window's run of the same action reaches its wallet first.
+    const theirs = JSON.stringify({ another: "window" });
     chain.client.estimateGas.mockImplementationOnce(async () => {
-      const ours = JSON.parse(storage.getItem(key)!);
-      storage.setItem(
-        key,
-        JSON.stringify({
-          ...ours,
-          id: "other",
-          sending: { step: 0, reservation: "r" },
-        }),
-      );
+      storage.setItem(key, theirs);
       return 21_000n;
     });
     await expect(
@@ -361,7 +382,7 @@ describe("reviewed sequences", () => {
     expect(prompts).toHaveLength(1);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     expect(deps.hold.open(holdOf(call)).peek().status).toBe("clear");
-    expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })?.id).toBe("other");
+    expect(storage.getItem(key)).toBe(theirs);
   });
 
   it("a resume confirmed after another window finished the sequence sends nothing", async () => {
@@ -432,8 +453,45 @@ describe("reviewed sequences", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(sends);
     expect(prompts).toHaveLength(2);
     // Nothing is held: the user can discard it and start again.
-    discardReviewedSequence(record, { storage });
+    await discardReviewedSequence(record, { storage });
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toBeNull();
+  });
+
+  it("keeps arguments of every shape across a resume", async () => {
+    const prompts = reviewUi();
+    const abi = [
+      {
+        type: "function",
+        name: "note",
+        stateMutability: "nonpayable",
+        inputs: [
+          {
+            name: "entry",
+            type: "tuple",
+            components: [
+              { name: "n", type: "string" },
+              { name: "o", type: "uint256" },
+            ],
+          },
+        ],
+        outputs: [],
+      },
+    ] as const;
+    const args = [{ n: "hello", o: 2n ** 200n }] as const;
+    const note: ReviewedCall = {
+      chainId: 10,
+      to: OTHER,
+      data: encodeFunctionData({ abi, functionName: "note", args }),
+      abi,
+      functionName: "note",
+      args,
+    };
+    const { deps, record } = await interrupted([approveCall(), note], 1);
+    expect(record.calls[1].args).toEqual(args);
+    await expect(resumeReviewed(record, {}, deps)).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(prompts).toHaveLength(2);
   });
 
   it("a changed account cannot resume another account's sequence", async () => {

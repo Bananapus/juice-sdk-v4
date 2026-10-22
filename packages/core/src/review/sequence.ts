@@ -2,6 +2,7 @@ import { isAddress, isHex, type Address, type Hex } from "viem";
 import type { ReviewedCall } from "./send.js";
 import {
   createHeldWriteStorage,
+  browserLocks,
   listReviewedWrites,
   type HeldWriteStorage,
 } from "./writeRecovery.js";
@@ -51,25 +52,51 @@ function sequenceKey(scope: string, account: Address): string {
   return `${PREFIX}${account.toLowerCase()}:${scope}`;
 }
 
-const BIGINT = "$bigint";
+/**
+ * JSON with every value tagged, so no saved argument can read as another
+ * kind: a bigint is `{ n }`, every object `{ o }`.
+ */
+const encode = (value: unknown): unknown =>
+  typeof value === "bigint"
+    ? { n: value.toString() }
+    : Array.isArray(value)
+      ? value.map(encode)
+      : value && typeof value === "object"
+        ? {
+            o: Object.fromEntries(
+              Object.entries(value).map(([key, item]) => [key, encode(item)]),
+            ),
+          }
+        : value;
 
-function serialize(record: ReviewedSequenceRecord): string {
-  return JSON.stringify(record, (_, value) =>
-    typeof value === "bigint" ? { [BIGINT]: value.toString() } : value,
-  );
+const decode = (value: unknown): unknown =>
+  Array.isArray(value)
+    ? value.map(decode)
+    : value && typeof value === "object"
+      ? "n" in value
+        ? BigInt(value.n as string)
+        : Object.fromEntries(
+            Object.entries((value as { o: object }).o).map(([key, item]) => [
+              key,
+              decode(item),
+            ]),
+          )
+      : value;
+
+const serialize = (record: ReviewedSequenceRecord) =>
+  JSON.stringify(encode(record));
+
+/** Run `work` under the sequence's lock across windows: every compare and change of its saved value. */
+function locked<T>(key: string, work: () => T): Promise<T> {
+  return browserLocks().request(key, { mode: "exclusive" }, async () =>
+    work(),
+  ) as Promise<T>;
 }
 
 function parse(raw: string | null, key: string): ReviewedSequenceRecord | null {
   if (raw === null) return null;
   try {
-    const record = JSON.parse(raw, (_, value) =>
-      value &&
-      typeof value === "object" &&
-      Object.keys(value).length === 1 &&
-      typeof value[BIGINT] === "string"
-        ? BigInt(value[BIGINT])
-        : value,
-    ) as ReviewedSequenceRecord;
+    const record = decode(JSON.parse(raw)) as ReviewedSequenceRecord;
     /** Only the next step can be in flight. */
     const step = (value: unknown) => value === record.completed.length;
     const valid =
@@ -149,13 +176,15 @@ export function saveReviewedSequence(
   record: ReviewedSequenceRecord,
   storage: HeldWriteStorage,
   expected: string | null,
-): string {
+): Promise<string> {
   const key = sequenceKey(record.scope, record.account);
-  if (storage.getItem(key) !== expected)
-    throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
-  const raw = serialize(record);
-  storage.setItem(key, raw);
-  return raw;
+  return locked(key, () => {
+    if (storage.getItem(key) !== expected)
+      throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
+    const raw = serialize(record);
+    storage.setItem(key, raw);
+    return raw;
+  });
 }
 
 /** Remove `record` if its key still holds exactly `expected`. */
@@ -163,11 +192,13 @@ export function removeReviewedSequence(
   record: ReviewedSequenceRecord,
   storage: HeldWriteStorage,
   expected: string | null,
-): void {
+): Promise<void> {
   const key = sequenceKey(record.scope, record.account);
-  if (storage.getItem(key) !== expected)
-    throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
-  storage.removeItem(key);
+  return locked(key, () => {
+    if (storage.getItem(key) !== expected)
+      throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
+    storage.removeItem(key);
+  });
 }
 
 /**
@@ -184,12 +215,12 @@ function heldStep(
     return listReviewedWrites(
       { chainId: call.chainId, account: record.account },
       { storage },
-    ).some(({ record: held }) =>
-      held.namespace !== undefined
-        ? namespaces.includes(held.namespace)
-        : held.call.to.toLowerCase() === call.to.toLowerCase() &&
+    ).some(
+      ({ record: held }) =>
+        (held.namespace !== undefined && namespaces.includes(held.namespace)) ||
+        (held.call.to.toLowerCase() === call.to.toLowerCase() &&
           held.call.data.toLowerCase() === call.data.toLowerCase() &&
-          held.call.value === String(call.value ?? 0n),
+          held.call.value === String(call.value ?? 0n)),
     );
   });
 }
@@ -203,15 +234,17 @@ function heldStep(
 export function discardReviewedSequence(
   record: ReviewedSequenceRecord,
   options: Options = {},
-): void {
+): Promise<void> {
   const storage = options.storage ?? createHeldWriteStorage();
-  const { raw, record: saved } = readReviewedSequence(
-    record.scope,
-    record.account,
-    storage,
-  );
-  if (!saved || serialize(saved) !== serialize(record))
-    throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
-  if (heldStep(saved, storage)) throw new Error(REVIEWED_SEQUENCE_HELD_LINE);
-  removeReviewedSequence(saved, storage, raw);
+  return locked(sequenceKey(record.scope, record.account), () => {
+    const saved = readReviewedSequence(
+      record.scope,
+      record.account,
+      storage,
+    ).record;
+    if (!saved || serialize(saved) !== serialize(record))
+      throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
+    if (heldStep(saved, storage)) throw new Error(REVIEWED_SEQUENCE_HELD_LINE);
+    storage.removeItem(sequenceKey(record.scope, record.account));
+  });
 }

@@ -378,18 +378,21 @@ export async function resumeReviewed(
     // the same call or intent hides it.
     if (state.reservation !== reservation)
       throw new Error(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
+    // Clear with no settlement: released by the user's exit, or a
+    // settlement that could not be saved. Either may have run.
+    if (!state.settled) throw new Error(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
     delete saved.sending;
     delete saved.proposed;
-    if (state.settled?.result === "success") {
+    if (state.settled.result === "success") {
       // This sequence's own step: it is recorded, never offered again.
       await handle.acknowledge(state.settled);
       saved.completed.push(state.settled.hash);
     }
     if (saved.completed.length === saved.calls.length) {
-      removeReviewedSequence(saved, storage, expected);
+      await removeReviewedSequence(saved, storage, expected);
       return { status: "done", hashes: saved.completed, receipts: [] };
     }
-    expected = saveReviewedSequence(saved, storage, expected);
+    expected = await saveReviewedSequence(saved, storage, expected);
   }
   return send(
     {
@@ -532,17 +535,17 @@ async function send(
         completed: [],
       };
     // Refused when another window changed it meanwhile.
-    expected = saveReviewedSequence(journal, storage, expected);
+    expected = await saveReviewedSequence(journal, storage, expected);
   }
   /**
    * Progress after a send is saved as it can be: the step's saved
    * `sending` mark already lets its hold decide it on resume.
    */
-  const keep = () => {
+  const keep = async () => {
     try {
       if (journal!.completed.length === journal!.calls.length)
-        removeReviewedSequence(journal!, storage!, expected);
-      else expected = saveReviewedSequence(journal!, storage!, expected);
+        await removeReviewedSequence(journal!, storage!, expected);
+      else expected = await saveReviewedSequence(journal!, storage!, expected);
     } catch {
       /* Another window owns the sequence now; the hold still holds the step. */
     }
@@ -580,11 +583,11 @@ async function send(
         throw new WriteHoldStaleReviewError();
       }
       /** Nothing was sent: the hold lets go, and the step is no longer in flight. */
-      const released = () => {
+      const released = async () => {
         gate.onRejected();
         if (journal) {
           delete journal.sending;
-          keep();
+          await keep();
         }
       };
       return submitReviewedContractWrite({
@@ -627,7 +630,7 @@ async function send(
             const { reservation } = handles[step].peek();
             if (reservation === undefined) throw new Error(NOT_SAVED);
             journal.sending = { step: at, reservation };
-            expected = saveReviewedSequence(journal, storage!, expected);
+            expected = await saveReviewedSequence(journal, storage!, expected);
           } catch (error) {
             // Reserved, and the wallet never opened.
             delete journal.sending;
@@ -677,7 +680,7 @@ async function send(
     if (safe) {
       if (journal) {
         journal.proposed = { step: at, safeTxHash: hash };
-        keep();
+        await keep();
       }
       progress("proposed", hash);
       return { status: "proposed", step: at, safeTxHash: hash };
@@ -691,7 +694,7 @@ async function send(
       // It ran and reverted: nothing of it to resume.
       if (journal) {
         delete journal.sending;
-        keep();
+        await keep();
       }
       throw new Error(WRITE_HOLD_REVERTED_LINE);
     }
@@ -699,7 +702,7 @@ async function send(
     if (journal) {
       delete journal.sending;
       journal.completed.push(hash);
-      keep();
+      await keep();
     }
   }
   onProgress?.({ step: total - 1, total, phase: "done" });
