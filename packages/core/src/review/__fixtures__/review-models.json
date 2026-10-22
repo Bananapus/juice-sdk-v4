@@ -123,6 +123,7 @@
             "symbol": "ETH"
           }
         ],
+        "nft": null,
         "warnings": []
       }
     ],
@@ -244,6 +245,7 @@
           }
         ],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": []
       }
     ],
@@ -562,6 +564,7 @@
         "calls": null,
         "roles": [],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "unknown-contract",
@@ -746,10 +749,19 @@
                 "symbol": null
               }
             ],
+            "nft": null,
             "warnings": [
               {
                 "code": "unknown-contract",
                 "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+              },
+              {
+                "code": "permission-grant",
+                "text": "This lets another address act for you."
+              },
+              {
+                "code": "possible-token-id",
+                "text": "ERC-721 NFTs use this same function, so this number may be an NFT's token ID rather than an amount."
               },
               {
                 "code": "decimals-unknown",
@@ -810,10 +822,19 @@
                 "symbol": null
               }
             ],
+            "nft": null,
             "warnings": [
               {
                 "code": "unknown-contract",
                 "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+              },
+              {
+                "code": "permission-grant",
+                "text": "This lets another address act for you."
+              },
+              {
+                "code": "possible-token-id",
+                "text": "ERC-721 NFTs use this same function, so this number may be an NFT's token ID rather than an amount."
               },
               {
                 "code": "decimals-unknown",
@@ -824,6 +845,7 @@
         ],
         "roles": [],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "safe-gas-nonzero",
@@ -937,6 +959,7 @@
         "calls": null,
         "roles": [],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": []
       }
     ],
@@ -1050,6 +1073,7 @@
           }
         ],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "permission-grant",
@@ -1202,6 +1226,7 @@
           }
         ],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": []
       }
     ],
@@ -1295,10 +1320,19 @@
                     "symbol": null
                   }
                 ],
+                "nft": null,
                 "warnings": [
                   {
                     "code": "unknown-contract",
                     "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+                  },
+                  {
+                    "code": "permission-grant",
+                    "text": "This lets another address act for you."
+                  },
+                  {
+                    "code": "possible-token-id",
+                    "text": "ERC-721 NFTs use this same function, so this number may be an NFT's token ID rather than an amount."
                   },
                   {
                     "code": "decimals-unknown",
@@ -1359,10 +1393,19 @@
                     "symbol": null
                   }
                 ],
+                "nft": null,
                 "warnings": [
                   {
                     "code": "unknown-contract",
                     "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+                  },
+                  {
+                    "code": "permission-grant",
+                    "text": "This lets another address act for you."
+                  },
+                  {
+                    "code": "possible-token-id",
+                    "text": "ERC-721 NFTs use this same function, so this number may be an NFT's token ID rather than an amount."
                   },
                   {
                     "code": "decimals-unknown",
@@ -1376,6 +1419,7 @@
         "calls": null,
         "roles": [],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "unknown-contract",
@@ -1462,6 +1506,7 @@
         "calls": null,
         "roles": [],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "unknown-contract",
@@ -1502,6 +1547,7 @@
         "calls": null,
         "roles": [],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "abi-unavailable",
@@ -1532,6 +1578,7 @@
         "calls": null,
         "roles": [],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "abi-unavailable",
@@ -1621,6 +1668,7 @@
         "calls": null,
         "roles": [],
         "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "unknown-contract",

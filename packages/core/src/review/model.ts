@@ -52,6 +52,7 @@ export type ReviewWarningCode =
   | "owner-action"
   | "permission-grant"
   | "decimals-unknown"
+  | "possible-token-id"
   | "simulation-failed"
   | "simulation-unavailable";
 
@@ -120,6 +121,8 @@ export type ReviewCallModel = {
   calls: ReviewCallModel[] | null;
   roles: ReviewRole[];
   tokenAmounts: ReviewTokenAmount[];
+  /** The NFT an ERC-721 `approve` or `transferFrom` names: its last argument is a token ID, not an amount. */
+  nft: { token: Address; tokenId: bigint } | null;
   warnings: ReviewWarning[];
 };
 
@@ -164,6 +167,8 @@ const OWNER_ACTION =
 const PERMISSION_GRANT = "This lets another address act for you.";
 const DECIMALS_UNKNOWN =
   "The token's decimals could not be read, so its amount shows in base units.";
+const POSSIBLE_TOKEN_ID =
+  "ERC-721 NFTs use this same function, so this number may be an NFT's token ID rather than an amount.";
 
 /** Address arguments that give the address a part, by argument name. */
 const ROLE_OF: Readonly<Record<string, ReviewRole["role"]>> = {
@@ -181,19 +186,35 @@ type TokenCall = {
   spender?: number;
   recipient?: number;
   amount?: number;
+  /** Where ERC-721 reads the amount as a token ID. */
+  tokenId?: number;
+  /** ERC-721 has the same signature, so only the contract tells which it is. */
+  sharedWithErc721?: true;
 };
 
 /**
- * ERC-20 and Permit2 approvals and transfers by signature. ERC-721 shares
- * `approve(address,uint256)` and `transferFrom(address,address,uint256)`;
- * where the ABI names the last argument `tokenId`, it is a token ID, not an
- * amount.
+ * ERC-20, ERC-2612 and Permit2 approvals and transfers by signature.
+ * ERC-721 shares `approve(address,uint256)` and
+ * `transferFrom(address,address,uint256)`; where the ABI names the last
+ * argument `tokenId`, it is a token ID, not an amount.
  */
 const TOKEN_CALLS: Readonly<Record<string, TokenCall>> = {
-  "approve(address,uint256)": { spender: 0, amount: 1 },
+  "approve(address,uint256)": {
+    spender: 0,
+    amount: 1,
+    sharedWithErc721: true,
+  },
   "increaseAllowance(address,uint256)": { spender: 0, amount: 1 },
   "transfer(address,uint256)": { recipient: 0, amount: 1 },
-  "transferFrom(address,address,uint256)": { recipient: 1, amount: 2 },
+  "transferFrom(address,address,uint256)": {
+    recipient: 1,
+    amount: 2,
+    sharedWithErc721: true,
+  },
+  "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)": {
+    spender: 1,
+    amount: 2,
+  },
   "approve(address,address,uint160,uint48)": {
     token: 0,
     spender: 1,
@@ -210,7 +231,7 @@ function tokenCallOf(fn: AbiFunction): TokenCall | null {
   if (!shape) return null;
   return shape.amount !== undefined &&
     fn.inputs[shape.amount].name === "tokenId"
-    ? { ...shape, amount: undefined }
+    ? { ...shape, amount: undefined, tokenId: shape.amount }
     : shape;
 }
 
@@ -468,21 +489,55 @@ function isUnlimitedApproval(
   return call.args?.[tokenCall.amount] === (1n << bits) - 1n;
 }
 
-/** An operator grant, or an ERC-721 approval of an address other than zero. */
+/** An address the app does not name, other than zero, which grants nothing. */
+function isUnnamed(chainId: number, address: unknown): boolean {
+  return (
+    typeof address === "string" &&
+    !/^0x0{40}$/iu.test(address) &&
+    knownAddressName(chainId, address) === null
+  );
+}
+
+/**
+ * An operator grant, or an approval, permit or approval for all that lets an
+ * address the app does not name move the signer's tokens. A zero approval
+ * revokes and grants nothing.
+ */
 function grantsPermission(
   call: TransactionReviewCall,
   fn: AbiFunction,
 ): boolean {
   if (fn.name === "setPermissionsFor") return true;
-  if (fn.name === "setApprovalForAll") return call.args?.[1] === true;
+  if (fn.name === "setApprovalForAll") {
+    return call.args?.[1] === true && isUnnamed(call.chainId, call.args[0]);
+  }
   const tokenCall = tokenCallOf(fn);
-  const spender =
-    tokenCall?.spender === undefined ? null : call.args?.[tokenCall.spender];
+  if (tokenCall?.spender === undefined) return false;
   return (
-    tokenCall?.amount === undefined &&
-    typeof spender === "string" &&
-    !/^0x0{40}$/iu.test(spender)
+    isUnnamed(call.chainId, call.args?.[tokenCall.spender]) &&
+    (tokenCall.amount === undefined || call.args?.[tokenCall.amount] !== 0n)
   );
+}
+
+/** An ERC-20 reading of a call ERC-721 shares, to a contract the SDK does not know. */
+function mayBeTokenId(call: TransactionReviewCall, fn: AbiFunction): boolean {
+  const tokenCall = tokenCallOf(fn);
+  return (
+    tokenCall?.sharedWithErc721 === true &&
+    tokenCall.amount !== undefined &&
+    knownAddressName(call.chainId, call.to) === null
+  );
+}
+
+/** The NFT a call names where its ABI calls the argument a token ID. */
+function nftOf(
+  call: TransactionReviewCall,
+  fn: AbiFunction,
+): ReviewCallModel["nft"] {
+  const tokenCall = tokenCallOf(fn);
+  const tokenId =
+    tokenCall?.tokenId === undefined ? null : call.args?.[tokenCall.tokenId];
+  return typeof tokenId === "bigint" ? { token: call.to, tokenId } : null;
 }
 
 function reviewArguments(
@@ -552,6 +607,9 @@ function reviewCall(call: TransactionReviewCall): ReviewCallModel {
   if (fn && grantsPermission(call, fn)) {
     warnings.push({ code: "permission-grant", text: PERMISSION_GRANT });
   }
+  if (fn && mayBeTokenId(call, fn)) {
+    warnings.push({ code: "possible-token-id", text: POSSIBLE_TOKEN_ID });
+  }
   const amount = fn ? tokenAmountOf(call, fn) : null;
   const tokenAmounts = amount ? [amount] : [];
   return {
@@ -571,6 +629,7 @@ function reviewCall(call: TransactionReviewCall): ReviewCallModel {
     calls: batched ? batched.map(reviewCall) : null,
     roles: fn ? reviewRoles(call, fn) : [],
     tokenAmounts,
+    nft: fn ? nftOf(call, fn) : null,
     warnings: withDecimalsWarning(warnings, tokenAmounts),
   };
 }
@@ -676,28 +735,68 @@ function withDecimalsWarning(
 
 type TokenReader = Pick<PublicClient, "readContract">;
 
-/** A token's decimals and symbol, each null when its read fails or returns something else. */
+const ERC165_ABI = [
+  {
+    type: "function",
+    name: "supportsInterface",
+    stateMutability: "view",
+    inputs: [{ name: "interfaceId", type: "bytes4" }],
+    outputs: [{ type: "bool" }],
+  },
+] as const;
+
+const ERC721_INTERFACE_ID = "0x80ac58cd";
+
+type TokenRead = Pick<ReviewTokenAmount, "decimals" | "symbol"> & {
+  /** Whether the contract says it is ERC-721; null when not asked or it did not answer. */
+  erc721: boolean | null;
+};
+
+/**
+ * A token's decimals and symbol, and when `probe` is set whether it is
+ * ERC-721. Each is null when its read fails or returns something else.
+ */
 async function readToken(
   client: TokenReader | undefined,
   token: Address,
-): Promise<Pick<ReviewTokenAmount, "decimals" | "symbol">> {
-  const read = async (functionName: "decimals" | "symbol") => {
-    if (!client) return null;
+  probe: boolean,
+): Promise<TokenRead> {
+  if (!client) return { decimals: null, symbol: null, erc721: null };
+  const read = async (request: () => Promise<unknown>): Promise<unknown> => {
     try {
-      return await client.readContract({
-        address: token,
-        abi: erc20Abi,
-        functionName,
-      });
+      return await request();
     } catch {
       return null;
     }
   };
-  const [decimals, symbol] = await Promise.all([
-    read("decimals"),
-    read("symbol"),
+  const [decimals, symbol, erc721] = await Promise.all([
+    read(() =>
+      client.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: "decimals",
+      }),
+    ),
+    read(() =>
+      client.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: "symbol",
+      }),
+    ),
+    probe
+      ? read(() =>
+          client.readContract({
+            address: token,
+            abi: ERC165_ABI,
+            functionName: "supportsInterface",
+            args: [ERC721_INTERFACE_ID],
+          }),
+        )
+      : null,
   ]);
   return {
+    erc721: typeof erc721 === "boolean" ? erc721 : null,
     decimals:
       typeof decimals === "number" &&
       Number.isInteger(decimals) &&
@@ -729,41 +828,85 @@ function eachCall(
 /**
  * The model with each token's decimals and symbol read from the token, once
  * per token per chain. A failed read leaves them null, never zero, and keeps
- * the `decimals-unknown` warning. The id is unchanged: the reads only explain
- * the amounts the calls already carry.
+ * the `decimals-unknown` warning. A call ERC-721 shares, to an unknown
+ * contract, also asks the contract whether it is ERC-721: a yes shows the
+ * number as the NFT's token ID; a no, or decimals it answers, clears
+ * `possible-token-id`; no answer keeps it. The id is unchanged: the reads
+ * only explain the calls already bound.
  */
 export async function enrichReviewModel(
   model: ReviewModel,
   clientFor: (chainId: number) => TokenReader | undefined,
 ): Promise<ReviewModel> {
-  const reads = new Map<
+  const wanted = new Map<
     string,
-    Promise<Pick<ReviewTokenAmount, "decimals" | "symbol">>
+    { chainId: number; token: Address; probe: boolean }
   >();
   const key = (chainId: number, token: Address) =>
     `${chainId}:${token.toLowerCase()}`;
+  const probes = (call: ReviewCallModel) =>
+    call.warnings.some((warning) => warning.code === "possible-token-id");
   eachCall(model.calls, (call) => {
     for (const { token, decimals, symbol } of call.tokenAmounts) {
       if (token === "native" || (decimals !== null && symbol !== null)) {
         continue;
       }
       const id = key(call.chainId, token);
-      if (reads.has(id)) continue;
-      let client: TokenReader | undefined;
-      try {
-        client = clientFor(call.chainId);
-      } catch {
-        client = undefined;
-      }
-      reads.set(id, readToken(client, token));
+      const probe =
+        probes(call) && token.toLowerCase() === call.to.toLowerCase();
+      const seen = wanted.get(id);
+      wanted.set(id, {
+        chainId: call.chainId,
+        token,
+        probe: probe || (seen?.probe ?? false),
+      });
     }
   });
   const read = new Map(
     await Promise.all(
-      [...reads].map(async ([id, pending]) => [id, await pending] as const),
+      [...wanted].map(async ([id, { chainId, token, probe }]) => {
+        let client: TokenReader | undefined;
+        try {
+          client = clientFor(chainId);
+        } catch {
+          client = undefined;
+        }
+        return [id, await readToken(client, token, probe)] as const;
+      }),
     ),
   );
   const enrich = (call: ReviewCallModel): ReviewCallModel => {
+    const nested = {
+      args:
+        call.args?.map((argument) =>
+          argument.nested
+            ? { ...argument, nested: argument.nested.map(enrich) }
+            : argument,
+        ) ?? null,
+      calls: call.calls?.map(enrich) ?? null,
+    };
+    const target = probes(call) ? read.get(key(call.chainId, call.to)) : null;
+    if (target?.erc721 === true) {
+      const [{ amount: tokenId }] = call.tokenAmounts;
+      const cleared = new Set<ReviewWarningCode>([
+        "possible-token-id",
+        "unlimited-approval",
+        "decimals-unknown",
+      ]);
+      return {
+        ...call,
+        ...nested,
+        tokenAmounts: [],
+        nft: { token: call.to, tokenId },
+        warnings: call.warnings.filter((warning) => !cleared.has(warning.code)),
+      };
+    }
+    const warnings =
+      target && (target.erc721 === false || target.decimals !== null)
+        ? call.warnings.filter(
+            (warning) => warning.code !== "possible-token-id",
+          )
+        : call.warnings;
     const tokenAmounts = call.tokenAmounts.map((amount) => {
       const found =
         amount.token === "native"
@@ -779,15 +922,9 @@ export async function enrichReviewModel(
     });
     return {
       ...call,
-      args:
-        call.args?.map((argument) =>
-          argument.nested
-            ? { ...argument, nested: argument.nested.map(enrich) }
-            : argument,
-        ) ?? null,
-      calls: call.calls?.map(enrich) ?? null,
+      ...nested,
       tokenAmounts,
-      warnings: withDecimalsWarning(call.warnings, tokenAmounts),
+      warnings: withDecimalsWarning(warnings, tokenAmounts),
     };
   };
   return { ...model, calls: model.calls.map(enrich) };

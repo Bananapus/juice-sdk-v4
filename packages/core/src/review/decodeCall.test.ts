@@ -86,6 +86,7 @@ describe("decodeReviewCall", () => {
       "tokenId",
     ]);
     expect(model.tokenAmounts).toEqual([]);
+    expect(model.nft).toEqual({ token: PROJECTS, tokenId: 5n });
     expect(model.roles).toEqual([
       { role: "spender", address: BOB, name: null },
     ]);

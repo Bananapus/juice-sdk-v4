@@ -288,9 +288,11 @@ const budgets = {
     // artifacts: 1,598,614 B packed, 23,035,984 B unpacked, 1,730 files.
     // The review model's roles, token amounts, warnings and nested arguments,
     // and the raw-calldata decoder in a module of its own (eight artifacts):
-    // 1,610,566 B packed, 23,123,194 B unpacked, 1,738 files.
-    packed: 1_614_000,
-    unpacked: 23_125_000,
+    // The ERC-721 approval probe and the unnamed-spender grant add about
+    // 15 kilobytes unpacked: 1,612,329 B packed, 23,138,745 B unpacked,
+    // 1,738 files.
+    packed: 1_616_000,
+    unpacked: 23_150_000,
     entries: 1_738,
   },
   "@bananapus/nana-sdk-react": {

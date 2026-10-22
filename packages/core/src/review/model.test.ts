@@ -7,6 +7,7 @@ import {
   type Hex,
 } from "viem";
 import { describe, expect, it, vi } from "vitest";
+import { jbContractAddress } from "../generated/addresses/jbContractAddress.js";
 import { USDC_ADDRESSES } from "../pureConstants.js";
 import { REVIEW_REQUESTS } from "./__fixtures__/review-requests.js";
 import expectedModels from "./__fixtures__/review-models.json" with { type: "json" };
@@ -177,6 +178,10 @@ describe("buildReviewModel", () => {
 const BOB = "0x2222222222222222222222222222222222222222" as Address;
 const TOKEN = "0x3333333333333333333333333333333333333333" as Address;
 const OTHER_TOKEN = "0x6666666666666666666666666666666666666666" as Address;
+const PERMIT2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as Address;
+const PROJECTS = (
+  jbContractAddress["6"] as unknown as Record<string, Record<number, Address>>
+).JBProjects[8453];
 
 function call(
   chainId: number,
@@ -214,8 +219,13 @@ describe("review roles, amounts and warnings", () => {
     expect(unlimited.tokenAmounts).toEqual([
       { token: usdc, amount: maxUint256, decimals: 6, symbol: "USDC" },
     ]);
-    expect(codes(unlimited)).toEqual(["unlimited-approval"]);
-    expect(codes(one(approve(8453, usdc, maxUint256 - 1n)))).toEqual([]);
+    expect(codes(unlimited)).toEqual([
+      "unlimited-approval",
+      "permission-grant",
+    ]);
+    expect(codes(one(approve(8453, usdc, maxUint256 - 1n)))).toEqual([
+      "permission-grant",
+    ]);
     // Positions decide, not the ABI's argument names.
     const unnamed = [
       {
@@ -231,7 +241,10 @@ describe("review roles, amounts and warnings", () => {
     );
     expect(anonymous.roles).toEqual(unlimited.roles);
     expect(anonymous.tokenAmounts).toEqual(unlimited.tokenAmounts);
-    expect(codes(anonymous)).toEqual(["unlimited-approval"]);
+    expect(codes(anonymous)).toEqual([
+      "unlimited-approval",
+      "permission-grant",
+    ]);
   });
 
   it("shows a native payment's value as its amount", () => {
@@ -323,7 +336,12 @@ describe("review roles, amounts and warnings", () => {
 
   it("flags an unnamed destination as unknown-contract", () => {
     const unnamed = one(approve(1, TOKEN, 5n));
-    expect(codes(unnamed)).toEqual(["unknown-contract", "decimals-unknown"]);
+    expect(codes(unnamed)).toEqual([
+      "unknown-contract",
+      "permission-grant",
+      "possible-token-id",
+      "decimals-unknown",
+    ]);
     const [selector, transfer] = buildReviewModel(
       requests["unknown selector"],
     ).calls;
@@ -333,7 +351,78 @@ describe("review roles, amounts and warnings", () => {
     // A name the caller gives counts.
     expect(
       codes(one({ ...approve(1, TOKEN, 5n), contractName: "Token" })),
-    ).toEqual(["decimals-unknown"]);
+    ).toEqual(["permission-grant", "possible-token-id", "decimals-unknown"]);
+  });
+
+  it("flags a grant only to a spender or operator the app does not name", () => {
+    const usdc = USDC_ADDRESSES[8453];
+    const named = PERMIT2;
+    expect(
+      codes(one(call(8453, usdc, erc20Abi, "approve", [named, 5n]))),
+    ).toEqual([]);
+    expect(
+      codes(one(call(8453, usdc, erc20Abi, "approve", [BOB, 0n]))),
+    ).toEqual([]);
+    const forAll = [
+      {
+        type: "function",
+        name: "setApprovalForAll",
+        stateMutability: "nonpayable",
+        inputs: [
+          { type: "address", name: "operator" },
+          { type: "bool", name: "approved" },
+        ],
+        outputs: [],
+      },
+    ] as const satisfies Abi;
+    const projects = PROJECTS;
+    expect(
+      codes(
+        one(call(8453, projects, forAll, "setApprovalForAll", [BOB, true])),
+      ),
+    ).toEqual(["permission-grant"]);
+    expect(
+      codes(
+        one(call(8453, projects, forAll, "setApprovalForAll", [named, true])),
+      ),
+    ).toEqual([]);
+    expect(
+      codes(
+        one(call(8453, projects, forAll, "setApprovalForAll", [BOB, false])),
+      ),
+    ).toEqual([]);
+    const permit = [
+      {
+        type: "function",
+        name: "permit",
+        stateMutability: "nonpayable",
+        inputs: [
+          { type: "address", name: "owner" },
+          { type: "address", name: "spender" },
+          { type: "uint256", name: "value" },
+          { type: "uint256", name: "deadline" },
+          { type: "uint8", name: "v" },
+          { type: "bytes32", name: "r" },
+          { type: "bytes32", name: "s" },
+        ],
+        outputs: [],
+      },
+    ] as const satisfies Abi;
+    const signedPermit = one(
+      call(8453, usdc, permit, "permit", [
+        BOB,
+        TOKEN,
+        maxUint256,
+        1n,
+        27,
+        `0x${"11".repeat(32)}`,
+        `0x${"22".repeat(32)}`,
+      ]),
+    );
+    expect(codes(signedPermit)).toEqual([
+      "unlimited-approval",
+      "permission-grant",
+    ]);
   });
 
   it("leaves decimals null and adds decimals-unknown when the read fails", async () => {
@@ -348,7 +437,13 @@ describe("review roles, amounts and warnings", () => {
       expect(reviewed.tokenAmounts).toEqual([
         { token: TOKEN, amount: 5n, decimals: null, symbol: null },
       ]);
-      expect(codes(reviewed)).toEqual(["unknown-contract", "decimals-unknown"]);
+      expect(reviewed.nft).toBeNull();
+      expect(codes(reviewed)).toEqual([
+        "unknown-contract",
+        "permission-grant",
+        "possible-token-id",
+        "decimals-unknown",
+      ]);
     }
     // A read that answers out of range is no answer either.
     const [odd] = (
@@ -395,10 +490,13 @@ describe("review roles, amounts and warnings", () => {
       [
         `1:${TOKEN}:decimals`,
         `1:${TOKEN}:symbol`,
+        `1:${TOKEN}:supportsInterface`,
         `8453:${OTHER_TOKEN}:decimals`,
         `8453:${OTHER_TOKEN}:symbol`,
+        `8453:${OTHER_TOKEN}:supportsInterface`,
         `8453:${TOKEN}:decimals`,
         `8453:${TOKEN}:symbol`,
+        `8453:${TOKEN}:supportsInterface`,
       ].sort(),
     );
     const amounts: unknown[] = [];
@@ -406,6 +504,8 @@ describe("review roles, amounts and warnings", () => {
       for (const reviewed of calls) {
         amounts.push(...reviewed.tokenAmounts);
         expect(codes(reviewed)).not.toContain("decimals-unknown");
+        // Decimals it answers make it ERC-20.
+        expect(codes(reviewed)).not.toContain("possible-token-id");
         visit(reviewed.calls ?? []);
         for (const argument of reviewed.args ?? []) {
           visit(argument.nested ?? []);
@@ -441,6 +541,45 @@ describe("review roles, amounts and warnings", () => {
     });
     expect(enriched.id).toBe(model.id);
     expect(model.calls[0].tokenAmounts[0].decimals).toBeNull();
+  });
+
+  it("shows an ERC-721 approve as an NFT approval when the contract says it is ERC-721", async () => {
+    const model = buildReviewModel({ calls: [approve(1, TOKEN, 5n)] });
+    const asked: unknown[] = [];
+    const enriched = await enrichReviewModel(model, () => ({
+      readContract: (async ({
+        functionName,
+        args,
+      }: {
+        functionName: string;
+        args?: unknown[];
+      }) => {
+        if (functionName !== "supportsInterface") {
+          throw new Error("execution reverted");
+        }
+        asked.push(...(args ?? []));
+        return true;
+      }) as never,
+    }));
+    expect(asked).toEqual(["0x80ac58cd"]);
+    const [reviewed] = enriched.calls;
+    expect(reviewed.nft).toEqual({ token: TOKEN, tokenId: 5n });
+    expect(reviewed.tokenAmounts).toEqual([]);
+    expect(codes(reviewed)).toEqual(["unknown-contract", "permission-grant"]);
+    expect(enriched.id).toBe(model.id);
+    // Not ERC-721: the ERC-20 reading stands without the token-ID warning.
+    const [erc20] = (
+      await enrichReviewModel(model, () => ({
+        readContract: (async ({ functionName }: { functionName: string }) =>
+          functionName === "supportsInterface" ? false : "TKN") as never,
+      }))
+    ).calls;
+    expect(erc20.nft).toBeNull();
+    expect(codes(erc20)).toEqual([
+      "unknown-contract",
+      "permission-grant",
+      "decimals-unknown",
+    ]);
   });
 });
 
