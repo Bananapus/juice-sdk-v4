@@ -712,7 +712,7 @@ function bindingCall(call: TransactionReviewCall): unknown {
  * shows, decoded once. `context` is display only and never feeds `calls`.
  * It never throws: a request it can't read or bind exactly gets a model with
  * an `unreadable` warning, showing what it can read, and an id that matches
- * no other model.
+ * no other model. Core's own prompts refuse such a model: it confirms nothing.
  */
 export function buildReviewModel(
   request: TransactionReviewRequest,

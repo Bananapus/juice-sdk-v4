@@ -102,6 +102,19 @@ describe("core-issued review confirmation", () => {
     await expect(cancelled).rejects.toThrow("Review closed. Nothing was sent.");
   });
 
+  it("refuses an unreadable model before the handler opens", async () => {
+    let asked = 0;
+    answer(async (prompt) => {
+      asked += 1;
+      return prompt.confirmation;
+    });
+    const unreadable = buildReviewModel(null as never);
+    await expect(ask(unreadable)).rejects.toThrow(
+      "This request can't be read in full, so it can't be confirmed here. Nothing was sent.",
+    );
+    expect(asked).toBe(0);
+  });
+
   it("refuses with no review handler registered", async () => {
     await expect(ask(modelOf("0x12345678"))).rejects.toThrow(
       "Transaction review is unavailable. Reload the page before continuing.",

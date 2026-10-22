@@ -500,6 +500,21 @@ describe("sendReviewed", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
 
+  it("sends nothing for an action whose review can't be bound", async () => {
+    const { wallet, deps } = setup();
+    const prompts = reviewUi();
+    await expect(
+      sendReviewed(
+        action([payCall()], {
+          context: [{ label: "When", value: new Date(0) as never }],
+        }),
+        deps,
+      ),
+    ).rejects.toThrow("can't be confirmed here");
+    expect(prompts).toHaveLength(0);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
   it("self-reviewing adapter gets raw calls and no prompt", async () => {
     const { deps } = setup();
     const prompts = reviewUi();
