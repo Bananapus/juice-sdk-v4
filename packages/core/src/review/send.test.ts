@@ -749,6 +749,13 @@ describe("sendReviewed", () => {
           throw new Error("not mine");
         },
       },
+      // One that reads only the reviewed call refuses every queued one.
+      {
+        normalizeData: (data: Hex): Hex => {
+          if (data === payCall(5n).data) return data;
+          throw new Error("not mine");
+        },
+      },
     ]) {
       const other = setup();
       other.wallet.state.safe = true;
