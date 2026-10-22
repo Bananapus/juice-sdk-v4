@@ -22,9 +22,28 @@ try {
 }
 
 const usage =
-  "Usage: nana-wallet-check --root <dir>... --inventory <json> [--forbid-import <spec>]...";
+  "Usage: nana-wallet-check --root <dir>... --inventory <json> [--forbid-import <spec>]... [--exclude <glob>]...";
 const productionRoots = [];
 const forbiddenImports = [];
+/** Paths (relative to the working directory) left out by `--exclude`: `**` spans directories, `*` and `?` stay within one. */
+const excluded = [];
+const globPattern = (glob) =>
+  new RegExp(
+    `^${glob
+      .split(/(\*\*\/|\*\*|\*|\?)/)
+      .map((part) =>
+        part === "**/"
+          ? "(?:.*/)?"
+          : part === "**"
+            ? ".*"
+            : part === "*"
+              ? "[^/]*"
+              : part === "?"
+                ? "[^/]"
+                : part.replace(/[.+^${}()|[\]\\]/g, "\\$&"),
+      )
+      .join("")}$`,
+  );
 let inventoryArg;
 const args = process.argv.slice(2);
 for (let index = 0; index < args.length; index += 2) {
@@ -36,6 +55,7 @@ for (let index = 0; index < args.length; index += 2) {
   if (args[index] === "--root") productionRoots.push(resolve(value));
   else if (args[index] === "--forbid-import") forbiddenImports.push(value);
   else if (args[index] === "--inventory") inventoryArg = value;
+  else if (args[index] === "--exclude") excluded.push(globPattern(value));
   else {
     process.stderr.write(`${usage}\n`);
     process.exit(1);
@@ -121,12 +141,14 @@ function productionFiles(directory, ancestors = []) {
     const path = resolve(directory, name);
     const stat = statSync(path);
     if (stat.isDirectory()) {
-      if (name === "generated" || name === "node_modules") return [];
+      if (name === "node_modules") return [];
       return productionFiles(path, [...ancestors, real]);
     }
     if (!stat.isFile() || !sourceExtension.test(name)) return [];
-    if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(name)) return [];
     if (/\.d\.[cm]?ts$/.test(name)) return [];
+    // Every other file under a root is scanned unless the caller excludes it.
+    const shown = relative(resolve("."), path).split("\\").join("/");
+    if (excluded.some((pattern) => pattern.test(shown))) return [];
     return [path];
   });
 }

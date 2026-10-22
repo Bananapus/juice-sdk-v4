@@ -153,16 +153,20 @@ function forwarderOn(chainId: number): Address {
   return forwarder;
 }
 
-/** The connected wallet, as long as it is an ordinary one on `account`. */
-function requireOrdinaryWallet(adapter: WalletAdapter, account: Address): void {
+/** The connected wallet, as long as it is an ordinary one on `account` (or, with `safe`, a Safe app). */
+function requireOrdinaryWallet(
+  adapter: WalletAdapter,
+  account: Address,
+  safe = false,
+): void {
   if (adapter.kind !== "wallet") throw unsupportedWalletRequest();
   const connected = adapter.account();
   if (!connected) throw new Error("Connect a wallet first.");
   if (connected.toLowerCase() !== account.toLowerCase()) {
     throw new Error(ACCOUNT_CHANGED);
   }
-  // A Safe pays through its own execution, which no proof reads as this payment.
-  if (adapter.isSafe()) throw new Error(ORDINARY_WALLET);
+  // Signed requests and their proof need an ordinary wallet's own transaction.
+  if (adapter.isSafe() && !safe) throw new Error(ORDINARY_WALLET);
 }
 
 /** Whether `target` on `chainId` trusts the chain's canonical forwarder, so the real sender is kept. */
@@ -519,6 +523,7 @@ async function relayrFeeCap(
 function paymentReviewCall(
   details: RelayrPaymentDetails,
   account: Address,
+  safe = false,
 ): TransactionReviewCall {
   const { functionName, args } = decodeFunctionData({
     abi: RELAYR_PAYMENT_ABI,
@@ -530,7 +535,8 @@ function paymentReviewCall(
     to: RELAYR_PAYMENT_ADDRESS,
     data: details.calldata,
     value: details.amount,
-    gas: RELAYR_PAYMENT_GAS,
+    // A Safe signs the sent gas as safeTxGas; 0 makes a failed payment revert.
+    ...(safe ? { safeTxGas: 0n } : { gas: RELAYR_PAYMENT_GAS }),
     abi: RELAYR_PAYMENT_ABI,
     functionName,
     args,
@@ -543,9 +549,10 @@ async function reviewPayment(
   details: RelayrPaymentDetails,
   account: Address,
   action: { context?: readonly ReviewContextRow[]; title?: string },
+  safe = false,
 ): Promise<void> {
   const model = buildReviewModel({
-    calls: [paymentReviewCall(details, account)],
+    calls: [paymentReviewCall(details, account, safe)],
     title: action.title ?? "Review network fee",
     ...(action.context ? { context: action.context } : {}),
   });
@@ -579,10 +586,16 @@ async function sendPayment(
     onSending?: () => Promise<void>;
     /** Every hash the payment is known by: the wallet's, then the mined one. */
     onSent?: (hash: Hex) => Promise<void>;
+    /**
+     * Paid by a Safe app: its proposal hash comes back, held until the Safe
+     * runs it, and is neither awaited nor proven here.
+     */
+    safe?: boolean;
   } = {},
 ): Promise<Hex> {
   const { adapter } = deps;
-  requireOrdinaryWallet(adapter, account);
+  const safe = hooks.safe ?? false;
+  requireOrdinaryWallet(adapter, account, safe);
   const client = deps.clientFor(details.chainId);
   const call = {
     chainId: details.chainId,
@@ -591,7 +604,7 @@ async function sendPayment(
     value: details.amount,
     ...(hooks.intent ? { intent: hooks.intent.key } : {}),
   };
-  const handle = openStepHold(deps.hold, account, false, call);
+  const handle = openStepHold(deps.hold, account, safe, call);
   /** The attempt is saved (`onSending`), and the wallet not yet asked. */
   let saved = false;
   let invoked = false;
@@ -654,7 +667,12 @@ async function sendPayment(
               );
             }
             if (quoteExpired(details.deadline)) throw new QuoteExpiredError();
-            if (adapter.isSafe()) throw new Error(ORDINARY_WALLET);
+            if (adapter.isSafe() !== safe)
+              throw new Error(
+                safe
+                  ? "Wallet connection changed. Review the payment again."
+                  : ORDINARY_WALLET,
+              );
             if (adapter.chainId() !== details.chainId) {
               throw new Error(
                 "Your wallet changed networks. Review the payment again.",
@@ -683,7 +701,7 @@ async function sendPayment(
               to: RELAYR_PAYMENT_ADDRESS,
               data: calldata,
               value: amount,
-              gas: RELAYR_PAYMENT_GAS,
+              gas: safe ? 0n : RELAYR_PAYMENT_GAS,
             });
           } catch (error) {
             // Only the wallet's own 4001 says it declined.
@@ -704,6 +722,8 @@ async function sendPayment(
     }
     throw error;
   }
+  // A proposal: its hold follows it to the Safe's execution.
+  if (safe) return hash;
   // A wallet that sped the payment up mined it under another hash.
   const mined = (await waitForTrackedReceipt(client, hash)).transactionHash;
   if (mined.toLowerCase() !== hash.toLowerCase()) await hooks.onSent?.(mined);
@@ -760,16 +780,25 @@ export async function signReviewedForwardRequests(
  * Pays a Relayr quote after one review of the payment: the option on
  * `chainId`, authenticated against the quote, sent to Relayr's pinned
  * contract and proven from the chain. For a payment resumed apart from its
- * signatures.
+ * signatures. A Safe app pays by proposal: `safeTxHash` comes back, held
+ * until the Safe runs it. `onSending` runs after the hold reserves, right
+ * before the wallet opens (a throw sends nothing); `onSent` gets every hash
+ * the payment is known by.
  */
 export async function payRelayrReviewed(
   quote: RelayrQuote,
   chainId: number,
-  action: { account: Address; context?: readonly ReviewContextRow[] },
+  action: {
+    account: Address;
+    context?: readonly ReviewContextRow[];
+    onSending?: () => Promise<void>;
+    onSent?: (hash: Hex) => Promise<void>;
+  },
   deps: ReviewedSendDeps,
-): Promise<{ hash: Hex }> {
+): Promise<{ hash: Hex } | { safeTxHash: Hex }> {
   const { account } = action;
-  requireOrdinaryWallet(deps.adapter, account);
+  const safe = deps.adapter.isSafe();
+  requireOrdinaryWallet(deps.adapter, account, safe);
   const details = paymentOn(quote, chainId);
   const intent = {
     key: `relayr:${details.bundleUuid}`,
@@ -779,14 +808,16 @@ export async function payRelayrReviewed(
     paidOnce: true,
   };
   requireIntentClear(deps, account, intent);
-  await reviewPayment(details, account, action);
-  return {
-    hash: await sendPayment(details, account, deps, {
-      intent,
-      // Relayr's own word too, whatever this browser kept of earlier payments.
-      recheck: () => requireRelayrBundleUnpaid(details.bundleUuid),
-    }),
-  };
+  await reviewPayment(details, account, action, safe);
+  const hash = await sendPayment(details, account, deps, {
+    intent,
+    // Relayr's own word too, whatever this browser kept of earlier payments.
+    recheck: () => requireRelayrBundleUnpaid(details.bundleUuid),
+    ...(action.onSending ? { onSending: action.onSending } : {}),
+    ...(action.onSent ? { onSent: action.onSent } : {}),
+    safe,
+  });
+  return safe ? { safeTxHash: hash } : { hash };
 }
 
 /**

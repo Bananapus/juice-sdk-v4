@@ -240,16 +240,39 @@ function heldStep(
 ): boolean {
   return record.calls.some((call, step) => {
     if (step < record.completed.length) return false;
-    const namespaces = [call.intent, ...(call.legacy ?? [])];
+    const legacy = call.legacy ?? [];
+    const namespaces = [
+      call.intent,
+      ...legacy.filter((source) => typeof source === "string"),
+    ];
+    const exact = [
+      call,
+      ...legacy.flatMap((source) =>
+        typeof source === "object" && "call" in source ? [source.call] : [],
+      ),
+    ];
+    const matches = legacy.flatMap((source) =>
+      typeof source === "object" && "match" in source ? [source.match] : [],
+    );
+    const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
     return listReviewedWrites(
       { chainId: call.chainId, account: record.account },
       { storage },
     ).some(
       ({ record: held }) =>
         (held.namespace !== undefined && namespaces.includes(held.namespace)) ||
-        (held.call.to.toLowerCase() === call.to.toLowerCase() &&
-          held.call.data.toLowerCase() === call.data.toLowerCase() &&
-          held.call.value === String(call.value ?? 0n)),
+        exact.some(
+          (one) =>
+            same(held.call.to, one.to) &&
+            same(held.call.data, one.data) &&
+            held.call.value === String(one.value ?? 0n),
+        ) ||
+        (held.namespace === undefined &&
+          matches.some(
+            ({ to, selector }) =>
+              same(held.call.to, to) &&
+              same(held.call.data.slice(0, 10), selector),
+          )),
     );
   });
 }

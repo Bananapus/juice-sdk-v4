@@ -377,6 +377,48 @@ describe("reviewed sequences", () => {
       discardReviewedSequence(renamed.record, { storage: renamed.storage }),
     ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
 
+    // Or held under a legacy key the step names: a `{ match }` of its target
+    // and selector, or an older exact `{ call }`. Both journal as they are.
+    const match = {
+      match: { to: payCall().to, selector: payCall().data.slice(0, 10) as Hex },
+    };
+    const matched = await interrupted(
+      [approveCall(), payCall(9n, { intent: "pay:1", legacy: [match] })],
+      1,
+    );
+    matched.wallet.adapter.sendTransaction.mockRejectedValueOnce(timeout());
+    await expect(
+      sendReviewed(action([payCall(10n)]), matched.deps),
+    ).rejects.toThrow(timeout().message);
+    await expect(
+      discardReviewedSequence(matched.record, { storage: matched.storage }),
+    ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
+    // The hold refuses the step under that key too.
+    await expect(
+      sendReviewed(
+        action([payCall(13n, { intent: "pay:3", legacy: [match] })]),
+        matched.deps,
+      ),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    const older = payCall(11n);
+    const called = await interrupted(
+      [
+        approveCall(),
+        payCall(12n, {
+          intent: "pay:1",
+          legacy: [{ call: { to: older.to, data: older.data, value: 7n } }],
+        }),
+      ],
+      1,
+    );
+    called.wallet.adapter.sendTransaction.mockRejectedValueOnce(timeout());
+    await expect(sendReviewed(action([older]), called.deps)).rejects.toThrow(
+      timeout().message,
+    );
+    await expect(
+      discardReviewedSequence(called.record, { storage: called.storage }),
+    ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
+
     await discardReviewedSequence(record, { storage: other });
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage: other })).toBeNull();
     // A record another window moved on (or removed) is not discarded.

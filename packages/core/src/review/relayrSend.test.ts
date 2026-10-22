@@ -700,12 +700,12 @@ describe("payRelayrReviewed", () => {
     ).rejects.toThrow("no payment option");
     expect(prompts).toHaveLength(0);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
-    const { hash } = await payRelayrReviewed(
+    const { hash } = (await payRelayrReviewed(
       quoteFor(),
       10,
       { account: ACCOUNT },
       deps,
-    );
+    )) as { hash: Hex };
     expect(prompts).toHaveLength(1);
     expect(prompts[0].model.calls[0].functionName).toBe("prepayment");
     const [sent] = wallet.adapter.sendTransaction.mock.calls[0];
@@ -713,6 +713,56 @@ describe("payRelayrReviewed", () => {
     expect(sent.data.slice(0, 10)).toBe(RELAYR_PAYMENT_SELECTOR);
     expect(sent.value).toBe(500n);
     expect(hash).toMatch(/^0x/);
+  });
+
+  it("tells the site before the wallet opens and each hash after", async () => {
+    const { deps, wallet } = relayrSetup();
+    reviewUi();
+    const events: string[] = [];
+    const paid = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      {
+        account: ACCOUNT,
+        onSending: async () => {
+          expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+          events.push("sending");
+        },
+        onSent: async (hash) => {
+          events.push(hash);
+        },
+      },
+      deps,
+    );
+    expect(events).toEqual(["sending", (paid as { hash: Hex }).hash]);
+  });
+
+  it("lets a Safe pay: its proposal, with no gas the Safe could spend on a failure", async () => {
+    const { deps, wallet, chain } = relayrSetup();
+    wallet.state.safe = true;
+    const prompts = reviewUi();
+    const sent: Hex[] = [];
+    const paid = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      { account: ACCOUNT, onSent: async (hash) => void sent.push(hash) },
+      deps,
+    );
+    const proposal = `0x${"1".padStart(64, "0")}`;
+    expect(paid).toEqual({ safeTxHash: proposal });
+    expect(sent).toEqual([proposal]);
+    expect(prompts[0].model.calls[0]).toMatchObject({
+      safeTxGas: 0n,
+      gas: null,
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ to: RELAYR_PAYMENT_ADDRESS, gas: 0n }),
+    );
+    // A proposal is not mined here: its hold follows it to the Safe's execution.
+    expect(chain.client.waitForTransactionReceipt).not.toHaveBeenCalled();
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).rejects.toBeInstanceOf(WriteHeldError);
   });
 
   it("refuses a payment contract whose code is not Relayr's, before the wallet", async () => {
@@ -765,12 +815,12 @@ describe("payRelayrReviewed", () => {
       chain.mine(replacement, tx);
       return original({ hash: replacement });
     }) as typeof original;
-    const { hash } = await payRelayrReviewed(
+    const { hash } = (await payRelayrReviewed(
       quoteFor(),
       10,
       { account: ACCOUNT },
       deps,
-    );
+    )) as { hash: Hex };
     expect(hash).toBe(replacement);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });

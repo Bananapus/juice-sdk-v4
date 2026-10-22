@@ -9,6 +9,7 @@ import {
 import { promptReview, type ReviewSimulation } from "./confirm.js";
 import {
   isDefiniteWalletRejection,
+  SubmittedContractWriteError,
   submitReviewedContractWrite,
   type ReviewedWritePhase,
 } from "./contractWrite.js";
@@ -57,6 +58,7 @@ import {
   WriteHeldError,
   WriteHoldStaleReviewError,
   type WriteHold,
+  type WriteHoldLegacySource,
 } from "./writeHold.js";
 import {
   createHeldWriteStorage,
@@ -76,14 +78,16 @@ export type ReviewedCall = {
   contractName?: string;
   /** The hold namespace, as `useSafeTx`'s `TxSendOptions` today. */
   intent?: string;
-  legacy?: readonly string[];
+  /** The keys an earlier version held this write under, as the hold's `open` takes them. */
+  legacy?: readonly WriteHoldLegacySource[];
   /** Simulate on the previous step's receipt block. */
   dependsOnPrior?: boolean;
   /**
-   * Simulate on this block, where a prerequisite confirmed outside this run
-   * (an earlier approval, say) took effect. Used where the call is simulated
-   * alone and not on a prior step's block; a resumed run simulates on the
-   * latest block.
+   * The block where a prerequisite confirmed outside this run (an earlier
+   * approval, say) took effect: the call is simulated on the latest block,
+   * or on this one while the node has not reached it. Used where the call
+   * is simulated alone and not on a prior step's block; a resumed run
+   * simulates on the latest block.
    */
   simulationBlockNumber?: bigint;
 };
@@ -107,18 +111,28 @@ export type ReviewedAction = {
   /** Refuses the action, before anything else (view-as, say). */
   guard?: () => void;
   /**
-   * The site's own check of a step at the wallet boundary: after its hold
-   * reserved it (and its journal saved it), right before the wallet opens.
-   * It throws to stop with nothing sent, which releases the step.
+   * A site's own record of a step at the wallet boundary, awaited: after its
+   * hold reserved it (and its journal saved it), right before the wallet
+   * opens. It throws to stop with nothing sent, which releases the step.
+   * `step` is the index in the whole action.
    */
-  beforeWrite?: (call: ReviewedCall, step: number) => void | Promise<void>;
-  /** Nothing was sent for a step whose `beforeWrite` began: a gate refused, it threw, or the wallet rejected (4001). */
-  onReleased?: (call: ReviewedCall, step: number) => void;
-  /** The wallet returned a step's hash (a Safe app's proposal hash). A throw keeps the step pending. */
+  beforeWallet?: (call: ReviewedCall, step: number) => void | Promise<void>;
+  /**
+   * Awaited when nothing was sent for a step whose `beforeWallet` began: a
+   * gate refused, `beforeWallet` threw, or the wallet rejected (4001). Never
+   * after an ambiguous failure.
+   */
+  onUnsent?: (call: ReviewedCall, step: number) => void | Promise<void>;
+  /**
+   * Awaited once the wallet returned a step's hash, before its receipt is
+   * awaited: a Safe app's proposal hash (`safe`), or one its Safe already
+   * queued (`adopted`). A throw keeps the step pending, never unsent.
+   */
   onSubmitted?: (
     call: ReviewedCall,
     step: number,
     hash: Hex,
+    sent: { safe: boolean; adopted: boolean },
   ) => void | Promise<void>;
   /**
    * The site's key for this action (`payIntent(...)`, say). When set, the
@@ -265,6 +279,18 @@ function reverted(error: unknown): boolean {
 }
 
 /**
+ * The latest block, or `minimum` while the node has not reached it: never
+ * state from before a prerequisite took effect, never stale state after it.
+ */
+async function notBefore(
+  client: PublicClient,
+  minimum: bigint,
+): Promise<bigint> {
+  const head = await client.getBlockNumber();
+  return head > minimum ? head : minimum;
+}
+
+/**
  * The review-time simulation of every call, per chain: a sequence through
  * {@link simulateCallSequence}, a lone call through
  * {@link simulateStateChangingTransaction}. A lone call that needs a step on
@@ -300,14 +326,15 @@ async function reviewSimulation(
           })),
         });
       } else if (!(calls[steps[0]].dependsOnPrior && steps[0] > 0)) {
+        const minimum = blocks[steps[0]];
         await simulateStateChangingTransaction(client, {
           from: account,
           to: sent[steps[0]].to,
           data: sent[steps[0]].data,
           value: sent[steps[0]].value,
-          ...(blocks[steps[0]] === undefined
+          ...(minimum === undefined
             ? {}
-            : { blockNumber: blocks[steps[0]] }),
+            : { blockNumber: await notBefore(client, minimum) }),
         });
       }
       return { status: "passed" };
@@ -425,8 +452,8 @@ export async function resumeReviewed(
     | "guard"
     | "context"
     | "title"
-    | "beforeWrite"
-    | "onReleased"
+    | "beforeWallet"
+    | "onUnsent"
     | "onSubmitted"
   >,
   deps: ReviewedSendDeps,
@@ -510,9 +537,9 @@ async function send(
     resuming ? undefined : call.simulationBlockNumber,
   );
   /** A site's release callback never stops core's own release. */
-  const tellReleased = (call: ReviewedCall, step: number) => {
+  const tellUnsent = async (call: ReviewedCall, step: number) => {
     try {
-      action.onReleased?.(call, step);
+      await action.onUnsent?.(call, step);
     } catch {
       /* The step is released whatever the site's callback does. */
     }
@@ -563,8 +590,13 @@ async function send(
     try {
       for (const [step, call] of calls.entries()) {
         began += 1;
-        await action.beforeWrite?.(call, step);
+        await action.beforeWallet?.(call, step);
       }
+      // The site's hooks may have awaited: the gates once more, right before the wallet.
+      action.guard?.();
+      action.assertWriteState?.();
+      if (adapter.account()?.toLowerCase() !== account.toLowerCase())
+        throw new Error(ACCOUNT_CHANGED);
       submitting = true;
       hash = await adapter.submitToReviewer({
         account,
@@ -573,11 +605,23 @@ async function send(
     } catch (error) {
       // Only the site's own refusal or an explicit rejection proves nothing was sent.
       if (!submitting || isDefiniteWalletRejection(error))
-        calls.slice(0, began).forEach(tellReleased);
+        for (const [step, call] of calls.slice(0, began).entries())
+          await tellUnsent(call, step);
       throw error;
     }
+    // Every step is told; a site's failure to record it never reads as unsent.
+    const failures: unknown[] = [];
     for (const [step, call] of calls.entries())
-      await action.onSubmitted?.(call, step, hash);
+      try {
+        await action.onSubmitted?.(call, step, hash, {
+          safe: false,
+          adopted: false,
+        });
+      } catch (error) {
+        failures.push(error);
+      }
+    if (failures.length)
+      throw new SubmittedContractWriteError(hash, failures[0]);
     return { status: "done", hashes: [hash], receipts: [] };
   }
 
@@ -709,12 +753,12 @@ async function send(
     };
     const client = clientFor(reviewed.chainId);
     const prior = receipts[step - 1];
-    const blockNumber =
+    const priorBlock =
       call.dependsOnPrior &&
       prior &&
       sent[step - 1].chainId === reviewed.chainId
         ? prior.blockNumber
-        : blocks[step];
+        : undefined;
     /** The reservation this step's send took. */
     let reserved: string | undefined;
     /** A proposal of exactly this call its Safe already queued, sent in its place. */
@@ -733,7 +777,7 @@ async function send(
           delete journal.sending;
           await keep();
         }
-        tellReleased(call, at);
+        await tellUnsent(call, at);
       };
       return submitReviewedContractWrite({
         request: reviewed,
@@ -749,6 +793,11 @@ async function send(
           unchanged();
         },
         simulate: async (sending) => {
+          const blockNumber =
+            priorBlock ??
+            (blocks[step] === undefined
+              ? undefined
+              : await notBefore(client, blocks[step]));
           const tx = {
             to: sending.to,
             data: sending.data,
@@ -800,7 +849,7 @@ async function send(
               throw error;
             }
           try {
-            await action.beforeWrite?.(call, at);
+            await action.beforeWallet?.(call, at);
           } catch (error) {
             await released();
             throw error;
@@ -829,7 +878,10 @@ async function send(
         // An adopted proposal's nonce lets the hold prove its execution onchain.
         onWriteSubmitted: async (submitted) => {
           gate.afterSubmit(submitted, queued?.tx);
-          await action.onSubmitted?.(call, at, submitted);
+          await action.onSubmitted?.(call, at, submitted, {
+            safe,
+            adopted: !!queued,
+          });
         },
         write: async ({ chainId, to, data, value, gas }) =>
           queued?.proposalHash ??
