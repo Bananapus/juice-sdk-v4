@@ -318,7 +318,7 @@ const budgets = {
     // An app's exact gas, the wallet's ready, Safe adoption by declared
     // args, the revert receipt, settled runs and the run's failure add no
     // files; ReviewLineError in a module of its own (8 artifacts):
-    // 1,738,440 B packed, 23,863,035 B unpacked, 1,819 files.
+    // 1,740,168 B packed, 23,871,412 B unpacked, 1,819 files.
     packed: 1_745_000,
     unpacked: 23_900_000,
     entries: 1_819,

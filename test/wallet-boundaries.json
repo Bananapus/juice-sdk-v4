@@ -94,14 +94,14 @@
     },
     {
       "file": "packages/core/src/review/sign.ts",
-      "line": 384,
+      "line": 383,
       "api": "signTypedData",
       "boundary": "signPrepared hands the WalletAdapter typed data core built from its own Safe, forwarder and Permit2 constants, inside submitReviewedContractWrite's account and chain checks, only after core's own confirmation for the model that shows that exact typed data.",
       "test": "packages/core/src/review/sign.test.ts"
     },
     {
       "file": "packages/core/src/review/sign.ts",
-      "line": 385,
+      "line": 384,
       "api": "signMessage",
       "boundary": "signPrepared hands the WalletAdapter the exact message text the confirmed model shows, inside submitReviewedContractWrite's account check, only after core's own confirmation.",
       "test": "packages/core/src/review/sign.test.ts"
