@@ -1,14 +1,44 @@
+#!/usr/bin/env node
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
 import { relative, resolve } from "node:path";
-import ts from "typescript";
 
-const productionRoots = [
-  resolve("packages/core/src"),
-  resolve("packages/react/src"),
-  resolve("packages/connect/src"),
-];
-const inventoryPath = resolve("test/wallet-boundaries.json");
-const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
+const require = createRequire(resolve("package.json"));
+let ts;
+try {
+  ts = require("typescript");
+} catch {
+  process.stderr.write(
+    "nana-wallet-check needs typescript (>=5.4) installed in the project it runs from.\n",
+  );
+  process.exit(1);
+}
+
+const usage =
+  "Usage: nana-wallet-check --root <dir>... --inventory <json> [--forbid-import <spec>]...";
+const productionRoots = [];
+const forbiddenImports = [];
+let inventoryArg;
+const args = process.argv.slice(2);
+for (let index = 0; index < args.length; index += 2) {
+  const value = args[index + 1];
+  if (value === undefined || value.startsWith("--")) {
+    process.stderr.write(`${usage}\n`);
+    process.exit(1);
+  }
+  if (args[index] === "--root") productionRoots.push(resolve(value));
+  else if (args[index] === "--forbid-import") forbiddenImports.push(value);
+  else if (args[index] === "--inventory") inventoryArg = value;
+  else {
+    process.stderr.write(`${usage}\n`);
+    process.exit(1);
+  }
+}
+if (productionRoots.length === 0 || !inventoryArg) {
+  process.stderr.write(`${usage}\n`);
+  process.exit(1);
+}
+const inventory = JSON.parse(readFileSync(resolve(inventoryArg), "utf8"));
 
 const directApis = new Set([
   "sendCalls",
@@ -38,6 +68,7 @@ const directApis = new Set([
   "writeContractsAsync",
 ]);
 const memberApis = new Set([...directApis, "request"]);
+const selfReviewingApis = new Set(["selfReviewingAdapter", "signaWalletAdapter"]);
 const signingRpcMethods = new Set([
   "eth_sendTransaction",
   "eth_sendRawTransaction",
@@ -52,7 +83,9 @@ const signingRpcMethods = new Set([
 ]);
 
 function invariant(condition, message) {
-  if (!condition) throw new Error(message);
+  if (condition) return;
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
 }
 
 function productionFiles(directory) {
@@ -86,6 +119,8 @@ function apiOf(call, aliases) {
 }
 
 const discovered = [];
+const forbidden = [];
+const selfReviewing = new Set(inventory.selfReviewing ?? []);
 for (const filePath of productionRoots.flatMap(productionFiles)) {
   const sourceText = readFileSync(filePath, "utf8");
   const source = ts.createSourceFile(
@@ -103,7 +138,12 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
     if (!bindings || !ts.isNamedImports(bindings)) continue;
     for (const specifier of bindings.elements) {
       const imported = (specifier.propertyName ?? specifier.name).text;
-      if (directApis.has(imported)) aliases.set(specifier.name.text, imported);
+      if (
+        directApis.has(imported) ||
+        selfReviewingApis.has(imported) ||
+        imported === "registerTransactionReviewHandler"
+      )
+        aliases.set(specifier.name.text, imported);
     }
   }
 
@@ -129,8 +169,51 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
   }
   collectAliases(source);
 
+  const here = relative(resolve("."), filePath);
+  function lineOf(node) {
+    return source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+  }
   function visit(node) {
+    if (
+      ts.isIdentifier(node) &&
+      node.text === "reviewedInParent" &&
+      !ts.isImportSpecifier(node.parent)
+    ) {
+      discovered.push({ file: here, line: lineOf(node), api: node.text });
+    }
+    const specifier =
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+        ? node.moduleSpecifier
+        : ts.isCallExpression(node) &&
+            (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+              (ts.isIdentifier(node.expression) &&
+                node.expression.text === "require")) &&
+            node.arguments[0] &&
+            ts.isStringLiteralLike(node.arguments[0])
+          ? node.arguments[0]
+          : null;
+    if (
+      specifier &&
+      forbiddenImports.some(
+        (spec) => specifier.text === spec || specifier.text.startsWith(`${spec}/`),
+      )
+    ) {
+      forbidden.push(`${here}:${lineOf(specifier)}:import ${specifier.text}`);
+    }
     if (ts.isCallExpression(node)) {
+      const callee = ts.isIdentifier(node.expression)
+        ? aliases.get(node.expression.text) ?? node.expression.text
+        : ts.isPropertyAccessExpression(node.expression)
+          ? node.expression.name.text
+          : null;
+      if (callee === "registerTransactionReviewHandler") {
+        discovered.push({ file: here, line: lineOf(node), api: callee });
+      }
+      if (selfReviewingApis.has(callee) && !selfReviewing.has(here)) {
+        forbidden.push(`${here}:${lineOf(node)}:${callee} outside selfReviewing`);
+      }
       const api = apiOf(node, aliases);
       if (api) {
         const { line } = source.getLineAndCharacterOfPosition(
@@ -197,6 +280,17 @@ for (const site of inventory.sites) {
 const discoveredKeys = new Set(discovered.map(siteKey));
 const unreviewed = discovered.filter((site) => !reviewed.has(siteKey(site)));
 const stale = [...reviewed.keys()].filter((key) => !discoveredKeys.has(key));
+invariant(
+  Array.isArray(inventory.selfReviewing ?? []) &&
+    [...selfReviewing].every(
+      (file) => typeof file === "string" && existsSync(resolve(file)),
+    ),
+  "Wallet inventory selfReviewing must list existing files",
+);
+invariant(
+  forbidden.length === 0,
+  `Forbidden wallet boundary uses:\n${forbidden.map((line) => `- ${line}`).join("\n")}`,
+);
 invariant(
   unreviewed.length === 0,
   `Unreviewed wallet boundary sites:\n${unreviewed.map((site) => `- ${siteKey(site)}`).join("\n")}`,

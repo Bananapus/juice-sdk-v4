@@ -305,9 +305,10 @@ const budgets = {
     // 1,673,734 B packed, 23,530,747 B unpacked, 1,794 files.
     // Reviewed Relayr signing, payment and polling in a module of its own
     // (8 artifacts): 1,698,247 B packed, 23,665,143 B unpacked, 1,802 files.
-    packed: 1_700_000,
-    unpacked: 23_670_000,
-    entries: 1_802,
+    // The nana-wallet-check bin (one file; its test is not packed).
+    packed: 1_705_000,
+    unpacked: 23_690_000,
+    entries: 1_803,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

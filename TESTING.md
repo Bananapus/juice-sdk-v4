@@ -106,8 +106,17 @@ regeneration and protocol parity gate it directly.
 
 ## Wallet boundary inventory
 
-`scripts/check-wallet-boundaries.mjs` parses all production TypeScript and TSX
-in both packages. It inventories wagmi/viem hooks and raw signing, transaction,
+`packages/core/bin/wallet-check.mjs`, published as the `nana-wallet-check` bin of
+`@bananapus/nana-sdk-core`, parses all production TypeScript and TSX under each
+`--root`; `npm run wallet:check` passes the core, react and connect sources and
+`test/wallet-boundaries.json`. Clients run the same bin as a gate with their own
+roots and inventory (it resolves `typescript` from the working directory, so
+the client needs it installed). It exits 1 on an unreviewed or stale site, on
+the identifier `reviewedInParent` or a `registerTransactionReviewHandler` call
+without an inventory row, on a `selfReviewingAdapter` or `signaWalletAdapter`
+call outside the files the inventory lists under `selfReviewing`, and on an
+import (static, dynamic or `require`) of a `--forbid-import` specifier or a path
+under it; clients pass `@bananapus/nana-sdk-react`. It inventories wagmi/viem hooks and raw signing, transaction,
 contract-write, batched-call, wallet-client, and wallet `request` calls. The
 current surface contains seven reviewed sites. Four are wallet sites: hook
 creation and execution for Relayr EIP-712 signing, and hook creation and
