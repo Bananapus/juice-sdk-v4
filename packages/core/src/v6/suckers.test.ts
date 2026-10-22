@@ -24,6 +24,8 @@ import {
   classifySuckerTransport,
   findSuckerTransportValue,
   getAllV6SuckerPairs,
+  getRegisteredSucker,
+  UnverifiedSuckerError,
   getSuckerMovements,
   relativeSuckerDrift,
   suckerAccountingContextKey,
@@ -589,5 +591,103 @@ describe("suckers", () => {
     ).resolves.toEqual([
       { local: sucker, remote: beneficiary, remoteChainId: 10n },
     ]);
+  });
+
+  describe("getRegisteredSucker", () => {
+    const registered = "0x00000000000000000000000000000000000000Aa" as const;
+    const registry = (
+      peerChainId: bigint,
+      suckers: readonly `0x${string}`[] = [registered],
+    ) => {
+      const readContract = vi.fn(
+        async ({
+          address,
+          functionName,
+          args,
+        }: {
+          address: string;
+          functionName: string;
+          args?: readonly unknown[];
+        }) => {
+          if (functionName === "allSuckersOf") {
+            expect(address).toBe(v6Address("JBSuckerRegistry", 11155111));
+            expect(args).toEqual([4n]);
+            return suckers;
+          }
+          if (functionName === "peerChainId") {
+            expect(address).toBe(registered);
+            return peerChainId;
+          }
+          throw new Error(`unexpected read ${functionName}`);
+        },
+      );
+      return {
+        readContract,
+        client: { readContract } as unknown as PublicClient,
+      };
+    };
+
+    test("returns the registry's address for a listed sucker toward the destination", async () => {
+      const { client } = registry(10n);
+      await expect(
+        getRegisteredSucker(client, {
+          chainId: 11155111,
+          projectId: 4n,
+          remoteChainId: 10,
+          sucker: "0x00000000000000000000000000000000000000AA",
+        }),
+      ).resolves.toBe(registered);
+    });
+
+    test("refuses an address the registry does not list for the project", async () => {
+      const { client, readContract } = registry(10n);
+      const error = await getRegisteredSucker(client, {
+        chainId: 11155111,
+        projectId: 4n,
+        remoteChainId: 10,
+        sucker: "0x00000000000000000000000000000000000000bb",
+      }).catch((caught) => caught);
+      expect(error).toBeInstanceOf(UnverifiedSuckerError);
+      expect(error).toMatchObject({
+        code: "SUCKER_UNVERIFIED",
+        reason: "unregistered",
+      });
+      expect(readContract).toHaveBeenCalledTimes(1);
+    });
+
+    test("refuses a listed sucker that bridges to another chain", async () => {
+      const { client } = registry(8453n);
+      await expect(
+        getRegisteredSucker(client, {
+          chainId: 11155111,
+          projectId: 4n,
+          remoteChainId: 10,
+          sucker: registered,
+        }),
+      ).rejects.toMatchObject({
+        name: "UnverifiedSuckerError",
+        reason: "unregistered",
+      });
+    });
+
+    test("fails closed when the registry can't be read", async () => {
+      const failure = new Error("rpc down");
+      const client = {
+        readContract: vi.fn(async () => {
+          throw failure;
+        }),
+      } as unknown as PublicClient;
+      const error = await getRegisteredSucker(client, {
+        chainId: 11155111,
+        projectId: 4n,
+        remoteChainId: 10,
+        sucker: registered,
+      }).catch((caught) => caught);
+      expect(error).toBeInstanceOf(UnverifiedSuckerError);
+      expect(error).toMatchObject({ reason: "unreadable", cause: failure });
+      expect(error.message).toBe(
+        "Couldn't confirm this bridge belongs to the project onchain.",
+      );
+    });
   });
 });
