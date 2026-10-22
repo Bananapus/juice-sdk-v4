@@ -304,7 +304,7 @@ const budgets = {
     // A Safe execTransaction settled by the Safe's own event:
     // 1,673,734 B packed, 23,530,747 B unpacked, 1,794 files.
     // Reviewed Relayr signing, payment and polling in a module of its own
-    // (8 artifacts): 1,698,092 B packed, 23,664,539 B unpacked, 1,802 files.
+    // (8 artifacts): 1,698,247 B packed, 23,665,143 B unpacked, 1,802 files.
     packed: 1_700_000,
     unpacked: 23_670_000,
     entries: 1_802,

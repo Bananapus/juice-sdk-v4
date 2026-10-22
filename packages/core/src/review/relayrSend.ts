@@ -42,6 +42,7 @@ import {
   relayrStateIsFailed,
   relayrStateIsSuccess,
   relayrSupportsChains,
+  requireRelayrBundleUnpaid,
   requireRelayrPaymentRuntime,
   requireRelayrRetry,
   sentRelayrPayment,
@@ -777,7 +778,13 @@ export async function payRelayrReviewed(
   };
   requireIntentClear(deps, account, intent);
   await reviewPayment(details, account, action);
-  return { hash: await sendPayment(details, account, deps, { intent }) };
+  return {
+    hash: await sendPayment(details, account, deps, {
+      intent,
+      // Relayr's own word too, whatever this browser kept of earlier payments.
+      recheck: () => requireRelayrBundleUnpaid(details.bundleUuid),
+    }),
+  };
 }
 
 /**

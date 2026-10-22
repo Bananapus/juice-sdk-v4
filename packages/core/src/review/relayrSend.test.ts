@@ -572,6 +572,35 @@ describe("payRelayrReviewed", () => {
     };
   };
 
+  /** Relayr reports each bundle unpaid, unless `paid`. */
+  const relayrBundle = (paid = false) =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json(
+          {
+            bundle_uuid: UUIDS[0],
+            payment_received: paid,
+            transactions: [
+              { tx_uuid: TX_UUIDS[0], status: { state: "Pending" } },
+            ],
+          },
+          200,
+        ),
+      ),
+    );
+  beforeEach(() => relayrBundle());
+
+  it("refuses a bundle Relayr reports paid, before the wallet", async () => {
+    const { deps, wallet } = relayrSetup();
+    relayrBundle(true);
+    reviewUi();
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).rejects.toMatchObject({ reason: "paid" });
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
   it("payment target and selector are pinned", async () => {
     const { deps, wallet } = relayrSetup();
     const prompts = reviewUi();
