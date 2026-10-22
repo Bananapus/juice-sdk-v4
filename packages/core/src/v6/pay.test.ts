@@ -1722,6 +1722,45 @@ describe("prepareUserPay", () => {
       expect(prepared.quoteFailed).toBe(true);
     });
 
+    test("a read the first attempt left in flight doesn't refuse the retry", async () => {
+      const tokenA = "0x00000000000000000000000000000000000000a1" as Address;
+      const tokenB = "0x00000000000000000000000000000000000000b1" as Address;
+      const otherKey = { ...nativeKey, fee: 3_000 };
+      const later = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
+      let paidReads = 0;
+      const { client } = mockClient({
+        spec: swapSpec({ amountToSwapWith: 1n << 128n }),
+        contextTokens: [NATIVE_TOKEN as Address, tokenA, tokenB],
+      });
+      const readContract = client.readContract;
+      const prepared = await prepareUserPay(
+        {
+          ...client,
+          readContract: async (request: {
+            functionName: string;
+            args: [bigint, Address];
+          }) => {
+            if (request.functionName !== "poolKeyOf") {
+              return readContract(request as never);
+            }
+            const [, keyedTo] = request.args;
+            if (keyedTo === tokenA) throw new Error("request timed out");
+            if (keyedTo === tokenB) {
+              await later(20);
+              throw new Error("request timed out");
+            }
+            if (paidReads++ === 0) return otherKey;
+            await later(40);
+            return nativeKey;
+          },
+        } as never,
+        args,
+      );
+      expect(prepared.minReturnedTokens).toBe(47n);
+      expect(prepared.quoteFailed).toBe(true);
+    });
+
     test("keeps a pay the hook would mint unchanged when its quote fails", async () => {
       const { client } = mockClient({
         spec: tinySpec,

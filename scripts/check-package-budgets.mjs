@@ -307,7 +307,7 @@ const budgets = {
     // (8 artifacts): 1,698,247 B packed, 23,665,143 B unpacked, 1,802 files.
     // The nana-wallet-check bin (one file; its test is not packed).
     // getRegisteredSucker and the pay swap-quote refusal, no files:
-    // 1,706,723 B packed, 23,702,921 B unpacked, 1,803 files.
+    // 1,706,925 B packed, 23,703,923 B unpacked, 1,803 files.
     packed: 1_712_000,
     unpacked: 23_760_000,
     entries: 1_803,
@@ -349,7 +349,7 @@ const entryBudgets = [
   // conversion and previewing its destination (router reads, V3 quoter,
   // accounting contexts): 11,553 B. The quote's retry and the router's
   // quoted mint minimum: 12,018 B. Refusing a swap whose quote failed:
-  // 12,497 B.
+  // 12,543 B.
   ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 12_700],
   ["@bananapus/nana-sdk-core/v6/fee-buyback", "feeBuybackOptions", 3_300],
   // With every version's address table: 10,488 B. With the v6 table only:

@@ -1081,59 +1081,63 @@ export async function prepareUserPay(
     }
     return fallback;
   };
-  // Reads on a swap route go through `watched`, which records one that
-  // fails, comes back empty or resolves to nothing, so a lost read is told
-  // apart from a route that does not apply (no quoter, an amount out of range).
-  let readFailed = false;
-  const lost = (error: unknown): never => {
-    readFailed = true;
-    throw error;
+  // Reads on a swap route go through a watched client, one per attempt, that
+  // records a read that fails, comes back empty or resolves to nothing, so a
+  // lost read is told apart from a route that does not apply (no quoter, an
+  // amount out of range).
+  const watch = () => {
+    const attempt = { readFailed: false };
+    const lost = (error: unknown): never => {
+      attempt.readFailed = true;
+      throw error;
+    };
+    const reads = (
+      !swaps
+        ? client
+        : {
+            ...client,
+            async readContract(parameters: unknown) {
+              let result: unknown;
+              try {
+                result = await client.readContract(parameters as never);
+              } catch (error) {
+                lost(error);
+              }
+              return result ?? lost(new Error("The read returned nothing."));
+            },
+            async call(parameters: unknown) {
+              let result: Awaited<ReturnType<PublicClient["call"]>> | undefined;
+              try {
+                result = await client.call(parameters as never);
+              } catch (error) {
+                lost(error);
+              }
+              if (!result?.data) attempt.readFailed = true;
+              return result;
+            },
+          }
+    ) as PublicClient;
+    return { attempt, reads };
   };
-  const watched = (
-    !swaps
-      ? client
-      : {
-          ...client,
-          async readContract(parameters: unknown) {
-            let result: unknown;
-            try {
-              result = await client.readContract(parameters as never);
-            } catch (error) {
-              lost(error);
-            }
-            return result ?? lost(new Error("The read returned nothing."));
-          },
-          async call(parameters: unknown) {
-            let result: Awaited<ReturnType<PublicClient["call"]>> | undefined;
-            try {
-              result = await client.call(parameters as never);
-            } catch (error) {
-              lost(error);
-            }
-            if (!result?.data) readFailed = true;
-            return result;
-          },
-        }
-  ) as PublicClient;
   // A failed read is retried once: a dropped request must not silently weaken
   // the minimum.
   const withRetry = async (
-    prepare: () => Promise<PreparedUserPay>,
+    prepare: (reads: PublicClient) => Promise<PreparedUserPay>,
   ): Promise<PreparedUserPay> => {
     try {
-      readFailed = false;
-      return await prepare();
+      return await prepare(watch().reads);
     } catch {
+      const { attempt, reads } = watch();
       try {
-        readFailed = false;
-        return await prepare();
+        return await prepare(reads);
       } catch (error) {
         if (error instanceof PaySwapQuoteFailedError) throw error;
         // Only this module's own plain errors mean the route does not apply;
         // viem's errors and malformed answers (a TypeError) are failed reads.
         if (
           swaps &&
-          (readFailed || Object.getPrototypeOf(error) !== Error.prototype)
+          (attempt.readFailed ||
+            Object.getPrototypeOf(error) !== Error.prototype)
         ) {
           throw new PaySwapQuoteFailedError(error);
         }
@@ -1195,7 +1199,7 @@ export async function prepareUserPay(
   }
   if (!buyback || buyback.amountToSwapWith === 0n) return fallback;
 
-  return withRetry(async () => {
+  return withRetry(async (watched) => {
     const pool = await buybackPoolOf(watched, {
       chainId,
       hook: buyback.hook,
