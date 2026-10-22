@@ -11,6 +11,7 @@ import {
   requestTransactionReview,
   TransactionReviewCancelledError,
 } from "./reviewQueue.js";
+import type { ReviewContextRow } from "./model.js";
 
 export type { FundingChainOption } from "./reviewQueue.js";
 export {
@@ -60,6 +61,8 @@ export type TransactionReviewRequest = {
   kind?: "transaction" | "authorization";
   /** Exact typed data committed by a Safe/relayer signature, when applicable. */
   authorization?: unknown;
+  /** The site's summary rows, shown first. Display only: never part of a call. */
+  context?: readonly ReviewContextRow[];
 };
 
 export type ContractTransactionReviewCall = {
@@ -177,11 +180,12 @@ export function transactionReviewJson(
       ? { authorization: request.authorization, resultingCall: calls }
       : { authorization: request.authorization }
     : calls;
-  return JSON.stringify(
-    payload,
-    (_, value) => (typeof value === "bigint" ? value.toString() : value),
-    2,
-  );
+  return JSON.stringify(payload, bigintAsString, 2);
+}
+
+/** A JSON.stringify replacer that writes each bigint as its decimal string. */
+export function bigintAsString(_: string, value: unknown): unknown {
+  return typeof value === "bigint" ? value.toString() : value;
 }
 
 /** A website/-style prompt which keeps the exact reviewed RPC call intact. */

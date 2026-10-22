@@ -136,6 +136,7 @@ describe("published core SDK surfaces", () => {
       "nativeValue",
       "readableValue",
       "reviewDescription",
+      "unixTime",
     ]);
     for (const name of Object.keys(reviewDecode)) {
       expect(review).not.toHaveProperty(name);

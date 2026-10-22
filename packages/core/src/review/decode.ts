@@ -525,7 +525,7 @@ function payer(payerIsUser: boolean): string {
  * value past the last date JavaScript can show (a max uint48, say) keeps its
  * raw value and says so.
  */
-function unixTime(seconds: bigint | number): string {
+export function unixTime(seconds: bigint | number): string {
   const value = BigInt(seconds);
   if (value > 8_640_000_000_000n) return `${value} (after year 275760)`;
   const time = new Date(Number(value) * 1000).toISOString();
