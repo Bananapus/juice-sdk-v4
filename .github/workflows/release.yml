@@ -52,7 +52,7 @@ jobs:
           cache: "npm"
 
       - name: Verify the bundled npm release
-        run: test "$(npm --version)" = "10.9.8"
+        run: test "$(npm --version)" = "10.9.9"
 
       - name: Install Dependencies
         run: npm ci

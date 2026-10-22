@@ -47,7 +47,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - name: Verify the bundled npm release
-        run: test "$(npm --version)" = "10.9.8"
+        run: test "$(npm --version)" = "10.9.9"
       - name: Install locked dependencies
         run: npm ci
       - name: Verify the published dependency graph
