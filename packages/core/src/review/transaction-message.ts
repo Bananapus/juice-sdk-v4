@@ -27,15 +27,28 @@ export function transactionMessage(message: string): string {
 export const NETWORK_ERROR_LINE =
   "The network returned an error. Check your wallet's activity before you try again.";
 
+/** The runtime's own error types: a failed fetch or chunk load, never the SDK's line. */
+const RUNTIME_ERRORS = new Set([
+  "TypeError",
+  "SyntaxError",
+  "RangeError",
+  "ReferenceError",
+  "ChunkLoadError",
+  "AbortError",
+  "TimeoutError",
+]);
+
 /**
- * The line to show for a thrown value: the SDK's own message, presented by
- * {@link transactionMessage}, or {@link NETWORK_ERROR_LINE} for a raw node,
- * RPC or wallet error (a viem error, a JSON-RPC code) and anything not an
- * Error. An EIP-1193 provider error (4xxx) keeps its message.
+ * The line to show for a thrown value: the SDK's own one-line message,
+ * presented by {@link transactionMessage}, or {@link NETWORK_ERROR_LINE} for
+ * anything else: a raw node, RPC or wallet error (a viem error, a JSON-RPC
+ * code), a runtime error (a failed fetch or chunk load), any text that
+ * names a URL or spans lines, and anything not an Error. An EIP-1193
+ * provider error (4xxx) keeps its message.
  */
 export function errorLine(error: unknown): string {
   if (!(error instanceof Error)) return NETWORK_ERROR_LINE;
-  const { code, shortMessage, details } = error as {
+  const { code, shortMessage, details, name, message } = error as Error & {
     code?: unknown;
     shortMessage?: unknown;
     details?: unknown;
@@ -43,8 +56,10 @@ export function errorLine(error: unknown): string {
   if (
     typeof shortMessage === "string" ||
     typeof details === "string" ||
-    (typeof code === "number" && (code < 4000 || code > 4999))
+    (typeof code === "number" && (code < 4000 || code > 4999)) ||
+    RUNTIME_ERRORS.has(name) ||
+    /:\/\/|\n/.test(message)
   )
     return NETWORK_ERROR_LINE;
-  return transactionMessage(error.message);
+  return transactionMessage(message);
 }

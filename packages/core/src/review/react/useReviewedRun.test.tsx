@@ -216,6 +216,14 @@ describe("useReviewedRun", () => {
       run({ ...action, calls: [approveCall(), payCall(9n)] }),
     ).resolves.toMatchObject({ status: "failed" });
     expect(seen.current!.error).toBe(REVIEWED_SEQUENCE_UNFINISHED_LINE);
+    // Nor are the same calls at another exact gas.
+    await expect(
+      run({
+        ...action,
+        calls: [approveCall(), payCall(5n, { gas: 100_000n })],
+      }),
+    ).resolves.toMatchObject({ status: "failed" });
+    expect(seen.current!.error).toBe(REVIEWED_SEQUENCE_UNFINISHED_LINE);
     expect(prompts).toHaveLength(1);
   });
 
@@ -389,6 +397,24 @@ describe("useReviewedRun", () => {
       failure: raw,
     });
     expect(seen.current!.error).toBe(NETWORK_ERROR_LINE);
+  });
+
+  test("never reads the Safe mode of a wallet that is not ready", async () => {
+    const prompts = reviewUi();
+    const { wallet, deps } = setup();
+    const isSafe = vi.fn(() => false);
+    const adapter = {
+      ...wallet.adapter,
+      isSafe,
+      ready: () => Promise.reject(new Error("peer")),
+    };
+    const { seen, run } = harness({ ...deps, adapter, account: ACCOUNT });
+    await expect(run({ calls: [payCall()] })).resolves.toMatchObject({
+      status: "failed",
+    });
+    expect(seen.current!.held).toBeNull();
+    expect(isSafe).not.toHaveBeenCalled();
+    expect(prompts).toHaveLength(0);
   });
 
   test("shows a Safe proposal's hash", async () => {

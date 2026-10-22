@@ -7,6 +7,7 @@ import {
   REVIEWED_ACCOUNT_CHANGED_LINE,
   settledLine,
   TransactionReviewCancelledError,
+  walletReady,
   type HeldWriteView,
   type ReviewedAction,
   type ReviewedCall,
@@ -115,11 +116,12 @@ const IDLE: RunState = {
 };
 
 /** The bytes a call sends, for comparing two actions. */
-const sent = ({ chainId, to, data, value }: ReviewedCall) => [
+const sent = ({ chainId, to, data, value, gas }: ReviewedCall) => [
   chainId,
   to.toLowerCase(),
   data.toLowerCase(),
   value ?? 0n,
+  gas ?? null,
 ];
 
 export const REVIEWED_RUN_SCOPE_LINE =
@@ -200,10 +202,13 @@ export function useReviewedRun(
       setState({ ...IDLE, phase: "review", total: action.calls.length });
       setWatched(null);
       /** The step a run that did not finish leaves held, if any. */
-      const follow = () => {
+      const follow = async () => {
         if (latest.current !== id || !deps?.account) return;
         try {
           const { account, adapter, hold, storage } = deps;
+          // Its Safe mode is read only once the wallet says it is known.
+          await walletReady(adapter);
+          if (latest.current !== id) return;
           const safe = adapter.isSafe();
           const saved = !action.scope
             ? null
@@ -279,7 +284,7 @@ export function useReviewedRun(
             step: saved.calls.length - 1,
             total: saved.calls.length,
           });
-        if (result.status === "proposed") follow();
+        if (result.status === "proposed") void follow();
         return result;
       } catch (error) {
         const cancelled =
@@ -287,7 +292,7 @@ export function useReviewedRun(
           isDefiniteWalletRejection(error);
         const line = cancelled ? null : errorLine(error);
         update({ ...IDLE, error: line, failure: cancelled ? null : error });
-        follow();
+        void follow();
         return line === null
           ? null
           : { status: "failed", error: line, failure: error };

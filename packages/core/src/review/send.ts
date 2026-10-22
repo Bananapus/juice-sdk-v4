@@ -572,6 +572,8 @@ async function send(
   if (!calls.length) throw new Error("There is no transaction to review.");
   const snapshots = calls.map(exact);
   const sent = snapshots.map(({ sent }) => sent);
+  /** Each step's normalizer, read once with its call. */
+  const normalizers = calls.map((call) => call.normalizeData);
   /** Each step's simulation block, read once; a resumed run's prerequisites are long confirmed. */
   const blocks = calls.map((call) =>
     resuming ? undefined : call.simulationBlockNumber,
@@ -795,6 +797,8 @@ async function send(
         throw new Error(CHANGED);
       }
       if (!sameCall(now, reviewed)) throw new Error(CHANGED);
+      // The normalizer that decides adoption is the one reviewed.
+      if (call.normalizeData !== normalizers[step]) throw new Error(CHANGED);
     };
     const client = clientFor(reviewed.chainId);
     const prior = receipts[step - 1];
@@ -869,7 +873,7 @@ async function send(
                   sending,
                   hold.safeService,
                   true,
-                  call.normalizeData,
+                  normalizers[step],
                 )
               : null,
           ]);
@@ -880,7 +884,8 @@ async function send(
           };
         },
         beforeWrite: async () => {
-          await gate.beforeSend();
+          // An adopted proposal is held as the call it runs.
+          await gate.beforeSend(queued?.call);
           reserved = handles[step].peek().reservation;
           if (journal)
             try {

@@ -241,6 +241,21 @@ describe("nana-wallet-check", () => {
       ["request"],
     ],
     [
+      "a computed key",
+      'provider.request({ method: "eth_call", ["method"]: next });',
+      ["request"],
+    ],
+    [
+      "a second method",
+      'provider.request({ method: "eth_call", "method": next });',
+      ["request"],
+    ],
+    [
+      "a numeric key",
+      'provider.request({ method: "eth_call", 1: next });',
+      ["request"],
+    ],
+    [
       "a request reached through call",
       'provider.request.call(provider, { method: "eth_call" });',
       ["request"],

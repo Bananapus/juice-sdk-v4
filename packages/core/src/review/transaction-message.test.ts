@@ -108,6 +108,14 @@ describe("errorLine", () => {
       ),
       "header not found",
       { code: -32000, message: "header not found" },
+      new TypeError(
+        "Failed to fetch dynamically imported module: https://node.example/key/chunk.js",
+      ),
+      Object.assign(new Error("Loading chunk 7 failed."), {
+        name: "ChunkLoadError",
+      }),
+      new Error("Request failed at https://node.example/key"),
+      new Error("Two\nlines"),
     ])
       expect(errorLine(raw)).toBe(NETWORK_ERROR_LINE);
   });

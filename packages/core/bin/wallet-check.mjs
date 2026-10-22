@@ -209,16 +209,25 @@ function requestMethodOf(call) {
   if (!first) return null;
   if (ts.isStringLiteralLike(first)) return first.text;
   if (!ts.isObjectLiteralExpression(first)) return null;
-  if (first.properties.some((property) => !ts.isPropertyAssignment(property)))
+  // Only plain, written-out keys: a spread, shorthand, accessor or computed
+  // key could name the method another way.
+  if (
+    first.properties.some(
+      (property) =>
+        !ts.isPropertyAssignment(property) ||
+        !(
+          ts.isIdentifier(property.name) ||
+          ts.isStringLiteralLike(property.name)
+        ),
+    )
+  )
     return null;
-  const method = first.properties.find(
-    (property) =>
-      (ts.isIdentifier(property.name) ||
-        ts.isStringLiteralLike(property.name)) &&
-      property.name.text === "method",
+  const methods = first.properties.filter(
+    (property) => property.name.text === "method",
   );
-  const value = method && unwrap(method.initializer);
-  return value && ts.isStringLiteralLike(value) ? value.text : null;
+  if (methods.length !== 1) return null;
+  const value = unwrap(methods[0].initializer);
+  return ts.isStringLiteralLike(value) ? value.text : null;
 }
 
 function apiOf(call, aliases) {
