@@ -36,6 +36,19 @@ describe("buildReviewModel", () => {
       calls: [{ ...call, data: `${call.data.slice(0, -2)}${lastByte}` as Hex }],
     };
     expect(buildReviewModel(changedData).id).not.toBe(id);
+    // The decoded calls the review shows inside a call are bound too.
+    const multiSend = requests.MultiSend;
+    const [batch] = multiSend.calls;
+    const multiSendId = buildReviewModel(multiSend).id;
+    for (const calls of [
+      [...batch.calls!].reverse(),
+      batch.calls!.slice(1),
+      [{ ...batch.calls![0], value: 1n }, batch.calls![1]],
+    ]) {
+      expect(
+        buildReviewModel({ ...multiSend, calls: [{ ...batch, calls }] }).id,
+      ).not.toBe(multiSendId);
+    }
     // The gas a wallet or Safe signs is part of what is sent.
     for (const changed of [{ gas: 1n }, { safeTxGas: 0n }]) {
       expect(
@@ -113,6 +126,15 @@ describe("buildReviewModel", () => {
         },
       }).id,
     ).toBe(model.id);
+
+    for (const unbindable of [new Number(1), new Date(0), Number.NaN]) {
+      expect(() =>
+        buildReviewModel({
+          ...request,
+          authorization: { message: { amount: unbindable } },
+        }),
+      ).toThrow(/cannot bind|only bind plain data/);
+    }
 
     authorization.message.amount = 6n;
     expect(model.authorization).toEqual({

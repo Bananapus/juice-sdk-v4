@@ -90,8 +90,8 @@ export type ReviewCallModel = {
 export type ReviewModel = {
   /**
    * keccak256 of the canonical JSON of the binding fields only: kind, each
-   * call's chainId, from, to, value, gas, safeTxGas and data, authorization,
-   * message and context. Enrichment, warnings and simulation are excluded and
+   * call's chainId, from, to, value, gas, safeTxGas and data (and the same for
+   * the decoded calls it shows inside), authorization, message and context. Enrichment, warnings and simulation are excluded and
    * may change after mint.
    */
   id: Hex;
@@ -269,12 +269,20 @@ function reviewCall(call: TransactionReviewCall): ReviewCallModel {
  * JSON-ready data with object keys sorted at every depth, so equal data
  * encodes alike, and a bigint tagged as `{ $bigint }` so it never encodes like
  * a string. A key that starts with `$` gains another, so no input can forge
- * the tag.
+ * the tag. Anything JSON would not keep exactly (a boxed primitive, a class
+ * instance, a non-finite number) throws rather than bind as something else.
  */
 function canonical(value: unknown): unknown {
   if (typeof value === "bigint") return { $bigint: value.toString() };
+  if (typeof value === "number" && !Number.isFinite(value)) {
+    throw new Error(`The review cannot bind the number ${value}.`);
+  }
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object") {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new Error("The review can only bind plain data.");
+    }
     return Object.fromEntries(
       Object.keys(value)
         .sort()
@@ -285,6 +293,20 @@ function canonical(value: unknown): unknown {
     );
   }
   return value;
+}
+
+/** What a call sends, and the decoded calls the review shows inside it. */
+function bindingCall(call: TransactionReviewCall): unknown {
+  return {
+    chainId: call.chainId,
+    from: call.from ?? null,
+    to: call.to,
+    value: call.value ?? 0n,
+    gas: call.gas ?? null,
+    safeTxGas: call.safeTxGas ?? null,
+    data: call.data,
+    calls: call.calls?.length ? call.calls.map(bindingCall) : null,
+  };
 }
 
 /**
@@ -309,15 +331,7 @@ export function buildReviewModel(
   const message = null;
   const binding = {
     kind,
-    calls: request.calls.map((call) => ({
-      chainId: call.chainId,
-      from: call.from ?? null,
-      to: call.to,
-      value: call.value ?? 0n,
-      gas: call.gas ?? null,
-      safeTxGas: call.safeTxGas ?? null,
-      data: call.data,
-    })),
+    calls: request.calls.map(bindingCall),
     authorization,
     message,
     context,
