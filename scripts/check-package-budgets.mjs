@@ -310,8 +310,9 @@ const budgets = {
     // 1,706,925 B packed, 23,703,923 B unpacked, 1,803 files.
     // The review fixture requests on /testing, a module of its own (8
     // artifacts), the raw run failure, queued Safe proposal reuse and the
-    // never-throwing review model: MEASURED.
-    packed: 1_720_000,
+    // never-throwing review model: 1,717,660 B packed, 23,767,039 B
+    // unpacked, 1,811 files.
+    packed: 1_722_000,
     unpacked: 23_810_000,
     entries: 1_811,
   },
