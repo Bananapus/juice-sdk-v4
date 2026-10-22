@@ -89,7 +89,7 @@
       "file": "packages/core/src/review/send.ts",
       "line": 968,
       "api": "sendTransaction",
-      "boundary": "sendReviewed hands one step's reviewed bytes, with the app's exact gas or else the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action. A Safe app whose Safe already queued that call (exact bytes, or the same target, value and operation with data its normalizer matches) returns that proposal's hash instead and opens no wallet.",
+      "boundary": "sendReviewed hands one step's reviewed bytes, with the app's exact gas or else the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action. A Safe app whose Safe already queued that call (exact bytes, or the same target, value, operation and function with every arg equal but those its adoptIgnoringArgs lists) returns that proposal's hash instead and opens no wallet.",
       "test": "packages/core/src/review/send.test.ts"
     },
     {

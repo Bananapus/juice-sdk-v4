@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./transaction-message.js";
 import {
   isAddress,
   toEventSelector,
@@ -222,7 +223,7 @@ export type WriteHeldState = Exclude<WriteHoldStateOf, { status: "clear" }> & {
 };
 
 /** A send was refused because the exact call is held; `state` says how. */
-export class WriteHeldError extends Error {
+export class WriteHeldError extends ReviewLineError {
   readonly name = "WriteHeldError";
   constructor(readonly state: WriteHeldState) {
     super(state.line);
@@ -230,7 +231,7 @@ export class WriteHeldError extends Error {
 }
 
 /** The account's nonce couldn't be read, so the wallet never opened. */
-export class WriteHoldNonceError extends Error {
+export class WriteHoldNonceError extends ReviewLineError {
   readonly name = "WriteHoldNonceError";
   constructor(readonly cause: unknown) {
     super(WRITE_HOLD_NONCE_LINE);
@@ -242,7 +243,7 @@ export class WriteHoldNonceError extends Error {
  * reserved, and maybe settled (`settled`), while it was open. Review again;
  * the next review sends normally.
  */
-export class WriteHoldStaleReviewError extends Error {
+export class WriteHoldStaleReviewError extends ReviewLineError {
   readonly name = "WriteHoldStaleReviewError";
   constructor(readonly settled?: WriteHoldSettled) {
     super(WRITE_HOLD_STALE_REVIEW_LINE);
@@ -250,7 +251,7 @@ export class WriteHoldStaleReviewError extends Error {
 }
 
 /** The exact call is already being sent from another flow or tab. */
-export class WriteHoldBusyError extends Error {
+export class WriteHoldBusyError extends ReviewLineError {
   readonly name = "WriteHoldBusyError";
   constructor() {
     super("This transaction is already open in another window.");
@@ -467,7 +468,10 @@ export function createWriteHold(
         ),
         new Promise<never>((_, reject) => {
           timer = setTimeout(
-            () => reject(new Error("Safe's service did not answer in time.")),
+            () =>
+              reject(
+                new ReviewLineError("Safe's service did not answer in time."),
+              ),
             SAFE_SERVICE_READ_MS,
           );
         }),
@@ -1338,7 +1342,9 @@ export function createWriteHold(
           },
           afterSubmit(hash, proposal) {
             if (!attempt)
-              throw new Error("Hold the write before the wallet opens.");
+              throw new ReviewLineError(
+                "Hold the write before the wallet opens.",
+              );
             try {
               attempt = recovery.submitted(hash, attempt);
             } catch (error) {
@@ -1407,7 +1413,7 @@ export function createWriteHold(
         client: WriteHoldClient,
       ): Promise<{ released: boolean; state: WriteHoldState }> {
         if (acknowledgement?.checkedWallet !== true)
-          throw new Error(
+          throw new ReviewLineError(
             "Release a held write only after the user confirms they checked their wallet.",
           );
         const result = await locked(async () => {
@@ -1559,7 +1565,8 @@ export function createWriteHold(
             const { released } = await hooks.across(
               (work) => recovery.withLock(work),
               () => {
-                if (!free()) throw new Error("Held since the app's read.");
+                if (!free())
+                  throw new ReviewLineError("Held since the app's read.");
                 reserve();
                 adopted = true;
               },

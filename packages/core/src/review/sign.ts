@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./transaction-message.js";
 import {
   encodeFunctionData,
   getAddress,
@@ -81,14 +82,14 @@ function requireChainId(chainId: unknown): number {
     !Number.isSafeInteger(chainId) ||
     chainId <= 0
   ) {
-    throw new Error(`Invalid chain ID: ${String(chainId)}.`);
+    throw new ReviewLineError(`Invalid chain ID: ${String(chainId)}.`);
   }
   return chainId;
 }
 
 function requireAddress(name: string, value: unknown): Address {
   if (typeof value !== "string" || !isAddress(value)) {
-    throw new Error(`Invalid ${name} address: ${String(value)}.`);
+    throw new ReviewLineError(`Invalid ${name} address: ${String(value)}.`);
   }
   return getAddress(value);
 }
@@ -96,7 +97,8 @@ function requireAddress(name: string, value: unknown): Address {
 /** An unsigned integer as a primitive, so nothing can change it after review. */
 function requireUint(name: string, value: unknown): bigint {
   const parsed = uint256(value);
-  if (parsed === null) throw new Error(`Invalid ${name}: ${String(value)}.`);
+  if (parsed === null)
+    throw new ReviewLineError(`Invalid ${name}: ${String(value)}.`);
   return parsed;
 }
 
@@ -153,7 +155,7 @@ export function prepareSignature(
       const message = safeTransactionMessage(tx);
       const inner = multiSendCallsOf(message);
       if (message.operation === 1 && !inner) {
-        throw new Error(
+        throw new ReviewLineError(
           "This Safe transaction DELEGATECALLs a contract other than MultiSendCallOnly. Nothing was signed.",
         );
       }
@@ -217,7 +219,7 @@ export function prepareSignature(
       const id = requireChainId(chainId);
       const verifyingContract = relayrForwarder(id);
       if (!verifyingContract) {
-        throw new Error(
+        throw new ReviewLineError(
           `There is no Juicebox forwarder on chain ${id}. Nothing was signed.`,
         );
       }
@@ -226,7 +228,7 @@ export function prepareSignature(
         typeof from !== "string" ||
         from.toLowerCase() !== account.toLowerCase()
       ) {
-        throw new Error(
+        throw new ReviewLineError(
           "This request is not from the connected account. Nothing was signed.",
         );
       }
@@ -234,11 +236,12 @@ export function prepareSignature(
         !Number.isSafeInteger(deadline) ||
         deadline > relayrForwarderDeadline()
       ) {
-        throw new Error(
+        throw new ReviewLineError(
           "This request stays executable longer than allowed. Nothing was signed.",
         );
       }
-      if (!isHexBytes(data)) throw new Error("Invalid forwarded calldata.");
+      if (!isHexBytes(data))
+        throw new ReviewLineError("Invalid forwarded calldata.");
       const message = {
         from: requireAddress("sender", from),
         to: requireAddress("destination", to),
@@ -316,12 +319,14 @@ export function prepareSignature(
       const { chainId, message } = signature;
       const id = requireChainId(chainId);
       if (typeof message !== "string") {
-        throw new Error("A message to sign must be text. Nothing was signed.");
+        throw new ReviewLineError(
+          "A message to sign must be text. Nothing was signed.",
+        );
       }
       return prepared(kind, id, { message });
     }
   }
-  throw new Error(
+  throw new ReviewLineError(
     `This signature is not one the app can review: ${String(kind)}. Nothing was signed.`,
   );
 }
@@ -361,13 +366,15 @@ export async function signPrepared(
         beforeSend: () => {
           beforeSign?.();
           if (typedData && adapter.chainId() !== chainId) {
-            throw new Error(
+            throw new ReviewLineError(
               "Your wallet changed networks. Review the signature again.",
             );
           }
           // Last, after every callback above could have run.
           if (adapter.account()?.toLowerCase() !== account.toLowerCase()) {
-            throw new Error("The connected account changed. Review again.");
+            throw new ReviewLineError(
+              "The connected account changed. Review again.",
+            );
           }
         },
         // Only the wallet's own answer can read as a rejection.
@@ -415,14 +422,14 @@ export async function signReviewed(
   await walletReady(adapter);
   if (adapter.kind === "self-reviewing") throw unsupportedWalletRequest();
   const connected = adapter.account();
-  if (!connected) throw new Error("Connect a wallet first.");
+  if (!connected) throw new ReviewLineError("Connect a wallet first.");
   if (connected.toLowerCase() !== account.toLowerCase()) {
-    throw new Error("The connected account changed. Review again.");
+    throw new ReviewLineError("The connected account changed. Review again.");
   }
   const prepared = [...signatures].map((signature) =>
     prepareSignature(signature, account),
   );
-  if (!prepared.length) throw new Error("There is nothing to sign.");
+  if (!prepared.length) throw new ReviewLineError("There is nothing to sign.");
   const model = buildReviewModel({
     calls: [],
     signatures: prepared.map(({ review }) => review),

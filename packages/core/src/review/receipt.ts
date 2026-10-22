@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./transaction-message.js";
 import type { Hex, PublicClient, TransactionReceipt } from "viem";
 
 /**
@@ -5,7 +6,7 @@ import type { Hex, PublicClient, TransactionReceipt } from "viem";
  * receipt reads could confirm it. Its outcome is unknown, so the app must keep
  * treating it as submitted and must not offer to send it again.
  */
-export class TransactionReceiptUnavailableError extends Error {
+export class TransactionReceiptUnavailableError extends ReviewLineError {
   readonly name = "TransactionReceiptUnavailableError";
   /**
    * Why the receipt watcher gave up. Like a native error's cause it is not

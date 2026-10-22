@@ -27,44 +27,20 @@ export function transactionMessage(message: string): string {
 export const NETWORK_ERROR_LINE =
   "The network returned an error. Check your wallet's activity before you try again.";
 
-/** The runtime's own error types: a failed fetch or chunk load, never the SDK's line. */
-const RUNTIME_ERRORS = new Set([
-  "TypeError",
-  "SyntaxError",
-  "RangeError",
-  "ReferenceError",
-  "ChunkLoadError",
-  "AbortError",
-  "TimeoutError",
-]);
+/**
+ * An error the SDK raised with its own one-line message, which
+ * {@link errorLine} shows. Any other error's text never reaches the UI.
+ */
+export class ReviewLineError extends Error {}
 
 /**
- * The line to show for a thrown value: the SDK's own one-line message,
- * presented by {@link transactionMessage}, or {@link NETWORK_ERROR_LINE} for
- * anything else: a raw node, RPC or wallet error (a viem error, a JSON-RPC
- * code), a runtime error (a failed fetch or chunk load), any text that
- * names a URL, spans lines or is not a sentence, and anything not an Error. An EIP-1193
- * provider error (4xxx) keeps its message.
+ * The line to show for a thrown value: the message of an SDK error
+ * ({@link ReviewLineError}), presented by {@link transactionMessage}, or
+ * {@link NETWORK_ERROR_LINE} for anything else (a node, RPC, wallet, service
+ * or runtime error, or an app's own); the raw error stays the cause.
  */
 export function errorLine(error: unknown): string {
-  if (!(error instanceof Error)) return NETWORK_ERROR_LINE;
-  const { code, shortMessage, details, name, message } = error as Error & {
-    code?: unknown;
-    shortMessage?: unknown;
-    details?: unknown;
-  };
-  if (
-    typeof shortMessage === "string" ||
-    typeof details === "string" ||
-    (typeof code === "number" && (code < 4000 || code > 4999)) ||
-    RUNTIME_ERRORS.has(name) ||
-    /:\/\/|\n/.test(message) ||
-    // The SDK's lines are sentences; a node's own text ("header not found",
-    // "nonce too low") is not. Relayr's HTTP refusals are presented above.
-    // ponytail: shape, not provenance; a plain Error with sentence text from
-    // app code still shows. Brand the SDK's errors if that ever matters.
-    !(/^[A-Z].*[.)]$/.test(message) || /^Relayr HTTP \d+\b/.test(message))
-  )
-    return NETWORK_ERROR_LINE;
-  return transactionMessage(message);
+  return error instanceof ReviewLineError
+    ? transactionMessage(error.message)
+    : NETWORK_ERROR_LINE;
 }

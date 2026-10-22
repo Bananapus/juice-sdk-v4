@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./transaction-message.js";
 import type { Hex, TransactionReceipt } from "viem";
 import {
   hasSafeService,
@@ -520,7 +521,8 @@ export function createHeldWriteView(
     exempt: ReadonlySet<string>,
     during: ReadonlySet<string>,
   ) {
-    if (during.size || gate(exempt)) throw new Error(HELD_AWAY_SUCCESS_LINE);
+    if (during.size || gate(exempt))
+      throw new ReviewLineError(HELD_AWAY_SUCCESS_LINE);
   }
 
   /** Successes this view told the app of: their acknowledgement is under way. */
@@ -589,7 +591,7 @@ export function createHeldWriteView(
       // applies nothing and acknowledges nothing.
       const at = epoch;
       const current = () => {
-        if (at !== epoch) throw new Error("Stopped while adopting.");
+        if (at !== epoch) throw new ReviewLineError("Stopped while adopting.");
       };
       const snapshot = await handle.state(client);
       current();
@@ -602,7 +604,7 @@ export function createHeldWriteView(
           current();
           // Unread (the chain, or a lock another writer held): no send until it is.
           if ((state as { declined?: string }).declined === "unreadable")
-            throw new Error("The saved write couldn't be checked.");
+            throw new ReviewLineError("The saved write couldn't be checked.");
           apply(state);
           if (state.status !== "clear" || state.settled)
             options.onAdopted?.(state);
@@ -698,7 +700,7 @@ export function createHeldWriteView(
       const guard = () => unacknowledged(exempt, during);
       try {
         if (!(await adopt()))
-          throw new Error(
+          throw new ReviewLineError(
             "Saved transactions are still being checked. Try again in a moment.",
           );
         // This view's own reads, and its follower's, end first: only another

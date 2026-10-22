@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./transaction-message.js";
 import type {
   Address,
   Chain,
@@ -75,7 +76,9 @@ export async function walletReady(adapter: WalletAdapter): Promise<void> {
       WALLET_READY_MS,
     );
   } catch (error) {
-    throw Object.assign(new Error(WALLET_NOT_READY_LINE), { cause: error });
+    throw Object.assign(new ReviewLineError(WALLET_NOT_READY_LINE), {
+      cause: error,
+    });
   }
 }
 
@@ -91,15 +94,17 @@ async function connection(options: {
   isSafe: () => boolean;
 }): Promise<{ account: Address; client: WalletClient; safe: boolean }> {
   const asked = options.account();
-  if (!asked) throw new Error("Connect a wallet first.");
+  if (!asked) throw new ReviewLineError("Connect a wallet first.");
   const chainId = options.chainId();
   const safe = options.isSafe();
   const client = await options.walletClient();
   if (options.account()?.toLowerCase() !== asked.toLowerCase()) {
-    throw new Error("The connected account changed. Review again.");
+    throw new ReviewLineError("The connected account changed. Review again.");
   }
   if (options.chainId() !== chainId || options.isSafe() !== safe) {
-    throw new Error("Wallet connection changed. Review the transaction again.");
+    throw new ReviewLineError(
+      "Wallet connection changed. Review the transaction again.",
+    );
   }
   return { account: asked, client, safe };
 }
@@ -110,10 +115,12 @@ function unchanged(
   { account, safe }: { account: Address; safe: boolean },
 ): void {
   if (options.account()?.toLowerCase() !== account.toLowerCase()) {
-    throw new Error("The connected account changed. Review again.");
+    throw new ReviewLineError("The connected account changed. Review again.");
   }
   if (options.isSafe() !== safe) {
-    throw new Error("Wallet connection changed. Review the transaction again.");
+    throw new ReviewLineError(
+      "Wallet connection changed. Review the transaction again.",
+    );
   }
 }
 
@@ -175,7 +182,9 @@ export function viemWalletAdapter(options: {
       // viem does not check the wallet's chain against the domain's.
       const chainId = typedData.domain?.chainId;
       if (chainId !== undefined && options.chainId() !== Number(chainId)) {
-        throw new Error("Your wallet changed networks. Review again.");
+        throw new ReviewLineError(
+          "Your wallet changed networks. Review again.",
+        );
       }
       return client.signTypedData({ ...typedData, account });
     },
@@ -199,9 +208,12 @@ export function viemWalletAdapter(options: {
 
 /** EIP-1193 4200, as Signa's connector refuses a request it does not take. */
 export function unsupportedWalletRequest(): Error {
-  return Object.assign(new Error("This wallet request is not supported."), {
-    code: 4200,
-  });
+  return Object.assign(
+    new ReviewLineError("This wallet request is not supported."),
+    {
+      code: 4200,
+    },
+  );
 }
 
 /**

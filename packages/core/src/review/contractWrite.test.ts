@@ -1,5 +1,6 @@
 import { BaseError, UserRejectedRequestError, type Address } from "viem";
 import { describe, expect, it, vi } from "vitest";
+import { ReviewLineError } from "./transaction-message.js";
 import {
   isDefiniteWalletRejection,
   SubmittedContractWriteError,
@@ -80,7 +81,7 @@ describe("reviewed direct-write boundary", () => {
       const run = harness();
       run.setCurrent(connected);
       await expect(submitReviewedContractWrite(run.options)).rejects.toThrow(
-        new Error("The connected account changed. Review again."),
+        new ReviewLineError("The connected account changed. Review again."),
       );
       expect(run.options.onPhase).not.toHaveBeenCalled();
       expect(run.options.review).not.toHaveBeenCalled();
@@ -93,7 +94,9 @@ describe("reviewed direct-write boundary", () => {
         ...run.options,
         accountChangedError: "Reconnect the account that reviewed this.",
       }),
-    ).rejects.toThrow(new Error("Reconnect the account that reviewed this."));
+    ).rejects.toThrow(
+      new ReviewLineError("Reconnect the account that reviewed this."),
+    );
     expect(run.options.review).not.toHaveBeenCalled();
   });
 
@@ -125,7 +128,7 @@ describe("reviewed direct-write boundary", () => {
       run.setCurrent(BOB);
     });
     await expect(submitReviewedContractWrite(run.options)).rejects.toThrow(
-      new Error("The connected account changed. Review again."),
+      new ReviewLineError("The connected account changed. Review again."),
     );
     expect(run.options.switchChain).toHaveBeenCalledOnce();
     expect(run.options.simulate).not.toHaveBeenCalled();

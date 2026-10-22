@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./transaction-message.js";
 import type { Hex } from "viem";
 import type { ReviewModel } from "./model.js";
 import {
@@ -67,11 +68,11 @@ export async function promptReview(
 ): Promise<void> {
   // A model that binds nothing (buildReviewModel's unreadable one) confirms nothing.
   if (model.warnings.some((warning) => warning.code === "unreadable")) {
-    throw new Error(UNREADABLE);
+    throw new ReviewLineError(UNREADABLE);
   }
   const handler = currentReviewHandler();
   if (!handler) {
-    throw new Error(
+    throw new ReviewLineError(
       "Transaction review is unavailable. Reload the page before continuing.",
     );
   }
@@ -97,10 +98,11 @@ export async function promptReview(
     const returned =
       typeof answer === "object" ? minted.get(answer) : undefined;
     if (returned !== entry || entry.used || entry.id !== model.id) {
-      throw new Error(NOT_CONFIRMED);
+      throw new ReviewLineError(NOT_CONFIRMED);
     }
   } finally {
     entry.used = true;
   }
-  if (simulated?.status === "failed") throw new Error(simulated.message);
+  if (simulated?.status === "failed")
+    throw new ReviewLineError(simulated.message);
 }

@@ -1,3 +1,4 @@
+import { ReviewLineError } from "../transaction-message.js";
 import {
   createHeldWriteView,
   errorLine,
@@ -240,20 +241,24 @@ export function useReviewedRun(
         }
       };
       try {
-        if (!deps?.account) throw new Error("Connect a wallet first.");
+        if (!deps?.account)
+          throw new ReviewLineError("Connect a wallet first.");
         if (
           action.account &&
           action.account.toLowerCase() !== deps.account.toLowerCase()
         )
-          throw new Error(REVIEWED_ACCOUNT_CHANGED_LINE);
+          throw new ReviewLineError(REVIEWED_ACCOUNT_CHANGED_LINE);
         if (action.calls.length > 1 && action.scope === undefined)
-          throw new Error(REVIEWED_RUN_SCOPE_LINE);
+          throw new ReviewLineError(REVIEWED_RUN_SCOPE_LINE);
         const { resumeReviewed, sendReviewed } = await deps
           .engine()
           .catch((cause: unknown) => {
-            throw Object.assign(new Error(REVIEWED_ENGINE_LOAD_LINE), {
-              cause,
-            });
+            throw Object.assign(
+              new ReviewLineError(REVIEWED_ENGINE_LOAD_LINE),
+              {
+                cause,
+              },
+            );
           });
         const { account, guard } = deps;
         const tracked: ReviewedSendDeps = {

@@ -2,8 +2,11 @@ import {
   decodeAbiParameters,
   decodeFunctionData,
   encodeAbiParameters,
+  encodeFunctionData,
+  stringify,
   TransactionNotFoundError,
   TransactionReceiptNotFoundError,
+  type Abi,
   type AbiParameter,
   getAddress,
   hashTypedData,
@@ -1099,9 +1102,10 @@ type SafeQueueClient = Parameters<typeof readBoundedSafeNonce>[0] & {
  * the deadline: it can no longer run. Without a numbered block, matching
  * proposals remain held. Throws when the block, the nonce or the queue can't
  * be read. With `exact`, only a proposal of exactly `call`, stamp included,
- * is found, or with `normalized` too, one to the same target with the same
- * value whose data `normalized.of` maps to `normalized.data`, the reviewed
- * call's normalized bytes (a normalizer that throws matches nothing).
+ * is found, or with `adopt` too, one to the same target with the same value
+ * whose data decodes with `adopt.abi` to the same function, encodes back to
+ * exactly its bytes, and matches `call`'s every arg but those `adopt.ignoring`
+ * lists. No app code runs while matching.
  */
 export async function findPendingSafeAppProposal(
   client: SafeQueueClient,
@@ -1110,7 +1114,7 @@ export async function findPendingSafeAppProposal(
   call: SafeAppCall,
   service?: SafeServiceOptions,
   exact = false,
-  normalized?: { data: Hex; of: (data: Hex) => Hex },
+  adopt?: { abi: Abi; ignoring: readonly number[] },
 ): Promise<{
   tx: SafeQueuedTransaction;
   proposalHash: Hex;
@@ -1127,12 +1131,27 @@ export async function findPendingSafeAppProposal(
     throw new Error("Could not read the Safe nonce.");
   }
   const held = heldCall(call);
-  /** Whether `proposed` is `call` as the app normalizes calldata. */
-  const normalizedAlike = (proposed: SafeAppCall) => {
+  /** Whether `proposed` is `call` but for the args `adopt` ignores. */
+  const adoptable = (proposed: SafeAppCall) => {
+    const { abi, ignoring } = adopt!;
+    const argsOf = (data: Hex) => {
+      const { functionName, args = [] } = decodeFunctionData({ abi, data });
+      // Only the canonical encoding: no trailing or reshaped bytes.
+      const encoded = encodeFunctionData({ abi, functionName, args });
+      if (encoded.toLowerCase() !== data.toLowerCase()) throw new Error();
+      return args.map((arg) => stringify(arg));
+    };
     try {
-      return sameCall(
-        { ...proposed, data: normalized!.of(proposed.data) },
-        { ...call, data: normalized!.data },
+      const queued = argsOf(proposed.data);
+      const reviewed = argsOf(call.data);
+      return (
+        sameCall({ ...proposed, data: "0x" }, { ...call, data: "0x" }) &&
+        proposed.data.slice(0, 10).toLowerCase() ===
+          call.data.slice(0, 10).toLowerCase() &&
+        queued.length === reviewed.length &&
+        reviewed.every(
+          (arg, index) => ignoring.includes(index) || queued[index] === arg,
+        )
       );
     } catch {
       return false;
@@ -1144,8 +1163,7 @@ export async function findPendingSafeAppProposal(
     const proposed = proposedCall(tx);
     return proposed &&
       (exact
-        ? sameCall(proposed, call) ||
-          (!!normalized && normalizedAlike(proposed))
+        ? sameCall(proposed, call) || (!!adopt && adoptable(proposed))
         : sameCall(heldCall(proposed), held))
       ? [{ tx, call: proposed, deadline: stampedDeadline(proposed, chainId) }]
       : [];

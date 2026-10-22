@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./transaction-message.js";
 import { numberToHex, type Address, type Hex, type PublicClient } from "viem";
 
 /** A generous explicit gas ceiling for a reviewed state-changing preflight. */
@@ -37,10 +38,12 @@ export async function simulateStateChangingTransaction(
   },
 ): Promise<Hex> {
   if (gas <= 0n) {
-    throw new Error("Transaction simulation gas must be positive.");
+    throw new ReviewLineError("Transaction simulation gas must be positive.");
   }
   if (!Number.isSafeInteger(maxReturnBytes) || maxReturnBytes < 0) {
-    throw new Error("Transaction simulation needs a return data limit.");
+    throw new ReviewLineError(
+      "Transaction simulation needs a return data limit.",
+    );
   }
   // A raw request bypasses call()/simulateContract(), whose behavior can
   // inherit a client-level CCIP-read policy.
@@ -58,10 +61,12 @@ export async function simulateStateChangingTransaction(
     ],
   });
   if (typeof result !== "string" || !/^0x(?:[0-9a-f]{2})*$/iu.test(result)) {
-    throw new Error("Transaction simulation returned malformed data.");
+    throw new ReviewLineError(
+      "Transaction simulation returned malformed data.",
+    );
   }
   if ((result.length - 2) / 2 > maxReturnBytes) {
-    throw new Error("Transaction simulation returned too much data.");
+    throw new ReviewLineError("Transaction simulation returned too much data.");
   }
   return result as Hex;
 }
@@ -95,7 +100,7 @@ export function revertDetail(error: unknown): string {
 
 /** An error whose `cause` is what the node or the call answered. */
 function withCause(message: string, cause: unknown): Error {
-  return Object.defineProperty(new Error(message), "cause", {
+  return Object.defineProperty(new ReviewLineError(message), "cause", {
     value: cause,
     configurable: true,
     writable: true,

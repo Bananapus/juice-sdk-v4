@@ -1,9 +1,12 @@
+import { ReviewLineError } from "./transaction-message.js";
 import type { Address } from "viem";
 
 export type ReviewedWritePhase = "review" | "simulating" | "signing";
 
 /** The wallet returned a hash, but the application's submission handoff failed. */
-export class SubmittedContractWriteError<THash = unknown> extends Error {
+export class SubmittedContractWriteError<
+  THash = unknown,
+> extends ReviewLineError {
   readonly name = "SubmittedContractWriteError";
   declare readonly cause: unknown;
 
@@ -116,7 +119,7 @@ export async function submitReviewedContractWrite<
   guard,
 }: ReviewedContractWriteOptions<TRequest, TSimulated, THash>): Promise<THash> {
   guard?.();
-  if (!expectedAccount) throw new Error("Connect a wallet first.");
+  if (!expectedAccount) throw new ReviewLineError("Connect a wallet first.");
   assertExpectedAccount(currentAccount(), expectedAccount, accountChangedError);
 
   onPhase?.("review");
@@ -174,6 +177,6 @@ function assertExpectedAccount(
   message: string,
 ): void {
   if (!current || current.toLowerCase() !== expected.toLowerCase()) {
-    throw new Error(message);
+    throw new ReviewLineError(message);
   }
 }

@@ -1,4 +1,5 @@
-"use client";
+import { ReviewLineError } from "./transaction-message.js";
+("use client");
 
 import type { ReviewConfirmation, ReviewPrompt } from "./confirm.js";
 import type { TransactionReviewRequest } from "./transactionReview.js";
@@ -39,7 +40,7 @@ const reviewHandlers: ReviewHandler[] = [];
 const fundingChainSelectionHandlers: FundingChainSelectionHandler[] = [];
 
 /** The person closed a review or a funding-chain choice. Nothing was sent; apps need not show an error. */
-export class TransactionReviewCancelledError extends Error {
+export class TransactionReviewCancelledError extends ReviewLineError {
   constructor(message = "Review closed. Nothing was sent.") {
     super(message);
     this.name = "TransactionReviewCancelledError";
@@ -77,14 +78,14 @@ export async function requireFundingChainSelection(
         !option.label.trim(),
     )
   ) {
-    throw new Error(
+    throw new ReviewLineError(
       "No valid funding chain choices are available. Request a new quote.",
     );
   }
   const handler =
     fundingChainSelectionHandlers[fundingChainSelectionHandlers.length - 1];
   if (!handler) {
-    throw new Error(
+    throw new ReviewLineError(
       "Funding chain selection is unavailable. Reload the page before continuing.",
     );
   }
@@ -101,7 +102,7 @@ export async function requireFundingChainSelection(
     );
   }
   if (!chainIds.has(selected)) {
-    throw new Error(
+    throw new ReviewLineError(
       "The selected funding chain is not available in this quote.",
     );
   }
@@ -145,12 +146,12 @@ export async function requestTransactionReview(
   request: TransactionReviewRequest,
 ): Promise<boolean> {
   if (!request.calls.length && !request.authorization) {
-    throw new Error("There is no transaction to review.");
+    throw new ReviewLineError("There is no transaction to review.");
   }
   const transactionReviewHandler =
     transactionReviewHandlers[transactionReviewHandlers.length - 1];
   if (!transactionReviewHandler) {
-    throw new Error(
+    throw new ReviewLineError(
       "Transaction review is unavailable. Reload the page before continuing.",
     );
   }

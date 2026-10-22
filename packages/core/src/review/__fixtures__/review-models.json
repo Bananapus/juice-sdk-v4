@@ -87,18 +87,9 @@
               {
                 "title": "721 shop mint instructions",
                 "rows": [
-                  [
-                    "Hook lookup id",
-                    "0xe98312c4"
-                  ],
-                  [
-                    "Tier IDs to mint",
-                    "2× #4, #7"
-                  ],
-                  [
-                    "Allow overspending",
-                    "no — any excess reverts"
-                  ]
+                  ["Hook lookup id", "0xe98312c4"],
+                  ["Tier IDs to mint", "2× #4, #7"],
+                  ["Allow overspending", "no — any excess reverts"]
                 ]
               }
             ],
@@ -224,14 +215,8 @@
               {
                 "title": "721 shop items to redeem",
                 "rows": [
-                  [
-                    "Hook lookup id",
-                    "0xc2f50bb0"
-                  ],
-                  [
-                    "Token IDs",
-                    "#4000000001"
-                  ]
+                  ["Hook lookup id", "0xc2f50bb0"],
+                  ["Token IDs", "#4000000001"]
                 ]
               }
             ],
@@ -539,22 +524,10 @@
                     "Terminal token",
                     "0x0000000000000000000000000000000000000000"
                   ],
-                  [
-                    "Leaf index",
-                    "7"
-                  ],
-                  [
-                    "Beneficiary",
-                    "0x1111111111111111111111111111111111111111"
-                  ],
-                  [
-                    "Project tokens",
-                    "1000"
-                  ],
-                  [
-                    "Terminal token amount",
-                    "25"
-                  ],
+                  ["Leaf index", "7"],
+                  ["Beneficiary", "0x1111111111111111111111111111111111111111"],
+                  ["Project tokens", "1000"],
+                  ["Terminal token amount", "25"],
                   [
                     "Merkle proof",
                     "32 hashes — exact bytes in the raw payload below"
@@ -939,18 +912,12 @@
                     "Owners",
                     "0x1111111111111111111111111111111111111111, 0x2222222222222222222222222222222222222222"
                   ],
-                  [
-                    "Threshold",
-                    "2 of 2"
-                  ],
+                  ["Threshold", "2 of 2"],
                   [
                     "Fallback handler",
                     "0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99"
                   ],
-                  [
-                    "Setup hook",
-                    "none"
-                  ]
+                  ["Setup hook", "none"]
                 ]
               }
             ],
@@ -1062,14 +1029,8 @@
                     "Operator",
                     "JBController | 0x3fcec3572e84b624477bcff4e2cf1f7deab648f1"
                   ],
-                  [
-                    "Scope",
-                    "project #4"
-                  ],
-                  [
-                    "Permissions",
-                    "QUEUE_RULESETS (2), LAUNCH_RULESETS (3)"
-                  ]
+                  ["Scope", "project #4"],
+                  ["Permissions", "QUEUE_RULESETS (2), LAUNCH_RULESETS (3)"]
                 ]
               }
             ],
@@ -1221,10 +1182,7 @@
                     "Split 1 — 50%",
                     "0x1111111111111111111111111111111111111111"
                   ],
-                  [
-                    "Total",
-                    "50% — the remainder follows the ruleset's default"
-                  ]
+                  ["Total", "50% — the remainder follows the ruleset's default"]
                 ]
               }
             ],
@@ -1651,14 +1609,8 @@
               {
                 "title": "Wrap ETH into WETH",
                 "rows": [
-                  [
-                    "Amount",
-                    "10"
-                  ],
-                  [
-                    "Recipient",
-                    "the router (kept for the next step)"
-                  ]
+                  ["Amount", "10"],
+                  ["Recipient", "the router (kept for the next step)"]
                 ]
               }
             ],

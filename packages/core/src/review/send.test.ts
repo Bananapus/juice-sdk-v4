@@ -16,6 +16,7 @@ import {
   action,
   approveCall,
   fakeChain,
+  liquidityCall,
   payCall,
   resetReviewUi,
   reverted,
@@ -673,23 +674,37 @@ describe("sendReviewed", () => {
     expect(other.wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
 
-  it("a Safe app adopts a queued proposal its call's normalizer matches, only to the same target, value and operation", async () => {
+  it("a Safe app adopts a queued proposal that differs only in the args it lists, only to the same target, value and operation", async () => {
     const { wallet, deps, chain, hold, holdOf } = setup();
     wallet.state.safe = true;
     const prompts = reviewUi();
-    // Its last word stands in for a fresh deadline.
-    const normalizeData = (data: Hex) =>
-      `${data.slice(0, -64)}${"0".repeat(64)}` as Hex;
-    const call = payCall(5n, { normalizeData });
-    const older = payCall(6n);
+    // A liquidity retry: the same unlock data with a fresh deadline.
+    const call = liquidityCall("0xabcd", 2_000n, { adoptIgnoringArgs: [1] });
+    const older = liquidityCall("0xabcd", 1_000n);
     chain.queueProposal({ ...older, value: 8n });
     chain.queueProposal({ ...older, to: OTHER });
     chain.queueProposal(older, { operation: 1 });
+    chain.queueProposal(liquidityCall("0xabce", 1_000n));
+    // Same args with trailing bytes: not the canonical encoding.
+    chain.queueProposal({ ...older, data: `${older.data}00` });
     const queued = chain.queueProposal(older);
     await expect(
       sendReviewed(action([call], { scope: "liquidity" }), deps),
     ).resolves.toEqual({ status: "proposed", step: 0, safeTxHash: queued });
     expect(prompts).toHaveLength(1);
+    // The model binds the list.
+    const modelOf = (extra: Partial<ReviewedCall>) =>
+      buildReviewModel({
+        calls: [
+          {
+            ...liquidityCall("0xabcd", 2_000n, extra),
+            from: ACCOUNT,
+            safeTxGas: 0n,
+          },
+        ],
+      }).id;
+    expect(prompts[0].model.id).toBe(modelOf({ adoptIgnoringArgs: [1] }));
+    expect(prompts[0].model.id).not.toBe(modelOf({}));
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     // Held as the call the adopted proposal runs, so its expiry can be proven.
     expect(hold.open({ ...holdOf(call), safe: true }).peek()).toMatchObject({
@@ -704,66 +719,59 @@ describe("sendReviewed", () => {
       discardReviewedSequence(saved, { storage: deps.storage }),
     ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
 
-    // A normalizer whose answer changes after review adopts nothing.
-    const relaxing = setup();
-    relaxing.wallet.state.safe = true;
-    relaxing.chain.queueProposal(payCall(999n));
-    let relaxed = false;
-    const strict = payCall(5n, {
-      normalizeData: (data: Hex) => (relaxed ? "0x" : data),
-    });
-    await expect(
-      sendReviewed(
-        action([strict], {
-          reverify: async () => {
-            relaxed = true;
-          },
-        }),
-        relaxing.deps,
-      ),
-    ).rejects.toThrow(CHANGED);
-    expect(relaxing.wallet.adapter.sendTransaction).not.toHaveBeenCalled();
-
-    // A normalizer swapped after review adopts nothing and sends nothing.
-    const swapped = setup();
-    swapped.wallet.state.safe = true;
-    swapped.chain.queueProposal(payCall(999n));
-    const reviewed = payCall(5n, { normalizeData: (data: Hex) => data });
+    // A list changed after review adopts nothing and sends nothing.
+    const changed = setup();
+    changed.wallet.state.safe = true;
+    changed.chain.queueProposal(payCall(261n));
+    const reviewed = payCall(5n, { adoptIgnoringArgs: [0] });
     await expect(
       sendReviewed(
         action([reviewed], {
           reverify: async () => {
-            reviewed.normalizeData = () => "0x";
+            (reviewed as { adoptIgnoringArgs: number[] }).adoptIgnoringArgs = [
+              0, 1,
+            ];
           },
         }),
-        swapped.deps,
+        changed.deps,
       ),
     ).rejects.toThrow(CHANGED);
-    expect(swapped.wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(changed.wallet.adapter.sendTransaction).not.toHaveBeenCalled();
 
-    // Without a normalizer, or with one that refuses, the wallet proposes it.
+    // A different amount is never adopted: pay(261) is not pay(5).
     for (const extra of [
       {},
-      {
-        normalizeData: (): Hex => {
-          throw new Error("not mine");
-        },
-      },
-      // One that reads only the reviewed call refuses every queued one.
-      {
-        normalizeData: (data: Hex): Hex => {
-          if (data === payCall(5n).data) return data;
-          throw new Error("not mine");
-        },
-      },
+      { adoptIgnoringArgs: [] },
+      { adoptIgnoringArgs: [0] },
     ]) {
       const other = setup();
       other.wallet.state.safe = true;
-      other.chain.queueProposal(older);
+      other.chain.queueProposal(payCall(261n));
+      other.chain.queueProposal({ ...payCall(5n), data: "0x1234" });
       await expect(
         sendReviewed(action([payCall(5n, extra)]), other.deps),
       ).resolves.toMatchObject({ status: "proposed" });
       expect(other.wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("refuses an adoption list it can't apply, sending nothing", async () => {
+    for (const extra of [
+      { adoptIgnoringArgs: [2] },
+      { adoptIgnoringArgs: [-1] },
+      { adoptIgnoringArgs: [0.5] },
+      { adoptIgnoringArgs: [0, 0] },
+      { adoptIgnoringArgs: "1" as unknown as number[] },
+      { adoptIgnoringArgs: [0], abi: undefined },
+    ]) {
+      const { wallet, deps } = setup();
+      reviewUi();
+      await expect(
+        sendReviewed(action([payCall(5n, extra)]), deps),
+      ).rejects.toThrow(
+        "This call's adoption rule is not valid. Nothing was sent.",
+      );
+      expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     }
   });
 

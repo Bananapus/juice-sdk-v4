@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./review/transaction-message.js";
 /** The longest delay setTimeout holds (about 24.8 days): a longer one fires at once. */
 const MAX_TIMER_MS = 2_147_483_647;
 
@@ -34,7 +35,7 @@ export async function timeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     return await Promise.race([
       promise,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error("timed out")), ms);
+        timer = setTimeout(() => reject(new ReviewLineError("timed out")), ms);
       }),
     ]);
   } finally {

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { errorLine, NETWORK_ERROR_LINE, transactionMessage } from "./index.js";
+import {
+  errorLine,
+  NETWORK_ERROR_LINE,
+  ReviewLineError,
+  transactionMessage,
+  WriteHoldBusyError,
+} from "./index.js";
 
 describe("transaction diagnostic presentation", () => {
   it.each([
@@ -83,17 +89,16 @@ describe("transaction diagnostic presentation", () => {
 });
 
 describe("errorLine", () => {
-  it("shows the SDK's own lines and never a raw node error's text", () => {
-    expect(errorLine(new Error("Relayr HTTP 429"))).toBe(
+  it("shows only the SDK's own errors, never another error's text", () => {
+    expect(errorLine(new ReviewLineError("Relayr HTTP 429"))).toBe(
       "Transaction request failed (HTTP 429)",
     );
     expect(
-      errorLine(
-        Object.assign(new Error("This wallet request is not supported."), {
-          code: 4200,
-        }),
-      ),
+      errorLine(new ReviewLineError("This wallet request is not supported.")),
     ).toBe("This wallet request is not supported.");
+    expect(errorLine(new WriteHoldBusyError())).toBe(
+      "This transaction is already open in another window.",
+    );
     for (const raw of [
       Object.assign(new Error("header not found"), { code: -32000 }),
       Object.assign(
@@ -114,8 +119,13 @@ describe("errorLine", () => {
       Object.assign(new Error("Loading chunk 7 failed."), {
         name: "ChunkLoadError",
       }),
-      new Error("Request failed at https://node.example/key"),
-      new Error("Two\nlines."),
+      // Sentence-shaped text from a node, a wallet or an app.
+      new Error("Header not found."),
+      new Error("An internal error was received."),
+      Object.assign(new Error("This wallet request is not supported."), {
+        code: 4200,
+      }),
+      new Error("Relayr HTTP 429"),
       new Error("header not found"),
       new Error("nonce too low"),
     ])

@@ -16,7 +16,7 @@ import {
   HELD_FAILED_LINE,
   REVIEWED_ENGINE_LOAD_LINE,
 } from "../messages.js";
-import { NETWORK_ERROR_LINE } from "../transaction-message.js";
+import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
 import { REVIEWED_SEQUENCE_UNFINISHED_LINE } from "../sequence.js";
 import {
   REVIEWED_RUN_SCOPE_LINE,
@@ -89,7 +89,7 @@ describe("useReviewedRun", () => {
     reviewUi();
     const { wallet, deps } = setup();
     wallet.adapter.sendTransaction.mockRejectedValueOnce(
-      new Error("Relayr HTTP 502: upstream"),
+      new ReviewLineError("Relayr HTTP 502: upstream"),
     );
     const { seen, run } = harness({ ...deps, account: ACCOUNT });
     await expect(run({ calls: [payCall()] })).resolves.toMatchObject({
@@ -98,6 +98,15 @@ describe("useReviewedRun", () => {
     expect(seen.current!.error).toBe(
       "Transaction request failed (HTTP 502): upstream",
     );
+
+    // A node's or wallet's own text never shows, however it reads.
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(
+      new Error("Header not found."),
+    );
+    await expect(run({ calls: [payCall(7n)] })).resolves.toMatchObject({
+      status: "failed",
+      error: NETWORK_ERROR_LINE,
+    });
     expect(seen.current!.phase).toBe("idle");
 
     // A closed review or a wallet's refusal is no error.

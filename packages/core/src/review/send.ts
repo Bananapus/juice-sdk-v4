@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./transaction-message.js";
 import {
   encodeFunctionData,
   type Abi,
@@ -84,16 +85,14 @@ export type ReviewedCall = {
    */
   gas?: bigint;
   /**
-   * For a Safe app only: the calldata a proposal its Safe already queued is
-   * compared by, so a retry whose only change is a fresh stamp (a deadline)
-   * adopts that proposal instead of proposing twice. It must keep every
-   * field that decides what runs (recipients, amounts); the target, value
-   * and operation must match as they are. It must be pure: it is app code
-   * trusted like the call itself, and one whose output changes after review
-   * can match a different queued proposal. Unset compares exact bytes. Never
-   * saved: a resumed step compares exact bytes.
+   * For a Safe app only, with `abi` and `functionName`: the indexes of the
+   * args (a fresh deadline) a proposal its Safe already queued may differ in
+   * and still be adopted instead of proposed twice. The queued data must
+   * decode with `abi` to the same function, encode back to exactly its bytes,
+   * and match every other arg; the target, value and operation must match as
+   * they are. Bound into the review. Unset compares exact bytes.
    */
-  normalizeData?: (data: Hex) => Hex;
+  adoptIgnoringArgs?: readonly number[];
   /** When given, `data` must be exactly this function's encoding of `args`. */
   abi?: Abi;
   functionName?: string;
@@ -198,7 +197,7 @@ export type ReviewedResult = (
  * the action can be reviewed again. `receipt` is the mined receipt, so a
  * site can close its own record of the attempt.
  */
-export class ReviewedCallRevertedError extends Error {
+export class ReviewedCallRevertedError extends ReviewLineError {
   readonly name = "ReviewedCallRevertedError";
 
   constructor(
@@ -225,6 +224,7 @@ const CHANGED =
 const MISMATCHED =
   "This call's data does not match its arguments. Nothing was sent.";
 const BAD_GAS = "This call's gas limit is not valid. Nothing was sent.";
+const BAD_ADOPT = "This call's adoption rule is not valid. Nothing was sent.";
 const ACCOUNT_CHANGED = REVIEWED_ACCOUNT_CHANGED_LINE;
 const NOT_SAVED =
   "This action's progress could not be saved. Nothing was sent; review it again.";
@@ -239,13 +239,35 @@ function exact(call: ReviewedCall): {
   sent: SentCall;
   shown: Pick<
     ReviewedCall,
-    "abi" | "functionName" | "args" | "label" | "contractName"
+    | "abi"
+    | "functionName"
+    | "args"
+    | "label"
+    | "contractName"
+    | "adoptIgnoringArgs"
   >;
 } {
   const { chainId, to, data, value, gas, abi, functionName, args } = call;
   const { label, contractName } = call;
+  const ignoring = call.adoptIgnoringArgs;
   if (gas !== undefined && (typeof gas !== "bigint" || gas <= 0n)) {
-    throw new Error(BAD_GAS);
+    throw new ReviewLineError(BAD_GAS);
+  }
+  if (ignoring !== undefined && !Array.isArray(ignoring)) {
+    throw new ReviewLineError(BAD_ADOPT);
+  }
+  const adoptIgnoringArgs = ignoring && Object.freeze([...ignoring]);
+  if (
+    adoptIgnoringArgs &&
+    (!abi ||
+      !functionName ||
+      new Set(adoptIgnoringArgs).size !== adoptIgnoringArgs.length ||
+      adoptIgnoringArgs.some(
+        (index) =>
+          !Number.isInteger(index) || index < 0 || index >= (args?.length ?? 0),
+      ))
+  ) {
+    throw new ReviewLineError(BAD_ADOPT);
   }
   if (abi && functionName) {
     const encoded = encodeFunctionData({
@@ -254,7 +276,7 @@ function exact(call: ReviewedCall): {
       args: args ?? [],
     } as Parameters<typeof encodeFunctionData>[0]);
     if (encoded.toLowerCase() !== data.toLowerCase()) {
-      throw new Error(MISMATCHED);
+      throw new ReviewLineError(MISMATCHED);
     }
   }
   return {
@@ -265,28 +287,25 @@ function exact(call: ReviewedCall): {
       value: value ?? 0n,
       ...(gas === undefined ? {} : { gas }),
     }),
-    shown: { abi, functionName, args, label, contractName },
+    shown: {
+      abi,
+      functionName,
+      args,
+      label,
+      contractName,
+      ...(adoptIgnoringArgs ? { adoptIgnoringArgs } : {}),
+    },
   };
 }
 
-/** `data` as `of` normalizes it, lowercased; undefined when `of` refuses it. */
-function normalizedData(of: (data: Hex) => Hex, data: Hex): Hex | undefined {
-  try {
-    const result = of(data);
-    return typeof result === "string"
-      ? (result.toLowerCase() as Hex)
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/** A call as its journal saves it: without its normalizer, a function. */
-function unsaved({
-  normalizeData: _normalizeData,
-  ...call
-}: ReviewedCall): ReviewedCall {
-  return call;
+/** What a Safe app may adopt a queued proposal by, as reviewed. */
+function adopting({
+  abi,
+  adoptIgnoringArgs,
+}: ReturnType<typeof exact>["shown"]) {
+  return abi && adoptIgnoringArgs
+    ? { abi, ignoring: adoptIgnoringArgs }
+    : undefined;
 }
 
 function sameCall(a: SentCall, b: SentCall): boolean {
@@ -520,12 +539,12 @@ export async function resumeReviewed(
     storage,
   );
   if (!saved || saved.id !== record.id)
-    throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
+    throw new ReviewLineError(REVIEWED_SEQUENCE_MOVED_LINE);
   let expected = raw;
   const connected = deps.adapter.account();
-  if (!connected) throw new Error("Connect a wallet first.");
+  if (!connected) throw new ReviewLineError("Connect a wallet first.");
   if (connected.toLowerCase() !== saved.account.toLowerCase())
-    throw new Error(ACCOUNT_CHANGED);
+    throw new ReviewLineError(ACCOUNT_CHANGED);
   if (saved.sending) {
     const { step, reservation } = saved.sending;
     const call = saved.calls[step];
@@ -540,10 +559,11 @@ export async function resumeReviewed(
     // Only the step's own reservation's outcome decides it: a later one of
     // the same call or intent hides it.
     if (state.reservation !== reservation)
-      throw new Error(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
+      throw new ReviewLineError(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
     // Clear with no settlement: released by the user's exit, or a
     // settlement that could not be saved. Either may have run.
-    if (!state.settled) throw new Error(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
+    if (!state.settled)
+      throw new ReviewLineError(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
     delete saved.sending;
     delete saved.proposed;
     if (state.settled.result === "success") {
@@ -583,15 +603,10 @@ async function send(
   action.guard?.();
   const { account } = action;
   const calls = [...action.calls];
-  if (!calls.length) throw new Error("There is no transaction to review.");
+  if (!calls.length)
+    throw new ReviewLineError("There is no transaction to review.");
   const snapshots = calls.map(exact);
   const sent = snapshots.map(({ sent }) => sent);
-  /** Each step's normalizer, read once with its call. */
-  const normalizers = calls.map((call) => call.normalizeData);
-  /** Each step's normalized bytes as reviewed: what a queued proposal is matched to. */
-  const normalized = normalizers.map(
-    (of, step) => of && normalizedData(of, sent[step].data),
-  );
   /** Each step's simulation block, read once; a resumed run's prerequisites are long confirmed. */
   const blocks = calls.map((call) =>
     resuming ? undefined : call.simulationBlockNumber,
@@ -605,9 +620,9 @@ async function send(
     }
   };
   const connected = adapter.account();
-  if (!connected) throw new Error("Connect a wallet first.");
+  if (!connected) throw new ReviewLineError("Connect a wallet first.");
   if (connected.toLowerCase() !== account.toLowerCase()) {
-    throw new Error(ACCOUNT_CHANGED);
+    throw new ReviewLineError(ACCOUNT_CHANGED);
   }
   // A resumed sequence signs none: its signatures went with its first run.
   const prepared = (resuming ? [] : [...(action.signatures ?? [])]).map(
@@ -629,6 +644,9 @@ async function send(
       ...(shown.args ? { args: shown.args } : {}),
       ...(shown.label ? { label: shown.label } : {}),
       ...(shown.contractName ? { contractName: shown.contractName } : {}),
+      ...(shown.adoptIgnoringArgs
+        ? { adoptIgnoringArgs: shown.adoptIgnoringArgs }
+        : {}),
     })),
     ...(prepared.length
       ? { signatures: prepared.map(({ review }) => review) }
@@ -641,7 +659,7 @@ async function send(
 
   if (adapter.kind === "self-reviewing") {
     if (!adapter.submitToReviewer) {
-      throw new Error("This wallet cannot review this transaction.");
+      throw new ReviewLineError("This wallet cannot review this transaction.");
     }
     deps.onPreview?.(buildReviewModel(request(false)));
     /** The steps whose beforeWrite began, and whether the wallet was handed the calls. */
@@ -657,7 +675,7 @@ async function send(
       action.guard?.();
       action.assertWriteState?.();
       if (adapter.account()?.toLowerCase() !== account.toLowerCase())
-        throw new Error(ACCOUNT_CHANGED);
+        throw new ReviewLineError(ACCOUNT_CHANGED);
       submitting = true;
       hash = await adapter.submitToReviewer({
         account,
@@ -696,8 +714,9 @@ async function send(
   if (storage && !resuming) {
     const saved = readReviewedSequence(scope!, account, storage);
     // A fresh run refuses while an earlier run of the same action is unfinished.
-    if (saved.record) throw new Error(REVIEWED_SEQUENCE_UNFINISHED_LINE);
-    assertSavableCalls(calls.map(unsaved));
+    if (saved.record)
+      throw new ReviewLineError(REVIEWED_SEQUENCE_UNFINISHED_LINE);
+    assertSavableCalls(calls);
     expected = saved.raw;
   }
   /** Where the remaining steps start in the whole action. */
@@ -749,9 +768,9 @@ async function send(
         try {
           now = exact(call).sent;
         } catch {
-          throw new Error(CHANGED);
+          throw new ReviewLineError(CHANGED);
         }
-        if (!sameCall(now, sent[step])) throw new Error(CHANGED);
+        if (!sameCall(now, sent[step])) throw new ReviewLineError(CHANGED);
         if (generation(handles[step]) !== reviewedGenerations[step]) {
           throw new WriteHoldStaleReviewError();
         }
@@ -775,7 +794,7 @@ async function send(
         modelId: model.id,
         // What was reviewed, read once above.
         calls: calls.map((call, step) => ({
-          ...unsaved(call),
+          ...call,
           ...snapshots[step].shown,
           ...snapshots[step].sent,
         })),
@@ -808,20 +827,18 @@ async function send(
     const progress = (phase: ReviewedProgress["phase"], hash?: Hex) =>
       onProgress?.({ step: at, total, phase, ...(hash ? { hash } : {}) });
     const unchanged = () => {
-      let now: SentCall;
+      let now: ReturnType<typeof exact>;
       try {
-        now = exact(call).sent;
+        now = exact(call);
       } catch {
-        throw new Error(CHANGED);
+        throw new ReviewLineError(CHANGED);
       }
-      if (!sameCall(now, reviewed)) throw new Error(CHANGED);
-      // The normalizer that decides adoption is the one reviewed, as it was.
       if (
-        call.normalizeData !== normalizers[step] ||
-        (normalizers[step] &&
-          normalizedData(normalizers[step], reviewed.data) !== normalized[step])
+        !sameCall(now.sent, reviewed) ||
+        String(now.shown.adoptIgnoringArgs) !==
+          String(snapshots[step].shown.adoptIgnoringArgs)
       )
-        throw new Error(CHANGED);
+        throw new ReviewLineError(CHANGED);
     };
     const client = clientFor(reviewed.chainId);
     const prior = receipts[step - 1];
@@ -896,9 +913,7 @@ async function send(
                   sending,
                   hold.safeService,
                   true,
-                  normalized[step] === undefined
-                    ? undefined
-                    : { data: normalized[step], of: normalizers[step]! },
+                  adopting(snapshots[step].shown),
                 )
               : null,
           ]);
@@ -915,7 +930,8 @@ async function send(
           if (journal)
             try {
               const { reservation } = handles[step].peek();
-              if (reservation === undefined) throw new Error(NOT_SAVED);
+              if (reservation === undefined)
+                throw new ReviewLineError(NOT_SAVED);
               journal.sending = { step: at, reservation };
               expected = await saveReviewedSequence(
                 journal,
@@ -939,18 +955,18 @@ async function send(
           action.assertWriteState?.();
           unchanged();
           if (adapter.isSafe() !== safe) {
-            throw new Error(
+            throw new ReviewLineError(
               "Wallet connection changed. Review the transaction again.",
             );
           }
           if (adapter.chainId() !== reviewed.chainId) {
-            throw new Error(
+            throw new ReviewLineError(
               "Your wallet changed networks. Review the transaction again.",
             );
           }
           // Last, after every callback and getter above could have run.
           if (adapter.account()?.toLowerCase() !== account.toLowerCase()) {
-            throw new Error(ACCOUNT_CHANGED);
+            throw new ReviewLineError(ACCOUNT_CHANGED);
           }
         },
         onBeforeWriteAborted: released,
@@ -1012,7 +1028,7 @@ async function send(
         delete journal.sending;
         await keep();
       }
-      throw new Error(WRITE_HOLD_CALL_FAILED_LINE);
+      throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
     }
     // A Safe's execTransaction is done only once its hold proved the Safe's
     // own success; until then the step stays in flight, held and journaled.
@@ -1021,7 +1037,7 @@ async function send(
       isSafeExecTransaction(reviewed.data) &&
       settled?.result !== "success"
     ) {
-      throw new Error(WRITE_HOLD_SAFE_UNCONFIRMED_LINE);
+      throw new ReviewLineError(WRITE_HOLD_SAFE_UNCONFIRMED_LINE);
     }
     if (receipt.status !== "success") {
       // It ran and reverted: nothing of it to resume.

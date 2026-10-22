@@ -1,4 +1,5 @@
-"use client";
+import { ReviewLineError } from "./transaction-message.js";
+("use client");
 
 import {
   encodeFunctionData,
@@ -51,6 +52,8 @@ export type TransactionReviewCall = {
   contractName?: string;
   /** The calls a batching destination (MultiSend) makes in order, decoded by the caller. */
   calls?: readonly TransactionReviewCall[];
+  /** For a Safe proposal: the arg indexes a queued proposal it adopts may differ in. */
+  adoptIgnoringArgs?: readonly number[];
 };
 
 /**
@@ -163,7 +166,7 @@ export function requestContractTransactionReview(
       current.safeTxGas !== reviewed.safeTxGas ||
       current.data !== reviewed.data
     ) {
-      throw new Error(
+      throw new ReviewLineError(
         "Transaction data changed after review. Nothing was sent; review it again.",
       );
     }
