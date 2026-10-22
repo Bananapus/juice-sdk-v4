@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReviewConfirmation, ReviewPrompt } from "./confirm.js";
 import type { TransactionReviewRequest } from "./transactionReview.js";
 
 /**
@@ -27,6 +28,13 @@ type TransactionReviewHandler = (
 ) => Promise<boolean>;
 
 const transactionReviewHandlers: TransactionReviewHandler[] = [];
+
+type ReviewHandler = (
+  prompt: ReviewPrompt,
+) => Promise<ReviewConfirmation | null>;
+
+/** The handlers that answer core's prompts with the confirmation core minted (`./confirm.ts`). */
+const reviewHandlers: ReviewHandler[] = [];
 
 const fundingChainSelectionHandlers: FundingChainSelectionHandler[] = [];
 
@@ -113,6 +121,24 @@ export function registerTransactionReviewHandler(
     const index = transactionReviewHandlers.lastIndexOf(handler);
     if (index >= 0) transactionReviewHandlers.splice(index, 1);
   };
+}
+
+/**
+ * Registers the review UI that answers {@link ReviewPrompt}s: it returns the
+ * prompt's `confirmation` to confirm, or null to cancel. The latest
+ * registration answers.
+ */
+export function registerReviewHandler(handler: ReviewHandler): () => void {
+  reviewHandlers.push(handler);
+  return () => {
+    const index = reviewHandlers.lastIndexOf(handler);
+    if (index >= 0) reviewHandlers.splice(index, 1);
+  };
+}
+
+/** The handler that answers the next prompt, if one is registered. */
+export function currentReviewHandler(): ReviewHandler | undefined {
+  return reviewHandlers[reviewHandlers.length - 1];
 }
 
 export async function requestTransactionReview(

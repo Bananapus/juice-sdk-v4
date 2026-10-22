@@ -13,3 +13,11 @@ export * from "./heldWrite.js";
 export * from "./savedAttempt.js";
 export * from "./model.js";
 export * from "./decodeCall.js";
+export {
+  registerReviewHandler,
+  type ReviewConfirmation,
+  type ReviewPrompt,
+  type ReviewSimulation,
+} from "./confirm.js";
+export * from "./wallet.js";
+export * from "./send.js";
