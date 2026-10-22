@@ -1,6 +1,6 @@
-import { ReviewLineError } from "./lineError.js";
-("use client");
+"use client";
 
+import { ReviewLineError } from "./lineError.js";
 import type { ReviewConfirmation, ReviewPrompt } from "./confirm.js";
 import type { TransactionReviewRequest } from "./transactionReview.js";
 

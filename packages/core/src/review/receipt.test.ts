@@ -1,7 +1,9 @@
 import type { Hex, PublicClient } from "viem";
 import { describe, expect, it, vi } from "vitest";
+import { errorLine } from "./transaction-message.js";
 import {
   isTransactionReceiptUnavailableError,
+  TRANSACTION_TRACKING_UNAVAILABLE_LINE,
   TransactionReceiptUnavailableError,
   waitForTrackedReceipt,
 } from "./receipt.js";
@@ -74,7 +76,7 @@ describe("transaction receipt tracking", () => {
       hash: HASH,
       chainId: 8453,
       cause: watcherError,
-      message: `Transaction ${HASH} was submitted on chain 8453, but confirmation tracking is temporarily unavailable. Check this transaction and do not submit it again yet.`,
+      message: TRANSACTION_TRACKING_UNAVAILABLE_LINE,
     });
     expect(tracked.getTransactionReceipt).toHaveBeenCalledTimes(2);
   });
@@ -121,8 +123,21 @@ describe("transaction receipt tracking", () => {
     }).catch((reason: unknown) => reason);
     expect(tracked.getTransactionReceipt).toHaveBeenCalledTimes(1);
     expect((error as Error).message).toBe(
-      `Transaction ${HASH} was submitted, but confirmation tracking is temporarily unavailable. Check this transaction and do not submit it again yet.`,
+      TRANSACTION_TRACKING_UNAVAILABLE_LINE,
     );
+
+    // A caller's unchecked hash stays a field, never the shown line.
+    const raw = "0xhttps://wallet.example/SECRET\nraw second line" as Hex;
+    const untracked = await waitForTrackedReceipt(
+      client({
+        waitForTransactionReceipt: vi.fn().mockRejectedValue(new Error("down")),
+        getTransactionReceipt: vi.fn().mockRejectedValue(new Error("down")),
+      }),
+      raw,
+      { attempts: 1, intervalMs: 0 },
+    ).catch((reason: unknown) => reason);
+    expect(untracked).toMatchObject({ hash: raw });
+    expect(errorLine(untracked)).toBe(TRANSACTION_TRACKING_UNAVAILABLE_LINE);
     expect(new TransactionReceiptUnavailableError(HASH).cause).toBeUndefined();
     expect(isTransactionReceiptUnavailableError(new Error("other"))).toBe(
       false,

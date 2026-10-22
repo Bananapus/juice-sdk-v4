@@ -48,6 +48,10 @@ const TYPED_LINES: Readonly<Record<string, string>> = {
     "This payment's result contradicts what was reviewed. Keep the action pending and do not pay again.",
   RelayrProofUnavailableError:
     "This payment's result is not readable yet. Keep the action pending and check it later.",
+  RelayrPaymentRevertedError:
+    "The payment transaction reverted onchain. Check it before you pay again.",
+  RelayrDestinationRevertedError:
+    "The action's transaction reverted onchain. Keep the original bundle pending; do not pay again.",
   RelayrPaymentNotSentError:
     "The payment was not sent. Review the payment again.",
   SafeRelayrRecoveryError:

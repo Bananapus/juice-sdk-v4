@@ -252,6 +252,21 @@ describe("module load", () => {
     ]);
   });
 
+  // A directive is one only as a module's first statement; an import placed
+  // above it makes it a plain expression and drops the client boundary.
+  test("a client directive opens its module", () => {
+    const misplaced = readdirSync("src", { recursive: true, encoding: "utf8" })
+      .filter((file) => /\.tsx?$/.test(file))
+      .filter((file) => {
+        const text = readFileSync(`src/${file}`, "utf8");
+        return (
+          /^\(?"use client"\)?;/m.test(text) &&
+          !text.startsWith('"use client";')
+        );
+      });
+    expect(misplaced).toEqual([]);
+  });
+
   // parseAbi at module level runs on import and keeps viem's ABI parser in
   // every chunk that loads the module; write the parsed ABI `as const`.
   test("no module parses an ABI when it is imported", () => {

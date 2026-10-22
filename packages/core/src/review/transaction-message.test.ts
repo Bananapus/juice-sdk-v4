@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  RelayrDestinationRevertedError,
   RelayrPaymentRetryError,
+  RelayrPaymentRevertedError,
   RelayrProofError,
   type RelayrPaymentRetryRefusal,
 } from "./relayr.js";
@@ -118,6 +120,22 @@ describe("errorLine", () => {
     expect(
       errorLine(new RelayrProofError("https://relayr.example/key")),
     ).toMatch(/do not pay again\.$/);
+    expect(
+      errorLine(
+        new RelayrDestinationRevertedError(
+          "https://relayr.example/key",
+          `0x${"ab".repeat(32)}`,
+          10,
+        ),
+      ),
+    ).toBe(
+      "The action's transaction reverted onchain. Keep the original bundle pending; do not pay again.",
+    );
+    expect(
+      errorLine(
+        new RelayrPaymentRevertedError("raw", `0x${"ab".repeat(32)}`, 10),
+      ),
+    ).toMatch(/^The payment transaction reverted onchain\./);
     expect(
       errorLine(Object.assign(new Error("raw"), { name: "toString" })),
     ).toBe(NETWORK_ERROR_LINE);
