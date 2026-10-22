@@ -645,6 +645,8 @@ async function send(
       sent[step - 1].chainId === reviewed.chainId
         ? prior.blockNumber
         : undefined;
+    /** The reservation this step's send took. */
+    let reserved: string | undefined;
     const hash = await handles[step].send<Hex>(client, (gate) => {
       // Under the hold's own check of the call, before anything reserves.
       if (generation(handles[step]) !== reviewedGenerations[step]) {
@@ -693,6 +695,7 @@ async function send(
         },
         beforeWrite: async () => {
           await gate.beforeSend();
+          reserved = handles[step].peek().reservation;
           if (!journal) return;
           try {
             const { reservation } = handles[step].peek();
@@ -757,9 +760,17 @@ async function send(
     const receipt = await waitForTrackedReceipt(client, hash);
     // The hold checks the receipt itself and settles, so the same call (or
     // intent) can be reviewed and sent again without waiting on a view.
+    // Only this send's own reservation's settlement speaks for it: a later
+    // send of the same call or intent may have settled since.
     const settled = await handles[step]
       .state(client)
-      .then((state) => (state.status === "clear" ? state.settled : undefined))
+      .then((state) =>
+        state.status === "clear" &&
+        reserved !== undefined &&
+        state.reservation === reserved
+          ? state.settled
+          : undefined,
+      )
       .catch(() => undefined);
     if (receipt.status === "success" && settled?.result === "failed") {
       // It ran, and the hold proved it failed: a Safe's call that failed.

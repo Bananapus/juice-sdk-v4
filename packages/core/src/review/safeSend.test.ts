@@ -769,6 +769,30 @@ describe("executeReviewedSafeTransaction", () => {
     }
   });
 
+  it("reads a step's outcome only from its own reservation's settlement", async () => {
+    const { deps, hold } = signing();
+    reviewUi();
+    const open = hold.open.bind(hold);
+    // Another send of the same call settled failed after this one.
+    vi.spyOn(hold, "open").mockImplementation((...args) => {
+      const handle = open(...args);
+      return {
+        ...handle,
+        state: async () => ({
+          status: "clear" as const,
+          reservation: "another-send",
+          settled: {
+            result: "failed" as const,
+            hash: `0x${"1".padStart(64, "0")}` as Hex,
+          },
+        }),
+      } as never;
+    });
+    await expect(
+      sendReviewed({ account: ACCOUNT, calls: [payCall()] }, deps),
+    ).resolves.toMatchObject({ status: "done" });
+  });
+
   it("binds the execution to its nonce with another owner's signature", async () => {
     const { wallet, deps, chain } = signing();
     const prompts = reviewUi();
