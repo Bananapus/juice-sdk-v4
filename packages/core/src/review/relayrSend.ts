@@ -67,6 +67,7 @@ import { simulateStateChangingTransaction } from "./simulation.js";
 import type { TransactionReviewCall } from "./transactionReview.js";
 import { unsupportedWalletRequest, type WalletAdapter } from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
+import { browserLocks } from "./writeRecovery.js";
 
 // Relayr runs ERC-2771 forward requests for one prepaid payment. Everything
 // here asks the person once through core's review, then signs and pays only
@@ -84,7 +85,7 @@ export type RelayrReviewedCall = {
 /**
  * The margin over an estimated Relayr fee that the review shows as its cap,
  * in basis points (11,000 = the estimate plus 10%). Identical requests quoted
- * minutes apart on every Relayr chain differed by at most 0.3%, so a signed
+ * minutes apart on every Relayr chain differed by at most 1.4%, so a signed
  * quote above the cap, which asks again, should be rare.
  */
 export const RELAYR_FEE_MARGIN_BPS = 11_000n;
@@ -323,6 +324,27 @@ async function postBundle(
   return bindRelayrQuote(response, request);
 }
 
+/**
+ * Refuses while a payment held under `intent` on any of `chainIds` may still
+ * land: the hold's key names its chain, and another chain could pay too.
+ */
+function requireIntentClear(
+  deps: ReviewedSendDeps,
+  account: Address,
+  intent: string,
+  chainIds: readonly number[],
+): void {
+  for (const chainId of chainIds) {
+    const state = openStepHold(deps.hold, account, false, {
+      chainId,
+      to: RELAYR_PAYMENT_ADDRESS,
+      data: "0x",
+      intent,
+    }).peek();
+    if (state.status !== "clear") throw new WriteHeldError(state);
+  }
+}
+
 /** The quote's authenticated payment on `chainId`. */
 function paymentOn(quote: RelayrQuote, chainId: number): RelayrPaymentDetails {
   const destinationChainIds = quote.expectedTransactions.map(
@@ -331,6 +353,15 @@ function paymentOn(quote: RelayrQuote, chainId: number): RelayrPaymentDetails {
   const option = relayrPaymentOptions(quote, destinationChainIds).find(
     (payment) => payment.chain === chainId,
   );
+  if (
+    !option &&
+    relayrPaymentOptions(quote, destinationChainIds, 0).some(
+      (payment) => payment.chain === chainId,
+    )
+  ) {
+    // Offered, but already too close to its deadline to pay.
+    throw new QuoteExpiredError();
+  }
   if (!option) {
     throw new Error(
       `Relayr returned no payment option on chain ${chainId}. Nothing was paid.`,
@@ -522,7 +553,12 @@ async function sendPayment(
   account: Address,
   deps: ReviewedSendDeps,
   hooks: {
-    intent?: string;
+    /**
+     * Holds the payment under this namespace instead of its exact call,
+     * refused while one held under it on any of `funding` may still land.
+     * The check and the reservation run under one lock across tabs.
+     */
+    intent?: { key: string; funding: readonly number[] };
     /** Async rechecks after the review, before the simulation. */
     recheck?: () => Promise<void>;
     /** Runs after the hold reserves, right before the wallet opens. */
@@ -539,99 +575,113 @@ async function sendPayment(
     to: RELAYR_PAYMENT_ADDRESS,
     data: details.calldata,
     value: details.amount,
-    ...(hooks.intent ? { intent: hooks.intent } : {}),
+    ...(hooks.intent ? { intent: hooks.intent.key } : {}),
   };
   const handle = openStepHold(deps.hold, account, false, call);
-  const held = handle.peek();
-  if (held.status !== "clear") throw new WriteHeldError(held);
   /** The attempt is saved (`onSending`), and the wallet not yet asked. */
   let saved = false;
   let invoked = false;
-  const send = handle.send<Hex>(client, (gate) =>
-    submitReviewedContractWrite({
-      request: call,
-      expectedAccount: account,
-      review: () => Promise.resolve(),
-      switchChain: async (chainId) => {
-        if (adapter.chainId() !== chainId) await adapter.switchChain(chainId);
-      },
-      currentAccount: () => adapter.account(),
-      reverify: async () => {
-        await hooks.recheck?.();
-        // A lapsed payment would only revert in simulation.
-        if (quoteExpired(details.deadline)) throw new QuoteExpiredError();
-        await requireRelayrPaymentRuntime(client);
-      },
-      simulate: async () => {
-        await simulateRelayrPayment(client, {
-          from: account,
-          payment: details,
-        });
-        return details;
-      },
-      beforeWrite: async () => {
-        await gate.beforeSend();
-        try {
-          await hooks.onSending?.();
-        } catch (error) {
-          gate.onRejected();
-          throw error;
-        }
-        saved = true;
-      },
-      beforeSend: () => {
-        try {
-          if (
-            details.target.toLowerCase() !== RELAYR_PAYMENT_ADDRESS ||
-            details.calldata.slice(0, 10).toLowerCase() !==
-              RELAYR_PAYMENT_SELECTOR
-          ) {
-            throw new Error(
-              "The Relayr payment is not to its pinned contract.",
-            );
-          }
+  const attempt = () => {
+    const held = handle.peek();
+    if (held.status !== "clear") throw new WriteHeldError(held);
+    return handle.send<Hex>(client, (gate) =>
+      submitReviewedContractWrite({
+        request: call,
+        expectedAccount: account,
+        review: () => Promise.resolve(),
+        switchChain: async (chainId) => {
+          if (adapter.chainId() !== chainId) await adapter.switchChain(chainId);
+        },
+        currentAccount: () => adapter.account(),
+        reverify: async () => {
+          await hooks.recheck?.();
+          // A lapsed payment would only revert in simulation.
           if (quoteExpired(details.deadline)) throw new QuoteExpiredError();
-          if (adapter.isSafe()) throw new Error(ORDINARY_WALLET);
-          if (adapter.chainId() !== details.chainId) {
-            throw new Error(
-              "Your wallet changed networks. Review the payment again.",
-            );
-          }
-          // Last, after every callback above could have run.
-          if (adapter.account()?.toLowerCase() !== account.toLowerCase()) {
-            throw new Error(ACCOUNT_CHANGED);
-          }
-        } catch (error) {
-          throw new RelayrPaymentNotSentError(error);
-        }
-      },
-      onBeforeWriteAborted: () => gate.onRejected(),
-      onWriteRejected: () => gate.onRejected(),
-      onWriteSubmitted: async (submitted) => {
-        gate.afterSubmit(submitted);
-        await hooks.onSent?.(submitted);
-      },
-      // The pinned contract and gas, never the quote's word.
-      write: async ({ chainId, calldata, amount }) => {
-        invoked = true;
-        try {
-          return await adapter.sendTransaction({
-            chainId,
-            to: RELAYR_PAYMENT_ADDRESS,
-            data: calldata,
-            value: amount,
-            gas: RELAYR_PAYMENT_GAS,
+          await requireRelayrPaymentRuntime(client);
+        },
+        simulate: async () => {
+          await simulateRelayrPayment(client, {
+            from: account,
+            payment: details,
           });
-        } catch (error) {
-          // Only the wallet's own 4001 says it declined.
-          throw relayrWalletPaymentError(error);
-        }
-      },
-    }),
-  );
+          return details;
+        },
+        beforeWrite: async () => {
+          await gate.beforeSend();
+          try {
+            await hooks.onSending?.();
+          } catch (error) {
+            gate.onRejected();
+            throw error;
+          }
+          saved = true;
+        },
+        beforeSend: () => {
+          try {
+            if (
+              details.target.toLowerCase() !== RELAYR_PAYMENT_ADDRESS ||
+              details.calldata.slice(0, 10).toLowerCase() !==
+                RELAYR_PAYMENT_SELECTOR
+            ) {
+              throw new Error(
+                "The Relayr payment is not to its pinned contract.",
+              );
+            }
+            if (quoteExpired(details.deadline)) throw new QuoteExpiredError();
+            if (adapter.isSafe()) throw new Error(ORDINARY_WALLET);
+            if (adapter.chainId() !== details.chainId) {
+              throw new Error(
+                "Your wallet changed networks. Review the payment again.",
+              );
+            }
+            // Last, after every callback above could have run.
+            if (adapter.account()?.toLowerCase() !== account.toLowerCase()) {
+              throw new Error(ACCOUNT_CHANGED);
+            }
+          } catch (error) {
+            throw new RelayrPaymentNotSentError(error);
+          }
+        },
+        onBeforeWriteAborted: () => gate.onRejected(),
+        onWriteRejected: () => gate.onRejected(),
+        onWriteSubmitted: async (submitted) => {
+          gate.afterSubmit(submitted);
+          await hooks.onSent?.(submitted);
+        },
+        // The pinned contract and gas, never the quote's word.
+        write: async ({ chainId, calldata, amount }) => {
+          invoked = true;
+          try {
+            return await adapter.sendTransaction({
+              chainId,
+              to: RELAYR_PAYMENT_ADDRESS,
+              data: calldata,
+              value: amount,
+              gas: RELAYR_PAYMENT_GAS,
+            });
+          } catch (error) {
+            // Only the wallet's own 4001 says it declined.
+            throw relayrWalletPaymentError(error);
+          }
+        },
+      }),
+    );
+  };
+  const { intent } = hooks;
+  const send = (): Promise<Hex> =>
+    intent
+      ? (browserLocks().request(
+          `nana-sdk:relayr-payment:${account.toLowerCase()}:${intent.key}`,
+          { mode: "exclusive" },
+          async () => {
+            requireIntentClear(deps, account, intent.key, intent.funding);
+            return attempt();
+          },
+        ) as unknown as Promise<Hex>)
+      : attempt();
   let hash: Hex;
   try {
-    hash = await send;
+    hash = await send();
   } catch (error) {
     // Saved as sending, refused by a final gate, never given to the wallet.
     if (saved && !invoked && !(error instanceof RelayrPaymentNotSentError)) {
@@ -703,10 +753,18 @@ export async function payRelayrReviewed(
   action: { account: Address; context?: readonly ReviewContextRow[] },
   deps: ReviewedSendDeps,
 ): Promise<{ hash: Hex }> {
-  requireOrdinaryWallet(deps.adapter, action.account);
+  const { account } = action;
+  requireOrdinaryWallet(deps.adapter, account);
   const details = paymentOn(quote, chainId);
-  await reviewPayment(details, action.account, action);
-  return { hash: await sendPayment(details, action.account, deps) };
+  const intent = {
+    key: `relayr:${details.bundleUuid}`,
+    funding: relayrPaymentChains(
+      quote.expectedTransactions.map((binding) => binding.chain),
+    ),
+  };
+  requireIntentClear(deps, account, intent.key, intent.funding);
+  await reviewPayment(details, account, action);
+  return { hash: await sendPayment(details, account, deps, { intent }) };
 }
 
 /**
@@ -749,20 +807,9 @@ export async function runRelayrReviewed(
       "Choose a Relayr funding chain in the same network family as these destinations.",
     );
   }
-  /** An earlier payment of this action, on any chain that could fund it, may still land. */
-  const requireScopeClear = () => {
-    if (!action.scope) return;
-    for (const chainId of funding) {
-      const state = openStepHold(deps.hold, account, false, {
-        chainId,
-        to: RELAYR_PAYMENT_ADDRESS,
-        data: "0x",
-        intent: action.scope,
-      }).peek();
-      if (state.status !== "clear") throw new WriteHeldError(state);
-    }
-  };
-  requireScopeClear();
+  const intent = action.scope ? { key: action.scope, funding } : undefined;
+  // An earlier payment of this action may still land: nothing is asked.
+  if (intent) requireIntentClear(deps, account, intent.key, funding);
   let cap = await relayrFeeCap(calls, account, paymentChainId, clientFor);
   const prepared = [
     ...requests.map(
@@ -801,22 +848,19 @@ export async function runRelayrReviewed(
   const extra = signed.slice(requests.length);
   await verifyForwardedEntries(entries, account, clientFor);
   for (let attempt = 1; ; attempt += 1) {
-    const quote = await postBundle(entries);
-    const details = paymentOn(quote, paymentChainId);
-    if (details.amount > cap) {
-      await reviewPayment(details, account, {
-        title: "The network fee went up",
-        ...(action.context ? { context: action.context } : {}),
-      });
-      cap = details.amount;
-    }
     try {
+      const quote = await postBundle(entries);
+      const details = paymentOn(quote, paymentChainId);
+      if (details.amount > cap) {
+        await reviewPayment(details, account, {
+          title: "The network fee went up",
+          ...(action.context ? { context: action.context } : {}),
+        });
+        cap = details.amount;
+      }
       const paymentHash = await sendPayment(details, account, deps, {
-        ...(action.scope ? { intent: action.scope } : {}),
-        recheck: async () => {
-          requireScopeClear();
-          await verifyForwardedEntries(entries, account, clientFor);
-        },
+        ...(intent ? { intent } : {}),
+        recheck: () => verifyForwardedEntries(entries, account, clientFor),
       });
       return {
         uuid: quote.bundle_uuid,
