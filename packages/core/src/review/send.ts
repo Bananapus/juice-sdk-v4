@@ -59,6 +59,7 @@ import {
   type WalletAdapter,
 } from "./wallet.js";
 import {
+  openStepHold,
   WriteHeldError,
   WriteHoldStaleReviewError,
   type WriteHold,
@@ -435,28 +436,6 @@ function simulationWarning(
     return { code: "simulation-unavailable", text: SIMULATION_UNAVAILABLE };
   }
   return undefined;
-}
-
-/** The write hold one step is sent under: its intent's, or its exact call's. */
-export function openStepHold(
-  hold: WriteHold,
-  account: Address,
-  safe: boolean,
-  call: Pick<
-    ReviewedCall,
-    "chainId" | "to" | "data" | "value" | "intent" | "legacy"
-  >,
-) {
-  return hold.open(
-    {
-      chainId: call.chainId,
-      account,
-      safe,
-      call: { to: call.to, data: call.data, value: call.value ?? 0n },
-      ...(call.intent ? { namespace: call.intent } : {}),
-    },
-    call.legacy ? { legacy: [...call.legacy] } : undefined,
-  );
 }
 
 /**

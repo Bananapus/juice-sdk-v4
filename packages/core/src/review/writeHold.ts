@@ -49,6 +49,7 @@ import {
 } from "./writeRecovery.js";
 import { isBytes32 } from "../untrusted.js";
 import { atCanonicalFinalizedBlock } from "./relayr.js";
+import type { ReviewedCall } from "./send.js";
 import { TAB, tabShared } from "./tabState.js";
 
 /** `sent` is the transaction at `hash`, exactly `record`'s call, from its account, on its chain. */
@@ -2404,3 +2405,25 @@ export type WriteHoldLegacySource =
 
 export type WriteHold = ReturnType<typeof createWriteHold>;
 export type WriteHoldHandle = ReturnType<WriteHold["open"]>;
+
+/** The write hold one step is sent under: its intent's, or its exact call's. */
+export function openStepHold(
+  hold: WriteHold,
+  account: Address,
+  safe: boolean,
+  call: Pick<
+    ReviewedCall,
+    "chainId" | "to" | "data" | "value" | "intent" | "legacy"
+  >,
+) {
+  return hold.open(
+    {
+      chainId: call.chainId,
+      account,
+      safe,
+      call: { to: call.to, data: call.data, value: call.value ?? 0n },
+      ...(call.intent ? { namespace: call.intent } : {}),
+    },
+    call.legacy ? { legacy: [...call.legacy] } : undefined,
+  );
+}

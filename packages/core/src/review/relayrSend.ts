@@ -64,7 +64,7 @@ import {
   type RelayrTransactionRecord,
 } from "./relayr.js";
 import type { SafeRelayrOptions } from "./safeRelayr.js";
-import { openStepHold, type ReviewedSendDeps } from "./send.js";
+import type { ReviewedSendDeps } from "./send.js";
 import {
   prepareSignature,
   signPrepared,
@@ -78,7 +78,7 @@ import {
   walletReady,
   type WalletAdapter,
 } from "./wallet.js";
-import { WriteHeldError } from "./writeHold.js";
+import { openStepHold, WriteHeldError } from "./writeHold.js";
 import { browserLocks } from "./writeRecovery.js";
 import { timeout } from "../pause.js";
 

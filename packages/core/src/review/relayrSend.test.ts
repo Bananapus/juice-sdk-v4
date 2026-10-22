@@ -43,7 +43,7 @@ import {
 } from "./relayrSend.js";
 import { TransactionReviewCancelledError } from "./reviewQueue.js";
 import type { SafeRelayrSession } from "./safeRelayr.js";
-import { openStepHold } from "./send.js";
+import { openStepHold } from "./writeHold.js";
 import { selfReviewingAdapter } from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
 import { SubmittedContractWriteError } from "./contractWrite.js";
