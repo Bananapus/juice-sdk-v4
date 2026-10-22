@@ -194,3 +194,7 @@ export const REVIEWED_ACCOUNT_CHANGED_LINE =
 /** The refusal when the app's send engine loader fails: a failed chunk load stays cached until a reload. */
 export const REVIEWED_ENGINE_LOAD_LINE =
   "This page could not load the review. Nothing was sent; reload the page and try again.";
+
+/** The refusal after a review whose simulation found the action would revert; the review showed why. */
+export const REVIEWED_SIMULATION_FAILED_LINE =
+  "This transaction would fail onchain. Nothing was sent; the review shows why.";

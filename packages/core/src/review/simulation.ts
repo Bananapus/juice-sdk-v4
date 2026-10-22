@@ -100,7 +100,8 @@ export function revertDetail(error: unknown): string {
 
 /** An error whose `cause` is what the node or the call answered. */
 function withCause(message: string, cause: unknown): Error {
-  return Object.defineProperty(new ReviewLineError(message), "cause", {
+  // Not the SDK's line: it quotes the node's answer.
+  return Object.defineProperty(new Error(message), "cause", {
     value: cause,
     configurable: true,
     writable: true,

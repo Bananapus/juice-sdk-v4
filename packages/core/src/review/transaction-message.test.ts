@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  RelayrPaymentRetryError,
+  RelayrProofError,
+  type RelayrPaymentRetryRefusal,
+} from "./relayr.js";
+import {
   errorLine,
   NETWORK_ERROR_LINE,
   ReviewLineError,
@@ -96,6 +101,26 @@ describe("errorLine", () => {
     expect(
       errorLine(new ReviewLineError("This wallet request is not supported.")),
     ).toBe("This wallet request is not supported.");
+    // The typed Relayr and Safe refusals show fixed lines, never their text.
+    expect(
+      errorLine(
+        new RelayrPaymentRetryError("https://relayr.example/key", "paid"),
+      ),
+    ).toBe("This bundle is already paid. Do not pay again.");
+    expect(
+      errorLine(
+        new RelayrPaymentRetryError(
+          "x",
+          "constructor" as RelayrPaymentRetryRefusal,
+        ),
+      ),
+    ).toMatch(/^Whether this bundle is paid is not known yet/);
+    expect(
+      errorLine(new RelayrProofError("https://relayr.example/key")),
+    ).toMatch(/do not pay again\.$/);
+    expect(
+      errorLine(Object.assign(new Error("raw"), { name: "toString" })),
+    ).toBe(NETWORK_ERROR_LINE);
     expect(errorLine(new WriteHoldBusyError())).toBe(
       "This transaction is already open in another window.",
     );

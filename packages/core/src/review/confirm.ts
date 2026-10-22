@@ -1,4 +1,5 @@
 import { ReviewLineError } from "./lineError.js";
+import { REVIEWED_SIMULATION_FAILED_LINE } from "./messages.js";
 import type { Hex } from "viem";
 import type { ReviewModel } from "./model.js";
 import {
@@ -103,6 +104,11 @@ export async function promptReview(
   } finally {
     entry.used = true;
   }
+  // The node's own words stay the cause: the review already showed them.
   if (simulated?.status === "failed")
-    throw new ReviewLineError(simulated.message);
+    throw Object.defineProperty(
+      new ReviewLineError(REVIEWED_SIMULATION_FAILED_LINE),
+      "cause",
+      { value: simulated.message, configurable: true, writable: true },
+    );
 }

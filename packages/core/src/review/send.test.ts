@@ -1,3 +1,4 @@
+import { REVIEWED_SIMULATION_FAILED_LINE } from "./messages.js";
 import {
   encodeFunctionData,
   numberToHex,
@@ -497,9 +498,14 @@ describe("sendReviewed", () => {
       ]);
       return prompt.confirmation;
     });
-    await expect(sendReviewed(action([payCall(6n)]), deps)).rejects.toThrow(
-      "Pay cannot run on OP Mainnet: Execution reverted: NOPE",
-    );
+    await expect(
+      sendReviewed(action([payCall(6n)]), deps),
+    ).rejects.toMatchObject({
+      message: REVIEWED_SIMULATION_FAILED_LINE,
+      cause: expect.stringContaining(
+        "Pay cannot run on OP Mainnet: Execution reverted: NOPE",
+      ),
+    });
 
     // A sequence whose step reverts in eth_simulateV1 is refused the same way.
     chain.client.simulateCalls.mockImplementationOnce(async ({ calls }) => ({
@@ -520,7 +526,10 @@ describe("sendReviewed", () => {
         action([approveCall(), payCall(7n, { dependsOnPrior: true })]),
         deps,
       ),
-    ).rejects.toThrow("Pay cannot run on OP Mainnet: NOPE");
+    ).rejects.toMatchObject({
+      message: REVIEWED_SIMULATION_FAILED_LINE,
+      cause: expect.stringContaining("Pay cannot run on OP Mainnet: NOPE"),
+    });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
 
@@ -750,6 +759,61 @@ describe("sendReviewed", () => {
         sendReviewed(action([payCall(5n, extra)]), other.deps),
       ).resolves.toMatchObject({ status: "proposed" });
       expect(other.wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("adopts by the queued call's own selector, whatever its overloads or hex case", async () => {
+    const OVERLOADED = [
+      {
+        type: "function",
+        name: "f",
+        stateMutability: "nonpayable",
+        inputs: [
+          { name: "proof", type: "uint256[]" },
+          { name: "amount", type: "uint256" },
+        ],
+        outputs: [],
+      },
+      {
+        type: "function",
+        name: "f",
+        stateMutability: "nonpayable",
+        inputs: [
+          { name: "proof", type: "bytes[]" },
+          { name: "amount", type: "uint256" },
+        ],
+        outputs: [],
+      },
+    ] as const;
+    const fCall = (
+      proof: readonly bigint[],
+      extra: Partial<ReviewedCall> = {},
+    ): ReviewedCall => ({
+      chainId: 10,
+      to: TERMINAL,
+      data: encodeFunctionData({
+        abi: [OVERLOADED[0]],
+        functionName: "f",
+        args: [proof, 5n],
+      }),
+      value: 7n,
+      abi: OVERLOADED,
+      functionName: "f",
+      args: [proof, 5n],
+      ...extra,
+    });
+    for (const queuedData of [
+      fCall([]).data,
+      fCall([2n]).data.toUpperCase().replace(/^0X/, "0x") as Hex,
+    ]) {
+      const { wallet, deps, chain } = setup();
+      wallet.state.safe = true;
+      reviewUi();
+      const queued = chain.queueProposal({ ...fCall([]), data: queuedData });
+      await expect(
+        sendReviewed(action([fCall([1n], { adoptIgnoringArgs: [0] })]), deps),
+      ).resolves.toEqual({ status: "proposed", step: 0, safeTxHash: queued });
+      expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     }
   });
 
@@ -1190,7 +1254,10 @@ describe("sendReviewed", () => {
         action([approveCall(), payCall(5n, { dependsOnPrior: true })]),
         deps,
       ),
-    ).rejects.toThrow("Pay cannot run on OP Mainnet");
+    ).rejects.toMatchObject({
+      message: REVIEWED_SIMULATION_FAILED_LINE,
+      cause: expect.stringContaining("Pay cannot run on OP Mainnet"),
+    });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
@@ -1214,7 +1281,12 @@ describe("sendReviewed", () => {
             ? base.client
             : chain.client) as unknown as PublicClient,
       }),
-    ).rejects.toThrow("Pay cannot run on OP Mainnet: Execution reverted: NOPE");
+    ).rejects.toMatchObject({
+      message: REVIEWED_SIMULATION_FAILED_LINE,
+      cause: expect.stringContaining(
+        "Pay cannot run on OP Mainnet: Execution reverted: NOPE",
+      ),
+    });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
@@ -1247,8 +1319,11 @@ describe("sendReviewed", () => {
       }).toThrow(TypeError);
       return prompt.confirmation;
     });
-    await expect(sendReviewed(action([payCall()]), deps)).rejects.toThrow(
-      "Pay cannot run on OP Mainnet",
+    await expect(sendReviewed(action([payCall()]), deps)).rejects.toMatchObject(
+      {
+        message: REVIEWED_SIMULATION_FAILED_LINE,
+        cause: expect.stringContaining("Pay cannot run on OP Mainnet"),
+      },
     );
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });

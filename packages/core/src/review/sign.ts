@@ -82,14 +82,14 @@ function requireChainId(chainId: unknown): number {
     !Number.isSafeInteger(chainId) ||
     chainId <= 0
   ) {
-    throw new ReviewLineError(`Invalid chain ID: ${String(chainId)}.`);
+    throw new ReviewLineError("Invalid chain ID.");
   }
   return chainId;
 }
 
 function requireAddress(name: string, value: unknown): Address {
   if (typeof value !== "string" || !isAddress(value)) {
-    throw new ReviewLineError(`Invalid ${name} address: ${String(value)}.`);
+    throw new ReviewLineError(`Invalid ${name} address.`);
   }
   return getAddress(value);
 }
@@ -97,8 +97,7 @@ function requireAddress(name: string, value: unknown): Address {
 /** An unsigned integer as a primitive, so nothing can change it after review. */
 function requireUint(name: string, value: unknown): bigint {
   const parsed = uint256(value);
-  if (parsed === null)
-    throw new ReviewLineError(`Invalid ${name}: ${String(value)}.`);
+  if (parsed === null) throw new ReviewLineError(`Invalid ${name}.`);
   return parsed;
 }
 
@@ -327,7 +326,7 @@ export function prepareSignature(
     }
   }
   throw new ReviewLineError(
-    `This signature is not one the app can review: ${String(kind)}. Nothing was signed.`,
+    "This signature is not one the app can review. Nothing was signed.",
   );
 }
 

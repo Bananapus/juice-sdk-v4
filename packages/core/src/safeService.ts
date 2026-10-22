@@ -3,6 +3,7 @@ import {
   decodeFunctionData,
   encodeAbiParameters,
   encodeFunctionData,
+  getAbiItem,
   stringify,
   TransactionNotFoundError,
   TransactionReceiptNotFoundError,
@@ -1134,11 +1135,20 @@ export async function findPendingSafeAppProposal(
   /** Whether `proposed` is `call` but for the args `adopt` ignores. */
   const adoptable = (proposed: SafeAppCall) => {
     const { abi, ignoring } = adopt!;
-    const argsOf = (data: Hex) => {
-      const { functionName, args = [] } = decodeFunctionData({ abi, data });
+    const argsOf = (raw: Hex) => {
+      const data = raw.toLowerCase() as Hex;
+      // The one function its selector names, so an overload can't re-encode it.
+      const item = getAbiItem({ abi, name: data.slice(0, 10) as Hex });
+      if (item?.type !== "function") throw new Error();
+      const only = [item];
+      const { args = [] } = decodeFunctionData({ abi: only, data });
       // Only the canonical encoding: no trailing or reshaped bytes.
-      const encoded = encodeFunctionData({ abi, functionName, args });
-      if (encoded.toLowerCase() !== data.toLowerCase()) throw new Error();
+      const encoded = encodeFunctionData({
+        abi: only,
+        functionName: item.name,
+        args,
+      });
+      if (encoded.toLowerCase() !== data) throw new Error();
       return args.map((arg) => stringify(arg));
     };
     try {
