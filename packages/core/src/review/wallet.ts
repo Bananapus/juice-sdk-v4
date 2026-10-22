@@ -42,19 +42,26 @@ export type WalletAdapter = {
 };
 
 /**
- * The connected account and the wallet client. The account is read before the
- * client is fetched and again after, so a wallet that switched accounts in
- * between is refused instead of signing from the new one.
+ * The connected account and the wallet client. The account, chain and Safe
+ * mode are read before the client is fetched and again after, so a wallet
+ * that switched in between is refused instead of signing in the new one.
  */
-async function connection(
-  account: () => Address | undefined,
-  walletClient: () => Promise<WalletClient>,
-): Promise<{ account: Address; client: WalletClient }> {
-  const asked = account();
+async function connection(options: {
+  walletClient: () => Promise<WalletClient>;
+  account: () => Address | undefined;
+  chainId: () => number | undefined;
+  isSafe: () => boolean;
+}): Promise<{ account: Address; client: WalletClient }> {
+  const asked = options.account();
   if (!asked) throw new Error("Connect a wallet first.");
-  const client = await walletClient();
-  if (account()?.toLowerCase() !== asked.toLowerCase()) {
+  const chainId = options.chainId();
+  const safe = options.isSafe();
+  const client = await options.walletClient();
+  if (options.account()?.toLowerCase() !== asked.toLowerCase()) {
     throw new Error("The connected account changed. Review again.");
+  }
+  if (options.chainId() !== chainId || options.isSafe() !== safe) {
+    throw new Error("Wallet connection changed. Review the transaction again.");
   }
   return { account: asked, client };
 }
@@ -90,10 +97,7 @@ export function viemWalletAdapter(options: {
       await options.switchChain(chainId);
     },
     async sendTransaction({ chainId, to, data, value, gas }) {
-      const { account, client } = await connection(
-        options.account,
-        options.walletClient,
-      );
+      const { account, client } = await connection(options);
       return client.sendTransaction({
         account,
         chain: chainOf(client, chainId),
@@ -104,24 +108,15 @@ export function viemWalletAdapter(options: {
       });
     },
     async signTypedData(typedData) {
-      const { account, client } = await connection(
-        options.account,
-        options.walletClient,
-      );
+      const { account, client } = await connection(options);
       return client.signTypedData({ ...typedData, account });
     },
     async signMessage(message) {
-      const { account, client } = await connection(
-        options.account,
-        options.walletClient,
-      );
+      const { account, client } = await connection(options);
       return client.signMessage({ account, message });
     },
     async sendCalls(chainId, calls) {
-      const { account, client } = await connection(
-        options.account,
-        options.walletClient,
-      );
+      const { account, client } = await connection(options);
       const { id } = await client.sendCalls({
         account,
         chain: chainOf(client, chainId),

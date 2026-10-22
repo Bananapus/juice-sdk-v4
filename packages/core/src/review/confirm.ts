@@ -69,7 +69,9 @@ export async function promptReview(
     );
   }
   let simulated: ReviewSimulation | undefined;
-  void simulation.then((result) => {
+  // Core keeps its own frozen copy: the handler cannot rewrite the result core enforces.
+  const settled = simulation.then((result) => frozen({ ...result }));
+  void settled.then((result) => {
     simulated = result;
   });
   const confirmation = Object.freeze(Object.create(null)) as ReviewConfirmation;
@@ -79,7 +81,7 @@ export async function promptReview(
     const answer: unknown = await handler(
       Object.freeze({
         model: frozen(model),
-        simulation,
+        simulation: settled,
         enriched: enriched.then(frozen),
         confirmation,
       }),

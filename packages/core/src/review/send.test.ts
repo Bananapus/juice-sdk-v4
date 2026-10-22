@@ -109,6 +109,10 @@ function fakeChain() {
     /** What eth_call does: answer, revert, fail, or never answer. */
     ethCall: (() => "0x") as (params: unknown[]) => unknown,
     mined: new Map<string, bigint>(),
+    sent: new Map<
+      string,
+      { to: Address; data: Hex; value: bigint; nonce: number }
+    >(),
     status: "success" as "success" | "reverted",
   };
   const receipt = (hash: Hex) =>
@@ -117,8 +121,9 @@ function fakeChain() {
       blockNumber: state.mined.get(hash)!,
       blockHash: numberToHex(state.mined.get(hash)!, { size: 32 }),
       status: state.status,
+      transactionIndex: 0,
       from: ACCOUNT,
-      to: TERMINAL,
+      to: state.sent.get(hash)?.to ?? TERMINAL,
       logs: [],
     }) as unknown as TransactionReceipt;
   const notFound = (name: string) =>
@@ -147,13 +152,28 @@ function fakeChain() {
     getChainId: vi.fn(async () => 10),
     getBlockNumber: vi.fn(async () => state.head),
     getTransactionCount: vi.fn(async () => state.nonce),
-    getBlock: vi.fn(async () => ({
-      number: state.head,
-      hash: numberToHex(state.head, { size: 32 }),
+    getBlock: vi.fn(async ({ blockNumber }: { blockNumber?: bigint } = {}) => ({
+      number: blockNumber ?? state.head,
+      hash: numberToHex(blockNumber ?? state.head, { size: 32 }),
+      timestamp: 1_000n,
       transactions: [],
     })),
-    getTransaction: vi.fn(async () => {
-      throw notFound("TransactionNotFoundError");
+    getTransaction: vi.fn(async ({ hash }: { hash: Hex }) => {
+      const tx = state.sent.get(hash);
+      if (!tx) throw notFound("TransactionNotFoundError");
+      const block = state.mined.get(hash)!;
+      return {
+        hash,
+        chainId: 10,
+        from: ACCOUNT,
+        to: tx.to,
+        input: tx.data,
+        value: tx.value,
+        nonce: tx.nonce,
+        blockNumber: block,
+        blockHash: numberToHex(block, { size: 32 }),
+        transactionIndex: 0,
+      };
     }),
     getTransactionReceipt: vi.fn(async ({ hash }: { hash: Hex }) => {
       if (!state.mined.has(hash))
@@ -165,7 +185,8 @@ function fakeChain() {
     ),
   };
   /** The wallet broadcast `hash`: it is mined in the next block. */
-  const mine = (hash: Hex) => {
+  const mine = (hash: Hex, tx: { to: Address; data: Hex; value: bigint }) => {
+    state.sent.set(hash, { ...tx, nonce: state.nonce });
     state.head += 1n;
     state.nonce += 1;
     state.mined.set(hash, state.head);
@@ -189,10 +210,10 @@ function fakeWallet(chain: ReturnType<typeof fakeChain>) {
       state.chainId = chainId;
     }),
     sendTransaction: vi.fn(
-      async (_tx: Parameters<WalletAdapter["sendTransaction"]>[0]) => {
+      async (tx: Parameters<WalletAdapter["sendTransaction"]>[0]) => {
         count += 1;
         const hash = `0x${count.toString(16).padStart(64, "0")}` as Hex;
-        if (!state.safe) chain.mine(hash);
+        if (!state.safe) chain.mine(hash, tx);
         return hash;
       },
     ),
@@ -767,6 +788,13 @@ describe("sendReviewed", () => {
     answers[1]();
     await expect(second).rejects.toBeInstanceOf(WriteHoldStaleReviewError);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+    // Sent and settled, the same action reviewed afresh sends normally.
+    answers.length = 0;
+    const again = sendReviewed(action([call]), deps);
+    await vi.waitFor(() => expect(answers).toHaveLength(1));
+    answers[0]();
+    await expect(again).resolves.toMatchObject({ status: "done" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 
   it("reads a sequence step that reverts with no data as a revert", async () => {
@@ -822,5 +850,65 @@ describe("sendReviewed", () => {
       }),
     ).rejects.toThrow("Pay cannot run on OP Mainnet: Execution reverted: NOPE");
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("sends every step of one intent without calling its own reservation stale", async () => {
+    const { wallet, deps } = setup();
+    const prompts = reviewUi();
+    const result = await sendReviewed(
+      action(
+        [approveCall(), payCall(5n, { dependsOnPrior: true })].map((call) => ({
+          ...call,
+          intent: "pay:1",
+        })),
+      ),
+      deps,
+    );
+    expect(result.status).toBe("done");
+    expect(prompts).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  it("enforces core's own copy of a reported revert, whatever the handler does to it", async () => {
+    const { wallet, deps, chain } = setup();
+    chain.state.ethCall = () => {
+      throw reverted();
+    };
+    reviewUi(async (prompt) => {
+      const simulation = await prompt.simulation;
+      expect(() => {
+        (simulation as { status: string }).status = "passed";
+      }).toThrow(TypeError);
+      return prompt.confirmation;
+    });
+    await expect(sendReviewed(action([payCall()]), deps)).rejects.toThrow(
+      "Pay cannot run on OP Mainnet",
+    );
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("reads an RPC failure as unavailable whatever the call is labelled", async () => {
+    const { deps, chain } = setup();
+    // No eth_simulateV1: each call runs alone, and the node is unreachable.
+    chain.client.simulateCalls.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("method not found"), { code: -32601 });
+    });
+    chain.state.ethCall = () => {
+      throw unreachable();
+    };
+    reviewUi(async (prompt) => {
+      expect(await prompt.simulation).toMatchObject({ status: "unavailable" });
+      chain.state.ethCall = () => "0x";
+      return prompt.confirmation;
+    });
+    await expect(
+      sendReviewed(
+        action([
+          { ...approveCall(), label: "Revert upgrade approval" },
+          payCall(5n, { label: "Revert upgrade" }),
+        ]),
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: "done" });
   });
 });

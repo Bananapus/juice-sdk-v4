@@ -198,4 +198,45 @@ describe("wallet adapters", () => {
     ).rejects.toThrow("The connected account changed. Review again.");
     expect(client.sendTransaction).not.toHaveBeenCalled();
   });
+
+  it("viemWalletAdapter refuses a Safe or chain switch while the wallet client loads", async () => {
+    const client = walletClient();
+    const state = { safe: false, chainId: 10 };
+    const adapter = viemWalletAdapter({
+      walletClient: async () => {
+        state.safe = true;
+        return client as unknown as WalletClient;
+      },
+      account: () => ACCOUNT,
+      chainId: () => state.chainId,
+      isSafe: () => state.safe,
+      switchChain: async () => undefined,
+    });
+    await expect(
+      adapter.sendTransaction({
+        chainId: 10,
+        to: TARGET,
+        data: "0x",
+        value: 0n,
+      }),
+    ).rejects.toThrow(
+      "Wallet connection changed. Review the transaction again.",
+    );
+    state.safe = false;
+    const moving = viemWalletAdapter({
+      walletClient: async () => {
+        state.chainId = 8453;
+        return client as unknown as WalletClient;
+      },
+      account: () => ACCOUNT,
+      chainId: () => state.chainId,
+      isSafe: () => false,
+      switchChain: async () => undefined,
+    });
+    await expect(moving.signMessage("x")).rejects.toThrow(
+      "Wallet connection changed. Review the transaction again.",
+    );
+    expect(client.sendTransaction).not.toHaveBeenCalled();
+    expect(client.signMessage).not.toHaveBeenCalled();
+  });
 });

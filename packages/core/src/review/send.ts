@@ -177,10 +177,12 @@ function reverted(error: unknown): boolean {
     ) {
       return true;
     }
+    // A wrapper that carries its cause (simulateCallSequence's, which names
+    // the call) is read through that cause, never by its own text.
     const text =
       typeof item.details === "string"
         ? item.details
-        : typeof item.shortMessage === "string"
+        : typeof item.shortMessage === "string" || "cause" in item
           ? undefined
           : item.message;
     if (typeof text === "string" && /revert/i.test(text)) return true;
@@ -363,13 +365,12 @@ export async function sendReviewed(
     if (state.status !== "clear") throw new WriteHeldError(state);
   }
   /**
-   * Each step's hold as the review opened. Another prompt of the same action
-   * that reserved, or sent and settled, meanwhile makes this review stale.
+   * Each step's latest reservation as the review opened. Another prompt of
+   * the same action that reserved meanwhile, whether or not it has settled,
+   * makes this review stale.
    */
-  const generation = (handle: (typeof handles)[number]) => {
-    const state = handle.peek();
-    return JSON.stringify([state.status, state.reservation ?? null]);
-  };
+  const generation = (handle: (typeof handles)[number]) =>
+    handle.peek().reservation ?? null;
   const reviewedGenerations = handles.map(generation);
   const model = buildReviewModel(request(safe));
   const simulation = reviewSimulation(account, calls, sent, clientFor);
@@ -406,11 +407,12 @@ export async function sendReviewed(
       sent[step - 1].chainId === reviewed.chainId
         ? prior.blockNumber
         : undefined;
-    if (generation(handles[step]) !== reviewedGenerations[step]) {
-      throw new WriteHoldStaleReviewError();
-    }
-    const hash = await handles[step].send<Hex>(client, (gate) =>
-      submitReviewedContractWrite({
+    const hash = await handles[step].send<Hex>(client, (gate) => {
+      // Under the hold's own check of the call, before anything reserves.
+      if (generation(handles[step]) !== reviewedGenerations[step]) {
+        throw new WriteHoldStaleReviewError();
+      }
+      return submitReviewedContractWrite({
         request: reviewed,
         expectedAccount: account,
         // Confirmed once, above, for every step.
@@ -466,12 +468,17 @@ export async function sendReviewed(
           adapter.sendTransaction({ chainId, to, data, value, gas }),
         onPhase: (phase) => progress(phase),
         guard: action.guard,
-      }),
-    );
+      });
+    });
     hashes.push(hash);
-    // A later step that is this same call is held by this send, not by another prompt.
+    // A later step held under this step's key (the same call, or the same
+    // intent) was reserved by this send, not by another prompt.
     for (const [later, handle] of handles.entries()) {
-      if (later > step && sameCall(sent[later], reviewed)) {
+      const sameKey = call.intent
+        ? calls[later].intent === call.intent &&
+          sent[later].chainId === reviewed.chainId
+        : !calls[later].intent && sameCall(sent[later], reviewed);
+      if (later > step && sameKey) {
         reviewedGenerations[later] = generation(handle);
       }
     }
@@ -481,6 +488,9 @@ export async function sendReviewed(
     }
     progress("receipt", hash);
     const receipt = await waitForTrackedReceipt(client, hash);
+    // The hold checks the receipt itself and settles, so the same call (or
+    // intent) can be reviewed and sent again without waiting on a view.
+    await handles[step].state(client).catch(() => undefined);
     if (receipt.status !== "success") throw new Error(WRITE_HOLD_REVERTED_LINE);
     receipts.push(receipt);
   }
