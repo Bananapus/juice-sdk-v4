@@ -4,6 +4,7 @@ import {
   PublicClient,
   encodeAbiParameters,
   getAddress,
+  getContract,
   isAddressEqual,
   keccak256,
   pad,
@@ -1173,12 +1174,13 @@ export async function getV6SuckerPairs(
   client: PublicClient,
   { chainId, projectId }: { chainId: JBChainId; projectId: bigint },
 ): Promise<JBSuckerPairV6[]> {
-  const pairs = await client.readContract({
+  // `getContract` falls back to viem's own action, so a wagmi base client
+  // without `readContract` reads too.
+  const pairs = await getContract({
     address: v6Address("JBSuckerRegistry", chainId),
     abi: jbSuckerRegistryAbi,
-    functionName: "suckerPairsOf",
-    args: [projectId],
-  });
+    client,
+  }).read.suckerPairsOf([projectId]);
 
   return pairs.map((pair) => ({
     local: pair.local,
