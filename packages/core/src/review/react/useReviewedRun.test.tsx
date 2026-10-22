@@ -56,7 +56,8 @@ afterEach(() => {
 });
 
 /** Mounts the hook. */
-function harness(deps: UseReviewedRunDeps | null) {
+function harness(given: Omit<UseReviewedRunDeps, "engine"> | null) {
+  const deps = given && { ...given, engine: () => import("../send.js") };
   const seen: { current?: UseReviewedRunResult } = {};
   function Probe() {
     seen.current = useReviewedRun(deps);

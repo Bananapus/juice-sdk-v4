@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "vitest";
 
-test("a page that mounts the reviewed-send hook loads the send engine apart", async () => {
+test("the reviewed-send hook leaves the send engine to the app's loader", async () => {
   const outdir = mkdtempSync(join(tmpdir(), "lazy-engine-"));
   try {
     const { metafile } = await build({
@@ -31,7 +31,7 @@ test("a page that mounts the reviewed-send hook loads the send engine apart", as
     expect(loaded.some((file) => file.endsWith("useReviewedRun.ts"))).toBe(
       true,
     );
-    // ...the engine, its review model and the decoder's ABIs only once fetched.
+    // ...the engine, its review model and the decoder's ABIs only through `engine`.
     for (const engine of [
       "review/send.ts",
       "review/model.ts",

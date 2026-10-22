@@ -13,6 +13,8 @@ import {
   type ReviewedProgress,
   type ReviewedResult,
   type ReviewedSendDeps,
+  type resumeReviewed,
+  type sendReviewed,
   type WriteHoldClient,
   type WriteHoldHandle,
 } from "../index.js";
@@ -32,9 +34,21 @@ import {
 } from "./heldView.js";
 import type { Address, Hex, TransactionReceipt } from "viem";
 
+/** The send engine: the review model, its decoder and the ABIs it reads. */
+export type ReviewedEngine = {
+  sendReviewed: typeof sendReviewed;
+  resumeReviewed: typeof resumeReviewed;
+};
+
 export type UseReviewedRunDeps = ReviewedSendDeps & {
   account: Address | undefined;
   guard?: () => void;
+  /**
+   * Loads the send engine, so the app chooses whether a page's first load
+   * carries it: `() => import("@bananapus/nana-sdk-core/review")` keeps it
+   * out. The hook calls it once mounted, so a run does not wait on it.
+   */
+  engine: () => Promise<ReviewedEngine>;
 };
 
 /** A run that failed: `error` is the line to show, `failure` the value thrown. */
@@ -108,21 +122,6 @@ const sent = ({ chainId, to, data, value }: ReviewedCall) => [
   value ?? 0n,
 ];
 
-/**
- * The send engine (the review model, its decoder and the ABIs it reads),
- * loaded apart from the hook so a page that mounts it does not carry the
- * engine in its first load. Each hook fetches it once mounted, so a run
- * does not wait on it; a failed load is tried again on the next.
- */
-let engine: Promise<typeof import("../send.js")> | undefined;
-function loadEngine() {
-  engine ??= import("../send.js").catch((error: unknown) => {
-    engine = undefined;
-    throw error;
-  });
-  return engine;
-}
-
 export const REVIEWED_RUN_SCOPE_LINE =
   "This action has more than one step and no scope to resume it by. Nothing was sent.";
 
@@ -165,11 +164,12 @@ export function useReviewedRun(
     [watched],
   );
   useEffect(() => view?.start(), [view]);
+  const engine = deps?.engine;
   useEffect(() => {
-    loadEngine().catch(() => {
+    engine?.().catch(() => {
       /* A run loads it again, and reports its failure. */
     });
-  }, []);
+  }, [engine]);
   const shown = useSyncExternalStore(
     view?.subscribe ?? none,
     view?.get ?? idle,
@@ -238,7 +238,7 @@ export function useReviewedRun(
           throw new Error(REVIEWED_ACCOUNT_CHANGED_LINE);
         if (action.calls.length > 1 && action.scope === undefined)
           throw new Error(REVIEWED_RUN_SCOPE_LINE);
-        const { resumeReviewed, sendReviewed } = await loadEngine();
+        const { resumeReviewed, sendReviewed } = await deps.engine();
         const { account, guard } = deps;
         const tracked: ReviewedSendDeps = {
           ...deps,
