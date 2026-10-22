@@ -33,6 +33,7 @@ import {
   transactionReviewJson,
   type TransactionReviewCall,
   type TransactionReviewRequest,
+  type TransactionReviewSignature,
 } from "./transactionReview.js";
 
 /** A row the site shows above the calls, marked as the site's own summary. */
@@ -126,12 +127,27 @@ export type ReviewCallModel = {
   warnings: ReviewWarning[];
 };
 
+/** One signature the action asks for, as the review shows it. */
+export type ReviewSignatureModel = {
+  kind: TransactionReviewSignature["kind"];
+  chainId: number;
+  /** A copy of the exact EIP-712 typed data signed; null for a message. */
+  typedData: unknown | null;
+  /** The exact text signed; null for typed data. */
+  message: string | null;
+  /** The calls the signature lets someone run, decoded. */
+  calls: ReviewCallModel[];
+  /** What it authorizes, in rows (Permit2's token, amount, spender and expiry). */
+  steps: PrettyStep[];
+};
+
 export type ReviewModel = {
   /**
    * keccak256 of the canonical JSON of the binding fields only: kind, each
    * call's chainId, from, to, value, gas, safeTxGas and data (and the same for
-   * the decoded calls it shows inside), authorization, message and context. Enrichment, warnings and simulation are excluded and
-   * may change after mint.
+   * the decoded calls it shows inside), authorization, message, context, and
+   * each signature's kind, chain, typed data, text and calls. Enrichment,
+   * warnings and simulation are excluded and may change after mint.
    */
   id: Hex;
   /** "message" is an authorization signed as a plain message rather than typed data. */
@@ -144,8 +160,10 @@ export type ReviewModel = {
   calls: ReviewCallModel[];
   /** A copy of the exact typed data (or message envelope) a signature commits to. */
   authorization: unknown | null;
-  /** The exact personal_sign text, when the request carries it. */
+  /** The exact personal_sign text, when the action signs one message. */
   message: string | null;
+  /** The signatures the action asks for, signed after confirm and before any call is sent. */
+  signatures: ReviewSignatureModel[];
   /** {@link transactionReviewJson} of the request. */
   rawJson: string;
   warnings: ReviewWarning[];
@@ -689,6 +707,8 @@ function bindingCall(call: TransactionReviewCall): unknown {
 export function buildReviewModel(
   request: TransactionReviewRequest,
 ): ReviewModel {
+  // Copies, so the request changing after review never changes what the model shows.
+  const signatures = (request.signatures ?? []).map(reviewSignature);
   const signsMessage =
     (request.authorization as { kind?: unknown } | undefined)?.kind ===
     "message";
@@ -697,17 +717,32 @@ export function buildReviewModel(
       ? signsMessage
         ? "message"
         : "authorization"
-      : "transaction";
+      : !request.calls.length && signatures.length
+        ? signatures.every((signature) => signature.kind === "message")
+          ? "message"
+          : "authorization"
+        : "transaction";
   const context = (request.context ?? []).map((row) => ({ ...row }));
-  // A copy, so the request changing after review never changes what the model shows.
   const authorization = structuredClone(request.authorization ?? null);
-  const message = null;
+  const messages = signatures.filter((signature) => signature.message !== null);
+  const message = messages.length === 1 ? messages[0].message : null;
   const binding = {
     kind,
     calls: request.calls.map(bindingCall),
     authorization,
     message,
     context,
+    ...(signatures.length
+      ? {
+          signatures: signatures.map((signature, index) => ({
+            kind: signature.kind,
+            chainId: signature.chainId,
+            typedData: signature.typedData,
+            message: signature.message,
+            calls: (request.signatures![index].calls ?? []).map(bindingCall),
+          })),
+        }
+      : {}),
   };
   return {
     id: keccak256(toHex(JSON.stringify(canonical(binding)))),
@@ -719,8 +754,22 @@ export function buildReviewModel(
     calls: request.calls.map(reviewCall),
     authorization,
     message,
+    signatures,
     rawJson: transactionReviewJson(request),
     warnings: [],
+  };
+}
+
+function reviewSignature(
+  signature: TransactionReviewSignature,
+): ReviewSignatureModel {
+  return {
+    kind: signature.kind,
+    chainId: signature.chainId,
+    typedData: structuredClone(signature.typedData ?? null),
+    message: signature.message ?? null,
+    calls: (signature.calls ?? []).map(reviewCall),
+    steps: structuredClone([...(signature.steps ?? [])]),
   };
 }
 
@@ -850,7 +899,8 @@ export async function enrichReviewModel(
     `${chainId}:${token.toLowerCase()}`;
   const probes = (call: ReviewCallModel) =>
     call.warnings.some((warning) => warning.code === "possible-token-id");
-  eachCall(model.calls, (call) => {
+  const signed = model.signatures.flatMap((signature) => signature.calls);
+  eachCall([...model.calls, ...signed], (call) => {
     for (const { token, decimals, symbol } of call.tokenAmounts) {
       if (token === "native" || (decimals !== null && symbol !== null)) {
         continue;
@@ -939,5 +989,12 @@ export async function enrichReviewModel(
       warnings: withDecimalsWarning(warnings, tokenAmounts),
     };
   };
-  return { ...model, calls: model.calls.map(enrich) };
+  return {
+    ...model,
+    calls: model.calls.map(enrich),
+    signatures: model.signatures.map((signature) => ({
+      ...signature,
+      calls: signature.calls.map(enrich),
+    })),
+  };
 }

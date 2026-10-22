@@ -101,10 +101,24 @@
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 674,
+      "line": 705,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action.",
       "test": "packages/core/src/review/send.test.ts"
+    },
+    {
+      "file": "packages/core/src/review/sign.ts",
+      "line": 341,
+      "api": "signTypedData",
+      "boundary": "signPrepared hands the WalletAdapter typed data core built from its own Safe, forwarder and Permit2 constants, inside submitReviewedContractWrite's account and chain checks, only after core's own confirmation for the model that shows that exact typed data.",
+      "test": "packages/core/src/review/sign.test.ts"
+    },
+    {
+      "file": "packages/core/src/review/sign.ts",
+      "line": 342,
+      "api": "signMessage",
+      "boundary": "signPrepared hands the WalletAdapter the exact message text the confirmed model shows, inside submitReviewedContractWrite's account check, only after core's own confirmation.",
+      "test": "packages/core/src/review/sign.test.ts"
     }
   ]
 }

@@ -851,7 +851,7 @@ function requestsDeadlineOf(bindings: unknown): number | null | undefined {
     ) {
       return null;
     }
-    if (!sameAddress(entry.target, forwarderOn(chain)!)) continue;
+    if (!sameAddress(entry.target, relayrForwarder(chain)!)) continue;
     let functionName: string;
     try {
       ({ functionName } = decodeFunctionData({
@@ -1284,7 +1284,8 @@ export function relayrRecordChain(
     : null;
 }
 
-function forwarderOn(chainId: number): Address | undefined {
+/** The canonical Juicebox V6 ERC-2771 forwarder on `chainId`, where Relayr runs. */
+export function relayrForwarder(chainId: number): Address | undefined {
   return relayrSupportsChain(chainId)
     ? (
         jbV6ContractAddress.ERC2771Forwarder as Readonly<
@@ -1303,7 +1304,7 @@ function forwarderOn(chainId: number): Address | undefined {
 export function relayrForwardRequest(
   entry: Pick<RelayrEntry, "chain" | "target" | "data">,
 ): RelayrForwardRequest | null {
-  const forwarder = forwarderOn(entry?.chain);
+  const forwarder = relayrForwarder(entry?.chain);
   if (
     !forwarder ||
     !sameAddress(entry.target, forwarder) ||
@@ -2091,7 +2092,7 @@ async function finalizedForwarderNonce(
   chainId: number,
   signer: Address,
 ): Promise<{ nonce: bigint; timestamp: bigint } | null> {
-  const forwarder = forwarderOn(chainId);
+  const forwarder = relayrForwarder(chainId);
   const reader =
     forwarder && isAddressLike(signer)
       ? clientOn(clientFor, chainId)

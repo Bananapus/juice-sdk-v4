@@ -32,12 +32,17 @@ import {
   type ReviewedSequenceRecord,
 } from "./sequence.js";
 import {
+  prepareSignature,
+  signPrepared,
+  type ReviewedSignature,
+} from "./sign.js";
+import {
   revertDetail,
   simulateCallSequence,
   simulateStateChangingTransaction,
 } from "./simulation.js";
 import type { TransactionReviewRequest } from "./transactionReview.js";
-import type { WalletAdapter } from "./wallet.js";
+import { unsupportedWalletRequest, type WalletAdapter } from "./wallet.js";
 import {
   WriteHeldError,
   WriteHoldStaleReviewError,
@@ -69,6 +74,11 @@ export type ReviewedCall = {
 export type ReviewedAction = {
   account: Address;
   calls: readonly ReviewedCall[];
+  /**
+   * Signatures shown in the same prompt as `calls`, and signed after confirm,
+   * before the first send. A resumed sequence signs none.
+   */
+  signatures?: readonly ReviewedSignature[];
   title?: string;
   description?: string;
   confirmLabel?: string;
@@ -106,9 +116,13 @@ export type ReviewedProgress = {
   hash?: Hex;
 };
 
-export type ReviewedResult =
+export type ReviewedResult = (
   | { status: "done"; hashes: Hex[]; receipts: TransactionReceipt[] }
-  | { status: "proposed"; step: number; safeTxHash: Hex };
+  | { status: "proposed"; step: number; safeTxHash: Hex }
+) & {
+  /** The action's `signatures`, signed in order, when it had any. */
+  signatures?: Hex[];
+};
 
 /** The exact bytes a step sends. */
 type SentCall = Readonly<{
@@ -337,11 +351,15 @@ export function openStepHold(
  * its receipt; a revert stops the sequence. A Safe-connected wallet's first
  * step becomes a proposal, and the sequence stops there.
  *
+ * The action's `signatures` show in the same model and prompt, and are
+ * signed after confirm and before the first send, as `signReviewed` signs.
+ *
  * Only an explicit wallet rejection (EIP-1193 4001) releases a step's hold;
  * any other failure once the wallet opened keeps it held.
  *
  * A self-reviewing adapter (Signa) is never prompted: `onPreview` gets the
- * model, and the adapter gets the raw calls to review on its own page.
+ * model, and the adapter gets the raw calls to review on its own page. An
+ * action with `signatures` is refused for it with EIP-1193 4200.
  */
 export async function sendReviewed(
   action: ReviewedAction,
@@ -447,6 +465,13 @@ async function send(
   if (connected.toLowerCase() !== account.toLowerCase()) {
     throw new Error(ACCOUNT_CHANGED);
   }
+  const prepared = [...(action.signatures ?? [])].map((signature) =>
+    prepareSignature(signature, account),
+  );
+  // Signa has no reviewed-signature path yet.
+  if (prepared.length && adapter.kind === "self-reviewing") {
+    throw unsupportedWalletRequest();
+  }
 
   const request = (safe: boolean): TransactionReviewRequest => ({
     calls: snapshots.map(({ sent, shown }) => ({
@@ -459,6 +484,9 @@ async function send(
       ...(shown.label ? { label: shown.label } : {}),
       ...(shown.contractName ? { contractName: shown.contractName } : {}),
     })),
+    ...(prepared.length
+      ? { signatures: prepared.map(({ review }) => review) }
+      : {}),
     ...(action.title ? { title: action.title } : {}),
     ...(action.description ? { description: action.description } : {}),
     ...(action.confirmLabel ? { confirmLabel: action.confirmLabel } : {}),
@@ -525,6 +553,9 @@ async function send(
     return warning ? { ...read, warnings: [...read.warnings, warning] } : read;
   });
   await promptReview(model, simulation, enriched);
+  const signed = prepared.length
+    ? { signatures: await signPrepared(prepared, account, adapter) }
+    : {};
 
   // Saved before the first wallet call, once the review is confirmed.
   let journal: ReviewedSequenceRecord | undefined;
@@ -694,7 +725,7 @@ async function send(
         await keep();
       }
       progress("proposed", hash);
-      return { status: "proposed", step: at, safeTxHash: hash };
+      return { status: "proposed", step: at, safeTxHash: hash, ...signed };
     }
     progress("receipt", hash);
     const receipt = await waitForTrackedReceipt(client, hash);
@@ -721,5 +752,6 @@ async function send(
     status: "done",
     hashes: journal ? [...journal.completed] : hashes,
     receipts,
+    ...signed,
   };
 }

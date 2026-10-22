@@ -22,6 +22,11 @@ export {
 export * from "./wallet.js";
 export * from "./send.js";
 export {
+  signReviewed,
+  type ReviewedForwardRequest,
+  type ReviewedSignature,
+} from "./sign.js";
+export {
   discardReviewedSequence,
   findReviewedSequence,
   REVIEWED_SEQUENCE_HELD_LINE,

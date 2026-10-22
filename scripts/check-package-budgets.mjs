@@ -297,9 +297,11 @@ const budgets = {
     // The reviewed-sequence journal and the shared useReviewedRun hook, each
     // in a module of its own (16 artifacts): 1,643,251 B packed,
     // 23,363,840 B unpacked, 1,778 files.
-    packed: 1_645_000,
-    unpacked: 23_380_000,
-    entries: 1_778,
+    // signReviewed in a module of its own (8 artifacts): 1,652,260 B packed,
+    // 23,433,569 B unpacked, 1,786 files.
+    packed: 1_654_000,
+    unpacked: 23_450_000,
+    entries: 1_786,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

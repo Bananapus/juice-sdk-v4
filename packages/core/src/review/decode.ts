@@ -263,10 +263,16 @@ export function functionFromCall(
  * empty banner.
  */
 export function reviewDescription(
-  request: Pick<TransactionReviewRequest, "calls" | "description" | "kind">,
+  request: Pick<
+    TransactionReviewRequest,
+    "calls" | "description" | "kind" | "signatures"
+  >,
 ): string {
   const description = request.description?.trim();
   if (description) return description;
+  if (!request.calls.length && request.signatures?.length) {
+    return "This is the exact data your wallet signs. Nothing is sent from your wallet now.";
+  }
   if (request.kind === "authorization") {
     return "This authorization commits to the exact destination, native value, and calldata below. A Safe or relayer can submit that call onchain after you continue.";
   }

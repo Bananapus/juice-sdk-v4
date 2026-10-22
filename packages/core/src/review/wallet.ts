@@ -128,7 +128,7 @@ export function viemWalletAdapter(options: {
 }
 
 /** EIP-1193 4200, as Signa's connector refuses a request it does not take. */
-function unsupported(): Error {
+export function unsupportedWalletRequest(): Error {
   return Object.assign(new Error("This wallet request is not supported."), {
     code: 4200,
   });
@@ -144,9 +144,9 @@ export function selfReviewingAdapter(options: {
   submit: (request: SelfReviewedRequest) => Promise<Hex>;
 }): WalletAdapter {
   const refuse = () => {
-    throw unsupported();
+    throw unsupportedWalletRequest();
   };
-  const reject = () => Promise.reject(unsupported());
+  const reject = () => Promise.reject(unsupportedWalletRequest());
   return {
     kind: "self-reviewing",
     account: options.account,
