@@ -117,23 +117,10 @@ without an inventory row, on a `selfReviewingAdapter` or `signaWalletAdapter`
 call outside the files the inventory lists under `selfReviewing`, and on an
 import (static, dynamic or `require`) of a `--forbid-import` specifier or a path
 under it; clients pass `@bananapus/nana-sdk-react`. It inventories wagmi/viem hooks and raw signing, transaction,
-contract-write, batched-call, wallet-client, and wallet `request` calls. The
-current surface contains seven reviewed sites. Four are wallet sites: hook
-creation and execution for Relayr EIP-712 signing, and hook creation and
-execution for Relayr transaction submission. Three are read-only RPC requests:
-the Safe reads’ gas- and response-bounded `eth_call` (deployment verification,
-and the authority identity, nonce and approval reads), whose tests bind the RPC
-method and historical block, reject OffchainLookup without fetching a
-contract-selected URL, and run the identity read over viem’s `http()`
-transport against a local JSON-RPC server, where a revert or a -32603 stays
-unknown rather than reading as a contract; the review preflight’s raw `eth_call`
-(`simulateStateChangingTransaction`), bounded by explicit gas and a return data
-limit and tested the same way; and the fee buyback check’s `eth_blockNumber`
-and pinned `eth_simulateV1`. The Relayr payment simulation in `/review/relayr`
-goes through that preflight instead of adding a site, and the Relayr payment
-and destination proofs read only through typed viem actions (`getCode`,
-`getTransaction`, `getTransactionReceipt`, `getBlock`); their tests also run
-over viem’s `http()` transport against a local JSON-RPC server. A new or moved site fails with an unreviewed residual until
+contract-write, batched-call, wallet-client, and wallet `request` calls. Every
+reviewed site, with its safety boundary and focused test, is a row in
+`test/wallet-boundaries.json`; that file is the list, so this document keeps no
+count. A new or moved site fails with an unreviewed residual until
 `test/wallet-boundaries.json` names its safety boundary and an existing focused
 test. Stale inventory rows fail too, so the inventory cannot silently become a
 historical allowlist.

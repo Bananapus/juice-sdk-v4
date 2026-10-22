@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// A lint for mistaken wallet calls, not a security boundary: it does not follow every alias.
 import {
   existsSync,
   readFileSync,
