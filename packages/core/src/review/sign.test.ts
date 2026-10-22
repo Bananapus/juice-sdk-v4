@@ -27,7 +27,11 @@ import {
   TERMINAL,
 } from "./__fixtures__/reviewedSend.js";
 import { unixTime } from "./decode.js";
-import { relayrForwarder, relayrForwarderDeadline } from "./relayr.js";
+import {
+  FORWARD_REQUEST_TYPES,
+  relayrForwarder,
+  relayrForwarderDeadline,
+} from "./relayr.js";
 import { TransactionReviewCancelledError } from "./reviewQueue.js";
 import { sendReviewed } from "./send.js";
 import { signReviewed, type ReviewedSignature } from "./sign.js";
@@ -454,5 +458,78 @@ describe("signReviewed", () => {
         adapter,
       }),
     ).rejects.toBe(timeout);
+  });
+
+  it("signs the reviewed values, whatever changes after review", async () => {
+    const { adapter } = wallet();
+    const signature = forward();
+    const { request } = signature as Extract<
+      ReviewedSignature,
+      { kind: "forward-request" }
+    >;
+    // `to`, an address.
+    const field = FORWARD_REQUEST_TYPES.ForwardRequest[1] as { type: string };
+    const prompts = reviewUi(async (prompt) => {
+      // The inputs and the shared type constants change while the review is open.
+      request.to = SPENDER;
+      field.type = "uint160";
+      return prompt.confirmation;
+    });
+    try {
+      await signReviewed([signature], signed, { adapter });
+    } finally {
+      field.type = "address";
+    }
+    const [typedData] = adapter.signTypedData.mock.calls[0];
+    expect(typedData.message).toMatchObject({ to: TERMINAL });
+    expect(typedData).toEqual(prompts[0].model.signatures[0].typedData);
+
+    // A number-like object is refused: it could read one way and sign another.
+    const amount = { valueOf: () => 5n, toString: () => "5" };
+    await expect(
+      signReviewed(
+        [
+          {
+            kind: "permit2",
+            authorization: {
+              chainId: 10,
+              token: USDC,
+              spender: SPENDER,
+              amount: amount as unknown as bigint,
+              expiration: 0,
+              nonce: 0,
+              sigDeadline: 1n,
+            },
+          },
+        ],
+        signed,
+        { adapter },
+      ),
+    ).rejects.toThrow("Invalid amount");
+    await expect(
+      signReviewed([forward({ data: "0x1" as Hex })], signed, { adapter }),
+    ).rejects.toThrow("Invalid forwarded calldata");
+  });
+
+  it("an action its own gates refuse after review signs nothing", async () => {
+    const { wallet: fake, deps } = setup();
+    let open = true;
+    reviewUi(async (prompt) => {
+      open = false;
+      return prompt.confirmation;
+    });
+    await expect(
+      sendReviewed(
+        action([payCall()], {
+          signatures: [{ kind: "message", chainId: 10, message: "List it" }],
+          assertWriteState: () => {
+            if (!open) throw new Error("The project changed.");
+          },
+        }),
+        deps,
+      ),
+    ).rejects.toThrow("The project changed.");
+    expect(fake.adapter.signMessage).not.toHaveBeenCalled();
+    expect(fake.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 });

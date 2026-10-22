@@ -465,8 +465,9 @@ async function send(
   if (connected.toLowerCase() !== account.toLowerCase()) {
     throw new Error(ACCOUNT_CHANGED);
   }
-  const prepared = [...(action.signatures ?? [])].map((signature) =>
-    prepareSignature(signature, account),
+  // A resumed sequence signs none: its signatures went with its first run.
+  const prepared = (resuming ? [] : [...(action.signatures ?? [])]).map(
+    (signature) => prepareSignature(signature, account),
   );
   // Signa has no reviewed-signature path yet.
   if (prepared.length && adapter.kind === "self-reviewing") {
@@ -553,9 +554,18 @@ async function send(
     return warning ? { ...read, warnings: [...read.warnings, warning] } : read;
   });
   await promptReview(model, simulation, enriched);
-  const signed = prepared.length
-    ? { signatures: await signPrepared(prepared, account, adapter) }
-    : {};
+  let signed: { signatures?: Hex[] } = {};
+  if (prepared.length) {
+    // The action's own gates, before the wallet signs for it.
+    action.guard?.();
+    action.assertWriteState?.();
+    handles.forEach((handle, step) => {
+      if (generation(handle) !== reviewedGenerations[step]) {
+        throw new WriteHoldStaleReviewError();
+      }
+    });
+    signed = { signatures: await signPrepared(prepared, account, adapter) };
+  }
 
   // Saved before the first wallet call, once the review is confirmed.
   let journal: ReviewedSequenceRecord | undefined;

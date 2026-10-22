@@ -109,6 +109,11 @@ export function viemWalletAdapter(options: {
     },
     async signTypedData(typedData) {
       const { account, client } = await connection(options);
+      // viem does not check the wallet's chain against the domain's.
+      const chainId = typedData.domain?.chainId;
+      if (chainId !== undefined && options.chainId() !== Number(chainId)) {
+        throw new Error("Your wallet changed networks. Review again.");
+      }
       return client.signTypedData({ ...typedData, account });
     },
     async signMessage(message) {

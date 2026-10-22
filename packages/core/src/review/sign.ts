@@ -8,6 +8,7 @@ import {
   type TypedDataDefinition,
 } from "viem";
 import { multiSendCallsOf } from "../safe.js";
+import { isHexBytes, uint256 } from "../untrusted.js";
 import {
   SAFE_EXEC_ABI,
   SAFE_TX_TYPES,
@@ -88,10 +89,28 @@ function requireAddress(name: string, value: unknown): Address {
   return getAddress(value);
 }
 
+/** An unsigned integer as a primitive, so nothing can change it after review. */
+function requireUint(name: string, value: unknown): bigint {
+  const parsed = uint256(value);
+  if (parsed === null) throw new Error(`Invalid ${name}: ${String(value)}.`);
+  return parsed;
+}
+
+/** `value` and everything in it frozen. */
+function frozen<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const inner of Object.values(value)) frozen(inner);
+  }
+  return value;
+}
+
 /**
  * The prepared signature: `payload` is what the wallet signs and what the
- * review shows, from one object. Typed data must encode first, so viem
- * checks every address and integer before the review opens.
+ * review shows, one frozen copy, so neither the inputs nor the shared type
+ * constants changing after review changes what is signed. Typed data must
+ * encode first, so viem checks every address and integer before the review
+ * opens.
  */
 function prepared(
   kind: ReviewedSignature["kind"],
@@ -99,13 +118,14 @@ function prepared(
   payload: { typedData: TypedDataDefinition } | { message: string },
   shown: Pick<TransactionReviewSignature, "calls" | "steps"> = {},
 ): PreparedSignature {
-  const typedData = "typedData" in payload ? payload.typedData : null;
+  const copy = frozen(structuredClone(payload));
+  const typedData = "typedData" in copy ? copy.typedData : null;
   if (typedData) hashTypedData(typedData);
   return Object.freeze({
     chainId,
     typedData,
-    message: "message" in payload ? payload.message : null,
-    review: { kind, chainId, ...payload, ...shown },
+    message: "message" in copy ? copy.message : null,
+    review: { kind, chainId, ...copy, ...shown },
   });
 }
 
@@ -214,12 +234,13 @@ export function prepareSignature(
           "This request stays executable longer than allowed. Nothing was signed.",
         );
       }
+      if (!isHexBytes(data)) throw new Error("Invalid forwarded calldata.");
       const message = {
         from: requireAddress("sender", from),
         to: requireAddress("destination", to),
-        value,
-        gas,
-        nonce,
+        value: requireUint("value", value),
+        gas: requireUint("gas", gas),
+        nonce: requireUint("nonce", nonce),
         deadline,
         data,
       };
@@ -246,8 +267,8 @@ export function prepareSignature(
               from: message.from,
               to: message.to,
               data,
-              value,
-              gas,
+              value: message.value,
+              gas: message.gas,
             }),
           ],
         },
@@ -268,10 +289,10 @@ export function prepareSignature(
         chainId: id,
         token: requireAddress("token", token),
         spender: requireAddress("spender", spender),
-        amount,
-        expiration,
-        nonce,
-        sigDeadline,
+        amount: requireUint("amount", amount),
+        expiration: Number(requireUint("expiration", expiration)),
+        nonce: Number(requireUint("nonce", nonce)),
+        sigDeadline: requireUint("signature deadline", sigDeadline),
       } as Permit2SignatureAuthorization;
       return prepared(
         kind,

@@ -96,6 +96,14 @@ describe("wallet adapters", () => {
       ...typedData,
       account: ACCOUNT,
     });
+    // Typed data for another chain than the wallet's is refused.
+    await expect(
+      adapter.signTypedData({
+        ...typedData,
+        domain: { ...typedData.domain, chainId: 8453 },
+      }),
+    ).rejects.toThrow("Your wallet changed networks");
+    expect(client.signTypedData).toHaveBeenCalledTimes(1);
     await expect(adapter.signMessage("Sign in")).resolves.toBe(SIGNATURE);
     expect(client.signMessage).toHaveBeenLastCalledWith({
       account: ACCOUNT,

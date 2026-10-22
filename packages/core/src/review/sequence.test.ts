@@ -105,6 +105,25 @@ describe("reviewed sequences", () => {
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toBeNull();
   });
 
+  it("a resumed run signs none of the action's signatures", async () => {
+    reviewUi();
+    const { wallet, deps, record } = await interrupted(
+      [approveCall(), payCall(5n)],
+      1,
+    );
+    const signatures = [
+      { kind: "message" as const, chainId: 10, message: "x" },
+    ];
+    // The shared hook resumes with the original action, signatures included.
+    const resumed = await resumeReviewed(
+      record,
+      { signatures } as Parameters<typeof resumeReviewed>[1],
+      deps,
+    );
+    expect(resumed).not.toHaveProperty("signatures");
+    expect(wallet.adapter.signMessage).not.toHaveBeenCalled();
+  });
+
   it("saves the sequence before the first wallet call", async () => {
     reviewUi();
     const { wallet, deps, storage } = setup();
