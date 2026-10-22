@@ -366,6 +366,19 @@ describe("useReviewedRun", () => {
       expect(next.current).toMatchObject({ phase: "idle", error: line });
     }
 
+    // A reset run ignores its followed step's late end.
+    const stale = await proposed();
+    const late = views.last!;
+    act(() => stale.current!.reset());
+    act(() =>
+      (late.onSettled! as (s: unknown, r: unknown) => void)(
+        { result: "success", hash: receipt.transactionHash },
+        receipt,
+      ),
+    );
+    act(() => late.onReleased!("user"));
+    expect(stale.current).toMatchObject({ phase: "idle", receipt: null });
+
     // A proposal released by the user's exit ends its run too.
     const released = await proposed();
     act(() => views.last!.onReleased!("user"));

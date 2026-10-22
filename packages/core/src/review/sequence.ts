@@ -267,7 +267,8 @@ export function removeReviewedSequence(
 
 /**
  * Whether a remaining step of `record` has a write still held under the
- * write holds' storage: its intent (or a legacy one), or its exact call.
+ * write holds' storage: the step in flight's reservation, its intent (or a
+ * legacy one), or its exact call.
  */
 function heldStep(
   record: ReviewedSequenceRecord,
@@ -295,6 +296,9 @@ function heldStep(
       { storage },
     ).some(
       ({ record: held }) =>
+        // The step in flight's own reservation, whatever call it holds (an
+        // adopted Safe proposal's, say).
+        held.id === record.sending?.reservation ||
         (held.namespace !== undefined && namespaces.includes(held.namespace)) ||
         exact.some(
           (one) =>

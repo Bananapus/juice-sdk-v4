@@ -29,6 +29,11 @@ import { SubmittedContractWriteError } from "./contractWrite.js";
 import { WRITE_HOLD_REVERTED_LINE } from "./messages.js";
 import { buildReviewModel } from "./model.js";
 import {
+  discardReviewedSequence,
+  findReviewedSequence,
+  REVIEWED_SEQUENCE_HELD_LINE,
+} from "./sequence.js";
+import {
   ReviewedCallRevertedError,
   sendReviewed,
   type ReviewedCall,
@@ -690,6 +695,34 @@ describe("sendReviewed", () => {
     expect(hold.open({ ...holdOf(call), safe: true }).peek()).toMatchObject({
       record: { hash: queued, call: { data: older.data } },
     });
+
+    // Its sequence can't be discarded while the adopted proposal is held.
+    const saved = findReviewedSequence("liquidity", ACCOUNT, {
+      storage: deps.storage,
+    })!;
+    await expect(
+      discardReviewedSequence(saved, { storage: deps.storage }),
+    ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
+
+    // A normalizer whose answer changes after review adopts nothing.
+    const relaxing = setup();
+    relaxing.wallet.state.safe = true;
+    relaxing.chain.queueProposal(payCall(999n));
+    let relaxed = false;
+    const strict = payCall(5n, {
+      normalizeData: (data: Hex) => (relaxed ? "0x" : data),
+    });
+    await expect(
+      sendReviewed(
+        action([strict], {
+          reverify: async () => {
+            relaxed = true;
+          },
+        }),
+        relaxing.deps,
+      ),
+    ).rejects.toThrow(CHANGED);
+    expect(relaxing.wallet.adapter.sendTransaction).not.toHaveBeenCalled();
 
     // A normalizer swapped after review adopts nothing and sends nothing.
     const swapped = setup();

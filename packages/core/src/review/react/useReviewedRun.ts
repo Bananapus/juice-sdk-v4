@@ -140,7 +140,11 @@ export function useReviewedRun(
   const [watched, setWatched] = useState<{
     handle: WriteHoldHandle;
     client: WriteHoldClient;
+    /** The run that followed it: a reset or a later run ignores its end. */
+    run: number;
   } | null>(null);
+  /** The latest run: an earlier one's late answers change nothing. */
+  const latest = useRef(0);
   const view = useMemo(
     () =>
       watched
@@ -148,6 +152,7 @@ export function useReviewedRun(
             client: watched.client,
             // The followed step's end ends the run: a proposal never stays proposed.
             onSettled: (settled, receipt) =>
+              latest.current === watched.run &&
               setState((now) =>
                 settled.result === "success"
                   ? {
@@ -160,7 +165,7 @@ export function useReviewedRun(
                     }
                   : { ...IDLE, error: settledLine(settled), receipt },
               ),
-            onReleased: () => setState(IDLE),
+            onReleased: () => latest.current === watched.run && setState(IDLE),
           })
         : undefined,
     [watched],
@@ -183,8 +188,6 @@ export function useReviewedRun(
     shown.phase === "settled"
       ? null
       : shown;
-  /** The latest run: an earlier one's late answers change nothing. */
-  const latest = useRef(0);
   return {
     ...state,
     held,
@@ -227,6 +230,7 @@ export function useReviewedRun(
               ? {
                   handle: found.handle,
                   client: deps.clientFor(found.call.chainId),
+                  run: id,
                 }
               : null,
           );

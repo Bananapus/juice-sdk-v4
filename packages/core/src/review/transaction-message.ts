@@ -43,7 +43,7 @@ const RUNTIME_ERRORS = new Set([
  * presented by {@link transactionMessage}, or {@link NETWORK_ERROR_LINE} for
  * anything else: a raw node, RPC or wallet error (a viem error, a JSON-RPC
  * code), a runtime error (a failed fetch or chunk load), any text that
- * names a URL or spans lines, and anything not an Error. An EIP-1193
+ * names a URL, spans lines or is not a sentence, and anything not an Error. An EIP-1193
  * provider error (4xxx) keeps its message.
  */
 export function errorLine(error: unknown): string {
@@ -58,7 +58,10 @@ export function errorLine(error: unknown): string {
     typeof details === "string" ||
     (typeof code === "number" && (code < 4000 || code > 4999)) ||
     RUNTIME_ERRORS.has(name) ||
-    /:\/\/|\n/.test(message)
+    /:\/\/|\n/.test(message) ||
+    // The SDK's lines are sentences; a node's own text ("header not found",
+    // "nonce too low") is not. Relayr's HTTP refusals are presented above.
+    !(/^[A-Z].*[.)]$/.test(message) || /^Relayr HTTP \d+\b/.test(message))
   )
     return NETWORK_ERROR_LINE;
   return transactionMessage(message);

@@ -115,7 +115,9 @@ describe("errorLine", () => {
         name: "ChunkLoadError",
       }),
       new Error("Request failed at https://node.example/key"),
-      new Error("Two\nlines"),
+      new Error("Two\nlines."),
+      new Error("header not found"),
+      new Error("nonce too low"),
     ])
       expect(errorLine(raw)).toBe(NETWORK_ERROR_LINE);
   });
