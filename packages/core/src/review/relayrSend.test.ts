@@ -767,10 +767,12 @@ describe("payRelayrReviewed", () => {
   });
 
   it("lets a Safe adopt its queued proposal of the exact payment, never proposing twice", async () => {
+    // One quote for both: its deadline is in the calldata.
+    const quote = quoteFor();
     const first = relayrSetup();
     first.wallet.state.safe = true;
     reviewUi();
-    await payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, first.deps);
+    await payRelayrReviewed(quote, 10, { account: ACCOUNT }, first.deps);
     const [[payment]] = first.wallet.adapter.sendTransaction.mock.calls;
     resetReviewUi();
 
@@ -785,7 +787,7 @@ describe("payRelayrReviewed", () => {
     const sent: Hex[] = [];
     await expect(
       payRelayrReviewed(
-        quoteFor(),
+        quote,
         10,
         { account: ACCOUNT, onSent: async (hash) => void sent.push(hash) },
         deps,

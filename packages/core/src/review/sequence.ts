@@ -1,5 +1,5 @@
 import { isAddress, isHex, type Address, type Hex } from "viem";
-import { uint256 } from "../untrusted.js";
+import { isHexBytes, uint256 } from "../untrusted.js";
 import type { ReviewedCall } from "./send.js";
 import {
   createHeldWriteStorage,
@@ -124,7 +124,9 @@ function locked<T>(key: string, work: () => T): Promise<T> {
 /** A saved step's legacy hold source, as `WriteHoldLegacySource` allows. */
 function legacySource(source: unknown): boolean {
   if (typeof source === "string") return true;
-  if (!source || typeof source !== "object") return false;
+  // Exactly one variant: resume reads whichever it finds.
+  if (!source || typeof source !== "object" || Object.keys(source).length !== 1)
+    return false;
   if ("call" in source) {
     const call = source.call as {
       to?: unknown;
@@ -134,7 +136,7 @@ function legacySource(source: unknown): boolean {
     return (
       !!call &&
       isAddress(call.to as string, { strict: false }) &&
-      isHex(call.data) &&
+      isHexBytes(call.data) &&
       (call.value === undefined || uint256(call.value) !== null)
     );
   }

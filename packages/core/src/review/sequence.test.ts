@@ -658,21 +658,40 @@ describe("reviewed sequences", () => {
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toMatchObject({
       id: record.id,
     });
+    /** Saved as the record saves it: every plain object tagged `{ o }`. */
+    const tagged = (value: unknown): unknown =>
+      Array.isArray(value)
+        ? value.map(tagged)
+        : value && typeof value === "object"
+          ? {
+              o: Object.fromEntries(
+                Object.entries(value).map(([k, v]) => [k, tagged(v)]),
+              ),
+            }
+          : value;
+    const saveLegacy = (legacy: unknown) => {
+      const saved = JSON.parse(raw);
+      saved.sequence.o.calls[1].o.legacy = tagged(legacy);
+      storage.setItem(key, JSON.stringify(saved));
+      return findReviewedSequence(SCOPE, ACCOUNT, { storage });
+    };
+    const call = { to: OTHER, data: "0x12", value: "5" };
+    const match = { to: OTHER, selector: "0x12345678" };
+    // Each well-formed variant reads back: the refusals below are the validator's.
+    expect(saveLegacy(["pay:0", { call }, { match }])).toMatchObject({
+      id: record.id,
+    });
     for (const legacy of [
       [null],
-      [{ call: { to: "0x12", data: "0x" } }],
-      [{ call: { to: OTHER, data: "0x", value: "-1" } }],
-      [{ match: { to: OTHER, selector: "0x1234" } }],
+      [{ call: { ...call, to: "0x12" } }],
+      [{ call: { ...call, value: "-1" } }],
+      [{ call: { ...call, data: "0x1" } }],
+      [{ match: { ...match, selector: "0x1234" } }],
+      [{ call, match: null }],
       [7],
       "pay:0",
     ]) {
-      const saved = JSON.parse(raw);
-      saved.sequence.o.calls[1].o.legacy = legacy;
-      storage.setItem(key, JSON.stringify(saved));
-      expect(
-        findReviewedSequence(SCOPE, ACCOUNT, { storage }),
-        JSON.stringify(legacy),
-      ).toBeNull();
+      expect(saveLegacy(legacy), JSON.stringify(legacy)).toBeNull();
     }
   });
 
