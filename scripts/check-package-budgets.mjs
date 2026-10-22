@@ -315,8 +315,11 @@ const budgets = {
     // Call bytes in the review model, the per-step wallet-boundary hooks,
     // the Safe Relayr payer, legacy hold sources and the simulation block
     // add no files: 1,723,499 B packed, 23,797,283 B unpacked, 1,811 files.
-    packed: 1_728_000,
-    unpacked: 23_840_000,
+    // An app's exact gas, the wallet's ready, normalized Safe adoption, the
+    // revert receipt, settled runs and the run's failure add no files:
+    // 1,734,565 B packed, 23,839,492 B unpacked, 1,811 files.
+    packed: 1_740_000,
+    unpacked: 23_880_000,
     entries: 1_811,
   },
   "@bananapus/nana-sdk-react": {
