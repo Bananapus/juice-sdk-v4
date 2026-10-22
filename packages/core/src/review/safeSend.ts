@@ -124,37 +124,41 @@ function snapshot(tx: SafeQueuedTransaction): SafeQueuedTransaction {
 }
 
 /**
- * Signs `tx` as the connected owner, through {@link signReviewed}'s Safe
- * transaction review, and rechecks the Safe once the wallet answers: its
- * policy and nonce must not have moved while the review and wallet were open.
+ * Signs `tx` as `account`, an owner, through {@link signReviewed}'s Safe
+ * transaction review. The Safe's policy and nonce must not move while the
+ * review is open, checked before the wallet is asked, nor while the wallet
+ * is open, checked once it answers.
  */
 async function signAsOwner(
   input: {
     chainId: number;
     safe: Address;
+    account: Address;
     tx: SafeQueuedTransaction;
     context?: readonly ReviewContextRow[];
     title?: string;
   },
   deps: ReviewedSendDeps,
-): Promise<{ account: Address; signature: Hex }> {
-  const { chainId, safe, tx, context, title } = input;
-  const account = connectedAccount(deps);
+): Promise<Hex> {
+  const { chainId, safe, account, tx, context, title } = input;
   const client = deps.clientFor(chainId);
   const before = await liveSafe(client, safe);
   requireSigner(before, account);
   requireNonce(before, tx, "pending");
+  const unchanged = async () =>
+    requireUnchanged(before, await liveSafe(client, safe));
   const [signature] = await signReviewed(
     [{ kind: "safe-tx", chainId, safe, tx }],
     {
       account,
       ...(title ? { title } : {}),
       ...(context ? { context } : {}),
+      reverify: unchanged,
     },
     deps,
   );
-  requireUnchanged(before, await liveSafe(client, safe));
-  return { account, signature };
+  await unchanged();
+  return signature;
 }
 
 /**
@@ -218,17 +222,31 @@ export async function proposeReviewedSafeTransaction(
     if (confirmed) {
       return { safeTxHash: canonicalSafeTxHash(chainId, safe, queued) };
     }
-    return confirmReviewedSafeTransaction(
+    return confirmAs(
+      account,
       { chainId, safe, tx: queued, ...(context ? { context } : {}), service },
       deps,
     );
   }
-  const tx = build(nextProposalNonce(state.nonce, pending));
+  const nonce = nextProposalNonce(state.nonce, pending);
+  const tx = build(nonce);
   const safeTxHash = safeTransactionHash(chainId, safe, tx);
-  const { signature } = await signAsOwner(
-    { chainId, safe, tx, context, title },
+  const signature = await signAsOwner(
+    { chainId, safe, account, tx, context, title },
     deps,
   );
+  // Another proposal queued at this nonce meanwhile would be replaced by this one.
+  const queuedSince = await listPendingSafeTransactions(
+    chainId,
+    safe,
+    state.nonce,
+    service,
+  );
+  if (queuedSince.some((other) => other.nonce === nonce)) {
+    throw new Error(
+      `Another proposal took Safe nonce ${nonce} during review. Nothing was proposed; review it again.`,
+    );
+  }
   await proposeSafeTransaction(
     chainId,
     safe,
@@ -258,11 +276,22 @@ export async function confirmReviewedSafeTransaction(
   },
   deps: ReviewedSendDeps,
 ): Promise<{ safeTxHash: Hex }> {
+  return confirmAs(connectedAccount(deps), input, deps);
+}
+
+async function confirmAs(
+  account: Address,
+  input: Parameters<typeof confirmReviewedSafeTransaction>[0],
+  deps: ReviewedSendDeps,
+): Promise<{ safeTxHash: Hex }> {
   const { chainId, safe, context, service } = input;
   const tx = snapshot(input.tx);
   requireService(chainId);
   const safeTxHash = canonicalSafeTxHash(chainId, safe, tx);
-  const { signature } = await signAsOwner({ chainId, safe, tx, context }, deps);
+  const signature = await signAsOwner(
+    { chainId, safe, account, tx, context },
+    deps,
+  );
   await submitSafeConfirmation(chainId, safe, tx, signature, service);
   return { safeTxHash };
 }
@@ -296,12 +325,29 @@ export async function executeReviewedSafeTransaction(
   const state = await liveSafe(client, safe);
   requireNonce(state, tx, "execute");
   const { owners, threshold } = state.identity;
-  if (usableSafeConfirmations(tx, owners).length < threshold) {
+  const usable = usableSafeConfirmations(tx, owners);
+  if (usable.length < threshold) {
     throw new Error(
       `This transaction needs ${threshold} current-owner signature${threshold === 1 ? "" : "s"} before it can execute.`,
     );
   }
-  const args = safeExecutionArgs(tx, owners);
+  // Safe accepts the executor's own approval (v = 1) without checking its
+  // hash, so it does not bind the execution to this nonce: with it alone, a
+  // nonce spent meanwhile would run the same call again at the next one.
+  const bound = usable.filter(
+    ({ owner, signature }) =>
+      !isAddressEqual(owner, account) ||
+      (!!signature && signature.slice(130, 132) !== "01"),
+  );
+  if (!bound.length) {
+    throw new Error(
+      "Your own approval alone does not bind this execution to its nonce. Sign the Safe transaction first.",
+    );
+  }
+  const args = safeExecutionArgs(
+    { ...tx, confirmations: bound.length >= threshold ? bound : usable },
+    owners,
+  );
   const data = encodeFunctionData({
     abi: SAFE_EXEC_ABI,
     functionName: "execTransaction",
@@ -354,12 +400,19 @@ export async function executeReviewedSafeTransaction(
       ...(context ? { context } : {}),
       reverify: stillExecutes,
     },
-    deps,
+    {
+      ...deps,
+      // Done only once the Safe's own event says so, below.
+      onProgress: (progress) => {
+        if (progress.phase !== "done") deps.onProgress?.(progress);
+      },
+    },
   );
   if (result.status !== "done") return result;
   const receipt =
     result.receipts[0] ??
     (await waitForTrackedReceipt(client, result.hashes[0]));
   requireSafeExecutionSuccess(receipt, safe, safeTxHash);
+  deps.onProgress?.({ step: 0, total: 1, phase: "done" });
   return result;
 }

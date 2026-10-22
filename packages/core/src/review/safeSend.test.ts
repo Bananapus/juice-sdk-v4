@@ -14,6 +14,8 @@ import {
   type SafeAuthorityIdentity,
 } from "../safe.js";
 import {
+  SAFE_EXEC_ABI,
+  safeExecutionArgs,
   safeTransactionHash,
   type SafeQueuedTransaction,
 } from "../safeService.js";
@@ -44,6 +46,8 @@ vi.mock("../safe.js", async (original) => ({
 const SAFE = "0x5555555555555555555555555555555555555555" as Address;
 const SPENDER = "0x6666666666666666666666666666666666666666" as Address;
 const SIGNATURE = `0x${"ab".repeat(65)}` as Hex;
+/** Another owner's ECDSA signature, as the service lists it. */
+const OTHER_SIGNATURE = `0x${"11".repeat(64)}1b` as Hex;
 const EXECUTION_SUCCESS =
   "0x442e715f626346e8c54381002da614f62bee8d27386535b2521ec8540898556e";
 const EXECUTION_FAILURE =
@@ -316,6 +320,55 @@ describe("proposeReviewedSafeTransaction", () => {
       "The Safe policy or nonce changed. Review the transaction again.",
     );
     expect(queued.posts()).toEqual([]);
+
+    // Changed while the review was open: the wallet is never asked.
+    live.identity = identity();
+    wallet.adapter.signTypedData.mockClear();
+    unregister.pop()!();
+    reviewUi(async (prompt) => {
+      live.nonce = 5n;
+      return prompt.confirmation;
+    });
+    await expect(
+      proposeReviewedSafeTransaction(
+        {
+          chainId: 10,
+          safe: SAFE,
+          calls: [payCall()],
+          service: queued.options,
+        },
+        deps,
+      ),
+    ).rejects.toThrow(
+      "The Safe policy or nonce changed. Review the transaction again.",
+    );
+    expect(wallet.adapter.signTypedData).not.toHaveBeenCalled();
+    expect(queued.posts()).toEqual([]);
+  });
+
+  it("posts nothing when another proposal took the nonce during review", async () => {
+    const { wallet, deps } = signing();
+    const pending: SafeQueuedTransaction[] = [];
+    const queued = service(pending);
+    reviewUi();
+    wallet.adapter.signTypedData.mockImplementation(async () => {
+      pending.push(transferTx({ nonce: 4 }));
+      return SIGNATURE;
+    });
+    await expect(
+      proposeReviewedSafeTransaction(
+        {
+          chainId: 10,
+          safe: SAFE,
+          calls: [payCall()],
+          service: queued.options,
+        },
+        deps,
+      ),
+    ).rejects.toThrow(
+      "Another proposal took Safe nonce 4 during review. Nothing was proposed; review it again.",
+    );
+    expect(queued.posts()).toEqual([]);
   });
 });
 
@@ -421,12 +474,12 @@ describe("confirmReviewedSafeTransaction", () => {
 describe("executeReviewedSafeTransaction", () => {
   const signedTx = (extra: Partial<SafeQueuedTransaction> = {}) =>
     transferTx({
-      confirmations: [{ owner: ACCOUNT, signature: null }],
+      confirmations: [{ owner: OTHER, signature: OTHER_SIGNATURE }],
       ...extra,
     });
 
   it("execution goes through the hold and settles from the Safe event", async () => {
-    const { wallet, deps, chain, hold } = signing();
+    const { wallet, deps, chain, hold, progress } = signing();
     const prompts = reviewUi();
     const open = vi.spyOn(hold, "open");
     const tx = signedTx();
@@ -453,16 +506,67 @@ describe("executeReviewedSafeTransaction", () => {
       }),
       undefined,
     );
+    expect(progress[progress.length - 1]?.phase).toBe("done");
 
-    // A receipt that succeeded while the Safe's call failed is a failure.
+    // A receipt that succeeded while the Safe's call failed is a failure,
+    // never reported done.
+    progress.length = 0;
     chain.state.logs = [executionLog(EXECUTION_FAILURE, safeTxHash)];
-    live.nonce = 4n;
     await expect(
       executeReviewedSafeTransaction(
-        { chainId: 10, safe: SAFE, tx: signedTx({ value: "0" }) },
+        { chainId: 10, safe: SAFE, tx },
         { ...deps, hold: setup().hold },
       ),
     ).rejects.toThrow("but its call failed (ExecutionFailure)");
+    expect(progress.map(({ phase }) => phase)).not.toContain("done");
+  });
+
+  it("binds the execution to its nonce with another owner's signature", async () => {
+    const { wallet, deps, chain } = signing();
+    const prompts = reviewUi();
+    chain.state.ethCall = () => TRUE;
+    // The executor's own approval alone binds nothing.
+    await expect(
+      executeReviewedSafeTransaction(
+        {
+          chainId: 10,
+          safe: SAFE,
+          tx: signedTx({
+            confirmations: [{ owner: ACCOUNT, signature: null }],
+          }),
+        },
+        deps,
+      ),
+    ).rejects.toThrow(
+      "Your own approval alone does not bind this execution to its nonce. Sign the Safe transaction first.",
+    );
+    expect(prompts).toHaveLength(0);
+
+    // With another owner's signature enough, the executor's approval is left out.
+    const tx = signedTx({
+      confirmations: [
+        { owner: ACCOUNT, signature: null },
+        { owner: OTHER, signature: OTHER_SIGNATURE },
+      ],
+    });
+    chain.state.logs = [
+      executionLog(EXECUTION_SUCCESS, safeTransactionHash(10, SAFE, tx)),
+    ];
+    await executeReviewedSafeTransaction({ chainId: 10, safe: SAFE, tx }, deps);
+    const [sent] = wallet.adapter.sendTransaction.mock.calls[0];
+    expect(sent.data).toBe(
+      encodeFunctionData({
+        abi: SAFE_EXEC_ABI,
+        functionName: "execTransaction",
+        args: safeExecutionArgs(
+          {
+            ...tx,
+            confirmations: [{ owner: OTHER, signature: OTHER_SIGNATURE }],
+          },
+          [ACCOUNT, OTHER],
+        ),
+      }),
+    );
   });
 
   it("requires enough current-owner approvals before review", async () => {
