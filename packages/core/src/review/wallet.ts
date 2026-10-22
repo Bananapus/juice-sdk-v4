@@ -5,6 +5,7 @@ import type {
   TypedDataDefinition,
   WalletClient,
 } from "viem";
+import { timeout } from "../pause.js";
 
 /** The raw calls a self-reviewing wallet (Signa) decodes and confirms on its own page. */
 export type SelfReviewedRequest = {
@@ -26,6 +27,13 @@ export type SelfReviewedRequest = {
  * calls through `submitToReviewer` only.
  */
 export type WalletAdapter = {
+  /**
+   * Settles once `kind` and `isSafe` can be trusted (Safe{Wallet} over
+   * WalletConnect is known only once its peer metadata settles). Core awaits
+   * it, bounded, before reading them; a rejection or timeout sends nothing.
+   * It may be called more than once.
+   */
+  ready?(): Promise<void>;
   kind: "wallet" | "self-reviewing";
   account(): Address | undefined;
   chainId(): number | undefined;
@@ -47,6 +55,29 @@ export type WalletAdapter = {
   /** Self-reviewing adapters only. */
   submitToReviewer?(request: SelfReviewedRequest): Promise<Hex>;
 };
+
+/** How long a wallet's `ready` may take before nothing is sent. */
+const WALLET_READY_MS = 10_000;
+
+export const WALLET_NOT_READY_LINE =
+  "Your wallet's connection could not be confirmed. Nothing was sent; try again.";
+
+/**
+ * Awaits `adapter.ready`, at most {@link WALLET_READY_MS}. A rejection or
+ * timeout throws {@link WALLET_NOT_READY_LINE}: the wallet is never taken
+ * for a plain one it may not be.
+ */
+export async function walletReady(adapter: WalletAdapter): Promise<void> {
+  if (!adapter.ready) return;
+  try {
+    await timeout(
+      Promise.resolve().then(() => adapter.ready!()),
+      WALLET_READY_MS,
+    );
+  } catch (error) {
+    throw Object.assign(new Error(WALLET_NOT_READY_LINE), { cause: error });
+  }
+}
 
 /**
  * The connected account and the wallet client. The account, chain and Safe
@@ -107,8 +138,18 @@ export function viemWalletAdapter(options: {
   chainId: () => number | undefined;
   isSafe: () => boolean;
   switchChain: (chainId: number) => Promise<unknown>;
+  /** Settles once `isSafe` is known (see {@link WalletAdapter.ready}). */
+  ready?: () => Promise<unknown>;
 }): WalletAdapter {
+  const { ready } = options;
   return {
+    ...(ready
+      ? {
+          ready: async () => {
+            await ready();
+          },
+        }
+      : {}),
     kind: "wallet",
     account: options.account,
     chainId: options.chainId,

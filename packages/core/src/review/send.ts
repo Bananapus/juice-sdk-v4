@@ -53,7 +53,11 @@ import {
   simulateStateChangingTransaction,
 } from "./simulation.js";
 import type { TransactionReviewRequest } from "./transactionReview.js";
-import { unsupportedWalletRequest, type WalletAdapter } from "./wallet.js";
+import {
+  unsupportedWalletRequest,
+  walletReady,
+  type WalletAdapter,
+} from "./wallet.js";
 import {
   WriteHeldError,
   WriteHoldStaleReviewError,
@@ -451,6 +455,8 @@ export async function sendReviewed(
   action: ReviewedAction,
   deps: ReviewedSendDeps,
 ): Promise<ReviewedResult> {
+  action.guard?.();
+  await walletReady(deps.adapter);
   return send(action, deps);
 }
 
@@ -480,6 +486,7 @@ export async function resumeReviewed(
   deps: ReviewedSendDeps,
 ): Promise<ReviewedResult> {
   action.guard?.();
+  await walletReady(deps.adapter);
   const storage = deps.storage ?? createHeldWriteStorage();
   const { raw, record: saved } = readReviewedSequence(
     record.scope,

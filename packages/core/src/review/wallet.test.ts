@@ -32,6 +32,22 @@ function adapterOver(client: ReturnType<typeof walletClient>) {
 }
 
 describe("wallet adapters", () => {
+  it("viemWalletAdapter offers ready only when the site gives one", async () => {
+    const { adapter } = adapterOver(walletClient());
+    expect(adapter.ready).toBeUndefined();
+    const ready = vi.fn(async () => "settled");
+    const withReady = viemWalletAdapter({
+      walletClient: async () => walletClient() as unknown as WalletClient,
+      account: () => ACCOUNT,
+      chainId: () => 10,
+      isSafe: () => false,
+      switchChain: async () => {},
+      ready,
+    });
+    await expect(withReady.ready!()).resolves.toBeUndefined();
+    expect(ready).toHaveBeenCalledTimes(1);
+  });
+
   it("viemWalletAdapter passes chain, account, gas exactly", async () => {
     const client = walletClient();
     const { adapter, state, switchChain } = adapterOver(client);

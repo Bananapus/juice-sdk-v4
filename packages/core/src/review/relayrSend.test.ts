@@ -182,6 +182,26 @@ describe("runRelayrReviewed", () => {
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
+  it("asks nothing of a wallet whose ready fails", async () => {
+    const { deps, wallet, signTypedData } = relayrSetup();
+    const relayr = fakeRelayr(() => 100n);
+    const prompts = reviewUi();
+    const adapter = {
+      ...wallet.adapter,
+      ready: () => Promise.reject(new Error("peer")),
+    };
+    await expect(
+      runRelayrReviewed(
+        [CALL],
+        { account: ACCOUNT, scope: "action" },
+        { ...deps, adapter },
+      ),
+    ).rejects.toThrow("Your wallet's connection could not be confirmed.");
+    expect(prompts).toHaveLength(0);
+    expect(relayr.fetch).not.toHaveBeenCalled();
+    expect(signTypedData).not.toHaveBeenCalled();
+  });
+
   it("one prompt covers the forward requests, the quoted fee and the payment", async () => {
     const { deps, wallet, signTypedData } = relayrSetup();
     const relayr = fakeRelayr((from) => (from === ACCOUNT ? 900n : 1_000n));

@@ -73,7 +73,11 @@ import {
 } from "./sign.js";
 import { simulateStateChangingTransaction } from "./simulation.js";
 import type { TransactionReviewCall } from "./transactionReview.js";
-import { unsupportedWalletRequest, type WalletAdapter } from "./wallet.js";
+import {
+  unsupportedWalletRequest,
+  walletReady,
+  type WalletAdapter,
+} from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
 import { browserLocks } from "./writeRecovery.js";
 import { timeout } from "../pause.js";
@@ -162,11 +166,12 @@ function forwarderOn(chainId: number): Address {
 }
 
 /** The connected wallet, as long as it is an ordinary one on `account` (or, with `safe`, a Safe app). */
-function requireOrdinaryWallet(
+async function requireOrdinaryWallet(
   adapter: WalletAdapter,
   account: Address,
   safe = false,
-): void {
+): Promise<void> {
+  await walletReady(adapter);
   if (adapter.kind !== "wallet") throw unsupportedWalletRequest();
   const connected = adapter.account();
   if (!connected) throw new Error("Connect a wallet first.");
@@ -589,7 +594,7 @@ async function sendPayment(
 ): Promise<Hex> {
   const { adapter } = deps;
   const safe = hooks.safe ?? false;
-  requireOrdinaryWallet(adapter, account, safe);
+  await requireOrdinaryWallet(adapter, account, safe);
   const client = deps.clientFor(details.chainId);
   const call = {
     chainId: details.chainId,
@@ -776,7 +781,7 @@ export async function signReviewedForwardRequests(
   },
 ): Promise<RelayrEntry[]> {
   const { account } = action;
-  requireOrdinaryWallet(deps.adapter, account);
+  await requireOrdinaryWallet(deps.adapter, account);
   const requests = await forwardRequests(calls, account, deps.clientFor);
   const prepared = requests.map(({ chainId, request }) =>
     prepareSignature({ kind: "forward-request", chainId, request }, account),
@@ -819,8 +824,9 @@ export async function payRelayrReviewed(
   deps: ReviewedSendDeps,
 ): Promise<{ hash: Hex } | { safeTxHash: Hex }> {
   const { account } = action;
+  await walletReady(deps.adapter);
   const safe = deps.adapter.isSafe();
-  requireOrdinaryWallet(deps.adapter, account, safe);
+  await requireOrdinaryWallet(deps.adapter, account, safe);
   const details = paymentOn(quote, chainId);
   const intent = {
     key: `relayr:${details.bundleUuid}`,
@@ -872,7 +878,7 @@ export async function runRelayrReviewed(
   if (typeof scope !== "string" || !scope.trim()) {
     throw new Error("A relayed action needs its scope. Nothing was sent.");
   }
-  requireOrdinaryWallet(adapter, account);
+  await requireOrdinaryWallet(adapter, account);
   const requests = await forwardRequests(calls, account, clientFor);
   const funding = relayrPaymentChains(requests.map(({ chainId }) => chainId));
   const walletChain = adapter.chainId();
@@ -1073,7 +1079,7 @@ export function safeRelayrWalletDeps(
       onSent,
     }) => {
       const { account } = session;
-      requireOrdinaryWallet(deps.adapter, account);
+      await requireOrdinaryWallet(deps.adapter, account);
       if (session.payments.length >= MAX_RELAYR_SENT_PAYMENTS) {
         throw new Error(
           "This Relayr quote was paid too many times to pay again. Keep it pending; do not pay again.",

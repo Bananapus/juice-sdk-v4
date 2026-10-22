@@ -28,7 +28,7 @@ import type { ReviewConfirmation } from "./confirm.js";
 import { SubmittedContractWriteError } from "./contractWrite.js";
 import { buildReviewModel } from "./model.js";
 import { sendReviewed, type ReviewedCall } from "./send.js";
-import { selfReviewingAdapter } from "./wallet.js";
+import { selfReviewingAdapter, WALLET_NOT_READY_LINE } from "./wallet.js";
 import { WriteHeldError, WriteHoldStaleReviewError } from "./writeHold.js";
 
 afterEach(resetReviewUi);
@@ -209,6 +209,65 @@ describe("sendReviewed", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledWith(
       expect.objectContaining({ gas: 0n }),
     );
+  });
+
+  it("reads the wallet's kind only once its ready settles", async () => {
+    const { wallet, deps } = setup();
+    const prompts = reviewUi();
+    // Safe{Wallet} over WalletConnect is known once its peer metadata settles.
+    const adapter = {
+      ...wallet.adapter,
+      ready: vi.fn(async () => {
+        await Promise.resolve();
+        wallet.state.safe = true;
+      }),
+    };
+    const result = await sendReviewed(action([payCall()]), {
+      ...deps,
+      adapter,
+    });
+    expect(adapter.ready).toHaveBeenCalled();
+    expect(prompts[0].model.calls[0].safeTxGas).toBe(0n);
+    expect(result).toMatchObject({ status: "proposed" });
+  });
+
+  it("sends nothing when the wallet's ready fails or never settles", async () => {
+    const { wallet, deps } = setup();
+    const prompts = reviewUi();
+    const failing = {
+      ...wallet.adapter,
+      ready: () => Promise.reject(new Error("peer")),
+    };
+    await expect(
+      sendReviewed(action([payCall()]), { ...deps, adapter: failing }),
+    ).rejects.toThrow(WALLET_NOT_READY_LINE);
+    const throwing = {
+      ...wallet.adapter,
+      ready: (): Promise<void> => {
+        throw new Error("peer");
+      },
+    };
+    await expect(
+      sendReviewed(action([payCall()]), { ...deps, adapter: throwing }),
+    ).rejects.toThrow(WALLET_NOT_READY_LINE);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const stuck = {
+        ...wallet.adapter,
+        ready: () => new Promise<void>(() => {}),
+      };
+      const sending = sendReviewed(action([payCall()]), {
+        ...deps,
+        adapter: stuck,
+      });
+      const refused = expect(sending).rejects.toThrow(WALLET_NOT_READY_LINE);
+      await vi.advanceTimersByTimeAsync(10_000);
+      await refused;
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(prompts).toHaveLength(0);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
   it("refuses calldata that is not its arguments' encoding before any review", async () => {

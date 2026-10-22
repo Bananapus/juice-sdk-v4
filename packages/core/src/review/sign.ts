@@ -35,7 +35,11 @@ import {
 } from "./relayr.js";
 import { TransactionReviewCancelledError } from "./reviewQueue.js";
 import type { TransactionReviewSignature } from "./transactionReview.js";
-import { unsupportedWalletRequest, type WalletAdapter } from "./wallet.js";
+import {
+  unsupportedWalletRequest,
+  walletReady,
+  type WalletAdapter,
+} from "./wallet.js";
 
 /** An ERC-2771 request to sign: what `execute` carries, with the signer's forwarder nonce in place of the signature. */
 export type ReviewedForwardRequest = Omit<RelayrForwardRequest, "signature"> & {
@@ -408,6 +412,7 @@ export async function signReviewed(
 ): Promise<Hex[]> {
   const { adapter } = deps;
   const { account } = action;
+  await walletReady(adapter);
   if (adapter.kind === "self-reviewing") throw unsupportedWalletRequest();
   const connected = adapter.account();
   if (!connected) throw new Error("Connect a wallet first.");

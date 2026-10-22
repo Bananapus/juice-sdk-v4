@@ -36,7 +36,11 @@ import {
 import { TransactionReviewCancelledError } from "./reviewQueue.js";
 import { sendReviewed } from "./send.js";
 import { signReviewed, type ReviewedSignature } from "./sign.js";
-import { selfReviewingAdapter, type WalletAdapter } from "./wallet.js";
+import {
+  selfReviewingAdapter,
+  WALLET_NOT_READY_LINE,
+  type WalletAdapter,
+} from "./wallet.js";
 
 afterEach(resetReviewUi);
 
@@ -115,6 +119,22 @@ function forward(
 const signed = { account: signer.address };
 
 describe("signReviewed", () => {
+  it("asks nothing of a wallet whose ready fails", async () => {
+    const { adapter } = wallet();
+    const prompts = reviewUi();
+    await expect(
+      signReviewed(
+        [{ kind: "safe-tx", chainId: 10, safe: SAFE, tx: safeTx() }],
+        signed,
+        {
+          adapter: { ...adapter, ready: () => Promise.reject(new Error("x")) },
+        },
+      ),
+    ).rejects.toThrow(WALLET_NOT_READY_LINE);
+    expect(prompts).toHaveLength(0);
+    expect(adapter.signTypedData).not.toHaveBeenCalled();
+  });
+
   it("signs a SafeTx whose hash equals safeTransactionHash", async () => {
     const { adapter } = wallet();
     const prompts = reviewUi();
