@@ -22,6 +22,7 @@ export {
 export * from "./wallet.js";
 export * from "./send.js";
 export * from "./safeSend.js";
+export * from "./relayrSend.js";
 export {
   signReviewed,
   type ReviewedForwardRequest,
