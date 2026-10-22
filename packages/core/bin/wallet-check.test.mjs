@@ -142,6 +142,65 @@ describe("nana-wallet-check", () => {
     expect(run(dir).status).toBe(0);
   });
 
+  it.each([
+    ["element access", 'wallet["sendTransaction"]({});', "sendTransaction"],
+    ["parenthesized member", "(wallet.sendTransaction)({});", "sendTransaction"],
+    ["call", "wallet.sendTransaction.call(wallet, {});", "sendTransaction"],
+    ["member alias", "const send = wallet.sendTransaction;\nsend({});", "sendTransaction"],
+    [
+      "required destructuring",
+      'const { sendTransaction: send } = require("viem/actions");\nsend(wallet, {});',
+      "sendTransaction",
+    ],
+    ["template rpc method", "provider.send(`personal_sign`, []);", "rpc:personal_sign"],
+    ["quoted reviewedInParent", 'run({ "reviewedInParent": true });', "reviewedInParent"],
+  ])("fails %s", (_name, text, api) => {
+    const { status, out } = run(project({ "case.js": `${text}\n` }));
+    expect(status).toBe(1);
+    expect(out).toContain(`src/case.js:`);
+    expect(out).toContain(`:${api}`);
+  });
+
+  it("fails a same-line duplicate that one row cannot review", () => {
+    const dir = project(
+      { "twice.ts": "wallet.sendTransaction(a); wallet.sendTransaction(b);\n" },
+      [["twice.ts", 1, "sendTransaction"]],
+    );
+    const { status, out } = run(dir);
+    expect(status).toBe(1);
+    expect(out).toContain("split the line");
+  });
+
+  it("forbids import-equals and ignores type-only imports", () => {
+    const dir = project({
+      "eq.ts": 'import sdk = require("@bananapus/nana-sdk-react");\n',
+      "types.ts": 'import type { T } from "@bananapus/nana-sdk-react";\nexport type { U } from "@bananapus/nana-sdk-react";\n',
+    });
+    const { status, out } = run(dir, "--forbid-import", "@bananapus/nana-sdk-react");
+    expect(status).toBe(1);
+    expect(out).toContain("src/eq.ts:1:import @bananapus/nana-sdk-react");
+    expect(out).not.toContain("src/types.ts");
+  });
+
+  it("scans a symlinked source directory", () => {
+    const dir = project({});
+    mkdirSync(join(dir, "real"));
+    writeFileSync(join(dir, "real", "x.ts"), "wallet.sendTransaction({});\n");
+    symlinkSync(join(dir, "real"), join(dir, "src", "linked"));
+    const { status, out } = run(dir);
+    expect(status).toBe(1);
+    expect(out).toContain("src/linked/x.ts:1:sendTransaction");
+  });
+
+  it("matches inventory paths however they are spelled", () => {
+    const dir = project(
+      { "adapter.ts": "export const a = selfReviewingAdapter({});\n" },
+      [],
+      { selfReviewing: ["./src/adapter.ts"] },
+    );
+    expect(run(dir).status).toBe(0);
+  });
+
   it("exits 1 with usage when the flags are missing", () => {
     const dir = project({});
     const result = spawnSync(process.execPath, [bin], {

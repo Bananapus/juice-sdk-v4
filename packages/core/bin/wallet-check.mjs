@@ -88,39 +88,87 @@ function invariant(condition, message) {
   process.exit(1);
 }
 
+const sourceExtension = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
+const sourceKinds = {
+  ".tsx": ts.ScriptKind.TSX,
+  ".jsx": ts.ScriptKind.JSX,
+  ".js": ts.ScriptKind.JS,
+  ".mjs": ts.ScriptKind.JS,
+  ".cjs": ts.ScriptKind.JS,
+};
+
 function productionFiles(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = resolve(directory, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === "generated") return [];
+  return readdirSync(directory).flatMap((name) => {
+    const path = resolve(directory, name);
+    const stat = statSync(path);
+    if (stat.isDirectory()) {
+      if (name === "generated" || name === "node_modules") return [];
       return productionFiles(path);
     }
-    if (!entry.isFile() || !/\.(?:ts|tsx)$/.test(entry.name)) return [];
-    if (/\.(?:test|spec)\.(?:ts|tsx)$/.test(entry.name)) return [];
-    if (entry.name.endsWith(".d.ts")) return [];
+    if (!stat.isFile() || !sourceExtension.test(name)) return [];
+    if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(name)) return [];
+    if (/\.d\.[cm]?ts$/.test(name)) return [];
     return [path];
   });
 }
 
-function apiOf(call, aliases) {
-  if (
-    ts.isIdentifier(call.expression)
+function unwrap(expression) {
+  let current = expression;
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isNonNullExpression(current) ||
+    ts.isTypeAssertionExpression(current) ||
+    ts.isSatisfiesExpression(current)
   ) {
-    const name = aliases.get(call.expression.text) ?? call.expression.text;
-    if (directApis.has(name)) return name;
+    current = current.expression;
   }
+  return current;
+}
+
+function memberNameOf(expression) {
+  if (ts.isPropertyAccessExpression(expression)) return expression.name.text;
   if (
-    ts.isPropertyAccessExpression(call.expression) &&
-    memberApis.has(call.expression.name.text)
+    ts.isElementAccessExpression(expression) &&
+    ts.isStringLiteralLike(unwrap(expression.argumentExpression))
   ) {
-    return call.expression.name.text;
+    return unwrap(expression.argumentExpression).text;
   }
   return null;
 }
 
+// The name a callee resolves to: a bare identifier (through import and
+// destructuring aliases) or a member, including a quoted member and one reached
+// through call, apply or bind.
+function calleeOf(expression, aliases) {
+  const callee = unwrap(expression);
+  if (ts.isIdentifier(callee)) {
+    return { name: aliases.get(callee.text) ?? callee.text, member: false };
+  }
+  const member = memberNameOf(callee);
+  if (member === null) return null;
+  if (["call", "apply", "bind"].includes(member)) {
+    const inner = calleeOf(callee.expression, aliases);
+    if (inner && inner.member) return inner;
+  }
+  return { name: member, member: true };
+}
+
+function apiOf(call, aliases) {
+  const callee = calleeOf(call.expression, aliases);
+  if (!callee) return null;
+  return (callee.member ? memberApis : directApis).has(callee.name)
+    ? callee.name
+    : null;
+}
+
 const discovered = [];
 const forbidden = [];
-const selfReviewing = new Set(inventory.selfReviewing ?? []);
+const selfReviewing = new Set(
+  (Array.isArray(inventory.selfReviewing) ? inventory.selfReviewing : []).map((file) =>
+    typeof file === "string" ? relative(resolve("."), resolve(file)) : file,
+  ),
+);
 for (const filePath of productionRoots.flatMap(productionFiles)) {
   const sourceText = readFileSync(filePath, "utf8");
   const source = ts.createSourceFile(
@@ -128,7 +176,7 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
     sourceText,
     ts.ScriptTarget.Latest,
     true,
-    filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+    sourceKinds[filePath.slice(filePath.lastIndexOf("."))] ?? ts.ScriptKind.TS,
   );
   const aliases = new Map();
 
@@ -148,20 +196,21 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
   }
 
   function collectAliases(node) {
-    if (
-      ts.isVariableDeclaration(node) &&
-      ts.isObjectBindingPattern(node.name) &&
-      node.initializer &&
-      ts.isCallExpression(node.initializer)
-    ) {
-      const initializerApi = apiOf(node.initializer, aliases);
-      if (initializerApi?.startsWith("use")) {
+    if (ts.isVariableDeclaration(node)) {
+      if (ts.isObjectBindingPattern(node.name)) {
         for (const element of node.name.elements) {
           if (!ts.isIdentifier(element.name)) continue;
           const exposed = element.propertyName
-            ? element.propertyName.getText(source)
+            ? element.propertyName.text ?? element.propertyName.getText(source)
             : element.name.text;
           if (directApis.has(exposed)) aliases.set(element.name.text, exposed);
+        }
+      } else if (ts.isIdentifier(node.name) && node.initializer) {
+        const initializer = unwrap(node.initializer);
+        const name = memberNameOf(initializer);
+        if (name !== null && directApis.has(name)) aliases.set(node.name.text, name);
+        else if (ts.isIdentifier(initializer) && aliases.has(initializer.text)) {
+          aliases.set(node.name.text, aliases.get(initializer.text));
         }
       }
     }
@@ -173,27 +222,54 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
   function lineOf(node) {
     return source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
   }
-  function visit(node) {
+  function moduleSpecifierOf(node) {
     if (
-      ts.isIdentifier(node) &&
-      node.text === "reviewedInParent" &&
-      !ts.isImportSpecifier(node.parent)
-    ) {
-      discovered.push({ file: here, line: lineOf(node), api: node.text });
-    }
-    const specifier =
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
       node.moduleSpecifier &&
       ts.isStringLiteral(node.moduleSpecifier)
-        ? node.moduleSpecifier
-        : ts.isCallExpression(node) &&
-            (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-              (ts.isIdentifier(node.expression) &&
-                node.expression.text === "require")) &&
-            node.arguments[0] &&
-            ts.isStringLiteralLike(node.arguments[0])
-          ? node.arguments[0]
+    ) {
+      const typeOnly = ts.isImportDeclaration(node)
+        ? node.importClause?.isTypeOnly
+        : node.isTypeOnly;
+      return typeOnly ? null : node.moduleSpecifier;
+    }
+    if (
+      ts.isImportEqualsDeclaration(node) &&
+      !node.isTypeOnly &&
+      ts.isExternalModuleReference(node.moduleReference) &&
+      ts.isStringLiteralLike(node.moduleReference.expression)
+    ) {
+      return node.moduleReference.expression;
+    }
+    if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) &&
+          node.expression.text === "require")) &&
+      node.arguments[0] &&
+      ts.isStringLiteralLike(node.arguments[0])
+    ) {
+      return node.arguments[0];
+    }
+    return null;
+  }
+  function visit(node) {
+    const nameNode =
+      ts.isIdentifier(node) &&
+      !ts.isImportSpecifier(node.parent) &&
+      !ts.isExportSpecifier(node.parent) &&
+      !ts.isPropertySignature(node.parent)
+        ? node
+        : ts.isStringLiteralLike(node) &&
+            (ts.isPropertyAssignment(node.parent) ||
+              ts.isComputedPropertyName(node.parent) ||
+              ts.isElementAccessExpression(node.parent))
+          ? node
           : null;
+    if (nameNode && nameNode.text === "reviewedInParent") {
+      discovered.push({ file: here, line: lineOf(node), api: nameNode.text });
+    }
+    const specifier = moduleSpecifierOf(node);
     if (
       specifier &&
       forbiddenImports.some(
@@ -203,11 +279,7 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
       forbidden.push(`${here}:${lineOf(specifier)}:import ${specifier.text}`);
     }
     if (ts.isCallExpression(node)) {
-      const callee = ts.isIdentifier(node.expression)
-        ? aliases.get(node.expression.text) ?? node.expression.text
-        : ts.isPropertyAccessExpression(node.expression)
-          ? node.expression.name.text
-          : null;
+      const callee = calleeOf(node.expression, aliases)?.name;
       if (callee === "registerTransactionReviewHandler") {
         discovered.push({ file: here, line: lineOf(node), api: callee });
       }
@@ -215,24 +287,12 @@ for (const filePath of productionRoots.flatMap(productionFiles)) {
         forbidden.push(`${here}:${lineOf(node)}:${callee} outside selfReviewing`);
       }
       const api = apiOf(node, aliases);
-      if (api) {
-        const { line } = source.getLineAndCharacterOfPosition(
-          node.getStart(source),
-        );
-        discovered.push({
-          file: relative(resolve("."), filePath),
-          line: line + 1,
-          api,
-        });
-      }
+      if (api) discovered.push({ file: here, line: lineOf(node), api });
     }
-    if (ts.isStringLiteral(node) && signingRpcMethods.has(node.text)) {
-      const { line } = source.getLineAndCharacterOfPosition(
-        node.getStart(source),
-      );
+    if (ts.isStringLiteralLike(node) && signingRpcMethods.has(node.text)) {
       discovered.push({
-        file: relative(resolve("."), filePath),
-        line: line + 1,
+        file: here,
+        line: lineOf(node),
         api: `rpc:${node.text}`,
       });
     }
@@ -272,12 +332,21 @@ for (const site of inventory.sites) {
     statSync(resolve(site.test)).isFile(),
     `Missing wallet-boundary test ${site.test}`,
   );
+  site.file = relative(resolve("."), resolve(site.file));
   const key = siteKey(site);
   invariant(!reviewed.has(key), `Duplicate reviewed wallet site ${key}`);
   reviewed.set(key, site);
 }
 
 const discoveredKeys = new Set(discovered.map(siteKey));
+const sameLine = discovered.filter(
+  (site, index) =>
+    discovered.findIndex((other) => siteKey(other) === siteKey(site)) !== index,
+);
+invariant(
+  sameLine.length === 0,
+  `Several wallet boundary sites share one line, so one inventory row cannot review each; split the line:\n${sameLine.map((site) => `- ${siteKey(site)}`).join("\n")}`,
+);
 const unreviewed = discovered.filter((site) => !reviewed.has(siteKey(site)));
 const stale = [...reviewed.keys()].filter((key) => !discoveredKeys.has(key));
 invariant(
