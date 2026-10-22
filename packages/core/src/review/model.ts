@@ -500,8 +500,10 @@ function isUnnamed(chainId: number, address: unknown): boolean {
 
 /**
  * An operator grant, or an approval, permit or approval for all that lets an
- * address the app does not name move the signer's tokens. A zero approval
- * revokes and grants nothing.
+ * address the app does not name move the signer's tokens. A zero ERC-20
+ * approval revokes and grants nothing, but only once the token is known to
+ * be ERC-20: to ERC-721, zero is a token ID. {@link enrichReviewModel}
+ * clears the grant when it confirms the token.
  */
 function grantsPermission(
   call: TransactionReviewCall,
@@ -515,7 +517,9 @@ function grantsPermission(
   if (tokenCall?.spender === undefined) return false;
   return (
     isUnnamed(call.chainId, call.args?.[tokenCall.spender]) &&
-    (tokenCall.amount === undefined || call.args?.[tokenCall.amount] !== 0n)
+    (tokenCall.amount === undefined ||
+      call.args?.[tokenCall.amount] !== 0n ||
+      mayBeTokenId(call, fn))
   );
 }
 
@@ -901,10 +905,18 @@ export async function enrichReviewModel(
         warnings: call.warnings.filter((warning) => !cleared.has(warning.code)),
       };
     }
+    // Decimals it answers, and no ERC-721 yes, confirm ERC-20: a zero
+    // approval then revokes rather than grants.
+    const revokes =
+      target?.decimals !== null &&
+      target?.decimals !== undefined &&
+      call.tokenAmounts[0]?.amount === 0n;
     const warnings =
       target && (target.erc721 === false || target.decimals !== null)
         ? call.warnings.filter(
-            (warning) => warning.code !== "possible-token-id",
+            (warning) =>
+              warning.code !== "possible-token-id" &&
+              !(revokes && warning.code === "permission-grant"),
           )
         : call.warnings;
     const tokenAmounts = call.tokenAmounts.map((amount) => {

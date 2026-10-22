@@ -543,6 +543,39 @@ describe("review roles, amounts and warnings", () => {
     expect(model.calls[0].tokenAmounts[0].decimals).toBeNull();
   });
 
+  it("keeps a zero approve a grant until the token is confirmed ERC-20", async () => {
+    const model = buildReviewModel({ calls: [approve(1, TOKEN, 0n)] });
+    expect(codes(model.calls[0])).toContain("permission-grant");
+    const answering = (answers: Record<string, unknown>) => () => ({
+      readContract: (async ({ functionName }: { functionName: string }) => {
+        if (!(functionName in answers)) throw new Error("execution reverted");
+        return answers[functionName];
+      }) as never,
+    });
+    const [nft] = (
+      await enrichReviewModel(model, answering({ supportsInterface: true }))
+    ).calls;
+    expect(nft.nft).toEqual({ token: TOKEN, tokenId: 0n });
+    expect(codes(nft)).toEqual(["unknown-contract", "permission-grant"]);
+    const [unanswered] = (await enrichReviewModel(model, answering({}))).calls;
+    expect(codes(unanswered)).toEqual([
+      "unknown-contract",
+      "permission-grant",
+      "possible-token-id",
+      "decimals-unknown",
+    ]);
+    const [erc20] = (
+      await enrichReviewModel(model, answering({ decimals: 18, symbol: "TKN" }))
+    ).calls;
+    expect(codes(erc20)).toEqual(["unknown-contract"]);
+    // USDC is ERC-20 from the start: a zero approval revokes.
+    expect(
+      codes(
+        one(call(8453, USDC_ADDRESSES[8453], erc20Abi, "approve", [BOB, 0n])),
+      ),
+    ).toEqual([]);
+  });
+
   it("shows an ERC-721 approve as an NFT approval when the contract says it is ERC-721", async () => {
     const model = buildReviewModel({ calls: [approve(1, TOKEN, 5n)] });
     const asked: unknown[] = [];
