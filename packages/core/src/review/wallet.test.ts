@@ -174,4 +174,28 @@ describe("wallet adapters", () => {
     await expect(adapter.submitToReviewer!(request)).resolves.toBe(HASH);
     expect(submit).toHaveBeenCalledWith(request);
   });
+
+  it("viemWalletAdapter refuses an account switch while the wallet client loads", async () => {
+    const client = walletClient();
+    let account: Address = ACCOUNT;
+    const adapter = viemWalletAdapter({
+      walletClient: async () => {
+        account = "0x3333333333333333333333333333333333333333";
+        return client as unknown as WalletClient;
+      },
+      account: () => account,
+      chainId: () => 10,
+      isSafe: () => false,
+      switchChain: async () => undefined,
+    });
+    await expect(
+      adapter.sendTransaction({
+        chainId: 10,
+        to: TARGET,
+        data: "0x",
+        value: 0n,
+      }),
+    ).rejects.toThrow("The connected account changed. Review again.");
+    expect(client.sendTransaction).not.toHaveBeenCalled();
+  });
 });

@@ -28,7 +28,11 @@ import {
 } from "./simulation.js";
 import type { TransactionReviewRequest } from "./transactionReview.js";
 import type { WalletAdapter } from "./wallet.js";
-import { WriteHeldError, type WriteHold } from "./writeHold.js";
+import {
+  WriteHeldError,
+  WriteHoldStaleReviewError,
+  type WriteHold,
+} from "./writeHold.js";
 
 export type ReviewedCall = {
   chainId: number;
@@ -99,24 +103,33 @@ const ACCOUNT_CHANGED = "The connected account changed. Review again.";
 const SIMULATION_UNAVAILABLE =
   "Simulation unavailable. This could not be checked before you confirm; it is checked again before your wallet opens.";
 
-/** `call` as it encodes now; refuses `data` that is not its arguments' encoding. */
-function exact(call: ReviewedCall): SentCall {
-  if (call.abi && call.functionName) {
+/**
+ * `call` as it encodes now, each field read once, so a getter cannot show one
+ * value and send another. Refuses `data` that is not its arguments' encoding.
+ */
+function exact(call: ReviewedCall): {
+  sent: SentCall;
+  shown: Pick<
+    ReviewedCall,
+    "abi" | "functionName" | "args" | "label" | "contractName"
+  >;
+} {
+  const { chainId, to, data, value, abi, functionName, args, label } = call;
+  const { contractName } = call;
+  if (abi && functionName) {
     const encoded = encodeFunctionData({
-      abi: call.abi,
-      functionName: call.functionName,
-      args: call.args ?? [],
+      abi,
+      functionName,
+      args: args ?? [],
     } as Parameters<typeof encodeFunctionData>[0]);
-    if (encoded.toLowerCase() !== call.data.toLowerCase()) {
+    if (encoded.toLowerCase() !== data.toLowerCase()) {
       throw new Error(MISMATCHED);
     }
   }
-  return Object.freeze({
-    chainId: call.chainId,
-    to: call.to,
-    data: call.data,
-    value: call.value ?? 0n,
-  });
+  return {
+    sent: Object.freeze({ chainId, to, data, value: value ?? 0n }),
+    shown: { abi, functionName, args, label, contractName },
+  };
 }
 
 function sameCall(a: SentCall, b: SentCall): boolean {
@@ -157,7 +170,10 @@ function reverted(error: unknown): boolean {
       item.code === 3 ||
       item.name === "ContractFunctionRevertedError" ||
       item.name === "RawContractError" ||
-      item.name === "ExecutionRevertedError"
+      item.name === "ExecutionRevertedError" ||
+      // A failed call that returned no revert data.
+      item.name === "ContractFunctionZeroDataError" ||
+      item.name === "AbiDecodingZeroDataError"
     ) {
       return true;
     }
@@ -187,55 +203,60 @@ async function reviewSimulation(
   clientFor: (chainId: number) => PublicClient,
 ): Promise<ReviewSimulation> {
   const chains = [...new Set(sent.map((call) => call.chainId))];
-  const results = await Promise.all(
-    chains.map(async (chainId): Promise<ReviewSimulation> => {
-      const steps = sent.flatMap((call, index) =>
-        call.chainId === chainId ? [index] : [],
-      );
-      let chainName = `chain ${chainId}`;
-      try {
-        const client = clientFor(chainId);
-        chainName = client.chain?.name ?? chainName;
-        if (steps.length > 1) {
-          await simulateCallSequence(client, {
-            from: account,
-            chainName,
-            calls: steps.map((index) => ({
-              to: sent[index].to,
-              data: sent[index].data,
-              value: sent[index].value,
-              label: labelOf(calls[index], index),
-              dependsOnPrior: calls[index].dependsOnPrior,
-            })),
-          });
-        } else if (!(calls[steps[0]].dependsOnPrior && steps[0] > 0)) {
-          await simulateStateChangingTransaction(client, {
-            from: account,
-            to: sent[steps[0]].to,
-            data: sent[steps[0]].data,
-            value: sent[steps[0]].value,
-          });
-        }
-        return { status: "passed" };
-      } catch (error) {
-        const message =
-          steps.length > 1
-            ? revertDetail(error)
-            : `${labelOf(calls[steps[0]], steps[0])} cannot run on ${chainName}: ${revertDetail(error)}`;
-        return reverted(error)
-          ? { status: "failed", message }
-          : { status: "unavailable", message };
+  const perChain = chains.map(async (chainId): Promise<ReviewSimulation> => {
+    const steps = sent.flatMap((call, index) =>
+      call.chainId === chainId ? [index] : [],
+    );
+    let chainName = `chain ${chainId}`;
+    try {
+      const client = clientFor(chainId);
+      chainName = client.chain?.name ?? chainName;
+      if (steps.length > 1) {
+        await simulateCallSequence(client, {
+          from: account,
+          chainName,
+          calls: steps.map((index) => ({
+            to: sent[index].to,
+            data: sent[index].data,
+            value: sent[index].value,
+            label: labelOf(calls[index], index),
+            dependsOnPrior: calls[index].dependsOnPrior,
+          })),
+        });
+      } else if (!(calls[steps[0]].dependsOnPrior && steps[0] > 0)) {
+        await simulateStateChangingTransaction(client, {
+          from: account,
+          to: sent[steps[0]].to,
+          data: sent[steps[0]].data,
+          value: sent[steps[0]].value,
+        });
       }
-    }),
-  ).catch((error): ReviewSimulation[] => [
-    { status: "unavailable", message: revertDetail(error) },
-  ]);
-  return (
-    results.find((result) => result.status === "failed") ??
-    results.find((result) => result.status === "unavailable") ?? {
-      status: "passed",
+      return { status: "passed" };
+    } catch (error) {
+      const message =
+        steps.length > 1
+          ? revertDetail(error)
+          : `${labelOf(calls[steps[0]], steps[0])} cannot run on ${chainName}: ${revertDetail(error)}`;
+      return reverted(error)
+        ? { status: "failed", message }
+        : { status: "unavailable", message };
     }
+  });
+  // A revert on one chain is reported at once, whatever the others still wait on.
+  const failed = new Promise<ReviewSimulation>((resolve) => {
+    for (const result of perChain) {
+      void result.then((settled) => {
+        if (settled.status === "failed") resolve(settled);
+      });
+    }
+  });
+  const all = Promise.all(perChain).then(
+    (results) =>
+      results.find((result) => result.status === "unavailable") ?? {
+        status: "passed" as const,
+      },
   );
+  return Promise.race([failed, all]);
 }
 
 function simulationWarning(
@@ -282,7 +303,8 @@ export async function sendReviewed(
   const { account } = action;
   const calls = [...action.calls];
   if (!calls.length) throw new Error("There is no transaction to review.");
-  const sent = calls.map(exact);
+  const snapshots = calls.map(exact);
+  const sent = snapshots.map(({ sent }) => sent);
   const connected = adapter.account();
   if (!connected) throw new Error("Connect a wallet first.");
   if (connected.toLowerCase() !== account.toLowerCase()) {
@@ -290,15 +312,15 @@ export async function sendReviewed(
   }
 
   const request = (safe: boolean): TransactionReviewRequest => ({
-    calls: calls.map((call, index) => ({
-      ...sent[index],
+    calls: snapshots.map(({ sent, shown }) => ({
+      ...sent,
       from: account,
       ...(safe ? { safeTxGas: 0n } : {}),
-      ...(call.abi ? { abi: call.abi } : {}),
-      ...(call.functionName ? { functionName: call.functionName } : {}),
-      ...(call.args ? { args: call.args } : {}),
-      ...(call.label ? { label: call.label } : {}),
-      ...(call.contractName ? { contractName: call.contractName } : {}),
+      ...(shown.abi ? { abi: shown.abi } : {}),
+      ...(shown.functionName ? { functionName: shown.functionName } : {}),
+      ...(shown.args ? { args: shown.args } : {}),
+      ...(shown.label ? { label: shown.label } : {}),
+      ...(shown.contractName ? { contractName: shown.contractName } : {}),
     })),
     ...(action.title ? { title: action.title } : {}),
     ...(action.description ? { description: action.description } : {}),
@@ -340,6 +362,15 @@ export async function sendReviewed(
     const state = handle.peek();
     if (state.status !== "clear") throw new WriteHeldError(state);
   }
+  /**
+   * Each step's hold as the review opened. Another prompt of the same action
+   * that reserved, or sent and settled, meanwhile makes this review stale.
+   */
+  const generation = (handle: (typeof handles)[number]) => {
+    const state = handle.peek();
+    return JSON.stringify([state.status, state.reservation ?? null]);
+  };
+  const reviewedGenerations = handles.map(generation);
   const model = buildReviewModel(request(safe));
   const simulation = reviewSimulation(account, calls, sent, clientFor);
   const enriched = Promise.all([
@@ -361,7 +392,7 @@ export async function sendReviewed(
     const unchanged = () => {
       let now: SentCall;
       try {
-        now = exact(call);
+        now = exact(call).sent;
       } catch {
         throw new Error(CHANGED);
       }
@@ -375,6 +406,9 @@ export async function sendReviewed(
       sent[step - 1].chainId === reviewed.chainId
         ? prior.blockNumber
         : undefined;
+    if (generation(handles[step]) !== reviewedGenerations[step]) {
+      throw new WriteHoldStaleReviewError();
+    }
     const hash = await handles[step].send<Hex>(client, (gate) =>
       submitReviewedContractWrite({
         request: reviewed,
@@ -420,6 +454,10 @@ export async function sendReviewed(
               "Your wallet changed networks. Review the transaction again.",
             );
           }
+          // Last, after every callback and getter above could have run.
+          if (adapter.account()?.toLowerCase() !== account.toLowerCase()) {
+            throw new Error(ACCOUNT_CHANGED);
+          }
         },
         onBeforeWriteAborted: () => gate.onRejected(),
         onWriteRejected: () => gate.onRejected(),
@@ -431,6 +469,12 @@ export async function sendReviewed(
       }),
     );
     hashes.push(hash);
+    // A later step that is this same call is held by this send, not by another prompt.
+    for (const [later, handle] of handles.entries()) {
+      if (later > step && sameCall(sent[later], reviewed)) {
+        reviewedGenerations[later] = generation(handle);
+      }
+    }
     if (safe) {
       progress("proposed", hash);
       return { status: "proposed", step, safeTxHash: hash };

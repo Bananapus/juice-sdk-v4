@@ -21,7 +21,11 @@ import {
   type ReviewedProgress,
 } from "./send.js";
 import { selfReviewingAdapter, type WalletAdapter } from "./wallet.js";
-import { createWriteHold, WriteHeldError } from "./writeHold.js";
+import {
+  createWriteHold,
+  WriteHeldError,
+  WriteHoldStaleReviewError,
+} from "./writeHold.js";
 import {
   createHeldWriteStorage,
   type ReviewedWriteRecoveryInput,
@@ -707,5 +711,116 @@ describe("sendReviewed", () => {
       "Connect a wallet first.",
     );
     expect(prompts).toHaveLength(0);
+  });
+
+  it("shows the handler a frozen model it cannot edit", async () => {
+    const { deps } = setup();
+    reviewUi(async (prompt) => {
+      expect(() => {
+        (prompt.model.calls[0] as { to: Address }).to = OTHER;
+      }).toThrow(TypeError);
+      expect(() => {
+        (prompt.model.calls[0] as { value: bigint }).value = 0n;
+      }).toThrow(TypeError);
+      expect(Object.isFrozen(prompt)).toBe(true);
+      expect(Object.isFrozen((await prompt.enriched).warnings)).toBe(true);
+      return prompt.confirmation;
+    });
+    await expect(
+      sendReviewed(action([payCall()]), deps),
+    ).resolves.toMatchObject({
+      status: "done",
+    });
+  });
+
+  it("checks the account after every callback before the wallet opens", async () => {
+    const { wallet, deps, hold, holdOf } = setup();
+    reviewUi();
+    const call = payCall();
+    await expect(
+      sendReviewed(
+        action([call], {
+          assertWriteState: () => void (wallet.state.account = OTHER),
+        }),
+        deps,
+      ),
+    ).rejects.toThrow("The connected account changed. Review again.");
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(hold.open(holdOf(call)).peek().status).toBe("clear");
+  });
+
+  it("refuses a second prompt of the same action once the first one sent", async () => {
+    const { wallet, deps } = setup();
+    const answers: (() => void)[] = [];
+    reviewUi(
+      (prompt) =>
+        new Promise((resolve) =>
+          answers.push(() => resolve(prompt.confirmation)),
+        ),
+    );
+    const call = payCall();
+    const first = sendReviewed(action([call]), deps);
+    const second = sendReviewed(action([call]), deps);
+    await vi.waitFor(() => expect(answers).toHaveLength(2));
+    answers[0]();
+    await expect(first).resolves.toMatchObject({ status: "done" });
+    answers[1]();
+    await expect(second).rejects.toBeInstanceOf(WriteHoldStaleReviewError);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads a sequence step that reverts with no data as a revert", async () => {
+    const { wallet, deps, chain } = setup();
+    chain.client.simulateCalls.mockImplementationOnce(async ({ calls }) => ({
+      results: calls.map((_, index) =>
+        index === 1
+          ? {
+              status: "failure",
+              error: Object.assign(new Error("no data"), {
+                name: "ContractFunctionExecutionError",
+                shortMessage: "The contract function returned no data.",
+                cause: Object.assign(new Error("zero data"), {
+                  name: "ContractFunctionZeroDataError",
+                }),
+              }),
+            }
+          : { status: "success" },
+      ),
+    }));
+    reviewUi(async (prompt) => {
+      expect(await prompt.simulation).toMatchObject({ status: "failed" });
+      return prompt.confirmation;
+    });
+    await expect(
+      sendReviewed(
+        action([approveCall(), payCall(5n, { dependsOnPrior: true })]),
+        deps,
+      ),
+    ).rejects.toThrow("Pay cannot run on OP Mainnet");
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("reports a revert on one chain while another chain's simulation is still pending", async () => {
+    const { wallet, deps, chain } = setup();
+    const base = fakeChain();
+    base.client.chain = { id: 8453, name: "Base" };
+    base.state.ethCall = () => new Promise(() => {});
+    chain.state.ethCall = () => {
+      throw reverted();
+    };
+    reviewUi(async (prompt) => {
+      expect(await prompt.simulation).toMatchObject({ status: "failed" });
+      return prompt.confirmation;
+    });
+    await expect(
+      sendReviewed(action([payCall(), { ...payCall(6n), chainId: 8453 }]), {
+        ...deps,
+        clientFor: (chainId) =>
+          (chainId === 8453
+            ? base.client
+            : chain.client) as unknown as PublicClient,
+      }),
+    ).rejects.toThrow("Pay cannot run on OP Mainnet: Execution reverted: NOPE");
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 });

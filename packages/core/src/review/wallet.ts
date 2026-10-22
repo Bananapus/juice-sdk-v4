@@ -41,9 +41,22 @@ export type WalletAdapter = {
   submitToReviewer?(request: SelfReviewedRequest): Promise<Hex>;
 };
 
-function connected(account: Address | undefined): Address {
-  if (!account) throw new Error("Connect a wallet first.");
-  return account;
+/**
+ * The connected account and the wallet client. The account is read before the
+ * client is fetched and again after, so a wallet that switched accounts in
+ * between is refused instead of signing from the new one.
+ */
+async function connection(
+  account: () => Address | undefined,
+  walletClient: () => Promise<WalletClient>,
+): Promise<{ account: Address; client: WalletClient }> {
+  const asked = account();
+  if (!asked) throw new Error("Connect a wallet first.");
+  const client = await walletClient();
+  if (account()?.toLowerCase() !== asked.toLowerCase()) {
+    throw new Error("The connected account changed. Review again.");
+  }
+  return { account: asked, client };
 }
 
 /**
@@ -77,8 +90,10 @@ export function viemWalletAdapter(options: {
       await options.switchChain(chainId);
     },
     async sendTransaction({ chainId, to, data, value, gas }) {
-      const account = connected(options.account());
-      const client = await options.walletClient();
+      const { account, client } = await connection(
+        options.account,
+        options.walletClient,
+      );
       return client.sendTransaction({
         account,
         chain: chainOf(client, chainId),
@@ -89,18 +104,24 @@ export function viemWalletAdapter(options: {
       });
     },
     async signTypedData(typedData) {
-      const account = connected(options.account());
-      const client = await options.walletClient();
+      const { account, client } = await connection(
+        options.account,
+        options.walletClient,
+      );
       return client.signTypedData({ ...typedData, account });
     },
     async signMessage(message) {
-      const account = connected(options.account());
-      const client = await options.walletClient();
+      const { account, client } = await connection(
+        options.account,
+        options.walletClient,
+      );
       return client.signMessage({ account, message });
     },
     async sendCalls(chainId, calls) {
-      const account = connected(options.account());
-      const client = await options.walletClient();
+      const { account, client } = await connection(
+        options.account,
+        options.walletClient,
+      );
       const { id } = await client.sendCalls({
         account,
         chain: chainOf(client, chainId),

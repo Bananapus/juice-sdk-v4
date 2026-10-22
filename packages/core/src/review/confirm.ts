@@ -36,6 +36,15 @@ export type ReviewPrompt = {
 /** Every confirmation core minted: the model id it is for, and whether its prompt has ended. */
 const minted = new WeakMap<object, { id: Hex; used: boolean }>();
 
+/** `value` and everything in it frozen, so the handler shows the model core bound and cannot edit it. */
+function frozen<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const inner of Object.values(value)) frozen(inner);
+  }
+  return value;
+}
+
 const NOT_CONFIRMED =
   "This review was not confirmed here. Nothing was sent; review it again.";
 
@@ -67,12 +76,14 @@ export async function promptReview(
   const entry = { id: model.id, used: false };
   minted.set(confirmation, entry);
   try {
-    const answer: unknown = await handler({
-      model,
-      simulation,
-      enriched,
-      confirmation,
-    });
+    const answer: unknown = await handler(
+      Object.freeze({
+        model: frozen(model),
+        simulation,
+        enriched: enriched.then(frozen),
+        confirmation,
+      }),
+    );
     if (answer === null) throw new TransactionReviewCancelledError();
     const returned =
       typeof answer === "object" ? minted.get(answer) : undefined;
