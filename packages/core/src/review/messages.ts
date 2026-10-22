@@ -186,3 +186,7 @@ export const SAVED_ATTEMPT_UNREADABLE_LINE =
 /** The warned exit's label, offered only after a check action found storage unreadable. */
 export const SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL =
   "I checked my wallet. Continue anyway";
+
+/** The refusal when the connected account is not the one an action was built for. */
+export const REVIEWED_ACCOUNT_CHANGED_LINE =
+  "The connected account changed. Review again.";

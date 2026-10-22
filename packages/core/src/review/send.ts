@@ -20,6 +20,7 @@ import {
   isSafeExecTransaction,
 } from "../safeService.js";
 import {
+  REVIEWED_ACCOUNT_CHANGED_LINE,
   WRITE_HOLD_CALL_FAILED_LINE,
   WRITE_HOLD_REVERTED_LINE,
   WRITE_HOLD_SAFE_UNCONFIRMED_LINE,
@@ -222,9 +223,6 @@ const CHANGED =
 const MISMATCHED =
   "This call's data does not match its arguments. Nothing was sent.";
 const BAD_GAS = "This call's gas limit is not valid. Nothing was sent.";
-/** The refusal when the connected account is not the one an action was built for. */
-export const REVIEWED_ACCOUNT_CHANGED_LINE =
-  "The connected account changed. Review again.";
 const ACCOUNT_CHANGED = REVIEWED_ACCOUNT_CHANGED_LINE;
 const NOT_SAVED =
   "This action's progress could not be saved. Nothing was sent; review it again.";
