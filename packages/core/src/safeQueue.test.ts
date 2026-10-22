@@ -1184,9 +1184,9 @@ describe("Safe transaction service", () => {
     ).rejects.toThrow(
       `Safe's transaction service returned no transaction list for Safe ${SAFE} on chain 1.`,
     );
-    const endless = vi.fn(async () =>
-      json({ next: "more", results: Array.from({ length: 50 }, () => row()) }),
-    );
+    // One row hashed once, so the listing's own 250 checks are the work here.
+    const page = Array<ReturnType<typeof row>>(50).fill(row());
+    const endless = vi.fn(async () => json({ next: "more", results: page }));
     await expect(
       listPendingSafeTransactions(1, SAFE, 8, { fetch: endless }),
     ).rejects.toThrow(
