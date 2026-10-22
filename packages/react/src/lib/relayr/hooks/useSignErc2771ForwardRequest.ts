@@ -16,6 +16,10 @@ export type ERC2771ForwardRequestData = {
   data: Hash;
 };
 
+/**
+ * @deprecated Signs without the SDK's review. Use `signReviewedForwardRequests`
+ * from `@bananapus/nana-sdk-core/review`.
+ */
 export function useSignErc2771ForwardRequest() {
   const { switchChainAsync } = useSwitchChain();
   const { address } = useAccount();

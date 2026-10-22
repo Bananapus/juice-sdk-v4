@@ -7,6 +7,9 @@ import {
 
 /**
  * Hook to get transaction quote from relayr.
+ *
+ * @deprecated Signs without the SDK's review. Use `runRelayrReviewed` from
+ * `@bananapus/nana-sdk-core/review`, which signs, quotes and pays under one review.
  */
 export function useGetRelayrTxQuote() {
   const requestRelayrQuote = useRequestRelayrQuote();

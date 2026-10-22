@@ -9,6 +9,8 @@ DOCS: https://relayr-docs-staging.up.railway.app
 
 ### How to use
 
+> **Deprecated.** The hooks below sign and send without the SDK's review. Use `runRelayrReviewed` (whole flow), `signReviewedForwardRequests` or `payRelayrReviewed` from `@bananapus/nana-sdk-core/review`. They are removed in 4.0.
+
 1. Call `getRelayrTxQuote` from `useGetRelayrTxQuote` ([example](https://github.com/jbx-protocol/juice-interface/blob/2cff54a65b89be5958567e9f90dea62a75b581a2/src/packages/v4/components/Create/hooks/DeployProject/hooks/useDeployOmnichainProject.ts#L32-L76))
    - Pass one transaction for each account and destination chain, for example one `JBOmnichainDeployer.launchProjectFor` call per chain. Two unexecuted forward requests for the same account/chain would share a nonce, so the hook rejects that bundle before requesting signatures.
    - This will prompt the user to sign a TX for every chain they're transacting on

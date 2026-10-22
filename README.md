@@ -1310,10 +1310,9 @@ npm install @bananapus/nana-sdk-react @bananapus/nana-sdk-core
 
 # For vanilla JavaScript/Node.js
 npm install @bananapus/nana-sdk-core
-
-# For Revnet-specific functionality
-npm install revnet-sdk
 ```
+
+Writes go through core's reviewed path: `sendReviewed(action, deps)` from `@bananapus/nana-sdk-core/review` reviews, sends and confirms in one step, and `runRelayrReviewed` does the same for a Relayr bundle. The React Relayr hooks are deprecated in favor of it.
 
 ## Quick Start
 
