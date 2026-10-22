@@ -12,7 +12,7 @@ import {
   TransactionReviewCancelledError,
 } from "./reviewQueue.js";
 import type { PrettyStep } from "./decode.js";
-import type { ReviewContextRow } from "./model.js";
+import type { ReviewContextRow, ReviewModel } from "./model.js";
 
 export type { FundingChainOption } from "./reviewQueue.js";
 export {
@@ -251,16 +251,19 @@ export function buildTransactionDebugPrompt(
   return lines.join("\n");
 }
 
+/** The audit prompt for a request, or for the model core built from one (its `rawJson` is the same payload). */
 export function buildTransactionReviewPrompt(
-  request: TransactionReviewRequest,
+  request: TransactionReviewRequest | ReviewModel,
   { explorerOrigin }: Pick<TransactionReviewDisplay, "explorerOrigin">,
 ): string {
+  const payload =
+    "rawJson" in request ? request.rawJson : transactionReviewJson(request);
   const lines: string[] = [
     "I'm about to authorize a blockchain action in a Juicebox V6 app (the nana V6 / revnet V6 protocol release, not an older Juicebox version). Act as a careful security reviewer. Independently verify the payload against the deployed contracts and V6 source, confirm it matches my intent, and give a go/no-go. Assume the UI could be spoofed; trust the onchain call and verified V6 source over the page.",
     "",
     "Exact app-controlled transaction payload:",
     "```json",
-    transactionReviewJson(request),
+    payload,
     "```",
     "",
   ];

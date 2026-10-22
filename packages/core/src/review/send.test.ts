@@ -515,6 +515,97 @@ describe("sendReviewed", () => {
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
+  it("runs the site's beforeWrite under the hold, before the wallet, and tells it how the step ended", async () => {
+    const { wallet, deps, hold, holdOf } = setup();
+    reviewUi();
+    const events: string[] = [];
+    const call = payCall();
+    const hooks = {
+      beforeWrite: vi.fn(async (step: ReviewedCall, index: number) => {
+        // The hold has reserved the step; the wallet has not opened.
+        expect(hold.open(holdOf(step)).peek().status).not.toBe("clear");
+        events.push(`before ${index}`);
+      }),
+      onReleased: vi.fn((_: ReviewedCall, index: number) => {
+        events.push(`released ${index}`);
+      }),
+      onSubmitted: vi.fn((_: ReviewedCall, index: number, hash: Hex) => {
+        events.push(`submitted ${index} ${hash.slice(-1)}`);
+      }),
+    };
+    // Its own refusal sends nothing and releases the step.
+    hooks.beforeWrite.mockRejectedValueOnce(new Error("Launch changed"));
+    await expect(sendReviewed(action([call], hooks), deps)).rejects.toThrow(
+      "Launch changed",
+    );
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(hold.open(holdOf(call)).peek().status).toBe("clear");
+    expect(events).toEqual(["released 0"]);
+
+    // A 4001 releases it too.
+    events.length = 0;
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(
+      Object.assign(new Error("User rejected the request."), { code: 4001 }),
+    );
+    await expect(sendReviewed(action([call], hooks), deps)).rejects.toThrow();
+    expect(events).toEqual(["before 0", "released 0"]);
+
+    // Sent: each step is told its hash, the wallet opening between.
+    events.length = 0;
+    const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+    wallet.adapter.sendTransaction.mockImplementation(async (tx) => {
+      events.push("wallet");
+      return send(tx);
+    });
+    await sendReviewed(
+      action([approveCall(), payCall(5n, { dependsOnPrior: true })], {
+        ...hooks,
+        scope: "pay",
+      }),
+      deps,
+    );
+    expect(events).toEqual([
+      "before 0",
+      "wallet",
+      "submitted 0 1",
+      "before 1",
+      "wallet",
+      "submitted 1 2",
+    ]);
+    expect(hooks.beforeWrite.mock.calls[1][0]).toMatchObject({
+      label: "Pay",
+    });
+
+    // An ambiguous failure is neither released nor submitted.
+    events.length = 0;
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(
+      new Error("The request took too long to respond."),
+    );
+    await expect(
+      sendReviewed(action([payCall(9n)], hooks), deps),
+    ).rejects.toThrow();
+    expect(events).toEqual(["before 0"]);
+  });
+
+  it("simulates a lone call at its simulationBlockNumber", async () => {
+    const { deps, chain } = setup();
+    reviewUi();
+    const blocks: unknown[] = [];
+    chain.state.ethCall = (params) => {
+      blocks.push(params[1]);
+      return "0x";
+    };
+    await sendReviewed(
+      action([payCall(5n, { simulationBlockNumber: 90n })]),
+      deps,
+    );
+    // The review's simulation and the one before the send.
+    expect(blocks).toEqual([numberToHex(90n), numberToHex(90n)]);
+    expect(chain.client.estimateGas).toHaveBeenCalledWith(
+      expect.objectContaining({ blockNumber: 90n }),
+    );
+  });
+
   it("self-reviewing adapter gets raw calls and no prompt", async () => {
     const { deps } = setup();
     const prompts = reviewUi();
@@ -541,6 +632,59 @@ describe("sendReviewed", () => {
       hashes: [`0x${"ab".repeat(32)}`],
       receipts: [],
     });
+  });
+
+  it("runs the site's wallet-boundary hooks around a self-reviewing wallet's submit", async () => {
+    const { deps } = setup();
+    const events: string[] = [];
+    const hooks = {
+      beforeWrite: (_: ReviewedCall, step: number) => {
+        events.push(`before ${step}`);
+      },
+      onReleased: (_: ReviewedCall, step: number) => {
+        events.push(`released ${step}`);
+      },
+      onSubmitted: (_: ReviewedCall, step: number, hash: Hex) => {
+        events.push(`submitted ${step} ${hash.slice(-2)}`);
+      },
+    };
+    const submit = vi.fn(async () => `0x${"ab".repeat(32)}` as Hex);
+    const signa = {
+      ...deps,
+      adapter: selfReviewingAdapter({ account: () => ACCOUNT, submit }),
+    };
+    await sendReviewed(action([approveCall(), payCall()], hooks), signa);
+    expect(events).toEqual([
+      "before 0",
+      "before 1",
+      "submitted 0 ab",
+      "submitted 1 ab",
+    ]);
+
+    events.length = 0;
+    submit.mockRejectedValueOnce(
+      Object.assign(new Error("no"), { code: 4001 }),
+    );
+    await expect(
+      sendReviewed(action([payCall()], hooks), signa),
+    ).rejects.toThrow();
+    expect(events).toEqual(["before 0", "released 0"]);
+
+    // The site's own refusal: nothing reaches the wallet.
+    events.length = 0;
+    await expect(
+      sendReviewed(
+        action([payCall()], {
+          ...hooks,
+          beforeWrite: () => {
+            throw new Error("Launch changed");
+          },
+        }),
+        signa,
+      ),
+    ).rejects.toThrow("Launch changed");
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(events).toEqual(["released 0"]);
   });
 
   it("runs the guard before anything and refuses an empty action", async () => {

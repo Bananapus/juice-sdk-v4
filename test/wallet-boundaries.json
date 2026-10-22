@@ -101,7 +101,7 @@
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 757,
+      "line": 836,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action. A Safe app whose Safe already queued exactly that call returns that proposal's hash instead and opens no wallet.",
       "test": "packages/core/src/review/send.test.ts"

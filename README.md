@@ -1314,7 +1314,7 @@ npm install @bananapus/nana-sdk-react @bananapus/nana-sdk-core
 npm install @bananapus/nana-sdk-core
 ```
 
-Writes go through core's reviewed path: `sendReviewed(action, deps)` from `@bananapus/nana-sdk-core/review` reviews one action, then sends each step (a Safe wallet gets a proposal instead, or the one its Safe already queued for exactly that call), and `runRelayrReviewed` reviews a Relayr bundle once, then pays its quote. The React Relayr hooks are deprecated in favor of it.
+Writes go through core's reviewed path: `sendReviewed(action, deps)` from `@bananapus/nana-sdk-core/review` reviews one action, then sends each step (a Safe wallet gets a proposal instead, or the one its Safe already queued for exactly that call), and `runRelayrReviewed` reviews a Relayr bundle once, then pays its quote. The React Relayr hooks are deprecated in favor of it. A site's own record checks run at the wallet boundary through `beforeWrite` (after the hold reserves the step, before the wallet opens; a throw releases it), with `onReleased` and `onSubmitted` telling it how each step ended. A call's `simulationBlockNumber` simulates it on the block where a prerequisite confirmed outside the run took effect.
 
 ## Quick Start
 
