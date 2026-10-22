@@ -4,9 +4,7 @@ import {
   findReviewedSequence,
   isDefiniteWalletRejection,
   openStepHold,
-  resumeReviewed,
   REVIEWED_ACCOUNT_CHANGED_LINE,
-  sendReviewed,
   settledLine,
   TransactionReviewCancelledError,
   type HeldWriteView,
@@ -110,6 +108,21 @@ const sent = ({ chainId, to, data, value }: ReviewedCall) => [
   value ?? 0n,
 ];
 
+/**
+ * The send engine (the review model, its decoder and the ABIs it reads),
+ * loaded apart from the hook so a page that mounts it does not carry the
+ * engine in its first load. Each hook fetches it once mounted, so a run
+ * does not wait on it; a failed load is tried again on the next.
+ */
+let engine: Promise<typeof import("../send.js")> | undefined;
+function loadEngine() {
+  engine ??= import("../send.js").catch((error: unknown) => {
+    engine = undefined;
+    throw error;
+  });
+  return engine;
+}
+
 export const REVIEWED_RUN_SCOPE_LINE =
   "This action has more than one step and no scope to resume it by. Nothing was sent.";
 
@@ -152,6 +165,11 @@ export function useReviewedRun(
     [watched],
   );
   useEffect(() => view?.start(), [view]);
+  useEffect(() => {
+    loadEngine().catch(() => {
+      /* A run loads it again, and reports its failure. */
+    });
+  }, []);
   const shown = useSyncExternalStore(
     view?.subscribe ?? none,
     view?.get ?? idle,
@@ -220,6 +238,7 @@ export function useReviewedRun(
           throw new Error(REVIEWED_ACCOUNT_CHANGED_LINE);
         if (action.calls.length > 1 && action.scope === undefined)
           throw new Error(REVIEWED_RUN_SCOPE_LINE);
+        const { resumeReviewed, sendReviewed } = await loadEngine();
         const { account, guard } = deps;
         const tracked: ReviewedSendDeps = {
           ...deps,
