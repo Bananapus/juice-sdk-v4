@@ -11,6 +11,7 @@ import {
   lookAtSafeProposal,
   readSafeAppExecution,
   readSafeTransaction,
+  safeExecTransactionResult,
   SAFE_EXEC_ABI,
   safeProposalFor,
   safeTransactionMatchesCall,
@@ -1991,6 +1992,8 @@ export async function findTransactionAtNonce(
 /** Minimal RPC reads; PublicClient instances for any chain satisfy this shape. */
 export type ReviewedWriteReceiptClient = {
   getChainId(): Promise<number>;
+  /** Reads a Safe's nonce when the write is a Safe's execTransaction. */
+  request?: PublicClient["request"];
   getTransaction(args: { hash: Hex }): Promise<{
     hash: Hex;
     chainId?: number;
@@ -2011,6 +2014,17 @@ export type ReviewedWriteReceiptClient = {
     timestamp: bigint;
   }>;
 };
+
+function isSafeExecTransaction(data: Hex): boolean {
+  try {
+    return (
+      decodeFunctionData({ abi: SAFE_EXEC_ABI, data }).functionName ===
+      "execTransaction"
+    );
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The calls a Safe hold's call encodes when it is a MultiSend batch (a
@@ -2214,6 +2228,19 @@ export async function verifyReviewedWriteReceipt(
     if (result.status !== "success" && result.status !== "failed")
       throw pending();
     status = result.status;
+  } else if (status === "success" && isSafeExecTransaction(record.call.data)) {
+    // A Safe's execTransaction succeeds only with the Safe's own
+    // ExecutionSuccess for its exact hash: an ExecutionFailure, or no event
+    // for it, is a failure whatever the receipt's status.
+    if (!client.request) throw pending();
+    const execution = await safeExecTransactionResult(
+      { request: client.request },
+      record.chainId,
+      record.call.to,
+      record.call.data,
+      canonical,
+    );
+    if (execution?.status !== "success") status = "failed";
   }
   const isCanonical = async () => {
     const block = await client.getBlock({ blockNumber: canonical.blockNumber });

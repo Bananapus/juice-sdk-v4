@@ -301,8 +301,10 @@ const budgets = {
     // 23,433,569 B unpacked, 1,786 files.
     // The reviewed Safe path in a module of its own (8 artifacts):
     // 1,662,032 B packed, 23,505,344 B unpacked, 1,794 files.
-    packed: 1_664_000,
-    unpacked: 23_510_000,
+    // A Safe execTransaction settled by the Safe's own event:
+    // 1,664,747 B packed, 23,519,328 B unpacked, 1,794 files.
+    packed: 1_666_000,
+    unpacked: 23_525_000,
     entries: 1_794,
   },
   "@bananapus/nana-sdk-react": {

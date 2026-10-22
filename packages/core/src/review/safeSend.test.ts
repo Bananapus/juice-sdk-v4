@@ -57,6 +57,17 @@ const EXECUTION_FAILURE =
 const TRUE = encodeAbiParameters([{ type: "bool" }], [true]);
 const FALSE = encodeAbiParameters([{ type: "bool" }], [false]);
 
+/**
+ * The chain's eth_call: execTransaction returns true, and the Safe's nonce
+ * is 4 up to block 100 and 5 from the execution's block on.
+ */
+function executes(params: unknown[]) {
+  const [call, block] = params as [{ data: Hex }, Hex | "latest"];
+  if (!call.data.startsWith("0xaffed0e0")) return TRUE;
+  const ran = block === "latest" || BigInt(block) > 100n;
+  return encodeAbiParameters([{ type: "uint256" }], [ran ? 5n : 4n]);
+}
+
 function identity(
   extra: Partial<SafeAuthorityIdentity> = {},
 ): SafeAuthorityIdentity {
@@ -78,6 +89,8 @@ function identity(
   };
 }
 
+const actual = await vi.importActual<typeof import("../safe.js")>("../safe.js");
+
 /** The live Safe each read returns: change it to change the chain. */
 let live: { identity: SafeAuthorityIdentity | null; nonce: bigint | null };
 
@@ -86,7 +99,13 @@ beforeEach(() => {
   vi.mocked(readAuthorityIdentity).mockImplementation(async () =>
     live.identity ? structuredClone(live.identity) : live.identity,
   );
-  vi.mocked(readBoundedSafeNonce).mockImplementation(async () => live.nonce);
+  // The live nonce; one at a block (a settled execution's) is the chain's.
+  vi.mocked(readBoundedSafeNonce).mockImplementation(
+    async (client, safe, options) =>
+      options?.blockNumber === undefined
+        ? live.nonce
+        : actual.readBoundedSafeNonce(client, safe, options),
+  );
 });
 afterEach(resetReviewUi);
 
@@ -581,7 +600,7 @@ describe("executeReviewedSafeTransaction", () => {
     const open = vi.spyOn(hold, "open");
     const tx = signedTx();
     const safeTxHash = safeTransactionHash(10, SAFE, tx);
-    chain.state.ethCall = () => TRUE;
+    chain.state.ethCall = executes;
     chain.state.logs = [executionLog(EXECUTION_SUCCESS, safeTxHash)];
     const result = await executeReviewedSafeTransaction(
       { chainId: 10, safe: SAFE, tx },
@@ -619,10 +638,48 @@ describe("executeReviewedSafeTransaction", () => {
     expect(progress.map(({ phase }) => phase)).not.toContain("done");
   });
 
+  it("settles an execution as failed, never succeeded, unless the Safe logged ExecutionSuccess for its exact hash", async () => {
+    const tx = signedTx();
+    const safeTxHash = safeTransactionHash(10, SAFE, tx);
+    for (const logs of [
+      [executionLog(EXECUTION_FAILURE, safeTxHash)],
+      // Another transaction's success is not this one's.
+      [executionLog(EXECUTION_SUCCESS, `0x${"77".repeat(32)}`)],
+    ]) {
+      const { wallet, deps, chain } = signing();
+      reviewUi();
+      chain.state.ethCall = executes;
+      chain.state.logs = logs;
+      await expect(
+        executeReviewedSafeTransaction({ chainId: 10, safe: SAFE, tx }, deps),
+      ).rejects.toThrow();
+      const [sent] = wallet.adapter.sendTransaction.mock.calls[0];
+      // Read again as any later reader (a reload, the held-write notice) reads it.
+      const state = await deps.hold
+        .open({
+          chainId: 10,
+          account: ACCOUNT,
+          safe: false,
+          call: { to: SAFE, data: sent.data, value: 0n },
+          namespace: safeExecutionIntent({
+            chainId: 10,
+            safe: SAFE,
+            safeTxHash,
+          }),
+        })
+        .state(chain.client as never);
+      expect(state).toMatchObject({
+        status: "clear",
+        settled: { result: "failed" },
+      });
+      resetReviewUi();
+    }
+  });
+
   it("binds the execution to its nonce with another owner's signature", async () => {
     const { wallet, deps, chain } = signing();
     const prompts = reviewUi();
-    chain.state.ethCall = () => TRUE;
+    chain.state.ethCall = executes;
     // The executor's own approval alone binds nothing.
     await expect(
       executeReviewedSafeTransaction(
@@ -670,7 +727,7 @@ describe("executeReviewedSafeTransaction", () => {
   it("holds one execution per Safe transaction, whatever signatures it carries", async () => {
     const { wallet, deps, chain } = signing();
     const prompts = reviewUi();
-    chain.state.ethCall = () => TRUE;
+    chain.state.ethCall = executes;
     wallet.adapter.sendTransaction.mockRejectedValueOnce(
       new Error("Request timed out."),
     );
@@ -757,7 +814,7 @@ describe("executeReviewedSafeTransaction", () => {
       ),
     ).rejects.toThrow("Safe transaction #4 would not execute successfully.");
 
-    chain.state.ethCall = () => TRUE;
+    chain.state.ethCall = executes;
     unregister.pop()!();
     reviewUi(async (prompt) => {
       live.identity = identity({ owners: [ACCOUNT, SPENDER] });
@@ -779,7 +836,7 @@ describe("executeReviewedSafeTransaction", () => {
     reviewUi();
     const tx = signedTx();
     const safeTxHash = safeTransactionHash(10, SAFE, tx);
-    chain.state.ethCall = () => TRUE;
+    chain.state.ethCall = executes;
     wallet.state.safe = true;
     const proposed = await executeReviewedSafeTransaction(
       { chainId: 10, safe: SAFE, tx },

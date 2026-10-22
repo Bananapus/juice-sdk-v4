@@ -304,6 +304,7 @@ describe("published core SDK surfaces", () => {
       "requireSafeProposalSuccess",
       "safeBatchProposalFor",
       "safeCreationUrl",
+      "safeExecTransactionResult",
       "safeExecutionArgs",
       "safeExecutionResult",
       "safeExecutionRunsCalls",
