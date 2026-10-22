@@ -950,10 +950,13 @@ async function routedBuybackSpecOf(
   {
     hook,
     reservedPercent,
+    swaps,
     ...route
   }: Parameters<typeof quotedRoutePreviewOf>[1] & {
     hook: Address;
     reservedPercent: bigint;
+    /** The hook would swap: a swap this cannot read throws. */
+    swaps: boolean;
   },
 ): Promise<{ spec: BuybackPaySpec; floor: bigint } | null> {
   const routed = await quotedRoutePreviewOf(client, route);
@@ -963,8 +966,8 @@ async function routedBuybackSpecOf(
   );
   const spec = raw && decodeBuybackPaySpec(raw, reservedPercent);
   // A swap the destination reports but this cannot read has no safe minimum.
-  if (raw && !raw.noop && !spec) {
-    throw new Error("The router's destination swaps with an unreadable spec.");
+  if (swaps && raw && !raw.noop && !spec) {
+    throw new PaySwapQuoteFailedError();
   }
   return spec ? { spec, floor: routed.floor } : null;
 }
@@ -1078,6 +1081,36 @@ export async function prepareUserPay(
     }
     return fallback;
   };
+  // Reads on a swap route go through `watched`, which records one that
+  // fails, comes back empty or resolves to nothing, so a lost read is told
+  // apart from a route that does not apply (no quoter, an amount out of range).
+  let readFailed = false;
+  const lost = (error: unknown): never => {
+    readFailed = true;
+    throw error;
+  };
+  const watched = {
+    ...client,
+    async readContract(parameters: unknown) {
+      let result: unknown;
+      try {
+        result = await client.readContract(parameters as never);
+      } catch (error) {
+        lost(error);
+      }
+      return result ?? lost(new Error("The read returned nothing."));
+    },
+    async call(parameters: unknown) {
+      let result: Awaited<ReturnType<PublicClient["call"]>> | undefined;
+      try {
+        result = await client.call(parameters as never);
+      } catch (error) {
+        lost(error);
+      }
+      if (!result?.data) readFailed = true;
+      return result;
+    },
+  } as unknown as PublicClient;
   // A failed read is retried once: a dropped request must not silently weaken
   // the minimum.
   const withRetry = async (
@@ -1091,8 +1124,15 @@ export async function prepareUserPay(
         return await prepare();
       } catch (error) {
         if (error instanceof PaySwapQuoteFailedError) throw error;
-        if (swaps) throw new PaySwapQuoteFailedError(error);
-        return { ...fallback, quoteFailed: true };
+        // Only this module's own plain errors mean the route does not apply;
+        // viem's errors and malformed answers (a TypeError) are failed reads.
+        if (
+          swaps &&
+          (readFailed || Object.getPrototypeOf(error) !== Error.prototype)
+        ) {
+          throw new PaySwapQuoteFailedError(error);
+        }
+        return { ...mintPath(), quoteFailed: true };
       }
     }
   };
@@ -1151,7 +1191,7 @@ export async function prepareUserPay(
   if (!buyback || buyback.amountToSwapWith === 0n) return fallback;
 
   return withRetry(async () => {
-    const pool = await buybackPoolOf(client, {
+    const pool = await buybackPoolOf(watched, {
       chainId,
       hook: buyback.hook,
       projectId,
@@ -1166,7 +1206,7 @@ export async function prepareUserPay(
       // conversion mint while the pool pays more, so quote what the hook
       // receives when the conversion returns its quote. A conversion well
       // below its quote then fails with a reason.
-      const routed = await routedBuybackSpecOf(client, {
+      const routed = await routedBuybackSpecOf(watched, {
         chainId,
         projectId,
         tokenIn: token,
@@ -1176,6 +1216,7 @@ export async function prepareUserPay(
         metadata,
         hook: buyback.hook,
         reservedPercent: buyback.reservedPercent,
+        swaps,
       });
       // The floor preview must be this route's: no more than the floor reached the hook.
       if (
@@ -1189,7 +1230,7 @@ export async function prepareUserPay(
     }
     let quote: bigint;
     try {
-      quote = await quoteUniswapV4ExactInputSingle(client, {
+      quote = await quoteUniswapV4ExactInputSingle(watched, {
         chainId,
         poolKey: pool.key,
         zeroForOne: !swap.projectTokenIs0,
@@ -1214,7 +1255,7 @@ export async function prepareUserPay(
     // liquidity in range, and then the payment stays on the mint path.
     let quotedPreview;
     try {
-      quotedPreview = await client.readContract({
+      quotedPreview = await watched.readContract({
         address: args.terminal,
         abi: jbMultiTerminalAbi,
         functionName: "previewPayFor",
@@ -1231,11 +1272,12 @@ export async function prepareUserPay(
       (s) => s.hook.toLowerCase() === buyback.hook.toLowerCase(),
     );
     if (
+      swaps &&
       quotedSpec &&
       !quotedSpec.noop &&
       !decodeBuybackPaySpec(quotedSpec, buyback.reservedPercent)
     ) {
-      throw new Error("The quoted preview swaps with an unreadable spec.");
+      throw new PaySwapQuoteFailedError();
     }
     if (
       !quotedSpec ||

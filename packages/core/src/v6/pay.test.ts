@@ -1323,6 +1323,26 @@ describe("prepareUserPay", () => {
       );
     });
 
+    test.each(["projectIdOf", "previewSwapAmountOutOf"])(
+      "refuses when the router's %s read resolves to nothing",
+      async (functionName) => {
+        const { client } = mockClient(routed);
+        const readContract = client.readContract;
+        await expect(
+          prepareUserPay(
+            {
+              ...client,
+              readContract: async (request: { functionName: string }) =>
+                request.functionName === functionName
+                  ? undefined
+                  : readContract(request as never),
+            } as never,
+            routerArgs,
+          ),
+        ).rejects.toBeInstanceOf(PaySwapQuoteFailedError);
+      },
+    );
+
     test.each([
       [
         "the hook was previewed on more than the router's floor",
@@ -1586,6 +1606,63 @@ describe("prepareUserPay", () => {
       });
       await refused(prepareUserPay(client, args));
       expect(calls.some((c) => c.data)).toBe(false);
+    });
+
+    test("refuses a read that resolves to nothing", async () => {
+      const { client } = mockClient({ spec: swapSpec() });
+      const readContract = client.readContract;
+      await refused(
+        prepareUserPay(
+          {
+            ...client,
+            readContract: async (request: { functionName: string }) =>
+              request.functionName === "poolKeyOf"
+                ? undefined
+                : readContract(request as never),
+          } as never,
+          args,
+        ),
+      );
+    });
+
+    test("refuses a client that throws before its read starts", async () => {
+      const { client } = mockClient({ spec: swapSpec() });
+      await refused(
+        prepareUserPay(
+          {
+            ...client,
+            call: () => {
+              throw new Error("transport closed");
+            },
+          } as never,
+          args,
+        ),
+      );
+    });
+
+    test("keeps the mint minimum when the swap is too large to quote", async () => {
+      const { client, calls } = mockClient({
+        spec: swapSpec({ amountToSwapWith: 1n << 128n }),
+      });
+      const prepared = await prepareUserPay(client, args);
+      expect(prepared.minReturnedTokens).toBe(47n);
+      expect(prepared.quoteFailed).toBe(true);
+      expect(calls.some((c) => c.data)).toBe(false);
+    });
+
+    test("keeps a pay the hook would mint unchanged when a quoted spec can't be read", async () => {
+      const { client } = mockClient({
+        spec: swapSpec(),
+        noop: true,
+        terminalCounts: [40n, 10n],
+        respond: (metadata) =>
+          explicitMinimumOf(metadata) === 0n
+            ? {}
+            : { spec: "0x1234", noop: false },
+      });
+      const prepared = await prepareUserPay(client, args);
+      expect(prepared.minReturnedTokens).toBe(39n);
+      expect(prepared.quoteFailed).toBeUndefined();
     });
 
     test("keeps a pay the hook would mint unchanged when its quote fails", async () => {
