@@ -357,23 +357,39 @@ describe("Safe execution results", () => {
         reason: `The receipt has no ExecutionSuccess or ExecutionFailure from Safe ${SAFE} for this execTransaction.`,
       });
     }
-    // Nonces it cannot read, or did not move, prove nothing.
+    // Another transaction's execution in the same block is not this one.
+    expect(
+      await result(chain(10n), [
+        executionLog("ExecutionFailure", `0x${"77".repeat(32)}`),
+        executionLog("ExecutionSuccess", expected),
+      ]),
+    ).toEqual({ status: "success", payment: 0n });
+    // Unless it is the same fields: which one is this call is unknown.
+    await expect(
+      result(chain(10n), [
+        executionLog("ExecutionSuccess", expected),
+        executionLog("ExecutionFailure", otherProposal),
+      ]),
+    ).rejects.toThrow("ran these exact fields 2 times in block 50");
+    // A Safe whose nonce did not move in that block ran nothing.
+    expect(
+      await result(chain(8n), [executionLog("ExecutionSuccess", expected)]),
+    ).toMatchObject({ status: "unproven" });
+    // Nonces it cannot read, or too many executions, prove nothing either way.
     for (const after of ["0x", 7n, 9_000n] as const) {
-      expect(
-        await result(chain(after), [
-          executionLog("ExecutionSuccess", expected),
-        ]),
-      ).toMatchObject({ status: "unproven" });
+      await expect(
+        result(chain(after), [executionLog("ExecutionSuccess", expected)]),
+      ).rejects.toThrow("is unreadable");
     }
     expect(await result(chain(), [], "reverted")).toEqual({
       status: "reverted",
     });
-    expect(
-      await safeExecTransactionResult(chain() as never, 1, SAFE, data, {
+    await expect(
+      safeExecTransactionResult(chain() as never, 1, SAFE, data, {
         ...receipt([executionLog("ExecutionSuccess", expected)]),
         blockNumber: 0n,
       }),
-    ).toMatchObject({ status: "unproven" });
+    ).rejects.toThrow("The receipt has no block to read the Safe's nonce at.");
     // Any other call is not one.
     expect(await result(chain(), [], "success", "0x1234")).toBeNull();
     expect(

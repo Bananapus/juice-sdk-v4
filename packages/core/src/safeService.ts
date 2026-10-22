@@ -758,7 +758,9 @@ const MAX_BLOCK_EXECUTIONS = 256n;
  * up to its nonce at it), to the candidates for its safeTxHash; the Safe's
  * own ExecutionSuccess or ExecutionFailure for one of them decides it
  * ({@link safeExecutionResult}). No such event is `unproven`, never success.
- * A failed nonce read throws.
+ * It throws, proving nothing, when the nonces cannot be read or span more than
+ * 256 executions, or when events for two candidates leave which ran this call
+ * unknown (the same fields executed twice in one block).
  */
 export async function safeExecTransactionResult(
   client: Pick<PublicClient, "request">,
@@ -780,12 +782,8 @@ export async function safeExecTransactionResult(
   const [to, value, inner, operation, safeTxGas, baseGas, gasPrice] = call.args;
   const [, , , , , , , gasToken, refundReceiver] = call.args;
   const block = receipt?.blockNumber;
-  const unproven = (reason: string): SafeExecutionResult => ({
-    status: "unproven",
-    reason,
-  });
   if (typeof block !== "bigint" || block < 1n) {
-    return unproven("The receipt has no block to read the Safe's nonce at.");
+    throw new Error("The receipt has no block to read the Safe's nonce at.");
   }
   const [before, after] = await Promise.all([
     readBoundedSafeNonce(client, safe, { blockNumber: block - 1n }),
@@ -797,10 +795,11 @@ export async function safeExecTransactionResult(
     after < before ||
     after - before > MAX_BLOCK_EXECUTIONS
   ) {
-    return unproven(
+    throw new Error(
       `Safe ${safe}'s nonce around block ${block} is unreadable.`,
     );
   }
+  const found: SafeExecutionResult[] = [];
   for (let nonce = before; nonce < after; nonce += 1n) {
     const result = safeExecutionResult(
       receipt,
@@ -818,10 +817,18 @@ export async function safeExecTransactionResult(
         nonce: Number(nonce),
       }),
     );
-    if (result.status !== "unproven") return result;
+    if (result.status !== "unproven") found.push(result);
   }
-  return unproven(
-    `The receipt has no ExecutionSuccess or ExecutionFailure from Safe ${safe} for this execTransaction.`,
+  if (found.length > 1) {
+    throw new Error(
+      `Safe ${safe} ran these exact fields ${found.length} times in block ${block}, so which one is this call is unknown.`,
+    );
+  }
+  return (
+    found[0] ?? {
+      status: "unproven",
+      reason: `The receipt has no ExecutionSuccess or ExecutionFailure from Safe ${safe} for this execTransaction.`,
+    }
   );
 }
 

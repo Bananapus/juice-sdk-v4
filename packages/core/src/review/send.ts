@@ -12,7 +12,10 @@ import {
   type ReviewedWritePhase,
 } from "./contractWrite.js";
 import { gasWithHeadroom } from "./gas.js";
-import { WRITE_HOLD_REVERTED_LINE } from "./messages.js";
+import {
+  WRITE_HOLD_CALL_FAILED_LINE,
+  WRITE_HOLD_REVERTED_LINE,
+} from "./messages.js";
 import {
   buildReviewModel,
   enrichReviewModel,
@@ -752,7 +755,24 @@ async function send(
     const receipt = await waitForTrackedReceipt(client, hash);
     // The hold checks the receipt itself and settles, so the same call (or
     // intent) can be reviewed and sent again without waiting on a view.
-    await handles[step].state(client).catch(() => undefined);
+    const settled = await handles[step]
+      .state(client)
+      .then((state) => (state.status === "clear" ? state.settled : undefined))
+      .catch(() => undefined);
+    if (
+      receipt.status === "success" &&
+      settled &&
+      "hash" in settled &&
+      settled.hash === hash.toLowerCase() &&
+      settled.result === "failed"
+    ) {
+      // It ran, and the hold proved it failed: a Safe's call that failed.
+      if (journal) {
+        delete journal.sending;
+        await keep();
+      }
+      throw new Error(WRITE_HOLD_CALL_FAILED_LINE);
+    }
     if (receipt.status !== "success") {
       // It ran and reverted: nothing of it to resume.
       if (journal) {

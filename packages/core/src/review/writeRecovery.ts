@@ -17,7 +17,7 @@ import {
   safeTransactionMatchesCall,
   type SafeServiceOptions,
 } from "../safeService.js";
-import { multiSendCallsOf } from "../safe.js";
+import { multiSendCallsOf, readAuthorityIdentity } from "../safe.js";
 import { TAB } from "./tabState.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import {
@@ -2231,16 +2231,25 @@ export async function verifyReviewedWriteReceipt(
   } else if (status === "success" && isSafeExecTransaction(record.call.data)) {
     // A Safe's execTransaction succeeds only with the Safe's own
     // ExecutionSuccess for its exact hash: an ExecutionFailure, or no event
-    // for it, is a failure whatever the receipt's status.
+    // for it, is a failure whatever the receipt's status. A call that only
+    // shares the selector, to anything but a Safe, is decided as any other.
     if (!client.request) throw pending();
-    const execution = await safeExecTransactionResult(
-      { request: client.request },
-      record.chainId,
+    const identity = await readAuthorityIdentity(
+      client as unknown as Parameters<typeof readAuthorityIdentity>[0],
       record.call.to,
-      record.call.data,
-      canonical,
+      { blockNumber: canonical.blockNumber },
     );
-    if (execution?.status !== "success") status = "failed";
+    if (!identity) throw pending();
+    if (identity.kind === "safe") {
+      const execution = await safeExecTransactionResult(
+        { request: client.request },
+        record.chainId,
+        record.call.to,
+        record.call.data,
+        canonical,
+      );
+      if (execution?.status !== "success") status = "failed";
+    }
   }
   const isCanonical = async () => {
     const block = await client.getBlock({ blockNumber: canonical.blockNumber });

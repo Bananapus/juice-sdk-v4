@@ -32,6 +32,7 @@ import {
 import { safeExecutionIntent } from "./intents.js";
 import { TransactionReviewCancelledError } from "./reviewQueue.js";
 import { selfReviewingAdapter, type SelfReviewedRequest } from "./wallet.js";
+import { sendReviewed } from "./send.js";
 import { WriteHeldError } from "./writeHold.js";
 import {
   confirmReviewedSafeTransaction,
@@ -672,6 +673,58 @@ describe("executeReviewedSafeTransaction", () => {
         status: "clear",
         settled: { result: "failed" },
       });
+      resetReviewUi();
+    }
+  });
+
+  it("decides a call that only shares execTransaction's selector as any other, and keeps an unknown target held", async () => {
+    const data = encodeFunctionData({
+      abi: SAFE_EXEC_ABI,
+      functionName: "execTransaction",
+      args: safeExecutionArgs(signedTx(), [ACCOUNT, OTHER]),
+    });
+    const view = (
+      deps: ReturnType<typeof signing>["deps"],
+      chain: ReturnType<typeof signing>["chain"],
+    ) =>
+      deps.hold
+        .open({
+          chainId: 10,
+          account: ACCOUNT,
+          safe: false,
+          call: { to: SAFE, data, value: 0n },
+        })
+        .state(chain.client as never);
+    {
+      const { deps, chain } = signing();
+      reviewUi();
+      chain.state.ethCall = executes;
+      live.identity = { kind: "contract" } as never;
+      await expect(
+        sendReviewed(
+          { account: ACCOUNT, calls: [{ chainId: 10, to: SAFE, data }] },
+          deps,
+        ),
+      ).resolves.toMatchObject({ status: "done" });
+      expect(await view(deps, chain)).toMatchObject({
+        status: "clear",
+        settled: { result: "success" },
+      });
+      resetReviewUi();
+    }
+    {
+      // Who the target is can't be read: it stays held, never settled.
+      const { deps, chain } = signing();
+      reviewUi();
+      chain.state.ethCall = executes;
+      live.identity = identity();
+      const sent = sendReviewed(
+        { account: ACCOUNT, calls: [{ chainId: 10, to: SAFE, data }] },
+        deps,
+      );
+      vi.mocked(readAuthorityIdentity).mockImplementation(async () => null);
+      await sent.catch(() => undefined);
+      expect((await view(deps, chain)).status).not.toBe("clear");
       resetReviewUi();
     }
   });
