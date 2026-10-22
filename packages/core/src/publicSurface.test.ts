@@ -288,6 +288,7 @@ describe("published core SDK surfaces", () => {
       "findPendingSafeTransaction",
       "hasSafeService",
       "heldCall",
+      "isSafeExecTransaction",
       "isSafeWalletPeer",
       "listPendingSafeTransactions",
       "lookAtSafeProposal",

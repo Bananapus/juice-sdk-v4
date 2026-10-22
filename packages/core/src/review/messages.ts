@@ -91,6 +91,10 @@ export const WRITE_HOLD_PENDING_LINE =
 export const WRITE_HOLD_REVERTED_LINE =
   "This transaction failed onchain. You can try again in a few minutes.";
 
+/** A Safe execution whose transaction landed while the Safe's own result is not proven yet. */
+export const WRITE_HOLD_SAFE_UNCONFIRMED_LINE =
+  "This transaction landed, but the Safe's own result is not confirmed yet. Check the Safe before trying again.";
+
 /** A Safe execution whose transaction landed while the Safe's own call failed (ExecutionFailure). */
 export const WRITE_HOLD_CALL_FAILED_LINE =
   "The Safe ran this transaction, but its call failed (ExecutionFailure). Nothing it was meant to do happened.";

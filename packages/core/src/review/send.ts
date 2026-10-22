@@ -12,9 +12,11 @@ import {
   type ReviewedWritePhase,
 } from "./contractWrite.js";
 import { gasWithHeadroom } from "./gas.js";
+import { isSafeExecTransaction } from "../safeService.js";
 import {
   WRITE_HOLD_CALL_FAILED_LINE,
   WRITE_HOLD_REVERTED_LINE,
+  WRITE_HOLD_SAFE_UNCONFIRMED_LINE,
 } from "./messages.js";
 import {
   buildReviewModel,
@@ -759,19 +761,22 @@ async function send(
       .state(client)
       .then((state) => (state.status === "clear" ? state.settled : undefined))
       .catch(() => undefined);
-    if (
-      receipt.status === "success" &&
-      settled &&
-      "hash" in settled &&
-      settled.hash === hash.toLowerCase() &&
-      settled.result === "failed"
-    ) {
+    if (receipt.status === "success" && settled?.result === "failed") {
       // It ran, and the hold proved it failed: a Safe's call that failed.
       if (journal) {
         delete journal.sending;
         await keep();
       }
       throw new Error(WRITE_HOLD_CALL_FAILED_LINE);
+    }
+    // A Safe's execTransaction is done only once its hold proved the Safe's
+    // own success; until then the step stays in flight, held and journaled.
+    if (
+      receipt.status === "success" &&
+      isSafeExecTransaction(reviewed.data) &&
+      settled?.result !== "success"
+    ) {
+      throw new Error(WRITE_HOLD_SAFE_UNCONFIRMED_LINE);
     }
     if (receipt.status !== "success") {
       // It ran and reverted: nothing of it to resume.

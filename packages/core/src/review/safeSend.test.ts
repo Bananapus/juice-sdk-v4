@@ -723,8 +723,48 @@ describe("executeReviewedSafeTransaction", () => {
         deps,
       );
       vi.mocked(readAuthorityIdentity).mockImplementation(async () => null);
-      await sent.catch(() => undefined);
+      // Never done while the Safe's own result is unproven.
+      await expect(sent).rejects.toThrow(
+        "This transaction landed, but the Safe's own result is not confirmed yet. Check the Safe before trying again.",
+      );
       expect((await view(deps, chain)).status).not.toBe("clear");
+      resetReviewUi();
+    }
+    {
+      // The receipt client's one `request` answers every identity read, at
+      // the receipt's block.
+      const { deps, chain } = signing();
+      reviewUi();
+      chain.state.ethCall = executes;
+      const request = chain.client.request.getMockImplementation()!;
+      chain.client.request.mockImplementation(async (args) =>
+        args.method === "eth_getCode" || args.method === "eth_getStorageAt"
+          ? "0x"
+          : request(args),
+      );
+      vi.mocked(readAuthorityIdentity).mockImplementation(
+        async (client, address, options) => {
+          await client.getCode({ address, blockNumber: options?.blockNumber });
+          await client.getStorageAt({
+            address,
+            slot: "0x0",
+            blockNumber: options?.blockNumber,
+          });
+          return { kind: "contract" };
+        },
+      );
+      await sendReviewed(
+        { account: ACCOUNT, calls: [{ chainId: 10, to: SAFE, data }] },
+        deps,
+      );
+      expect(chain.client.request).toHaveBeenCalledWith({
+        method: "eth_getCode",
+        params: [SAFE, "0x65"],
+      });
+      expect(chain.client.request).toHaveBeenCalledWith({
+        method: "eth_getStorageAt",
+        params: [SAFE, "0x0", "0x65"],
+      });
       resetReviewUi();
     }
   });

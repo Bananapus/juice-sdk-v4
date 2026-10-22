@@ -748,6 +748,21 @@ export function requireSafeExecutionSuccess(
   throw new Error(result.reason);
 }
 
+/** The arguments of a Safe `execTransaction` call, or null for any other data. */
+function execTransactionArgs(data: Hex) {
+  try {
+    const call = decodeFunctionData({ abi: SAFE_EXEC_ABI, data });
+    return call.functionName === "execTransaction" ? call.args : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether `data` is a Safe `execTransaction` call. */
+export function isSafeExecTransaction(data: Hex): boolean {
+  return execTransactionArgs(data) !== null;
+}
+
 /** The most Safe transactions one block is searched for: a nonce range wider than this is unproven. */
 const MAX_BLOCK_EXECUTIONS = 256n;
 
@@ -771,16 +786,11 @@ export async function safeExecTransactionResult(
     blockNumber?: unknown;
   },
 ): Promise<SafeExecutionResult | null> {
-  let call;
-  try {
-    call = decodeFunctionData({ abi: SAFE_EXEC_ABI, data });
-  } catch {
-    return null;
-  }
-  if (call.functionName !== "execTransaction") return null;
+  const args = execTransactionArgs(data);
+  if (!args) return null;
   if (receipt?.status === "reverted") return { status: "reverted" };
-  const [to, value, inner, operation, safeTxGas, baseGas, gasPrice] = call.args;
-  const [, , , , , , , gasToken, refundReceiver] = call.args;
+  const [to, value, inner, operation, safeTxGas, baseGas, gasPrice] = args;
+  const [, , , , , , , gasToken, refundReceiver] = args;
   const block = receipt?.blockNumber;
   if (typeof block !== "bigint" || block < 1n) {
     throw new Error("The receipt has no block to read the Safe's nonce at.");

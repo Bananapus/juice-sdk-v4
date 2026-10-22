@@ -1,6 +1,7 @@
 import {
   decodeFunctionData,
   isAddress,
+  numberToHex,
   keccak256,
   type Address,
   type Hex,
@@ -11,6 +12,7 @@ import {
   lookAtSafeProposal,
   readSafeAppExecution,
   readSafeTransaction,
+  isSafeExecTransaction,
   safeExecTransactionResult,
   SAFE_EXEC_ABI,
   safeProposalFor,
@@ -2015,17 +2017,6 @@ export type ReviewedWriteReceiptClient = {
   }>;
 };
 
-function isSafeExecTransaction(data: Hex): boolean {
-  try {
-    return (
-      decodeFunctionData({ abi: SAFE_EXEC_ABI, data }).functionName ===
-      "execTransaction"
-    );
-  } catch {
-    return false;
-  }
-}
-
 /**
  * The calls a Safe hold's call encodes when it is a MultiSend batch (a
  * zero-value call to MultiSendCallOnly, which the Safe runs by DELEGATECALL),
@@ -2234,8 +2225,24 @@ export async function verifyReviewedWriteReceipt(
     // for it, is a failure whatever the receipt's status. A call that only
     // shares the selector, to anything but a Safe, is decided as any other.
     if (!client.request) throw pending();
+    const { request } = client;
+    const at = (blockNumber?: bigint) =>
+      blockNumber === undefined ? "latest" : numberToHex(blockNumber);
+    // Every read through the one `request` the receipt client has.
     const identity = await readAuthorityIdentity(
-      client as unknown as Parameters<typeof readAuthorityIdentity>[0],
+      {
+        request,
+        getCode: ({ address, blockNumber }) =>
+          request({
+            method: "eth_getCode",
+            params: [address!, at(blockNumber)],
+          }),
+        getStorageAt: ({ address, slot, blockNumber }) =>
+          request({
+            method: "eth_getStorageAt",
+            params: [address, slot, at(blockNumber)],
+          }),
+      } as Parameters<typeof readAuthorityIdentity>[0],
       record.call.to,
       { blockNumber: canonical.blockNumber },
     );
