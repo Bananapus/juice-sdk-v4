@@ -19,6 +19,7 @@ import {
 import { PERMIT2_ADDRESS } from "../v6/permit2.js";
 import {
   ACCOUNT,
+  OTHER,
   action,
   payCall,
   resetReviewUi,
@@ -569,5 +570,37 @@ describe("signReviewed", () => {
     ).rejects.toThrow("Transaction data changed after review");
     expect(fake.adapter.signMessage).toHaveBeenCalledTimes(1);
     expect(fake.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("keeps a gate's own error and checks the account after it", async () => {
+    const { wallet: fake, deps } = setup();
+    reviewUi();
+    const message = [{ kind: "message" as const, chainId: 10, message: "x" }];
+    const stale = Object.assign(new Error("The project changed."), {
+      cause: { code: 4001 },
+    });
+    await expect(
+      sendReviewed(
+        action([payCall()], {
+          signatures: message,
+          assertWriteState: () => {
+            throw stale;
+          },
+        }),
+        deps,
+      ),
+    ).rejects.toBe(stale);
+    await expect(
+      sendReviewed(
+        action([payCall(6n)], {
+          signatures: message,
+          assertWriteState: () => {
+            fake.state.account = OTHER;
+          },
+        }),
+        deps,
+      ),
+    ).rejects.toThrow("The connected account changed");
+    expect(fake.adapter.signMessage).not.toHaveBeenCalled();
   });
 });

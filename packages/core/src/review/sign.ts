@@ -339,39 +339,45 @@ export async function signPrepared(
 ): Promise<Hex[]> {
   const signatures: Hex[] = [];
   for (const { chainId, typedData, message } of prepared) {
-    try {
-      signatures.push(
-        await submitReviewedContractWrite({
-          request: { chainId },
-          expectedAccount: account,
-          review: () => Promise.resolve(),
-          switchChain: async (id) => {
-            if (typedData && adapter.chainId() !== id) {
-              await adapter.switchChain(id);
-            }
-          },
-          currentAccount: () => adapter.account(),
-          simulate: async () => undefined,
-          beforeSend: () => {
-            beforeSign?.();
-            if (typedData && adapter.chainId() !== chainId) {
-              throw new Error(
-                "Your wallet changed networks. Review the signature again.",
-              );
-            }
-          },
-          write: () =>
-            typedData
+    signatures.push(
+      await submitReviewedContractWrite({
+        request: { chainId },
+        expectedAccount: account,
+        review: () => Promise.resolve(),
+        switchChain: async (id) => {
+          if (typedData && adapter.chainId() !== id) {
+            await adapter.switchChain(id);
+          }
+        },
+        currentAccount: () => adapter.account(),
+        simulate: async () => undefined,
+        beforeSend: () => {
+          beforeSign?.();
+          if (typedData && adapter.chainId() !== chainId) {
+            throw new Error(
+              "Your wallet changed networks. Review the signature again.",
+            );
+          }
+          // Last, after every callback above could have run.
+          if (adapter.account()?.toLowerCase() !== account.toLowerCase()) {
+            throw new Error("The connected account changed. Review again.");
+          }
+        },
+        // Only the wallet's own answer can read as a rejection.
+        write: async () => {
+          try {
+            return await (typedData
               ? adapter.signTypedData(typedData)
-              : adapter.signMessage(message!),
-        }),
-      );
-    } catch (error) {
-      if (isDefiniteWalletRejection(error)) {
-        throw new TransactionReviewCancelledError(REJECTED);
-      }
-      throw error;
-    }
+              : adapter.signMessage(message!));
+          } catch (error) {
+            if (isDefiniteWalletRejection(error)) {
+              throw new TransactionReviewCancelledError(REJECTED);
+            }
+            throw error;
+          }
+        },
+      }),
+    );
   }
   return signatures;
 }

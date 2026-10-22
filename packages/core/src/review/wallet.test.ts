@@ -172,6 +172,20 @@ describe("wallet adapters", () => {
     }
     expect(client.signMessage).not.toHaveBeenCalled();
     expect(client.signTypedData).not.toHaveBeenCalled();
+
+    // So does a wallet that turned into a Safe connection meanwhile.
+    let reads = 0;
+    const adapter = viemWalletAdapter({
+      walletClient: async () => client as unknown as WalletClient,
+      account: () => ACCOUNT,
+      chainId: () => 10,
+      isSafe: () => reads++ >= 2,
+      switchChain: async () => undefined,
+    });
+    await expect(adapter.signMessage("hi")).rejects.toThrow(
+      "Wallet connection changed",
+    );
+    expect(client.signMessage).not.toHaveBeenCalled();
   });
 
   it("selfReviewingAdapter refuses every other method with 4200", async () => {

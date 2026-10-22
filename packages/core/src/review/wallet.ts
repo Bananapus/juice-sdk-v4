@@ -51,7 +51,7 @@ async function connection(options: {
   account: () => Address | undefined;
   chainId: () => number | undefined;
   isSafe: () => boolean;
-}): Promise<{ account: Address; client: WalletClient }> {
+}): Promise<{ account: Address; client: WalletClient; safe: boolean }> {
   const asked = options.account();
   if (!asked) throw new Error("Connect a wallet first.");
   const chainId = options.chainId();
@@ -63,16 +63,19 @@ async function connection(options: {
   if (options.chainId() !== chainId || options.isSafe() !== safe) {
     throw new Error("Wallet connection changed. Review the transaction again.");
   }
-  return { account: asked, client };
+  return { account: asked, client, safe };
 }
 
-/** Refuses a signature once the account has changed since `connection` read it. */
+/** Refuses a signature once the account or Safe mode has changed since `connection` read them. */
 function unchanged(
-  options: { account: () => Address | undefined },
-  account: Address,
+  options: { account: () => Address | undefined; isSafe: () => boolean },
+  { account, safe }: { account: Address; safe: boolean },
 ): void {
   if (options.account()?.toLowerCase() !== account.toLowerCase()) {
     throw new Error("The connected account changed. Review again.");
+  }
+  if (options.isSafe() !== safe) {
+    throw new Error("Wallet connection changed. Review the transaction again.");
   }
 }
 
@@ -118,8 +121,9 @@ export function viemWalletAdapter(options: {
       });
     },
     async signTypedData(typedData) {
-      const { account, client } = await connection(options);
-      unchanged(options, account);
+      const connected = await connection(options);
+      unchanged(options, connected);
+      const { account, client } = connected;
       // viem does not check the wallet's chain against the domain's.
       const chainId = typedData.domain?.chainId;
       if (chainId !== undefined && options.chainId() !== Number(chainId)) {
@@ -128,8 +132,9 @@ export function viemWalletAdapter(options: {
       return client.signTypedData({ ...typedData, account });
     },
     async signMessage(message) {
-      const { account, client } = await connection(options);
-      unchanged(options, account);
+      const connected = await connection(options);
+      unchanged(options, connected);
+      const { account, client } = connected;
       return client.signMessage({ account, message });
     },
     async sendCalls(chainId, calls) {
