@@ -324,8 +324,10 @@ const budgets = {
     // app batch add no files: 1,753,927 B packed, 23,911,253 B unpacked.
     // Reviewed plans in a module of their own (8 artifacts) and Relayr raw
     // calls: 1,766,660 B packed, 24,002,871 B unpacked, 1,827 files.
-    packed: 1_775_000,
-    unpacked: 24_050_000,
+    // Paying a planned Relayr round's bound and the Safe hash check:
+    // 1,779,547 B packed, 24,044,707 B unpacked.
+    packed: 1_785_000,
+    unpacked: 24_100_000,
     entries: 1_827,
   },
   "@bananapus/nana-sdk-react": {

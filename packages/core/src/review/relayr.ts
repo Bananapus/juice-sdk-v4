@@ -17,7 +17,7 @@ import {
 } from "../generated/juicebox.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import { isDefiniteWalletRejection } from "./contractWrite.js";
-import { ReviewFixedLineError } from "./lineError.js";
+import { ReviewFixedLineError, ReviewLineError } from "./lineError.js";
 import { simulateStateChangingTransaction } from "./simulation.js";
 
 // Relayr runs a bundle of transactions on several chains for one prepaid
@@ -1224,6 +1224,23 @@ function nodeDetail(error: unknown): string {
     : "the node refused the call";
 }
 
+const PAYMENT_CHECK_FAILED_LINE =
+  "Could not check the payment. Nothing was sent.";
+
+/** A viem error, or one it caused, from decoding a malformed reply. */
+function isDecodeError(error: unknown): boolean {
+  for (
+    let current = error, depth = 0;
+    depth < 8 && current && typeof current === "object";
+    depth += 1, current = (current as { cause?: unknown }).cause
+  ) {
+    const { name } = current as { name?: unknown };
+    if (typeof name === "string" && /Decoding|OutOfBounds/u.test(name))
+      return true;
+  }
+  return false;
+}
+
 /**
  * Simulate the exact payment from `from` with the gas it is sent with,
  * without CCIP-read. Relayr's contract returns nothing, so a revert or any
@@ -1249,6 +1266,8 @@ export async function simulateRelayrPayment(
       gas: RELAYR_PAYMENT_GAS,
     });
   } catch (cause) {
+    if (isDecodeError(cause))
+      throw withCause(new ReviewLineError(PAYMENT_CHECK_FAILED_LINE), cause);
     throw errorWithCause(
       `The Relayr payment would fail: ${nodeDetail(cause)}`,
       cause,

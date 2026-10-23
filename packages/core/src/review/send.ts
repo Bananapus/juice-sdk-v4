@@ -552,10 +552,11 @@ export type ReviewedPlanAction = Pick<
     /** Who sends the call: a Safe `account` owns, say, or "relayr" for one Relayr's own account runs. */
     from?: Address | "relayr";
     /**
-     * The `runRelayrReviewed` run this call goes in, by the app's key. The
-     * review shows each run's fee bound (Relayr's stand-in quote plus
-     * `RELAYR_FEE_MARGIN_BPS`, paid on the run's first chain); a run
-     * whose quote is within it pays with no prompt.
+     * The Relayr round this call goes in, by the app's key: a
+     * `runRelayrReviewed` run, or a quote paid by `payRelayrReviewed` with
+     * this `relayrRound`. The review shows each round's fee bound (Relayr's
+     * stand-in quote plus `RELAYR_FEE_MARGIN_BPS`, paid on the round's first
+     * chain); a round whose quote is within it pays with no prompt.
      */
     relayrRound?: string;
   })[];
@@ -567,8 +568,10 @@ export type ReviewedPlanAction = Pick<
  * senders, and nothing else. The plan it returns lets {@link sendReviewed},
  * `signReviewed`, `proposeReviewedSafeTransaction`, `payRelayrReviewed` and
  * `runRelayrReviewed` skip their prompt for a call identical to one of its
- * calls (account, chain, sender, target, data and value), each spent once,
- * for {@link REVIEWED_PLAN_TTL_MS} after confirm. Anything else is refused.
+ * calls (account, chain, sender, target, data, value and gas: a call's
+ * exact gas limit, or a forward request's signed gas, is set before the
+ * review), each spent once, for {@link REVIEWED_PLAN_TTL_MS} after confirm.
+ * Anything else is refused.
  */
 export async function reviewPlan(
   action: ReviewedPlanAction,

@@ -112,6 +112,16 @@ function match(
   return at;
 }
 
+const keysOf = (calls: readonly ReviewedPlanCall[]) =>
+  calls.map(keyOf).sort().join("|");
+
+type PlanState = NonNullable<ReturnType<typeof minted.get>>;
+type PlannedRound = { fee: PlannedRelayrFee & { used: boolean }; at: number[] };
+
+/** The index of each call of Relayr round `round`. */
+const roundCalls = (state: PlanState, round: string) =>
+  state.rounds.flatMap((of, index) => (of === round ? [index] : []));
+
 /**
  * The Relayr round whose unspent calls are exactly `calls` (every one of the
  * round's calls, none spent, nothing else), with its unused fee bound.
@@ -119,25 +129,45 @@ function match(
 function wholeRound(
   plan: ReviewedPlan,
   calls: readonly ReviewedPlanCall[],
-): { fee: PlannedRelayrFee & { used: boolean }; at: number[] } | undefined {
+): PlannedRound | undefined {
   const state = minted.get(plan);
   if (!state) return undefined;
-  const wanted = calls.map(keyOf).sort().join("|");
+  const wanted = keysOf(calls);
   for (const [round, fee] of state.fees) {
     if (fee.used) continue;
-    const at = state.rounds.flatMap((of, index) =>
-      of === round ? [index] : [],
-    );
+    const at = roundCalls(state, round);
     if (
       at.every((index) => !state.used[index]) &&
-      at
-        .map((index) => keyOf(plan.calls[index]))
-        .sort()
-        .join("|") === wanted
+      keysOf(at.map((index) => plan.calls[index])) === wanted
     )
       return { fee, at };
   }
   return undefined;
+}
+
+/** The state of `plan`, refusing a plan core did not mint, another account's and an expired one. */
+function stateOf(plan: ReviewedPlan, account: Address): PlanState {
+  const state = minted.get(plan);
+  if (!state || plan.account.toLowerCase() !== account.toLowerCase())
+    throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
+  if (Date.now() > plan.expiresAt)
+    throw new ReviewLineError(REVIEWED_PLAN_EXPIRED_LINE);
+  return state;
+}
+
+/**
+ * Spends `round`, its calls and its fee bound, once, when the bound is unused
+ * and was reviewed for paying on `feeChainId`: its bound, else undefined.
+ */
+function spendRound(
+  state: PlanState,
+  { fee, at }: PlannedRound,
+  feeChainId: number | undefined,
+): bigint | undefined {
+  if (fee.used || fee.chainId !== feeChainId) return undefined;
+  for (const index of at) state.used[index] = true;
+  fee.used = true;
+  return fee.cap;
 }
 
 /** The unused fee bound of the Relayr round `calls` make up whole, if any; nothing is spent. */
@@ -162,23 +192,35 @@ export function spendPlan(
   calls: readonly ReviewedPlanCall[],
   feeChainId?: number,
 ): bigint {
-  const state = minted.get(plan);
-  if (
-    !state ||
-    !calls.length ||
-    plan.account.toLowerCase() !== account.toLowerCase()
-  )
-    throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
-  if (Date.now() > plan.expiresAt)
-    throw new ReviewLineError(REVIEWED_PLAN_EXPIRED_LINE);
+  const state = stateOf(plan, account);
+  if (!calls.length) throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
   const round = wholeRound(plan, calls);
-  if (round && round.fee.chainId === feeChainId) {
-    for (const index of round.at) state.used[index] = true;
-    round.fee.used = true;
-    return round.fee.cap;
-  }
+  const cap = round && spendRound(state, round, feeChainId);
+  if (cap !== undefined) return cap;
   const at = match(plan, state.used, calls);
   if (!at) throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
   for (const index of at) state.used[index] = true;
   return 0n;
+}
+
+/**
+ * Spends Relayr round `round` of `plan` whole, for paying a quote of `calls`
+ * on `feeChainId`: when its fee bound is unused and was reviewed for that
+ * chain, and `calls` are exactly the round's calls (spent by their
+ * signatures or not), every call of the round and the bound are spent and
+ * the bound returned. Else nothing is spent: 0. Refuses as `spendPlan` does.
+ */
+export function spendPlannedRelayrRound(
+  plan: ReviewedPlan,
+  account: Address,
+  round: string,
+  calls: readonly ReviewedPlanCall[],
+  feeChainId: number,
+): bigint {
+  const state = stateOf(plan, account);
+  const fee = state.fees.get(round);
+  const at = roundCalls(state, round);
+  if (!fee || keysOf(at.map((index) => plan.calls[index])) !== keysOf(calls))
+    return 0n;
+  return spendRound(state, { fee, at }, feeChainId) ?? 0n;
 }

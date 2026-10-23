@@ -172,7 +172,23 @@ export function prepareSignature(
       const { chainId, safe, tx } = signature;
       const id = requireChainId(chainId);
       const verifyingContract = requireAddress("Safe", safe);
+      const given: unknown = tx?.safeTxHash;
       const message = safeTransactionMessage(tx);
+      // A hash the caller holds for it must be the one signed.
+      if (
+        given != null &&
+        (typeof given !== "string" ||
+          given.toLowerCase() !==
+            hashTypedData({
+              domain: { chainId: id, verifyingContract },
+              types: SAFE_TX_TYPES,
+              primaryType: "SafeTx",
+              message,
+            }))
+      )
+        throw new ReviewLineError(
+          "This Safe transaction does not match its hash. Nothing was signed.",
+        );
       const inner = multiSendCallsOf(message);
       if (message.operation === 1 && !inner) {
         throw new ReviewLineError(

@@ -46,6 +46,7 @@ import type { SafeRelayrSession } from "./safeRelayr.js";
 import { openStepHold } from "./writeHold.js";
 import { REVIEWED_PLAN_REFUSED_LINE } from "./plan.js";
 import { reviewPlan } from "./send.js";
+import { signReviewed } from "./sign.js";
 import { selfReviewingAdapter } from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
 import { SubmittedContractWriteError } from "./contractWrite.js";
@@ -854,8 +855,10 @@ describe("a plan's Relayr rounds", () => {
 });
 
 describe("payRelayrReviewed", () => {
-  const quoteFor = (overrides: Record<string, unknown> = {}): RelayrQuote => {
-    const uuid = UUIDS[0];
+  const quoteFor = (
+    overrides: Record<string, unknown> = {},
+    uuid = UUIDS[0],
+  ): RelayrQuote => {
     const deadline = Math.floor(Date.now() / 1_000) + 600;
     const entry = {
       chain: 10,
@@ -978,6 +981,217 @@ describe("payRelayrReviewed", () => {
     await payRelayrReviewed(quote, 10, { account: ACCOUNT, plan }, deps);
     expect(prompts).toHaveLength(1);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  describe("with a planned Relayr round", () => {
+    const bound = withMargin(1_000n);
+
+    /** Rounds "a" (the quote's call) and "b" (another call), each with a reviewed bound on OP Mainnet. */
+    async function plannedRounds() {
+      const setup = relayrSetup();
+      const relayr = fakeRelayr(() => 1_000n);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string, init?: RequestInit) =>
+          String(url).endsWith("/v1/bundle/prepaid")
+            ? relayr.fetch(url, init)
+            : json(
+                {
+                  bundle_uuid: String(url).split("/").pop(),
+                  payment_received: false,
+                  transactions: [
+                    { tx_uuid: TX_UUIDS[0], status: { state: "Pending" } },
+                  ],
+                },
+                200,
+              ),
+        ),
+      );
+      const prompts = reviewUi();
+      const plan = await reviewPlan(
+        {
+          account: ACCOUNT,
+          calls: [
+            {
+              chainId: 10,
+              to: TERMINAL,
+              data: "0x01",
+              from: "relayr",
+              relayrRound: "a",
+            },
+            {
+              chainId: 10,
+              to: OTHER,
+              data: "0x02",
+              from: "relayr",
+              relayrRound: "b",
+            },
+          ],
+        },
+        setup.deps,
+      );
+      expect(prompts).toHaveLength(1);
+      return { ...setup, prompts, plan };
+    }
+
+    it("pays within the round's bound with no prompt", async () => {
+      const { deps, wallet, prompts, plan } = await plannedRounds();
+      const events: string[] = [];
+      const paid = await payRelayrReviewed(
+        quoteFor({ amount: bound.toString() }),
+        10,
+        {
+          account: ACCOUNT,
+          plan,
+          relayrRound: "a",
+          onSending: async () => void events.push("sending"),
+          onSent: async (hash) => void events.push(hash),
+        },
+        deps,
+      );
+      expect(prompts).toHaveLength(1);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+      expect(events).toEqual(["sending", (paid as { hash: Hex }).hash]);
+    });
+
+    it("asks for a fee above the bound", async () => {
+      const { deps, wallet, prompts, plan } = await plannedRounds();
+      await payRelayrReviewed(
+        quoteFor({ amount: (bound + 1n).toString() }),
+        10,
+        { account: ACCOUNT, plan, relayrRound: "a" },
+        deps,
+      );
+      expect(prompts).toHaveLength(2);
+      expect(prompts[1].model.title).toBe("The network fee went up");
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it("asks on a second use of the same round", async () => {
+      const { deps, prompts, plan } = await plannedRounds();
+      const action = { account: ACCOUNT, plan, relayrRound: "a" };
+      await payRelayrReviewed(quoteFor(), 10, action, deps);
+      expect(prompts).toHaveLength(1);
+      await payRelayrReviewed(quoteFor({}, UUIDS[1]), 10, action, deps);
+      expect(prompts).toHaveLength(2);
+      expect(prompts[1].model.title).toBe("Review network fee");
+    });
+
+    it("asks when the quote is another round's", async () => {
+      const { deps, prompts, plan } = await plannedRounds();
+      await payRelayrReviewed(
+        quoteFor(),
+        10,
+        { account: ACCOUNT, plan, relayrRound: "b" },
+        deps,
+      );
+      expect(prompts).toHaveLength(2);
+      // Round "a" kept its bound.
+      await payRelayrReviewed(
+        quoteFor({}, UUIDS[1]),
+        10,
+        { account: ACCOUNT, plan, relayrRound: "a" },
+        deps,
+      );
+      expect(prompts).toHaveLength(2);
+    });
+
+    it("pays a round whose forward requests were signed under the plan", async () => {
+      const { deps, wallet } = relayrSetup();
+      const relayr = fakeRelayr(() => 1_000n);
+      const prompts = reviewUi();
+      const plan = await reviewPlan(
+        {
+          account: ACCOUNT,
+          calls: [
+            {
+              chainId: 10,
+              to: TERMINAL,
+              data: CALL.data,
+              gas: CALL.gas,
+              relayrRound: "a",
+            },
+          ],
+        },
+        deps,
+      );
+      const request = {
+        from: ACCOUNT,
+        to: TERMINAL,
+        value: 0n,
+        gas: CALL.gas!,
+        deadline: Math.floor(Date.now() / 1_000) + 3_600,
+        data: CALL.data,
+      };
+      const [signature] = await signReviewed(
+        [
+          {
+            kind: "forward-request",
+            chainId: 10,
+            request: { ...request, nonce: 4n },
+          },
+        ],
+        { account: ACCOUNT, plan },
+        deps,
+      );
+      const quote = quoteFor();
+      quote.expectedTransactions = [
+        {
+          txUuid: TX_UUIDS[0],
+          chain: 10,
+          entry: {
+            chain: 10,
+            target: FORWARDER,
+            data: encodeFunctionData({
+              abi: erc2771ForwarderAbi,
+              functionName: "execute",
+              args: [{ ...request, signature }],
+            }),
+            value: "0",
+          },
+        },
+      ];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string, init?: RequestInit) =>
+          String(url).endsWith("/v1/bundle/prepaid")
+            ? relayr.fetch(url, init)
+            : json(
+                {
+                  bundle_uuid: UUIDS[0],
+                  payment_received: false,
+                  transactions: [
+                    { tx_uuid: TX_UUIDS[0], status: { state: "Pending" } },
+                  ],
+                },
+                200,
+              ),
+        ),
+      );
+      await payRelayrReviewed(
+        quote,
+        10,
+        { account: ACCOUNT, plan, relayrRound: "a" },
+        deps,
+      );
+      expect(prompts).toHaveLength(1);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it("asks when paying on a chain the bound was not reviewed for", async () => {
+      const { deps, wallet, prompts, plan } = await plannedRounds();
+      // The fixture mines on OP Mainnet only: the wallet stops at the send.
+      wallet.adapter.sendTransaction.mockRejectedValueOnce(new Error("stop"));
+      await expect(
+        payRelayrReviewed(
+          quoteFor({ chain: 8453 }),
+          8453,
+          { account: ACCOUNT, plan, relayrRound: "a" },
+          deps,
+        ),
+      ).rejects.toThrow("stop");
+      expect(prompts).toHaveLength(2);
+    });
   });
 
   it("tells the site before the wallet opens and each hash after", async () => {

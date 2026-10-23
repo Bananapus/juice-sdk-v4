@@ -30,7 +30,9 @@ import {
   plannedRelayrFee,
   relayrStandInSender,
   spendPlan,
+  spendPlannedRelayrRound,
   type ReviewedPlan,
+  type ReviewedPlanCall,
 } from "./plan.js";
 import { waitForTrackedReceipt } from "./receipt.js";
 import {
@@ -417,6 +419,24 @@ function paymentOn(quote: RelayrQuote, chainId: number): RelayrPaymentDetails {
     bundleUuid: quote.bundle_uuid,
     destinationChainIds,
     expectedTransactions: quote.expectedTransactions,
+  });
+}
+
+/** The calls a quote's bundle runs, as a plan holds them; a raw value that can't be read matches none. */
+function quotedCalls(quote: RelayrQuote): ReviewedPlanCall[] {
+  return quote.expectedTransactions.map(({ chain, entry }) => {
+    const request = relayrForwardRequest(entry);
+    if (request) {
+      const { from, to, data, value, gas } = request;
+      return { chainId: chain, from, to, data, value, gas };
+    }
+    return {
+      chainId: chain,
+      from: "relayr",
+      to: entry.target,
+      data: entry.data,
+      value: /^\d+$/u.test(entry.value) ? BigInt(entry.value) : -1n,
+    };
   });
 }
 
@@ -833,7 +853,10 @@ export async function signReviewedForwardRequests(
  * signatures. A Safe app pays by proposal: `safeTxHash` comes back, held
  * until the Safe runs it. `onSending` runs after the hold reserves, right
  * before the wallet opens (a throw sends nothing); `onSent` gets every hash
- * the payment is known by.
+ * the payment is known by. With `plan` and `relayrRound`, a quote of exactly
+ * that round's calls spends the round's reviewed fee bound once, as
+ * {@link runRelayrReviewed} does: at most the bound pays with no prompt, and
+ * a higher fee, a spent round or another chain is asked.
  */
 export async function payRelayrReviewed(
   quote: RelayrQuote,
@@ -845,6 +868,8 @@ export async function payRelayrReviewed(
     onSent?: (hash: Hex) => Promise<void>;
     /** A plan already reviewed with exactly this payment (`reviewPlan`): nothing is asked. */
     plan?: ReviewedPlan;
+    /** The plan's Relayr round this quote runs: the payment spends its fee bound instead. */
+    relayrRound?: string;
   },
   deps: ReviewedSendDeps,
 ): Promise<{ hash: Hex } | { safeTxHash: Hex }> {
@@ -861,7 +886,25 @@ export async function payRelayrReviewed(
     paidOnce: true,
   };
   requireIntentClear(deps, account, intent);
-  if (action.plan)
+  if (action.plan && action.relayrRound !== undefined) {
+    const cap = spendPlannedRelayrRound(
+      action.plan,
+      account,
+      action.relayrRound,
+      quotedCalls(quote),
+      details.chainId,
+    );
+    if (details.amount > cap)
+      await reviewPayment(
+        details,
+        account,
+        {
+          title: cap ? "The network fee went up" : "Review network fee",
+          ...(action.context ? { context: action.context } : {}),
+        },
+        safe,
+      );
+  } else if (action.plan)
     spendPlan(action.plan, account, [
       {
         chainId: details.chainId,
