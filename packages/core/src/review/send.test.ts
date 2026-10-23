@@ -1,3 +1,4 @@
+import { REVIEWED_SIMULATION_FAILED_LINE } from "./messages.js";
 import {
   encodeFunctionData,
   numberToHex,
@@ -16,6 +17,7 @@ import {
   action,
   approveCall,
   fakeChain,
+  liquidityCall,
   payCall,
   resetReviewUi,
   reverted,
@@ -26,9 +28,19 @@ import {
 } from "./__fixtures__/reviewedSend.js";
 import type { ReviewConfirmation } from "./confirm.js";
 import { SubmittedContractWriteError } from "./contractWrite.js";
+import { WRITE_HOLD_REVERTED_LINE } from "./messages.js";
 import { buildReviewModel } from "./model.js";
-import { sendReviewed, type ReviewedCall } from "./send.js";
-import { selfReviewingAdapter } from "./wallet.js";
+import {
+  discardReviewedSequence,
+  findReviewedSequence,
+  REVIEWED_SEQUENCE_HELD_LINE,
+} from "./sequence.js";
+import {
+  ReviewedCallRevertedError,
+  sendReviewed,
+  type ReviewedCall,
+} from "./send.js";
+import { selfReviewingAdapter, WALLET_NOT_READY_LINE } from "./wallet.js";
 import { WriteHeldError, WriteHoldStaleReviewError } from "./writeHold.js";
 
 afterEach(resetReviewUi);
@@ -107,6 +119,191 @@ describe("sendReviewed", () => {
         "latest",
       ],
     });
+  });
+
+  it("shows, binds, simulates and sends an app's exact gas, never estimating it", async () => {
+    const { wallet, deps, chain } = setup();
+    const prompts = reviewUi();
+    const call = payCall(5n, { gas: 300_000n });
+    await sendReviewed(action([call]), deps);
+    const [prompt] = prompts;
+    expect(prompt.model.calls[0].gas).toBe(300_000n);
+    const shown = {
+      chainId: 10,
+      to: TERMINAL,
+      data: call.data,
+      value: 7n,
+      from: ACCOUNT,
+      abi: PAY_ABI,
+      functionName: "pay",
+      args: call.args,
+      label: "Pay",
+    };
+    expect(prompt.model.id).toBe(
+      buildReviewModel({ calls: [{ ...shown, gas: 300_000n }] }).id,
+    );
+    expect(prompt.model.id).not.toBe(buildReviewModel({ calls: [shown] }).id);
+    expect(chain.client.estimateGas).not.toHaveBeenCalled();
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledWith({
+      chainId: 10,
+      to: TERMINAL,
+      data: call.data,
+      value: 7n,
+      gas: 300_000n,
+    });
+    // Both simulations, at review and before the wallet, ran at exactly that gas.
+    const simulated = chain.client.request.mock.calls.filter(
+      ([request]) => (request as { method: string }).method === "eth_call",
+    );
+    expect(simulated.length).toBeGreaterThanOrEqual(2);
+    for (const [request] of simulated)
+      expect(request).toMatchObject({
+        params: [
+          expect.objectContaining({ gas: numberToHex(300_000n) }),
+          "latest",
+        ],
+      });
+  });
+
+  it("simulates a sequence at each call's exact gas", async () => {
+    const { deps, chain } = setup();
+    reviewUi();
+    await sendReviewed(
+      action(
+        [
+          { ...approveCall(), gas: 90_000n },
+          payCall(5n, { dependsOnPrior: true }),
+        ],
+        { scope: "pay" },
+      ),
+      deps,
+    );
+    expect(chain.client.simulateCalls).toHaveBeenCalledWith(
+      expect.objectContaining({
+        calls: [
+          expect.objectContaining({ gas: 90_000n }),
+          expect.not.objectContaining({ gas: expect.anything() }),
+        ],
+      }),
+    );
+  });
+
+  it("refuses an exact gas changed after review, or one that is not positive", async () => {
+    const { wallet, deps } = setup();
+    const prompts = reviewUi();
+    const call = payCall(5n, { gas: 300_000n });
+    await expect(
+      sendReviewed(
+        action([call], { reverify: async () => void (call.gas = 400_000n) }),
+        deps,
+      ),
+    ).rejects.toThrow(CHANGED);
+    expect(prompts).toHaveLength(1);
+    for (const gas of [0n, -1n, 5 as unknown as bigint])
+      await expect(
+        sendReviewed(action([payCall(5n, { gas })]), deps),
+      ).rejects.toThrow(
+        "This call's gas limit is not valid. Nothing was sent.",
+      );
+    expect(prompts).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("a Safe app proposes with safeTxGas 0 whatever gas the app set", async () => {
+    const { wallet, deps } = setup();
+    wallet.state.safe = true;
+    const prompts = reviewUi();
+    await sendReviewed(action([payCall(5n, { gas: 300_000n })]), deps);
+    expect(prompts[0].model.calls[0]).toMatchObject({
+      gas: null,
+      safeTxGas: 0n,
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ gas: 0n }),
+    );
+  });
+
+  it("reads the wallet's kind only once its ready settles", async () => {
+    const { wallet, deps } = setup();
+    const prompts = reviewUi();
+    // Safe{Wallet} over WalletConnect is known once its peer metadata settles.
+    const adapter = {
+      ...wallet.adapter,
+      ready: vi.fn(async () => {
+        await Promise.resolve();
+        wallet.state.safe = true;
+      }),
+    };
+    const result = await sendReviewed(action([payCall()]), {
+      ...deps,
+      adapter,
+    });
+    expect(adapter.ready).toHaveBeenCalled();
+    expect(prompts[0].model.calls[0].safeTxGas).toBe(0n);
+    expect(result).toMatchObject({ status: "proposed" });
+  });
+
+  it("sends nothing when the wallet's ready fails or never settles", async () => {
+    const { wallet, deps } = setup();
+    const prompts = reviewUi();
+    const failing = {
+      ...wallet.adapter,
+      ready: () => Promise.reject(new Error("peer")),
+    };
+    await expect(
+      sendReviewed(action([payCall()]), { ...deps, adapter: failing }),
+    ).rejects.toThrow(WALLET_NOT_READY_LINE);
+    const throwing = {
+      ...wallet.adapter,
+      ready: (): Promise<void> => {
+        throw new Error("peer");
+      },
+    };
+    await expect(
+      sendReviewed(action([payCall()]), { ...deps, adapter: throwing }),
+    ).rejects.toThrow(WALLET_NOT_READY_LINE);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const stuck = {
+        ...wallet.adapter,
+        ready: () => new Promise<void>(() => {}),
+      };
+      const sending = sendReviewed(action([payCall()]), {
+        ...deps,
+        adapter: stuck,
+      });
+      const refused = expect(sending).rejects.toThrow(WALLET_NOT_READY_LINE);
+      await vi.advanceTimersByTimeAsync(10_000);
+      await refused;
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(prompts).toHaveLength(0);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("a mined revert carries its receipt and never traps the action", async () => {
+    const { wallet, deps, chain } = setup();
+    const prompts = reviewUi();
+    chain.state.status = "reverted";
+    const call = payCall();
+    const failure = await sendReviewed(action([call]), deps).catch(
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(ReviewedCallRevertedError);
+    expect((failure as Error).message).toBe(WRITE_HOLD_REVERTED_LINE);
+    expect(failure).toMatchObject({
+      step: 0,
+      hash: `0x${"1".padStart(64, "0")}`,
+      receipt: expect.objectContaining({ status: "reverted" }),
+    });
+    // The same action can be reviewed and sent again.
+    chain.state.status = "success";
+    await expect(sendReviewed(action([call]), deps)).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(prompts).toHaveLength(2);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 
   it("refuses calldata that is not its arguments' encoding before any review", async () => {
@@ -301,9 +498,14 @@ describe("sendReviewed", () => {
       ]);
       return prompt.confirmation;
     });
-    await expect(sendReviewed(action([payCall(6n)]), deps)).rejects.toThrow(
-      "Pay cannot run on OP Mainnet: Execution reverted: NOPE",
-    );
+    await expect(
+      sendReviewed(action([payCall(6n)]), deps),
+    ).rejects.toMatchObject({
+      message: REVIEWED_SIMULATION_FAILED_LINE,
+      cause: expect.stringContaining(
+        "Pay cannot run on OP Mainnet: Execution reverted: NOPE",
+      ),
+    });
 
     // A sequence whose step reverts in eth_simulateV1 is refused the same way.
     chain.client.simulateCalls.mockImplementationOnce(async ({ calls }) => ({
@@ -324,7 +526,10 @@ describe("sendReviewed", () => {
         action([approveCall(), payCall(7n, { dependsOnPrior: true })]),
         deps,
       ),
-    ).rejects.toThrow("Pay cannot run on OP Mainnet: NOPE");
+    ).rejects.toMatchObject({
+      message: REVIEWED_SIMULATION_FAILED_LINE,
+      cause: expect.stringContaining("Pay cannot run on OP Mainnet: NOPE"),
+    });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
 
@@ -476,6 +681,160 @@ describe("sendReviewed", () => {
       safeTxHash: `0x${"1".padStart(64, "0")}`,
     });
     expect(other.wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("a Safe app adopts a queued proposal that differs only in the args it lists, only to the same target, value and operation", async () => {
+    const { wallet, deps, chain, hold, holdOf } = setup();
+    wallet.state.safe = true;
+    const prompts = reviewUi();
+    // A liquidity retry: the same unlock data with a fresh deadline.
+    const call = liquidityCall("0xabcd", 2_000n, { adoptIgnoringArgs: [1] });
+    const older = liquidityCall("0xabcd", 1_000n);
+    chain.queueProposal({ ...older, value: 8n });
+    chain.queueProposal({ ...older, to: OTHER });
+    chain.queueProposal(older, { operation: 1 });
+    chain.queueProposal(liquidityCall("0xabce", 1_000n));
+    // Same args with trailing bytes: not the canonical encoding.
+    chain.queueProposal({ ...older, data: `${older.data}00` });
+    const queued = chain.queueProposal(older);
+    await expect(
+      sendReviewed(action([call], { scope: "liquidity" }), deps),
+    ).resolves.toEqual({ status: "proposed", step: 0, safeTxHash: queued });
+    expect(prompts).toHaveLength(1);
+    // The model binds the list.
+    const modelOf = (extra: Partial<ReviewedCall>) =>
+      buildReviewModel({
+        calls: [
+          {
+            ...liquidityCall("0xabcd", 2_000n, extra),
+            from: ACCOUNT,
+            safeTxGas: 0n,
+          },
+        ],
+      }).id;
+    expect(prompts[0].model.id).toBe(modelOf({ adoptIgnoringArgs: [1] }));
+    expect(prompts[0].model.id).not.toBe(modelOf({}));
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    // Held as the call the adopted proposal runs, so its expiry can be proven.
+    expect(hold.open({ ...holdOf(call), safe: true }).peek()).toMatchObject({
+      record: { hash: queued, call: { data: older.data } },
+    });
+
+    // Its sequence can't be discarded while the adopted proposal is held.
+    const saved = findReviewedSequence("liquidity", ACCOUNT, {
+      storage: deps.storage,
+    })!;
+    await expect(
+      discardReviewedSequence(saved, { storage: deps.storage }),
+    ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
+
+    // A list changed after review adopts nothing and sends nothing.
+    const changed = setup();
+    changed.wallet.state.safe = true;
+    changed.chain.queueProposal(payCall(261n));
+    const reviewed = payCall(5n, { adoptIgnoringArgs: [0] });
+    await expect(
+      sendReviewed(
+        action([reviewed], {
+          reverify: async () => {
+            reviewed.adoptIgnoringArgs = [0, 1];
+          },
+        }),
+        changed.deps,
+      ),
+    ).rejects.toThrow(CHANGED);
+    expect(changed.wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+
+    // A different amount is never adopted: pay(261) is not pay(5).
+    for (const extra of [
+      {},
+      { adoptIgnoringArgs: [] },
+      { adoptIgnoringArgs: [0] },
+    ]) {
+      const other = setup();
+      other.wallet.state.safe = true;
+      other.chain.queueProposal(payCall(261n));
+      other.chain.queueProposal({ ...payCall(5n), data: "0x1234" });
+      await expect(
+        sendReviewed(action([payCall(5n, extra)]), other.deps),
+      ).resolves.toMatchObject({ status: "proposed" });
+      expect(other.wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("adopts by the queued call's own selector, whatever its overloads or hex case", async () => {
+    const OVERLOADED = [
+      {
+        type: "function",
+        name: "f",
+        stateMutability: "nonpayable",
+        inputs: [
+          { name: "proof", type: "uint256[]" },
+          { name: "amount", type: "uint256" },
+        ],
+        outputs: [],
+      },
+      {
+        type: "function",
+        name: "f",
+        stateMutability: "nonpayable",
+        inputs: [
+          { name: "proof", type: "bytes[]" },
+          { name: "amount", type: "uint256" },
+        ],
+        outputs: [],
+      },
+    ] as const;
+    const fCall = (
+      proof: readonly bigint[],
+      extra: Partial<ReviewedCall> = {},
+    ): ReviewedCall => ({
+      chainId: 10,
+      to: TERMINAL,
+      data: encodeFunctionData({
+        abi: [OVERLOADED[0]],
+        functionName: "f",
+        args: [proof, 5n],
+      }),
+      value: 7n,
+      abi: OVERLOADED,
+      functionName: "f",
+      args: [proof, 5n],
+      ...extra,
+    });
+    for (const queuedData of [
+      fCall([]).data,
+      fCall([2n]).data.toUpperCase().replace(/^0X/, "0x") as Hex,
+    ]) {
+      const { wallet, deps, chain } = setup();
+      wallet.state.safe = true;
+      reviewUi();
+      const queued = chain.queueProposal({ ...fCall([]), data: queuedData });
+      await expect(
+        sendReviewed(action([fCall([1n], { adoptIgnoringArgs: [0] })]), deps),
+      ).resolves.toEqual({ status: "proposed", step: 0, safeTxHash: queued });
+      expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    }
+  });
+
+  it("refuses an adoption list it can't apply, sending nothing", async () => {
+    for (const extra of [
+      { adoptIgnoringArgs: [2] },
+      { adoptIgnoringArgs: [-1] },
+      { adoptIgnoringArgs: [0.5] },
+      { adoptIgnoringArgs: [0, 0] },
+      { adoptIgnoringArgs: "1" as unknown as number[] },
+      { adoptIgnoringArgs: [0], abi: undefined },
+    ]) {
+      const { wallet, deps } = setup();
+      reviewUi();
+      await expect(
+        sendReviewed(action([payCall(5n, extra)]), deps),
+      ).rejects.toThrow(
+        "This call's adoption rule is not valid. Nothing was sent.",
+      );
+      expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    }
   });
 
   it("a Safe app sends nothing when its queue can't be read, or hangs", async () => {
@@ -659,6 +1018,31 @@ describe("sendReviewed", () => {
       status: "done",
       hashes: [`0x${"ab".repeat(32)}`],
       receipts: [],
+    });
+  });
+
+  it("hands a self-reviewing wallet an app's exact gas", async () => {
+    const { deps } = setup();
+    const submit = vi.fn(async () => `0x${"ab".repeat(32)}` as Hex);
+    const previews: { calls: { gas: bigint | null }[] }[] = [];
+    const call = payCall(5n, { gas: 300_000n });
+    await sendReviewed(action([call]), {
+      ...deps,
+      adapter: selfReviewingAdapter({ account: () => ACCOUNT, submit }),
+      onPreview: (model) => previews.push(model),
+    });
+    expect(previews[0].calls[0].gas).toBe(300_000n);
+    expect(submit).toHaveBeenCalledWith({
+      account: ACCOUNT,
+      calls: [
+        {
+          chainId: 10,
+          to: TERMINAL,
+          data: call.data,
+          value: 7n,
+          gas: 300_000n,
+        },
+      ],
     });
   });
 
@@ -870,7 +1254,10 @@ describe("sendReviewed", () => {
         action([approveCall(), payCall(5n, { dependsOnPrior: true })]),
         deps,
       ),
-    ).rejects.toThrow("Pay cannot run on OP Mainnet");
+    ).rejects.toMatchObject({
+      message: REVIEWED_SIMULATION_FAILED_LINE,
+      cause: expect.stringContaining("Pay cannot run on OP Mainnet"),
+    });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
@@ -894,7 +1281,12 @@ describe("sendReviewed", () => {
             ? base.client
             : chain.client) as unknown as PublicClient,
       }),
-    ).rejects.toThrow("Pay cannot run on OP Mainnet: Execution reverted: NOPE");
+    ).rejects.toMatchObject({
+      message: REVIEWED_SIMULATION_FAILED_LINE,
+      cause: expect.stringContaining(
+        "Pay cannot run on OP Mainnet: Execution reverted: NOPE",
+      ),
+    });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
@@ -927,8 +1319,11 @@ describe("sendReviewed", () => {
       }).toThrow(TypeError);
       return prompt.confirmation;
     });
-    await expect(sendReviewed(action([payCall()]), deps)).rejects.toThrow(
-      "Pay cannot run on OP Mainnet",
+    await expect(sendReviewed(action([payCall()]), deps)).rejects.toMatchObject(
+      {
+        message: REVIEWED_SIMULATION_FAILED_LINE,
+        cause: expect.stringContaining("Pay cannot run on OP Mainnet"),
+      },
     );
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });

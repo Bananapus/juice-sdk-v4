@@ -186,3 +186,15 @@ export const SAVED_ATTEMPT_UNREADABLE_LINE =
 /** The warned exit's label, offered only after a check action found storage unreadable. */
 export const SAVED_ATTEMPT_CONTINUE_ANYWAY_LABEL =
   "I checked my wallet. Continue anyway";
+
+/** The refusal when the connected account is not the one an action was built for. */
+export const REVIEWED_ACCOUNT_CHANGED_LINE =
+  "The connected account changed. Review again.";
+
+/** The refusal when the app's send engine loader fails: a failed chunk load stays cached until a reload. */
+export const REVIEWED_ENGINE_LOAD_LINE =
+  "This page could not load the review. Nothing was sent; reload the page and try again.";
+
+/** The refusal after a review whose simulation found the action would revert; the review showed why. */
+export const REVIEWED_SIMULATION_FAILED_LINE =
+  "This transaction would fail onchain. Nothing was sent; the review shows why.";

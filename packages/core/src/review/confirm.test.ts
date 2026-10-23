@@ -1,3 +1,4 @@
+import { REVIEWED_SIMULATION_FAILED_LINE } from "./messages.js";
 import type { Address, Hex } from "viem";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -132,7 +133,10 @@ describe("core-issued review confirmation", () => {
         model,
         Promise.resolve({ status: "failed", message: "Pay cannot run: nope" }),
       ),
-    ).rejects.toThrow("Pay cannot run: nope");
+    ).rejects.toMatchObject({
+      message: REVIEWED_SIMULATION_FAILED_LINE,
+      cause: expect.stringContaining("Pay cannot run: nope"),
+    });
     await expect(
       ask(
         model,

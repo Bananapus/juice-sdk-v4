@@ -1,11 +1,16 @@
+import { ReviewLineError } from "./lineError.js";
 import type { Hex, PublicClient, TransactionReceipt } from "viem";
+
+/** The line when a broadcast transaction's receipt can't be tracked. */
+export const TRANSACTION_TRACKING_UNAVAILABLE_LINE =
+  "This transaction was submitted, but its confirmation can't be tracked right now. Check it in your wallet and do not submit it again yet.";
 
 /**
  * A transaction was broadcast, but neither the receipt watcher nor direct
  * receipt reads could confirm it. Its outcome is unknown, so the app must keep
  * treating it as submitted and must not offer to send it again.
  */
-export class TransactionReceiptUnavailableError extends Error {
+export class TransactionReceiptUnavailableError extends ReviewLineError {
   readonly name = "TransactionReceiptUnavailableError";
   /**
    * Why the receipt watcher gave up. Like a native error's cause it is not
@@ -19,9 +24,8 @@ export class TransactionReceiptUnavailableError extends Error {
     readonly chainId?: number,
     options: { cause?: unknown } = {},
   ) {
-    super(
-      `Transaction ${hash} was submitted${chainId ? ` on chain ${chainId}` : ""}, but confirmation tracking is temporarily unavailable. Check this transaction and do not submit it again yet.`,
-    );
+    // The hash and chain stay fields: a caller's hash is not validated here.
+    super(TRANSACTION_TRACKING_UNAVAILABLE_LINE);
     Object.defineProperty(this, "cause", {
       value: options.cause,
       writable: true,

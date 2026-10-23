@@ -1,19 +1,23 @@
+import { ReviewLineError } from "../lineError.js";
 import {
   createHeldWriteView,
+  errorLine,
   findReviewedSequence,
   isDefiniteWalletRejection,
   openStepHold,
-  resumeReviewed,
   REVIEWED_ACCOUNT_CHANGED_LINE,
-  sendReviewed,
-  transactionMessage,
+  REVIEWED_ENGINE_LOAD_LINE,
+  settledLine,
   TransactionReviewCancelledError,
+  walletReady,
   type HeldWriteView,
   type ReviewedAction,
   type ReviewedCall,
   type ReviewedProgress,
   type ReviewedResult,
   type ReviewedSendDeps,
+  type resumeReviewed,
+  type sendReviewed,
   type WriteHoldClient,
   type WriteHoldHandle,
 } from "../index.js";
@@ -31,11 +35,30 @@ import {
   none,
   type HeldViewActions,
 } from "./heldView.js";
-import type { Address, Hex } from "viem";
+import type { Address, Hex, TransactionReceipt } from "viem";
+
+/** The send engine: the review model, its decoder and the ABIs it reads. */
+export type ReviewedEngine = {
+  sendReviewed: typeof sendReviewed;
+  resumeReviewed: typeof resumeReviewed;
+};
 
 export type UseReviewedRunDeps = ReviewedSendDeps & {
   account: Address | undefined;
   guard?: () => void;
+  /**
+   * Loads the send engine, so the app chooses whether a page's first load
+   * carries it: `() => import("@bananapus/nana-sdk-core/review")` keeps it
+   * out. The hook calls it once mounted, so a run does not wait on it.
+   */
+  engine: () => Promise<ReviewedEngine>;
+};
+
+/** A run that failed: `error` is the line to show, `failure` the value thrown. */
+export type ReviewedRunFailed = {
+  status: "failed";
+  error: string;
+  failure: unknown;
 };
 
 export type UseReviewedRunResult = {
@@ -43,14 +66,14 @@ export type UseReviewedRunResult = {
    * Review and send `action` once. A `scope` with an unfinished sequence
    * of the same calls saved resumes it instead: only its remaining steps
    * are reviewed and sent. Other calls under that scope are refused until
-   * it is resumed or discarded. Null when nothing finished: the user cancelled (`error` stays
-   * null), or it failed (`error` says why). An `account` (the one the calls
-   * were built for) refuses the run before its review unless it is the
-   * connected one.
+   * it is resumed or discarded. Null when the user cancelled; `failed`, with
+   * the same `error` and `failure` the hook shows, when it failed. An
+   * `account` (the one the calls were built for) refuses the run before its
+   * review unless it is the connected one.
    */
   run: (
     action: Omit<ReviewedAction, "account" | "guard"> & { account?: Address },
-  ) => Promise<ReviewedResult | null>;
+  ) => Promise<ReviewedResult | ReviewedRunFailed | null>;
   phase: ReviewedProgress["phase"] | "idle";
   step: number;
   total: number;
@@ -62,6 +85,12 @@ export type UseReviewedRunResult = {
   failure: unknown;
   hash: Hex | null;
   safeTxHash: Hex | null;
+  /**
+   * The receipt that settled a followed Safe proposal (or held step), once
+   * its hold settled it: `phase` is then "done" on success, and `error`
+   * says why on a failure or expiry.
+   */
+  receipt: TransactionReceipt | null;
   /**
    * After a run that did not finish: the hold of its step still in flight
    * (the saved sequence's, or the first of its calls held), followed as it
@@ -85,14 +114,16 @@ const IDLE: RunState = {
   failure: null,
   hash: null,
   safeTxHash: null,
+  receipt: null,
 };
 
 /** The bytes a call sends, for comparing two actions. */
-const sent = ({ chainId, to, data, value }: ReviewedCall) => [
+const sent = ({ chainId, to, data, value, gas }: ReviewedCall) => [
   chainId,
   to.toLowerCase(),
   data.toLowerCase(),
   value ?? 0n,
+  gas ?? null,
 ];
 
 export const REVIEWED_RUN_SCOPE_LINE =
@@ -111,15 +142,43 @@ export function useReviewedRun(
   const [watched, setWatched] = useState<{
     handle: WriteHoldHandle;
     client: WriteHoldClient;
+    /** The run that followed it: a reset or a later run ignores its end. */
+    run: number;
   } | null>(null);
+  /** The latest run: an earlier one's late answers change nothing. */
+  const latest = useRef(0);
   const view = useMemo(
     () =>
       watched
-        ? createHeldWriteView(watched.handle, { client: watched.client })
+        ? createHeldWriteView(watched.handle, {
+            client: watched.client,
+            // The followed step's end ends the run: a proposal never stays proposed.
+            onSettled: (settled, receipt) =>
+              latest.current === watched.run &&
+              setState((now) =>
+                settled.result === "success"
+                  ? {
+                      ...now,
+                      phase: "done",
+                      hash: settled.hash,
+                      receipt,
+                      error: null,
+                      failure: null,
+                    }
+                  : { ...IDLE, error: settledLine(settled), receipt },
+              ),
+            onReleased: () => latest.current === watched.run && setState(IDLE),
+          })
         : undefined,
     [watched],
   );
   useEffect(() => view?.start(), [view]);
+  const engine = deps?.engine;
+  useEffect(() => {
+    engine?.().catch(() => {
+      /* A run loads it again, and reports its failure. */
+    });
+  }, [engine]);
   const shown = useSyncExternalStore(
     view?.subscribe ?? none,
     view?.get ?? idle,
@@ -131,8 +190,6 @@ export function useReviewedRun(
     shown.phase === "settled"
       ? null
       : shown;
-  /** The latest run: an earlier one's late answers change nothing. */
-  const latest = useRef(0);
   return {
     ...state,
     held,
@@ -150,10 +207,13 @@ export function useReviewedRun(
       setState({ ...IDLE, phase: "review", total: action.calls.length });
       setWatched(null);
       /** The step a run that did not finish leaves held, if any. */
-      const follow = () => {
+      const follow = async () => {
         if (latest.current !== id || !deps?.account) return;
         try {
           const { account, adapter, hold, storage } = deps;
+          // Its Safe mode is read only once the wallet says it is known.
+          await walletReady(adapter);
+          if (latest.current !== id) return;
           const safe = adapter.isSafe();
           const saved = !action.scope
             ? null
@@ -172,6 +232,7 @@ export function useReviewedRun(
               ? {
                   handle: found.handle,
                   client: deps.clientFor(found.call.chainId),
+                  run: id,
                 }
               : null,
           );
@@ -180,14 +241,25 @@ export function useReviewedRun(
         }
       };
       try {
-        if (!deps?.account) throw new Error("Connect a wallet first.");
+        if (!deps?.account)
+          throw new ReviewLineError("Connect a wallet first.");
         if (
           action.account &&
           action.account.toLowerCase() !== deps.account.toLowerCase()
         )
-          throw new Error(REVIEWED_ACCOUNT_CHANGED_LINE);
+          throw new ReviewLineError(REVIEWED_ACCOUNT_CHANGED_LINE);
         if (action.calls.length > 1 && action.scope === undefined)
-          throw new Error(REVIEWED_RUN_SCOPE_LINE);
+          throw new ReviewLineError(REVIEWED_RUN_SCOPE_LINE);
+        const { resumeReviewed, sendReviewed } = await deps
+          .engine()
+          .catch((cause: unknown) => {
+            throw Object.assign(
+              new ReviewLineError(REVIEWED_ENGINE_LOAD_LINE),
+              {
+                cause,
+              },
+            );
+          });
         const { account, guard } = deps;
         const tracked: ReviewedSendDeps = {
           ...deps,
@@ -228,23 +300,18 @@ export function useReviewedRun(
             step: saved.calls.length - 1,
             total: saved.calls.length,
           });
-        if (result.status === "proposed") follow();
+        if (result.status === "proposed") void follow();
         return result;
       } catch (error) {
         const cancelled =
           error instanceof TransactionReviewCancelledError ||
           isDefiniteWalletRejection(error);
-        update({
-          ...IDLE,
-          error: cancelled
-            ? null
-            : transactionMessage(
-                error instanceof Error ? error.message : String(error),
-              ),
-          failure: cancelled ? null : error,
-        });
-        follow();
-        return null;
+        const line = cancelled ? null : errorLine(error);
+        update({ ...IDLE, error: line, failure: cancelled ? null : error });
+        void follow();
+        return line === null
+          ? null
+          : { status: "failed", error: line, failure: error };
       }
     },
   };

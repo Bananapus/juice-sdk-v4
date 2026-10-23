@@ -315,9 +315,13 @@ const budgets = {
     // Call bytes in the review model, the per-step wallet-boundary hooks,
     // the Safe Relayr payer, legacy hold sources and the simulation block
     // add no files: 1,723,499 B packed, 23,797,283 B unpacked, 1,811 files.
-    packed: 1_728_000,
-    unpacked: 23_840_000,
-    entries: 1_811,
+    // An app's exact gas, the wallet's ready, Safe adoption by declared
+    // args, the revert receipt, settled runs and the run's failure add no
+    // files; ReviewLineError in a module of its own (8 artifacts):
+    // 1,740,168 B packed, 23,871,412 B unpacked, 1,819 files.
+    packed: 1_745_000,
+    unpacked: 23_900_000,
+    entries: 1_819,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

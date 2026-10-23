@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./lineError.js";
 import { isAddress, isHex, type Address, type Hex } from "viem";
 import { isHexBytes, uint256 } from "../untrusted.js";
 import type { ReviewedCall } from "./send.js";
@@ -49,7 +50,7 @@ const PREFIX = "nana-sdk:sequence:";
 type Options = { storage?: HeldWriteStorage };
 
 function sequenceKey(scope: string, account: Address): string {
-  if (!scope) throw new Error("Provide a sequence scope.");
+  if (!scope) throw new ReviewLineError("Provide a sequence scope.");
   return `${PREFIX}${account.toLowerCase()}:${scope}`;
 }
 
@@ -66,13 +67,14 @@ const encode = (value: unknown): unknown => {
   if (typeof value === "bigint") return { n: value.toString() };
   if (Array.isArray(value))
     return value.map((item) => {
-      if (item === undefined) throw new Error(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
+      if (item === undefined)
+        throw new ReviewLineError(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
       return encode(item);
     });
   if (value && typeof value === "object") {
     const prototype = Object.getPrototypeOf(value);
     if (prototype !== Object.prototype && prototype !== null)
-      throw new Error(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
+      throw new ReviewLineError(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
     return {
       o: Object.fromEntries(
         Object.entries(value).flatMap(([key, item]) =>
@@ -87,7 +89,7 @@ const encode = (value: unknown): unknown => {
     typeof value === "symbol" ||
     (typeof value === "number" && !Number.isFinite(value))
   )
-    throw new Error(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
+    throw new ReviewLineError(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
   return value;
 };
 
@@ -244,7 +246,7 @@ export function saveReviewedSequence(
   const key = sequenceKey(record.scope, record.account);
   return locked(key, () => {
     if (storage.getItem(key) !== expected)
-      throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
+      throw new ReviewLineError(REVIEWED_SEQUENCE_MOVED_LINE);
     const raw = serialize(record);
     storage.setItem(key, raw);
     return raw;
@@ -260,14 +262,15 @@ export function removeReviewedSequence(
   const key = sequenceKey(record.scope, record.account);
   return locked(key, () => {
     if (storage.getItem(key) !== expected)
-      throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
+      throw new ReviewLineError(REVIEWED_SEQUENCE_MOVED_LINE);
     storage.removeItem(key);
   });
 }
 
 /**
  * Whether a remaining step of `record` has a write still held under the
- * write holds' storage: its intent (or a legacy one), or its exact call.
+ * write holds' storage: the step in flight's reservation, its intent (or a
+ * legacy one), or its exact call.
  */
 function heldStep(
   record: ReviewedSequenceRecord,
@@ -295,6 +298,9 @@ function heldStep(
       { storage },
     ).some(
       ({ record: held }) =>
+        // The step in flight's own reservation, whatever call it holds (an
+        // adopted Safe proposal's, say).
+        held.id === record.sending?.reservation ||
         (held.namespace !== undefined && namespaces.includes(held.namespace)) ||
         exact.some(
           (one) =>
@@ -330,8 +336,9 @@ export function discardReviewedSequence(
       storage,
     ).record;
     if (!saved || serialize(saved) !== serialize(record))
-      throw new Error(REVIEWED_SEQUENCE_MOVED_LINE);
-    if (heldStep(saved, storage)) throw new Error(REVIEWED_SEQUENCE_HELD_LINE);
+      throw new ReviewLineError(REVIEWED_SEQUENCE_MOVED_LINE);
+    if (heldStep(saved, storage))
+      throw new ReviewLineError(REVIEWED_SEQUENCE_HELD_LINE);
     storage.removeItem(sequenceKey(record.scope, record.account));
   });
 }

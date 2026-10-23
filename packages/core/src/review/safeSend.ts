@@ -43,6 +43,7 @@ import {
 } from "./send.js";
 import { signReviewed } from "./sign.js";
 import { simulateStateChangingTransaction } from "./simulation.js";
+import { walletReady } from "./wallet.js";
 
 type LiveSafe = { identity: SafeAuthorityIdentity; nonce: number };
 
@@ -424,6 +425,7 @@ export async function executeReviewedSafeTransaction(
       );
     }
   };
+  await walletReady(deps.adapter);
   // A self-reviewing wallet sends with no step of core's before it.
   if (deps.adapter.kind === "self-reviewing") await stillExecutes();
   const result = await sendReviewed(

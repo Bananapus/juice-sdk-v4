@@ -77,6 +77,43 @@ export function payCall(
   };
 }
 
+const MODIFY_LIQUIDITIES_ABI = [
+  {
+    type: "function",
+    name: "modifyLiquidities",
+    stateMutability: "payable",
+    inputs: [
+      { name: "unlockData", type: "bytes" },
+      { name: "deadline", type: "uint256" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+/** A position manager call: its deadline is a fresh stamp on each retry. */
+export function liquidityCall(
+  unlockData: Hex,
+  deadline: bigint,
+  extra: Partial<ReviewedCall> = {},
+): ReviewedCall {
+  const args = [unlockData, deadline] as const;
+  return {
+    chainId: 10,
+    to: TERMINAL,
+    data: encodeFunctionData({
+      abi: MODIFY_LIQUIDITIES_ABI,
+      functionName: "modifyLiquidities",
+      args,
+    }),
+    value: 7n,
+    abi: MODIFY_LIQUIDITIES_ABI,
+    functionName: "modifyLiquidities",
+    args,
+    label: "Add liquidity",
+    ...extra,
+  };
+}
+
 export function approveCall(): ReviewedCall {
   return {
     chainId: 10,

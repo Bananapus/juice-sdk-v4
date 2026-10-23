@@ -119,6 +119,7 @@ const signingRpcMethods = new Set([
   "eth_signTypedData_v4",
   "personal_sign",
   "wallet_sendCalls",
+  "wallet_sendTransaction",
 ]);
 
 function invariant(condition, message) {
@@ -197,9 +198,46 @@ function calleeOf(expression, aliases) {
   return { name: member, member: true };
 }
 
+/**
+ * The method a `.request(...)` call names when it is written out: the first
+ * argument's string, or its object's `method` string. Null when the code does
+ * not say (a variable, a spread, a call through call/apply/bind).
+ */
+function requestMethodOf(call) {
+  if (memberNameOf(unwrap(call.expression)) !== "request") return null;
+  const first = call.arguments[0] && unwrap(call.arguments[0]);
+  if (!first) return null;
+  if (ts.isStringLiteralLike(first)) return first.text;
+  if (!ts.isObjectLiteralExpression(first)) return null;
+  // Only plain, written-out keys: a spread, shorthand, accessor or computed
+  // key could name the method another way.
+  if (
+    first.properties.some(
+      (property) =>
+        !ts.isPropertyAssignment(property) ||
+        !(
+          ts.isIdentifier(property.name) ||
+          ts.isStringLiteralLike(property.name)
+        ),
+    )
+  )
+    return null;
+  const methods = first.properties.filter(
+    (property) => property.name.text === "method",
+  );
+  if (methods.length !== 1) return null;
+  const value = unwrap(methods[0].initializer);
+  return ts.isStringLiteralLike(value) ? value.text : null;
+}
+
 function apiOf(call, aliases) {
   const callee = calleeOf(call.expression, aliases);
   if (!callee) return null;
+  if (callee.member && callee.name === "request") {
+    // A request whose method is written out and signs nothing is a read.
+    const method = requestMethodOf(call);
+    return method === null || signingRpcMethods.has(method) ? "request" : null;
+  }
   return (callee.member ? memberApis : directApis).has(callee.name)
     ? callee.name
     : null;

@@ -168,6 +168,23 @@ describe("review serialization", () => {
     });
   });
 
+  it("shows both the signatures and the authorization a request carries", () => {
+    const both: TransactionReviewRequest = {
+      authorization: { nonce: 4n },
+      signatures: [{ kind: "message", chainId: 1, message: "hello" }],
+      calls: [{ chainId: 1, to: TARGET, data: "0x1234" }],
+    };
+    expect(JSON.parse(transactionReviewJson(both))).toEqual({
+      signatures: [{ message: "hello" }],
+      authorization: { nonce: "4" },
+      calls: { chainId: 1, to: TARGET, value: "0x0", data: "0x1234" },
+    });
+    expect(JSON.parse(transactionReviewJson({ ...both, calls: [] }))).toEqual({
+      signatures: [{ message: "hello" }],
+      authorization: { nonce: "4" },
+    });
+  });
+
   it("builds a v6-specific audit prompt containing every onchain target", () => {
     const prompt = buildTransactionReviewPrompt(request, display);
 

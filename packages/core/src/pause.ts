@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./review/lineError.js";
 /** The longest delay setTimeout holds (about 24.8 days): a longer one fires at once. */
 const MAX_TIMER_MS = 2_147_483_647;
 
@@ -25,4 +26,19 @@ export function pause(
     signal?.addEventListener("abort", onAbort, { once: true });
     if (signal?.aborted) onAbort();
   });
+}
+
+/** `promise`, or a rejection once `ms` passes first. */
+export async function timeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new ReviewLineError("timed out")), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { ReviewLineError } from "./lineError.js";
 import {
   encodeFunctionData,
   formatEther,
@@ -51,6 +52,8 @@ export type TransactionReviewCall = {
   contractName?: string;
   /** The calls a batching destination (MultiSend) makes in order, decoded by the caller. */
   calls?: readonly TransactionReviewCall[];
+  /** For a Safe proposal: the arg indexes a queued proposal it adopts may differ in. */
+  adoptIgnoringArgs?: readonly number[];
 };
 
 /**
@@ -163,7 +166,7 @@ export function requestContractTransactionReview(
       current.safeTxGas !== reviewed.safeTxGas ||
       current.data !== reviewed.data
     ) {
-      throw new Error(
+      throw new ReviewLineError(
         "Transaction data changed after review. Nothing was sent; review it again.",
       );
     }
@@ -200,14 +203,18 @@ export function transactionReviewJson(
       ? { message: signature.message }
       : { typedData: signature.typedData },
   );
-  const payload = signatures?.length
-    ? transactions.length > 0
-      ? { signatures, calls }
-      : { signatures }
-    : request.authorization
-      ? transactions.length > 0
-        ? { authorization: request.authorization, resultingCall: calls }
-        : { authorization: request.authorization }
+  const { authorization } = request;
+  const payload =
+    signatures?.length || authorization
+      ? {
+          ...(signatures?.length ? { signatures } : {}),
+          ...(authorization ? { authorization } : {}),
+          ...(transactions.length === 0
+            ? {}
+            : signatures?.length
+              ? { calls }
+              : { resultingCall: calls }),
+        }
       : calls;
   return JSON.stringify(
     payload,

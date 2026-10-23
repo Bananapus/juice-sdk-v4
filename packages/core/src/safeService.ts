@@ -2,8 +2,12 @@ import {
   decodeAbiParameters,
   decodeFunctionData,
   encodeAbiParameters,
+  encodeFunctionData,
+  getAbiItem,
+  stringify,
   TransactionNotFoundError,
   TransactionReceiptNotFoundError,
+  type Abi,
   type AbiParameter,
   getAddress,
   hashTypedData,
@@ -1099,7 +1103,10 @@ type SafeQueueClient = Parameters<typeof readBoundedSafeNonce>[0] & {
  * the deadline: it can no longer run. Without a numbered block, matching
  * proposals remain held. Throws when the block, the nonce or the queue can't
  * be read. With `exact`, only a proposal of exactly `call`, stamp included,
- * is found.
+ * is found, or with `adopt` too, one to the same target with the same value
+ * whose data decodes with `adopt.abi` to the same function, encodes back to
+ * exactly its bytes, and matches `call`'s every arg but those `adopt.ignoring`
+ * lists. No app code runs while matching.
  */
 export async function findPendingSafeAppProposal(
   client: SafeQueueClient,
@@ -1108,6 +1115,7 @@ export async function findPendingSafeAppProposal(
   call: SafeAppCall,
   service?: SafeServiceOptions,
   exact = false,
+  adopt?: { abi: Abi; ignoring: readonly number[] },
 ): Promise<{
   tx: SafeQueuedTransaction;
   proposalHash: Hex;
@@ -1124,12 +1132,49 @@ export async function findPendingSafeAppProposal(
     throw new Error("Could not read the Safe nonce.");
   }
   const held = heldCall(call);
+  /** Whether `proposed` is `call` but for the args `adopt` ignores. */
+  const adoptable = (proposed: SafeAppCall) => {
+    const { abi, ignoring } = adopt!;
+    const argsOf = (raw: Hex) => {
+      const data = raw.toLowerCase() as Hex;
+      // The one function its selector names, so an overload can't re-encode it.
+      const item = getAbiItem({ abi, name: data.slice(0, 10) as Hex });
+      if (item?.type !== "function") throw new Error();
+      const only = [item];
+      const { args = [] } = decodeFunctionData({ abi: only, data });
+      // Only the canonical encoding: no trailing or reshaped bytes.
+      const encoded = encodeFunctionData({
+        abi: only,
+        functionName: item.name,
+        args,
+      });
+      if (encoded.toLowerCase() !== data) throw new Error();
+      return args.map((arg) => stringify(arg));
+    };
+    try {
+      const queued = argsOf(proposed.data);
+      const reviewed = argsOf(call.data);
+      return (
+        sameCall({ ...proposed, data: "0x" }, { ...call, data: "0x" }) &&
+        proposed.data.slice(0, 10).toLowerCase() ===
+          call.data.slice(0, 10).toLowerCase() &&
+        queued.length === reviewed.length &&
+        reviewed.every(
+          (arg, index) => ignoring.includes(index) || queued[index] === arg,
+        )
+      );
+    } catch {
+      return false;
+    }
+  };
   const queued = (
     await listPendingSafeTransactions(chainId, safe, Number(nonce), service)
   ).flatMap((tx) => {
     const proposed = proposedCall(tx);
     return proposed &&
-      (exact ? sameCall(proposed, call) : sameCall(heldCall(proposed), held))
+      (exact
+        ? sameCall(proposed, call) || (!!adopt && adoptable(proposed))
+        : sameCall(heldCall(proposed), held))
       ? [{ tx, call: proposed, deadline: stampedDeadline(proposed, chainId) }]
       : [];
   });

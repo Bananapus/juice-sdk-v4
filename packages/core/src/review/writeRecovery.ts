@@ -1,3 +1,4 @@
+import { ReviewLineError } from "./lineError.js";
 import {
   decodeFunctionData,
   isAddress,
@@ -139,7 +140,7 @@ const unpersistedSubmissions = new WeakMap<
 >();
 
 /** The wallet returned this identity, but storing it failed. Keep it in memory and retry submitted(hash, record). */
-export class SubmittedWritePersistenceError extends Error {
+export class SubmittedWritePersistenceError extends ReviewLineError {
   readonly name = "SubmittedWritePersistenceError";
   readonly record: ReviewedWriteRecoveryRecord;
   declare readonly cause: unknown;
@@ -161,7 +162,7 @@ function normalizedIdentity(
     input.chainId <= 0 ||
     !isAddress(input?.account, { strict: false })
   )
-    throw new Error("Invalid reviewed write recovery evidence.");
+    throw new ReviewLineError("Invalid reviewed write recovery evidence.");
   return {
     chainId: input.chainId,
     account: input.account.toLowerCase() as Address,
@@ -181,7 +182,7 @@ function normalized(
     !isHexBytes(input?.call?.data) ||
     value === null
   )
-    throw new Error("Invalid reviewed write recovery evidence.");
+    throw new ReviewLineError("Invalid reviewed write recovery evidence.");
   return {
     ...normalizedIdentity(input),
     safe: input.safe,
@@ -228,7 +229,7 @@ function recordOf(value: unknown): ReviewedWriteRecoveryRecord {
     (record.executionHash !== undefined &&
       (record.executed !== true || !isBytes32(record.executionHash)))
   )
-    throw new Error(
+    throw new ReviewLineError(
       "Invalid saved write recovery record. Keep this action pending.",
     );
   return {
@@ -322,7 +323,7 @@ function namespaceOf(value: unknown): string | undefined {
     typeof value !== "string" ||
     !/^[a-z0-9][a-z0-9:._/-]{0,127}$/.test(value)
   )
-    throw new Error("Invalid write recovery namespace.");
+    throw new ReviewLineError("Invalid write recovery namespace.");
   return value;
 }
 
@@ -342,7 +343,8 @@ function scope(input: ReviewedWriteRecoveryInput): string {
 
 function recoveryStorage(store?: RecoveryStorage): RecoveryStorage {
   const result = store ?? globalThis.localStorage;
-  if (!result) throw new Error("Write recovery storage is unavailable.");
+  if (!result)
+    throw new ReviewLineError("Write recovery storage is unavailable.");
   return result;
 }
 
@@ -555,7 +557,7 @@ export function findReviewedWrites(
     !isAddress(input.to, { strict: false }) ||
     !/^0x[0-9a-fA-F]{8}$/.test(input.selector)
   )
-    throw new Error("Invalid write hold match.");
+    throw new ReviewLineError("Invalid write hold match.");
   const to = input.to.toLowerCase();
   const selector = input.selector.toLowerCase();
   const store = recoveryStorage(options.storage);
@@ -597,7 +599,7 @@ function foundAt(input: ReviewedWriteRecoveryInput, at: string): string {
         /^\d+:0x[0-9a-f]{64}$/.test(at.slice(prefix.length))))
   )
     return at;
-  throw new Error("Invalid write recovery key.");
+  throw new ReviewLineError("Invalid write recovery key.");
 }
 
 /**
@@ -661,7 +663,7 @@ export function readBrowserWriteRecovery(
   const identity = normalizedIdentity(input);
   const namespace = namespaceOf(input?.namespace);
   if (namespace === undefined)
-    throw new Error("Provide a write recovery namespace.");
+    throw new ReviewLineError("Provide a write recovery namespace.");
   return readRecovery(
     recoveryStorage(options.storage),
     namespaceScope({ ...identity, namespace }),
@@ -686,7 +688,7 @@ function readStored(
   if (raw === null) return null;
   const record = recordOf(JSON.parse(raw));
   if (scopeOf(record) !== key)
-    throw new Error("Saved write recovery scope does not match.");
+    throw new ReviewLineError("Saved write recovery scope does not match.");
   if (store && store.getItem(releasedKey(key, record.id)) !== null) return null;
   return record;
 }
@@ -960,7 +962,9 @@ export function createBrowserWriteRecovery(
   }
   function requireLock() {
     if (!locked)
-      throw new Error("Write recovery changes require the browser lock.");
+      throw new ReviewLineError(
+        "Write recovery changes require the browser lock.",
+      );
   }
   function read(): ReviewedWriteRecoveryRecord | null {
     const store = storage();
@@ -972,7 +976,9 @@ export function createBrowserWriteRecovery(
     const store = storage();
     store.setItem(at, raw);
     if (store.getItem(at) !== raw)
-      throw new Error("Write recovery storage did not retain the action.");
+      throw new ReviewLineError(
+        "Write recovery storage did not retain the action.",
+      );
   }
   function clear(expected: ReviewedWriteRecoveryRecord): void {
     requireLock();
@@ -987,7 +993,7 @@ export function createBrowserWriteRecovery(
     const current = readStored(raw, at, scopeAt(at), store);
     if (!current) return;
     if (JSON.stringify(current) !== JSON.stringify(recordOf(expected))) {
-      throw new Error(
+      throw new ReviewLineError(
         "Write recovery changed. Keep the current action pending.",
       );
     }
@@ -997,13 +1003,17 @@ export function createBrowserWriteRecovery(
       const marker = releasedKey(at, current.id);
       store.setItem(marker, "1");
       if (store.getItem(marker) !== "1")
-        throw new Error("Write recovery storage did not clear the action.");
+        throw new ReviewLineError(
+          "Write recovery storage did not clear the action.",
+        );
       unpersistedSubmissions.get(store)?.delete(at);
       return;
     }
     store.removeItem(at);
     if (store.getItem(at) !== null)
-      throw new Error("Write recovery storage did not clear the action.");
+      throw new ReviewLineError(
+        "Write recovery storage did not clear the action.",
+      );
     unpersistedSubmissions.get(store)?.delete(at);
   }
   /** Add `fields` to exactly `expected`, a hashed record `when` allows; extra evidence only. */
@@ -1092,7 +1102,9 @@ export function createBrowserWriteRecovery(
   ): ReviewedWriteRecoveryRecord {
     requireLock();
     if (!isBytes32(hash))
-      throw new Error("The wallet returned an invalid transaction identity.");
+      throw new ReviewLineError(
+        "The wallet returned an invalid transaction identity.",
+      );
     const previous = expected && recordOf(expected);
     const submittedHash = hash.toLowerCase() as Hex;
     if (
@@ -1100,7 +1112,9 @@ export function createBrowserWriteRecovery(
       keyOf(previous) !== key ||
       (!replace && previous.hash && previous.hash !== submittedHash)
     ) {
-      throw new Error("Write recovery changed before submission was recorded.");
+      throw new ReviewLineError(
+        "Write recovery changed before submission was recorded.",
+      );
     }
     // A hash the wallet returns now starts its clock; a speed-up found at its nonce keeps it.
     const submittedAt =
@@ -1139,7 +1153,9 @@ export function createBrowserWriteRecovery(
         }) ||
       (!replace && current.hash && current.hash !== submittedHash)
     ) {
-      throw new Error("Write recovery changed before submission was recorded.");
+      throw new ReviewLineError(
+        "Write recovery changed before submission was recorded.",
+      );
     }
     owned = recordOf(submitted);
     if (current.hash !== submittedHash) {
@@ -1176,15 +1192,17 @@ export function createBrowserWriteRecovery(
         ? normalized({ ...reviewed, call: actualCall })
         : reviewed;
       if (legacyScope(actual) !== legacyScope(reviewed))
-        throw new Error("The adopted write has a different recovery scope.");
+        throw new ReviewLineError(
+          "The adopted write has a different recovery scope.",
+        );
       const nonce = evidence && uint256(evidence.nonce);
       const fromBlock = evidence && uint256(evidence.blockNumber);
       if (evidence && (nonce === null || fromBlock === null))
-        throw new Error("Invalid write recovery nonce evidence.");
+        throw new ReviewLineError("Invalid write recovery nonce evidence.");
       const store = storage();
       const { at, raw } = locate(store);
       if (readRecovery(store, at, raw, scopeAt(at)))
-        throw new Error(
+        throw new ReviewLineError(
           "An earlier wallet write is still unresolved. Check it before trying again.",
         );
       // The record this one replaces, if the user released it: its marker goes too.
@@ -1258,7 +1276,7 @@ export function createBrowserWriteRecovery(
       requireLock();
       const current = read();
       if (current && current.mirrorOf !== of)
-        throw new Error(
+        throw new ReviewLineError(
           "An earlier wallet write is still unresolved. Check it before trying again.",
         );
       const mirrored = recordOf({
@@ -1659,7 +1677,7 @@ export function createBrowserWriteRecovery(
     ): ReviewedWriteRecoveryRecord {
       requireLock();
       if (executionHash !== undefined && !isBytes32(executionHash))
-        throw new Error("Invalid execution transaction identity.");
+        throw new ReviewLineError("Invalid execution transaction identity.");
       const store = storage();
       const { at, raw } = locate(store);
       const current = readRecovery(store, at, raw, scopeAt(at));
@@ -1669,7 +1687,7 @@ export function createBrowserWriteRecovery(
         current.id !== wanted.id ||
         current.hash !== wanted.hash
       )
-        throw new Error(
+        throw new ReviewLineError(
           "Write recovery changed. Keep the current action pending.",
         );
       const next = recordOf({
@@ -1719,7 +1737,7 @@ export function createBrowserWriteRecovery(
       acknowledgement: { checkedWallet: true },
     ): void {
       if (acknowledgement?.checkedWallet !== true)
-        throw new Error(
+        throw new ReviewLineError(
           "Release a held write only after the user confirms they checked their wallet.",
         );
       const wanted = JSON.stringify(recordOf(expected));
@@ -1728,7 +1746,7 @@ export function createBrowserWriteRecovery(
       const durable = readStored(raw, at, scopeAt(at), store);
       if (!durable) return;
       if (durable.executed)
-        throw new Error(
+        throw new ReviewLineError(
           "This write ran onchain. Keep it held until its result is known.",
         );
       const shown = readRecovery(store, at, raw, scopeAt(at));
@@ -1736,13 +1754,15 @@ export function createBrowserWriteRecovery(
         JSON.stringify(durable) !== wanted &&
         JSON.stringify(shown) !== wanted
       )
-        throw new Error(
+        throw new ReviewLineError(
           "Write recovery changed. Keep the current action pending.",
         );
       const marker = releasedKey(at, durable.id);
       store.setItem(marker, "1");
       if (store.getItem(marker) !== "1")
-        throw new Error("Write recovery storage did not release the action.");
+        throw new ReviewLineError(
+          "Write recovery storage did not release the action.",
+        );
       const memory = unpersistedSubmissions.get(store);
       if (memory?.get(at)?.id === durable.id) memory.delete(at);
       if (owned?.id === durable.id) owned = undefined;
@@ -1754,7 +1774,7 @@ export function createBrowserWriteRecovery(
         { mode: "exclusive", ...(!wait && { ifAvailable: true }) },
         async (lock) => {
           if (!lock)
-            throw new Error(
+            throw new ReviewLineError(
               "This wallet action is already open in another tab.",
             );
           locked = true;
@@ -2113,7 +2133,7 @@ export async function verifyReviewedWriteReceipt(
 ): Promise<"success" | "failed"> {
   const record = recordOf(saved);
   const pending = () =>
-    new Error(
+    new ReviewLineError(
       "The saved wallet write is not yet proven. Keep this action pending.",
     );
   // A batch hold's call is its MultiSend: its proof is the calls it encodes.
@@ -2287,7 +2307,7 @@ export async function verifyReviewedWriteExpiry(
 ): Promise<true> {
   const record = recordOf(saved);
   const pending = () =>
-    new Error(
+    new ReviewLineError(
       "The saved Safe proposal is not proven expired. Keep this action pending.",
     );
   if (

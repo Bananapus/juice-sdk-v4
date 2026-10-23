@@ -201,6 +201,79 @@ describe("nana-wallet-check", () => {
     expect(out).toContain(`:${api}`);
   });
 
+  it("passes a request whose method is known and does not sign", () => {
+    const dir = project({
+      "reads.ts": [
+        'client.request({ method: "eth_call", params: [] });',
+        "client.request({ method: `eth_getLogs` } as const);",
+        'locks.request("nana-sdk:lock", async () => {});',
+        "",
+      ].join("\n"),
+    });
+    expect(run(dir).status).toBe(0);
+  });
+
+  it.each([
+    [
+      "a signing method",
+      'provider.request({ method: "eth_sendTransaction", params: [] });',
+      ["request", "rpc:eth_sendTransaction"],
+    ],
+    [
+      "wallet_sendTransaction",
+      'provider.request({ method: "wallet_sendTransaction", params: [] });',
+      ["request", "rpc:wallet_sendTransaction"],
+    ],
+    ["an unknown argument", "provider.request(args);", ["request"]],
+    [
+      "an unknown method",
+      "provider.request({ method, params: [] });",
+      ["request"],
+    ],
+    [
+      "a spread argument",
+      'provider.request({ method: "eth_call", ...args });',
+      ["request"],
+    ],
+    [
+      "a computed lock name",
+      "locks.request(`lock:${key}`, async () => {});",
+      ["request"],
+    ],
+    [
+      "a computed key",
+      'provider.request({ method: "eth_call", ["method"]: next });',
+      ["request"],
+    ],
+    [
+      "a second method",
+      'provider.request({ method: "eth_call", "method": next });',
+      ["request"],
+    ],
+    [
+      "a numeric key",
+      'provider.request({ method: "eth_call", 1: next });',
+      ["request"],
+    ],
+    [
+      "a request reached through call",
+      'provider.request.call(provider, { method: "eth_call" });',
+      ["request"],
+    ],
+  ])("fails a request with %s", (_name, text, apis) => {
+    const { status, out } = run(project({ "case.ts": `${text}\n` }));
+    expect(status).toBe(1);
+    for (const api of apis) expect(out).toContain(`src/case.ts:1:${api}`);
+  });
+
+  it("excludes a signing request's file", () => {
+    const dir = project({
+      "rpc.ts": 'provider.request({ method: "wallet_sendTransaction" });\n',
+    });
+    expect(run(dir).status).toBe(1);
+    expect(run(dir, "--exclude", "src/rpc.ts").status).toBe(0);
+  });
+
   it("fails a same-line duplicate that one row cannot review", () => {
     const dir = project(
       { "twice.ts": "wallet.sendTransaction(a); wallet.sendTransaction(b);\n" },

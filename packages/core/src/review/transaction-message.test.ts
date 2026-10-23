@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { transactionMessage } from "./index.js";
+import {
+  RelayrDestinationRevertedError,
+  RelayrPaymentRetryError,
+  RelayrPaymentRevertedError,
+  RelayrProofError,
+  type RelayrPaymentRetryRefusal,
+} from "./relayr.js";
+import {
+  errorLine,
+  NETWORK_ERROR_LINE,
+  ReviewLineError,
+  transactionMessage,
+  WriteHoldBusyError,
+} from "./index.js";
 
 describe("transaction diagnostic presentation", () => {
   it.each([
@@ -79,5 +92,86 @@ describe("transaction diagnostic presentation", () => {
     "GS013 on Ethereum. Keep the original bundle pending.",
   ])("leaves technical and unrelated text intact: %s", (message) => {
     expect(transactionMessage(message)).toBe(message);
+  });
+});
+
+describe("errorLine", () => {
+  it("shows only the SDK's own errors, never another error's text", () => {
+    expect(errorLine(new ReviewLineError("Relayr HTTP 429"))).toBe(
+      "Transaction request failed (HTTP 429)",
+    );
+    expect(
+      errorLine(new ReviewLineError("This wallet request is not supported.")),
+    ).toBe("This wallet request is not supported.");
+    // The typed Relayr and Safe refusals show fixed lines, never their text.
+    expect(
+      errorLine(
+        new RelayrPaymentRetryError("https://relayr.example/key", "paid"),
+      ),
+    ).toBe("This bundle is already paid. Do not pay again.");
+    expect(
+      errorLine(
+        new RelayrPaymentRetryError(
+          "x",
+          "constructor" as RelayrPaymentRetryRefusal,
+        ),
+      ),
+    ).toMatch(/^Whether this bundle is paid is not known yet/);
+    expect(
+      errorLine(new RelayrProofError("https://relayr.example/key")),
+    ).toMatch(/do not pay again\.$/);
+    expect(
+      errorLine(
+        new RelayrDestinationRevertedError(
+          "https://relayr.example/key",
+          `0x${"ab".repeat(32)}`,
+          10,
+        ),
+      ),
+    ).toBe(
+      "The action's transaction reverted onchain. Keep the original bundle pending; do not pay again.",
+    );
+    expect(
+      errorLine(
+        new RelayrPaymentRevertedError("raw", `0x${"ab".repeat(32)}`, 10),
+      ),
+    ).toMatch(/^The payment transaction reverted onchain\./);
+    expect(
+      errorLine(Object.assign(new Error("raw"), { name: "toString" })),
+    ).toBe(NETWORK_ERROR_LINE);
+    expect(errorLine(new WriteHoldBusyError())).toBe(
+      "This transaction is already open in another window.",
+    );
+    for (const raw of [
+      Object.assign(new Error("header not found"), { code: -32000 }),
+      Object.assign(
+        new Error(
+          "Missing or invalid parameters.\n\nURL: https://node.example/key\nDetails: header not found",
+        ),
+        {
+          name: "InvalidInputRpcError",
+          shortMessage: "Missing or invalid parameters.",
+          details: "header not found",
+        },
+      ),
+      "header not found",
+      { code: -32000, message: "header not found" },
+      new TypeError(
+        "Failed to fetch dynamically imported module: https://node.example/key/chunk.js",
+      ),
+      Object.assign(new Error("Loading chunk 7 failed."), {
+        name: "ChunkLoadError",
+      }),
+      // Sentence-shaped text from a node, a wallet or an app.
+      new Error("Header not found."),
+      new Error("An internal error was received."),
+      Object.assign(new Error("This wallet request is not supported."), {
+        code: 4200,
+      }),
+      new Error("Relayr HTTP 429"),
+      new Error("header not found"),
+      new Error("nonce too low"),
+    ])
+      expect(errorLine(raw)).toBe(NETWORK_ERROR_LINE);
   });
 });

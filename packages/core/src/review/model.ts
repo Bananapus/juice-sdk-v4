@@ -151,7 +151,8 @@ export type ReviewSignatureModel = {
 export type ReviewModel = {
   /**
    * keccak256 of the canonical JSON of the binding fields only: kind, each
-   * call's chainId, from, to, value, gas, safeTxGas and data (and the same for
+   * call's chainId, from, to, value, gas, safeTxGas, data and any
+   * adoptIgnoringArgs (and the same for
    * the decoded calls it shows inside), authorization, message, context, and
    * each signature's kind, chain, typed data, text and calls. Enrichment,
    * warnings and simulation are excluded and may change after mint.
@@ -707,6 +708,10 @@ function bindingCall(call: TransactionReviewCall): unknown {
     safeTxGas: call.safeTxGas ?? null,
     data: call.data,
     calls: call.calls?.length ? call.calls.map(bindingCall) : null,
+    // Bound only when set, so a model without it keeps its id.
+    ...(call.adoptIgnoringArgs
+      ? { adoptIgnoringArgs: [...call.adoptIgnoringArgs] }
+      : {}),
   };
 }
 
