@@ -29,7 +29,7 @@ export function transactionMessage(message: string): string {
 
 /** The line for a raw node, RPC or wallet error: its own text can quote a request or its URL. */
 export const NETWORK_ERROR_LINE =
-  "The network returned an error. Check your wallet's activity before you try again.";
+  "The network returned an error. Check your wallet's activity, then try again.";
 
 /** Fixed lines for a Relayr retry refusal, by its `reason`: its own text can quote a service. */
 const RELAYR_RETRY_LINES: Readonly<Record<string, string>> = {
@@ -59,12 +59,12 @@ const TYPED_LINES: Readonly<Record<string, string>> = {
 };
 
 /**
- * The line to show for a thrown value: the message of an SDK error
- * ({@link ReviewLineError}), presented by {@link transactionMessage}; a fixed
- * line for the SDK's typed Relayr and Safe refusals, whose text can quote a
- * service; or {@link NETWORK_ERROR_LINE} for anything else (a node, RPC,
- * wallet, service or runtime error, or an app's own). The raw error stays
- * the cause.
+ * The line to show for a thrown value: the message of a
+ * {@link ReviewLineError} (the SDK's, or a site's own refusal), presented by
+ * {@link transactionMessage}; a fixed line for the SDK's typed Relayr and
+ * Safe refusals, whose text can quote a service; or
+ * {@link NETWORK_ERROR_LINE} for anything else (a node, RPC, wallet, service
+ * or runtime error, or an app's plain Error). The raw error stays the cause.
  */
 export function errorLine(error: unknown): string {
   if (error instanceof ReviewLineError)

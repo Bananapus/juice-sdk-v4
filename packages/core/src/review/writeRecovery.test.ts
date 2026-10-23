@@ -18,7 +18,11 @@ import {
   SAFE_EXEC_ABI,
 } from "../safeService.js";
 import { uniswapV4Deployment } from "../v6/uniswapV4Deployments.js";
-import { encodeMultiSend, MULTI_SEND_CALL_ONLY } from "../safe.js";
+import {
+  encodeMultiSend,
+  MULTI_SEND_CALL_ONLY,
+  MULTI_SEND_CALL_ONLY_DEPLOYMENTS,
+} from "../safe.js";
 import { submitReviewedContractWrite } from "./contractWrite.js";
 import {
   browserLocks,
@@ -911,13 +915,17 @@ describe("a Safe hold whose call is its MultiSend batch", () => {
     call: { ...batchCall, value: "0" },
   };
   /** The Safe executed `ran` at once, through MultiSend with `operation`. */
-  function executed(ran = calls, operation = 1) {
+  function executed(
+    ran = calls,
+    operation = 1,
+    multiSend: Address = MULTI_SEND_CALL_ONLY,
+  ) {
     const run = safeChain();
     run.transaction.input = encodeFunctionData({
       abi: SAFE_EXEC_ABI,
       functionName: "execTransaction",
       args: [
-        MULTI_SEND_CALL_ONLY,
+        multiSend,
         0n,
         encodeMultiSend(ran),
         operation,
@@ -954,7 +962,13 @@ describe("a Safe hold whose call is its MultiSend batch", () => {
         verifyReviewedWriteReceipt(run.client, record, run.receipt, proof),
       ).rejects.toThrow("pending");
     }
+    // A Safe app on 1.4.1 folds the same calls into its own MultiSendCallOnly.
+    const newer = executed(calls, 1, MULTI_SEND_CALL_ONLY_DEPLOYMENTS[2]);
+    await expect(
+      verifyReviewedWriteReceipt(newer.client, record, newer.receipt),
+    ).resolves.toBe("success");
     for (const other of [
+      executed(calls, 1, `0x${"77".repeat(20)}`),
       executed([calls[0]]),
       executed([...calls].reverse()),
       executed([calls[0], { ...calls[1], value: 3n }]),
@@ -1118,7 +1132,10 @@ describe("reviewed Safe expiry proof", () => {
 
 describe("reviewed Safe expiry proof of a batch hold", () => {
   /** A batch hold of one expiring router call, proposed with `operation`. */
-  function batchExpiring(operation: 0 | 1) {
+  function batchExpiring(
+    operation: 0 | 1,
+    multiSend: Address = MULTI_SEND_CALL_ONLY,
+  ) {
     const call = {
       to: uniswapV4Deployment(10)!.universalRouter!,
       data: `0x3593564c${encodeAbiParameters([{ type: "bytes" }, { type: "bytes[]" }, { type: "uint256" }], ["0x01", ["0x00"], 99n]).slice(2)}` as Hex,
@@ -1126,6 +1143,7 @@ describe("reviewed Safe expiry proof of a batch hold", () => {
     };
     const proposal = {
       ...safeBatchProposalFor([call], 5),
+      to: multiSend,
       operation,
       safe: ACCOUNT,
       isExecuted: false,
@@ -1171,6 +1189,15 @@ describe("reviewed Safe expiry proof of a batch hold", () => {
     expect(delegated.client.getBlock).toHaveBeenCalledWith({
       blockTag: "finalized",
     });
+    // So does one a 1.4.1 Safe app folded into its own MultiSendCallOnly.
+    const newer = batchExpiring(1, MULTI_SEND_CALL_ONLY_DEPLOYMENTS[2]);
+    await newer.verify().catch(() => undefined);
+    expect(newer.client.getBlock).toHaveBeenCalledWith({
+      blockTag: "finalized",
+    });
+    const unknown = batchExpiring(1, `0x${"77".repeat(20)}`);
+    await expect(unknown.verify()).rejects.toThrow("pending");
+    expect(unknown.client.getBlock).not.toHaveBeenCalled();
   });
 });
 

@@ -1,3 +1,4 @@
+export * from "./lineError.js";
 export * from "./contractWrite.js";
 export * from "./gas.js";
 export * from "./messages.js";

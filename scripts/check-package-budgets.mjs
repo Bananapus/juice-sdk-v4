@@ -319,8 +319,11 @@ const budgets = {
     // args, the revert receipt, settled runs and the run's failure add no
     // files; ReviewLineError in a module of its own (8 artifacts):
     // 1,740,168 B packed, 23,871,412 B unpacked, 1,819 files.
-    packed: 1_745_000,
-    unpacked: 23_900_000,
+    // The review test prompt, the prior block, message calls, the review
+    // abort, confirmed steps, the hook's preload and discard and the Safe
+    // app batch add no files: 1,753,927 B packed, 23,911,253 B unpacked.
+    packed: 1_760_000,
+    unpacked: 23_930_000,
     entries: 1_819,
   },
   "@bananapus/nana-sdk-react": {
@@ -367,7 +370,7 @@ const entryBudgets = [
   // 5,002 B.
   ["@bananapus/nana-sdk-core", "resolveSuckers", 5_250],
   ["@bananapus/nana-sdk-core/v6", "effectiveTierPrice", 200],
-  ["@bananapus/nana-sdk-core/review", "registerTransactionReviewHandler", 250],
+  ["@bananapus/nana-sdk-core/review", "registerReviewHandler", 250],
   [
     "@bananapus/nana-sdk-core/bendystraw-operations",
     "compileBendystrawDocument",

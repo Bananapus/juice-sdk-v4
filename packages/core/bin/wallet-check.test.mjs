@@ -85,14 +85,14 @@ describe("nana-wallet-check", () => {
     expect(out).toContain("src/parent.ts:2:reviewedInParent");
   });
 
-  it("fails an uninventoried registerTransactionReviewHandler call", () => {
+  it("fails an uninventoried registerReviewHandler call", () => {
     const dir = project({
       "handler.ts":
-        "const x = 1;\nregisterTransactionReviewHandler(() => true);\n",
+        "const x = 1;\nregisterReviewHandler(() => null);\n",
     });
     const { status, out } = run(dir);
     expect(status).toBe(1);
-    expect(out).toContain("src/handler.ts:2:registerTransactionReviewHandler");
+    expect(out).toContain("src/handler.ts:2:registerReviewHandler");
   });
 
   it("fails a stale inventory row", () => {
@@ -145,11 +145,11 @@ describe("nana-wallet-check", () => {
       {
         "parent.ts": "const x = 1;\nrun({ reviewedInParent: true });\n",
         "handler.ts":
-          "const x = 1;\nregisterTransactionReviewHandler(() => true);\n",
+          "const x = 1;\nregisterReviewHandler(() => null);\n",
       },
       [
         ["parent.ts", 2, "reviewedInParent"],
-        ["handler.ts", 2, "registerTransactionReviewHandler"],
+        ["handler.ts", 2, "registerReviewHandler"],
       ],
     );
     expect(run(dir).status).toBe(0);

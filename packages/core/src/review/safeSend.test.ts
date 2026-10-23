@@ -635,7 +635,7 @@ describe("executeReviewedSafeTransaction", () => {
         { chainId: 10, safe: SAFE, tx },
         { ...deps, hold: setup().hold },
       ),
-    ).rejects.toThrow("but its call failed (ExecutionFailure)");
+    ).rejects.toThrow("but its call failed, so nothing changed");
     expect(progress.map(({ phase }) => phase)).not.toContain("done");
   });
 

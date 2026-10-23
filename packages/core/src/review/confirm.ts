@@ -33,6 +33,12 @@ export type ReviewPrompt = {
   enriched: Promise<ReviewModel>;
   /** Minted for this prompt and `model` only; return it to confirm. */
   confirmation: ReviewConfirmation;
+  /**
+   * Aborts when the app withdraws the prompt: the review should close. The
+   * prompt has then already ended as cancelled, and its confirmation confirms
+   * nothing.
+   */
+  signal: AbortSignal;
 };
 
 /** Every confirmation core minted: the model id it is for, and whether its prompt has ended. */
@@ -61,12 +67,16 @@ const UNREADABLE =
  * too; one still pending is left to the simulation that runs before the
  * wallet opens. The confirmation is spent whatever the outcome. A model
  * with an `unreadable` warning is refused before any handler sees it.
+ * `signal` withdraws the prompt while it is open: it cancels, as null does.
+ * Once the prompt is answered the signal changes nothing.
  */
 export async function promptReview(
   model: ReviewModel,
   simulation: Promise<ReviewSimulation>,
   enriched: Promise<ReviewModel>,
+  signal: AbortSignal = new AbortController().signal,
 ): Promise<void> {
+  if (signal.aborted) throw new TransactionReviewCancelledError();
   // A model that binds nothing (buildReviewModel's unreadable one) confirms nothing.
   if (model.warnings.some((warning) => warning.code === "unreadable")) {
     throw new ReviewLineError(UNREADABLE);
@@ -86,16 +96,26 @@ export async function promptReview(
   const confirmation = Object.freeze(Object.create(null)) as ReviewConfirmation;
   const entry = { id: model.id, used: false };
   minted.set(confirmation, entry);
+  let withdraw = () => {};
+  const withdrawn = new Promise<null>((resolve) => {
+    withdraw = () => resolve(null);
+    signal.addEventListener("abort", withdraw, { once: true });
+  });
   try {
-    const answer: unknown = await handler(
-      Object.freeze({
-        model: frozen(model),
-        simulation: settled,
-        enriched: enriched.then(frozen),
-        confirmation,
-      }),
-    );
-    if (answer === null) throw new TransactionReviewCancelledError();
+    const answer: unknown = await Promise.race([
+      handler(
+        Object.freeze({
+          model: frozen(model),
+          simulation: settled,
+          enriched: enriched.then(frozen),
+          confirmation,
+          signal,
+        }),
+      ),
+      withdrawn,
+    ]);
+    if (answer === null || signal.aborted)
+      throw new TransactionReviewCancelledError();
     const returned =
       typeof answer === "object" ? minted.get(answer) : undefined;
     if (returned !== entry || entry.used || entry.id !== model.id) {
@@ -103,6 +123,7 @@ export async function promptReview(
     }
   } finally {
     entry.used = true;
+    signal.removeEventListener("abort", withdraw);
   }
   // The node's own words stay the cause: the review already showed them.
   if (simulated?.status === "failed")

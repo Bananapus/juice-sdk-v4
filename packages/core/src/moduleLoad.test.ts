@@ -242,12 +242,14 @@ describe("module load", () => {
     expect(closure("src/v6/tierPrice.ts")).toEqual(["src/v6/tierPrice.ts"]);
     expect(closure("src/review/reviewQueue.ts")).toEqual([
       "src/review/lineError.ts",
+      "src/review/messages.ts",
       "src/review/reviewQueue.ts",
     ]);
     expect(closure("src/jbcenter/rpcClient.ts")).toEqual([
       "src/jbcenter/rpcClient.ts",
       "src/pause.ts",
       "src/review/lineError.ts",
+      "src/review/messages.ts",
       "src/untrusted.ts",
     ]);
   });

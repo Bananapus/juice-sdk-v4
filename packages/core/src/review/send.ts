@@ -1,4 +1,4 @@
-import { ReviewLineError } from "./lineError.js";
+import { ReviewedCallRevertedError, ReviewLineError } from "./lineError.js";
 import {
   encodeFunctionData,
   type Abi,
@@ -23,7 +23,6 @@ import {
 import {
   REVIEWED_ACCOUNT_CHANGED_LINE,
   WRITE_HOLD_CALL_FAILED_LINE,
-  WRITE_HOLD_REVERTED_LINE,
   WRITE_HOLD_SAFE_UNCONFIRMED_LINE,
 } from "./messages.js";
 import {
@@ -62,6 +61,7 @@ import {
 } from "./wallet.js";
 import {
   openStepHold,
+  safeBatchCall,
   WriteHeldError,
   WriteHoldStaleReviewError,
   type WriteHold,
@@ -115,6 +115,13 @@ export type ReviewedCall = {
   simulationBlockNumber?: bigint;
 };
 
+/** Where the step before this one confirmed. */
+export type ReviewedPriorBlock = {
+  chainId: number;
+  blockNumber: bigint;
+  blockHash: Hex;
+};
+
 export type ReviewedAction = {
   account: Address;
   calls: readonly ReviewedCall[];
@@ -127,8 +134,17 @@ export type ReviewedAction = {
   description?: string;
   confirmLabel?: string;
   context?: readonly ReviewContextRow[];
-  /** A stale-state check before each step; it throws to stop with nothing sent. */
-  reverify?: (call: ReviewedCall, index: number) => Promise<void>;
+  /**
+   * A stale-state check before each step; it throws to stop with nothing
+   * sent. `prior` is where the previous step of the action confirmed (on its
+   * own chain), so the check can read state at or after it; undefined for
+   * the first step, or on resume when that step's receipt can't be read.
+   */
+  reverify?: (
+    call: ReviewedCall,
+    index: number,
+    prior: ReviewedPriorBlock | undefined,
+  ) => Promise<void>;
   /** The final synchronous gate before the wallet opens. */
   assertWriteState?: () => void;
   /** Refuses the action, before anything else (view-as, say). */
@@ -157,6 +173,34 @@ export type ReviewedAction = {
     hash: Hex,
     sent: { safe: boolean; adopted: boolean },
   ) => void | Promise<void>;
+  /**
+   * Awaited once a step's receipt shows it succeeded and its progress is
+   * saved, before the next step; on resume, for a step that went through
+   * while away, when its receipt can be read. A throw is ignored: the step
+   * went through. A Safe app's proposal is never told here: its hold's
+   * settlement is (`useReviewedRun`'s `done` and `receipt`).
+   */
+  onConfirmed?: (
+    call: ReviewedCall,
+    step: number,
+    receipt: TransactionReceipt,
+  ) => void | Promise<void>;
+  /**
+   * Through a Safe app, every call goes to the Safe as one proposal (the
+   * app folds `sendCalls` into a MultiSend its signers approve once and run
+   * together, in order), under one hold: the first call's `intent`, or else
+   * `safeBatchIntent` of the calls. The calls must share a chain and
+   * the adapter must offer `sendCalls`. Nothing is journaled: the proposal
+   * runs whole or not at all. A resumed sequence, and any other wallet, sends
+   * the calls one by one.
+   */
+  batch?: boolean;
+  /**
+   * Withdraws the review while it is open: the run ends as cancelled with
+   * nothing sent, and the prompt's own `signal` aborts so its UI closes.
+   * Once the review is confirmed it changes nothing.
+   */
+  signal?: AbortSignal;
   /**
    * The site's key for this action (`payIntent(...)`, say). When set, the
    * action is journaled once its review is confirmed, before the first
@@ -192,24 +236,6 @@ export type ReviewedResult = (
   signatures?: Hex[];
 };
 
-/**
- * A step's transaction was mined and reverted: nothing of it to resume, and
- * the action can be reviewed again. `receipt` is the mined receipt, so a
- * site can close its own record of the attempt.
- */
-export class ReviewedCallRevertedError extends ReviewLineError {
-  readonly name = "ReviewedCallRevertedError";
-
-  constructor(
-    /** The step's index in the whole action. */
-    readonly step: number,
-    readonly hash: Hex,
-    readonly receipt: TransactionReceipt,
-  ) {
-    super(WRITE_HOLD_REVERTED_LINE);
-  }
-}
-
 /** The exact bytes a step sends. */
 type SentCall = Readonly<{
   chainId: number;
@@ -228,6 +254,10 @@ const BAD_ADOPT = "This call's adoption rule is not valid. Nothing was sent.";
 const ACCOUNT_CHANGED = REVIEWED_ACCOUNT_CHANGED_LINE;
 const NOT_SAVED =
   "This action's progress could not be saved. Nothing was sent; review it again.";
+export const SAFE_BATCH_UNSUPPORTED_LINE =
+  "This Safe connection can't propose these calls as one transaction. Nothing was sent.";
+export const SAFE_BATCH_UNFOLLOWABLE_LINE =
+  "Your Safe took this batch, but it can't be followed from here. Check your Safe before sending again.";
 const SIMULATION_UNAVAILABLE =
   "Simulation unavailable. This could not be checked before you confirm; it is checked again before your wallet opens.";
 
@@ -527,6 +557,8 @@ export async function resumeReviewed(
     | "beforeWallet"
     | "onUnsent"
     | "onSubmitted"
+    | "onConfirmed"
+    | "signal"
   >,
   deps: ReviewedSendDeps,
 ): Promise<ReviewedResult> {
@@ -566,16 +598,34 @@ export async function resumeReviewed(
       throw new ReviewLineError(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
     delete saved.sending;
     delete saved.proposed;
-    if (state.settled.result === "success") {
+    const { settled } = state;
+    if (settled.result === "success") {
       // This sequence's own step: it is recorded, never offered again.
-      await handle.acknowledge(state.settled);
-      saved.completed.push(state.settled.hash);
+      await handle.acknowledge(settled);
+      saved.completed.push(settled.hash);
     }
+    /** Tells the site of the step that went through while away, once saved and when its receipt reads. */
+    const told = async () => {
+      if (settled.result !== "success" || !action.onConfirmed) return;
+      try {
+        const receipt = await deps
+          .clientFor(call.chainId)
+          .getTransactionReceipt({ hash: settled.hash });
+        if (receipt.status === "success")
+          await action.onConfirmed(call, step, receipt);
+      } catch {
+        /* The step went through whatever the read or the site's callback does. */
+      }
+    };
     if (saved.completed.length === saved.calls.length) {
       await removeReviewedSequence(saved, storage, expected);
+      await told();
+      const total = saved.calls.length;
+      deps.onProgress?.({ step: total - 1, total, phase: "done" });
       return { status: "done", hashes: saved.completed, receipts: [] };
     }
     expected = await saveReviewedSequence(saved, storage, expected);
+    await told();
   }
   return send(
     {
@@ -723,11 +773,26 @@ async function send(
   const offset = resuming?.record.completed.length ?? 0;
 
   const safe = adapter.isSafe();
-  const handles = calls.map((call, step) =>
+  /** Through a Safe app, the one MultiSend call every step goes as. */
+  const batched =
+    // A resumed sequence is journaled step by step: never folded into one proposal.
+    action.batch && safe && calls.length > 1 && !resuming
+      ? safeBatchCall(
+          account,
+          calls.map((call, step) => ({ ...call, ...sent[step] })),
+        )
+      : undefined;
+  if (
+    batched &&
+    (!adapter.sendCalls ||
+      sent.some((call) => call.chainId !== batched.chainId))
+  )
+    throw new ReviewLineError(SAFE_BATCH_UNSUPPORTED_LINE);
+  const handles = (batched ? [batched] : calls).map((call, step) =>
     openStepHold(hold, account, safe, {
       intent: call.intent,
       legacy: call.legacy,
-      ...sent[step],
+      ...(batched ?? sent[step]),
     }),
   );
   // A step its hold already holds is refused before the review opens.
@@ -756,7 +821,7 @@ async function send(
     const warning = simulationWarning(simulated);
     return warning ? { ...read, warnings: [...read.warnings, warning] } : read;
   });
-  await promptReview(model, simulation, enriched);
+  await promptReview(model, simulation, enriched, action.signal);
   let signed: { signatures?: Hex[] } = {};
   if (prepared.length) {
     // The action's own gates, last before the wallet opens for each signature.
@@ -771,7 +836,9 @@ async function send(
           throw new ReviewLineError(CHANGED);
         }
         if (!sameCall(now, sent[step])) throw new ReviewLineError(CHANGED);
-        if (generation(handles[step]) !== reviewedGenerations[step]) {
+      });
+      handles.forEach((handle, step) => {
+        if (generation(handle) !== reviewedGenerations[step]) {
           throw new WriteHoldStaleReviewError();
         }
       });
@@ -779,6 +846,122 @@ async function send(
     signed = {
       signatures: await signPrepared(prepared, account, adapter, stillReviewed),
     };
+  }
+
+  if (batched) {
+    const client = clientFor(batched.chainId);
+    const unchanged = () =>
+      calls.forEach((call, step) => {
+        let now: SentCall;
+        try {
+          now = exact(call).sent;
+        } catch {
+          throw new ReviewLineError(CHANGED);
+        }
+        if (!sameCall(now, sent[step])) throw new ReviewLineError(CHANGED);
+      });
+    const progress = (phase: ReviewedProgress["phase"], hash?: Hex) =>
+      onProgress?.({
+        step: 0,
+        total: calls.length,
+        phase,
+        ...(hash ? { hash } : {}),
+      });
+    /** The steps whose `beforeWallet` began. */
+    let began = 0;
+    const hash = await handles[0].send<Hex>(client, (gate) => {
+      if (generation(handles[0]) !== reviewedGenerations[0]) {
+        throw new WriteHoldStaleReviewError();
+      }
+      const released = async () => {
+        gate.onRejected();
+        for (const [step, call] of calls.slice(0, began).entries())
+          await tellUnsent(call, step);
+      };
+      return submitReviewedContractWrite({
+        request: batched,
+        expectedAccount: account,
+        review: () => Promise.resolve(),
+        switchChain: async (chainId) => {
+          if (adapter.chainId() !== chainId) await adapter.switchChain(chainId);
+        },
+        currentAccount: () => adapter.account(),
+        reverify: async () => {
+          for (const [step, call] of calls.entries())
+            await action.reverify?.(call, step, undefined);
+          unchanged();
+        },
+        simulate: async (sending) => {
+          await simulateCallSequence(client, {
+            from: account,
+            chainName: client.chain?.name ?? `chain ${batched.chainId}`,
+            calls: run.map((call, step) => ({
+              ...call,
+              label: labelOf(calls[step], step),
+              dependsOnPrior: calls[step].dependsOnPrior,
+            })),
+          });
+          return sending;
+        },
+        beforeWrite: async () => {
+          await gate.beforeSend();
+          try {
+            for (const [step, call] of calls.entries()) {
+              began = step + 1;
+              await action.beforeWallet?.(call, step);
+            }
+          } catch (error) {
+            await released();
+            throw error;
+          }
+        },
+        beforeSend: () => {
+          action.assertWriteState?.();
+          unchanged();
+          if (!adapter.isSafe())
+            throw new ReviewLineError(
+              "Wallet connection changed. Review the transaction again.",
+            );
+          if (adapter.chainId() !== batched.chainId)
+            throw new ReviewLineError(
+              "Your wallet changed networks. Review the transaction again.",
+            );
+          if (adapter.account()?.toLowerCase() !== account.toLowerCase())
+            throw new ReviewLineError(ACCOUNT_CHANGED);
+        },
+        onBeforeWriteAborted: released,
+        onWriteRejected: released,
+        onWriteSubmitted: async (submitted) => {
+          gate.afterSubmit(submitted);
+          // Every step went: each is told, whatever an earlier callback does.
+          const failures: unknown[] = [];
+          for (const [step, call] of calls.entries())
+            try {
+              await action.onSubmitted?.(call, step, submitted, {
+                safe: true,
+                adopted: false,
+              });
+            } catch (error) {
+              failures.push(error);
+            }
+          if (failures.length) throw failures[0];
+        },
+        write: async () => {
+          const id = await adapter.sendCalls!(
+            batched.chainId,
+            sent.map(({ to, data, value }) => ({ to, data, value })),
+          );
+          // A Safe app answers with the proposal's safeTxHash; anything else can't be followed.
+          if (typeof id !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(id))
+            throw new ReviewLineError(SAFE_BATCH_UNFOLLOWABLE_LINE);
+          return id as Hex;
+        },
+        onPhase: (phase) => progress(phase),
+        guard: action.guard,
+      });
+    });
+    progress("proposed", hash);
+    return { status: "proposed", step: 0, safeTxHash: hash, ...signed };
   }
 
   // Saved before the first wallet call, once the review is confirmed.
@@ -842,6 +1025,33 @@ async function send(
     };
     const client = clientFor(reviewed.chainId);
     const prior = receipts[step - 1];
+    /** Where the step before this one confirmed: this run's receipt, or a resumed run's last completed step. */
+    const confirmedBefore = async (): Promise<
+      ReviewedPriorBlock | undefined
+    > => {
+      if (prior)
+        return {
+          chainId: sent[step - 1].chainId,
+          blockNumber: prior.blockNumber,
+          blockHash: prior.blockHash,
+        };
+      const done = resuming?.record;
+      if (step > 0 || !done?.completed.length) return undefined;
+      const { chainId } = done.calls[done.completed.length - 1];
+      // One read: a receipt that can't be read now (a repriced original) is no block.
+      const receipt = await clientFor(chainId)
+        .getTransactionReceipt({
+          hash: done.completed[done.completed.length - 1],
+        })
+        .catch(() => undefined);
+      return receipt
+        ? {
+            chainId,
+            blockNumber: receipt.blockNumber,
+            blockHash: receipt.blockHash,
+          }
+        : undefined;
+    };
     const priorBlock =
       call.dependsOnPrior &&
       prior &&
@@ -878,7 +1088,8 @@ async function send(
         },
         currentAccount: () => adapter.account(),
         reverify: async () => {
-          await action.reverify?.(call, at);
+          if (action.reverify)
+            await action.reverify(call, at, await confirmedBefore());
           unchanged();
         },
         simulate: async (sending) => {
@@ -1052,6 +1263,11 @@ async function send(
       delete journal.sending;
       journal.completed.push(hash);
       await keep();
+    }
+    try {
+      await action.onConfirmed?.(call, at, receipt);
+    } catch {
+      /* The step went through whatever the site's callback does. */
     }
   }
   onProgress?.({ step: total - 1, total, phase: "done" });

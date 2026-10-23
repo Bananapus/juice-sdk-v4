@@ -94,7 +94,16 @@ describe("published core SDK surfaces", () => {
 
   test("exports the shared web-client runtime boundaries", () => {
     expect(review.submitReviewedContractWrite).toBeTypeOf("function");
-    expect(review.requireContractTransactionReview).toBeTypeOf("function");
+    expect(review.registerReviewHandler).toBeTypeOf("function");
+    // 4.0 has one review path: core's prompt and its minted confirmation.
+    for (const removed of [
+      "registerTransactionReviewHandler",
+      "requestTransactionReview",
+      "requireTransactionReview",
+      "requestContractTransactionReview",
+      "requireContractTransactionReview",
+    ])
+      expect(review).not.toHaveProperty(removed);
     expect(review.gasWithinCap).toBeTypeOf("function");
     expect(bendystrawOperations.compileBendystrawOperation).toBeTypeOf(
       "function",
@@ -343,7 +352,12 @@ describe("published core SDK surfaces", () => {
       "resetWriteHoldsForTests",
       "resetWriteRecoveryForTests",
     ];
-    expect(Object.keys(testing).sort()).toEqual(["REVIEW_REQUESTS", ...resets]);
+    expect(Object.keys(testing).sort()).toEqual([
+      "REVIEW_REQUESTS",
+      "promptReviewForTests",
+      ...resets,
+    ]);
+    expect(review).not.toHaveProperty("promptReviewForTests");
     const reviewSafeRelayr = await import("./review/safeRelayr.js");
     for (const entry of [sdk, review, reviewRelayr, reviewSafeRelayr])
       for (const name of resets) expect(entry).not.toHaveProperty(name);

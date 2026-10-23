@@ -1,4 +1,4 @@
-import { encodeFunctionData, type Hex } from "viem";
+import { encodeFunctionData, numberToHex, type Hex } from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ACCOUNT,
@@ -617,6 +617,178 @@ describe("reviewed sequences", () => {
     const reverify = vi.fn(async (_call: ReviewedCall, _index: number) => {});
     await resumeReviewed(record, { reverify }, deps);
     expect(reverify.mock.calls.map(([, index]) => index)).toEqual([1, 2]);
+  });
+
+  it("reverify gets the prior step's confirmed block, on resume too", async () => {
+    reviewUi();
+    const { deps, record, chain } = await interrupted(
+      [approveCall(), payCall(5n), payCall(6n)],
+      1,
+    );
+    const approved = chain.state.mined.get(hashOf(1))!;
+    const reverify = vi.fn(
+      async (_call: ReviewedCall, _index: number, _prior?: unknown) => {},
+    );
+    await resumeReviewed(record, { reverify }, deps);
+    expect(
+      reverify.mock.calls.map(([, index, prior]) => [index, prior]),
+    ).toEqual([
+      [
+        1,
+        {
+          chainId: 10,
+          blockNumber: approved,
+          blockHash: numberToHex(approved, { size: 32 }),
+        },
+      ],
+      [
+        2,
+        {
+          chainId: 10,
+          blockNumber: chain.state.mined.get(hashOf(2))!,
+          blockHash: numberToHex(chain.state.mined.get(hashOf(2))!, {
+            size: 32,
+          }),
+        },
+      ],
+    ]);
+
+    // A prior receipt that can't be read is no block, at once: the check reads the latest.
+    const second = await interrupted(
+      [approveCall(), payCall(5n), payCall(6n)],
+      1,
+    );
+    second.chain.state.mined.delete(hashOf(1));
+    const unread = vi.fn(
+      async (_call: ReviewedCall, _index: number, _prior?: unknown) => {},
+    );
+    await resumeReviewed(second.record, { reverify: unread }, second.deps);
+    expect(unread.mock.calls[0][2]).toBeUndefined();
+
+    const fresh = setup();
+    const first = vi.fn(
+      async (_call: ReviewedCall, _index: number, _prior?: unknown) => {},
+    );
+    await sendReviewed(
+      action([approveCall()], { reverify: first }),
+      fresh.deps,
+    );
+    expect(first.mock.calls[0][2]).toBeUndefined();
+  });
+
+  it("tells the site each step it confirmed, even when a later step stops", async () => {
+    reviewUi();
+    const { deps, wallet } = setup();
+    const confirmed = vi.fn(async () => {
+      throw new Error("the site's record failed");
+    });
+    const sent = wallet.adapter.sendTransaction.getMockImplementation()!;
+    let count = 0;
+    wallet.adapter.sendTransaction.mockImplementation(async (tx) => {
+      if (count++ === 1) throw rejected();
+      return sent(tx);
+    });
+    const approve = approveCall();
+    await expect(
+      sendReviewed(
+        action([approve, payCall(5n)], {
+          scope: SCOPE,
+          onConfirmed: confirmed,
+        }),
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: 4001 });
+    expect(confirmed).toHaveBeenCalledTimes(1);
+    expect(confirmed.mock.calls[0]).toEqual([
+      approve,
+      0,
+      expect.objectContaining({
+        transactionHash: hashOf(1),
+        status: "success",
+      }),
+    ]);
+  });
+
+  it("an aborted review sends nothing and journals nothing", async () => {
+    const prompts = reviewUi(() => new Promise(() => {}));
+    const { deps, wallet, storage } = setup();
+    const controller = new AbortController();
+    const run = sendReviewed(
+      action([approveCall(), payCall(5n)], {
+        scope: SCOPE,
+        signal: controller.signal,
+      }),
+      deps,
+    );
+    await vi.waitFor(() => expect(prompts).toHaveLength(1));
+    controller.abort();
+    await expect(run).rejects.toThrow("Review closed. Nothing was sent.");
+    expect(prompts[0].signal.aborted).toBe(true);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toBeNull();
+  });
+
+  it("a resumed run whose last step settled while away reports done", async () => {
+    reviewUi();
+    const context = setup();
+    context.wallet.state.safe = true;
+    let executed = false;
+    const hold: WriteHold = {
+      ...context.hold,
+      open: (...args) => {
+        const handle = context.hold.open(...args);
+        const proposal = handle.peek();
+        return executed && proposal.status !== "clear"
+          ? {
+              ...handle,
+              state: async () => ({
+                status: "clear",
+                reservation: proposal.reservation,
+                settled: { result: "success", hash: hashOf(0xe1) },
+              }),
+              acknowledge: vi.fn(async () => handle.peek()),
+            }
+          : handle;
+      },
+    };
+    const deps = { ...context.deps, hold };
+    await sendReviewed(action([approveCall()], { scope: SCOPE }), deps);
+    const record = findReviewedSequence(SCOPE, ACCOUNT, {
+      storage: context.storage,
+    })!;
+    executed = true;
+    context.chain.state.mined.set(hashOf(0xe1), 105n);
+    context.progress.length = 0;
+    const onConfirmed = vi.fn();
+    await expect(
+      resumeReviewed(record, { onConfirmed }, deps),
+    ).resolves.toMatchObject({
+      status: "done",
+      hashes: [hashOf(0xe1)],
+    });
+    expect(context.progress).toEqual([{ step: 0, total: 1, phase: "done" }]);
+    // The step that settled while away is told too.
+    expect(onConfirmed).toHaveBeenCalledWith(
+      expect.objectContaining({ to: approveCall().to }),
+      0,
+      expect.objectContaining({ transactionHash: hashOf(0xe1) }),
+    );
+  });
+
+  it("a resumed Safe app sequence is never folded into one batch", async () => {
+    const prompts = reviewUi();
+    const { deps, record, wallet } = await interrupted(
+      [approveCall(), payCall(5n), payCall(6n)],
+      1,
+    );
+    wallet.state.safe = true;
+    const sendCalls = vi.fn(async () => `0x${"ab".repeat(32)}`);
+    const adapter = { ...deps.adapter, sendCalls };
+    await expect(
+      resumeReviewed(record, { batch: true } as never, { ...deps, adapter }),
+    ).resolves.toMatchObject({ status: "proposed", step: 1 });
+    expect(sendCalls).not.toHaveBeenCalled();
+    expect(prompts).toHaveLength(2);
   });
 
   it("refuses, before any review, an argument it could not save exactly", async () => {

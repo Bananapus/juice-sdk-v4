@@ -1031,7 +1031,10 @@ settle polls and tab listeners and drops this tab's lock queues and
 held-write memory; `resetSafeRelayrForTests()` stops every Safe Relayr watch
 and forgets its remembered reviews. Call them in `afterEach`. The same entry
 exports `REVIEW_REQUESTS`, one review request per decoder route, for each
-client's dialog rendering tests.
+client's dialog rendering tests, and `promptReviewForTests(request)`, which
+prompts the page's registered review handler exactly as a send does and
+returns `{ model, outcome }` (`outcome` is "confirmed" or "cancelled"), so a
+dialog test drives the real handler instead of mocking core.
 
 ### Shared intents
 

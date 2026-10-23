@@ -352,7 +352,9 @@ async function sendUnder(
 
 describe("the shared check copy", () => {
   it("is the one line, warning and 'I checked it. ...' label", () => {
-    expect(SAVED_ATTEMPT_CHECK_LINE).toMatch(/cannot be confirmed from here/);
+    expect(SAVED_ATTEMPT_CHECK_LINE).toMatch(
+      /Check your wallet before sending again/,
+    );
     expect(SAVED_ATTEMPT_CHECK_WARNING).toMatch(/send it twice/);
     expect(checkedItLabel()).toBe("I checked it. Review it again.");
     expect(checkedItLabel("Create again")).toBe("I checked it. Create again.");

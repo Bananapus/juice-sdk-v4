@@ -11,7 +11,7 @@
     "check:package": "node scripts/check-package-budgets.mjs",
     "check:review-react": "node scripts/check-review-react.mjs",
     "protocol:check": "node --import tsx scripts/check-v6-protocol.ts",
-    "wallet:check": "node packages/core/bin/wallet-check.mjs --root packages/core/src --root packages/react/src --root packages/connect/src --inventory test/wallet-boundaries.json --exclude \"**/generated/**\" --exclude \"**/*.test.*\" --exclude \"**/*.spec.*\"",
+    "wallet:check": "node packages/core/bin/wallet-check.mjs --root packages/core/src --root packages/react/src --root packages/connect/src --inventory test/wallet-boundaries.json --exclude \"**/generated/**\" --exclude \"**/*.test.*\" --exclude \"**/*.spec.*\" --exclude \"**/__fixtures__/**\"",
     "dead-code:check": "knip --exclude duplicates",
     "deps:check": "npm ls --all --omit=dev",
     "format:ratchet": "node scripts/check-format-ratchet.mjs",

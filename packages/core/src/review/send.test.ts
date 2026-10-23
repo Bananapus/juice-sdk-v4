@@ -35,8 +35,12 @@ import {
   findReviewedSequence,
   REVIEWED_SEQUENCE_HELD_LINE,
 } from "./sequence.js";
+import { encodeMultiSend, MULTI_SEND_CALL_ONLY } from "../safe.js";
+import { safeBatchIntent } from "./intents.js";
+import { ReviewedCallRevertedError } from "./lineError.js";
 import {
-  ReviewedCallRevertedError,
+  SAFE_BATCH_UNFOLLOWABLE_LINE,
+  SAFE_BATCH_UNSUPPORTED_LINE,
   sendReviewed,
   type ReviewedCall,
 } from "./send.js";
@@ -1351,5 +1355,157 @@ describe("sendReviewed", () => {
         deps,
       ),
     ).resolves.toMatchObject({ status: "done" });
+  });
+});
+
+describe("a Safe app batch", () => {
+  const PROPOSAL = `0x${"ab".repeat(32)}` as Hex;
+  /** A Safe app connection that takes `wallet_sendCalls` as one proposal. */
+  function safeApp(answer: () => Promise<string> = async () => PROPOSAL) {
+    const context = setup();
+    context.wallet.state.safe = true;
+    const sendCalls = vi.fn(
+      async (_chainId: number, _calls: readonly unknown[]) => answer(),
+    );
+    const adapter = { ...context.wallet.adapter, sendCalls };
+    return { ...context, sendCalls, deps: { ...context.deps, adapter } };
+  }
+  const batchHold = (calls: ReviewedCall[]) => ({
+    chainId: 10,
+    account: ACCOUNT,
+    safe: true,
+    call: {
+      to: MULTI_SEND_CALL_ONLY,
+      data: encodeMultiSend(
+        calls.map(({ to, data, value }) => ({ to, data, value: value ?? 0n })),
+      ),
+      value: 0n,
+    },
+    namespace: safeBatchIntent({ chainId: 10, safe: ACCOUNT, calls }),
+  });
+
+  it("proposes every call as one Safe transaction under one hold", async () => {
+    const prompts = reviewUi();
+    const { wallet, deps, sendCalls, hold, storage } = safeApp();
+    const calls = [approveCall(), payCall(5n, { dependsOnPrior: true })];
+    const onSubmitted = vi.fn();
+    const result = await sendReviewed(
+      action(calls, { batch: true, scope: "pay", onSubmitted }),
+      deps,
+    );
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0].model.calls).toHaveLength(2);
+    expect(sendCalls).toHaveBeenCalledTimes(1);
+    expect(sendCalls).toHaveBeenCalledWith(
+      10,
+      calls.map(({ to, data, value }) => ({ to, data, value: value ?? 0n })),
+    );
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      status: "proposed",
+      step: 0,
+      safeTxHash: PROPOSAL,
+    });
+    expect(
+      onSubmitted.mock.calls.map(([, step, hash]) => [step, hash]),
+    ).toEqual([
+      [0, PROPOSAL],
+      [1, PROPOSAL],
+    ]);
+    expect(hold.open(batchHold(calls)).peek().status).not.toBe("clear");
+    // One Safe transaction: nothing to resume step by step.
+    expect(findReviewedSequence("pay", ACCOUNT, { storage })).toBeNull();
+  });
+
+  it("a wallet's refusal releases the hold and tells every step", async () => {
+    reviewUi();
+    const { deps, hold } = safeApp(async () => {
+      throw Object.assign(new Error("User rejected"), { code: 4001 });
+    });
+    const calls = [approveCall(), payCall(5n)];
+    const onUnsent = vi.fn();
+    await expect(
+      sendReviewed(
+        action(calls, { batch: true, onUnsent, beforeWallet: vi.fn() }),
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: 4001 });
+    expect(onUnsent.mock.calls.map(([, step]) => step)).toEqual([0, 1]);
+    expect(hold.open(batchHold(calls)).peek().status).toBe("clear");
+  });
+
+  it("an ambiguous failure keeps the batch held", async () => {
+    reviewUi();
+    const { deps, hold } = safeApp(async () => {
+      throw new Error("The request took too long to respond.");
+    });
+    const calls = [approveCall(), payCall(5n)];
+    await expect(
+      sendReviewed(action(calls, { batch: true }), deps),
+    ).rejects.toThrow("too long");
+    expect(hold.open(batchHold(calls)).peek().status).not.toBe("clear");
+  });
+
+  it("an id that is not a Safe transaction hash keeps the batch held", async () => {
+    reviewUi();
+    const { deps, hold } = safeApp(async () => "batch-1");
+    const calls = [approveCall(), payCall(5n)];
+    await expect(
+      sendReviewed(action(calls, { batch: true }), deps),
+    ).rejects.toThrow(SAFE_BATCH_UNFOLLOWABLE_LINE);
+    expect(hold.open(batchHold(calls)).peek().status).not.toBe("clear");
+  });
+
+  it("refuses before the review what one proposal can't carry, or a changed call", async () => {
+    const prompts = reviewUi();
+    const { deps, sendCalls } = safeApp();
+    const other = { ...payCall(5n), chainId: 8453 };
+    await expect(
+      sendReviewed(action([approveCall(), other], { batch: true }), deps),
+    ).rejects.toThrow(SAFE_BATCH_UNSUPPORTED_LINE);
+    const { sendCalls: _none, ...plain } = deps.adapter;
+    await expect(
+      sendReviewed(action([approveCall(), payCall(5n)], { batch: true }), {
+        ...deps,
+        adapter: plain,
+      }),
+    ).rejects.toThrow(SAFE_BATCH_UNSUPPORTED_LINE);
+    expect(prompts).toHaveLength(0);
+
+    const pay = payCall(5n);
+    reviewUi(async (prompt) => {
+      pay.value = 8n;
+      return prompt.confirmation;
+    });
+    await expect(
+      sendReviewed(action([approveCall(), pay], { batch: true }), deps),
+    ).rejects.toThrow(CHANGED);
+    expect(sendCalls).not.toHaveBeenCalled();
+  });
+
+  it("tells every step its proposal, whatever an earlier callback does", async () => {
+    reviewUi();
+    const { deps } = safeApp();
+    const onSubmitted = vi.fn(async (_call: ReviewedCall, step: number) => {
+      if (step === 0) throw new Error("the site's record failed");
+    });
+    await expect(
+      sendReviewed(
+        action([approveCall(), payCall(5n)], { batch: true, onSubmitted }),
+        deps,
+      ),
+    ).rejects.toBeInstanceOf(SubmittedContractWriteError);
+    expect(onSubmitted.mock.calls.map(([, step]) => step)).toEqual([0, 1]);
+  });
+
+  it("an ordinary wallet sends a batch's calls one by one", async () => {
+    reviewUi();
+    const { wallet, deps } = setup();
+    const result = await sendReviewed(
+      action([approveCall(), payCall(5n)], { batch: true, scope: "pay" }),
+      deps,
+    );
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ status: "done" });
   });
 });

@@ -49,6 +49,8 @@ import {
   type ReviewedWriteRecoveryRecord,
 } from "./writeRecovery.js";
 import { isBytes32 } from "../untrusted.js";
+import { encodeMultiSend, MULTI_SEND_CALL_ONLY } from "../safe.js";
+import { safeBatchIntent } from "./intents.js";
 import { atCanonicalFinalizedBlock } from "./relayr.js";
 import type { ReviewedCall } from "./send.js";
 import { TAB, tabShared } from "./tabState.js";
@@ -2433,4 +2435,32 @@ export function openStepHold(
     },
     call.legacy ? { legacy: [...call.legacy] } : undefined,
   );
+}
+
+/**
+ * The one call a Safe app proposes a batch of `calls` as (`ReviewedAction`'s
+ * `batch`), as its hold holds it: their MultiSend, under the first call's
+ * intent, or else `safeBatchIntent` of the calls.
+ */
+export function safeBatchCall(
+  account: Address,
+  calls: readonly Pick<
+    ReviewedCall,
+    "chainId" | "to" | "data" | "value" | "intent" | "legacy"
+  >[],
+) {
+  const [{ chainId, intent, legacy }] = calls;
+  const inner = calls.map(({ to, data, value }) => ({
+    to,
+    data,
+    value: value ?? 0n,
+  }));
+  return {
+    chainId,
+    to: MULTI_SEND_CALL_ONLY,
+    data: encodeMultiSend(inner),
+    value: 0n,
+    intent: intent ?? safeBatchIntent({ chainId, safe: account, calls: inner }),
+    legacy,
+  };
 }

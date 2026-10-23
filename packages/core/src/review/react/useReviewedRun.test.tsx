@@ -17,8 +17,14 @@ import {
   REVIEWED_ENGINE_LOAD_LINE,
 } from "../messages.js";
 import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
-import { REVIEWED_SEQUENCE_UNFINISHED_LINE } from "../sequence.js";
 import {
+  findReviewedSequence,
+  REVIEWED_SEQUENCE_HELD_LINE,
+  REVIEWED_SEQUENCE_UNCERTAIN_LINE,
+  REVIEWED_SEQUENCE_UNFINISHED_LINE,
+} from "../sequence.js";
+import {
+  REVIEWED_RUN_BUSY_LINE,
   REVIEWED_RUN_SCOPE_LINE,
   useReviewedRun,
   type UseReviewedRunDeps,
@@ -318,6 +324,126 @@ describe("useReviewedRun", () => {
     expect(seen.current!.held).toBeNull();
   });
 
+  test("an aborted review ends the run cancelled, ready to run again", async () => {
+    const prompts = reviewUi(() => new Promise(() => {}));
+    const { wallet, deps } = setup();
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const controller = new AbortController();
+    let running!: ReturnType<UseReviewedRunResult["run"]>;
+    await act(async () => {
+      running = seen.current!.run({
+        calls: [payCall()],
+        signal: controller.signal,
+      });
+    });
+    await act(() => vi.waitFor(() => expect(prompts).toHaveLength(1)));
+    expect(seen.current!.phase).toBe("review");
+    await act(async () => {
+      controller.abort();
+      await expect(running).resolves.toBeNull();
+    });
+    expect(seen.current).toMatchObject({ phase: "idle", error: null });
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    reviewUi();
+    await expect(run({ calls: [payCall()] })).resolves.toMatchObject({
+      status: "done",
+    });
+  });
+
+  test("an abort while the engine loads ends the run cancelled", async () => {
+    const prompts = reviewUi();
+    const { deps } = setup();
+    const { seen } = harness({
+      ...deps,
+      account: ACCOUNT,
+      engine: () => new Promise(() => {}),
+    });
+    const controller = new AbortController();
+    let running!: ReturnType<UseReviewedRunResult["run"]>;
+    await act(async () => {
+      running = seen.current!.run({
+        calls: [payCall()],
+        signal: controller.signal,
+      });
+    });
+    await act(async () => {
+      controller.abort();
+      await expect(running).resolves.toBeNull();
+    });
+    expect(seen.current).toMatchObject({ phase: "idle", error: null });
+    expect(prompts).toHaveLength(0);
+  });
+
+  test("preloads the engine once, and again only after a failed load", async () => {
+    reviewUi();
+    const { deps } = setup();
+    const engine = vi.fn(() => import("../send.js"));
+    const { seen, run } = harness({ ...deps, account: ACCOUNT, engine });
+    // Mounting preloads it.
+    expect(engine).toHaveBeenCalledTimes(1);
+    for (let i = 0; i < 3; i += 1) seen.current!.preload();
+    await run({ calls: [payCall()] });
+    expect(engine).toHaveBeenCalledTimes(1);
+
+    const failing = vi
+      .fn<() => Promise<typeof import("../send.js")>>()
+      .mockRejectedValueOnce(new Error("chunk failed"))
+      .mockImplementation(() => import("../send.js"));
+    const again = harness({ ...deps, account: ACCOUNT, engine: failing });
+    await act(() => vi.waitFor(() => expect(failing).toHaveBeenCalled()));
+    await expect(again.run({ calls: [payCall(6n)] })).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(failing).toHaveBeenCalledTimes(2);
+  });
+
+  test("discards a released sequence, and refuses while a step is held or a run is open", async () => {
+    const prompts = reviewUi();
+    const { wallet, deps, storage } = setup();
+    const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+    wallet.adapter.sendTransaction.mockImplementation(async (tx) => {
+      if (wallet.adapter.sendTransaction.mock.calls.length === 2)
+        throw new Error("The request took too long to respond.");
+      return send(tx);
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const scope = "pay:project-1";
+    const action = { calls: [approveCall(), payCall()], scope };
+    await expect(run(action)).resolves.toMatchObject({ status: "failed" });
+    // Its second step is held: nothing is discarded.
+    await act(async () => {
+      await expect(seen.current!.discard(scope)).rejects.toThrow(
+        REVIEWED_SEQUENCE_HELD_LINE,
+      );
+    });
+    await vi.waitFor(() => expect(seen.current!.exitAction).not.toBeNull());
+    await act(async () => {
+      await seen.current!.exitAction!.run();
+    });
+    // Released: its outcome can't be known, so the same action is refused.
+    await expect(run(action)).resolves.toMatchObject({
+      status: "failed",
+      error: REVIEWED_SEQUENCE_UNCERTAIN_LINE,
+    });
+    await act(async () => {
+      await seen.current!.discard(scope);
+    });
+    expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+    expect(seen.current).toMatchObject({ phase: "idle", error: null });
+
+    // While a run's review is open, nothing is discarded under it.
+    reviewUi(() => new Promise(() => {}));
+    await act(async () => {
+      void seen.current!.run({ calls: [payCall(8n)], scope });
+    });
+    await act(async () => {
+      await expect(seen.current!.discard(scope)).rejects.toThrow(
+        REVIEWED_RUN_BUSY_LINE,
+      );
+    });
+    expect(prompts.length).toBeGreaterThan(0);
+  });
+
   test("refuses a run for another account before the review", async () => {
     const prompts = reviewUi();
     const { wallet, deps } = setup();
@@ -481,5 +607,25 @@ describe("useReviewedRun", () => {
       safeTxHash: `0x${"1".padStart(64, "0")}`,
       hash: null,
     });
+  });
+
+  test("follows a Safe app batch as its one proposal", async () => {
+    reviewUi();
+    const { wallet, deps } = setup();
+    wallet.state.safe = true;
+    const proposal = `0x${"ab".repeat(32)}` as const;
+    const adapter = {
+      ...wallet.adapter,
+      sendCalls: vi.fn(async () => proposal),
+    };
+    const { seen, run } = harness({ ...deps, adapter, account: ACCOUNT });
+    await expect(
+      run({ calls: [approveCall(), payCall()], scope: "pay", batch: true }),
+    ).resolves.toMatchObject({ status: "proposed", safeTxHash: proposal });
+    expect(seen.current).toMatchObject({
+      phase: "proposed",
+      safeTxHash: proposal,
+    });
+    await vi.waitFor(() => expect(seen.current!.held).not.toBeNull());
   });
 });

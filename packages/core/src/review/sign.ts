@@ -64,7 +64,22 @@ export type ReviewedSignature =
       request: ReviewedForwardRequest;
     }
   | { kind: "permit2"; authorization: Permit2SignatureAuthorization }
-  | { kind: "message"; chainId: number; message: string };
+  | {
+      kind: "message";
+      chainId: number;
+      message: string;
+      /**
+       * The calls the message lets someone run (a sponsored deploy, say),
+       * shown decoded and bound into the review. The app vouches for them:
+       * core cannot read them out of the text.
+       */
+      calls?: readonly {
+        chainId: number;
+        to: Address;
+        data: Hex;
+        value?: bigint;
+      }[];
+    };
 
 /** One signature as reviewed: the exact payload signed, and how the review shows it. */
 export type PreparedSignature = Readonly<{
@@ -315,14 +330,32 @@ export function prepareSignature(
       );
     }
     case "message": {
-      const { chainId, message } = signature;
+      const { chainId, message, calls } = signature;
       const id = requireChainId(chainId);
       if (typeof message !== "string") {
         throw new ReviewLineError(
           "A message to sign must be text. Nothing was signed.",
         );
       }
-      return prepared(kind, id, { message });
+      if (calls === undefined) return prepared(kind, id, { message });
+      return prepared(
+        kind,
+        id,
+        { message },
+        {
+          calls: [...calls].map((call) => {
+            const { chainId, to, data, value } = call;
+            if (!isHexBytes(data))
+              throw new ReviewLineError("Invalid call data.");
+            return decodeReviewCall({
+              chainId: requireChainId(chainId),
+              to: requireAddress("call target", to),
+              data,
+              value: requireUint("call value", value ?? 0n),
+            });
+          }),
+        },
+      );
     }
   }
   throw new ReviewLineError(
@@ -413,6 +446,8 @@ export async function signReviewed(
     context?: readonly ReviewContextRow[];
     /** Rechecks, after confirm and before each signature, that what was reviewed still holds; it throws to stop. */
     reverify?: () => Promise<void>;
+    /** Withdraws the review while it is open, as `sendReviewed`'s does. */
+    signal?: AbortSignal;
   },
   deps: { adapter: WalletAdapter },
 ): Promise<Hex[]> {
@@ -441,6 +476,7 @@ export async function signReviewed(
     model,
     Promise.resolve({ status: "passed" }),
     Promise.resolve(model),
+    action.signal,
   );
   return signPrepared(prepared, account, adapter, undefined, action.reverify);
 }
