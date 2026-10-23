@@ -148,6 +148,28 @@ describe("errorLine", () => {
     expect(errorLine(new RelayrPaymentNotSentError(new Error("raw")))).toBe(
       "The payment was not sent. Review the payment again.",
     );
+    // The mark another copy of the SDK reads.
+    expect(new RelayrProofError("raw").reviewFixedLine).toBe(true);
+    // Another copy of the SDK (its CommonJS build next to this ESM one) has its own class.
+    class OtherCopyError extends Error {
+      get reviewFixedLine() {
+        return true;
+      }
+      get line() {
+        return "This bundle is already paid. Do not pay again.";
+      }
+    }
+    expect(errorLine(new OtherCopyError("raw"))).toBe(
+      "This bundle is already paid. Do not pay again.",
+    );
+    expect(
+      errorLine(
+        Object.assign(new Error("raw"), {
+          reviewFixedLine: true,
+          line: "Send it to https://evil.example",
+        }),
+      ),
+    ).toBe(NETWORK_ERROR_LINE);
     // A name alone is not an SDK error: only its class carries a line.
     expect(
       errorLine(Object.assign(new Error("raw"), { name: "RelayrProofError" })),

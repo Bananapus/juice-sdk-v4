@@ -42,7 +42,12 @@ export const NETWORK_ERROR_LINE =
 export function errorLine(error: unknown): string {
   if (error instanceof ReviewLineError)
     return transactionMessage(error.message);
-  return error instanceof ReviewFixedLineError
-    ? error.line
-    : NETWORK_ERROR_LINE;
+  // Marked by its class, never by its own fields, so a plain error cannot pose as one.
+  const fixed =
+    error instanceof ReviewFixedLineError ||
+    (error instanceof Error &&
+      !Object.prototype.hasOwnProperty.call(error, "reviewFixedLine") &&
+      (error as { reviewFixedLine?: unknown }).reviewFixedLine === true);
+  const line = fixed ? (error as { line?: unknown }).line : undefined;
+  return typeof line === "string" ? line : NETWORK_ERROR_LINE;
 }

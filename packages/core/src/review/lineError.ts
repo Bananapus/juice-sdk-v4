@@ -15,6 +15,11 @@ export class ReviewLineError extends Error {}
  */
 export abstract class ReviewFixedLineError extends Error {
   abstract readonly line: string;
+
+  /** Its class's mark, which `errorLine` reads: the SDK's ESM and CommonJS copies each have their own class. */
+  get reviewFixedLine(): true {
+    return true;
+  }
 }
 
 /**
