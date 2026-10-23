@@ -119,6 +119,17 @@ function reviewAbis(): ReviewAbis {
   });
 }
 
+type AbiError = Extract<Abi[number], { type: "error" }>;
+
+let errors: readonly AbiError[] | undefined;
+
+/** Every custom error the SDK's ABIs declare, for reading a revert. */
+export function knownErrorAbi(): readonly AbiError[] {
+  return (errors ??= Object.values(reviewAbis()).flatMap((abi) =>
+    abi.filter((item): item is AbiError => item.type === "error"),
+  ));
+}
+
 let bySelector: ReadonlyMap<string, AbiFunction> | undefined;
 
 /**

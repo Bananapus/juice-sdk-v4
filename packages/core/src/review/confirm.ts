@@ -1,5 +1,8 @@
 import { ReviewLineError } from "./lineError.js";
-import { REVIEWED_SIMULATION_FAILED_LINE } from "./messages.js";
+import {
+  REVIEWED_SIMULATION_FAILED_LINE,
+  REVIEWED_SIMULATION_UNEXPLAINED_LINE,
+} from "./messages.js";
 import type { Hex } from "viem";
 import type { ReviewModel } from "./model.js";
 import {
@@ -22,7 +25,12 @@ export type ReviewConfirmation = {
 /** The review-time simulation: it runs while the review is open. */
 export type ReviewSimulation =
   | { status: "passed" }
-  | { status: "failed"; message: string }
+  | {
+      status: "failed";
+      message: string;
+      /** The message says why it reverts: its revert decoded. */
+      explained?: boolean;
+    }
   | { status: "unavailable"; message: string };
 
 export type ReviewPrompt = {
@@ -128,7 +136,11 @@ export async function promptReview(
   // The node's own words stay the cause: the review already showed them.
   if (simulated?.status === "failed")
     throw Object.defineProperty(
-      new ReviewLineError(REVIEWED_SIMULATION_FAILED_LINE),
+      new ReviewLineError(
+        simulated.explained
+          ? REVIEWED_SIMULATION_FAILED_LINE
+          : REVIEWED_SIMULATION_UNEXPLAINED_LINE,
+      ),
       "cause",
       { value: simulated.message, configurable: true, writable: true },
     );

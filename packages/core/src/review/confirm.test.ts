@@ -1,4 +1,7 @@
-import { REVIEWED_SIMULATION_FAILED_LINE } from "./messages.js";
+import {
+  REVIEWED_SIMULATION_FAILED_LINE,
+  REVIEWED_SIMULATION_UNEXPLAINED_LINE,
+} from "./messages.js";
 import type { Address, Hex } from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -186,12 +189,23 @@ describe("core-issued review confirmation", () => {
     await expect(
       ask(
         model,
-        Promise.resolve({ status: "failed", message: "Pay cannot run: nope" }),
+        Promise.resolve({
+          status: "failed",
+          message: "Pay cannot run: nope",
+          explained: true,
+        }),
       ),
     ).rejects.toMatchObject({
       message: REVIEWED_SIMULATION_FAILED_LINE,
       cause: expect.stringContaining("Pay cannot run: nope"),
     });
+    // A revert whose reason the review could not read never says it shows why.
+    await expect(
+      ask(
+        model,
+        Promise.resolve({ status: "failed", message: "Pay cannot run" }),
+      ),
+    ).rejects.toMatchObject({ message: REVIEWED_SIMULATION_UNEXPLAINED_LINE });
     await expect(
       ask(
         model,

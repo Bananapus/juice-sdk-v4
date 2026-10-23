@@ -49,9 +49,13 @@ import {
   type ReviewedSignature,
 } from "./sign.js";
 import {
+  isRevert,
+  REVERT_UNKNOWN_LINE,
   revertDetail,
+  revertReason,
   simulateCallSequence,
   simulateStateChangingTransaction,
+  simulationFailure,
 } from "./simulation.js";
 import type { TransactionReviewRequest } from "./transactionReview.js";
 import {
@@ -353,52 +357,6 @@ function labelOf(call: ReviewedCall, index: number): string {
 }
 
 /**
- * Whether a failed simulation is the call reverting, not the node failing:
- * EIP-1474 code 3, viem's contract-revert errors, or the node's own text
- * saying it reverted, in the error's first eight causes. A viem error is read
- * by its `details`, since its `message` quotes the request.
- */
-function reverted(error: unknown): boolean {
-  let current = error;
-  for (
-    let depth = 0;
-    depth < 8 && current && typeof current === "object";
-    depth += 1
-  ) {
-    const item = current as {
-      code?: unknown;
-      name?: unknown;
-      details?: unknown;
-      shortMessage?: unknown;
-      message?: unknown;
-      cause?: unknown;
-    };
-    if (
-      item.code === 3 ||
-      item.name === "ContractFunctionRevertedError" ||
-      item.name === "RawContractError" ||
-      item.name === "ExecutionRevertedError" ||
-      // A failed call that returned no revert data.
-      item.name === "ContractFunctionZeroDataError" ||
-      item.name === "AbiDecodingZeroDataError"
-    ) {
-      return true;
-    }
-    // A wrapper that carries its cause (simulateCallSequence's, which names
-    // the call) is read through that cause, never by its own text.
-    const text =
-      typeof item.details === "string"
-        ? item.details
-        : typeof item.shortMessage === "string" || "cause" in item
-          ? undefined
-          : item.message;
-    if (typeof text === "string" && /revert/i.test(text)) return true;
-    current = item.cause;
-  }
-  return false;
-}
-
-/**
  * The latest block, or `minimum` while the node has not reached it: never
  * state from before a prerequisite took effect, never stale state after it.
  */
@@ -444,6 +402,7 @@ async function reviewSimulation(
             gas: sent[index].gas,
             label: labelOf(calls[index], index),
             dependsOnPrior: calls[index].dependsOnPrior,
+            abi: calls[index].abi,
           })),
         });
       } else if (!(calls[steps[0]].dependsOnPrior && steps[0] > 0)) {
@@ -461,13 +420,21 @@ async function reviewSimulation(
       }
       return { status: "passed" };
     } catch (error) {
-      const message =
-        steps.length > 1
-          ? revertDetail(error)
-          : `${labelOf(calls[steps[0]], steps[0])} cannot run on ${chainName}: ${revertDetail(error)}`;
-      return reverted(error)
-        ? { status: "failed", message }
-        : { status: "unavailable", message };
+      if (!isRevert(error))
+        return { status: "unavailable", message: SIMULATION_UNAVAILABLE };
+      const reason = revertReason(
+        error,
+        steps.flatMap((index) => calls[index].abi ?? []),
+      );
+      return {
+        status: "failed",
+        // A sequence's failure is the SDK's line naming its call.
+        message:
+          error instanceof ReviewLineError
+            ? error.message
+            : `${labelOf(calls[steps[0]], steps[0])} cannot run on ${chainName}: ${reason ?? REVERT_UNKNOWN_LINE}`,
+        explained: reason !== null,
+      };
     }
   });
   // A revert on one chain is reported at once, whatever the others still wait on.
@@ -899,6 +866,7 @@ async function send(
               ...call,
               label: labelOf(calls[step], step),
               dependsOnPrior: calls[step].dependsOnPrior,
+              abi: calls[step].abi,
             })),
           });
           return sending;
@@ -1110,6 +1078,11 @@ async function send(
               from: account,
               ...tx,
               gas,
+            }).catch((error: unknown) => {
+              throw simulationFailure(
+                `${labelOf(call, at)} cannot run on ${client.chain?.name ?? `chain ${sending.chainId}`}: ${revertDetail(error, call.abi)}`,
+                error,
+              );
             }),
             // A Safe app signs the sent gas as safeTxGas; 0 makes a failed call revert.
             safe || gas !== undefined

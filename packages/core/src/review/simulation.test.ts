@@ -3,7 +3,10 @@ import type { AddressInfo } from "node:net";
 import {
   createPublicClient,
   custom,
+  encodeAbiParameters,
+  encodeErrorResult,
   http,
+  parseAbi,
   type Address,
   type Hex,
   type PublicClient,
@@ -18,7 +21,13 @@ import {
   it,
   vi,
 } from "vitest";
+import { jbMultiTerminalAbi } from "../generated/abi/jbMultiTerminalAbi.js";
+import { ReviewLineError } from "./lineError.js";
 import {
+  REVERT_UNKNOWN_LINE,
+  revertDetail,
+  revertReason,
+  SIMULATION_NO_ANSWER_LINE,
   simulateCallSequence,
   simulateStateChangingTransaction,
   TRANSACTION_SIMULATION_GAS,
@@ -26,6 +35,117 @@ import {
 } from "./simulation.js";
 
 const FROM = "0x1111111111111111111111111111111111111111" as Address;
+
+/** A node's revert of `data`, as viem's eth_call surfaces it. */
+const revert = (data: Hex) =>
+  Object.assign(new Error("execution reverted"), {
+    code: 3,
+    data,
+    shortMessage: "Execution reverted: https://node.example/key",
+  });
+const errorString = (reason: string) =>
+  `0x08c379a0${encodeAbiParameters([{ type: "string" }], [reason]).slice(2)}` as Hex;
+
+describe("revert reasons", () => {
+  it("decodes Error(string), panics and custom errors into one short line", () => {
+    expect(revertDetail(revert(errorString("Allowance too low")))).toBe(
+      'The contract refused: "Allowance too low".',
+    );
+    expect(
+      revertDetail(
+        revert(
+          `0x4e487b71${encodeAbiParameters([{ type: "uint256" }], [17n]).slice(2)}`,
+        ),
+      ),
+    ).toBe("The contract stopped on an arithmetic overflow.");
+    expect(
+      revertDetail(
+        revert(
+          `0x4e487b71${encodeAbiParameters([{ type: "uint256" }], [99n]).slice(2)}`,
+        ),
+      ),
+    ).toBe("The contract stopped on an internal error.");
+    // The SDK's own ABIs name a JB error without the call's ABI.
+    expect(
+      revertDetail(
+        revert(
+          encodeErrorResult({
+            abi: jbMultiTerminalAbi,
+            errorName: "JBMultiTerminal_FeeTerminalNotFound",
+            args: [FROM],
+          }),
+        ),
+      ),
+    ).toBe("The contract refused: JBMultiTerminal_FeeTerminalNotFound.");
+    // The call's own ABI names its errors.
+    const abi = parseAbi(["error PoolLocked(uint256 until)"]);
+    const locked = encodeErrorResult({
+      abi,
+      errorName: "PoolLocked",
+      args: [5n],
+    });
+    expect(revertDetail(revert(locked), abi)).toBe(
+      "The contract refused: PoolLocked.",
+    );
+    expect(revertDetail(revert(locked))).toBe(REVERT_UNKNOWN_LINE);
+    const closed = parseAbi(["error Closed()"]);
+    expect(
+      revertDetail(
+        revert(encodeErrorResult({ abi: closed, errorName: "Closed" })),
+        closed,
+      ),
+    ).toBe("The contract refused: Closed.");
+    // A payment revert the SDK knows says what to change.
+    expect(
+      revertReason(
+        revert(
+          `0xecb6c1d6${encodeAbiParameters([{ type: "address" }], [FROM]).slice(2)}`,
+        ),
+      ),
+    ).toMatch(/^[A-Z].*\.$/);
+    // Reverts are found through causes.
+    expect(
+      revertDetail({ cause: { cause: revert(errorString("Paused")) } }),
+    ).toBe('The contract refused: "Paused".');
+  });
+
+  it("never shows error text: unknown data and no data get a fixed line", () => {
+    expect(revertDetail(revert("0xdeadbeef"))).toBe(REVERT_UNKNOWN_LINE);
+    expect(
+      revertDetail(
+        Object.assign(new Error("execution reverted"), {
+          code: 3,
+          shortMessage: "Execution reverted: https://node.example/key",
+        }),
+      ),
+    ).toBe(REVERT_UNKNOWN_LINE);
+    expect(revertDetail(revert(errorString(" \n ")))).toBe(REVERT_UNKNOWN_LINE);
+    expect(revertReason(revert("0xdeadbeef"))).toBeNull();
+    // A node that failed is not a revert.
+    expect(
+      revertDetail(
+        Object.assign(new Error("HTTP request failed."), {
+          shortMessage: "HTTP request failed: https://node.example/key",
+        }),
+      ),
+    ).toBe(SIMULATION_NO_ANSWER_LINE);
+    // A spoofed decoded name is never a sentence.
+    expect(
+      revertDetail({
+        code: 3,
+        errorName: "Send to https://evil.example",
+      }),
+    ).toBe(REVERT_UNKNOWN_LINE);
+  });
+
+  it("quotes a contract's reason on one clipped line", () => {
+    const shown = revertDetail(
+      revert(errorString(`Line one\nline\u202etwo ${"x".repeat(200)}`)),
+    );
+    expect(shown).toMatch(/^The contract refused: "Line one line two x+…"\.$/);
+    expect(shown.length).toBeLessThan(110);
+  });
+});
 const TARGET = "0x2222222222222222222222222222222222222222" as Address;
 
 const rawClient = (result: unknown) =>
@@ -193,21 +313,25 @@ describe("ordered call sequence simulation", () => {
   });
 
   it("names the call that fails and why", async () => {
-    const revert = Object.assign(new Error("execution reverted\ndetails"), {
-      shortMessage: "Allowance too low",
-    });
     await expect(
       simulate(
         sequenceClient(
           vi.fn().mockResolvedValue({
             results: [
               { status: "success" },
-              { status: "failure", error: revert },
+              {
+                status: "failure",
+                error: revert(errorString("Allowance too low")),
+              },
             ],
           }),
         ),
       ),
-    ).rejects.toThrow("Add liquidity cannot run on Base: Allowance too low");
+    ).rejects.toThrow(
+      new ReviewLineError(
+        'Add liquidity cannot run on Base: The contract refused: "Allowance too low".',
+      ),
+    );
     await expect(
       simulate(
         sequenceClient(
@@ -218,7 +342,9 @@ describe("ordered call sequence simulation", () => {
           }),
         ),
       ),
-    ).rejects.toThrow("Approve the pool cannot run on Base: first line");
+    ).rejects.toThrow(
+      `Approve the pool cannot run on Base: ${SIMULATION_NO_ANSWER_LINE}`,
+    );
     // A missing result is never read as success.
     await expect(
       simulate(
@@ -227,7 +353,7 @@ describe("ordered call sequence simulation", () => {
         ),
       ),
     ).rejects.toThrow(
-      "Add liquidity cannot run on Base: The call would revert.",
+      `Add liquidity cannot run on Base: ${SIMULATION_NO_ANSWER_LINE}`,
     );
   });
 
@@ -236,16 +362,20 @@ describe("ordered call sequence simulation", () => {
       simulate(
         sequenceClient(vi.fn().mockRejectedValue(new Error("reverted"))),
       ),
-    ).rejects.toThrow("The batch could not be simulated on Base: reverted");
+    ).rejects.toThrow(
+      new ReviewLineError(
+        `The batch could not be simulated on Base: ${REVERT_UNKNOWN_LINE}`,
+      ),
+    );
     await expect(
       simulate(sequenceClient(vi.fn().mockRejectedValue(undefined))),
     ).rejects.toThrow(
-      "The batch could not be simulated on Base: The call would revert.",
+      `The batch could not be simulated on Base: ${SIMULATION_NO_ANSWER_LINE}`,
     );
     await expect(
       simulate(sequenceClient(vi.fn().mockRejectedValue({ code: -32000 }))),
     ).rejects.toThrow(
-      "The batch could not be simulated on Base: The call would revert.",
+      `The batch could not be simulated on Base: ${SIMULATION_NO_ANSWER_LINE}`,
     );
   });
 
@@ -276,10 +406,12 @@ describe("ordered call sequence simulation", () => {
     }
     const failing = sequenceClient(
       vi.fn().mockRejectedValue({ code: -32601 }),
-      vi.fn().mockRejectedValue(new Error("execution reverted: no allowance")),
+      vi.fn().mockRejectedValue(revert(errorString("no allowance"))),
     );
     await expect(simulate(failing)).rejects.toThrow(
-      "Approve the pool cannot run on Base: execution reverted: no allowance",
+      new ReviewLineError(
+        'Approve the pool cannot run on Base: The contract refused: "no allowance".',
+      ),
     );
   });
 

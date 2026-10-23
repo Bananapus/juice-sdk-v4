@@ -1,5 +1,17 @@
+import {
+  decodeAbiParameters,
+  decodeErrorResult,
+  keccak256,
+  numberToHex,
+  toHex,
+  type Abi,
+  type Address,
+  type Hex,
+  type PublicClient,
+} from "viem";
+import { collectEvidence, decodePayFailure } from "../v6/executionErrors.js";
+import { knownErrorAbi } from "./decodeCall.js";
 import { ReviewLineError } from "./lineError.js";
-import { numberToHex, type Address, type Hex, type PublicClient } from "viem";
 
 /** A generous explicit gas ceiling for a reviewed state-changing preflight. */
 export const TRANSACTION_SIMULATION_GAS = 10_000_000n;
@@ -82,30 +94,172 @@ export type SimulatedSequenceCall = {
   label: string;
   /** Needs an earlier call's effect (an allowance, a hook), so it cannot run alone. */
   dependsOnPrior?: boolean;
+  /** The call's ABI, whose custom errors name a revert. */
+  abi?: Abi;
 };
 
-/** A failed call's one-line reason: viem's short message, or the first line of the error. */
-export function revertDetail(error: unknown): string {
-  if (
-    error instanceof Error &&
-    "shortMessage" in error &&
-    typeof error.shortMessage === "string"
-  ) {
-    return error.shortMessage;
-  }
-  return error instanceof Error
-    ? error.message.split("\n")[0]
-    : "The call would revert.";
+/** The line for a revert whose reason the review cannot read. */
+export const REVERT_UNKNOWN_LINE =
+  "The call would revert, and the review could not read why.";
+
+/** The line for a simulation the node did not answer. */
+export const SIMULATION_NO_ANSWER_LINE =
+  "The node did not answer the simulation.";
+
+/** Solidity's panic causes, by code. */
+const PANICS: Readonly<Record<string, string>> = {
+  "1": "a failed assertion",
+  "17": "an arithmetic overflow",
+  "18": "a division by zero",
+  "33": "an invalid enum value",
+  "34": "bad storage data",
+  "49": "an empty array pop",
+  "50": "an out-of-bounds index",
+  "65": "an out-of-memory error",
+  "81": "an uninitialized function",
+};
+
+const ERROR_STRING = "0x08c379a0";
+const PANIC = "0x4e487b71";
+const IDENTIFIER = /^[A-Za-z_$][\w$]{0,99}$/u;
+
+/** A contract's reason text, quoted: control, format and line characters dropped, clipped. */
+function quoted(reason: string): string | null {
+  const text = reason
+    .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+  if (!text) return null;
+  return `"${text.length > 80 ? `${text.slice(0, 79)}…` : text}"`;
 }
 
-/** An error whose `cause` is what the node or the call answered. */
-function withCause(message: string, cause: unknown): Error {
-  // Not the SDK's line: it quotes the node's answer.
-  return Object.defineProperty(new Error(message), "cause", {
-    value: cause,
-    configurable: true,
-    writable: true,
-  });
+/**
+ * Why a call reverted, decoded from its revert data, in one short line: a
+ * payment revert the SDK knows says what to change; `Error(string)` shows its
+ * reason quoted; a panic names its cause; a custom error from `abi` (the
+ * call's) or the SDK's ABIs shows its name. Null when there is no revert data
+ * or it decodes to nothing known. Error text (viem's `shortMessage`, a node's
+ * message) is never read: it can quote a request or its URL.
+ */
+export function revertReason(error: unknown, abi?: Abi): string | null {
+  const known = decodePayFailure(error);
+  if (known) return known.message;
+  const { payloads, decoded } = collectEvidence(error);
+  for (const data of payloads) {
+    const selector = data.slice(0, 10).toLowerCase();
+    const rest = `0x${data.slice(10)}` as Hex;
+    try {
+      if (selector === ERROR_STRING) {
+        const shown = quoted(
+          decodeAbiParameters([{ type: "string" }], rest)[0],
+        );
+        if (shown) return `The contract refused: ${shown}.`;
+        continue;
+      }
+      if (selector === PANIC) {
+        const [code] = decodeAbiParameters([{ type: "uint256" }], rest);
+        return `The contract stopped on ${PANICS[code.toString()] ?? "an internal error"}.`;
+      }
+      const errors = [...(abi ?? []), ...knownErrorAbi()];
+      // viem cannot decode an error that has no arguments.
+      const name =
+        data.length === 10
+          ? errors.flatMap((item) =>
+              item.type === "error" &&
+              !item.inputs.length &&
+              keccak256(toHex(`${item.name}()`)).slice(0, 10) === selector
+                ? [item.name]
+                : [],
+            )[0]
+          : decodeErrorResult({ abi: errors, data: data as Hex }).errorName;
+      if (name && IDENTIFIER.test(name))
+        return `The contract refused: ${name}.`;
+    } catch {
+      /* Data that decodes to nothing known says nothing. */
+    }
+  }
+  // An error viem typed, when the error carries no data of its own.
+  if (!payloads.length)
+    for (const { errorName } of decoded)
+      if (
+        IDENTIFIER.test(errorName) &&
+        errorName !== "Error" &&
+        errorName !== "Panic"
+      )
+        return `The contract refused: ${errorName}.`;
+  return null;
+}
+
+/**
+ * A failed simulation's one-line reason: {@link revertReason}, or a fixed
+ * line, {@link REVERT_UNKNOWN_LINE} for a revert and
+ * {@link SIMULATION_NO_ANSWER_LINE} otherwise. Never the error's own text.
+ */
+export function revertDetail(error: unknown, abi?: Abi): string {
+  return (
+    revertReason(error, abi) ??
+    (isRevert(error) ? REVERT_UNKNOWN_LINE : SIMULATION_NO_ANSWER_LINE)
+  );
+}
+
+/**
+ * Whether a failed simulation is the call reverting, not the node failing:
+ * EIP-1474 code 3, viem's contract-revert errors, or the node's own text
+ * saying it reverted, in the error's first eight causes. A viem error is read
+ * by its `details`, since its `message` quotes the request.
+ */
+export function isRevert(error: unknown): boolean {
+  let current = error;
+  for (
+    let depth = 0;
+    depth < 8 && current && typeof current === "object";
+    depth += 1
+  ) {
+    const item = current as {
+      code?: unknown;
+      name?: unknown;
+      details?: unknown;
+      shortMessage?: unknown;
+      message?: unknown;
+      cause?: unknown;
+    };
+    if (
+      item.code === 3 ||
+      item.name === "ContractFunctionRevertedError" ||
+      item.name === "RawContractError" ||
+      item.name === "ExecutionRevertedError" ||
+      // A failed call that returned no revert data.
+      item.name === "ContractFunctionZeroDataError" ||
+      item.name === "AbiDecodingZeroDataError"
+    ) {
+      return true;
+    }
+    // A wrapper that carries its cause (simulateCallSequence's, which names
+    // the call) is read through that cause, never by its own text.
+    const text =
+      typeof item.details === "string"
+        ? item.details
+        : typeof item.shortMessage === "string" || "cause" in item
+          ? undefined
+          : item.message;
+    if (typeof text === "string" && /revert/i.test(text)) return true;
+    current = item.cause;
+  }
+  return false;
+}
+
+/**
+ * The error a failed simulation throws, with the answer as its cause: the
+ * SDK's own line (a {@link ReviewLineError}) for a revert, decoded or not; a
+ * plain error, which `errorLine` shows as the network line, for a node that
+ * did not answer.
+ */
+export function simulationFailure(text: string, cause: unknown): Error {
+  return Object.defineProperty(
+    isRevert(cause) ? new ReviewLineError(text) : new Error(text),
+    "cause",
+    { value: cause, configurable: true, writable: true },
+  );
 }
 
 /** Node text saying the method itself is missing: "method not found", "Unsupported method: eth_simulateV1". */
@@ -193,7 +347,7 @@ export async function simulateCallSequence(
     );
   } catch (error) {
     if (!simulationUnsupported(error)) {
-      throw withCause(
+      throw simulationFailure(
         `The batch could not be simulated on ${chainName}: ${revertDetail(error)}`,
         error,
       );
@@ -204,11 +358,11 @@ export async function simulateCallSequence(
     if (sequence) {
       const result = sequence[index];
       if (result?.status === "success") continue;
-      throw withCause(
+      throw simulationFailure(
         `${call.label} cannot run on ${chainName}: ${
           result?.status === "failure"
-            ? revertDetail(result.error)
-            : "The call would revert."
+            ? revertDetail(result.error, call.abi)
+            : SIMULATION_NO_ANSWER_LINE
         }`,
         result?.error,
       );
@@ -223,8 +377,8 @@ export async function simulateCallSequence(
         gas: call.gas,
       });
     } catch (error) {
-      throw withCause(
-        `${call.label} cannot run on ${chainName}: ${revertDetail(error)}`,
+      throw simulationFailure(
+        `${call.label} cannot run on ${chainName}: ${revertDetail(error, call.abi)}`,
         error,
       );
     }
