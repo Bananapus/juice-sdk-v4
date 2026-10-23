@@ -1,12 +1,7 @@
-import { Address, PublicClient, getContract, isAddressEqual } from "viem";
-import {
-  jbSuckerRegistryAbi,
-  jbSuckerRegistryV5Abi,
-} from "../generated/juicebox.js";
+import { PublicClient, getContract, isAddressEqual } from "viem";
 import { JBSuckerAbi } from "./JBSuckerAbi.js";
-import { JBChainId, JBSuckerContracts, JBVersion } from "../types.js";
-import { getJBContractAddress } from "../utils/contracts.js";
-import { suckerBytes32ToAddress } from "../v6/suckers.js";
+import { JBChainId } from "../types.js";
+import { getV6SuckerPairs, suckerBytes32ToAddress } from "../v6/suckers.js";
 import { useConfig } from "wagmi";
 
 export type SuckerPair = {
@@ -27,6 +22,8 @@ export type SuckerPair = {
  *
  * Rejects rather than dropping a pair — a silently short group is
  * indistinguishable from a project with fewer chains.
+ *
+ * Reads Juicebox V6 only, so a page loads the v6 address table and no other.
  */
 export async function getSuckerPairs({
   config,
@@ -37,42 +34,16 @@ export async function getSuckerPairs({
   config: ReturnType<typeof useConfig>;
   chainId: JBChainId;
   projectId: bigint;
-  version: JBVersion;
+  version?: 6;
 }): Promise<SuckerPair[]> {
-  const jbSuckerRegistry = getJBContractAddress(
-    JBSuckerContracts.JBSuckerRegistry,
-    version,
-    chainId,
-  );
+  if (version !== undefined && version !== 6) {
+    throw new Error(
+      `Sucker groups are read for Juicebox V6 only, not V${version}.`,
+    );
+  }
 
   const client = config.getClient({ chainId: Number(chainId) }) as PublicClient;
-
-  // v6 identifies remote suckers as bytes32 (for cross-VM compatibility); for EVM peers
-  // the address is in the low 20 bytes, which `suckerBytes32ToAddress` validates.
-  const suckers: { local: Address; remote: Address; remoteChainId: bigint }[] =
-    version === 6
-      ? (
-          await getContract({
-            address: jbSuckerRegistry,
-            abi: jbSuckerRegistryAbi,
-            client,
-          }).read.suckerPairsOf([projectId])
-        ).map((sucker) => ({
-          local: sucker.local,
-          remote: suckerBytes32ToAddress(sucker.remote),
-          remoteChainId: sucker.remoteChainId,
-        }))
-      : (
-          await getContract({
-            address: jbSuckerRegistry,
-            abi: jbSuckerRegistryV5Abi,
-            client,
-          }).read.suckerPairsOf([projectId])
-        ).map((sucker) => ({
-          local: sucker.local,
-          remote: sucker.remote,
-          remoteChainId: sucker.remoteChainId,
-        }));
+  const suckers = await getV6SuckerPairs(client, { chainId, projectId });
 
   return Promise.all(
     suckers.map(async (sucker) => {
@@ -126,7 +97,7 @@ export async function resolveSuckers({
   config: ReturnType<typeof useConfig>;
   chainId: JBChainId;
   projectId: bigint;
-  version: JBVersion;
+  version?: 6;
 }): Promise<SuckerPair[]> {
   const pairs: SuckerPair[] = [{ peerChainId: chainId, projectId }];
   const seen = new Set([`${chainId}:${projectId}`]);
@@ -152,7 +123,6 @@ export async function resolveSuckers({
         config,
         chainId: pair.peerChainId,
         projectId: pair.projectId,
-        version,
       }),
     ),
   );
