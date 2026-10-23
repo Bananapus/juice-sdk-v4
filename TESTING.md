@@ -107,7 +107,7 @@ regeneration and protocol parity gate it directly.
 ## Wallet boundary inventory
 
 `packages/core/bin/wallet-check.mjs`, published as the `nana-wallet-check` bin of
-`@bananapus/nana-sdk-core`, parses all production TypeScript and TSX under each
+`@bananapus/nana-sdk-core`, parses every TypeScript and TSX source under each
 `--root`; `npm run wallet:check` passes the core, react and connect sources and
 `test/wallet-boundaries.json`. Clients run the same bin as a gate with their own
 roots and inventory (it resolves `typescript` from the working directory, so
@@ -116,7 +116,7 @@ the identifier `reviewedInParent` or a `registerTransactionReviewHandler` call
 without an inventory row, on a `selfReviewingAdapter` or `signaWalletAdapter`
 call outside the files the inventory lists under `selfReviewing`, and on an
 import (static, dynamic or `require`) of a `--forbid-import` specifier or a path
-under it; clients pass `@bananapus/nana-sdk-react`. It inventories wagmi/viem hooks and raw signing, transaction,
+under it; clients pass `@bananapus/nana-sdk-react`. Every source file under a root is scanned, generated and test files included, unless a `--exclude <glob>` (relative to the working directory; `**` spans directories) names it; `npm run wallet:check` excludes `**/generated/**`, `**/*.test.*` and `**/*.spec.*`. It inventories wagmi/viem hooks and raw signing, transaction,
 contract-write, batched-call, wallet-client, and wallet `request` calls. Every
 reviewed site, with its safety boundary and focused test, is a row in
 `test/wallet-boundaries.json`; that file is the list, so this document keeps no

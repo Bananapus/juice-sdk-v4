@@ -275,6 +275,37 @@ describe("nana-wallet-check", () => {
     expect(run(dir).status).toBe(0);
   });
 
+  it("scans generated and test files under a root unless excluded", () => {
+    const dir = project({ "a.test.ts": "writeContract({});\n" });
+    mkdirSync(join(dir, "src", "generated"));
+    writeFileSync(
+      join(dir, "src", "generated", "b.ts"),
+      "export const b = sendTransaction({});\n",
+    );
+    const all = run(dir);
+    expect(all.status).toBe(1);
+    expect(all.out).toContain("src/a.test.ts:1:writeContract");
+    expect(all.out).toContain("src/generated/b.ts:1:sendTransaction");
+    expect(
+      run(dir, "--exclude", "src/**/generated/**", "--exclude", "**/*.test.ts")
+        .status,
+    ).toBe(0);
+    // However the pattern spells the path.
+    expect(
+      run(
+        dir,
+        "--exclude",
+        "./src/generated/b.ts",
+        "--exclude",
+        "src\\a.test.ts",
+      ).status,
+    ).toBe(0);
+    // An exclusion names paths, never more than its pattern says.
+    expect(run(dir, "--exclude", "src/*.test.ts").out).toContain(
+      "src/generated/b.ts:1:sendTransaction",
+    );
+  });
+
   it("exits 1 with usage when the flags are missing", () => {
     const dir = project({});
     const result = spawnSync(process.execPath, [bin], {

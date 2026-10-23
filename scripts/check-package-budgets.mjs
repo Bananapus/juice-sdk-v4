@@ -312,8 +312,11 @@ const budgets = {
     // artifacts), the raw run failure, queued Safe proposal reuse and the
     // never-throwing review model: 1,717,660 B packed, 23,767,039 B
     // unpacked, 1,811 files.
-    packed: 1_722_000,
-    unpacked: 23_810_000,
+    // Call bytes in the review model, the per-step wallet-boundary hooks,
+    // the Safe Relayr payer, legacy hold sources and the simulation block
+    // add no files: 1,723,499 B packed, 23,797,283 B unpacked, 1,811 files.
+    packed: 1_728_000,
+    unpacked: 23_840_000,
     entries: 1_811,
   },
   "@bananapus/nana-sdk-react": {

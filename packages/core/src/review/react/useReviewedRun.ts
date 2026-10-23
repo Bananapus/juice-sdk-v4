@@ -1,8 +1,10 @@
 import {
+  createHeldWriteView,
   findReviewedSequence,
   isDefiniteWalletRejection,
   openStepHold,
   resumeReviewed,
+  REVIEWED_ACCOUNT_CHANGED_LINE,
   sendReviewed,
   transactionMessage,
   TransactionReviewCancelledError,
@@ -12,11 +14,23 @@ import {
   type ReviewedProgress,
   type ReviewedResult,
   type ReviewedSendDeps,
+  type WriteHoldClient,
   type WriteHoldHandle,
-  type WriteHoldState,
 } from "../index.js";
-import { useEffect, useRef, useState } from "react";
-import { keyOf } from "./heldView.js";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
+  actionsOf,
+  idle,
+  keyOf,
+  none,
+  type HeldViewActions,
+} from "./heldView.js";
 import type { Address, Hex } from "viem";
 
 export type UseReviewedRunDeps = ReviewedSendDeps & {
@@ -30,10 +44,12 @@ export type UseReviewedRunResult = {
    * of the same calls saved resumes it instead: only its remaining steps
    * are reviewed and sent. Other calls under that scope are refused until
    * it is resumed or discarded. Null when nothing finished: the user cancelled (`error` stays
-   * null), or it failed (`error` says why).
+   * null), or it failed (`error` says why). An `account` (the one the calls
+   * were built for) refuses the run before its review unless it is the
+   * connected one.
    */
   run: (
-    action: Omit<ReviewedAction, "account" | "guard">,
+    action: Omit<ReviewedAction, "account" | "guard"> & { account?: Address },
   ) => Promise<ReviewedResult | null>;
   phase: ReviewedProgress["phase"] | "idle";
   step: number;
@@ -49,13 +65,17 @@ export type UseReviewedRunResult = {
   /**
    * After a run that did not finish: the hold of its step still in flight
    * (the saved sequence's, or the first of its calls held), followed as it
-   * changes, here or in another window. Null once that hold is clear.
+   * changes, here or in another window. Null once that hold is clear or
+   * released. Its exit and send-again are `exitAction` and `sendAgainAction`.
    */
   held: HeldWriteView | null;
   reset: () => void;
-};
+} & HeldViewActions;
 
-type RunState = Omit<UseReviewedRunResult, "run" | "reset" | "held">;
+type RunState = Omit<
+  UseReviewedRunResult,
+  "run" | "reset" | "held" | keyof HeldViewActions
+>;
 
 const IDLE: RunState = {
   phase: "idle",
@@ -66,17 +86,6 @@ const IDLE: RunState = {
   hash: null,
   safeTxHash: null,
 };
-
-const viewOf = (state: WriteHoldState | null): HeldWriteView | null =>
-  state && state.status !== "clear"
-    ? {
-        phase: "held",
-        state,
-        line: state.line,
-        exit: false,
-        adopting: false,
-      }
-    : null;
 
 /** The bytes a call sends, for comparing two actions. */
 const sent = ({ chainId, to, data, value }: ReviewedCall) => [
@@ -98,18 +107,36 @@ export function useReviewedRun(
   deps: UseReviewedRunDeps | null,
 ): UseReviewedRunResult {
   const [state, setState] = useState<RunState>(IDLE);
-  /** The hold followed after a run: its state is `held`. */
-  const [watched, setWatched] = useState<WriteHoldHandle | null>(null);
-  const [holdState, setHoldState] = useState<WriteHoldState | null>(null);
-  useEffect(() => {
-    setHoldState(watched?.peek() ?? null);
-    return watched?.subscribe(setHoldState);
-  }, [watched]);
+  /** The hold followed after a run, and its chain's client: its view is `held`. */
+  const [watched, setWatched] = useState<{
+    handle: WriteHoldHandle;
+    client: WriteHoldClient;
+  } | null>(null);
+  const view = useMemo(
+    () =>
+      watched
+        ? createHeldWriteView(watched.handle, { client: watched.client })
+        : undefined,
+    [watched],
+  );
+  useEffect(() => view?.start(), [view]);
+  const shown = useSyncExternalStore(
+    view?.subscribe ?? none,
+    view?.get ?? idle,
+    view?.get ?? idle,
+  );
+  const held =
+    shown.phase === "clear" ||
+    shown.phase === "released" ||
+    shown.phase === "settled"
+      ? null
+      : shown;
   /** The latest run: an earlier one's late answers change nothing. */
   const latest = useRef(0);
   return {
     ...state,
-    held: viewOf(holdState),
+    held,
+    ...actionsOf(shown, held ? view : undefined),
     reset: () => {
       latest.current += 1;
       setState(IDLE);
@@ -131,20 +158,22 @@ export function useReviewedRun(
           const saved = !action.scope
             ? null
             : findReviewedSequence(action.scope, account, { storage });
-          const handles = saved?.sending
-            ? [
-                openStepHold(
-                  hold,
-                  account,
-                  safe,
-                  saved.calls[saved.sending.step],
-                ),
-              ]
-            : action.calls.map((call) =>
-                openStepHold(hold, account, safe, call),
-              );
+          const calls = saved?.sending
+            ? [saved.calls[saved.sending.step]]
+            : action.calls;
+          const found = calls
+            .map((call) => ({
+              call,
+              handle: openStepHold(hold, account, safe, call),
+            }))
+            .find(({ handle }) => handle.peek().status !== "clear");
           setWatched(
-            handles.find((handle) => handle.peek().status !== "clear") ?? null,
+            found
+              ? {
+                  handle: found.handle,
+                  client: deps.clientFor(found.call.chainId),
+                }
+              : null,
           );
         } catch {
           /* A call the hold can't open holds nothing to show. */
@@ -152,6 +181,11 @@ export function useReviewedRun(
       };
       try {
         if (!deps?.account) throw new Error("Connect a wallet first.");
+        if (
+          action.account &&
+          action.account.toLowerCase() !== deps.account.toLowerCase()
+        )
+          throw new Error(REVIEWED_ACCOUNT_CHANGED_LINE);
         if (action.calls.length > 1 && action.scope === undefined)
           throw new Error(REVIEWED_RUN_SCOPE_LINE);
         const { account, guard } = deps;

@@ -8,6 +8,8 @@ import {
 } from "viem";
 import { promptReview, type ReviewSimulation } from "./confirm.js";
 import {
+  isDefiniteWalletRejection,
+  SubmittedContractWriteError,
   submitReviewedContractWrite,
   type ReviewedWritePhase,
 } from "./contractWrite.js";
@@ -56,6 +58,7 @@ import {
   WriteHeldError,
   WriteHoldStaleReviewError,
   type WriteHold,
+  type WriteHoldLegacySource,
 } from "./writeHold.js";
 import {
   createHeldWriteStorage,
@@ -75,9 +78,18 @@ export type ReviewedCall = {
   contractName?: string;
   /** The hold namespace, as `useSafeTx`'s `TxSendOptions` today. */
   intent?: string;
-  legacy?: readonly string[];
+  /** The keys an earlier version held this write under, as the hold's `open` takes them. */
+  legacy?: readonly WriteHoldLegacySource[];
   /** Simulate on the previous step's receipt block. */
   dependsOnPrior?: boolean;
+  /**
+   * The block where a prerequisite confirmed outside this run (an earlier
+   * approval, say) took effect: the call is simulated on the latest block,
+   * or on this one while the node has not reached it. Used where the call
+   * is simulated alone and not on a prior step's block; a resumed run
+   * simulates on the latest block.
+   */
+  simulationBlockNumber?: bigint;
 };
 
 export type ReviewedAction = {
@@ -98,6 +110,30 @@ export type ReviewedAction = {
   assertWriteState?: () => void;
   /** Refuses the action, before anything else (view-as, say). */
   guard?: () => void;
+  /**
+   * A site's own record of a step at the wallet boundary, awaited: after its
+   * hold reserved it (and its journal saved it), right before the wallet
+   * opens. It throws to stop with nothing sent, which releases the step.
+   * `step` is the index in the whole action.
+   */
+  beforeWallet?: (call: ReviewedCall, step: number) => void | Promise<void>;
+  /**
+   * Awaited when nothing was sent for a step whose `beforeWallet` began: a
+   * gate refused, `beforeWallet` threw, or the wallet rejected (4001). Never
+   * after an ambiguous failure.
+   */
+  onUnsent?: (call: ReviewedCall, step: number) => void | Promise<void>;
+  /**
+   * Awaited once the wallet returned a step's hash, before its receipt is
+   * awaited: a Safe app's proposal hash (`safe`), or one its Safe already
+   * queued (`adopted`). A throw keeps the step pending, never unsent.
+   */
+  onSubmitted?: (
+    call: ReviewedCall,
+    step: number,
+    hash: Hex,
+    sent: { safe: boolean; adopted: boolean },
+  ) => void | Promise<void>;
   /**
    * The site's key for this action (`payIntent(...)`, say). When set, the
    * action is journaled once its review is confirmed, before the first
@@ -145,7 +181,10 @@ const CHANGED =
   "Transaction data changed after review. Nothing was sent; review it again.";
 const MISMATCHED =
   "This call's data does not match its arguments. Nothing was sent.";
-const ACCOUNT_CHANGED = "The connected account changed. Review again.";
+/** The refusal when the connected account is not the one an action was built for. */
+export const REVIEWED_ACCOUNT_CHANGED_LINE =
+  "The connected account changed. Review again.";
+const ACCOUNT_CHANGED = REVIEWED_ACCOUNT_CHANGED_LINE;
 const NOT_SAVED =
   "This action's progress could not be saved. Nothing was sent; review it again.";
 const SIMULATION_UNAVAILABLE =
@@ -240,6 +279,18 @@ function reverted(error: unknown): boolean {
 }
 
 /**
+ * The latest block, or `minimum` while the node has not reached it: never
+ * state from before a prerequisite took effect, never stale state after it.
+ */
+async function notBefore(
+  client: PublicClient,
+  minimum: bigint,
+): Promise<bigint> {
+  const head = await client.getBlockNumber();
+  return head > minimum ? head : minimum;
+}
+
+/**
  * The review-time simulation of every call, per chain: a sequence through
  * {@link simulateCallSequence}, a lone call through
  * {@link simulateStateChangingTransaction}. A lone call that needs a step on
@@ -250,6 +301,7 @@ async function reviewSimulation(
   account: Address,
   calls: readonly ReviewedCall[],
   sent: readonly SentCall[],
+  blocks: readonly (bigint | undefined)[],
   clientFor: (chainId: number) => PublicClient,
 ): Promise<ReviewSimulation> {
   const chains = [...new Set(sent.map((call) => call.chainId))];
@@ -274,11 +326,15 @@ async function reviewSimulation(
           })),
         });
       } else if (!(calls[steps[0]].dependsOnPrior && steps[0] > 0)) {
+        const minimum = blocks[steps[0]];
         await simulateStateChangingTransaction(client, {
           from: account,
           to: sent[steps[0]].to,
           data: sent[steps[0]].data,
           value: sent[steps[0]].value,
+          ...(minimum === undefined
+            ? {}
+            : { blockNumber: await notBefore(client, minimum) }),
         });
       }
       return { status: "passed" };
@@ -391,7 +447,14 @@ export async function resumeReviewed(
   record: ReviewedSequenceRecord,
   action: Pick<
     ReviewedAction,
-    "reverify" | "assertWriteState" | "guard" | "context" | "title"
+    | "reverify"
+    | "assertWriteState"
+    | "guard"
+    | "context"
+    | "title"
+    | "beforeWallet"
+    | "onUnsent"
+    | "onSubmitted"
   >,
   deps: ReviewedSendDeps,
 ): Promise<ReviewedResult> {
@@ -469,6 +532,18 @@ async function send(
   if (!calls.length) throw new Error("There is no transaction to review.");
   const snapshots = calls.map(exact);
   const sent = snapshots.map(({ sent }) => sent);
+  /** Each step's simulation block, read once; a resumed run's prerequisites are long confirmed. */
+  const blocks = calls.map((call) =>
+    resuming ? undefined : call.simulationBlockNumber,
+  );
+  /** A site's release callback never stops core's own release. */
+  const tellUnsent = async (call: ReviewedCall, step: number) => {
+    try {
+      await action.onUnsent?.(call, step);
+    } catch {
+      /* The step is released whatever the site's callback does. */
+    }
+  };
   const connected = adapter.account();
   if (!connected) throw new Error("Connect a wallet first.");
   if (connected.toLowerCase() !== account.toLowerCase()) {
@@ -508,10 +583,45 @@ async function send(
       throw new Error("This wallet cannot review this transaction.");
     }
     deps.onPreview?.(buildReviewModel(request(false)));
-    const hash = await adapter.submitToReviewer({
-      account,
-      calls: sent.map((call) => ({ ...call })),
-    });
+    /** The steps whose beforeWrite began, and whether the wallet was handed the calls. */
+    let began = 0;
+    let submitting = false;
+    let hash: Hex;
+    try {
+      for (const [step, call] of calls.entries()) {
+        began += 1;
+        await action.beforeWallet?.(call, step);
+      }
+      // The site's hooks may have awaited: the gates once more, right before the wallet.
+      action.guard?.();
+      action.assertWriteState?.();
+      if (adapter.account()?.toLowerCase() !== account.toLowerCase())
+        throw new Error(ACCOUNT_CHANGED);
+      submitting = true;
+      hash = await adapter.submitToReviewer({
+        account,
+        calls: sent.map((call) => ({ ...call })),
+      });
+    } catch (error) {
+      // Only the site's own refusal or an explicit rejection proves nothing was sent.
+      if (!submitting || isDefiniteWalletRejection(error))
+        for (const [step, call] of calls.slice(0, began).entries())
+          await tellUnsent(call, step);
+      throw error;
+    }
+    // Every step is told; a site's failure to record it never reads as unsent.
+    const failures: unknown[] = [];
+    for (const [step, call] of calls.entries())
+      try {
+        await action.onSubmitted?.(call, step, hash, {
+          safe: false,
+          adopted: false,
+        });
+      } catch (error) {
+        failures.push(error);
+      }
+    if (failures.length)
+      throw new SubmittedContractWriteError(hash, failures[0]);
     return { status: "done", hashes: [hash], receipts: [] };
   }
 
@@ -554,7 +664,7 @@ async function send(
     handle.peek().reservation ?? null;
   const reviewedGenerations = handles.map(generation);
   const model = buildReviewModel(request(safe));
-  const simulation = reviewSimulation(account, calls, sent, clientFor);
+  const simulation = reviewSimulation(account, calls, sent, blocks, clientFor);
   const enriched = Promise.all([
     enrichReviewModel(model, clientFor).catch(() => model),
     simulation,
@@ -643,7 +753,7 @@ async function send(
     };
     const client = clientFor(reviewed.chainId);
     const prior = receipts[step - 1];
-    const blockNumber =
+    const priorBlock =
       call.dependsOnPrior &&
       prior &&
       sent[step - 1].chainId === reviewed.chainId
@@ -667,6 +777,7 @@ async function send(
           delete journal.sending;
           await keep();
         }
+        await tellUnsent(call, at);
       };
       return submitReviewedContractWrite({
         request: reviewed,
@@ -682,6 +793,11 @@ async function send(
           unchanged();
         },
         simulate: async (sending) => {
+          const blockNumber =
+            priorBlock ??
+            (blocks[step] === undefined
+              ? undefined
+              : await notBefore(client, blocks[step]));
           const tx = {
             to: sending.to,
             data: sending.data,
@@ -716,16 +832,26 @@ async function send(
         beforeWrite: async () => {
           await gate.beforeSend();
           reserved = handles[step].peek().reservation;
-          if (!journal) return;
+          if (journal)
+            try {
+              const { reservation } = handles[step].peek();
+              if (reservation === undefined) throw new Error(NOT_SAVED);
+              journal.sending = { step: at, reservation };
+              expected = await saveReviewedSequence(
+                journal,
+                storage!,
+                expected,
+              );
+            } catch (error) {
+              // Reserved, and the wallet never opened.
+              delete journal.sending;
+              gate.onRejected();
+              throw error;
+            }
           try {
-            const { reservation } = handles[step].peek();
-            if (reservation === undefined) throw new Error(NOT_SAVED);
-            journal.sending = { step: at, reservation };
-            expected = await saveReviewedSequence(journal, storage!, expected);
+            await action.beforeWallet?.(call, at);
           } catch (error) {
-            // Reserved, and the wallet never opened.
-            delete journal.sending;
-            gate.onRejected();
+            await released();
             throw error;
           }
         },
@@ -750,8 +876,13 @@ async function send(
         onBeforeWriteAborted: released,
         onWriteRejected: released,
         // An adopted proposal's nonce lets the hold prove its execution onchain.
-        onWriteSubmitted: (submitted) =>
-          gate.afterSubmit(submitted, queued?.tx),
+        onWriteSubmitted: async (submitted) => {
+          gate.afterSubmit(submitted, queued?.tx);
+          await action.onSubmitted?.(call, at, submitted, {
+            safe,
+            adopted: !!queued,
+          });
+        },
         write: async ({ chainId, to, data, value, gas }) =>
           queued?.proposalHash ??
           adapter.sendTransaction({ chainId, to, data, value, gas }),

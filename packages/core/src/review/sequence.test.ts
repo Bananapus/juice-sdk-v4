@@ -377,6 +377,49 @@ describe("reviewed sequences", () => {
       discardReviewedSequence(renamed.record, { storage: renamed.storage }),
     ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
 
+    // Or held under a legacy key the step names: a `{ match }` of its target
+    // and selector, or an older exact `{ call }`. Both journal as they are.
+    const match = {
+      match: { to: payCall().to, selector: payCall().data.slice(0, 10) as Hex },
+    };
+    const matched = await interrupted(
+      [approveCall(), payCall(9n, { intent: "pay:1", legacy: [match] })],
+      1,
+    );
+    matched.wallet.adapter.sendTransaction.mockRejectedValueOnce(timeout());
+    await expect(
+      sendReviewed(action([payCall(10n)]), matched.deps),
+    ).rejects.toThrow(timeout().message);
+    await expect(
+      discardReviewedSequence(matched.record, { storage: matched.storage }),
+    ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
+    // The hold refuses the step under that key too.
+    await expect(
+      sendReviewed(
+        action([payCall(13n, { intent: "pay:3", legacy: [match] })]),
+        matched.deps,
+      ),
+    ).rejects.toBeInstanceOf(WriteHeldError);
+    const older = payCall(11n);
+    const called = await interrupted(
+      [
+        approveCall(),
+        payCall(12n, {
+          intent: "pay:1",
+          // The value as hex: the hold reads it as 7 wei, and so does discard.
+          legacy: [{ call: { to: older.to, data: older.data, value: "0x7" } }],
+        }),
+      ],
+      1,
+    );
+    called.wallet.adapter.sendTransaction.mockRejectedValueOnce(timeout());
+    await expect(sendReviewed(action([older]), called.deps)).rejects.toThrow(
+      timeout().message,
+    );
+    await expect(
+      discardReviewedSequence(called.record, { storage: called.storage }),
+    ).rejects.toThrow(REVIEWED_SEQUENCE_HELD_LINE);
+
     await discardReviewedSequence(record, { storage: other });
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage: other })).toBeNull();
     // A record another window moved on (or removed) is not discarded.
@@ -602,6 +645,54 @@ describe("reviewed sequences", () => {
     expect(prompts).toHaveLength(0);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toBeNull();
+  });
+
+  it("reads a record with a malformed legacy source as none", async () => {
+    reviewUi();
+    const { record, storage } = await interrupted(
+      [approveCall(), payCall(9n, { intent: "pay:1", legacy: ["pay:0"] })],
+      1,
+    );
+    const key = `nana-sdk:sequence:${ACCOUNT.toLowerCase()}:${SCOPE}`;
+    const raw = storage.getItem(key)!;
+    expect(findReviewedSequence(SCOPE, ACCOUNT, { storage })).toMatchObject({
+      id: record.id,
+    });
+    /** Saved as the record saves it: every plain object tagged `{ o }`. */
+    const tagged = (value: unknown): unknown =>
+      Array.isArray(value)
+        ? value.map(tagged)
+        : value && typeof value === "object"
+          ? {
+              o: Object.fromEntries(
+                Object.entries(value).map(([k, v]) => [k, tagged(v)]),
+              ),
+            }
+          : value;
+    const saveLegacy = (legacy: unknown) => {
+      const saved = JSON.parse(raw);
+      saved.sequence.o.calls[1].o.legacy = tagged(legacy);
+      storage.setItem(key, JSON.stringify(saved));
+      return findReviewedSequence(SCOPE, ACCOUNT, { storage });
+    };
+    const call = { to: OTHER, data: "0x12", value: "5" };
+    const match = { to: OTHER, selector: "0x12345678" };
+    // Each well-formed variant reads back: the refusals below are the validator's.
+    expect(saveLegacy(["pay:0", { call }, { match }])).toMatchObject({
+      id: record.id,
+    });
+    for (const legacy of [
+      [null],
+      [{ call: { ...call, to: "0x12" } }],
+      [{ call: { ...call, value: "-1" } }],
+      [{ call: { ...call, data: "0x1" } }],
+      [{ match: { ...match, selector: "0x1234" } }],
+      [{ call, match: null }],
+      [7],
+      "pay:0",
+    ]) {
+      expect(saveLegacy(legacy), JSON.stringify(legacy)).toBeNull();
+    }
   });
 
   it("reads an unreadable or foreign record as none", () => {

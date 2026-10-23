@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import {
   ACCOUNT,
+  OTHER,
   approveCall,
   payCall,
   resetReviewUi,
@@ -239,6 +240,42 @@ describe("useReviewedRun", () => {
       await handle.exit(state, { checkedWallet: true }, chain.client as never);
     });
     expect(seen.current!.held).toBeNull();
+  });
+
+  test("refuses a run for another account before the review", async () => {
+    const prompts = reviewUi();
+    const { wallet, deps } = setup();
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await expect(
+      run({ account: OTHER, calls: [payCall()] }),
+    ).resolves.toBeNull();
+    expect(seen.current!.error).toBe(
+      "The connected account changed. Review again.",
+    );
+    expect(prompts).toHaveLength(0);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    await expect(
+      run({ account: ACCOUNT, calls: [payCall()] }),
+    ).resolves.toMatchObject({ status: "done" });
+  });
+
+  test("offers the held step's exit, which releases it", async () => {
+    reviewUi();
+    const { wallet, deps } = setup();
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(
+      new Error("The request took too long to respond."),
+    );
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await expect(
+      run({ calls: [payCall()], scope: "pay:project-1" }),
+    ).resolves.toBeNull();
+    await vi.waitFor(() => expect(seen.current!.exitAction).not.toBeNull());
+    expect(seen.current!.sendAgainAction).toBeNull();
+    await act(async () => {
+      await expect(seen.current!.exitAction!.run()).resolves.toBe(true);
+    });
+    expect(seen.current!.held).toBeNull();
+    expect(seen.current!.exitAction).toBeNull();
   });
 
   test("shows a Safe proposal's hash", async () => {

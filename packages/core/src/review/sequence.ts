@@ -1,4 +1,5 @@
 import { isAddress, isHex, type Address, type Hex } from "viem";
+import { isHexBytes, uint256 } from "../untrusted.js";
 import type { ReviewedCall } from "./send.js";
 import {
   createHeldWriteStorage,
@@ -120,6 +121,37 @@ function locked<T>(key: string, work: () => T): Promise<T> {
   ) as Promise<T>;
 }
 
+/** A saved step's legacy hold source, as `WriteHoldLegacySource` allows. */
+function legacySource(source: unknown): boolean {
+  if (typeof source === "string") return true;
+  // Exactly one variant: resume reads whichever it finds.
+  if (!source || typeof source !== "object" || Object.keys(source).length !== 1)
+    return false;
+  if ("call" in source) {
+    const call = source.call as {
+      to?: unknown;
+      data?: unknown;
+      value?: unknown;
+    };
+    return (
+      !!call &&
+      isAddress(call.to as string, { strict: false }) &&
+      isHexBytes(call.data) &&
+      (call.value === undefined || uint256(call.value) !== null)
+    );
+  }
+  if ("match" in source) {
+    const match = source.match as { to?: unknown; selector?: unknown };
+    return (
+      !!match &&
+      isAddress(match.to as string, { strict: false }) &&
+      typeof match.selector === "string" &&
+      /^0x[0-9a-f]{8}$/iu.test(match.selector)
+    );
+  }
+  return false;
+}
+
 function parse(raw: string | null, key: string): ReviewedSequenceRecord | null {
   if (raw === null) return null;
   try {
@@ -141,7 +173,10 @@ function parse(raw: string | null, key: string): ReviewedSequenceRecord | null {
         (call) =>
           Number.isInteger(call?.chainId) &&
           isAddress(call.to, { strict: false }) &&
-          isHex(call.data),
+          isHex(call.data) &&
+          (call.intent === undefined || typeof call.intent === "string") &&
+          (call.legacy === undefined ||
+            (Array.isArray(call.legacy) && call.legacy.every(legacySource))),
       ) &&
       Array.isArray(record.completed) &&
       record.completed.length < record.calls.length &&
@@ -240,16 +275,39 @@ function heldStep(
 ): boolean {
   return record.calls.some((call, step) => {
     if (step < record.completed.length) return false;
-    const namespaces = [call.intent, ...(call.legacy ?? [])];
+    const legacy = call.legacy ?? [];
+    const namespaces = [
+      call.intent,
+      ...legacy.filter((source) => typeof source === "string"),
+    ];
+    const exact = [
+      call,
+      ...legacy.flatMap((source) =>
+        typeof source === "object" && "call" in source ? [source.call] : [],
+      ),
+    ];
+    const matches = legacy.flatMap((source) =>
+      typeof source === "object" && "match" in source ? [source.match] : [],
+    );
+    const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
     return listReviewedWrites(
       { chainId: call.chainId, account: record.account },
       { storage },
     ).some(
       ({ record: held }) =>
         (held.namespace !== undefined && namespaces.includes(held.namespace)) ||
-        (held.call.to.toLowerCase() === call.to.toLowerCase() &&
-          held.call.data.toLowerCase() === call.data.toLowerCase() &&
-          held.call.value === String(call.value ?? 0n)),
+        exact.some(
+          (one) =>
+            same(held.call.to, one.to) &&
+            same(held.call.data, one.data) &&
+            uint256(held.call.value) === uint256(one.value ?? 0n),
+        ) ||
+        (held.namespace === undefined &&
+          matches.some(
+            ({ to, selector }) =>
+              same(held.call.to, to) &&
+              same(held.call.data.slice(0, 10), selector),
+          )),
     );
   });
 }

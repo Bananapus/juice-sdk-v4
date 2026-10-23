@@ -119,6 +119,8 @@ export type ReviewCallModel = {
   safeTxGas: bigint | null;
   label: string | null;
   functionName: string | null;
+  /** The exact calldata, bound by the model's id like every call field. */
+  data: Hex;
   selector: Hex;
   byteLength: number;
   /** Null when the ABI is unavailable or the arguments don't encode to the calldata. */
@@ -652,6 +654,7 @@ function reviewCall(call: TransactionReviewCall): ReviewCallModel {
     safeTxGas: call.safeTxGas ?? null,
     label: call.label ?? null,
     functionName: fn?.name ?? null,
+    data: call.data,
     selector: call.data.slice(0, 10) as Hex,
     byteLength: Math.max(0, (call.data.length - 2) / 2),
     args,
@@ -873,6 +876,7 @@ function rawCall(input: unknown): ReviewCallModel {
     safeTxGas: null,
     label: typeof call.label === "string" ? call.label : null,
     functionName: null,
+    data,
     selector: data.slice(0, 10) as Hex,
     byteLength: (data.length - 2) / 2,
     args: null,

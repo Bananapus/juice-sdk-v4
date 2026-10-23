@@ -1771,11 +1771,7 @@ export function createWriteHold(
     {
       legacy = [],
     }: {
-      legacy?: (
-        | string
-        | { call: ReviewedWriteRecoveryInput["call"] }
-        | { match: { to: Address; selector: Hex } }
-      )[];
+      legacy?: WriteHoldLegacySource[];
     } = {},
   ) {
     if (call.namespace === undefined) return openExact(call);
@@ -2395,6 +2391,16 @@ export function createWriteHold(
     safeService: service,
   };
 }
+
+/**
+ * A key an earlier version held an intent's write under: an old namespace,
+ * `{ call }` for an exact call, or `{ match }` for every exact-call write to
+ * `to` with that selector (see the hold's `open`).
+ */
+export type WriteHoldLegacySource =
+  | string
+  | { call: ReviewedWriteRecoveryInput["call"] }
+  | { match: { to: Address; selector: Hex } };
 
 export type WriteHold = ReturnType<typeof createWriteHold>;
 export type WriteHoldHandle = ReturnType<WriteHold["open"]>;

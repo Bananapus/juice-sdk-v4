@@ -17,9 +17,10 @@ import {
   type ReviewCallModel,
   type ReviewModel,
 } from "./model.js";
-import type {
-  TransactionReviewCall,
-  TransactionReviewRequest,
+import {
+  buildTransactionReviewPrompt,
+  type TransactionReviewCall,
+  type TransactionReviewRequest,
 } from "./transactionReview.js";
 
 // review-models.json was captured from jbm main's dialog, where JSON keeps
@@ -169,6 +170,29 @@ describe("buildReviewModel", () => {
       message: { amount: 5n, $bigint: "1" },
     });
     expect(buildReviewModel(request).id).not.toBe(model.id);
+  });
+
+  it("carries each call's exact bytes, nested calls included", () => {
+    const model = buildReviewModel(pay);
+    expect(model.calls[0].data).toBe(pay.calls[0].data);
+    const multiSend = requests.MultiSend;
+    const shown = buildReviewModel(multiSend);
+    const inner = shown.calls[0].args?.find((argument) => argument.nested)
+      ?.nested?.[0];
+    expect(inner?.data).toMatch(/^0x[\da-f]+$/u);
+    // A call it can't read keeps its bytes too.
+    const unread = buildReviewModel({
+      ...pay,
+      calls: [{ ...pay.calls[0], abi: "nope" } as never],
+    });
+    expect(unread.calls[0].data).toBe(pay.calls[0].data);
+  });
+
+  it("builds the audit prompt from a model as from its request", () => {
+    const display = { explorerOrigin: () => "https://example.org" };
+    expect(buildTransactionReviewPrompt(buildReviewModel(pay), display)).toBe(
+      buildTransactionReviewPrompt(pay, display),
+    );
   });
 
   it("treats context as display only", () => {
