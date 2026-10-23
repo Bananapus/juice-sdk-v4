@@ -472,6 +472,7 @@ async function reviewSimulation(
             gas: sent[index].gas,
             label: labelOf(calls[index], index),
             dependsOnPrior: calls[index].dependsOnPrior,
+            funded: funded?.(index) === true,
           })),
           ...balance,
         });

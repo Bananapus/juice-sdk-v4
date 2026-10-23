@@ -88,6 +88,8 @@ export type SimulatedSequenceCall = {
   label: string;
   /** Needs an earlier call's effect (an allowance, a hook), so it cannot run alone. */
   dependsOnPrior?: boolean;
+  /** Its value is paid for the sender (by Relayr): run alone, it gets the sequence's `balance`. */
+  funded?: boolean;
 };
 
 /** The line for a revert whose reason the SDK does not know. */
@@ -246,7 +248,7 @@ export async function simulateCallSequence(
     from: Address;
     calls: readonly SimulatedSequenceCall[];
     chainName: string;
-    /** `from`'s balance for the simulation, in place of its own. */
+    /** `from`'s balance for the sequence, in place of its own; a call run alone gets it only when `funded`. */
     balance?: bigint;
   },
 ): Promise<void> {
@@ -299,7 +301,7 @@ export async function simulateCallSequence(
         data: call.data,
         value: call.value,
         gas: call.gas,
-        ...(balance === undefined ? {} : { balance }),
+        ...(balance === undefined || !call.funded ? {} : { balance }),
       });
     } catch (error) {
       throw simulationFailure(

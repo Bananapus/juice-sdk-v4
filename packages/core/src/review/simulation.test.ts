@@ -438,16 +438,21 @@ describe("ordered call sequence simulation", () => {
     expect(simulateCalls.mock.calls[0][0].stateOverrides).toEqual([
       { address: FROM, balance: 3n },
     ]);
-    const client = sequenceClient(vi.fn().mockRejectedValue({ code: -32601 }));
-    await simulateCallSequence(client, {
-      from: FROM,
-      calls,
-      chainName: "Base",
-      balance: 3n,
-    });
-    expect(client.request.mock.calls[0][0].params[2]).toEqual({
-      [FROM]: { balance: "0x3" },
-    });
+    // Run alone, only a funded call gets it.
+    for (const funded of [true, false]) {
+      const client = sequenceClient(
+        vi.fn().mockRejectedValue({ code: -32601 }),
+      );
+      await simulateCallSequence(client, {
+        from: FROM,
+        calls: [{ ...calls[0], funded }],
+        chainName: "Base",
+        balance: 3n,
+      });
+      expect(client.request.mock.calls[0][0].params[2]).toEqual(
+        funded ? { [FROM]: { balance: "0x3" } } : undefined,
+      );
+    }
   });
 
   it("falls back to each independent call alone where the node lacks eth_simulateV1", async () => {
