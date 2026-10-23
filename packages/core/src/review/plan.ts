@@ -11,6 +11,8 @@ export type ReviewedPlanCall = Readonly<{
   to: Address;
   data: Hex;
   value: bigint;
+  /** The exact gas limit reviewed, when the call fixes one; it must be sent as it is. */
+  gas?: bigint;
 }>;
 
 /**
@@ -51,8 +53,15 @@ export function mintPlan(
   const plan: ReviewedPlan = Object.freeze({
     account,
     calls: Object.freeze(
-      calls.map(({ chainId, from, to, data, value }) =>
-        Object.freeze({ chainId, from, to, data, value }),
+      calls.map(({ chainId, from, to, data, value, gas }) =>
+        Object.freeze({
+          chainId,
+          from,
+          to,
+          data,
+          value,
+          ...(gas === undefined ? {} : { gas }),
+        }),
       ),
     ),
     expiresAt: Date.now() + REVIEWED_PLAN_TTL_MS,
@@ -64,8 +73,8 @@ export function mintPlan(
   return plan;
 }
 
-const keyOf = ({ chainId, from, to, data, value }: ReviewedPlanCall) =>
-  `${chainId}:${from.toLowerCase()}:${to.toLowerCase()}:${data.toLowerCase()}:${value}`;
+const keyOf = ({ chainId, from, to, data, value, gas }: ReviewedPlanCall) =>
+  `${chainId}:${from.toLowerCase()}:${to.toLowerCase()}:${data.toLowerCase()}:${value}:${gas ?? ""}`;
 
 /**
  * Spends one unspent call of `plan` for each of `calls`, all or none. Refuses

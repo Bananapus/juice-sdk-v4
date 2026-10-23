@@ -597,12 +597,17 @@ export async function reviewPlan(
   return mintPlan(
     account,
     snapshots.map(
-      ({ sent: { chainId, to, data, value } }, index): ReviewedPlanCall => ({
+      (
+        { sent: { chainId, to, data, value, gas } },
+        index,
+      ): ReviewedPlanCall => ({
         chainId,
         from: froms[index],
         to,
         data,
         value,
+        // Relayr's own call: its gas bounds only the fee.
+        ...(gas === undefined || froms[index] === "relayr" ? {} : { gas }),
       }),
     ),
   );
@@ -919,12 +924,13 @@ async function send(
     )
       throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
     spendPlan(action.plan, account, [
-      ...sent.map(({ chainId, to, data, value }) => ({
+      ...sent.map(({ chainId, to, data, value, gas }) => ({
         chainId,
         from: account,
         to,
         data,
         value,
+        ...(gas === undefined ? {} : { gas }),
       })),
       ...prepared.flatMap(plannedCallsOf),
     ]);

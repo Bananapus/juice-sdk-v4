@@ -470,13 +470,14 @@ export function plannedCallsOf({
         value: call.value,
       }));
   } else if (typedData?.primaryType === "ForwardRequest" && message) {
-    const { from, to, data, value } = message as {
+    const { from, to, data, value, gas } = message as {
       from: Address;
       to: Address;
       data: Hex;
       value: bigint;
+      gas: bigint;
     };
-    return [{ chainId, from, to, data, value }];
+    return [{ chainId, from, to, data, value, gas }];
   }
   throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
 }

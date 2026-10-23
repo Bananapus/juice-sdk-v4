@@ -66,6 +66,7 @@ describe("reviewPlan", () => {
     const plan = await reviewPlan({ account: ACCOUNT, calls: [pay] }, deps);
     for (const changed of [
       payCall(6n),
+      { ...pay, gas: 900_000n },
       { ...pay, value: 8n },
       { ...pay, chainId: 8453 },
     ])

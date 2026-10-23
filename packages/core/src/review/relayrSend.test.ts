@@ -722,7 +722,12 @@ describe("runRelayrReviewed raw calls and plans", () => {
       {
         account: ACCOUNT,
         calls: [
-          { chainId: CALL.chainId, to: CALL.target, data: CALL.data },
+          {
+            chainId: CALL.chainId,
+            to: CALL.target,
+            data: CALL.data,
+            gas: CALL.gas,
+          },
           {
             chainId: RAW.chainId,
             to: RAW.target,
@@ -735,6 +740,14 @@ describe("runRelayrReviewed raw calls and plans", () => {
     );
     expect(prompts).toHaveLength(1);
     expect(prompts[0].model.calls[1].label).toBe("Sent by Relayr");
+    // A forward request signing more gas than reviewed is refused.
+    await expect(
+      runRelayrReviewed(
+        [{ ...CALL, gas: 900_000n }, RAW],
+        { account: ACCOUNT, scope: "planned", plan },
+        deps,
+      ),
+    ).rejects.toThrow(REVIEWED_PLAN_REFUSED_LINE);
     await runRelayrReviewed(
       [CALL, RAW],
       { account: ACCOUNT, scope: "planned", plan },
