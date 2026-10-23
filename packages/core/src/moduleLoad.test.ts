@@ -14,6 +14,7 @@ const ENTRIES = [
   "src/safe.ts",
   "src/safeService.ts",
   "src/review/decode.ts",
+  "src/review/decodeCall.ts",
   "src/untrusted.ts",
   "src/v6/distributions.ts",
   "src/jbcenter/rateLimit.ts",

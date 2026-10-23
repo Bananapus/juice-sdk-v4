@@ -27,6 +27,7 @@
             "name": "projectId",
             "type": "uint256",
             "text": "4",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -35,6 +36,7 @@
             "name": "token",
             "type": "address",
             "text": "0x000000000000000000000000000000000000EEEe",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -43,6 +45,7 @@
             "name": "amount",
             "type": "uint256",
             "text": "10000000000000000",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -51,6 +54,7 @@
             "name": "beneficiary",
             "type": "address",
             "text": "0x1111111111111111111111111111111111111111",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -59,6 +63,7 @@
             "name": "minReturnedTokens",
             "type": "uint256",
             "text": "0",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -67,6 +72,7 @@
             "name": "memo",
             "type": "string",
             "text": "gm",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -75,6 +81,7 @@
             "name": "metadata",
             "type": "bytes",
             "text": "0x00000000000000000000…000000000007",
+            "children": null,
             "steps": [
               {
                 "title": "721 shop mint instructions",
@@ -99,6 +106,24 @@
           }
         ],
         "calls": null,
+        "roles": [
+          {
+            "role": "beneficiary",
+            "address": "0x1111111111111111111111111111111111111111",
+            "name": null
+          }
+        ],
+        "tokenAmounts": [
+          {
+            "token": "native",
+            "amount": {
+              "$bigint": "10000000000000000"
+            },
+            "decimals": 18,
+            "symbol": "ETH"
+          }
+        ],
+        "nft": null,
         "warnings": []
       }
     ],
@@ -137,6 +162,7 @@
             "name": "holder",
             "type": "address",
             "text": "0x1111111111111111111111111111111111111111",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -145,6 +171,7 @@
             "name": "projectId",
             "type": "uint256",
             "text": "4",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -153,6 +180,7 @@
             "name": "cashOutCount",
             "type": "uint256",
             "text": "1000",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -161,6 +189,7 @@
             "name": "tokenToReclaim",
             "type": "address",
             "text": "0x000000000000000000000000000000000000EEEe",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -169,6 +198,7 @@
             "name": "minTokensReclaimed",
             "type": "uint256",
             "text": "0",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -177,6 +207,7 @@
             "name": "beneficiary",
             "type": "address",
             "text": "0x1111111111111111111111111111111111111111",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -185,6 +216,7 @@
             "name": "metadata",
             "type": "bytes",
             "text": "0x00000000000000000000…0000ee6b2801",
+            "children": null,
             "steps": [
               {
                 "title": "721 shop items to redeem",
@@ -205,6 +237,15 @@
           }
         ],
         "calls": null,
+        "roles": [
+          {
+            "role": "beneficiary",
+            "address": "0x1111111111111111111111111111111111111111",
+            "name": null
+          }
+        ],
+        "tokenAmounts": [],
+        "nft": null,
         "warnings": []
       }
     ],
@@ -241,6 +282,250 @@
             "name": "claimData",
             "type": "tuple",
             "text": "{\n  \"token\": \"0x0000000000000000000000000000000000000000\",\n  \"leaf\": {\n    \"index\": \"7\",\n    \"beneficiary\": \"0x0000000000000000000000001111111111111111111111111111111111111111\",\n    \"projectTokenCount\": \"1000\",\n    \"terminalTokenAmount\": \"25\",\n    \"metadata\": \"0x0000000000000000000000000000000000000000000000000000000000000000\"\n  },\n  \"proof\": [\n    \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n    \"0x0101010101010101010101010101010101010101010101010101010101010101\",\n    \"0x0202020202020202020202020202020202020202020202020202020202020202\",\n    \"0x0303030303030303030303030303030303030303030303030303030303030303\",\n    \"0x0404040404040404040404040404040404040404040404040404040404040404\",\n    \"0x0505050505050505050505050505050505050505050505050505050505050505\",\n    \"0x0606060606060606060606060606060606060606060606060606060606060606\",\n    \"0x0707070707070707070707070707070707070707070707070707070707070707\",\n    \"0x0808080808080808080808080808080808080808080808080808080808080808\",\n    \"0x0909090909090909090909090909090909090909090909090909090909090909\",\n    \"0x1010101010101010101010101010101010101010101010101010101010101010\",\n    \"0x1111111111111111111111111111111111111111111111111111111111111111\",\n    \"0x1212121212121212121212121212121212121212121212121212121212121212\",\n    \"0x1313131313131313131313131313131313131313131313131313131313131313\",\n    \"0x1414141414141414141414141414141414141414141414141414141414141414\",\n    \"0x1515151515151515151515151515151515151515151515151515151515151515\",\n    \"0x1616161616161616161616161616161616161616161616161616161616161616\",\n    \"0x1717171717171717171717171717171717171717171717171717171717171717\",\n    \"0x1818181818181818181818181818181818181818181818181818181818181818\",\n    \"0x1919191919191919191919191919191919191919191919191919191919191919\",\n    \"0x2020202020202020202020202020202020202020202020202020202020202020\",\n    \"0x2121212121212121212121212121212121212121212121212121212121212121\",\n    \"0x2222222222222222222222222222222222222222222222222222222222222222\",\n    \"0x2323232323232323232323232323232323232323232323232323232323232323\",\n    \"0x2424242424242424242424242424242424242424242424242424242424242424\",\n    \"0x2525252525252525252525252525252525252525252525252525252525252525\",\n    \"0x2626262626262626262626262626262626262626262626262626262626262626\",\n    \"0x2727272727272727272727272727272727272727272727272727272727272727\",\n    \"0x2828282828282828282828282828282828282828282828282828282828282828\",\n    \"0x2929292929292929292929292929292929292929292929292929292929292929\",\n    \"0x3030303030303030303030303030303030303030303030303030303030303030\",\n    \"0x3131313131313131313131313131313131313131313131313131313131313131\"\n  ]\n}",
+            "children": [
+              {
+                "name": "token",
+                "type": "address",
+                "text": "0x0000000000000000000000000000000000000000",
+                "children": null
+              },
+              {
+                "name": "leaf",
+                "type": "tuple",
+                "text": "{\n  \"index\": \"7\",\n  \"beneficiary\": \"0x0000000000000000000000001111111111111111111111111111111111111111\",\n  \"projectTokenCount\": \"1000\",\n  \"terminalTokenAmount\": \"25\",\n  \"metadata\": \"0x0000000000000000000000000000000000000000000000000000000000000000\"\n}",
+                "children": [
+                  {
+                    "name": "index",
+                    "type": "uint256",
+                    "text": "7",
+                    "children": null
+                  },
+                  {
+                    "name": "beneficiary",
+                    "type": "bytes32",
+                    "text": "0x00000000000000000000…111111111111",
+                    "children": null
+                  },
+                  {
+                    "name": "projectTokenCount",
+                    "type": "uint256",
+                    "text": "1000",
+                    "children": null
+                  },
+                  {
+                    "name": "terminalTokenAmount",
+                    "type": "uint256",
+                    "text": "25",
+                    "children": null
+                  },
+                  {
+                    "name": "metadata",
+                    "type": "bytes",
+                    "text": "0x00000000000000000000…000000000000",
+                    "children": null
+                  }
+                ]
+              },
+              {
+                "name": "proof",
+                "type": "bytes32[32]",
+                "text": "[\n  \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n  \"0x0101010101010101010101010101010101010101010101010101010101010101\",\n  \"0x0202020202020202020202020202020202020202020202020202020202020202\",\n  \"0x0303030303030303030303030303030303030303030303030303030303030303\",\n  \"0x0404040404040404040404040404040404040404040404040404040404040404\",\n  \"0x0505050505050505050505050505050505050505050505050505050505050505\",\n  \"0x0606060606060606060606060606060606060606060606060606060606060606\",\n  \"0x0707070707070707070707070707070707070707070707070707070707070707\",\n  \"0x0808080808080808080808080808080808080808080808080808080808080808\",\n  \"0x0909090909090909090909090909090909090909090909090909090909090909\",\n  \"0x1010101010101010101010101010101010101010101010101010101010101010\",\n  \"0x1111111111111111111111111111111111111111111111111111111111111111\",\n  \"0x1212121212121212121212121212121212121212121212121212121212121212\",\n  \"0x1313131313131313131313131313131313131313131313131313131313131313\",\n  \"0x1414141414141414141414141414141414141414141414141414141414141414\",\n  \"0x1515151515151515151515151515151515151515151515151515151515151515\",\n  \"0x1616161616161616161616161616161616161616161616161616161616161616\",\n  \"0x1717171717171717171717171717171717171717171717171717171717171717\",\n  \"0x1818181818181818181818181818181818181818181818181818181818181818\",\n  \"0x1919191919191919191919191919191919191919191919191919191919191919\",\n  \"0x2020202020202020202020202020202020202020202020202020202020202020\",\n  \"0x2121212121212121212121212121212121212121212121212121212121212121\",\n  \"0x2222222222222222222222222222222222222222222222222222222222222222\",\n  \"0x2323232323232323232323232323232323232323232323232323232323232323\",\n  \"0x2424242424242424242424242424242424242424242424242424242424242424\",\n  \"0x2525252525252525252525252525252525252525252525252525252525252525\",\n  \"0x2626262626262626262626262626262626262626262626262626262626262626\",\n  \"0x2727272727272727272727272727272727272727272727272727272727272727\",\n  \"0x2828282828282828282828282828282828282828282828282828282828282828\",\n  \"0x2929292929292929292929292929292929292929292929292929292929292929\",\n  \"0x3030303030303030303030303030303030303030303030303030303030303030\",\n  \"0x3131313131313131313131313131313131313131313131313131313131313131\"\n]",
+                "children": [
+                  {
+                    "name": "[0]",
+                    "type": "bytes32",
+                    "text": "0x00000000000000000000…000000000000",
+                    "children": null
+                  },
+                  {
+                    "name": "[1]",
+                    "type": "bytes32",
+                    "text": "0x01010101010101010101…010101010101",
+                    "children": null
+                  },
+                  {
+                    "name": "[2]",
+                    "type": "bytes32",
+                    "text": "0x02020202020202020202…020202020202",
+                    "children": null
+                  },
+                  {
+                    "name": "[3]",
+                    "type": "bytes32",
+                    "text": "0x03030303030303030303…030303030303",
+                    "children": null
+                  },
+                  {
+                    "name": "[4]",
+                    "type": "bytes32",
+                    "text": "0x04040404040404040404…040404040404",
+                    "children": null
+                  },
+                  {
+                    "name": "[5]",
+                    "type": "bytes32",
+                    "text": "0x05050505050505050505…050505050505",
+                    "children": null
+                  },
+                  {
+                    "name": "[6]",
+                    "type": "bytes32",
+                    "text": "0x06060606060606060606…060606060606",
+                    "children": null
+                  },
+                  {
+                    "name": "[7]",
+                    "type": "bytes32",
+                    "text": "0x07070707070707070707…070707070707",
+                    "children": null
+                  },
+                  {
+                    "name": "[8]",
+                    "type": "bytes32",
+                    "text": "0x08080808080808080808…080808080808",
+                    "children": null
+                  },
+                  {
+                    "name": "[9]",
+                    "type": "bytes32",
+                    "text": "0x09090909090909090909…090909090909",
+                    "children": null
+                  },
+                  {
+                    "name": "[10]",
+                    "type": "bytes32",
+                    "text": "0x10101010101010101010…101010101010",
+                    "children": null
+                  },
+                  {
+                    "name": "[11]",
+                    "type": "bytes32",
+                    "text": "0x11111111111111111111…111111111111",
+                    "children": null
+                  },
+                  {
+                    "name": "[12]",
+                    "type": "bytes32",
+                    "text": "0x12121212121212121212…121212121212",
+                    "children": null
+                  },
+                  {
+                    "name": "[13]",
+                    "type": "bytes32",
+                    "text": "0x13131313131313131313…131313131313",
+                    "children": null
+                  },
+                  {
+                    "name": "[14]",
+                    "type": "bytes32",
+                    "text": "0x14141414141414141414…141414141414",
+                    "children": null
+                  },
+                  {
+                    "name": "[15]",
+                    "type": "bytes32",
+                    "text": "0x15151515151515151515…151515151515",
+                    "children": null
+                  },
+                  {
+                    "name": "[16]",
+                    "type": "bytes32",
+                    "text": "0x16161616161616161616…161616161616",
+                    "children": null
+                  },
+                  {
+                    "name": "[17]",
+                    "type": "bytes32",
+                    "text": "0x17171717171717171717…171717171717",
+                    "children": null
+                  },
+                  {
+                    "name": "[18]",
+                    "type": "bytes32",
+                    "text": "0x18181818181818181818…181818181818",
+                    "children": null
+                  },
+                  {
+                    "name": "[19]",
+                    "type": "bytes32",
+                    "text": "0x19191919191919191919…191919191919",
+                    "children": null
+                  },
+                  {
+                    "name": "[20]",
+                    "type": "bytes32",
+                    "text": "0x20202020202020202020…202020202020",
+                    "children": null
+                  },
+                  {
+                    "name": "[21]",
+                    "type": "bytes32",
+                    "text": "0x21212121212121212121…212121212121",
+                    "children": null
+                  },
+                  {
+                    "name": "[22]",
+                    "type": "bytes32",
+                    "text": "0x22222222222222222222…222222222222",
+                    "children": null
+                  },
+                  {
+                    "name": "[23]",
+                    "type": "bytes32",
+                    "text": "0x23232323232323232323…232323232323",
+                    "children": null
+                  },
+                  {
+                    "name": "[24]",
+                    "type": "bytes32",
+                    "text": "0x24242424242424242424…242424242424",
+                    "children": null
+                  },
+                  {
+                    "name": "[25]",
+                    "type": "bytes32",
+                    "text": "0x25252525252525252525…252525252525",
+                    "children": null
+                  },
+                  {
+                    "name": "[26]",
+                    "type": "bytes32",
+                    "text": "0x26262626262626262626…262626262626",
+                    "children": null
+                  },
+                  {
+                    "name": "[27]",
+                    "type": "bytes32",
+                    "text": "0x27272727272727272727…272727272727",
+                    "children": null
+                  },
+                  {
+                    "name": "[28]",
+                    "type": "bytes32",
+                    "text": "0x28282828282828282828…282828282828",
+                    "children": null
+                  },
+                  {
+                    "name": "[29]",
+                    "type": "bytes32",
+                    "text": "0x29292929292929292929…292929292929",
+                    "children": null
+                  },
+                  {
+                    "name": "[30]",
+                    "type": "bytes32",
+                    "text": "0x30303030303030303030…303030303030",
+                    "children": null
+                  },
+                  {
+                    "name": "[31]",
+                    "type": "bytes32",
+                    "text": "0x31313131313131313131…313131313131",
+                    "children": null
+                  }
+                ]
+              }
+            ],
             "steps": [
               {
                 "title": "Claim a bridged balance from the sucker's inbox tree",
@@ -277,7 +562,15 @@
           }
         ],
         "calls": null,
-        "warnings": []
+        "roles": [],
+        "tokenAmounts": [],
+        "nft": null,
+        "warnings": [
+          {
+            "code": "unknown-contract",
+            "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+          }
+        ]
       }
     ],
     "authorization": null,
@@ -315,6 +608,7 @@
             "name": "to",
             "type": "address",
             "text": "0x40A2aCCbd92BCA938b02010E17A5b8929b49130D",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -323,6 +617,7 @@
             "name": "value",
             "type": "uint256",
             "text": "0",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -331,6 +626,7 @@
             "name": "data",
             "type": "bytes",
             "text": "0x8d80ff0a000000000000…000000000000",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -339,6 +635,7 @@
             "name": "operation",
             "type": "uint8",
             "text": "1 — DELEGATECALL: runs foreign code with the Safe's own storage and funds",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -347,6 +644,7 @@
             "name": "safeTxGas",
             "type": "uint256",
             "text": "50000",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -355,6 +653,7 @@
             "name": "baseGas",
             "type": "uint256",
             "text": "0",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -363,6 +662,7 @@
             "name": "gasPrice",
             "type": "uint256",
             "text": "0",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -371,6 +671,7 @@
             "name": "gasToken",
             "type": "address",
             "text": "0x0000000000000000000000000000000000000000",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -379,6 +680,7 @@
             "name": "refundReceiver",
             "type": "address",
             "text": "0x0000000000000000000000000000000000000000",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -387,6 +689,7 @@
             "name": "signatures",
             "type": "bytes",
             "text": "0x",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -413,6 +716,7 @@
                 "name": "spender",
                 "type": "address",
                 "text": "0x2222222222222222222222222222222222222222",
+                "children": null,
                 "steps": null,
                 "v4Plan": null,
                 "nested": null
@@ -421,13 +725,49 @@
                 "name": "amount",
                 "type": "uint256",
                 "text": "5",
+                "children": null,
                 "steps": null,
                 "v4Plan": null,
                 "nested": null
               }
             ],
             "calls": null,
-            "warnings": []
+            "roles": [
+              {
+                "role": "spender",
+                "address": "0x2222222222222222222222222222222222222222",
+                "name": null
+              }
+            ],
+            "tokenAmounts": [
+              {
+                "token": "0x3333333333333333333333333333333333333333",
+                "amount": {
+                  "$bigint": "5"
+                },
+                "decimals": null,
+                "symbol": null
+              }
+            ],
+            "nft": null,
+            "warnings": [
+              {
+                "code": "unknown-contract",
+                "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+              },
+              {
+                "code": "permission-grant",
+                "text": "This lets another address act for you."
+              },
+              {
+                "code": "possible-token-id",
+                "text": "ERC-721 NFTs use this same function, so this number may be an NFT's token ID rather than an amount."
+              },
+              {
+                "code": "decimals-unknown",
+                "text": "The token's decimals could not be read, so its amount shows in base units."
+              }
+            ]
           },
           {
             "chainId": 1,
@@ -449,6 +789,7 @@
                 "name": "spender",
                 "type": "address",
                 "text": "0x2222222222222222222222222222222222222222",
+                "children": null,
                 "steps": null,
                 "v4Plan": null,
                 "nested": null
@@ -457,15 +798,54 @@
                 "name": "amount",
                 "type": "uint256",
                 "text": "6",
+                "children": null,
                 "steps": null,
                 "v4Plan": null,
                 "nested": null
               }
             ],
             "calls": null,
-            "warnings": []
+            "roles": [
+              {
+                "role": "spender",
+                "address": "0x2222222222222222222222222222222222222222",
+                "name": null
+              }
+            ],
+            "tokenAmounts": [
+              {
+                "token": "0x3333333333333333333333333333333333333333",
+                "amount": {
+                  "$bigint": "6"
+                },
+                "decimals": null,
+                "symbol": null
+              }
+            ],
+            "nft": null,
+            "warnings": [
+              {
+                "code": "unknown-contract",
+                "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+              },
+              {
+                "code": "permission-grant",
+                "text": "This lets another address act for you."
+              },
+              {
+                "code": "possible-token-id",
+                "text": "ERC-721 NFTs use this same function, so this number may be an NFT's token ID rather than an amount."
+              },
+              {
+                "code": "decimals-unknown",
+                "text": "The token's decimals could not be read, so its amount shows in base units."
+              }
+            ]
           }
         ],
+        "roles": [],
+        "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "safe-gas-nonzero",
@@ -474,6 +854,10 @@
           {
             "code": "delegatecall",
             "text": "DELEGATECALL: runs foreign code with the Safe's own storage and funds"
+          },
+          {
+            "code": "unknown-contract",
+            "text": "This destination is not a contract the app recognizes. Check the address before continuing."
           }
         ]
       }
@@ -526,6 +910,7 @@
             "name": "singleton",
             "type": "address",
             "text": "0x41675C099F32341bf84BFc5382aF534df5C7461a",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -534,6 +919,7 @@
             "name": "initializer",
             "type": "bytes",
             "text": "0xb63e800d000000000000…000000000000",
+            "children": null,
             "steps": [
               {
                 "title": "Safe setup",
@@ -564,12 +950,16 @@
             "name": "saltNonce",
             "type": "uint256",
             "text": "7",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
           }
         ],
         "calls": null,
+        "roles": [],
+        "tokenAmounts": [],
+        "nft": null,
         "warnings": []
       }
     ],
@@ -609,6 +999,7 @@
             "name": "account",
             "type": "address",
             "text": "0x1111111111111111111111111111111111111111",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -617,6 +1008,39 @@
             "name": "permissionsData",
             "type": "tuple",
             "text": "{\n  \"operator\": \"0x3fcec3572e84b624477bcff4e2cf1f7deab648f1\",\n  \"projectId\": \"4\",\n  \"permissionIds\": [\n    2,\n    3\n  ]\n}",
+            "children": [
+              {
+                "name": "operator",
+                "type": "address",
+                "text": "JBController | 0x3fcec3572e84b624477bcff4e2cf1f7deab648f1",
+                "children": null
+              },
+              {
+                "name": "projectId",
+                "type": "uint64",
+                "text": "4",
+                "children": null
+              },
+              {
+                "name": "permissionIds",
+                "type": "uint8[]",
+                "text": "[\n  2,\n  3\n]",
+                "children": [
+                  {
+                    "name": "[0]",
+                    "type": "uint8",
+                    "text": "2",
+                    "children": null
+                  },
+                  {
+                    "name": "[1]",
+                    "type": "uint8",
+                    "text": "3",
+                    "children": null
+                  }
+                ]
+              }
+            ],
             "steps": [
               {
                 "title": "Set operator permissions",
@@ -641,7 +1065,21 @@
           }
         ],
         "calls": null,
-        "warnings": []
+        "roles": [
+          {
+            "role": "operator",
+            "address": "0x3fcec3572e84b624477bcff4e2cf1f7deab648f1",
+            "name": "JBController"
+          }
+        ],
+        "tokenAmounts": [],
+        "nft": null,
+        "warnings": [
+          {
+            "code": "permission-grant",
+            "text": "This lets another address act for you."
+          }
+        ]
       }
     ],
     "authorization": null,
@@ -677,6 +1115,7 @@
             "name": "projectId",
             "type": "uint256",
             "text": "4",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -685,6 +1124,7 @@
             "name": "rulesetId",
             "type": "uint256",
             "text": "0",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -693,6 +1133,71 @@
             "name": "splitGroups",
             "type": "tuple[]",
             "text": "[\n  {\n    \"groupId\": \"1\",\n    \"splits\": [\n      {\n        \"percent\": 500000000,\n        \"projectId\": \"0\",\n        \"beneficiary\": \"0x1111111111111111111111111111111111111111\",\n        \"preferAddToBalance\": false,\n        \"lockedUntil\": 0,\n        \"hook\": \"0x0000000000000000000000000000000000000000\"\n      }\n    ]\n  }\n]",
+            "children": [
+              {
+                "name": "[0]",
+                "type": "tuple",
+                "text": "{\n  \"groupId\": \"1\",\n  \"splits\": [\n    {\n      \"percent\": 500000000,\n      \"projectId\": \"0\",\n      \"beneficiary\": \"0x1111111111111111111111111111111111111111\",\n      \"preferAddToBalance\": false,\n      \"lockedUntil\": 0,\n      \"hook\": \"0x0000000000000000000000000000000000000000\"\n    }\n  ]\n}",
+                "children": [
+                  {
+                    "name": "groupId",
+                    "type": "uint256",
+                    "text": "1",
+                    "children": null
+                  },
+                  {
+                    "name": "splits",
+                    "type": "tuple[]",
+                    "text": "[\n  {\n    \"percent\": 500000000,\n    \"projectId\": \"0\",\n    \"beneficiary\": \"0x1111111111111111111111111111111111111111\",\n    \"preferAddToBalance\": false,\n    \"lockedUntil\": 0,\n    \"hook\": \"0x0000000000000000000000000000000000000000\"\n  }\n]",
+                    "children": [
+                      {
+                        "name": "[0]",
+                        "type": "tuple",
+                        "text": "{\n  \"percent\": 500000000,\n  \"projectId\": \"0\",\n  \"beneficiary\": \"0x1111111111111111111111111111111111111111\",\n  \"preferAddToBalance\": false,\n  \"lockedUntil\": 0,\n  \"hook\": \"0x0000000000000000000000000000000000000000\"\n}",
+                        "children": [
+                          {
+                            "name": "percent",
+                            "type": "uint32",
+                            "text": "500000000",
+                            "children": null
+                          },
+                          {
+                            "name": "projectId",
+                            "type": "uint64",
+                            "text": "0",
+                            "children": null
+                          },
+                          {
+                            "name": "beneficiary",
+                            "type": "address",
+                            "text": "0x1111111111111111111111111111111111111111",
+                            "children": null
+                          },
+                          {
+                            "name": "preferAddToBalance",
+                            "type": "bool",
+                            "text": "false",
+                            "children": null
+                          },
+                          {
+                            "name": "lockedUntil",
+                            "type": "uint48",
+                            "text": "0",
+                            "children": null
+                          },
+                          {
+                            "name": "hook",
+                            "type": "address",
+                            "text": "0x0000000000000000000000000000000000000000",
+                            "children": null
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "steps": [
               {
                 "title": "Reserved tokens",
@@ -713,6 +1218,15 @@
           }
         ],
         "calls": null,
+        "roles": [
+          {
+            "role": "beneficiary",
+            "address": "0x1111111111111111111111111111111111111111",
+            "name": null
+          }
+        ],
+        "tokenAmounts": [],
+        "nft": null,
         "warnings": []
       }
     ],
@@ -749,6 +1263,7 @@
             "name": "transactions",
             "type": "bytes",
             "text": "0x00333333333333333333…000000000006",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": [
@@ -772,6 +1287,7 @@
                     "name": "spender",
                     "type": "address",
                     "text": "0x2222222222222222222222222222222222222222",
+                    "children": null,
                     "steps": null,
                     "v4Plan": null,
                     "nested": null
@@ -780,13 +1296,49 @@
                     "name": "amount",
                     "type": "uint256",
                     "text": "5",
+                    "children": null,
                     "steps": null,
                     "v4Plan": null,
                     "nested": null
                   }
                 ],
                 "calls": null,
-                "warnings": []
+                "roles": [
+                  {
+                    "role": "spender",
+                    "address": "0x2222222222222222222222222222222222222222",
+                    "name": null
+                  }
+                ],
+                "tokenAmounts": [
+                  {
+                    "token": "0x3333333333333333333333333333333333333333",
+                    "amount": {
+                      "$bigint": "5"
+                    },
+                    "decimals": null,
+                    "symbol": null
+                  }
+                ],
+                "nft": null,
+                "warnings": [
+                  {
+                    "code": "unknown-contract",
+                    "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+                  },
+                  {
+                    "code": "permission-grant",
+                    "text": "This lets another address act for you."
+                  },
+                  {
+                    "code": "possible-token-id",
+                    "text": "ERC-721 NFTs use this same function, so this number may be an NFT's token ID rather than an amount."
+                  },
+                  {
+                    "code": "decimals-unknown",
+                    "text": "The token's decimals could not be read, so its amount shows in base units."
+                  }
+                ]
               },
               {
                 "chainId": 1,
@@ -808,6 +1360,7 @@
                     "name": "spender",
                     "type": "address",
                     "text": "0x2222222222222222222222222222222222222222",
+                    "children": null,
                     "steps": null,
                     "v4Plan": null,
                     "nested": null
@@ -816,19 +1369,63 @@
                     "name": "amount",
                     "type": "uint256",
                     "text": "6",
+                    "children": null,
                     "steps": null,
                     "v4Plan": null,
                     "nested": null
                   }
                 ],
                 "calls": null,
-                "warnings": []
+                "roles": [
+                  {
+                    "role": "spender",
+                    "address": "0x2222222222222222222222222222222222222222",
+                    "name": null
+                  }
+                ],
+                "tokenAmounts": [
+                  {
+                    "token": "0x3333333333333333333333333333333333333333",
+                    "amount": {
+                      "$bigint": "6"
+                    },
+                    "decimals": null,
+                    "symbol": null
+                  }
+                ],
+                "nft": null,
+                "warnings": [
+                  {
+                    "code": "unknown-contract",
+                    "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+                  },
+                  {
+                    "code": "permission-grant",
+                    "text": "This lets another address act for you."
+                  },
+                  {
+                    "code": "possible-token-id",
+                    "text": "ERC-721 NFTs use this same function, so this number may be an NFT's token ID rather than an amount."
+                  },
+                  {
+                    "code": "decimals-unknown",
+                    "text": "The token's decimals could not be read, so its amount shows in base units."
+                  }
+                ]
               }
             ]
           }
         ],
         "calls": null,
-        "warnings": []
+        "roles": [],
+        "tokenAmounts": [],
+        "nft": null,
+        "warnings": [
+          {
+            "code": "unknown-contract",
+            "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+          }
+        ]
       }
     ],
     "authorization": null,
@@ -864,6 +1461,7 @@
             "name": "unlockData",
             "type": "bytes",
             "text": "0x00000000000000000000…000000000000",
+            "children": null,
             "steps": null,
             "v4Plan": [
               {
@@ -899,13 +1497,22 @@
             "name": "deadline",
             "type": "uint256",
             "text": "1900000000",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
           }
         ],
         "calls": null,
-        "warnings": []
+        "roles": [],
+        "tokenAmounts": [],
+        "nft": null,
+        "warnings": [
+          {
+            "code": "unknown-contract",
+            "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+          }
+        ]
       }
     ],
     "authorization": null,
@@ -938,10 +1545,17 @@
         "byteLength": 4,
         "args": null,
         "calls": null,
+        "roles": [],
+        "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "abi-unavailable",
             "text": "This call’s ABI is not available in this flow. Check the complete calldata in Raw before continuing."
+          },
+          {
+            "code": "unknown-contract",
+            "text": "This destination is not a contract the app recognizes. Check the address before continuing."
           }
         ]
       },
@@ -962,6 +1576,9 @@
         "byteLength": 0,
         "args": null,
         "calls": null,
+        "roles": [],
+        "tokenAmounts": [],
+        "nft": null,
         "warnings": [
           {
             "code": "abi-unavailable",
@@ -1003,6 +1620,7 @@
             "name": "commands",
             "type": "bytes",
             "text": "0x0b",
+            "children": null,
             "steps": [
               {
                 "title": "Wrap ETH into WETH",
@@ -1025,6 +1643,14 @@
             "name": "inputs",
             "type": "bytes[]",
             "text": "[\n  \"0x0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000a\"\n]",
+            "children": [
+              {
+                "name": "[0]",
+                "type": "bytes",
+                "text": "0x00000000000000000000…00000000000a",
+                "children": null
+              }
+            ],
             "steps": null,
             "v4Plan": null,
             "nested": null
@@ -1033,13 +1659,22 @@
             "name": "deadline",
             "type": "uint256",
             "text": "2030-03-17 17:46:40 UTC (1900000000)",
+            "children": null,
             "steps": null,
             "v4Plan": null,
             "nested": null
           }
         ],
         "calls": null,
-        "warnings": []
+        "roles": [],
+        "tokenAmounts": [],
+        "nft": null,
+        "warnings": [
+          {
+            "code": "unknown-contract",
+            "text": "This destination is not a contract the app recognizes. Check the address before continuing."
+          }
+        ]
       }
     ],
     "authorization": null,
