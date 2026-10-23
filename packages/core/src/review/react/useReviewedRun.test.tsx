@@ -455,8 +455,9 @@ describe("useReviewedRun", () => {
       return send(tx);
     });
     const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    // Held under its intent, as sites send payments.
     const action = {
-      calls: [approveCall(), payCall()],
+      calls: [approveCall(), { ...payCall(), intent: "pay:1" }],
       scope: "pay:project-1",
     };
     await expect(run(action)).resolves.toMatchObject({ status: "failed" });
