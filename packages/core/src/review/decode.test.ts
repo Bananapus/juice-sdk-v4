@@ -41,6 +41,8 @@ import {
   UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES,
 } from "../v6/uniswapV4Deployments.js";
 import {
+  addressLabel,
+  currencyLabel,
   describeJBHookMetadata,
   describePermissionsData,
   describeSafeInitializer,
@@ -146,6 +148,15 @@ describe("known addresses", () => {
     expect(knownAddressName(999, CONTROLLER)).toBeNull();
     expect(knownAddressName(BASE, "0x1234")).toBeNull();
     expect(knownAddressName(BASE, 7n)).toBeNull();
+  });
+
+  it("labels an address and a Uniswap currency as a V4 plan shows them", () => {
+    expect(addressLabel(BASE, USDC)).toBe(`USDC | ${USDC}`);
+    expect(addressLabel(BASE, ALICE)).toBe(ALICE);
+    expect(currencyLabel(BASE, zeroAddress)).toBe(
+      `native ETH | ${zeroAddress}`,
+    );
+    expect(currencyLabel(BASE, USDC)).toBe(`USDC | ${USDC}`);
   });
 });
 

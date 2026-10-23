@@ -47,6 +47,8 @@ function frozen<T>(value: T): T {
 
 const NOT_CONFIRMED =
   "This review was not confirmed here. Nothing was sent; review it again.";
+const UNREADABLE =
+  "This request can't be read in full, so it can't be confirmed here. Nothing was sent.";
 
 /**
  * Asks the registered review handler to confirm `model`, and resolves only
@@ -55,13 +57,18 @@ const NOT_CONFIRMED =
  * object, a confirmation from another prompt or model, or one already used)
  * is refused. A review-time simulation that already reported a revert refuses
  * too; one still pending is left to the simulation that runs before the
- * wallet opens. The confirmation is spent whatever the outcome.
+ * wallet opens. The confirmation is spent whatever the outcome. A model
+ * with an `unreadable` warning is refused before any handler sees it.
  */
 export async function promptReview(
   model: ReviewModel,
   simulation: Promise<ReviewSimulation>,
   enriched: Promise<ReviewModel>,
 ): Promise<void> {
+  // A model that binds nothing (buildReviewModel's unreadable one) confirms nothing.
+  if (model.warnings.some((warning) => warning.code === "unreadable")) {
+    throw new Error(UNREADABLE);
+  }
   const handler = currentReviewHandler();
   if (!handler) {
     throw new Error(

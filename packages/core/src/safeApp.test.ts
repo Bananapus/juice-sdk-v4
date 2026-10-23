@@ -377,6 +377,28 @@ describe("the Safe's queue, asked before a proposal", () => {
     },
   );
 
+  it.each(STAMPED_SITES)(
+    "finds only %s queued with the same stamp when asked for exactly the call",
+    async (_, build) => {
+      const near = callOf(build(NOW + 600n));
+      const call = callOf(build(LATER));
+      const exactly = (queued: SafeAppCall[]) =>
+        findPendingSafeAppProposal(
+          chain() as never,
+          STAMPED_CHAIN,
+          SAFE,
+          call,
+          queue(queued),
+          true,
+        );
+      // A live near match listed first never hides the exact one.
+      await expect(exactly([near, call])).resolves.toMatchObject({
+        tx: { nonce: 6 },
+      });
+      await expect(exactly([near])).resolves.toBeNull();
+    },
+  );
+
   it("keeps a deadline-bound proposal queued without a numbered block for the nonce read", async () => {
     const queued = STAMPED_SITES[0][1](NOW - 1n);
     await expect(

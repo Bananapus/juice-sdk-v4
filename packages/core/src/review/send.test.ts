@@ -434,6 +434,87 @@ describe("sendReviewed", () => {
     });
   });
 
+  it("a Safe app reuses a queued proposal of the exact call, never a near match", async () => {
+    const { wallet, deps, chain, hold, holdOf } = setup();
+    wallet.state.safe = true;
+    const prompts = reviewUi();
+    const call = payCall();
+    // Near matches: another amount, value, target, or the same bytes as a DELEGATECALL.
+    chain.queueProposal({ ...call, data: payCall(6n).data });
+    chain.queueProposal({ ...call, value: 8n });
+    chain.queueProposal({ ...call, to: OTHER });
+    chain.queueProposal(call, { operation: 1 });
+    const exact = chain.queueProposal(call);
+    await expect(sendReviewed(action([call]), deps)).resolves.toEqual({
+      status: "proposed",
+      step: 0,
+      safeTxHash: exact,
+    });
+    expect(prompts).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    // Held as that proposal, with its nonce, so its execution can be proven onchain.
+    expect(hold.open({ ...holdOf(call), safe: true }).peek()).toMatchObject({
+      record: { hash: exact, safeNonce: "4" },
+    });
+
+    // Only near matches queued: the wallet proposes it.
+    const other = setup();
+    other.wallet.state.safe = true;
+    other.chain.queueProposal({ ...call, data: payCall(6n).data });
+    other.chain.queueProposal(call, { operation: 1 });
+    await expect(sendReviewed(action([call]), other.deps)).resolves.toEqual({
+      status: "proposed",
+      step: 0,
+      safeTxHash: `0x${"1".padStart(64, "0")}`,
+    });
+    expect(other.wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("a Safe app sends nothing when its queue can't be read, or hangs", async () => {
+    const { wallet, deps, chain } = setup();
+    wallet.state.safe = true;
+    reviewUi();
+    chain.state.safeService = async () => new Response("down", { status: 503 });
+    await expect(sendReviewed(action([payCall()]), deps)).rejects.toThrow();
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+
+    // A read that never answers ends, holding nothing.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      chain.state.safeService = () => new Promise<never>(() => {});
+      const hung = sendReviewed(action([payCall()]), deps);
+      const settled = expect(hung).rejects.toThrow("did not answer in time");
+      await vi.advanceTimersByTimeAsync(8_000);
+      await settled;
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+
+    // Nothing was reserved: once the queue reads, the same action proposes.
+    chain.state.safeService = async (queue) =>
+      new Response(JSON.stringify({ next: null, results: queue }));
+    await expect(
+      sendReviewed(action([payCall()]), deps),
+    ).resolves.toMatchObject({ status: "proposed" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends nothing for an action whose review can't be bound", async () => {
+    const { wallet, deps } = setup();
+    const prompts = reviewUi();
+    await expect(
+      sendReviewed(
+        action([payCall()], {
+          context: [{ label: "When", value: new Date(0) as never }],
+        }),
+        deps,
+      ),
+    ).rejects.toThrow("can't be confirmed here");
+    expect(prompts).toHaveLength(0);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
   it("self-reviewing adapter gets raw calls and no prompt", async () => {
     const { deps } = setup();
     const prompts = reviewUi();

@@ -157,6 +157,23 @@ describe("signReviewed", () => {
     expect(adapter.signTypedData).not.toHaveBeenCalled();
   });
 
+  it("signs nothing when its review can't be bound", async () => {
+    const { adapter } = wallet();
+    const prompts = reviewUi();
+    await expect(
+      signReviewed(
+        [{ kind: "safe-tx", chainId: 10, safe: SAFE, tx: safeTx() }],
+        {
+          ...signed,
+          context: [{ label: "When", value: new Date(0) as never }],
+        },
+        { adapter },
+      ),
+    ).rejects.toThrow("can't be confirmed here");
+    expect(prompts).toHaveLength(0);
+    expect(adapter.signTypedData).not.toHaveBeenCalled();
+  });
+
   it("refuses a deadline past relayrForwarderDeadline", async () => {
     const { adapter } = wallet();
     const prompts = reviewUi();

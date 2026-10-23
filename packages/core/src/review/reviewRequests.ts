@@ -1,6 +1,5 @@
 // Review requests the four web clients' dialogs show, one per decoder route.
-// Clients copy this file for their own rendering tests: src/__fixtures__ is
-// not published.
+// Clients render them in their own tests from `@bananapus/nana-sdk-core/testing`.
 import {
   decodeFunctionData,
   encodeAbiParameters,
@@ -12,10 +11,10 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import { jbContractAddress } from "../../generated/addresses/jbContractAddress.js";
-import { jbControllerAbi } from "../../generated/abi/jbControllerAbi.js";
-import { jbMultiTerminalAbi } from "../../generated/abi/jbMultiTerminalAbi.js";
-import { jbPermissionsAbi } from "../../generated/abi/jbPermissionsAbi.js";
+import { jbContractAddress } from "../generated/addresses/jbContractAddress.js";
+import { jbControllerAbi } from "../generated/abi/jbControllerAbi.js";
+import { jbMultiTerminalAbi } from "../generated/abi/jbMultiTerminalAbi.js";
+import { jbPermissionsAbi } from "../generated/abi/jbPermissionsAbi.js";
 import {
   buildSafeInitializer,
   encodeMultiSend,
@@ -24,13 +23,13 @@ import {
   SAFE_CREATE_ABI,
   SAFE_FACTORY,
   SAFE_SINGLETON,
-} from "../../safe.js";
-import { build721CashOutMetadata } from "../../v6/cashOut.js";
-import { build721PayMetadata } from "../../v6/pay.js";
+} from "../safe.js";
+import { build721CashOutMetadata } from "../v6/cashOut.js";
+import { build721PayMetadata } from "../v6/pay.js";
 import type {
   TransactionReviewCall,
   TransactionReviewRequest,
-} from "../transactionReview.js";
+} from "./transactionReview.js";
 
 const BASE = 8453;
 const ALICE = "0x1111111111111111111111111111111111111111" as Address;

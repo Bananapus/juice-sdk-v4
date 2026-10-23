@@ -39,6 +39,11 @@ export type UseReviewedRunResult = {
   step: number;
   total: number;
   error: string | null;
+  /**
+   * The value the failed run threw, with its cause chain, for a site's own
+   * decoder (a slippage retry, say). Null on success and on cancel.
+   */
+  failure: unknown;
   hash: Hex | null;
   safeTxHash: Hex | null;
   /**
@@ -57,6 +62,7 @@ const IDLE: RunState = {
   step: 0,
   total: 0,
   error: null,
+  failure: null,
   hash: null,
   safeTxHash: null,
 };
@@ -201,6 +207,7 @@ export function useReviewedRun(
             : transactionMessage(
                 error instanceof Error ? error.message : String(error),
               ),
+          failure: cancelled ? null : error,
         });
         follow();
         return null;

@@ -2391,6 +2391,8 @@ export function createWriteHold(
     reviewLine: () => (storage.durable() ? null : WRITE_HOLD_IN_TAB_LINE),
     /** Stop every settle poll and the tab listener (tests, teardown). */
     dispose,
+    /** Safe's service as the hold reads it, every read bounded. */
+    safeService: service,
   };
 }
 
