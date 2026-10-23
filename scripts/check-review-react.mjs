@@ -83,7 +83,7 @@ for (const format of ["esm", "cjs"]) {
 // Import and require it as the app would, from the fixture.
 const load = `const esm = await import("@bananapus/nana-sdk-core/review/react");
 const cjs = (await import("node:module")).createRequire(import.meta.url)("@bananapus/nana-sdk-core/review/react");
-for (const name of ["useHeldWrite", "useHeldIntents", "useHeldWrites", "HeldWritesNotice", "useSavedAttempt", "useHeldSend"])
+for (const name of ["useHeldWrite", "useHeldIntents", "useHeldWrites", "HeldWritesNotice", "useSavedAttempt", "useHeldSend", "useReviewedRun"])
   if (typeof esm[name] !== "function" || typeof cjs[name] !== "function") throw new Error("missing " + name);
 try { (await import("node:module")).createRequire(import.meta.url).resolve("wagmi"); throw new Error("wagmi is installed"); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }`;

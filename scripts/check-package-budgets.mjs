@@ -294,9 +294,12 @@ const budgets = {
     // The core-issued confirmation, the wallet adapter and sendReviewed, each
     // in a module of its own (24 artifacts): 1,626,597 B packed,
     // 23,242,472 B unpacked, 1,762 files.
-    packed: 1_630_000,
-    unpacked: 23_260_000,
-    entries: 1_762,
+    // The reviewed-sequence journal and the shared useReviewedRun hook, each
+    // in a module of its own (16 artifacts): 1,643,251 B packed,
+    // 23,363,840 B unpacked, 1,778 files.
+    packed: 1_645_000,
+    unpacked: 23_380_000,
+    entries: 1_778,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
