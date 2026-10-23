@@ -775,6 +775,22 @@ describe("reviewed sequences", () => {
     );
   });
 
+  it("a resumed Safe app sequence is never folded into one batch", async () => {
+    const prompts = reviewUi();
+    const { deps, record, wallet } = await interrupted(
+      [approveCall(), payCall(5n), payCall(6n)],
+      1,
+    );
+    wallet.state.safe = true;
+    const sendCalls = vi.fn(async () => `0x${"ab".repeat(32)}`);
+    const adapter = { ...deps.adapter, sendCalls };
+    await expect(
+      resumeReviewed(record, { batch: true } as never, { ...deps, adapter }),
+    ).resolves.toMatchObject({ status: "proposed", step: 1 });
+    expect(sendCalls).not.toHaveBeenCalled();
+    expect(prompts).toHaveLength(2);
+  });
+
   it("refuses, before any review, an argument it could not save exactly", async () => {
     const prompts = reviewUi();
     const { wallet, deps, storage } = setup();

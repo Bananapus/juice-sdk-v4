@@ -1483,6 +1483,21 @@ describe("a Safe app batch", () => {
     expect(sendCalls).not.toHaveBeenCalled();
   });
 
+  it("tells every step its proposal, whatever an earlier callback does", async () => {
+    reviewUi();
+    const { deps } = safeApp();
+    const onSubmitted = vi.fn(async (_call: ReviewedCall, step: number) => {
+      if (step === 0) throw new Error("the site's record failed");
+    });
+    await expect(
+      sendReviewed(
+        action([approveCall(), payCall(5n)], { batch: true, onSubmitted }),
+        deps,
+      ),
+    ).rejects.toBeInstanceOf(SubmittedContractWriteError);
+    expect(onSubmitted.mock.calls.map(([, step]) => step)).toEqual([0, 1]);
+  });
+
   it("an ordinary wallet sends a batch's calls one by one", async () => {
     reviewUi();
     const { wallet, deps } = setup();

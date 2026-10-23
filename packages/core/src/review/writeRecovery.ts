@@ -20,7 +20,11 @@ import {
   safeTransactionMatchesCall,
   type SafeServiceOptions,
 } from "../safeService.js";
-import { multiSendCallsOf, readAuthorityIdentity } from "../safe.js";
+import {
+  MULTI_SEND_CALL_ONLY_DEPLOYMENTS,
+  multiSendCallsOf,
+  readAuthorityIdentity,
+} from "../safe.js";
 import { TAB } from "./tabState.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import {
@@ -2052,7 +2056,16 @@ function heldBatch(
   return inner && inner.map((call) => normalized({ ...record, call }).call);
 }
 
-/** Whether `transaction` is the Safe's execTransaction of exactly the held batch: its MultiSend target, calldata, zero value and DELEGATECALL. */
+/**
+ * The MultiSend targets a held batch may run through: a Safe app folds the
+ * same calls into its own version's MultiSendCallOnly, so any recognized
+ * deployment carries exactly the held calldata.
+ */
+const BATCH_TARGETS = MULTI_SEND_CALL_ONLY_DEPLOYMENTS.map((to) =>
+  to.toLowerCase(),
+);
+
+/** Whether `transaction` is the Safe's execTransaction of exactly the held batch: a recognized MultiSendCallOnly, its calldata, zero value and DELEGATECALL. */
 function runsHeldBatch(
   transaction: { to?: Address | null; input?: Hex },
   record: ReviewedWriteRecoveryRecord,
@@ -2065,7 +2078,7 @@ function runsHeldBatch(
     if (functionName !== "execTransaction") return false;
     const [to, value, data, operation] = args;
     return (
-      to.toLowerCase() === record.call.to &&
+      BATCH_TARGETS.includes(to.toLowerCase()) &&
       value === 0n &&
       data.toLowerCase() === record.call.data &&
       operation === 1
@@ -2102,13 +2115,16 @@ export function safeProposalIsHeldCall(
   input: ReviewedWriteRecoveryInput,
 ): boolean {
   const record = normalized(input);
-  return safeTransactionMatchesCall(proposal, {
-    ...record.call,
-    value: BigInt(record.call.value),
-    ...(heldBatch({ ...record, version: 1, id: "" })
-      ? { operation: 1 as const }
-      : {}),
-  });
+  const call = { ...record.call, value: BigInt(record.call.value) };
+  return heldBatch({ ...record, version: 1, id: "" })
+    ? BATCH_TARGETS.some((to) =>
+        safeTransactionMatchesCall(proposal, {
+          ...call,
+          to: to as Address,
+          operation: 1,
+        }),
+      )
+    : safeTransactionMatchesCall(proposal, call);
 }
 
 /**

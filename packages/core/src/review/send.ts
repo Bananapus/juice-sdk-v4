@@ -177,7 +177,8 @@ export type ReviewedAction = {
    * Awaited once a step's receipt shows it succeeded and its progress is
    * saved, before the next step; on resume, for a step that went through
    * while away, when its receipt can be read. A throw is ignored: the step
-   * went through.
+   * went through. A Safe app's proposal is never told here: its hold's
+   * settlement is (`useReviewedRun`'s `done` and `receipt`).
    */
   onConfirmed?: (
     call: ReviewedCall,
@@ -190,7 +191,8 @@ export type ReviewedAction = {
    * together, in order), under one hold: the first call's `intent`, or else
    * `safeBatchIntent` of the calls. The calls must share a chain and
    * the adapter must offer `sendCalls`. Nothing is journaled: the proposal
-   * runs whole or not at all. Any other wallet sends the calls one by one.
+   * runs whole or not at all. A resumed sequence, and any other wallet, sends
+   * the calls one by one.
    */
   batch?: boolean;
   /**
@@ -773,7 +775,8 @@ async function send(
   const safe = adapter.isSafe();
   /** Through a Safe app, the one MultiSend call every step goes as. */
   const batched =
-    action.batch && safe && calls.length > 1
+    // A resumed sequence is journaled step by step: never folded into one proposal.
+    action.batch && safe && calls.length > 1 && !resuming
       ? safeBatchCall(
           account,
           calls.map((call, step) => ({ ...call, ...sent[step] })),
@@ -930,11 +933,18 @@ async function send(
         onWriteRejected: released,
         onWriteSubmitted: async (submitted) => {
           gate.afterSubmit(submitted);
+          // Every step went: each is told, whatever an earlier callback does.
+          const failures: unknown[] = [];
           for (const [step, call] of calls.entries())
-            await action.onSubmitted?.(call, step, submitted, {
-              safe: true,
-              adopted: false,
-            });
+            try {
+              await action.onSubmitted?.(call, step, submitted, {
+                safe: true,
+                adopted: false,
+              });
+            } catch (error) {
+              failures.push(error);
+            }
+          if (failures.length) throw failures[0];
         },
         write: async () => {
           const id = await adapter.sendCalls!(
