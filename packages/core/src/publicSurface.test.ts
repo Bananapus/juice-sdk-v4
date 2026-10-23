@@ -121,6 +121,10 @@ describe("published core SDK surfaces", () => {
     expect(review.isTransactionReceiptUnavailableError).toBeTypeOf("function");
     expect(review.simulateStateChangingTransaction).toBeTypeOf("function");
     expect(review.simulateCallSequence).toBeTypeOf("function");
+    expect(review.REVERT_UNKNOWN_LINE).toBeTypeOf("string");
+    expect(review.reviewPlan).toBeTypeOf("function");
+    expect(review).not.toHaveProperty("spendPlan");
+    expect(review).not.toHaveProperty("mintPlan");
     expect(review.TRANSACTION_SIMULATION_GAS).toBe(10_000_000n);
     expect(review.TRANSACTION_SIMULATION_MAX_RETURN_BYTES).toBe(4_096);
     expect(feeBuyback.isFeePayingCall).toBeTypeOf("function");

@@ -542,6 +542,24 @@ describe("sendReviewed", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
 
+  it("names the chain in a revert line when the client carries no chain", async () => {
+    const { deps, chain } = setup();
+    (chain.client as { chain?: unknown }).chain = undefined;
+    chain.state.ethCall = () => {
+      throw reverted();
+    };
+    const lines: string[] = [];
+    reviewUi(async (prompt) => {
+      const simulation = await prompt.simulation;
+      if (simulation.status === "failed") lines.push(simulation.message);
+      return null;
+    });
+    await sendReviewed(action([payCall(6n)]), deps).catch(() => undefined);
+    expect(lines).toEqual([
+      `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
+    ]);
+  });
+
   it("confirm does not wait on a pending review simulation; the post-confirm simulation decides", async () => {
     const { wallet, deps, chain, hold, holdOf } = setup();
     let calls = 0;

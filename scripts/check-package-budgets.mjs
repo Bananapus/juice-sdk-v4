@@ -322,9 +322,11 @@ const budgets = {
     // The review test prompt, the prior block, message calls, the review
     // abort, confirmed steps, the hook's preload and discard and the Safe
     // app batch add no files: 1,753,927 B packed, 23,911,253 B unpacked.
-    packed: 1_760_000,
-    unpacked: 23_950_000,
-    entries: 1_819,
+    // Reviewed plans in a module of their own (8 artifacts) and Relayr raw
+    // calls: 1,766,660 B packed, 24,002,871 B unpacked, 1,827 files.
+    packed: 1_775_000,
+    unpacked: 24_050_000,
+    entries: 1_827,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

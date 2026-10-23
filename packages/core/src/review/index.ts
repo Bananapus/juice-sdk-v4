@@ -22,6 +22,13 @@ export {
 } from "./confirm.js";
 export * from "./wallet.js";
 export * from "./send.js";
+export {
+  REVIEWED_PLAN_EXPIRED_LINE,
+  REVIEWED_PLAN_REFUSED_LINE,
+  REVIEWED_PLAN_TTL_MS,
+  type ReviewedPlan,
+  type ReviewedPlanCall,
+} from "./plan.js";
 export * from "./safeSend.js";
 export * from "./relayrSend.js";
 export {

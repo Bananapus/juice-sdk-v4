@@ -29,6 +29,12 @@ import { permit2Rows } from "./decode.js";
 import { decodeReviewCall } from "./decodeCall.js";
 import { buildReviewModel, type ReviewContextRow } from "./model.js";
 import {
+  REVIEWED_PLAN_REFUSED_LINE,
+  spendPlan,
+  type ReviewedPlan,
+  type ReviewedPlanCall,
+} from "./plan.js";
+import {
   FORWARD_REQUEST_TYPES,
   relayrForwarder,
   relayrForwarderDeadline,
@@ -429,6 +435,47 @@ export async function signPrepared(
 }
 
 /**
+ * The calls `signature` lets someone run, as a plan matches them: a
+ * zero-refund Safe transaction's CALL or MultiSendCallOnly calls, from the
+ * Safe, or a forward request's call, from its signer. Any other signature is
+ * refused under a plan.
+ */
+export function plannedCallsOf(
+  signature: ReviewedSignature,
+): ReviewedPlanCall[] {
+  if (signature.kind === "safe-tx") {
+    const { chainId, safe, tx } = signature;
+    const message = safeTransactionMessage(tx);
+    if (message.gasPrice === 0n) {
+      const inner =
+        message.operation === 1
+          ? multiSendCallsOf(message)
+          : [{ to: message.to, data: message.data, value: message.value }];
+      if (inner)
+        return inner.map(({ to, data, value }) => ({
+          chainId,
+          from: safe,
+          to,
+          data,
+          value,
+        }));
+    }
+  } else if (signature.kind === "forward-request") {
+    const { chainId, request } = signature;
+    return [
+      {
+        chainId,
+        from: request.from,
+        to: request.to,
+        data: request.data,
+        value: request.value,
+      },
+    ];
+  }
+  throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
+}
+
+/**
  * Signs only what the person reviewed: one prompt for every signature, with
  * the exact typed data or text and the calls each lets someone run, decoded.
  * Nothing is signed unless the review handler returns core's confirmation
@@ -448,6 +495,12 @@ export async function signReviewed(
     reverify?: () => Promise<void>;
     /** Withdraws the review while it is open, as `sendReviewed`'s does. */
     signal?: AbortSignal;
+    /**
+     * A plan the person already reviewed (`reviewPlan`): nothing is asked,
+     * and every call the signatures let someone run is spent from it, or
+     * nothing is signed.
+     */
+    plan?: ReviewedPlan;
   },
   deps: { adapter: WalletAdapter },
 ): Promise<Hex[]> {
@@ -460,10 +513,15 @@ export async function signReviewed(
   if (connected.toLowerCase() !== account.toLowerCase()) {
     throw new ReviewLineError("The connected account changed. Review again.");
   }
-  const prepared = [...signatures].map((signature) =>
+  const listed = [...signatures];
+  const prepared = listed.map((signature) =>
     prepareSignature(signature, account),
   );
   if (!prepared.length) throw new ReviewLineError("There is nothing to sign.");
+  if (action.plan) {
+    spendPlan(action.plan, account, listed.flatMap(plannedCallsOf));
+    return signPrepared(prepared, account, adapter, undefined, action.reverify);
+  }
   const model = buildReviewModel({
     calls: [],
     signatures: prepared.map(({ review }) => review),

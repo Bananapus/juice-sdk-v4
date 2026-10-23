@@ -14,6 +14,7 @@ import {
   submitReviewedContractWrite,
   type ReviewedWritePhase,
 } from "./contractWrite.js";
+import { JB_CHAINS } from "../constants.js";
 import { gasWithHeadroom } from "./gas.js";
 import {
   findPendingSafeAppProposal,
@@ -32,6 +33,13 @@ import {
   type ReviewModel,
   type ReviewWarning,
 } from "./model.js";
+import {
+  mintPlan,
+  relayrStandInSender,
+  spendPlan,
+  type ReviewedPlan,
+  type ReviewedPlanCall,
+} from "./plan.js";
 import { waitForTrackedReceipt } from "./receipt.js";
 import {
   assertSavableCalls,
@@ -44,6 +52,7 @@ import {
   type ReviewedSequenceRecord,
 } from "./sequence.js";
 import {
+  plannedCallsOf,
   prepareSignature,
   signPrepared,
   type ReviewedSignature,
@@ -57,7 +66,10 @@ import {
   simulateStateChangingTransaction,
   simulationFailure,
 } from "./simulation.js";
-import type { TransactionReviewRequest } from "./transactionReview.js";
+import type {
+  TransactionReviewCall,
+  TransactionReviewRequest,
+} from "./transactionReview.js";
 import {
   unsupportedWalletRequest,
   walletReady,
@@ -212,6 +224,12 @@ export type ReviewedAction = {
    * completed step again.
    */
   scope?: string;
+  /**
+   * A plan the person already reviewed ({@link reviewPlan}): nothing is
+   * asked, and every call (and every call the `signatures` let someone run)
+   * is spent from it, or nothing is sent.
+   */
+  plan?: ReviewedPlan;
 };
 
 export type ReviewedSendDeps = {
@@ -352,6 +370,41 @@ function sameCall(a: SentCall, b: SentCall): boolean {
   );
 }
 
+/** The chain's name in a line the person reads, never only its id when core knows it. */
+function chainNameOf(client: PublicClient, chainId: number): string {
+  return (
+    client.chain?.name ??
+    JB_CHAINS[chainId as keyof typeof JB_CHAINS]?.name ??
+    `chain ${chainId}`
+  );
+}
+
+/** A call as the review shows it, from `from` (none: Relayr's own account runs it). */
+function shownCall(
+  { sent: { gas, ...sent }, shown }: ReturnType<typeof exact>,
+  from: Address | undefined,
+  safe: boolean,
+): TransactionReviewCall {
+  return {
+    ...sent,
+    ...(from ? { from } : {}),
+    // A Safe app signs safeTxGas 0, never the app's gas.
+    ...(safe ? { safeTxGas: 0n } : gas === undefined ? {} : { gas }),
+    ...(shown.abi ? { abi: shown.abi } : {}),
+    ...(shown.functionName ? { functionName: shown.functionName } : {}),
+    ...(shown.args ? { args: shown.args } : {}),
+    ...(shown.label
+      ? { label: shown.label }
+      : from
+        ? {}
+        : { label: "Sent by Relayr" }),
+    ...(shown.contractName ? { contractName: shown.contractName } : {}),
+    ...(shown.adoptIgnoringArgs
+      ? { adoptIgnoringArgs: shown.adoptIgnoringArgs }
+      : {}),
+  };
+}
+
 function labelOf(call: ReviewedCall, index: number): string {
   return call.label ?? call.functionName ?? `Step ${index + 1}`;
 }
@@ -376,7 +429,7 @@ async function notBefore(
  * a revert is `failed`, anything else `unavailable`.
  */
 async function reviewSimulation(
-  account: Address,
+  fromOf: (index: number) => Address,
   calls: readonly ReviewedCall[],
   sent: readonly SentCall[],
   blocks: readonly (bigint | undefined)[],
@@ -390,10 +443,14 @@ async function reviewSimulation(
     let chainName = `chain ${chainId}`;
     try {
       const client = clientFor(chainId);
-      chainName = client.chain?.name ?? chainName;
+      chainName = chainNameOf(client, chainId);
+      const from = fromOf(steps[0]);
       if (steps.length > 1) {
+        // A sequence runs from one sender; mixed senders are checked before each send.
+        if (steps.some((index) => fromOf(index) !== from))
+          return { status: "unavailable", message: SIMULATION_UNAVAILABLE };
         await simulateCallSequence(client, {
-          from: account,
+          from,
           chainName,
           calls: steps.map((index) => ({
             to: sent[index].to,
@@ -407,7 +464,7 @@ async function reviewSimulation(
       } else if (!(calls[steps[0]].dependsOnPrior && steps[0] > 0)) {
         const minimum = blocks[steps[0]];
         await simulateStateChangingTransaction(client, {
-          from: account,
+          from,
           to: sent[steps[0]].to,
           data: sent[steps[0]].data,
           value: sent[steps[0]].value,
@@ -460,6 +517,94 @@ function simulationWarning(
     return { code: "simulation-unavailable", text: SIMULATION_UNAVAILABLE };
   }
   return undefined;
+}
+
+/** One prompt over `model`, with the review-time simulation of `run` as its warning. */
+async function promptSimulated(
+  model: ReviewModel,
+  fromOf: (index: number) => Address,
+  calls: readonly ReviewedCall[],
+  run: readonly SentCall[],
+  blocks: readonly (bigint | undefined)[],
+  clientFor: (chainId: number) => PublicClient,
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  const simulation = reviewSimulation(fromOf, calls, run, blocks, clientFor);
+  const enriched = Promise.all([
+    enrichReviewModel(model, clientFor).catch(() => model),
+    simulation,
+  ]).then(([read, simulated]) => {
+    const warning = simulationWarning(simulated);
+    return warning ? { ...read, warnings: [...read.warnings, warning] } : read;
+  });
+  await promptReview(model, simulation, enriched, signal);
+}
+
+/** What {@link reviewPlan} reviews: calls from `account`, or from their own `from`. */
+export type ReviewedPlanAction = Pick<
+  ReviewedAction,
+  "account" | "title" | "description" | "confirmLabel" | "context" | "signal"
+> & {
+  calls: readonly (ReviewedCall & {
+    /** Who sends the call: a Safe `account` owns, say, or "relayr" for one Relayr's own account runs. */
+    from?: Address | "relayr";
+  })[];
+};
+
+/**
+ * One review of calls an app then sends one by one, across chains and
+ * paths: core's prompt over exactly `action.calls`, simulated as their
+ * senders, and nothing else. The plan it returns lets {@link sendReviewed},
+ * `signReviewed`, `proposeReviewedSafeTransaction`, `payRelayrReviewed` and
+ * `runRelayrReviewed` skip their prompt for a call identical to one of its
+ * calls (account, chain, sender, target, data and value), each spent once,
+ * for {@link REVIEWED_PLAN_TTL_MS} after confirm. Anything else is refused.
+ */
+export async function reviewPlan(
+  action: ReviewedPlanAction,
+  deps: Pick<ReviewedSendDeps, "clientFor">,
+): Promise<ReviewedPlan> {
+  const { account } = action;
+  const calls = [...action.calls];
+  if (!calls.length)
+    throw new ReviewLineError("There is no transaction to review.");
+  const froms = calls.map(({ from }) => from ?? account);
+  const snapshots = calls.map(exact);
+  const model = buildReviewModel({
+    calls: snapshots.map((snapshot, index) =>
+      shownCall(
+        snapshot,
+        froms[index] === "relayr" ? undefined : (froms[index] as Address),
+        false,
+      ),
+    ),
+    ...(action.title ? { title: action.title } : {}),
+    ...(action.description ? { description: action.description } : {}),
+    ...(action.confirmLabel ? { confirmLabel: action.confirmLabel } : {}),
+    ...(action.context ? { context: action.context } : {}),
+  });
+  const relayr = relayrStandInSender();
+  await promptSimulated(
+    model,
+    (index) => (froms[index] === "relayr" ? relayr : (froms[index] as Address)),
+    calls,
+    snapshots.map(({ sent }) => sent),
+    calls.map((call) => call.simulationBlockNumber),
+    deps.clientFor,
+    action.signal,
+  );
+  return mintPlan(
+    account,
+    snapshots.map(
+      ({ sent: { chainId, to, data, value } }, index): ReviewedPlanCall => ({
+        chainId,
+        from: froms[index],
+        to,
+        data,
+        value,
+      }),
+    ),
+  );
 }
 
 /**
@@ -648,20 +793,7 @@ async function send(
   }
 
   const request = (safe: boolean): TransactionReviewRequest => ({
-    calls: snapshots.map(({ sent: { gas, ...sent }, shown }) => ({
-      ...sent,
-      from: account,
-      // A Safe app signs safeTxGas 0, never the app's gas.
-      ...(safe ? { safeTxGas: 0n } : gas === undefined ? {} : { gas }),
-      ...(shown.abi ? { abi: shown.abi } : {}),
-      ...(shown.functionName ? { functionName: shown.functionName } : {}),
-      ...(shown.args ? { args: shown.args } : {}),
-      ...(shown.label ? { label: shown.label } : {}),
-      ...(shown.contractName ? { contractName: shown.contractName } : {}),
-      ...(shown.adoptIgnoringArgs
-        ? { adoptIgnoringArgs: shown.adoptIgnoringArgs }
-        : {}),
-    })),
+    calls: snapshots.map((snapshot) => shownCall(snapshot, account, safe)),
     ...(prepared.length
       ? { signatures: prepared.map(({ review }) => review) }
       : {}),
@@ -777,15 +909,27 @@ async function send(
   const run: readonly SentCall[] = safe
     ? sent.map(({ gas: _gas, ...call }) => call)
     : sent;
-  const simulation = reviewSimulation(account, calls, run, blocks, clientFor);
-  const enriched = Promise.all([
-    enrichReviewModel(model, clientFor).catch(() => model),
-    simulation,
-  ]).then(([read, simulated]) => {
-    const warning = simulationWarning(simulated);
-    return warning ? { ...read, warnings: [...read.warnings, warning] } : read;
-  });
-  await promptReview(model, simulation, enriched, action.signal);
+  if (action.plan)
+    spendPlan(action.plan, account, [
+      ...sent.map(({ chainId, to, data, value }) => ({
+        chainId,
+        from: account,
+        to,
+        data,
+        value,
+      })),
+      ...(resuming ? [] : (action.signatures ?? [])).flatMap(plannedCallsOf),
+    ]);
+  else
+    await promptSimulated(
+      model,
+      () => account,
+      calls,
+      run,
+      blocks,
+      clientFor,
+      action.signal,
+    );
   let signed: { signatures?: Hex[] } = {};
   if (prepared.length) {
     // The action's own gates, last before the wallet opens for each signature.
@@ -858,7 +1002,7 @@ async function send(
         simulate: async (sending) => {
           await simulateCallSequence(client, {
             from: account,
-            chainName: client.chain?.name ?? `chain ${batched.chainId}`,
+            chainName: chainNameOf(client, batched.chainId),
             calls: run.map((call, step) => ({
               ...call,
               label: labelOf(calls[step], step),
@@ -1076,7 +1220,7 @@ async function send(
               gas,
             }).catch((error: unknown) => {
               throw simulationFailure(
-                `${labelOf(call, at)} cannot run on ${client.chain?.name ?? `chain ${sending.chainId}`}: ${revertDetail(error)}`,
+                `${labelOf(call, at)} cannot run on ${chainNameOf(client, sending.chainId)}: ${revertDetail(error)}`,
                 error,
               );
             }),
