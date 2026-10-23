@@ -683,6 +683,15 @@ function releasedKey(key: string, id: string): string {
   return `${key}:released:${id}`;
 }
 
+/**
+ * The key that marks the record `id` saved at `key` as ended by the user's
+ * exit or as never sent, never by a settlement's cleanup: only it lets a
+ * saved sequence send that step again.
+ */
+function exitedKey(key: string, id: string): string {
+  return `${key}:exited:${id}`;
+}
+
 function readStored(
   raw: string | null,
   key: string,
@@ -1048,6 +1057,11 @@ export function createBrowserWriteRecovery(
     if (!owned || owned.hash) return;
     const current = read();
     if (current?.id === owned.id && current.hash) return;
+    try {
+      storage().setItem(exitedKey(locate(storage()).at, owned.id), "1");
+    } catch {
+      /* Unsaved, a sequence resumed over it asks for the user's check. */
+    }
     // Removing the record must not uncover a settlement of an earlier
     // attempt: unless this reservation is the verified latest, it stays as
     // released instead, which still invalidates that settlement.
@@ -1244,6 +1258,7 @@ export function createBrowserWriteRecovery(
       if (typeof replaced === "string" && replaced !== record.id)
         try {
           store.removeItem(releasedKey(key, replaced));
+          store.removeItem(exitedKey(key, replaced));
         } catch {
           /* A leftover marker names only the old record. */
         }
@@ -1328,11 +1343,11 @@ export function createBrowserWriteRecovery(
         return undefined;
       }
     },
-    /** Whether the record `id` was released: by the user's exit, or because nothing was sent. */
+    /** Whether the record `id` ended by the user's exit, or because nothing was sent. */
     released(id: string): boolean {
       try {
         const store = storage();
-        return store.getItem(releasedKey(locate(store).at, id)) !== null;
+        return store.getItem(exitedKey(locate(store).at, id)) !== null;
       } catch {
         return false;
       }
@@ -1771,6 +1786,11 @@ export function createBrowserWriteRecovery(
           "Write recovery changed. Keep the current action pending.",
         );
       const marker = releasedKey(at, durable.id);
+      try {
+        store.setItem(exitedKey(at, durable.id), "1");
+      } catch {
+        /* Unsaved, a sequence resumed over it asks for the user's check. */
+      }
       store.setItem(marker, "1");
       if (store.getItem(marker) !== "1")
         throw new ReviewLineError(
