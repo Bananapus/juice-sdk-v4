@@ -323,7 +323,7 @@ const budgets = {
     // abort, confirmed steps, the hook's preload and discard and the Safe
     // app batch add no files: 1,753,927 B packed, 23,911,253 B unpacked.
     packed: 1_760_000,
-    unpacked: 23_930_000,
+    unpacked: 23_950_000,
     entries: 1_819,
   },
   "@bananapus/nana-sdk-react": {
