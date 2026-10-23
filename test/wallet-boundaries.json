@@ -87,14 +87,14 @@
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 1058,
+      "line": 1066,
       "api": "sendCalls",
       "boundary": "sendReviewed with batch, through a Safe app only, hands every reviewed call's exact bytes to the WalletAdapter's sendCalls as one Safe proposal, inside submitReviewedContractWrite under the batch's one MultiSend write hold and only after core's own confirmation for the model of the whole action. A reviewPlan plan core minted after its own confirmation stands for that confirmation only for calls identical to its unspent calls, each spent once. Only a 4001 releases the hold; an answer that is not a safeTxHash keeps it held.",
       "test": "packages/core/src/review/send.test.ts"
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 1308,
+      "line": 1316,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the app's exact gas or else the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action. A reviewPlan plan core minted after its own confirmation stands for that confirmation only for calls identical to its unspent calls, each spent once. A Safe app whose Safe already queued that call (exact bytes, or the same target, value, operation and function with every arg equal but those its adoptIgnoringArgs lists) returns that proposal's hash instead and opens no wallet.",
       "test": "packages/core/src/review/send.test.ts"
