@@ -8,6 +8,7 @@ import {
   openStepHold,
   REVIEWED_ACCOUNT_CHANGED_LINE,
   REVIEWED_ENGINE_LOAD_LINE,
+  safeBatchCall,
   settledLine,
   TransactionReviewCancelledError,
   walletReady,
@@ -263,9 +264,12 @@ export function useReviewedRun(
           const saved = !action.scope
             ? null
             : findReviewedSequence(action.scope, account, { storage });
+          // A Safe app's batch is held as its one MultiSend proposal.
           const calls = saved?.sending
             ? [saved.calls[saved.sending.step]]
-            : action.calls;
+            : action.batch && safe && action.calls.length > 1
+              ? [safeBatchCall(account, action.calls)]
+              : action.calls;
           const found = calls
             .map((call) => ({
               call,

@@ -584,4 +584,24 @@ describe("useReviewedRun", () => {
       hash: null,
     });
   });
+
+  test("follows a Safe app batch as its one proposal", async () => {
+    reviewUi();
+    const { wallet, deps } = setup();
+    wallet.state.safe = true;
+    const proposal = `0x${"ab".repeat(32)}` as const;
+    const adapter = {
+      ...wallet.adapter,
+      sendCalls: vi.fn(async () => proposal),
+    };
+    const { seen, run } = harness({ ...deps, adapter, account: ACCOUNT });
+    await expect(
+      run({ calls: [approveCall(), payCall()], scope: "pay", batch: true }),
+    ).resolves.toMatchObject({ status: "proposed", safeTxHash: proposal });
+    expect(seen.current).toMatchObject({
+      phase: "proposed",
+      safeTxHash: proposal,
+    });
+    await vi.waitFor(() => expect(seen.current!.held).not.toBeNull());
+  });
 });

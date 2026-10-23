@@ -61,6 +61,7 @@ import {
 } from "./wallet.js";
 import {
   openStepHold,
+  safeBatchCall,
   WriteHeldError,
   WriteHoldStaleReviewError,
   type WriteHold,
@@ -182,6 +183,15 @@ export type ReviewedAction = {
     receipt: TransactionReceipt,
   ) => void | Promise<void>;
   /**
+   * Through a Safe app, every call goes to the Safe as one proposal (the
+   * app folds `sendCalls` into a MultiSend its signers approve once and run
+   * together, in order), under one hold: the first call's `intent`, or else
+   * `safeBatchIntent` of the calls. The calls must share a chain and
+   * the adapter must offer `sendCalls`. Nothing is journaled: the proposal
+   * runs whole or not at all. Any other wallet sends the calls one by one.
+   */
+  batch?: boolean;
+  /**
    * Withdraws the review while it is open: the run ends as cancelled with
    * nothing sent, and the prompt's own `signal` aborts so its UI closes.
    * Once the review is confirmed it changes nothing.
@@ -240,6 +250,10 @@ const BAD_ADOPT = "This call's adoption rule is not valid. Nothing was sent.";
 const ACCOUNT_CHANGED = REVIEWED_ACCOUNT_CHANGED_LINE;
 const NOT_SAVED =
   "This action's progress could not be saved. Nothing was sent; review it again.";
+export const SAFE_BATCH_UNSUPPORTED_LINE =
+  "This Safe connection can't propose these calls as one transaction. Nothing was sent.";
+export const SAFE_BATCH_UNFOLLOWABLE_LINE =
+  "Your Safe took this batch, but it can't be followed from here. Check your Safe before sending again.";
 const SIMULATION_UNAVAILABLE =
   "Simulation unavailable. This could not be checked before you confirm; it is checked again before your wallet opens.";
 
@@ -739,11 +753,25 @@ async function send(
   const offset = resuming?.record.completed.length ?? 0;
 
   const safe = adapter.isSafe();
-  const handles = calls.map((call, step) =>
+  /** Through a Safe app, the one MultiSend call every step goes as. */
+  const batched =
+    action.batch && safe && calls.length > 1
+      ? safeBatchCall(
+          account,
+          calls.map((call, step) => ({ ...call, ...sent[step] })),
+        )
+      : undefined;
+  if (
+    batched &&
+    (!adapter.sendCalls ||
+      sent.some((call) => call.chainId !== batched.chainId))
+  )
+    throw new ReviewLineError(SAFE_BATCH_UNSUPPORTED_LINE);
+  const handles = (batched ? [batched] : calls).map((call, step) =>
     openStepHold(hold, account, safe, {
       intent: call.intent,
       legacy: call.legacy,
-      ...sent[step],
+      ...(batched ?? sent[step]),
     }),
   );
   // A step its hold already holds is refused before the review opens.
@@ -787,7 +815,9 @@ async function send(
           throw new ReviewLineError(CHANGED);
         }
         if (!sameCall(now, sent[step])) throw new ReviewLineError(CHANGED);
-        if (generation(handles[step]) !== reviewedGenerations[step]) {
+      });
+      handles.forEach((handle, step) => {
+        if (generation(handle) !== reviewedGenerations[step]) {
           throw new WriteHoldStaleReviewError();
         }
       });
@@ -795,6 +825,115 @@ async function send(
     signed = {
       signatures: await signPrepared(prepared, account, adapter, stillReviewed),
     };
+  }
+
+  if (batched) {
+    const client = clientFor(batched.chainId);
+    const unchanged = () =>
+      calls.forEach((call, step) => {
+        let now: SentCall;
+        try {
+          now = exact(call).sent;
+        } catch {
+          throw new ReviewLineError(CHANGED);
+        }
+        if (!sameCall(now, sent[step])) throw new ReviewLineError(CHANGED);
+      });
+    const progress = (phase: ReviewedProgress["phase"], hash?: Hex) =>
+      onProgress?.({
+        step: 0,
+        total: calls.length,
+        phase,
+        ...(hash ? { hash } : {}),
+      });
+    /** The steps whose `beforeWallet` began. */
+    let began = 0;
+    const hash = await handles[0].send<Hex>(client, (gate) => {
+      if (generation(handles[0]) !== reviewedGenerations[0]) {
+        throw new WriteHoldStaleReviewError();
+      }
+      const released = async () => {
+        gate.onRejected();
+        for (const [step, call] of calls.slice(0, began).entries())
+          await tellUnsent(call, step);
+      };
+      return submitReviewedContractWrite({
+        request: batched,
+        expectedAccount: account,
+        review: () => Promise.resolve(),
+        switchChain: async (chainId) => {
+          if (adapter.chainId() !== chainId) await adapter.switchChain(chainId);
+        },
+        currentAccount: () => adapter.account(),
+        reverify: async () => {
+          for (const [step, call] of calls.entries())
+            await action.reverify?.(call, step, undefined);
+          unchanged();
+        },
+        simulate: async (sending) => {
+          await simulateCallSequence(client, {
+            from: account,
+            chainName: client.chain?.name ?? `chain ${batched.chainId}`,
+            calls: run.map((call, step) => ({
+              ...call,
+              label: labelOf(calls[step], step),
+              dependsOnPrior: calls[step].dependsOnPrior,
+            })),
+          });
+          return sending;
+        },
+        beforeWrite: async () => {
+          await gate.beforeSend();
+          try {
+            for (const [step, call] of calls.entries()) {
+              began = step + 1;
+              await action.beforeWallet?.(call, step);
+            }
+          } catch (error) {
+            await released();
+            throw error;
+          }
+        },
+        beforeSend: () => {
+          action.assertWriteState?.();
+          unchanged();
+          if (!adapter.isSafe())
+            throw new ReviewLineError(
+              "Wallet connection changed. Review the transaction again.",
+            );
+          if (adapter.chainId() !== batched.chainId)
+            throw new ReviewLineError(
+              "Your wallet changed networks. Review the transaction again.",
+            );
+          if (adapter.account()?.toLowerCase() !== account.toLowerCase())
+            throw new ReviewLineError(ACCOUNT_CHANGED);
+        },
+        onBeforeWriteAborted: released,
+        onWriteRejected: released,
+        onWriteSubmitted: async (submitted) => {
+          gate.afterSubmit(submitted);
+          for (const [step, call] of calls.entries())
+            await action.onSubmitted?.(call, step, submitted, {
+              safe: true,
+              adopted: false,
+            });
+        },
+        write: async () => {
+          const id = await adapter.sendCalls!(
+            batched.chainId,
+            sent.map(({ to, data, value }) => ({ to, data, value })),
+          );
+          // A Safe app answers with the proposal's safeTxHash; anything else can't be followed.
+          if (typeof id !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(id))
+            throw new ReviewLineError(SAFE_BATCH_UNFOLLOWABLE_LINE);
+          return id as Hex;
+        },
+        onPhase: (phase) => progress(phase),
+        guard: action.guard,
+      });
+    });
+    progress("proposed", hash);
+    return { status: "proposed", step: 0, safeTxHash: hash, ...signed };
   }
 
   // Saved before the first wallet call, once the review is confirmed.
