@@ -17,7 +17,7 @@ import {
 } from "../generated/juicebox.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import { isDefiniteWalletRejection } from "./contractWrite.js";
-import { REVIEW_LINE } from "./lineError.js";
+import { ReviewFixedLineError } from "./lineError.js";
 import { simulateStateChangingTransaction } from "./simulation.js";
 
 // Relayr runs a bundle of transactions on several chains for one prepaid
@@ -290,19 +290,19 @@ export type RelayrProofClient = {
  * The chain or Relayr contradicts the expected transaction: this evidence can
  * never prove it. Keep the action pending and never pay for it again.
  */
-export class RelayrProofError extends Error {
+export class RelayrProofError extends ReviewFixedLineError {
   readonly name: string = "RelayrProofError";
 
-  get [REVIEW_LINE](): string {
+  get line(): string {
     return "This payment's result contradicts what was reviewed. Keep the action pending and do not pay again.";
   }
 }
 
 /** The transaction or its canonical receipt is not yet readable. Retain the bundle and retry its proof. */
-export class RelayrProofUnavailableError extends Error {
+export class RelayrProofUnavailableError extends ReviewFixedLineError {
   readonly name = "RelayrProofUnavailableError";
 
-  get [REVIEW_LINE](): string {
+  get line(): string {
     return "This payment's result is not readable yet. Keep the action pending and check it later.";
   }
 }
@@ -312,10 +312,10 @@ export class RelayrProofUnavailableError extends Error {
  * invoking the wallet. Construct only around that guard, never around the
  * persistence callback or wallet call: their failures may hide a submission.
  */
-export class RelayrPaymentNotSentError extends Error {
+export class RelayrPaymentNotSentError extends ReviewFixedLineError {
   readonly name = "RelayrPaymentNotSentError";
 
-  get [REVIEW_LINE](): string {
+  get line(): string {
     return "The payment was not sent. Review the payment again.";
   }
 
@@ -351,7 +351,7 @@ export function relayrWalletPaymentError(error: unknown): unknown {
 export class RelayrPaymentRevertedError extends RelayrProofError {
   readonly name = "RelayrPaymentRevertedError";
 
-  get [REVIEW_LINE](): string {
+  get line(): string {
     return "The payment transaction reverted onchain. Check it before you pay again.";
   }
 
@@ -372,7 +372,7 @@ export class RelayrPaymentRevertedError extends RelayrProofError {
 export class RelayrDestinationRevertedError extends RelayrProofError {
   readonly name = "RelayrDestinationRevertedError";
 
-  get [REVIEW_LINE](): string {
+  get line(): string {
     return "The action's transaction reverted onchain. Keep the original bundle pending; do not pay again.";
   }
 
@@ -420,10 +420,10 @@ const RETRY_LINES: Readonly<Record<RelayrPaymentRetryRefusal, string>> = {
  * `paid` and `running` mean the bundle is funded, `unknown` may clear on a
  * later check, and `expired` needs a new quote.
  */
-export class RelayrPaymentRetryError extends Error {
+export class RelayrPaymentRetryError extends ReviewFixedLineError {
   readonly name = "RelayrPaymentRetryError";
 
-  get [REVIEW_LINE](): string {
+  get line(): string {
     return Object.prototype.hasOwnProperty.call(RETRY_LINES, this.reason)
       ? RETRY_LINES[this.reason]
       : RETRY_LINES.unknown;

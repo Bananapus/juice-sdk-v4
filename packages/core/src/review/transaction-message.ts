@@ -1,4 +1,4 @@
-import { REVIEW_LINE, ReviewLineError } from "./lineError.js";
+import { ReviewFixedLineError, ReviewLineError } from "./lineError.js";
 
 export { ReviewLineError };
 
@@ -42,9 +42,7 @@ export const NETWORK_ERROR_LINE =
 export function errorLine(error: unknown): string {
   if (error instanceof ReviewLineError)
     return transactionMessage(error.message);
-  const line =
-    error instanceof Error
-      ? (error as { [REVIEW_LINE]?: unknown })[REVIEW_LINE]
-      : undefined;
-  return typeof line === "string" ? line : NETWORK_ERROR_LINE;
+  return error instanceof ReviewFixedLineError
+    ? error.line
+    : NETWORK_ERROR_LINE;
 }

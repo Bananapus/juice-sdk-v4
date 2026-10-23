@@ -1340,6 +1340,27 @@ describe("sendReviewed", () => {
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
+  it("says the review shows why only for a revert the SDK decodes", async () => {
+    const { wallet, deps, chain } = setup();
+    // JBMultiTerminal_TokenNotAccepted(address), which decodePayFailure knows.
+    chain.state.ethCall = () => {
+      throw Object.assign(reverted(), {
+        data: `0xecb6c1d6${"0".repeat(24)}${"1".repeat(40)}`,
+      });
+    };
+    reviewUi(async (prompt) => {
+      expect(await prompt.simulation).toMatchObject({
+        status: "failed",
+        explained: true,
+      });
+      return prompt.confirmation;
+    });
+    await expect(sendReviewed(action([payCall()]), deps)).rejects.toMatchObject(
+      { message: REVIEWED_SIMULATION_FAILED_LINE },
+    );
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
   it("reads an RPC failure as unavailable whatever the call is labelled", async () => {
     const { deps, chain } = setup();
     // No eth_simulateV1: each call runs alone, and the node is unreachable.

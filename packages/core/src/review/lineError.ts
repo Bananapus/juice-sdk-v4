@@ -9,13 +9,13 @@ import { WRITE_HOLD_REVERTED_LINE } from "./messages.js";
 export class ReviewLineError extends Error {}
 
 /**
- * The key of an SDK error's fixed line, which `errorLine` shows in place of
- * its text (the text can quote a service). The line lives on the error's
- * class, so it loads with the code that throws it.
+ * An SDK error shown by its fixed `line`, never its text (which can quote a
+ * service). The line lives on the error's class, so it loads with the code
+ * that throws it.
  */
-export const REVIEW_LINE: unique symbol = Symbol.for(
-  "@bananapus/nana-sdk-core/review-line",
-);
+export abstract class ReviewFixedLineError extends Error {
+  abstract readonly line: string;
+}
 
 /**
  * A step's transaction was mined and reverted: nothing of it to resume, and
