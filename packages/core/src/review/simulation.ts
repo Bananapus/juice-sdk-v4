@@ -77,7 +77,8 @@ export type SimulatedSequenceCall = {
   dependsOnPrior?: boolean;
 };
 
-function revertDetail(error: unknown): string {
+/** A failed call's one-line reason: viem's short message, or the first line of the error. */
+export function revertDetail(error: unknown): string {
   if (
     error instanceof Error &&
     "shortMessage" in error &&
@@ -88,6 +89,15 @@ function revertDetail(error: unknown): string {
   return error instanceof Error
     ? error.message.split("\n")[0]
     : "The call would revert.";
+}
+
+/** An error whose `cause` is what the node or the call answered. */
+function withCause(message: string, cause: unknown): Error {
+  return Object.defineProperty(new Error(message), "cause", {
+    value: cause,
+    configurable: true,
+    writable: true,
+  });
 }
 
 /** Node text saying the method itself is missing: "method not found", "Unsupported method: eth_simulateV1". */
@@ -170,8 +180,9 @@ export async function simulateCallSequence(
     );
   } catch (error) {
     if (!simulationUnsupported(error)) {
-      throw new Error(
+      throw withCause(
         `The batch could not be simulated on ${chainName}: ${revertDetail(error)}`,
+        error,
       );
     }
     sequence = null;
@@ -180,12 +191,13 @@ export async function simulateCallSequence(
     if (sequence) {
       const result = sequence[index];
       if (result?.status === "success") continue;
-      throw new Error(
+      throw withCause(
         `${call.label} cannot run on ${chainName}: ${
           result?.status === "failure"
             ? revertDetail(result.error)
             : "The call would revert."
         }`,
+        result?.error,
       );
     }
     if (call.dependsOnPrior) continue;
@@ -197,8 +209,9 @@ export async function simulateCallSequence(
         value: call.value,
       });
     } catch (error) {
-      throw new Error(
+      throw withCause(
         `${call.label} cannot run on ${chainName}: ${revertDetail(error)}`,
+        error,
       );
     }
   }

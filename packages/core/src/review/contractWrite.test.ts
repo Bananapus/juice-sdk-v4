@@ -495,11 +495,17 @@ describe("definite wallet rejections", () => {
         new BaseError("Write failed", { cause: rejection }),
       ),
     ).toBe(true);
-    // A raw EIP-1193 provider error, and one carried across a module boundary by name.
+    // A raw EIP-1193 provider error. A rejection's name without code 4001 proves nothing.
     expect(isDefiniteWalletRejection({ code: 4001 })).toBe(true);
     expect(
       isDefiniteWalletRejection({ name: "UserRejectedRequestError" }),
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      isDefiniteWalletRejection({
+        name: "UserRejectedRequestError",
+        code: -32000,
+      }),
+    ).toBe(false);
     let chain: unknown = { code: 4001 };
     for (let depth = 0; depth < 7; depth += 1) chain = { cause: chain };
     expect(isDefiniteWalletRejection(chain)).toBe(true);

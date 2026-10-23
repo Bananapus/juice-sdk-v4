@@ -63,6 +63,41 @@
       "api": "request",
       "boundary": "Read only eth_blockNumber and an eth_simulateV1 of the reviewed call pinned to that block, bounded by an 8 second timeout. Never sign or send; the result only labels the fee route.",
       "test": "packages/core/src/v6/feeBuyback.test.ts"
+    },
+    {
+      "file": "packages/core/src/review/wallet.ts",
+      "line": 101,
+      "api": "sendTransaction",
+      "boundary": "The WalletAdapter boundary: send exactly the reviewed target, calldata, value and gas from the connected account, naming the call's chain so viem refuses a wallet on another one. Reached only from sendReviewed after the core-minted confirmation.",
+      "test": "packages/core/src/review/wallet.test.ts"
+    },
+    {
+      "file": "packages/core/src/review/wallet.ts",
+      "line": 112,
+      "api": "signTypedData",
+      "boundary": "The WalletAdapter boundary: sign the exact typed data from the connected account.",
+      "test": "packages/core/src/review/wallet.test.ts"
+    },
+    {
+      "file": "packages/core/src/review/wallet.ts",
+      "line": 116,
+      "api": "signMessage",
+      "boundary": "The WalletAdapter boundary: sign the exact message from the connected account.",
+      "test": "packages/core/src/review/wallet.test.ts"
+    },
+    {
+      "file": "packages/core/src/review/wallet.ts",
+      "line": 120,
+      "api": "sendCalls",
+      "boundary": "The WalletAdapter boundary: send the exact calls as one wallet batch from the connected account on the named chain.",
+      "test": "packages/core/src/review/wallet.test.ts"
+    },
+    {
+      "file": "packages/core/src/review/send.ts",
+      "line": 468,
+      "api": "sendTransaction",
+      "boundary": "sendReviewed hands one step's reviewed bytes, with the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action.",
+      "test": "packages/core/src/review/send.test.ts"
     }
   ]
 }

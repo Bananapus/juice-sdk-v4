@@ -20,8 +20,9 @@ export class SubmittedContractWriteError<THash = unknown> extends Error {
 
 /**
  * Whether a wallet error proves that nothing was broadcast. Only an explicit
- * rejection does: EIP-1193 code 4001, or viem's `UserRejectedRequestError`,
- * anywhere in the first eight links of the error's `cause` chain. A timeout or
+ * rejection does: EIP-1193 code 4001 (viem's `UserRejectedRequestError` carries
+ * it) anywhere in the first eight links of the error's `cause` chain. A name
+ * without the code does not count. A timeout or
  * any other failure may still have sent the transaction, so it returns false
  * and the caller keeps its recovery lock.
  */
@@ -38,9 +39,7 @@ export function isDefiniteWalletRejection(error: unknown): boolean {
       item.name === "SubmittedWritePersistenceError"
     )
       return false;
-    if (item.code === 4001 || item.name === "UserRejectedRequestError") {
-      return true;
-    }
+    if (item.code === 4001) return true;
     current = item.cause;
   }
   return false;
