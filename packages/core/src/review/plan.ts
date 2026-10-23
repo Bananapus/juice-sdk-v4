@@ -112,28 +112,49 @@ function match(
   return at;
 }
 
-/** The unused fee bound of the Relayr round every one of `calls` belongs to, if any; nothing is spent. */
+/**
+ * The Relayr round whose unspent calls are exactly `calls` (every one of the
+ * round's calls, none spent, nothing else), with its unused fee bound.
+ */
+function wholeRound(
+  plan: ReviewedPlan,
+  calls: readonly ReviewedPlanCall[],
+): { fee: PlannedRelayrFee & { used: boolean }; at: number[] } | undefined {
+  const state = minted.get(plan);
+  if (!state) return undefined;
+  const wanted = calls.map(keyOf).sort().join("|");
+  for (const [round, fee] of state.fees) {
+    if (fee.used) continue;
+    const at = state.rounds.flatMap((of, index) =>
+      of === round ? [index] : [],
+    );
+    if (
+      at.every((index) => !state.used[index]) &&
+      at
+        .map((index) => keyOf(plan.calls[index]))
+        .sort()
+        .join("|") === wanted
+    )
+      return { fee, at };
+  }
+  return undefined;
+}
+
+/** The unused fee bound of the Relayr round `calls` make up whole, if any; nothing is spent. */
 export function plannedRelayrFee(
   plan: ReviewedPlan,
   calls: readonly ReviewedPlanCall[],
 ): PlannedRelayrFee | undefined {
-  const state = minted.get(plan);
-  const at = state && match(plan, state.used, calls);
-  const round = at?.length ? state!.rounds[at[0]] : undefined;
-  const fee = round === undefined ? undefined : state!.fees.get(round);
-  return fee &&
-    !fee.used &&
-    at!.every((index) => state!.rounds[index] === round)
-    ? { chainId: fee.chainId, cap: fee.cap }
-    : undefined;
+  const round = wholeRound(plan, calls);
+  return round && { chainId: round.fee.chainId, cap: round.fee.cap };
 }
 
 /**
  * Spends one unspent call of `plan` for each of `calls`, all or none. Refuses
  * a plan core did not mint, another account's, an expired one, and any call
- * that is not exactly an unspent plan call. Returns the fee bound reviewed for
- * paying on `feeChainId`, spent with them, when every call is of one Relayr
- * round whose bound is unused; else 0.
+ * that is not exactly an unspent plan call. When `calls` are one Relayr
+ * round, whole, with an unused fee bound reviewed for paying on `feeChainId`,
+ * that round is spent and its bound returned; else 0.
  */
 export function spendPlan(
   plan: ReviewedPlan,
@@ -150,11 +171,14 @@ export function spendPlan(
     throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
   if (Date.now() > plan.expiresAt)
     throw new ReviewLineError(REVIEWED_PLAN_EXPIRED_LINE);
-  const fee = plannedRelayrFee(plan, calls);
+  const round = wholeRound(plan, calls);
+  if (round && round.fee.chainId === feeChainId) {
+    for (const index of round.at) state.used[index] = true;
+    round.fee.used = true;
+    return round.fee.cap;
+  }
   const at = match(plan, state.used, calls);
   if (!at) throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
   for (const index of at) state.used[index] = true;
-  if (!fee || fee.chainId !== feeChainId) return 0n;
-  state.fees.get(state.rounds[at[0]]!)!.used = true;
-  return fee.cap;
+  return 0n;
 }

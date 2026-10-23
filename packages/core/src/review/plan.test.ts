@@ -21,9 +21,11 @@ import {
   setup,
 } from "./__fixtures__/reviewedSend.js";
 import {
+  mintPlan,
   REVIEWED_PLAN_EXPIRED_LINE,
   REVIEWED_PLAN_REFUSED_LINE,
   REVIEWED_PLAN_TTL_MS,
+  spendPlan,
   type ReviewedPlan,
 } from "./plan.js";
 import { reviewPlan, sendReviewed } from "./send.js";
@@ -265,5 +267,49 @@ describe("signReviewed under a plan", () => {
         adapter,
       },
     );
+  });
+});
+
+describe("a plan's Relayr fee bounds", () => {
+  const call = (data: Hex) => ({
+    chainId: 10,
+    from: ACCOUNT,
+    to: TERMINAL,
+    data,
+    value: 0n,
+  });
+  const X = call("0x01");
+  const Y = call("0x02");
+  const fees = new Map([
+    ["a", { chainId: 10, cap: 110n }],
+    ["b", { chainId: 10, cap: 1_100n }],
+  ]);
+  const plan = () =>
+    mintPlan(
+      ACCOUNT,
+      [
+        { ...X, relayrRound: "a" },
+        { ...X, relayrRound: "b" },
+        { ...Y, relayrRound: "b" },
+      ],
+      fees,
+    );
+
+  it("gives each whole round its own bound, in any order", () => {
+    const first = plan();
+    expect(spendPlan(first, ACCOUNT, [X, Y], 10)).toBe(1_100n);
+    expect(spendPlan(first, ACCOUNT, [X], 10)).toBe(110n);
+    const second = plan();
+    expect(spendPlan(second, ACCOUNT, [X], 10)).toBe(110n);
+    expect(spendPlan(second, ACCOUNT, [Y, X], 10)).toBe(1_100n);
+  });
+
+  it("gives no bound to part of a round, another chain, or a round once part of it is spent", () => {
+    const partial = plan();
+    expect(spendPlan(partial, ACCOUNT, [Y], 10)).toBe(0n);
+    // Round b lost Y, so its X never carries b's bound; a's X still has a's.
+    expect(spendPlan(partial, ACCOUNT, [X], 10)).toBe(110n);
+    expect(spendPlan(partial, ACCOUNT, [X], 10)).toBe(0n);
+    expect(spendPlan(plan(), ACCOUNT, [X], 8453)).toBe(0n);
   });
 });
