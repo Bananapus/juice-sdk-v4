@@ -36,6 +36,7 @@ import {
 import {
   mintPlan,
   relayrStandInSender,
+  REVIEWED_PLAN_REFUSED_LINE,
   spendPlan,
   type ReviewedPlan,
   type ReviewedPlanCall,
@@ -909,7 +910,14 @@ async function send(
   const run: readonly SentCall[] = safe
     ? sent.map(({ gas: _gas, ...call }) => call)
     : sent;
-  if (action.plan)
+  if (action.plan) {
+    // A plan binds bytes, never an adoption rule; a Safe app's unbatched
+    // sequence stops at its first proposal, so its other calls would be spent unsent.
+    if (
+      snapshots.some(({ shown }) => shown.adoptIgnoringArgs) ||
+      (safe && !batched && calls.length > 1)
+    )
+      throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
     spendPlan(action.plan, account, [
       ...sent.map(({ chainId, to, data, value }) => ({
         chainId,
@@ -918,9 +926,9 @@ async function send(
         data,
         value,
       })),
-      ...(resuming ? [] : (action.signatures ?? [])).flatMap(plannedCallsOf),
+      ...prepared.flatMap(plannedCallsOf),
     ]);
-  else
+  } else
     await promptSimulated(
       model,
       () => account,

@@ -33,9 +33,9 @@ export const REVIEWED_PLAN_EXPIRED_LINE =
 
 /**
  * A fresh address to simulate a call Relayr's own account runs: that
- * account is not known before Relayr quotes.
+ * account is not known before Relayr quotes. It holds no ETH, so such a
+ * call carries none.
  */
-// ponytail: an empty sender, so a call that moves value simulates as failing; read Relayr's executor when one needs value.
 export function relayrStandInSender(): Address {
   return bytesToHex(crypto.getRandomValues(new Uint8Array(20)));
 }

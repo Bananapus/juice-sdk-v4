@@ -925,6 +925,9 @@ export async function runRelayrReviewed(
       "Relayr runs one call per supported destination, all mainnets or all testnets.",
     );
   }
+  // Relayr's executor is not known before it quotes, so a raw call can't be simulated carrying ETH.
+  if (read.some(({ raw, value }) => raw && value !== 0n))
+    throw new Error("A call Relayr sends on its own can't carry ETH.");
   const forwarded = read.filter(({ raw }) => !raw);
   const requests = forwarded.length
     ? await forwardRequests(forwarded, account, clientFor)
@@ -966,7 +969,7 @@ export async function runRelayrReviewed(
           ? [{ chainId, from: "relayr" as const, to: target, data, value }]
           : [],
       ),
-      ...signatures.flatMap(plannedCallsOf),
+      ...prepared.flatMap(plannedCallsOf),
     ]);
   } else {
     cap = await relayrFeeCap(read, account, paymentChainId, clientFor);

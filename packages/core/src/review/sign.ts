@@ -435,42 +435,48 @@ export async function signPrepared(
 }
 
 /**
- * The calls `signature` lets someone run, as a plan matches them: a
- * zero-refund Safe transaction's CALL or MultiSendCallOnly calls, from the
- * Safe, or a forward request's call, from its signer. Any other signature is
- * refused under a plan.
+ * The calls a prepared signature lets someone run, as a plan matches them,
+ * read from the exact payload signed: a Safe transaction's CALL or
+ * MultiSendCallOnly calls, from the Safe, when it pays no refund and its
+ * safeTxGas is 0 (so a failed call reverts, not spends the nonce), or a
+ * forward request's call, from its signer. Any other signature is refused
+ * under a plan.
  */
-export function plannedCallsOf(
-  signature: ReviewedSignature,
-): ReviewedPlanCall[] {
-  if (signature.kind === "safe-tx") {
-    const { chainId, safe, tx } = signature;
-    const message = safeTransactionMessage(tx);
-    if (message.gasPrice === 0n) {
-      const inner =
-        message.operation === 1
-          ? multiSendCallsOf(message)
-          : [{ to: message.to, data: message.data, value: message.value }];
-      if (inner)
-        return inner.map(({ to, data, value }) => ({
-          chainId,
-          from: safe,
-          to,
-          data,
-          value,
-        }));
-    }
-  } else if (signature.kind === "forward-request") {
-    const { chainId, request } = signature;
-    return [
-      {
+export function plannedCallsOf({
+  chainId,
+  typedData,
+}: PreparedSignature): ReviewedPlanCall[] {
+  const message = typedData?.message as Record<string, unknown> | undefined;
+  if (typedData?.primaryType === "SafeTx" && message) {
+    const { to, data, value, operation, safeTxGas, gasPrice } = message as {
+      to: Address;
+      data: Hex;
+      value: bigint;
+      operation: number;
+      safeTxGas: bigint;
+      gasPrice: bigint;
+    };
+    const safe = typedData.domain?.verifyingContract;
+    const inner =
+      operation === 1
+        ? multiSendCallsOf({ to, data, operation })
+        : [{ to, data, value }];
+    if (safe && inner && safeTxGas === 0n && gasPrice === 0n)
+      return inner.map((call) => ({
         chainId,
-        from: request.from,
-        to: request.to,
-        data: request.data,
-        value: request.value,
-      },
-    ];
+        from: safe,
+        to: call.to,
+        data: call.data,
+        value: call.value,
+      }));
+  } else if (typedData?.primaryType === "ForwardRequest" && message) {
+    const { from, to, data, value } = message as {
+      from: Address;
+      to: Address;
+      data: Hex;
+      value: bigint;
+    };
+    return [{ chainId, from, to, data, value }];
   }
   throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
 }
@@ -513,13 +519,12 @@ export async function signReviewed(
   if (connected.toLowerCase() !== account.toLowerCase()) {
     throw new ReviewLineError("The connected account changed. Review again.");
   }
-  const listed = [...signatures];
-  const prepared = listed.map((signature) =>
+  const prepared = [...signatures].map((signature) =>
     prepareSignature(signature, account),
   );
   if (!prepared.length) throw new ReviewLineError("There is nothing to sign.");
   if (action.plan) {
-    spendPlan(action.plan, account, listed.flatMap(plannedCallsOf));
+    spendPlan(action.plan, account, prepared.flatMap(plannedCallsOf));
     return signPrepared(prepared, account, adapter, undefined, action.reverify);
   }
   const model = buildReviewModel({

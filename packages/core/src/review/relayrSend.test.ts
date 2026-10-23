@@ -683,6 +683,21 @@ describe("runRelayrReviewed raw calls and plans", () => {
     });
   });
 
+  it("refuses a raw call that carries ETH before anything is asked", async () => {
+    const { deps } = relayrSetup();
+    const relayr = fakeRelayr(() => 900n);
+    const prompts = reviewUi();
+    await expect(
+      runRelayrReviewed(
+        [{ ...RAW, value: 1n }],
+        { account: ACCOUNT, scope: "raw" },
+        deps,
+      ),
+    ).rejects.toThrow("can't carry ETH");
+    expect(prompts).toHaveLength(0);
+    expect(relayr.posts).toHaveLength(0);
+  });
+
   it("refuses a raw call changed after review, posting and paying nothing", async () => {
     const { deps, wallet } = relayrSetup();
     const relayr = fakeRelayr(() => 900n);

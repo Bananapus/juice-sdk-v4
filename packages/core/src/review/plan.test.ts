@@ -85,6 +85,20 @@ describe("reviewPlan", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
 
+  it("never adopts by an adoption rule the plan did not bind", async () => {
+    const { deps, wallet } = setup();
+    reviewUi();
+    const pay = payCall();
+    const plan = await reviewPlan({ account: ACCOUNT, calls: [pay] }, deps);
+    await expect(
+      sendReviewed(
+        action([{ ...pay, adoptIgnoringArgs: [1] }], { plan }),
+        deps,
+      ),
+    ).rejects.toThrow(REVIEWED_PLAN_REFUSED_LINE);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
   it("refuses a call spent once already", async () => {
     const { deps, wallet } = setup();
     reviewUi();
@@ -217,12 +231,20 @@ describe("signReviewed under a plan", () => {
     expect(adapter.signTypedData).toHaveBeenCalledTimes(2);
   });
 
-  it("refuses a Safe transaction with a refund, another Safe's, and a message", async () => {
+  it("refuses a Safe transaction with a refund or safeTxGas, another Safe's, a payload that reads differently, and a message", async () => {
     reviewUi();
     const one = transfer(5n);
     const plan: ReviewedPlan = await plannedFor(one);
+    // Reads as a million-token transfer when prepared, as the planned one after.
+    let reads = 0;
+    const shifty = safeTx(one);
+    Object.defineProperty(shifty.tx, "data", {
+      get: () => (reads++ === 0 ? transfer(1_000_000n).data : one.data),
+    });
     for (const signature of [
       safeTx(one, { gasPrice: 1n }),
+      safeTx(one, { safeTxGas: 1n }),
+      shifty,
       { ...safeTx(one), safe: OTHER },
       { kind: "message" as const, chainId: 10, message: "hi" },
     ])
