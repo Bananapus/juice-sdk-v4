@@ -1,5 +1,30 @@
 # juice-sdk-react
 
+## 62.0.0
+
+### Minor Changes
+
+- 8c77559: `useSendRelayrTx`, `useGetRelayrTxQuote` and `useSignErc2771ForwardRequest` are deprecated. They sign and send without review; use `runRelayrReviewed`, `payRelayrReviewed` and `signReviewedForwardRequests` from `@bananapus/nana-sdk-core/review`.
+
+### Patch Changes
+
+- Updated dependencies [195bcb2]
+- Updated dependencies [8e80374]
+- Updated dependencies [5b068a8]
+- Updated dependencies [a28b109]
+- Updated dependencies [d29ff2b]
+- Updated dependencies [50f7e9d]
+- Updated dependencies [2e71c9f]
+- Updated dependencies [7f82e5c]
+- Updated dependencies [551104e]
+- Updated dependencies [dde49ad]
+- Updated dependencies [ae3dda6]
+- Updated dependencies [882062e]
+- Updated dependencies [9db2d67]
+- Updated dependencies [4aefe13]
+- Updated dependencies [d409d12]
+  - @bananapus/nana-sdk-core@4.0.0
+
 ## 61.0.0
 
 ### Patch Changes

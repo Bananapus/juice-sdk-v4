@@ -1,7 +1,0 @@
----
-"@bananapus/nana-sdk-core": minor
----
-
-`sendReviewed` sends one user action, one call or a sequence such as approve then pay, after one review. Core builds the review model, asks the handler registered with `registerReviewHandler` once, and sends nothing unless the handler returns the confirmation core minted for that prompt and model. `true`, a forged object, a confirmation from another prompt or model, or one already used is refused. The review-time simulation runs while the review is open and confirm never waits on it: a revert it already reported refuses the confirmation, an unavailable one adds the `simulation-unavailable` warning, and the simulation before each send still decides. Each step reruns the app's stale-state check, refuses any change to the reviewed bytes, account, chain or Safe connection with nothing sent, simulates (at the previous step's receipt block when it depends on it), and sends the exact reviewed bytes under the step's write hold. Only an explicit wallet rejection (4001) releases the hold. `viemWalletAdapter` and `selfReviewingAdapter` are the `WalletAdapter` boundary, the only core code that calls a wallet; a self-reviewing wallet (Signa) gets the raw calls and no in-app prompt. Sequence simulation errors now carry what the node answered as `cause`, and `revertDetail` names a failed call's reason.
-
-`isDefiniteWalletRejection` now counts only EIP-1193 code 4001 anywhere in the cause chain; an error named `UserRejectedRequestError` without that code keeps its write held.
