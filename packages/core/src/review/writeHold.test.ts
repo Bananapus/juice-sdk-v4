@@ -803,7 +803,7 @@ describe("a held write", () => {
   });
 
   it("attaches an authenticated hash to the reservation and follows it", async () => {
-    const { hold } = setup();
+    const { hold, browser } = setup();
     const { chain, client } = fakeChain();
     const handle = hold.open(ordinary);
     await expect(handle.send(client, lostReply().send)).rejects.toThrow();
@@ -832,14 +832,25 @@ describe("a held write", () => {
     await expect(handle.attachHash(client, OTHER)).resolves.toMatchObject({
       record: { hash: HASH },
     });
-    // Its receipt settles it.
+    // Its receipt settles it, its result saved before the hold ends.
     chain.txs[1].block = 95n;
+    const remove = browser.storage.removeItem;
+    const savedAtEnd: boolean[] = [];
+    browser.storage.removeItem = (key: string) => {
+      savedAtEnd.push(
+        [...browser.values.keys()].some((at) => at.endsWith(":settled")),
+      );
+      remove(key);
+    };
     await expect(handle.state(client)).resolves.toEqual({
       checked: true,
       status: "clear",
       reservation: expect.any(String),
       settled: { result: "success", hash: HASH },
     });
+    browser.storage.removeItem = remove;
+    expect(savedAtEnd).not.toHaveLength(0);
+    expect(savedAtEnd.every(Boolean)).toBe(true);
     // With nothing held, or a Safe write, nothing is attached.
     await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
       status: "clear",

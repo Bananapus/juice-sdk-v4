@@ -654,14 +654,15 @@ export function createWriteHold(
         proof,
         { finality: record.safe },
       ).catch(() => null);
-      if (verdict && release(record)) {
+      if (verdict) {
         const settled = {
           result: verdict,
           hash: receipt.transactionHash.toLowerCase() as Hex,
         };
-        // Kept for any later reader: another tab, a reload, a follow timer.
+        // Saved before the hold ends, so no reader sees it clear without its
+        // result: another tab, a reload, a follow timer.
         recovery.markSettled(record, settled);
-        return clear(settled, record.id);
+        if (release(record)) return clear(settled, record.id);
       }
       if (
         !record.safe &&
@@ -1066,13 +1067,13 @@ export function createWriteHold(
         }
         // It ran: with its receipt unreadable, the canonical log at a
         // finalized block carries its result. Never a resend exit.
-        if (end.execution && release(record)) {
+        if (end.execution) {
           const settled = {
             result: end.execution.status,
             hash: end.execution.executionHash,
           };
           recovery.markSettled(record, settled);
-          return clear(settled, record.id);
+          if (release(record)) return clear(settled, record.id);
         }
       }
       // Its wait is bounded like any unchecked write, the clock restarted by
