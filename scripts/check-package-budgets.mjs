@@ -306,8 +306,10 @@ const budgets = {
     // Reviewed Relayr signing, payment and polling in a module of its own
     // (8 artifacts): 1,698,247 B packed, 23,665,143 B unpacked, 1,802 files.
     // The nana-wallet-check bin (one file; its test is not packed).
-    packed: 1_705_000,
-    unpacked: 23_690_000,
+    // getRegisteredSucker and the pay swap-quote refusal, no files:
+    // 1,706,925 B packed, 23,703,923 B unpacked, 1,803 files.
+    packed: 1_712_000,
+    unpacked: 23_760_000,
     entries: 1_803,
   },
   "@bananapus/nana-sdk-react": {
@@ -346,8 +348,9 @@ const entryBudgets = [
   // The quoted pay's second preview: 10,276 B. Quoting a router's
   // conversion and previewing its destination (router reads, V3 quoter,
   // accounting contexts): 11,553 B. The quote's retry and the router's
-  // quoted mint minimum: 12,018 B.
-  ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 12_200],
+  // quoted mint minimum: 12,018 B. Refusing a swap whose quote failed:
+  // 12,543 B.
+  ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 12_700],
   ["@bananapus/nana-sdk-core/v6/fee-buyback", "feeBuybackOptions", 3_300],
   // With every version's address table: 10,488 B. With the v6 table only:
   // 5,002 B.
