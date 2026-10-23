@@ -12,6 +12,7 @@ import {
   zeroAddress,
   type Address,
   type Hex,
+  type PublicClient,
 } from "viem";
 import {
   encodeMultiSend,
@@ -745,6 +746,100 @@ export function requireSafeExecutionSuccess(
     );
   }
   throw new Error(result.reason);
+}
+
+/** The arguments of a Safe `execTransaction` call, or null for any other data. */
+function execTransactionArgs(data: Hex) {
+  try {
+    const call = decodeFunctionData({ abi: SAFE_EXEC_ABI, data });
+    return call.functionName === "execTransaction" ? call.args : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether `data` is a Safe `execTransaction` call. */
+export function isSafeExecTransaction(data: Hex): boolean {
+  return execTransactionArgs(data) !== null;
+}
+
+/** The most Safe transactions one block is searched for: a nonce range wider than this is unproven. */
+const MAX_BLOCK_EXECUTIONS = 256n;
+
+/**
+ * What `receipt` proves about the `execTransaction` call `data` sent to
+ * `safe`, or null when `data` is not one. The call's fields hash, at each
+ * nonce the Safe spent in the receipt's block (its nonce before that block
+ * up to its nonce at it), to the candidates for its safeTxHash; the Safe's
+ * own ExecutionSuccess or ExecutionFailure for one of them decides it
+ * ({@link safeExecutionResult}). No such event is `unproven`, never success.
+ * It throws, proving nothing, when the nonces cannot be read or span more than
+ * 256 executions, or when events for two candidates leave which ran this call
+ * unknown (the same fields executed twice in one block).
+ */
+export async function safeExecTransactionResult(
+  client: Pick<PublicClient, "request">,
+  chainId: number,
+  safe: Address,
+  data: Hex,
+  receipt: Parameters<typeof safeExecutionResult>[0] & {
+    blockNumber?: unknown;
+  },
+): Promise<SafeExecutionResult | null> {
+  const args = execTransactionArgs(data);
+  if (!args) return null;
+  if (receipt?.status === "reverted") return { status: "reverted" };
+  const [to, value, inner, operation, safeTxGas, baseGas, gasPrice] = args;
+  const [, , , , , , , gasToken, refundReceiver] = args;
+  const block = receipt?.blockNumber;
+  if (typeof block !== "bigint" || block < 1n) {
+    throw new Error("The receipt has no block to read the Safe's nonce at.");
+  }
+  const [before, after] = await Promise.all([
+    readBoundedSafeNonce(client, safe, { blockNumber: block - 1n }),
+    readBoundedSafeNonce(client, safe, { blockNumber: block }),
+  ]);
+  if (
+    before === null ||
+    after === null ||
+    after < before ||
+    after - before > MAX_BLOCK_EXECUTIONS
+  ) {
+    throw new Error(
+      `Safe ${safe}'s nonce around block ${block} is unreadable.`,
+    );
+  }
+  const found: SafeExecutionResult[] = [];
+  for (let nonce = before; nonce < after; nonce += 1n) {
+    const result = safeExecutionResult(
+      receipt,
+      safe,
+      safeTransactionHash(chainId, safe, {
+        to,
+        value,
+        data: inner,
+        operation,
+        safeTxGas,
+        baseGas,
+        gasPrice,
+        gasToken,
+        refundReceiver,
+        nonce: Number(nonce),
+      }),
+    );
+    if (result.status !== "unproven") found.push(result);
+  }
+  if (found.length > 1) {
+    throw new Error(
+      `Safe ${safe} ran these exact fields ${found.length} times in block ${block}, so which one is this call is unknown.`,
+    );
+  }
+  return (
+    found[0] ?? {
+      status: "unproven",
+      reason: `The receipt has no ExecutionSuccess or ExecutionFailure from Safe ${safe} for this execTransaction.`,
+    }
+  );
 }
 
 /** What a Safe app flow says when it cannot confirm its proposal ran. */

@@ -21,6 +21,7 @@ export {
 } from "./confirm.js";
 export * from "./wallet.js";
 export * from "./send.js";
+export * from "./safeSend.js";
 export {
   signReviewed,
   type ReviewedForwardRequest,

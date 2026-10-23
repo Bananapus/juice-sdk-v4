@@ -3,14 +3,14 @@
   "sites": [
     {
       "file": "packages/core/src/review/writeRecovery.ts",
-      "line": 1749,
+      "line": 1752,
       "api": "request",
       "boundary": "Acquire an exclusive Web Locks lock (or, without Web Locks, an IndexedDB lease across tabs) for one account, chain and stable namespace, or one exact call. Coordinate durable reservation, wallet handoff and canonical recovery across tabs; this request is browser coordination and never a wallet RPC.",
       "test": "packages/core/src/review/writeRecovery.test.ts"
     },
     {
       "file": "packages/core/src/review/writeRecovery.ts",
-      "line": 819,
+      "line": 822,
       "api": "request",
       "boundary": "Take this tab's own queue for a write action before claiming the cross-tab IndexedDB lease. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/writeRecovery.test.ts"
@@ -101,21 +101,21 @@
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 726,
+      "line": 734,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action.",
       "test": "packages/core/src/review/send.test.ts"
     },
     {
       "file": "packages/core/src/review/sign.ts",
-      "line": 370,
+      "line": 373,
       "api": "signTypedData",
       "boundary": "signPrepared hands the WalletAdapter typed data core built from its own Safe, forwarder and Permit2 constants, inside submitReviewedContractWrite's account and chain checks, only after core's own confirmation for the model that shows that exact typed data.",
       "test": "packages/core/src/review/sign.test.ts"
     },
     {
       "file": "packages/core/src/review/sign.ts",
-      "line": 371,
+      "line": 374,
       "api": "signMessage",
       "boundary": "signPrepared hands the WalletAdapter the exact message text the confirmed model shows, inside submitReviewedContractWrite's account check, only after core's own confirmation.",
       "test": "packages/core/src/review/sign.test.ts"

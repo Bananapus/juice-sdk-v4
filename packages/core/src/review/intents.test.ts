@@ -12,6 +12,7 @@ import {
   payIntent,
   redeemIntent,
   safeBatchIntent,
+  safeExecutionIntent,
   syncIntent,
 } from "./intents.js";
 import { intent, type IntentValue } from "./writeIntent.js";
@@ -372,5 +373,29 @@ describe("shared write intents", () => {
       payIntent({ chainId: 1, project: 4n, beneficiary: "0x12" }),
     ).toThrow();
     expect(() => loanIntent({ chainId: 1.5, loanId: 7n })).toThrow();
+  });
+
+  it("keys a Safe execution by its Safe and exact hash only, case-blind", () => {
+    const hash = `0x${"ab".repeat(32)}`;
+    const key = safeExecutionIntent({ chainId: 1, safe: C, safeTxHash: hash });
+    expect(key).toMatch(/^intent:safe-execution:[0-9a-f]{40}$/);
+    expect(
+      safeExecutionIntent({
+        chainId: 1,
+        safe: C.toUpperCase().replace("0X", "0x"),
+        safeTxHash: hash.toUpperCase().replace("0X", "0x"),
+      }),
+    ).toBe(key);
+    for (const other of [
+      safeExecutionIntent({ chainId: 10, safe: C, safeTxHash: hash }),
+      safeExecutionIntent({ chainId: 1, safe: A, safeTxHash: hash }),
+      safeExecutionIntent({
+        chainId: 1,
+        safe: C,
+        safeTxHash: `0x${"cd".repeat(32)}`,
+      }),
+    ]) {
+      expect(other).not.toBe(key);
+    }
   });
 });

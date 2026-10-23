@@ -336,6 +336,8 @@ export async function signPrepared(
   adapter: WalletAdapter,
   /** The caller's final gate before each signature; it throws to stop. */
   beforeSign?: () => void,
+  /** The caller's async recheck before each signature, ahead of `beforeSign`. */
+  reverify?: () => Promise<void>,
 ): Promise<Hex[]> {
   const signatures: Hex[] = [];
   for (const { chainId, typedData, message } of prepared) {
@@ -350,6 +352,7 @@ export async function signPrepared(
           }
         },
         currentAccount: () => adapter.account(),
+        ...(reverify ? { reverify } : {}),
         simulate: async () => undefined,
         beforeSend: () => {
           beforeSign?.();
@@ -398,6 +401,8 @@ export async function signReviewed(
     title?: string;
     description?: string;
     context?: readonly ReviewContextRow[];
+    /** Rechecks, after confirm and before each signature, that what was reviewed still holds; it throws to stop. */
+    reverify?: () => Promise<void>;
   },
   deps: { adapter: WalletAdapter },
 ): Promise<Hex[]> {
@@ -426,5 +431,5 @@ export async function signReviewed(
     Promise.resolve({ status: "passed" }),
     Promise.resolve(model),
   );
-  return signPrepared(prepared, account, adapter);
+  return signPrepared(prepared, account, adapter, undefined, action.reverify);
 }

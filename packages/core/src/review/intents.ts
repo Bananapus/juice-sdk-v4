@@ -294,6 +294,27 @@ export function safeBatchIntent({
   });
 }
 
+/**
+ * Executing one Safe transaction: the Safe and its exact hash, never the
+ * confirmations it is signed with, so more signatures do not open a second
+ * execution of it.
+ */
+export function safeExecutionIntent({
+  chainId,
+  safe,
+  safeTxHash,
+}: {
+  chainId: number;
+  safe: Address | string;
+  safeTxHash: Hex | string;
+}): string {
+  return writeIntentKey("safe-execution", {
+    chainId,
+    safe: intent.address(safe),
+    safeTxHash: intent.hex(safeTxHash),
+  });
+}
+
 /** Syncing a bridge's accounting through one sucker. No fee. */
 export function syncIntent({
   chainId,

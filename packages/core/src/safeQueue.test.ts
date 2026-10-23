@@ -34,6 +34,7 @@ import {
   requireSafeExecutionSuccess,
   safeBatchProposalFor,
   safeCreationUrl,
+  safeExecTransactionResult,
   safeExecutionArgs,
   safeExecutionResult,
   safeExecutionSignatures,
@@ -301,6 +302,108 @@ describe("Safe execution results", () => {
         expected,
       ),
     ).not.toThrow();
+  });
+
+  it("decides an execTransaction call by the Safe's event for its exact hash at the nonce it spent", async () => {
+    const data = encodeFunctionData({
+      abi: SAFE_EXEC_ABI,
+      functionName: "execTransaction",
+      args: safeExecutionArgs(transaction, [LOW_OWNER, HIGH_OWNER]),
+    });
+    /** The Safe's nonce: 8 up to block 49, `after` from block 50 on. */
+    const chain = (after: Hex | bigint = 9n) => ({
+      request: vi.fn(async ({ params }: { params: unknown[] }) => {
+        if (BigInt(params[1] as Hex) < 50n) {
+          return encodeAbiParameters([{ type: "uint256" }], [8n]);
+        }
+        return typeof after === "bigint"
+          ? encodeAbiParameters([{ type: "uint256" }], [after])
+          : after;
+      }),
+    });
+    const at = (
+      logs: unknown[],
+      status: "success" | "reverted" = "success",
+    ) => ({
+      ...receipt(logs, status),
+      blockNumber: 50n,
+    });
+    const result = (
+      client: ReturnType<typeof chain>,
+      logs: unknown[],
+      status?: "success" | "reverted",
+      call: Hex = data,
+    ) =>
+      safeExecTransactionResult(
+        client as never,
+        1,
+        SAFE,
+        call,
+        at(logs, status),
+      );
+    expect(
+      await result(chain(), [executionLog("ExecutionSuccess", expected)]),
+    ).toEqual({ status: "success", payment: 0n });
+    expect(
+      await result(chain(), [executionLog("ExecutionFailure", expected)]),
+    ).toEqual({ status: "failed", payment: 0n });
+    // Another nonce's hash, or no event, is never success.
+    for (const logs of [
+      [executionLog("ExecutionSuccess", otherProposal)],
+      [],
+    ]) {
+      expect(await result(chain(), logs)).toMatchObject({
+        status: "unproven",
+        reason: `The receipt has no ExecutionSuccess or ExecutionFailure from Safe ${SAFE} for this execTransaction.`,
+      });
+    }
+    // Another transaction's execution in the same block is not this one.
+    expect(
+      await result(chain(10n), [
+        executionLog("ExecutionFailure", `0x${"77".repeat(32)}`),
+        executionLog("ExecutionSuccess", expected),
+      ]),
+    ).toEqual({ status: "success", payment: 0n });
+    // Unless it is the same fields: which one is this call is unknown.
+    await expect(
+      result(chain(10n), [
+        executionLog("ExecutionSuccess", expected),
+        executionLog("ExecutionFailure", otherProposal),
+      ]),
+    ).rejects.toThrow("ran these exact fields 2 times in block 50");
+    // A Safe whose nonce did not move in that block ran nothing.
+    expect(
+      await result(chain(8n), [executionLog("ExecutionSuccess", expected)]),
+    ).toMatchObject({ status: "unproven" });
+    // Nonces it cannot read, or too many executions, prove nothing either way.
+    for (const after of ["0x", 7n, 9_000n] as const) {
+      await expect(
+        result(chain(after), [executionLog("ExecutionSuccess", expected)]),
+      ).rejects.toThrow("is unreadable");
+    }
+    expect(await result(chain(), [], "reverted")).toEqual({
+      status: "reverted",
+    });
+    await expect(
+      safeExecTransactionResult(chain() as never, 1, SAFE, data, {
+        ...receipt([executionLog("ExecutionSuccess", expected)]),
+        blockNumber: 0n,
+      }),
+    ).rejects.toThrow("The receipt has no block to read the Safe's nonce at.");
+    // Any other call is not one.
+    expect(await result(chain(), [], "success", "0x1234")).toBeNull();
+    expect(
+      await result(
+        chain(),
+        [],
+        "success",
+        encodeFunctionData({
+          abi: SAFE_EXEC_ABI,
+          functionName: "approveHash",
+          args: [expected],
+        }),
+      ),
+    ).toBeNull();
   });
 
   it("binds the result to the reviewed hash, so another proposal in the batch cannot stand in", () => {

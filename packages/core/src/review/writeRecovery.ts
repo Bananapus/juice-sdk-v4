@@ -1,6 +1,7 @@
 import {
   decodeFunctionData,
   isAddress,
+  numberToHex,
   keccak256,
   type Address,
   type Hex,
@@ -11,12 +12,14 @@ import {
   lookAtSafeProposal,
   readSafeAppExecution,
   readSafeTransaction,
+  isSafeExecTransaction,
+  safeExecTransactionResult,
   SAFE_EXEC_ABI,
   safeProposalFor,
   safeTransactionMatchesCall,
   type SafeServiceOptions,
 } from "../safeService.js";
-import { multiSendCallsOf } from "../safe.js";
+import { multiSendCallsOf, readAuthorityIdentity } from "../safe.js";
 import { TAB } from "./tabState.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import {
@@ -1991,6 +1994,8 @@ export async function findTransactionAtNonce(
 /** Minimal RPC reads; PublicClient instances for any chain satisfy this shape. */
 export type ReviewedWriteReceiptClient = {
   getChainId(): Promise<number>;
+  /** Reads a Safe's nonce when the write is a Safe's execTransaction. */
+  request?: PublicClient["request"];
   getTransaction(args: { hash: Hex }): Promise<{
     hash: Hex;
     chainId?: number;
@@ -2214,6 +2219,44 @@ export async function verifyReviewedWriteReceipt(
     if (result.status !== "success" && result.status !== "failed")
       throw pending();
     status = result.status;
+  } else if (status === "success" && isSafeExecTransaction(record.call.data)) {
+    // A Safe's execTransaction succeeds only with the Safe's own
+    // ExecutionSuccess for its exact hash: an ExecutionFailure, or no event
+    // for it, is a failure whatever the receipt's status. A call that only
+    // shares the selector, to anything but a Safe, is decided as any other.
+    if (!client.request) throw pending();
+    const { request } = client;
+    const at = (blockNumber?: bigint) =>
+      blockNumber === undefined ? "latest" : numberToHex(blockNumber);
+    // Every read through the one `request` the receipt client has.
+    const identity = await readAuthorityIdentity(
+      {
+        request,
+        getCode: ({ address, blockNumber }) =>
+          request({
+            method: "eth_getCode",
+            params: [address!, at(blockNumber)],
+          }),
+        getStorageAt: ({ address, slot, blockNumber }) =>
+          request({
+            method: "eth_getStorageAt",
+            params: [address, slot, at(blockNumber)],
+          }),
+      } as Parameters<typeof readAuthorityIdentity>[0],
+      record.call.to,
+      { blockNumber: canonical.blockNumber },
+    );
+    if (!identity) throw pending();
+    if (identity.kind === "safe") {
+      const execution = await safeExecTransactionResult(
+        { request: client.request },
+        record.chainId,
+        record.call.to,
+        record.call.data,
+        canonical,
+      );
+      if (execution?.status !== "success") status = "failed";
+    }
   }
   const isCanonical = async () => {
     const block = await client.getBlock({ blockNumber: canonical.blockNumber });
