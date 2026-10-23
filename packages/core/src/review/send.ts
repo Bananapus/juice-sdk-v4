@@ -438,7 +438,7 @@ async function reviewSimulation(
   sent: readonly SentCall[],
   blocks: readonly (bigint | undefined)[],
   clientFor: (chainId: number) => PublicClient,
-  /** Steps whose value someone else pays: the sender's balance covers every step's value. */
+  /** Steps whose value someone else pays: the sender's balance is topped up by it. */
   funded?: (index: number) => boolean,
 ): Promise<ReviewSimulation> {
   const chains = [...new Set(sent.map((call) => call.chainId))];
@@ -446,21 +446,18 @@ async function reviewSimulation(
     const steps = sent.flatMap((call, index) =>
       call.chainId === chainId ? [index] : [],
     );
-    const balance = steps.some(
-      (index) => funded?.(index) && (sent[index].value ?? 0n) > 0n,
-    )
-      ? {
-          balance: steps.reduce(
-            (sum, index) => sum + (sent[index].value ?? 0n),
-            0n,
-          ),
-        }
-      : {};
+    const paid = steps.reduce(
+      (sum, index) => sum + (funded?.(index) ? (sent[index].value ?? 0n) : 0n),
+      0n,
+    );
     let chainName = `chain ${chainId}`;
     try {
       const client = clientFor(chainId);
       chainName = chainNameOf(client, chainId);
       const from = fromOf(steps[0]);
+      const balance = paid
+        ? { balance: (await client.getBalance({ address: from })) + paid }
+        : {};
       if (steps.length > 1) {
         // A sequence runs from one sender; mixed senders are checked before each send.
         if (steps.some((index) => fromOf(index) !== from))

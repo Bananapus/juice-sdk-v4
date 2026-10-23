@@ -837,10 +837,13 @@ describe("a plan's Relayr rounds", () => {
   it("simulates a relayed call's value as Relayr's, not the signer's", async () => {
     const { deps, chain } = relayrSetup();
     fakeRelayr(() => 1_000n);
-    // The signer holds no ETH: only a call with its balance overridden runs.
+    // The signer holds 2 wei: its balance runs topped up by the call's value.
+    (chain.client as unknown as Record<string, unknown>).getBalance = vi.fn(
+      async () => 2n,
+    );
     chain.state.ethCall = (params) => {
       const override = params[2] as Record<string, { balance: Hex }>;
-      if (BigInt(override?.[ACCOUNT]?.balance ?? 0) >= 5n) return "0x";
+      if (BigInt(override?.[ACCOUNT]?.balance ?? 0) === 7n) return "0x";
       throw Object.assign(new Error("reverted"), {
         code: 3,
         details: "insufficient funds for transfer",
