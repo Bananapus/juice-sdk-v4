@@ -138,7 +138,7 @@ export type ReviewedAction = {
    * A stale-state check before each step; it throws to stop with nothing
    * sent. `prior` is where the previous step of the action confirmed (on its
    * own chain), so the check can read state at or after it; undefined for
-   * the first step.
+   * the first step, or on resume when that step's receipt can't be read.
    */
   reverify?: (
     call: ReviewedCall,
@@ -175,7 +175,9 @@ export type ReviewedAction = {
   ) => void | Promise<void>;
   /**
    * Awaited once a step's receipt shows it succeeded and its progress is
-   * saved, before the next step. A throw is ignored: the step went through.
+   * saved, before the next step; on resume, for a step that went through
+   * while away, when its receipt can be read. A throw is ignored: the step
+   * went through.
    */
   onConfirmed?: (
     call: ReviewedCall,
@@ -594,18 +596,34 @@ export async function resumeReviewed(
       throw new ReviewLineError(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
     delete saved.sending;
     delete saved.proposed;
-    if (state.settled.result === "success") {
+    const { settled } = state;
+    if (settled.result === "success") {
       // This sequence's own step: it is recorded, never offered again.
-      await handle.acknowledge(state.settled);
-      saved.completed.push(state.settled.hash);
+      await handle.acknowledge(settled);
+      saved.completed.push(settled.hash);
     }
+    /** Tells the site of the step that went through while away, once saved and when its receipt reads. */
+    const told = async () => {
+      if (settled.result !== "success" || !action.onConfirmed) return;
+      try {
+        const receipt = await deps
+          .clientFor(call.chainId)
+          .getTransactionReceipt({ hash: settled.hash });
+        if (receipt.status === "success")
+          await action.onConfirmed(call, step, receipt);
+      } catch {
+        /* The step went through whatever the read or the site's callback does. */
+      }
+    };
     if (saved.completed.length === saved.calls.length) {
       await removeReviewedSequence(saved, storage, expected);
+      await told();
       const total = saved.calls.length;
       deps.onProgress?.({ step: total - 1, total, phase: "done" });
       return { status: "done", hashes: saved.completed, receipts: [] };
     }
     expected = await saveReviewedSequence(saved, storage, expected);
+    await told();
   }
   return send(
     {
@@ -1010,11 +1028,19 @@ async function send(
       const done = resuming?.record;
       if (step > 0 || !done?.completed.length) return undefined;
       const { chainId } = done.calls[done.completed.length - 1];
-      const { blockNumber, blockHash } = await waitForTrackedReceipt(
-        clientFor(chainId),
-        done.completed[done.completed.length - 1],
-      );
-      return { chainId, blockNumber, blockHash };
+      // One read: a receipt that can't be read now (a repriced original) is no block.
+      const receipt = await clientFor(chainId)
+        .getTransactionReceipt({
+          hash: done.completed[done.completed.length - 1],
+        })
+        .catch(() => undefined);
+      return receipt
+        ? {
+            chainId,
+            blockNumber: receipt.blockNumber,
+            blockHash: receipt.blockHash,
+          }
+        : undefined;
     };
     const priorBlock =
       call.dependsOnPrior &&

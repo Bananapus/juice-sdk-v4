@@ -350,6 +350,30 @@ describe("useReviewedRun", () => {
     });
   });
 
+  test("an abort while the engine loads ends the run cancelled", async () => {
+    const prompts = reviewUi();
+    const { deps } = setup();
+    const { seen } = harness({
+      ...deps,
+      account: ACCOUNT,
+      engine: () => new Promise(() => {}),
+    });
+    const controller = new AbortController();
+    let running!: ReturnType<UseReviewedRunResult["run"]>;
+    await act(async () => {
+      running = seen.current!.run({
+        calls: [payCall()],
+        signal: controller.signal,
+      });
+    });
+    await act(async () => {
+      controller.abort();
+      await expect(running).resolves.toBeNull();
+    });
+    expect(seen.current).toMatchObject({ phase: "idle", error: null });
+    expect(prompts).toHaveLength(0);
+  });
+
   test("preloads the engine once, and again only after a failed load", async () => {
     reviewUi();
     const { deps } = setup();

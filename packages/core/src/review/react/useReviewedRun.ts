@@ -299,16 +299,22 @@ export function useReviewedRun(
           throw new ReviewLineError(REVIEWED_ACCOUNT_CHANGED_LINE);
         if (action.calls.length > 1 && action.scope === undefined)
           throw new ReviewLineError(REVIEWED_RUN_SCOPE_LINE);
-        const { resumeReviewed, sendReviewed } = await load(deps.engine).catch(
-          (cause: unknown) => {
+        const { signal } = action;
+        if (signal?.aborted) throw new TransactionReviewCancelledError();
+        let withdraw = () => {};
+        const { resumeReviewed, sendReviewed } = await Promise.race([
+          load(deps.engine).catch((cause: unknown) => {
             throw Object.assign(
               new ReviewLineError(REVIEWED_ENGINE_LOAD_LINE),
-              {
-                cause,
-              },
+              { cause },
             );
-          },
-        );
+          }),
+          // A review withdrawn while the engine loads ends here, cancelled.
+          new Promise<never>((_, reject) => {
+            withdraw = () => reject(new TransactionReviewCancelledError());
+            signal?.addEventListener("abort", withdraw, { once: true });
+          }),
+        ]).finally(() => signal?.removeEventListener("abort", withdraw));
         const { account, guard } = deps;
         const tracked: ReviewedSendDeps = {
           ...deps,

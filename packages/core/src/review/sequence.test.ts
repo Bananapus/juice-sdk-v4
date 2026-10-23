@@ -653,6 +653,18 @@ describe("reviewed sequences", () => {
       ],
     ]);
 
+    // A prior receipt that can't be read is no block, at once: the check reads the latest.
+    const second = await interrupted(
+      [approveCall(), payCall(5n), payCall(6n)],
+      1,
+    );
+    second.chain.state.mined.delete(hashOf(1));
+    const unread = vi.fn(
+      async (_call: ReviewedCall, _index: number, _prior?: unknown) => {},
+    );
+    await resumeReviewed(second.record, { reverify: unread }, second.deps);
+    expect(unread.mock.calls[0][2]).toBeUndefined();
+
     const fresh = setup();
     const first = vi.fn(
       async (_call: ReviewedCall, _index: number, _prior?: unknown) => {},
@@ -745,12 +757,22 @@ describe("reviewed sequences", () => {
       storage: context.storage,
     })!;
     executed = true;
+    context.chain.state.mined.set(hashOf(0xe1), 105n);
     context.progress.length = 0;
-    await expect(resumeReviewed(record, {}, deps)).resolves.toMatchObject({
+    const onConfirmed = vi.fn();
+    await expect(
+      resumeReviewed(record, { onConfirmed }, deps),
+    ).resolves.toMatchObject({
       status: "done",
       hashes: [hashOf(0xe1)],
     });
     expect(context.progress).toEqual([{ step: 0, total: 1, phase: "done" }]);
+    // The step that settled while away is told too.
+    expect(onConfirmed).toHaveBeenCalledWith(
+      expect.objectContaining({ to: approveCall().to }),
+      0,
+      expect.objectContaining({ transactionHash: hashOf(0xe1) }),
+    );
   });
 
   it("refuses, before any review, an argument it could not save exactly", async () => {

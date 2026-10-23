@@ -313,7 +313,7 @@ export async function prepareDefifaPay(
         });
         if (BigInt(tier.id) !== tierId || BigInt(tier.remainingSupply) < count)
           throw new ReviewLineError(
-            `Defifa tier ${tierId} is unavailable for the selected quantity.`,
+            "A selected Defifa tier is unavailable for the selected quantity.",
           );
         return {
           tierId,
@@ -405,9 +405,7 @@ async function requireOwner(
     args: [tokenId],
   });
   if (!sameAddress(owner, account))
-    throw new ReviewLineError(
-      `Defifa NFT ${tokenId} is not owned by the sender.`,
-    );
+    throw new ReviewLineError("This Defifa NFT is not owned by the sender.");
 }
 
 /** Fresh owner/phase checks and exact cashOutTokensOf simulation, with no ERC721 approval. */
