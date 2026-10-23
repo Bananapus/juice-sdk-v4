@@ -4,9 +4,7 @@ import {
   createPublicClient,
   custom,
   encodeAbiParameters,
-  encodeErrorResult,
   http,
-  parseAbi,
   type Address,
   type Hex,
   type PublicClient,
@@ -21,7 +19,6 @@ import {
   it,
   vi,
 } from "vitest";
-import { jbMultiTerminalAbi } from "../generated/abi/jbMultiTerminalAbi.js";
 import { ReviewLineError } from "./lineError.js";
 import {
   REVERT_UNKNOWN_LINE,
@@ -47,55 +44,8 @@ const errorString = (reason: string) =>
   `0x08c379a0${encodeAbiParameters([{ type: "string" }], [reason]).slice(2)}` as Hex;
 
 describe("revert reasons", () => {
-  it("decodes Error(string), panics and custom errors into one short line", () => {
-    expect(revertDetail(revert(errorString("Allowance too low")))).toBe(
-      'The contract refused: "Allowance too low".',
-    );
-    expect(
-      revertDetail(
-        revert(
-          `0x4e487b71${encodeAbiParameters([{ type: "uint256" }], [17n]).slice(2)}`,
-        ),
-      ),
-    ).toBe("The contract stopped on an arithmetic overflow.");
-    expect(
-      revertDetail(
-        revert(
-          `0x4e487b71${encodeAbiParameters([{ type: "uint256" }], [99n]).slice(2)}`,
-        ),
-      ),
-    ).toBe("The contract stopped on an internal error.");
-    // The SDK's own ABIs name a JB error without the call's ABI.
-    expect(
-      revertDetail(
-        revert(
-          encodeErrorResult({
-            abi: jbMultiTerminalAbi,
-            errorName: "JBMultiTerminal_FeeTerminalNotFound",
-            args: [FROM],
-          }),
-        ),
-      ),
-    ).toBe("The contract refused: JBMultiTerminal_FeeTerminalNotFound.");
-    // The call's own ABI names its errors.
-    const abi = parseAbi(["error PoolLocked(uint256 until)"]);
-    const locked = encodeErrorResult({
-      abi,
-      errorName: "PoolLocked",
-      args: [5n],
-    });
-    expect(revertDetail(revert(locked), abi)).toBe(
-      "The contract refused: PoolLocked.",
-    );
-    expect(revertDetail(revert(locked))).toBe(REVERT_UNKNOWN_LINE);
-    const closed = parseAbi(["error Closed()"]);
-    expect(
-      revertDetail(
-        revert(encodeErrorResult({ abi: closed, errorName: "Closed" })),
-        closed,
-      ),
-    ).toBe("The contract refused: Closed.");
-    // A payment revert the SDK knows says what to change.
+  it("names a payment revert the SDK knows, and nothing else", () => {
+    // JBMultiTerminal_TokenNotAccepted(address): the SDK's payment decoder knows it.
     expect(
       revertReason(
         revert(
@@ -103,24 +53,14 @@ describe("revert reasons", () => {
         ),
       ),
     ).toMatch(/^[A-Z].*\.$/);
-    // Reverts are found through causes.
-    expect(
-      revertDetail({ cause: { cause: revert(errorString("Paused")) } }),
-    ).toBe('The contract refused: "Paused".');
-  });
-
-  it("never shows error text: unknown data and no data get a fixed line", () => {
+    // Any other revert, with data or without, gets the fixed line, never its text.
+    expect(revertReason(revert(errorString("https://evil.example")))).toBe(
+      null,
+    );
+    expect(revertDetail(revert(errorString("https://evil.example")))).toBe(
+      REVERT_UNKNOWN_LINE,
+    );
     expect(revertDetail(revert("0xdeadbeef"))).toBe(REVERT_UNKNOWN_LINE);
-    expect(
-      revertDetail(
-        Object.assign(new Error("execution reverted"), {
-          code: 3,
-          shortMessage: "Execution reverted: https://node.example/key",
-        }),
-      ),
-    ).toBe(REVERT_UNKNOWN_LINE);
-    expect(revertDetail(revert(errorString(" \n ")))).toBe(REVERT_UNKNOWN_LINE);
-    expect(revertReason(revert("0xdeadbeef"))).toBeNull();
     // A node that failed is not a revert.
     expect(
       revertDetail(
@@ -129,23 +69,129 @@ describe("revert reasons", () => {
         }),
       ),
     ).toBe(SIMULATION_NO_ANSWER_LINE);
-    // A spoofed decoded name is never a sentence.
-    expect(
-      revertDetail({
-        code: 3,
-        errorName: "Send to https://evil.example",
-      }),
-    ).toBe(REVERT_UNKNOWN_LINE);
-  });
-
-  it("quotes a contract's reason on one clipped line", () => {
-    const shown = revertDetail(
-      revert(errorString(`Line one\nline\u202etwo ${"x".repeat(200)}`)),
-    );
-    expect(shown).toMatch(/^The contract refused: "Line one line two x+…"\.$/);
-    expect(shown.length).toBeLessThan(110);
   });
 });
+
+describe("state-changing transaction simulation", () => {
+  it("uses a raw, explicitly gas-bounded eth_call", async () => {
+    const client = rawClient("0x");
+    await expect(
+      simulateStateChangingTransaction(client, {
+        from: FROM,
+        to: TARGET,
+        data: "0x1234",
+        value: 7n,
+      }),
+    ).resolves.toBe("0x");
+    expect(client.request).toHaveBeenCalledWith({
+      method: "eth_call",
+      params: [
+        {
+          from: FROM,
+          to: TARGET,
+          data: "0x1234",
+          value: "0x7",
+          gas: `0x${TRANSACTION_SIMULATION_GAS.toString(16)}`,
+        },
+        "latest",
+      ],
+    });
+  });
+
+  it("simulates at a given block with the caller's gas", async () => {
+    const client = rawClient("0xabcd");
+    await expect(
+      simulateStateChangingTransaction(client, {
+        from: FROM,
+        to: TARGET,
+        data: "0x1234",
+        gas: 500_000n,
+        blockNumber: 12_345n,
+      }),
+    ).resolves.toBe("0xabcd");
+    expect(client.request).toHaveBeenCalledWith({
+      method: "eth_call",
+      params: [
+        {
+          from: FROM,
+          to: TARGET,
+          data: "0x1234",
+          value: "0x0",
+          gas: "0x7a120",
+        },
+        "0x3039",
+      ],
+    });
+  });
+
+  it("never follows a target-controlled OffchainLookup URL", async () => {
+    const request = vi
+      .fn()
+      .mockRejectedValue(
+        new Error(
+          "execution reverted: OffchainLookup(https://127.0.0.1/private)",
+        ),
+      );
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    await expect(
+      simulateStateChangingTransaction(
+        { request, ccipRead: true } as unknown as PublicClient,
+        { from: FROM, to: TARGET, data: "0x1234" },
+      ),
+    ).rejects.toThrow(/OffchainLookup/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("rejects oversized or malformed return data before a caller decodes it", async () => {
+    const simulate = (result: unknown, maxReturnBytes?: number) =>
+      simulateStateChangingTransaction(rawClient(result), {
+        from: FROM,
+        to: TARGET,
+        data: "0x1234",
+        maxReturnBytes,
+      });
+    await expect(
+      simulate(`0x${"00".repeat(TRANSACTION_SIMULATION_MAX_RETURN_BYTES + 1)}`),
+    ).rejects.toThrow(/too much data/);
+    await expect(
+      simulate(`0x${"00".repeat(TRANSACTION_SIMULATION_MAX_RETURN_BYTES)}`),
+    ).resolves.toMatch(/^0x/);
+    await expect(simulate(`0x${"00".repeat(33)}`, 32)).rejects.toThrow(
+      /too much data/,
+    );
+    await expect(simulate(`0x${"00".repeat(32)}`, 32)).resolves.toMatch(/^0x/);
+    for (const malformed of [null, 7, "0x123", "0xzz", "1234"]) {
+      await expect(simulate(malformed)).rejects.toThrow(/malformed data/);
+    }
+  });
+
+  it("refuses an unbounded simulation", async () => {
+    const client = rawClient("0x");
+    for (const gas of [0n, -1n]) {
+      await expect(
+        simulateStateChangingTransaction(client, {
+          from: FROM,
+          to: TARGET,
+          data: "0x",
+          gas,
+        }),
+      ).rejects.toThrow("Transaction simulation gas must be positive.");
+    }
+    for (const maxReturnBytes of [-1, 1.5, Number.NaN]) {
+      await expect(
+        simulateStateChangingTransaction(client, {
+          from: FROM,
+          to: TARGET,
+          data: "0x",
+          maxReturnBytes,
+        }),
+      ).rejects.toThrow("Transaction simulation needs a return data limit.");
+    }
+    expect(client.request).not.toHaveBeenCalled();
+  });
+});
+
 const TARGET = "0x2222222222222222222222222222222222222222" as Address;
 
 const rawClient = (result: unknown) =>
@@ -329,7 +375,7 @@ describe("ordered call sequence simulation", () => {
       ),
     ).rejects.toThrow(
       new ReviewLineError(
-        'Add liquidity cannot run on Base: The contract refused: "Allowance too low".',
+        `Add liquidity cannot run on Base: ${REVERT_UNKNOWN_LINE}`,
       ),
     );
     await expect(
@@ -410,7 +456,7 @@ describe("ordered call sequence simulation", () => {
     );
     await expect(simulate(failing)).rejects.toThrow(
       new ReviewLineError(
-        'Approve the pool cannot run on Base: The contract refused: "no allowance".',
+        `Approve the pool cannot run on Base: ${REVERT_UNKNOWN_LINE}`,
       ),
     );
   });

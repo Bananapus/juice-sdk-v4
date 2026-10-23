@@ -402,7 +402,6 @@ async function reviewSimulation(
             gas: sent[index].gas,
             label: labelOf(calls[index], index),
             dependsOnPrior: calls[index].dependsOnPrior,
-            abi: calls[index].abi,
           })),
         });
       } else if (!(calls[steps[0]].dependsOnPrior && steps[0] > 0)) {
@@ -422,10 +421,7 @@ async function reviewSimulation(
     } catch (error) {
       if (!isRevert(error))
         return { status: "unavailable", message: SIMULATION_UNAVAILABLE };
-      const reason = revertReason(
-        error,
-        steps.flatMap((index) => calls[index].abi ?? []),
-      );
+      const reason = revertReason(error);
       return {
         status: "failed",
         // A sequence's failure is the SDK's line naming its call.
@@ -866,7 +862,6 @@ async function send(
               ...call,
               label: labelOf(calls[step], step),
               dependsOnPrior: calls[step].dependsOnPrior,
-              abi: calls[step].abi,
             })),
           });
           return sending;
@@ -1080,7 +1075,7 @@ async function send(
               gas,
             }).catch((error: unknown) => {
               throw simulationFailure(
-                `${labelOf(call, at)} cannot run on ${client.chain?.name ?? `chain ${sending.chainId}`}: ${revertDetail(error, call.abi)}`,
+                `${labelOf(call, at)} cannot run on ${client.chain?.name ?? `chain ${sending.chainId}`}: ${revertDetail(error)}`,
                 error,
               );
             }),

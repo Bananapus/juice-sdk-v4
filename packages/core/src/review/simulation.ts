@@ -1,16 +1,5 @@
-import {
-  decodeAbiParameters,
-  decodeErrorResult,
-  keccak256,
-  numberToHex,
-  toHex,
-  type Abi,
-  type Address,
-  type Hex,
-  type PublicClient,
-} from "viem";
-import { collectEvidence, decodePayFailure } from "../v6/executionErrors.js";
-import { knownErrorAbi } from "./decodeCall.js";
+import { numberToHex, type Address, type Hex, type PublicClient } from "viem";
+import { decodePayFailure } from "../v6/executionErrors.js";
 import { ReviewLineError } from "./lineError.js";
 
 /** A generous explicit gas ceiling for a reviewed state-changing preflight. */
@@ -94,100 +83,24 @@ export type SimulatedSequenceCall = {
   label: string;
   /** Needs an earlier call's effect (an allowance, a hook), so it cannot run alone. */
   dependsOnPrior?: boolean;
-  /** The call's ABI, whose custom errors name a revert. */
-  abi?: Abi;
 };
 
-/** The line for a revert whose reason the review cannot read. */
+/** The line for a revert whose reason the SDK does not know. */
 export const REVERT_UNKNOWN_LINE =
-  "The call would revert, and the review could not read why.";
+  "This transaction would fail. Check the amounts and try again.";
 
 /** The line for a simulation the node did not answer. */
 export const SIMULATION_NO_ANSWER_LINE =
   "The node did not answer the simulation.";
 
-/** Solidity's panic causes, by code. */
-const PANICS: Readonly<Record<string, string>> = {
-  "1": "a failed assertion",
-  "17": "an arithmetic overflow",
-  "18": "a division by zero",
-  "33": "an invalid enum value",
-  "34": "bad storage data",
-  "49": "an empty array pop",
-  "50": "an out-of-bounds index",
-  "65": "an out-of-memory error",
-  "81": "an uninitialized function",
-};
-
-const ERROR_STRING = "0x08c379a0";
-const PANIC = "0x4e487b71";
-const IDENTIFIER = /^[A-Za-z_$][\w$]{0,99}$/u;
-
-/** A contract's reason text, quoted: control, format and line characters dropped, clipped. */
-function quoted(reason: string): string | null {
-  const text = reason
-    .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, " ")
-    .replace(/\s+/gu, " ")
-    .trim();
-  if (!text) return null;
-  return `"${text.length > 80 ? `${text.slice(0, 79)}…` : text}"`;
-}
-
 /**
- * Why a call reverted, decoded from its revert data, in one short line: a
- * payment revert the SDK knows says what to change; `Error(string)` shows its
- * reason quoted; a panic names its cause; a custom error from `abi` (the
- * call's) or the SDK's ABIs shows its name. Null when there is no revert data
- * or it decodes to nothing known. Error text (viem's `shortMessage`, a node's
- * message) is never read: it can quote a request or its URL.
+ * Why a call reverted, when the SDK knows the revert: a payment revert's
+ * plain line ({@link decodePayFailure}). Null otherwise. Error text (viem's
+ * `shortMessage`, a node's message) is never read: it can quote a request or
+ * its URL.
  */
-export function revertReason(error: unknown, abi?: Abi): string | null {
-  const known = decodePayFailure(error);
-  if (known) return known.message;
-  const { payloads, decoded } = collectEvidence(error);
-  for (const data of payloads) {
-    const selector = data.slice(0, 10).toLowerCase();
-    const rest = `0x${data.slice(10)}` as Hex;
-    try {
-      if (selector === ERROR_STRING) {
-        const shown = quoted(
-          decodeAbiParameters([{ type: "string" }], rest)[0],
-        );
-        if (shown) return `The contract refused: ${shown}.`;
-        continue;
-      }
-      if (selector === PANIC) {
-        const [code] = decodeAbiParameters([{ type: "uint256" }], rest);
-        return `The contract stopped on ${PANICS[code.toString()] ?? "an internal error"}.`;
-      }
-      const errors = [...(abi ?? []), ...knownErrorAbi()];
-      // viem cannot decode an error that has no arguments.
-      const name =
-        data.length === 10
-          ? errors.flatMap((item) =>
-              item.type === "error" &&
-              !item.inputs.length &&
-              keccak256(toHex(`${item.name}()`)).slice(0, 10) === selector
-                ? [item.name]
-                : [],
-            )[0]
-          : decodeErrorResult({ abi: errors, data: data as Hex }).errorName;
-      if (name && IDENTIFIER.test(name))
-        return `The contract refused: ${name}.`;
-    } catch {
-      /* Data that decodes to nothing known says nothing. */
-    }
-  }
-  // An error viem typed, when the error carries no data of its own.
-  if (!payloads.length)
-    for (const { errorName } of decoded)
-      if (
-        IDENTIFIER.test(errorName) &&
-        errorName !== "Error" &&
-        errorName !== "Panic"
-      )
-        return `The contract refused: ${errorName}.`;
-  return null;
+export function revertReason(error: unknown): string | null {
+  return decodePayFailure(error)?.message ?? null;
 }
 
 /**
@@ -195,9 +108,9 @@ export function revertReason(error: unknown, abi?: Abi): string | null {
  * line, {@link REVERT_UNKNOWN_LINE} for a revert and
  * {@link SIMULATION_NO_ANSWER_LINE} otherwise. Never the error's own text.
  */
-export function revertDetail(error: unknown, abi?: Abi): string {
+export function revertDetail(error: unknown): string {
   return (
-    revertReason(error, abi) ??
+    revertReason(error) ??
     (isRevert(error) ? REVERT_UNKNOWN_LINE : SIMULATION_NO_ANSWER_LINE)
   );
 }
@@ -361,7 +274,7 @@ export async function simulateCallSequence(
       throw simulationFailure(
         `${call.label} cannot run on ${chainName}: ${
           result?.status === "failure"
-            ? revertDetail(result.error, call.abi)
+            ? revertDetail(result.error)
             : SIMULATION_NO_ANSWER_LINE
         }`,
         result?.error,
@@ -378,7 +291,7 @@ export async function simulateCallSequence(
       });
     } catch (error) {
       throw simulationFailure(
-        `${call.label} cannot run on ${chainName}: ${revertDetail(error, call.abi)}`,
+        `${call.label} cannot run on ${chainName}: ${revertDetail(error)}`,
         error,
       );
     }

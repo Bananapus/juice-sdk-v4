@@ -47,6 +47,7 @@ import {
   sendReviewed,
   type ReviewedCall,
 } from "./send.js";
+import { REVERT_UNKNOWN_LINE } from "./simulation.js";
 import { selfReviewingAdapter, WALLET_NOT_READY_LINE } from "./wallet.js";
 import { WriteHeldError, WriteHoldStaleReviewError } from "./writeHold.js";
 
@@ -508,9 +509,9 @@ describe("sendReviewed", () => {
     await expect(
       sendReviewed(action([payCall(6n)]), deps),
     ).rejects.toMatchObject({
-      message: REVIEWED_SIMULATION_FAILED_LINE,
+      message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
       cause: expect.stringContaining(
-        'Pay cannot run on OP Mainnet: The contract refused: "NOPE".',
+        `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
       ),
     });
 
@@ -536,8 +537,7 @@ describe("sendReviewed", () => {
     ).rejects.toMatchObject({
       // Viem's text is never the reason: no revert data, no reason shown.
       message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
-      cause:
-        "Pay cannot run on OP Mainnet: The call would revert, and the review could not read why.",
+      cause: `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
     });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
@@ -559,7 +559,7 @@ describe("sendReviewed", () => {
     // The pre-wallet simulation's revert is the SDK's decoded line.
     await expect(sendReviewed(action([call]), deps)).rejects.toThrow(
       new ReviewLineError(
-        'Pay cannot run on OP Mainnet: The contract refused: "NOPE".',
+        `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
       ),
     );
     expect(simulationSettled).toBe(false);
@@ -1294,9 +1294,9 @@ describe("sendReviewed", () => {
             : chain.client) as unknown as PublicClient,
       }),
     ).rejects.toMatchObject({
-      message: REVIEWED_SIMULATION_FAILED_LINE,
+      message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
       cause: expect.stringContaining(
-        'Pay cannot run on OP Mainnet: The contract refused: "NOPE".',
+        `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
       ),
     });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
@@ -1333,7 +1333,7 @@ describe("sendReviewed", () => {
     });
     await expect(sendReviewed(action([payCall()]), deps)).rejects.toMatchObject(
       {
-        message: REVIEWED_SIMULATION_FAILED_LINE,
+        message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
         cause: expect.stringContaining("Pay cannot run on OP Mainnet"),
       },
     );

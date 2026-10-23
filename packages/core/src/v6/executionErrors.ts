@@ -16,7 +16,7 @@ const REVERT_DATA = /^0x[0-9a-f]+$/i;
  * Text is never read: an `Error(string)` reason, a request or a call's
  * arguments can spell any error name or revert data.
  */
-export function collectEvidence(
+function collectEvidence(
   value: unknown,
   evidence: {
     payloads: string[];
