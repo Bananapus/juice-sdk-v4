@@ -199,3 +199,7 @@ export const REVIEWED_ENGINE_LOAD_LINE =
 /** The refusal after a review whose simulation found the action would revert; the review showed why. */
 export const REVIEWED_SIMULATION_FAILED_LINE =
   "This transaction would fail onchain. Nothing was sent; the review shows why.";
+
+/** The same refusal when the revert's reason could not be read. */
+export const REVIEWED_SIMULATION_UNEXPLAINED_LINE =
+  "This transaction would fail onchain. Nothing was sent; check the amounts and try again.";

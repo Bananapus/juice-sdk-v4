@@ -20,7 +20,6 @@ import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
 import {
   findReviewedSequence,
   REVIEWED_SEQUENCE_HELD_LINE,
-  REVIEWED_SEQUENCE_UNCERTAIN_LINE,
   REVIEWED_SEQUENCE_UNFINISHED_LINE,
 } from "../sequence.js";
 import {
@@ -420,28 +419,61 @@ describe("useReviewedRun", () => {
     await act(async () => {
       await seen.current!.exitAction!.run();
     });
-    // Released: its outcome can't be known, so the same action is refused.
-    await expect(run(action)).resolves.toMatchObject({
-      status: "failed",
-      error: REVIEWED_SEQUENCE_UNCERTAIN_LINE,
-    });
+    expect(findReviewedSequence(scope, ACCOUNT, { storage })).not.toBeNull();
+    // The sending account's sequence, whichever account is connected now.
+    act(() => root?.unmount());
+    const other = harness({ ...deps, account: OTHER });
     await act(async () => {
-      await seen.current!.discard(scope);
+      await other.seen.current!.discard(scope, ACCOUNT);
     });
     expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
-    expect(seen.current).toMatchObject({ phase: "idle", error: null });
+    expect(other.seen.current).toMatchObject({ phase: "idle", error: null });
 
     // While a run's review is open, nothing is discarded under it.
     reviewUi(() => new Promise(() => {}));
+    act(() => root?.unmount());
+    const busy = harness({ ...deps, account: ACCOUNT });
     await act(async () => {
-      void seen.current!.run({ calls: [payCall(8n)], scope });
+      void busy.seen.current!.run({ calls: [payCall(8n)], scope });
     });
     await act(async () => {
-      await expect(seen.current!.discard(scope)).rejects.toThrow(
+      await expect(busy.seen.current!.discard(scope)).rejects.toThrow(
         REVIEWED_RUN_BUSY_LINE,
       );
     });
     expect(prompts.length).toBeGreaterThan(0);
+  });
+
+  test("a step the user released by its exit is reviewed once more and sent alone", async () => {
+    const prompts = reviewUi();
+    const { wallet, deps } = setup();
+    const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+    // A WalletConnect drop: the pay step's wallet call ends with no hash.
+    wallet.adapter.sendTransaction.mockImplementation(async (tx) => {
+      if (wallet.adapter.sendTransaction.mock.calls.length === 2)
+        throw new Error("The request took too long to respond.");
+      return send(tx);
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    // Held under its intent, as sites send payments.
+    const action = {
+      calls: [approveCall(), { ...payCall(), intent: "pay:1" }],
+      scope: "pay:project-1",
+    };
+    await expect(run(action)).resolves.toMatchObject({ status: "failed" });
+    expect(prompts).toHaveLength(1);
+    await vi.waitFor(() => expect(seen.current!.exitAction).not.toBeNull());
+    await act(async () => {
+      await expect(seen.current!.exitAction!.run()).resolves.toBe(true);
+    });
+    // The next attempt: one review, of the pay step only, and only it is sent.
+    await expect(run(action)).resolves.toMatchObject({ status: "done" });
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1].model.calls).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(3);
+    expect(wallet.adapter.sendTransaction.mock.calls[2][0].data).toBe(
+      payCall().data,
+    );
   });
 
   test("refuses a run for another account before the review", async () => {
@@ -497,15 +529,6 @@ describe("useReviewedRun", () => {
         receipt,
       ),
     );
-    expect(seen.current).toMatchObject({
-      phase: "done",
-      step: 0,
-      total: 2,
-      hash: receipt.transactionHash,
-      receipt,
-      error: null,
-    });
-
     /** A fresh Safe's proposal, followed. */
     const proposed = async () => {
       act(() => root?.unmount());
@@ -516,6 +539,31 @@ describe("useReviewedRun", () => {
       expect(next.seen.current!.phase).toBe("proposed");
       return next.seen;
     };
+    // The approval settling is not the action done: running it again resumes.
+    expect(seen.current).toMatchObject({
+      phase: "idle",
+      step: 0,
+      total: 2,
+      hash: receipt.transactionHash,
+      receipt,
+      error: null,
+      settled: { step: 0, finished: false },
+    });
+
+    // The last step settling finishes it.
+    const last = await proposed();
+    act(() =>
+      (views.last!.onSettled! as (s: unknown, r: unknown) => void)(
+        { result: "success", hash: receipt.transactionHash },
+        receipt,
+      ),
+    );
+    expect(last.current).toMatchObject({
+      phase: "done",
+      receipt,
+      settled: { step: 0, finished: true },
+    });
+
     for (const [settled, line] of [
       [{ result: "failed", hash: receipt.transactionHash }, HELD_FAILED_LINE],
       [{ result: "expired" }, HELD_EXPIRED_LINE],

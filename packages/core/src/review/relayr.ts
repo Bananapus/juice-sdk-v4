@@ -17,6 +17,7 @@ import {
 } from "../generated/juicebox.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import { isDefiniteWalletRejection } from "./contractWrite.js";
+import { ReviewFixedLineError, ReviewLineError } from "./lineError.js";
 import { simulateStateChangingTransaction } from "./simulation.js";
 
 // Relayr runs a bundle of transactions on several chains for one prepaid
@@ -289,13 +290,21 @@ export type RelayrProofClient = {
  * The chain or Relayr contradicts the expected transaction: this evidence can
  * never prove it. Keep the action pending and never pay for it again.
  */
-export class RelayrProofError extends Error {
+export class RelayrProofError extends ReviewFixedLineError {
   readonly name: string = "RelayrProofError";
+
+  get line(): string {
+    return "This payment's result contradicts what was reviewed. Keep the action pending and do not pay again.";
+  }
 }
 
 /** The transaction or its canonical receipt is not yet readable. Retain the bundle and retry its proof. */
-export class RelayrProofUnavailableError extends Error {
+export class RelayrProofUnavailableError extends ReviewFixedLineError {
   readonly name = "RelayrProofUnavailableError";
+
+  get line(): string {
+    return "This payment's result is not readable yet. Keep the action pending and check it later.";
+  }
 }
 
 /**
@@ -303,8 +312,12 @@ export class RelayrProofUnavailableError extends Error {
  * invoking the wallet. Construct only around that guard, never around the
  * persistence callback or wallet call: their failures may hide a submission.
  */
-export class RelayrPaymentNotSentError extends Error {
+export class RelayrPaymentNotSentError extends ReviewFixedLineError {
   readonly name = "RelayrPaymentNotSentError";
+
+  get line(): string {
+    return "The payment was not sent. Review the payment again.";
+  }
 
   constructor(cause: unknown) {
     super(
@@ -338,6 +351,10 @@ export function relayrWalletPaymentError(error: unknown): unknown {
 export class RelayrPaymentRevertedError extends RelayrProofError {
   readonly name = "RelayrPaymentRevertedError";
 
+  get line(): string {
+    return "The payment transaction reverted onchain. Check it before you pay again.";
+  }
+
   constructor(
     message: string,
     readonly hash: Hex,
@@ -354,6 +371,10 @@ export class RelayrPaymentRevertedError extends RelayrProofError {
  */
 export class RelayrDestinationRevertedError extends RelayrProofError {
   readonly name = "RelayrDestinationRevertedError";
+
+  get line(): string {
+    return "The action's transaction reverted onchain. Keep the original bundle pending; do not pay again.";
+  }
 
   constructor(
     message: string,
@@ -383,13 +404,30 @@ export type RelayrPaymentRetryRefusal =
   | "running"
   | "unknown";
 
+/** The line for each refusal to pay again: its text can quote a service. */
+const RETRY_LINES: Readonly<Record<RelayrPaymentRetryRefusal, string>> = {
+  invalid:
+    "This payment could not be checked. Do not pay again; review the action again.",
+  expired: "This quote expired. Review the action again for a new quote.",
+  paid: "This bundle is already paid. Do not pay again.",
+  running: "This bundle is already running. Do not pay again.",
+  unknown:
+    "Whether this bundle is paid is not known yet. Do not pay again yet; check it later.",
+};
+
 /**
  * A refusal to pay a Relayr quote again, with its `reason`. Never pay on one:
  * `paid` and `running` mean the bundle is funded, `unknown` may clear on a
  * later check, and `expired` needs a new quote.
  */
-export class RelayrPaymentRetryError extends Error {
+export class RelayrPaymentRetryError extends ReviewFixedLineError {
   readonly name = "RelayrPaymentRetryError";
+
+  get line(): string {
+    return Object.prototype.hasOwnProperty.call(RETRY_LINES, this.reason)
+      ? RETRY_LINES[this.reason]
+      : RETRY_LINES.unknown;
+  }
 
   constructor(
     message: string,
@@ -1186,6 +1224,23 @@ function nodeDetail(error: unknown): string {
     : "the node refused the call";
 }
 
+const PAYMENT_CHECK_FAILED_LINE =
+  "Could not check the payment. Nothing was sent.";
+
+/** A viem error, or one it caused, from decoding a malformed reply. */
+function isDecodeError(error: unknown): boolean {
+  for (
+    let current = error, depth = 0;
+    depth < 8 && current && typeof current === "object";
+    depth += 1, current = (current as { cause?: unknown }).cause
+  ) {
+    const { name } = current as { name?: unknown };
+    if (typeof name === "string" && /Decoding|OutOfBounds/u.test(name))
+      return true;
+  }
+  return false;
+}
+
 /**
  * Simulate the exact payment from `from` with the gas it is sent with,
  * without CCIP-read. Relayr's contract returns nothing, so a revert or any
@@ -1211,6 +1266,8 @@ export async function simulateRelayrPayment(
       gas: RELAYR_PAYMENT_GAS,
     });
   } catch (cause) {
+    if (isDecodeError(cause))
+      throw withCause(new ReviewLineError(PAYMENT_CHECK_FAILED_LINE), cause);
     throw errorWithCause(
       `The Relayr payment would fail: ${nodeDetail(cause)}`,
       cause,

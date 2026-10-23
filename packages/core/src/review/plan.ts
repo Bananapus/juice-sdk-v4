@@ -1,0 +1,227 @@
+import { bytesToHex, type Address, type Hex } from "viem";
+import { ReviewLineError } from "./lineError.js";
+
+/**
+ * One call a plan's review showed, as it must go out: from `from`, or, with
+ * "relayr", run by Relayr's own account.
+ */
+export type ReviewedPlanCall = Readonly<{
+  chainId: number;
+  from: Address | "relayr";
+  to: Address;
+  data: Hex;
+  value: bigint;
+  /** The exact gas limit reviewed, when the call fixes one; it must be sent as it is. */
+  gas?: bigint;
+}>;
+
+/**
+ * Calls the person reviewed once, for an app that sends them one by one
+ * (`reviewPlan`). Each call is spent once, by the first send that matches it.
+ */
+export type ReviewedPlan = Readonly<{
+  account: Address;
+  calls: readonly ReviewedPlanCall[];
+  /** When the review stops covering the plan's unsent calls (ms since epoch). */
+  expiresAt: number;
+}>;
+
+/** How long a plan's review covers its calls after confirm. */
+export const REVIEWED_PLAN_TTL_MS = 15 * 60_000;
+export const REVIEWED_PLAN_REFUSED_LINE =
+  "This is not what you reviewed. Nothing was sent; review it again.";
+export const REVIEWED_PLAN_EXPIRED_LINE =
+  "Your review of these transactions expired. Nothing was sent; review them again.";
+
+/**
+ * A fresh address to simulate a call Relayr's own account runs: that
+ * account is not known before Relayr quotes. It holds no ETH, so such a
+ * call carries none.
+ */
+export function relayrStandInSender(): Address {
+  return bytesToHex(crypto.getRandomValues(new Uint8Array(20)));
+}
+
+/** A Relayr round's fee bound, as the plan's review showed it. */
+export type PlannedRelayrFee = { chainId: number; cap: bigint };
+
+/** Each plan core minted: which calls are spent, each call's Relayr round, and each round's fee bound. */
+const minted = /* @__PURE__ */ new WeakMap<
+  ReviewedPlan,
+  {
+    used: boolean[];
+    rounds: readonly (string | undefined)[];
+    fees: Map<string, PlannedRelayrFee & { used: boolean }>;
+  }
+>();
+
+/** A plan over `calls`, confirmed by `account` now, with each Relayr round's reviewed fee bound. */
+export function mintPlan(
+  account: Address,
+  calls: readonly (ReviewedPlanCall & { relayrRound?: string })[],
+  fees: ReadonlyMap<string, PlannedRelayrFee> = new Map(),
+): ReviewedPlan {
+  const plan: ReviewedPlan = Object.freeze({
+    account,
+    calls: Object.freeze(
+      calls.map(({ chainId, from, to, data, value, gas }) =>
+        Object.freeze({
+          chainId,
+          from,
+          to,
+          data,
+          value,
+          ...(gas === undefined ? {} : { gas }),
+        }),
+      ),
+    ),
+    expiresAt: Date.now() + REVIEWED_PLAN_TTL_MS,
+  });
+  minted.set(plan, {
+    used: calls.map(() => false),
+    rounds: calls.map(({ relayrRound }) => relayrRound),
+    fees: new Map(
+      [...fees].map(([round, fee]) => [round, { ...fee, used: false }]),
+    ),
+  });
+  return plan;
+}
+
+const keyOf = ({ chainId, from, to, data, value, gas }: ReviewedPlanCall) =>
+  `${chainId}:${from.toLowerCase()}:${to.toLowerCase()}:${data.toLowerCase()}:${value}:${gas ?? ""}`;
+
+/**
+ * The unspent plan call matching each of `calls`, or null for one with none.
+ */
+function match(
+  plan: ReviewedPlan,
+  used: readonly boolean[],
+  calls: readonly ReviewedPlanCall[],
+): number[] | null {
+  const taken = [...used];
+  const at: number[] = [];
+  for (const call of calls) {
+    const key = keyOf(call);
+    const index = plan.calls.findIndex(
+      (planned, index) => !taken[index] && keyOf(planned) === key,
+    );
+    if (index < 0) return null;
+    taken[index] = true;
+    at.push(index);
+  }
+  return at;
+}
+
+const keysOf = (calls: readonly ReviewedPlanCall[]) =>
+  calls.map(keyOf).sort().join("|");
+
+type PlanState = NonNullable<ReturnType<typeof minted.get>>;
+type PlannedRound = { fee: PlannedRelayrFee & { used: boolean }; at: number[] };
+
+/** The index of each call of Relayr round `round`. */
+const roundCalls = (state: PlanState, round: string) =>
+  state.rounds.flatMap((of, index) => (of === round ? [index] : []));
+
+/**
+ * The Relayr round whose unspent calls are exactly `calls` (every one of the
+ * round's calls, none spent, nothing else), with its unused fee bound.
+ */
+function wholeRound(
+  plan: ReviewedPlan,
+  calls: readonly ReviewedPlanCall[],
+): PlannedRound | undefined {
+  const state = minted.get(plan);
+  if (!state) return undefined;
+  const wanted = keysOf(calls);
+  for (const [round, fee] of state.fees) {
+    if (fee.used) continue;
+    const at = roundCalls(state, round);
+    if (
+      at.every((index) => !state.used[index]) &&
+      keysOf(at.map((index) => plan.calls[index])) === wanted
+    )
+      return { fee, at };
+  }
+  return undefined;
+}
+
+/** The state of `plan`, refusing a plan core did not mint, another account's and an expired one. */
+function stateOf(plan: ReviewedPlan, account: Address): PlanState {
+  const state = minted.get(plan);
+  if (!state || plan.account.toLowerCase() !== account.toLowerCase())
+    throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
+  if (Date.now() > plan.expiresAt)
+    throw new ReviewLineError(REVIEWED_PLAN_EXPIRED_LINE);
+  return state;
+}
+
+/**
+ * Spends `round`, its calls and its fee bound, once, when the bound is unused
+ * and was reviewed for paying on `feeChainId`: its bound, else undefined.
+ */
+function spendRound(
+  state: PlanState,
+  { fee, at }: PlannedRound,
+  feeChainId: number | undefined,
+): bigint | undefined {
+  if (fee.used || fee.chainId !== feeChainId) return undefined;
+  for (const index of at) state.used[index] = true;
+  fee.used = true;
+  return fee.cap;
+}
+
+/** The unused fee bound of the Relayr round `calls` make up whole, if any; nothing is spent. */
+export function plannedRelayrFee(
+  plan: ReviewedPlan,
+  calls: readonly ReviewedPlanCall[],
+): PlannedRelayrFee | undefined {
+  const round = wholeRound(plan, calls);
+  return round && { chainId: round.fee.chainId, cap: round.fee.cap };
+}
+
+/**
+ * Spends one unspent call of `plan` for each of `calls`, all or none. Refuses
+ * a plan core did not mint, another account's, an expired one, and any call
+ * that is not exactly an unspent plan call. When `calls` are one Relayr
+ * round, whole, with an unused fee bound reviewed for paying on `feeChainId`,
+ * that round is spent and its bound returned; else undefined: no bound.
+ */
+export function spendPlan(
+  plan: ReviewedPlan,
+  account: Address,
+  calls: readonly ReviewedPlanCall[],
+  feeChainId?: number,
+): bigint | undefined {
+  const state = stateOf(plan, account);
+  if (!calls.length) throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
+  const round = wholeRound(plan, calls);
+  const cap = round && spendRound(state, round, feeChainId);
+  if (cap !== undefined) return cap;
+  const at = match(plan, state.used, calls);
+  if (!at) throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
+  for (const index of at) state.used[index] = true;
+  return undefined;
+}
+
+/**
+ * Spends Relayr round `round` of `plan` whole, for paying a quote of `calls`
+ * on `feeChainId`: when its fee bound is unused and was reviewed for that
+ * chain, and `calls` are exactly the round's calls (spent by their
+ * signatures or not), every call of the round and the bound are spent and
+ * the bound returned. Else nothing is spent: undefined, no bound. Refuses as
+ * `spendPlan` does.
+ */
+export function spendPlannedRelayrRound(
+  plan: ReviewedPlan,
+  account: Address,
+  round: string,
+  calls: readonly ReviewedPlanCall[],
+  feeChainId: number,
+): bigint | undefined {
+  const state = stateOf(plan, account);
+  const fee = state.fees.get(round);
+  const at = roundCalls(state, round);
+  if (!fee || keysOf(at.map((index) => plan.calls[index])) !== keysOf(calls))
+    return undefined;
+  return spendRound(state, { fee, at }, feeChainId);
+}

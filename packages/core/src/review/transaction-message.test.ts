@@ -3,9 +3,12 @@ import {
   RelayrDestinationRevertedError,
   RelayrPaymentRetryError,
   RelayrPaymentRevertedError,
+  RelayrPaymentNotSentError,
   RelayrProofError,
+  RelayrProofUnavailableError,
   type RelayrPaymentRetryRefusal,
 } from "./relayr.js";
+import { SafeRelayrRecoveryError } from "./safeRelayr.js";
 import {
   errorLine,
   NETWORK_ERROR_LINE,
@@ -139,6 +142,45 @@ describe("errorLine", () => {
     expect(
       errorLine(Object.assign(new Error("raw"), { name: "toString" })),
     ).toBe(NETWORK_ERROR_LINE);
+    expect(errorLine(new RelayrProofUnavailableError("raw"))).toMatch(
+      /^This payment's result is not readable yet\./,
+    );
+    expect(errorLine(new RelayrPaymentNotSentError(new Error("raw")))).toBe(
+      "The payment was not sent. Review the payment again.",
+    );
+    // The mark another copy of the SDK reads.
+    expect(new RelayrProofError("raw").reviewFixedLine).toBe(true);
+    // Another copy of the SDK (its CommonJS build next to this ESM one) has its own class.
+    class OtherCopyError extends Error {
+      get reviewFixedLine() {
+        return true;
+      }
+      get line() {
+        return "This bundle is already paid. Do not pay again.";
+      }
+    }
+    expect(errorLine(new OtherCopyError("raw"))).toBe(
+      "This bundle is already paid. Do not pay again.",
+    );
+    expect(
+      errorLine(
+        Object.assign(new Error("raw"), {
+          reviewFixedLine: true,
+          line: "Send it to https://evil.example",
+        }),
+      ),
+    ).toBe(NETWORK_ERROR_LINE);
+    // A name alone is not an SDK error: only its class carries a line.
+    expect(
+      errorLine(Object.assign(new Error("raw"), { name: "RelayrProofError" })),
+    ).toBe(NETWORK_ERROR_LINE);
+    expect(
+      errorLine(
+        new SafeRelayrRecoveryError({} as never, "https://relayr.example/key"),
+      ),
+    ).toBe(
+      "This Safe action already has a payment in progress. Check it before paying again.",
+    );
     expect(errorLine(new WriteHoldBusyError())).toBe(
       "This transaction is already open in another window.",
     );

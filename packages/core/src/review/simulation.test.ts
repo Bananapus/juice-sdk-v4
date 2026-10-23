@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import {
   createPublicClient,
   custom,
+  encodeAbiParameters,
   http,
   type Address,
   type Hex,
@@ -18,7 +19,12 @@ import {
   it,
   vi,
 } from "vitest";
+import { ReviewLineError } from "./lineError.js";
 import {
+  REVERT_UNKNOWN_LINE,
+  revertDetail,
+  revertReason,
+  SIMULATION_NO_ANSWER_LINE,
   simulateCallSequence,
   simulateStateChangingTransaction,
   TRANSACTION_SIMULATION_GAS,
@@ -26,6 +32,166 @@ import {
 } from "./simulation.js";
 
 const FROM = "0x1111111111111111111111111111111111111111" as Address;
+
+/** A node's revert of `data`, as viem's eth_call surfaces it. */
+const revert = (data: Hex) =>
+  Object.assign(new Error("execution reverted"), {
+    code: 3,
+    data,
+    shortMessage: "Execution reverted: https://node.example/key",
+  });
+const errorString = (reason: string) =>
+  `0x08c379a0${encodeAbiParameters([{ type: "string" }], [reason]).slice(2)}` as Hex;
+
+describe("revert reasons", () => {
+  it("names a payment revert the SDK knows, and nothing else", () => {
+    // JBMultiTerminal_TokenNotAccepted(address): the SDK's payment decoder knows it.
+    expect(
+      revertReason(
+        revert(
+          `0xecb6c1d6${encodeAbiParameters([{ type: "address" }], [FROM]).slice(2)}`,
+        ),
+      ),
+    ).toMatch(/^[A-Z].*\.$/);
+    // Any other revert, with data or without, gets the fixed line, never its text.
+    expect(revertReason(revert(errorString("https://evil.example")))).toBe(
+      null,
+    );
+    expect(revertDetail(revert(errorString("https://evil.example")))).toBe(
+      REVERT_UNKNOWN_LINE,
+    );
+    expect(revertDetail(revert("0xdeadbeef"))).toBe(REVERT_UNKNOWN_LINE);
+    // A node that failed is not a revert.
+    expect(
+      revertDetail(
+        Object.assign(new Error("HTTP request failed."), {
+          shortMessage: "HTTP request failed: https://node.example/key",
+        }),
+      ),
+    ).toBe(SIMULATION_NO_ANSWER_LINE);
+  });
+});
+
+describe("state-changing transaction simulation", () => {
+  it("uses a raw, explicitly gas-bounded eth_call", async () => {
+    const client = rawClient("0x");
+    await expect(
+      simulateStateChangingTransaction(client, {
+        from: FROM,
+        to: TARGET,
+        data: "0x1234",
+        value: 7n,
+      }),
+    ).resolves.toBe("0x");
+    expect(client.request).toHaveBeenCalledWith({
+      method: "eth_call",
+      params: [
+        {
+          from: FROM,
+          to: TARGET,
+          data: "0x1234",
+          value: "0x7",
+          gas: `0x${TRANSACTION_SIMULATION_GAS.toString(16)}`,
+        },
+        "latest",
+      ],
+    });
+  });
+
+  it("simulates at a given block with the caller's gas", async () => {
+    const client = rawClient("0xabcd");
+    await expect(
+      simulateStateChangingTransaction(client, {
+        from: FROM,
+        to: TARGET,
+        data: "0x1234",
+        gas: 500_000n,
+        blockNumber: 12_345n,
+      }),
+    ).resolves.toBe("0xabcd");
+    expect(client.request).toHaveBeenCalledWith({
+      method: "eth_call",
+      params: [
+        {
+          from: FROM,
+          to: TARGET,
+          data: "0x1234",
+          value: "0x0",
+          gas: "0x7a120",
+        },
+        "0x3039",
+      ],
+    });
+  });
+
+  it("never follows a target-controlled OffchainLookup URL", async () => {
+    const request = vi
+      .fn()
+      .mockRejectedValue(
+        new Error(
+          "execution reverted: OffchainLookup(https://127.0.0.1/private)",
+        ),
+      );
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    await expect(
+      simulateStateChangingTransaction(
+        { request, ccipRead: true } as unknown as PublicClient,
+        { from: FROM, to: TARGET, data: "0x1234" },
+      ),
+    ).rejects.toThrow(/OffchainLookup/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("rejects oversized or malformed return data before a caller decodes it", async () => {
+    const simulate = (result: unknown, maxReturnBytes?: number) =>
+      simulateStateChangingTransaction(rawClient(result), {
+        from: FROM,
+        to: TARGET,
+        data: "0x1234",
+        maxReturnBytes,
+      });
+    await expect(
+      simulate(`0x${"00".repeat(TRANSACTION_SIMULATION_MAX_RETURN_BYTES + 1)}`),
+    ).rejects.toThrow(/too much data/);
+    await expect(
+      simulate(`0x${"00".repeat(TRANSACTION_SIMULATION_MAX_RETURN_BYTES)}`),
+    ).resolves.toMatch(/^0x/);
+    await expect(simulate(`0x${"00".repeat(33)}`, 32)).rejects.toThrow(
+      /too much data/,
+    );
+    await expect(simulate(`0x${"00".repeat(32)}`, 32)).resolves.toMatch(/^0x/);
+    for (const malformed of [null, 7, "0x123", "0xzz", "1234"]) {
+      await expect(simulate(malformed)).rejects.toThrow(/malformed data/);
+    }
+  });
+
+  it("refuses an unbounded simulation", async () => {
+    const client = rawClient("0x");
+    for (const gas of [0n, -1n]) {
+      await expect(
+        simulateStateChangingTransaction(client, {
+          from: FROM,
+          to: TARGET,
+          data: "0x",
+          gas,
+        }),
+      ).rejects.toThrow("Transaction simulation gas must be positive.");
+    }
+    for (const maxReturnBytes of [-1, 1.5, Number.NaN]) {
+      await expect(
+        simulateStateChangingTransaction(client, {
+          from: FROM,
+          to: TARGET,
+          data: "0x",
+          maxReturnBytes,
+        }),
+      ).rejects.toThrow("Transaction simulation needs a return data limit.");
+    }
+    expect(client.request).not.toHaveBeenCalled();
+  });
+});
+
 const TARGET = "0x2222222222222222222222222222222222222222" as Address;
 
 const rawClient = (result: unknown) =>
@@ -193,21 +359,25 @@ describe("ordered call sequence simulation", () => {
   });
 
   it("names the call that fails and why", async () => {
-    const revert = Object.assign(new Error("execution reverted\ndetails"), {
-      shortMessage: "Allowance too low",
-    });
     await expect(
       simulate(
         sequenceClient(
           vi.fn().mockResolvedValue({
             results: [
               { status: "success" },
-              { status: "failure", error: revert },
+              {
+                status: "failure",
+                error: revert(errorString("Allowance too low")),
+              },
             ],
           }),
         ),
       ),
-    ).rejects.toThrow("Add liquidity cannot run on Base: Allowance too low");
+    ).rejects.toThrow(
+      new ReviewLineError(
+        `Add liquidity cannot run on Base: ${REVERT_UNKNOWN_LINE}`,
+      ),
+    );
     await expect(
       simulate(
         sequenceClient(
@@ -218,7 +388,9 @@ describe("ordered call sequence simulation", () => {
           }),
         ),
       ),
-    ).rejects.toThrow("Approve the pool cannot run on Base: first line");
+    ).rejects.toThrow(
+      `Approve the pool cannot run on Base: ${SIMULATION_NO_ANSWER_LINE}`,
+    );
     // A missing result is never read as success.
     await expect(
       simulate(
@@ -227,7 +399,7 @@ describe("ordered call sequence simulation", () => {
         ),
       ),
     ).rejects.toThrow(
-      "Add liquidity cannot run on Base: The call would revert.",
+      `Add liquidity cannot run on Base: ${SIMULATION_NO_ANSWER_LINE}`,
     );
   });
 
@@ -236,17 +408,51 @@ describe("ordered call sequence simulation", () => {
       simulate(
         sequenceClient(vi.fn().mockRejectedValue(new Error("reverted"))),
       ),
-    ).rejects.toThrow("The batch could not be simulated on Base: reverted");
+    ).rejects.toThrow(
+      new ReviewLineError(
+        `The batch could not be simulated on Base: ${REVERT_UNKNOWN_LINE}`,
+      ),
+    );
     await expect(
       simulate(sequenceClient(vi.fn().mockRejectedValue(undefined))),
     ).rejects.toThrow(
-      "The batch could not be simulated on Base: The call would revert.",
+      `The batch could not be simulated on Base: ${SIMULATION_NO_ANSWER_LINE}`,
     );
     await expect(
       simulate(sequenceClient(vi.fn().mockRejectedValue({ code: -32000 }))),
     ).rejects.toThrow(
-      "The batch could not be simulated on Base: The call would revert.",
+      `The batch could not be simulated on Base: ${SIMULATION_NO_ANSWER_LINE}`,
     );
+  });
+
+  it("overrides the sender's balance, in the sequence and in its fallback", async () => {
+    const simulateCalls = vi.fn().mockResolvedValue({
+      results: [{ status: "success" }, { status: "success" }],
+    });
+    await simulateCallSequence(sequenceClient(simulateCalls), {
+      from: FROM,
+      calls,
+      chainName: "Base",
+      balance: 3n,
+    });
+    expect(simulateCalls.mock.calls[0][0].stateOverrides).toEqual([
+      { address: FROM, balance: 3n },
+    ]);
+    // Run alone, only a funded call gets it.
+    for (const funded of [true, false]) {
+      const client = sequenceClient(
+        vi.fn().mockRejectedValue({ code: -32601 }),
+      );
+      await simulateCallSequence(client, {
+        from: FROM,
+        calls: [{ ...calls[0], funded }],
+        chainName: "Base",
+        balance: 3n,
+      });
+      expect(client.request.mock.calls[0][0].params[2]).toEqual(
+        funded ? { [FROM]: { balance: "0x3" } } : undefined,
+      );
+    }
   });
 
   it("falls back to each independent call alone where the node lacks eth_simulateV1", async () => {
@@ -276,10 +482,12 @@ describe("ordered call sequence simulation", () => {
     }
     const failing = sequenceClient(
       vi.fn().mockRejectedValue({ code: -32601 }),
-      vi.fn().mockRejectedValue(new Error("execution reverted: no allowance")),
+      vi.fn().mockRejectedValue(revert(errorString("no allowance"))),
     );
     await expect(simulate(failing)).rejects.toThrow(
-      "Approve the pool cannot run on Base: execution reverted: no allowance",
+      new ReviewLineError(
+        `Approve the pool cannot run on Base: ${REVERT_UNKNOWN_LINE}`,
+      ),
     );
   });
 

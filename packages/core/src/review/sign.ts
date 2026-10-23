@@ -29,6 +29,12 @@ import { permit2Rows } from "./decode.js";
 import { decodeReviewCall } from "./decodeCall.js";
 import { buildReviewModel, type ReviewContextRow } from "./model.js";
 import {
+  REVIEWED_PLAN_REFUSED_LINE,
+  spendPlan,
+  type ReviewedPlan,
+  type ReviewedPlanCall,
+} from "./plan.js";
+import {
   FORWARD_REQUEST_TYPES,
   relayrForwarder,
   relayrForwarderDeadline,
@@ -166,7 +172,23 @@ export function prepareSignature(
       const { chainId, safe, tx } = signature;
       const id = requireChainId(chainId);
       const verifyingContract = requireAddress("Safe", safe);
+      const given: unknown = tx?.safeTxHash;
       const message = safeTransactionMessage(tx);
+      // A hash the caller holds for it must be the one signed.
+      if (
+        given != null &&
+        (typeof given !== "string" ||
+          given.toLowerCase() !==
+            hashTypedData({
+              domain: { chainId: id, verifyingContract },
+              types: SAFE_TX_TYPES,
+              primaryType: "SafeTx",
+              message,
+            }))
+      )
+        throw new ReviewLineError(
+          "This Safe transaction does not match its hash. Nothing was signed.",
+        );
       const inner = multiSendCallsOf(message);
       if (message.operation === 1 && !inner) {
         throw new ReviewLineError(
@@ -429,6 +451,54 @@ export async function signPrepared(
 }
 
 /**
+ * The calls a prepared signature lets someone run, as a plan matches them,
+ * read from the exact payload signed: a Safe transaction's CALL or
+ * MultiSendCallOnly calls, from the Safe, when it pays no refund and its
+ * safeTxGas is 0 (so a failed call reverts, not spends the nonce), or a
+ * forward request's call, from its signer. Any other signature is refused
+ * under a plan.
+ */
+export function plannedCallsOf({
+  chainId,
+  typedData,
+}: PreparedSignature): ReviewedPlanCall[] {
+  const message = typedData?.message as Record<string, unknown> | undefined;
+  if (typedData?.primaryType === "SafeTx" && message) {
+    const { to, data, value, operation, safeTxGas, gasPrice } = message as {
+      to: Address;
+      data: Hex;
+      value: bigint;
+      operation: number;
+      safeTxGas: bigint;
+      gasPrice: bigint;
+    };
+    const safe = typedData.domain?.verifyingContract;
+    const inner =
+      operation === 1
+        ? multiSendCallsOf({ to, data, operation })
+        : [{ to, data, value }];
+    if (safe && inner && safeTxGas === 0n && gasPrice === 0n)
+      return inner.map((call) => ({
+        chainId,
+        from: safe,
+        to: call.to,
+        data: call.data,
+        value: call.value,
+      }));
+  } else if (typedData?.primaryType === "ForwardRequest" && message) {
+    const { from, to, data, value, gas } = message as {
+      from: Address;
+      to: Address;
+      data: Hex;
+      value: bigint;
+      gas: bigint;
+    };
+    return [{ chainId, from, to, data, value, gas }];
+  }
+  throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
+}
+
+/**
  * Signs only what the person reviewed: one prompt for every signature, with
  * the exact typed data or text and the calls each lets someone run, decoded.
  * Nothing is signed unless the review handler returns core's confirmation
@@ -448,6 +518,12 @@ export async function signReviewed(
     reverify?: () => Promise<void>;
     /** Withdraws the review while it is open, as `sendReviewed`'s does. */
     signal?: AbortSignal;
+    /**
+     * A plan the person already reviewed (`reviewPlan`): nothing is asked,
+     * and every call the signatures let someone run is spent from it, or
+     * nothing is signed.
+     */
+    plan?: ReviewedPlan;
   },
   deps: { adapter: WalletAdapter },
 ): Promise<Hex[]> {
@@ -464,6 +540,10 @@ export async function signReviewed(
     prepareSignature(signature, account),
   );
   if (!prepared.length) throw new ReviewLineError("There is nothing to sign.");
+  if (action.plan) {
+    spendPlan(action.plan, account, prepared.flatMap(plannedCallsOf));
+    return signPrepared(prepared, account, adapter, undefined, action.reverify);
+  }
   const model = buildReviewModel({
     calls: [],
     signatures: prepared.map(({ review }) => review),

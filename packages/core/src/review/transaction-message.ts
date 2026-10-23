@@ -1,4 +1,4 @@
-import { ReviewLineError } from "./lineError.js";
+import { ReviewFixedLineError, ReviewLineError } from "./lineError.js";
 
 export { ReviewLineError };
 
@@ -31,54 +31,23 @@ export function transactionMessage(message: string): string {
 export const NETWORK_ERROR_LINE =
   "The network returned an error. Check your wallet's activity, then try again.";
 
-/** Fixed lines for a Relayr retry refusal, by its `reason`: its own text can quote a service. */
-const RELAYR_RETRY_LINES: Readonly<Record<string, string>> = {
-  invalid:
-    "This payment could not be checked. Do not pay again; review the action again.",
-  expired: "This quote expired. Review the action again for a new quote.",
-  paid: "This bundle is already paid. Do not pay again.",
-  running: "This bundle is already running. Do not pay again.",
-  unknown:
-    "Whether this bundle is paid is not known yet. Do not pay again yet; check it later.",
-};
-
-/** Fixed lines for the SDK's other typed refusals, by name, for the same reason. */
-const TYPED_LINES: Readonly<Record<string, string>> = {
-  RelayrProofError:
-    "This payment's result contradicts what was reviewed. Keep the action pending and do not pay again.",
-  RelayrProofUnavailableError:
-    "This payment's result is not readable yet. Keep the action pending and check it later.",
-  RelayrPaymentRevertedError:
-    "The payment transaction reverted onchain. Check it before you pay again.",
-  RelayrDestinationRevertedError:
-    "The action's transaction reverted onchain. Keep the original bundle pending; do not pay again.",
-  RelayrPaymentNotSentError:
-    "The payment was not sent. Review the payment again.",
-  SafeRelayrRecoveryError:
-    "This Safe action already has a payment in progress. Check it before paying again.",
-};
-
 /**
  * The line to show for a thrown value: the message of a
  * {@link ReviewLineError} (the SDK's, or a site's own refusal), presented by
- * {@link transactionMessage}; a fixed line for the SDK's typed Relayr and
- * Safe refusals, whose text can quote a service; or
+ * {@link transactionMessage}; the fixed line an SDK error class carries (its
+ * Relayr and Safe refusals, whose text can quote a service); or
  * {@link NETWORK_ERROR_LINE} for anything else (a node, RPC, wallet, service
  * or runtime error, or an app's plain Error). The raw error stays the cause.
  */
 export function errorLine(error: unknown): string {
   if (error instanceof ReviewLineError)
     return transactionMessage(error.message);
-  if (!(error instanceof Error)) return NETWORK_ERROR_LINE;
-  // A name only picks a fixed line, so a forged one shows nothing of its own.
-  if (error.name === "RelayrPaymentRetryError") {
-    const { reason } = error as Error & { reason?: unknown };
-    return typeof reason === "string" &&
-      Object.prototype.hasOwnProperty.call(RELAYR_RETRY_LINES, reason)
-      ? RELAYR_RETRY_LINES[reason]
-      : RELAYR_RETRY_LINES.unknown;
-  }
-  return Object.prototype.hasOwnProperty.call(TYPED_LINES, error.name)
-    ? TYPED_LINES[error.name]
-    : NETWORK_ERROR_LINE;
+  // Marked by its class, never by its own fields, so a plain error cannot pose as one.
+  const fixed =
+    error instanceof ReviewFixedLineError ||
+    (error instanceof Error &&
+      !Object.prototype.hasOwnProperty.call(error, "reviewFixedLine") &&
+      (error as { reviewFixedLine?: unknown }).reviewFixedLine === true);
+  const line = fixed ? (error as { line?: unknown }).line : undefined;
+  return typeof line === "string" ? line : NETWORK_ERROR_LINE;
 }

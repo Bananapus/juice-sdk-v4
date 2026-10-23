@@ -1,5 +1,6 @@
-import { ReviewLineError } from "./lineError.js";
 import { numberToHex, type Address, type Hex, type PublicClient } from "viem";
+import { decodePayFailure } from "../v6/executionErrors.js";
+import { ReviewLineError } from "./lineError.js";
 
 /** A generous explicit gas ceiling for a reviewed state-changing preflight. */
 export const TRANSACTION_SIMULATION_GAS = 10_000_000n;
@@ -27,6 +28,7 @@ export async function simulateStateChangingTransaction(
     gas = TRANSACTION_SIMULATION_GAS,
     blockNumber,
     maxReturnBytes = TRANSACTION_SIMULATION_MAX_RETURN_BYTES,
+    balance,
   }: {
     from: Address;
     to: Address;
@@ -35,6 +37,8 @@ export async function simulateStateChangingTransaction(
     gas?: bigint;
     blockNumber?: bigint;
     maxReturnBytes?: number;
+    /** `from`'s balance for the simulation, in place of its own. */
+    balance?: bigint;
   },
 ): Promise<Hex> {
   if (gas <= 0n) {
@@ -47,18 +51,20 @@ export async function simulateStateChangingTransaction(
   }
   // A raw request bypasses call()/simulateContract(), whose behavior can
   // inherit a client-level CCIP-read policy.
+  const call = {
+    from,
+    to,
+    data,
+    value: numberToHex(value),
+    gas: numberToHex(gas),
+  };
+  const block = blockNumber === undefined ? "latest" : numberToHex(blockNumber);
   const result: unknown = await client.request({
     method: "eth_call",
-    params: [
-      {
-        from,
-        to,
-        data,
-        value: numberToHex(value),
-        gas: numberToHex(gas),
-      },
-      blockNumber === undefined ? "latest" : numberToHex(blockNumber),
-    ],
+    params:
+      balance === undefined
+        ? [call, block]
+        : [call, block, { [from]: { balance: numberToHex(balance) } }],
   });
   if (typeof result !== "string" || !/^0x(?:[0-9a-f]{2})*$/iu.test(result)) {
     throw new ReviewLineError(
@@ -82,30 +88,98 @@ export type SimulatedSequenceCall = {
   label: string;
   /** Needs an earlier call's effect (an allowance, a hook), so it cannot run alone. */
   dependsOnPrior?: boolean;
+  /** Its value is paid for the sender (by Relayr): run alone, it gets the sequence's `balance`. */
+  funded?: boolean;
 };
 
-/** A failed call's one-line reason: viem's short message, or the first line of the error. */
-export function revertDetail(error: unknown): string {
-  if (
-    error instanceof Error &&
-    "shortMessage" in error &&
-    typeof error.shortMessage === "string"
-  ) {
-    return error.shortMessage;
-  }
-  return error instanceof Error
-    ? error.message.split("\n")[0]
-    : "The call would revert.";
+/** The line for a revert whose reason the SDK does not know. */
+export const REVERT_UNKNOWN_LINE =
+  "This transaction would fail. Check the amounts and try again.";
+
+/** The line for a simulation the node did not answer. */
+export const SIMULATION_NO_ANSWER_LINE =
+  "The node did not answer the simulation.";
+
+/**
+ * Why a call reverted, when the SDK knows the revert: a payment revert's
+ * plain line ({@link decodePayFailure}). Null otherwise. Error text (viem's
+ * `shortMessage`, a node's message) is never read: it can quote a request or
+ * its URL.
+ */
+export function revertReason(error: unknown): string | null {
+  return decodePayFailure(error)?.message ?? null;
 }
 
-/** An error whose `cause` is what the node or the call answered. */
-function withCause(message: string, cause: unknown): Error {
-  // Not the SDK's line: it quotes the node's answer.
-  return Object.defineProperty(new Error(message), "cause", {
-    value: cause,
-    configurable: true,
-    writable: true,
-  });
+/**
+ * A failed simulation's one-line reason: {@link revertReason}, or a fixed
+ * line, {@link REVERT_UNKNOWN_LINE} for a revert and
+ * {@link SIMULATION_NO_ANSWER_LINE} otherwise. Never the error's own text.
+ */
+export function revertDetail(error: unknown): string {
+  return (
+    revertReason(error) ??
+    (isRevert(error) ? REVERT_UNKNOWN_LINE : SIMULATION_NO_ANSWER_LINE)
+  );
+}
+
+/**
+ * Whether a failed simulation is the call reverting, not the node failing:
+ * EIP-1474 code 3, viem's contract-revert errors, or the node's own text
+ * saying it reverted, in the error's first eight causes. A viem error is read
+ * by its `details`, since its `message` quotes the request.
+ */
+export function isRevert(error: unknown): boolean {
+  let current = error;
+  for (
+    let depth = 0;
+    depth < 8 && current && typeof current === "object";
+    depth += 1
+  ) {
+    const item = current as {
+      code?: unknown;
+      name?: unknown;
+      details?: unknown;
+      shortMessage?: unknown;
+      message?: unknown;
+      cause?: unknown;
+    };
+    if (
+      item.code === 3 ||
+      item.name === "ContractFunctionRevertedError" ||
+      item.name === "RawContractError" ||
+      item.name === "ExecutionRevertedError" ||
+      // A failed call that returned no revert data.
+      item.name === "ContractFunctionZeroDataError" ||
+      item.name === "AbiDecodingZeroDataError"
+    ) {
+      return true;
+    }
+    // A wrapper that carries its cause (simulateCallSequence's, which names
+    // the call) is read through that cause, never by its own text.
+    const text =
+      typeof item.details === "string"
+        ? item.details
+        : typeof item.shortMessage === "string" || "cause" in item
+          ? undefined
+          : item.message;
+    if (typeof text === "string" && /revert/i.test(text)) return true;
+    current = item.cause;
+  }
+  return false;
+}
+
+/**
+ * The error a failed simulation throws, with the answer as its cause: the
+ * SDK's own line (a {@link ReviewLineError}) for a revert, decoded or not; a
+ * plain error, which `errorLine` shows as the network line, for a node that
+ * did not answer.
+ */
+export function simulationFailure(text: string, cause: unknown): Error {
+  return Object.defineProperty(
+    isRevert(cause) ? new ReviewLineError(text) : new Error(text),
+    "cause",
+    { value: cause, configurable: true, writable: true },
+  );
 }
 
 /** Node text saying the method itself is missing: "method not found", "Unsupported method: eth_simulateV1". */
@@ -169,10 +243,13 @@ export async function simulateCallSequence(
     from,
     calls,
     chainName,
+    balance,
   }: {
     from: Address;
     calls: readonly SimulatedSequenceCall[];
     chainName: string;
+    /** `from`'s balance for the sequence, in place of its own; a call run alone gets it only when `funded`. */
+    balance?: bigint;
   },
 ): Promise<void> {
   let sequence: { status: string; error?: unknown }[] | null;
@@ -185,6 +262,9 @@ export async function simulateCallSequence(
         value,
         ...(gas === undefined ? {} : { gas }),
       })),
+      ...(balance === undefined
+        ? {}
+        : { stateOverrides: [{ address: from, balance }] }),
     });
     sequence = simulated.results.map((result) =>
       result.status === "failure"
@@ -193,7 +273,7 @@ export async function simulateCallSequence(
     );
   } catch (error) {
     if (!simulationUnsupported(error)) {
-      throw withCause(
+      throw simulationFailure(
         `The batch could not be simulated on ${chainName}: ${revertDetail(error)}`,
         error,
       );
@@ -204,11 +284,11 @@ export async function simulateCallSequence(
     if (sequence) {
       const result = sequence[index];
       if (result?.status === "success") continue;
-      throw withCause(
+      throw simulationFailure(
         `${call.label} cannot run on ${chainName}: ${
           result?.status === "failure"
             ? revertDetail(result.error)
-            : "The call would revert."
+            : SIMULATION_NO_ANSWER_LINE
         }`,
         result?.error,
       );
@@ -221,9 +301,10 @@ export async function simulateCallSequence(
         data: call.data,
         value: call.value,
         gas: call.gas,
+        ...(balance === undefined || !call.funded ? {} : { balance }),
       });
     } catch (error) {
-      throw withCause(
+      throw simulationFailure(
         `${call.label} cannot run on ${chainName}: ${revertDetail(error)}`,
         error,
       );

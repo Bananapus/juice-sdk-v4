@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import { readFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import {
+  AbiDecodingDataSizeTooSmallError,
   createPublicClient,
   decodeFunctionData,
   encodeFunctionData,
@@ -1688,6 +1689,19 @@ describe("Relayr payment contract checks", () => {
       "a thrown string",
       "boom",
       "The Relayr payment would fail: the node refused the call",
+    ],
+    [
+      "a malformed reply viem could not decode",
+      Object.assign(new Error("Call failed. URL: https://rpc.invalid/key"), {
+        shortMessage: "Call failed.",
+        details: "Data size of 2 bytes is too small for given parameters.",
+        cause: new AbiDecodingDataSizeTooSmallError({
+          data: "0x1234",
+          params: [{ type: "uint256" }],
+          size: 2,
+        }),
+      }),
+      "Could not check the payment. Nothing was sent.",
     ],
   ])("explains a failing simulation from %s", async (_, failure, message) => {
     const error = await rejection(

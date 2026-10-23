@@ -9,6 +9,20 @@ import { WRITE_HOLD_REVERTED_LINE } from "./messages.js";
 export class ReviewLineError extends Error {}
 
 /**
+ * An SDK error shown by its fixed `line`, never its text (which can quote a
+ * service). The line lives on the error's class, so it loads with the code
+ * that throws it.
+ */
+export abstract class ReviewFixedLineError extends Error {
+  abstract readonly line: string;
+
+  /** Its class's mark, which `errorLine` reads: the SDK's ESM and CommonJS copies each have their own class. */
+  get reviewFixedLine(): true {
+    return true;
+  }
+}
+
+/**
  * A step's transaction was mined and reverted: nothing of it to resume, and
  * the action can be reviewed again. `receipt` is the mined receipt, so a
  * site can close its own record of the attempt.

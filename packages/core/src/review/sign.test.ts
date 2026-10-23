@@ -135,6 +135,28 @@ describe("signReviewed", () => {
     expect(adapter.signTypedData).not.toHaveBeenCalled();
   });
 
+  it("refuses a SafeTx whose given safeTxHash is not its own", async () => {
+    const { adapter } = wallet();
+    const prompts = reviewUi();
+    const tx = { ...safeTx(), safeTxHash: `0x${"ab".repeat(32)}` as Hex };
+    await expect(
+      signReviewed([{ kind: "safe-tx", chainId: 10, safe: SAFE, tx }], signed, {
+        adapter,
+      }),
+    ).rejects.toThrow(
+      "This Safe transaction does not match its hash. Nothing was signed.",
+    );
+    expect(prompts).toHaveLength(0);
+    expect(adapter.signTypedData).not.toHaveBeenCalled();
+    const own = { ...tx, safeTxHash: safeTransactionHash(10, SAFE, tx) };
+    await signReviewed(
+      [{ kind: "safe-tx", chainId: 10, safe: SAFE, tx: own }],
+      signed,
+      { adapter },
+    );
+    expect(adapter.signTypedData).toHaveBeenCalledTimes(1);
+  });
+
   it("signs a SafeTx whose hash equals safeTransactionHash", async () => {
     const { adapter } = wallet();
     const prompts = reviewUi();

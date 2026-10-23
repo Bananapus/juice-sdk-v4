@@ -1,4 +1,7 @@
-import { REVIEWED_SIMULATION_FAILED_LINE } from "./messages.js";
+import {
+  REVIEWED_SIMULATION_FAILED_LINE,
+  REVIEWED_SIMULATION_UNEXPLAINED_LINE,
+} from "./messages.js";
 import {
   encodeFunctionData,
   numberToHex,
@@ -37,13 +40,14 @@ import {
 } from "./sequence.js";
 import { encodeMultiSend, MULTI_SEND_CALL_ONLY } from "../safe.js";
 import { safeBatchIntent } from "./intents.js";
-import { ReviewedCallRevertedError } from "./lineError.js";
+import { ReviewedCallRevertedError, ReviewLineError } from "./lineError.js";
 import {
   SAFE_BATCH_UNFOLLOWABLE_LINE,
   SAFE_BATCH_UNSUPPORTED_LINE,
   sendReviewed,
   type ReviewedCall,
 } from "./send.js";
+import { REVERT_UNKNOWN_LINE } from "./simulation.js";
 import { selfReviewingAdapter, WALLET_NOT_READY_LINE } from "./wallet.js";
 import { WriteHeldError, WriteHoldStaleReviewError } from "./writeHold.js";
 
@@ -505,9 +509,9 @@ describe("sendReviewed", () => {
     await expect(
       sendReviewed(action([payCall(6n)]), deps),
     ).rejects.toMatchObject({
-      message: REVIEWED_SIMULATION_FAILED_LINE,
+      message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
       cause: expect.stringContaining(
-        "Pay cannot run on OP Mainnet: Execution reverted: NOPE",
+        `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
       ),
     });
 
@@ -531,10 +535,29 @@ describe("sendReviewed", () => {
         deps,
       ),
     ).rejects.toMatchObject({
-      message: REVIEWED_SIMULATION_FAILED_LINE,
-      cause: expect.stringContaining("Pay cannot run on OP Mainnet: NOPE"),
+      // Viem's text is never the reason: no revert data, no reason shown.
+      message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
+      cause: `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
     });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the chain in a revert line when the client carries no chain", async () => {
+    const { deps, chain } = setup();
+    (chain.client as { chain?: unknown }).chain = undefined;
+    chain.state.ethCall = () => {
+      throw reverted();
+    };
+    const lines: string[] = [];
+    reviewUi(async (prompt) => {
+      const simulation = await prompt.simulation;
+      if (simulation.status === "failed") lines.push(simulation.message);
+      return null;
+    });
+    await sendReviewed(action([payCall(6n)]), deps).catch(() => undefined);
+    expect(lines).toEqual([
+      `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
+    ]);
   });
 
   it("confirm does not wait on a pending review simulation; the post-confirm simulation decides", async () => {
@@ -551,8 +574,11 @@ describe("sendReviewed", () => {
       return prompt.confirmation;
     });
     const call = payCall();
+    // The pre-wallet simulation's revert is the SDK's decoded line.
     await expect(sendReviewed(action([call]), deps)).rejects.toThrow(
-      "execution reverted",
+      new ReviewLineError(
+        `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
+      ),
     );
     expect(simulationSettled).toBe(false);
     expect(calls).toBe(2);
@@ -1259,7 +1285,7 @@ describe("sendReviewed", () => {
         deps,
       ),
     ).rejects.toMatchObject({
-      message: REVIEWED_SIMULATION_FAILED_LINE,
+      message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
       cause: expect.stringContaining("Pay cannot run on OP Mainnet"),
     });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
@@ -1286,9 +1312,9 @@ describe("sendReviewed", () => {
             : chain.client) as unknown as PublicClient,
       }),
     ).rejects.toMatchObject({
-      message: REVIEWED_SIMULATION_FAILED_LINE,
+      message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
       cause: expect.stringContaining(
-        "Pay cannot run on OP Mainnet: Execution reverted: NOPE",
+        `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
       ),
     });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
@@ -1325,9 +1351,30 @@ describe("sendReviewed", () => {
     });
     await expect(sendReviewed(action([payCall()]), deps)).rejects.toMatchObject(
       {
-        message: REVIEWED_SIMULATION_FAILED_LINE,
+        message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
         cause: expect.stringContaining("Pay cannot run on OP Mainnet"),
       },
+    );
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("says the review shows why only for a revert the SDK decodes", async () => {
+    const { wallet, deps, chain } = setup();
+    // JBMultiTerminal_TokenNotAccepted(address), which decodePayFailure knows.
+    chain.state.ethCall = () => {
+      throw Object.assign(reverted(), {
+        data: `0xecb6c1d6${"0".repeat(24)}${"1".repeat(40)}`,
+      });
+    };
+    reviewUi(async (prompt) => {
+      expect(await prompt.simulation).toMatchObject({
+        status: "failed",
+        explained: true,
+      });
+      return prompt.confirmation;
+    });
+    await expect(sendReviewed(action([payCall()]), deps)).rejects.toMatchObject(
+      { message: REVIEWED_SIMULATION_FAILED_LINE },
     );
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });

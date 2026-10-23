@@ -130,9 +130,11 @@ export function approveCall(): ReviewedCall {
   };
 }
 
+/** A node's revert with reason "NOPE", as viem surfaces it. */
 export const reverted = () =>
   Object.assign(new Error("execution reverted"), {
     code: 3,
+    data: `0x08c379a0${encodeAbiParameters([{ type: "string" }], ["NOPE"]).slice(2)}`,
     details: "execution reverted: NOPE",
     shortMessage: "Execution reverted: NOPE",
   });

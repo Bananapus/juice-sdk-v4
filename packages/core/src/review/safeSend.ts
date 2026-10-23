@@ -34,6 +34,7 @@ import {
 } from "../safeService.js";
 import { safeExecutionIntent } from "./intents.js";
 import type { ReviewContextRow } from "./model.js";
+import type { ReviewedPlan } from "./plan.js";
 import { waitForTrackedReceipt } from "./receipt.js";
 import {
   sendReviewed,
@@ -142,10 +143,12 @@ async function signAsOwner(
     title?: string;
     /** The caller's last read before posting, ahead of the final Safe check. */
     beforePost?: () => Promise<void>;
+    plan?: ReviewedPlan;
   },
   deps: ReviewedSendDeps,
 ): Promise<Hex> {
-  const { chainId, safe, account, tx, context, title, beforePost } = input;
+  const { chainId, safe, account, tx, context, title, beforePost, plan } =
+    input;
   const client = deps.clientFor(chainId);
   const before = await liveSafe(client, safe);
   requireSigner(before, account);
@@ -158,6 +161,7 @@ async function signAsOwner(
       account,
       ...(title ? { title } : {}),
       ...(context ? { context } : {}),
+      ...(plan ? { plan } : {}),
       reverify: unchanged,
     },
     deps,
@@ -188,10 +192,20 @@ export async function proposeReviewedSafeTransaction(
     /** The app the service records as the proposer. */
     origin?: string;
     service?: SafeServiceOptions;
+    /** A plan already reviewed with these calls from `safe` (`reviewPlan`): nothing is asked. */
+    plan?: ReviewedPlan;
   },
   deps: ReviewedSendDeps,
 ): Promise<{ safeTxHash: Hex }> {
-  const { chainId, safe, context, title, origin = "Juicebox", service } = input;
+  const {
+    chainId,
+    safe,
+    context,
+    title,
+    origin = "Juicebox",
+    service,
+    plan,
+  } = input;
   requireService(chainId);
   const calls = [...input.calls].map((call) => {
     const { chainId: on, to, data, value } = call;
@@ -230,7 +244,14 @@ export async function proposeReviewedSafeTransaction(
     }
     return confirmAs(
       account,
-      { chainId, safe, tx: queued, ...(context ? { context } : {}), service },
+      {
+        chainId,
+        safe,
+        tx: queued,
+        ...(context ? { context } : {}),
+        ...(plan ? { plan } : {}),
+        service,
+      },
       deps,
     );
   }
@@ -245,6 +266,7 @@ export async function proposeReviewedSafeTransaction(
       tx,
       context,
       title,
+      ...(plan ? { plan } : {}),
       // Another proposal queued at this nonce meanwhile would be replaced by this one.
       beforePost: async () => {
         const since = await listPendingSafeTransactions(
@@ -311,6 +333,8 @@ export async function confirmReviewedSafeTransaction(
     tx: SafeQueuedTransaction;
     context?: readonly ReviewContextRow[];
     service?: SafeServiceOptions;
+    /** A plan already reviewed with the transaction's calls from `safe` (`reviewPlan`): nothing is asked. */
+    plan?: ReviewedPlan;
   },
   deps: ReviewedSendDeps,
 ): Promise<{ safeTxHash: Hex }> {
@@ -322,12 +346,12 @@ async function confirmAs(
   input: Parameters<typeof confirmReviewedSafeTransaction>[0],
   deps: ReviewedSendDeps,
 ): Promise<{ safeTxHash: Hex }> {
-  const { chainId, safe, context, service } = input;
+  const { chainId, safe, context, service, plan } = input;
   const tx = snapshot(input.tx);
   requireService(chainId);
   const safeTxHash = canonicalSafeTxHash(chainId, safe, tx);
   const signature = await signAsOwner(
-    { chainId, safe, account, tx, context },
+    { chainId, safe, account, tx, context, ...(plan ? { plan } : {}) },
     deps,
   );
   await submitSafeConfirmation(chainId, safe, tx, signature, service);

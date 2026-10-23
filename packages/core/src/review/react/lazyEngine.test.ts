@@ -4,11 +4,13 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "vitest";
 
-/** The source files a page that runs `contents` (from this folder) loads up front. */
-async function loadedBy(contents: string): Promise<string[]> {
+/** The source files a page that runs `contents` (from this folder) loads up front, and their code. */
+async function loadedBy(
+  contents: string,
+): Promise<string[] & { code: string }> {
   const outdir = mkdtempSync(join(tmpdir(), "lazy-engine-"));
   try {
-    const { metafile } = await build({
+    const result = await build({
       stdin: {
         contents,
         resolveDir: resolve(import.meta.dirname),
@@ -23,10 +25,14 @@ async function loadedBy(contents: string): Promise<string[]> {
       external: ["viem", "viem/*", "react", "react-dom"],
       logLevel: "silent",
     });
-    const entry = Object.values(metafile.outputs).find(
+    const entry = Object.values(result.metafile.outputs).find(
       (output) => output.entryPoint === "<stdin>",
     )!;
-    return Object.keys(entry.inputs);
+    const code = Object.values(result.outputFiles)
+      .filter((file) => file.path.endsWith("stdin.js"))
+      .map((file) => file.text)
+      .join("");
+    return Object.assign(Object.keys(entry.inputs), { code });
   } finally {
     rmSync(outdir, { recursive: true, force: true });
   }
@@ -52,4 +58,17 @@ test("the reviewed-send hook leaves the send engine to the app's loader", async 
   // ...the engine, its review model and the decoder's ABIs only through `engine`.
   for (const engine of ENGINE)
     expect(loaded.filter((file) => file.includes(engine))).toEqual([]);
+});
+
+test("errorLine loads without the lines of the SDK's typed errors", async () => {
+  const loaded = await loadedBy(
+    'import { errorLine } from "../index.js"; console.log(errorLine);',
+  );
+  expect(loaded.some((file) => file.endsWith("transaction-message.ts"))).toBe(
+    true,
+  );
+  // Each typed error's line loads with the code that throws it.
+  for (const engine of [...ENGINE, "review/relayr.ts", "review/safeRelayr.ts"])
+    expect(loaded.filter((file) => file.includes(engine))).toEqual([]);
+  expect(loaded.code).not.toContain("already paid");
 });

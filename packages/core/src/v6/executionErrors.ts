@@ -136,7 +136,8 @@ const ROUTE_FAILED = "0xa4ceb15e";
 const NO_TOKENS_MESSAGE = "This payment would return no tokens.";
 const UNEXPECTED_ETH_MESSAGE = "A payment in this token cannot also send ETH.";
 
-const KNOWN_REVERTS: readonly KnownRevert[] = [
+// Built in a pure IIFE: its spreads would otherwise run on import.
+const KNOWN_REVERTS: readonly KnownRevert[] = /* @__PURE__ */ (() => [
   {
     reason: "BUYBACK_SLIPPAGE_EXCEEDED",
     name: "JBBuybackHook_SpecifiedSlippageExceeded",
@@ -331,7 +332,7 @@ const KNOWN_REVERTS: readonly KnownRevert[] = [
     message:
       "This payment, with any NFT credits you hold, is more than the NFTs you picked cost, and the extra is not allowed.",
   },
-];
+])();
 
 /**
  * Arguments that have exactly the known revert's ABI types, and for a

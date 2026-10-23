@@ -96,7 +96,9 @@ afterEach(() => vi.unstubAllGlobals());
 const legacyInput = input;
 /** Saved records only: not the call's latest-reservation or settlement keys. */
 const records = (values: Map<string, string>) =>
-  [...values].filter(([key]) => !/:(latest|settled|rejected)$/.test(key));
+  [...values].filter(
+    ([key]) => !/:(latest|settled|rejected)$|:exited:/.test(key),
+  );
 /** When the wallet returned a hash. */
 const AT = expect.stringMatching(/^\d+$/);
 function ordinaryRecovery(namespace?: string) {
@@ -1802,9 +1804,25 @@ describe("releasing a write with no confirmed result", () => {
         "checked their wallet",
       );
       expect(journal.read()).toEqual(record);
+      expect(journal.released(record.id)).toBe(false);
       journal.abandon(record, { checkedWallet: true });
     });
     expect(journal.read()).toBeNull();
+    // A saved sequence may send this step again.
+    expect(journal.released(record.id)).toBe(true);
+  });
+
+  it("never reads a settlement's cleanup marker as the user's exit", async () => {
+    const options = browser();
+    const journal = createBrowserWriteRecovery(input, options);
+    const record = await journal.withLock(async () => journal.reserve());
+    const [at] = [...options.values.keys()].filter((key) =>
+      options.values.get(key)?.includes(record.id),
+    );
+    // What a settled record's cleanup leaves when its latest marker can't be saved.
+    options.storage.setItem(`${at}:released:${record.id}`, "1");
+    expect(journal.read()).toBeNull();
+    expect(journal.released(record.id)).toBe(false);
   });
 
   it("never lets a stale exit in one tab erase a newer write from another", async () => {
