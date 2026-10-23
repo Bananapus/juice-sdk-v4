@@ -425,6 +425,31 @@ describe("ordered call sequence simulation", () => {
     );
   });
 
+  it("overrides the sender's balance, in the sequence and in its fallback", async () => {
+    const simulateCalls = vi.fn().mockResolvedValue({
+      results: [{ status: "success" }, { status: "success" }],
+    });
+    await simulateCallSequence(sequenceClient(simulateCalls), {
+      from: FROM,
+      calls,
+      chainName: "Base",
+      balance: 3n,
+    });
+    expect(simulateCalls.mock.calls[0][0].stateOverrides).toEqual([
+      { address: FROM, balance: 3n },
+    ]);
+    const client = sequenceClient(vi.fn().mockRejectedValue({ code: -32601 }));
+    await simulateCallSequence(client, {
+      from: FROM,
+      calls,
+      chainName: "Base",
+      balance: 3n,
+    });
+    expect(client.request.mock.calls[0][0].params[2]).toEqual({
+      [FROM]: { balance: "0x3" },
+    });
+  });
+
   it("falls back to each independent call alone where the node lacks eth_simulateV1", async () => {
     for (const unsupported of [
       { code: -32601 },

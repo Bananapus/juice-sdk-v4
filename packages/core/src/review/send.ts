@@ -43,6 +43,7 @@ import {
   type ReviewedPlan,
 } from "./plan.js";
 import { waitForTrackedReceipt } from "./receipt.js";
+import { relayrPaymentChains } from "./relayr.js";
 import { relayrFeeCap } from "./relayrSend.js";
 import {
   assertSavableCalls,
@@ -437,12 +438,24 @@ async function reviewSimulation(
   sent: readonly SentCall[],
   blocks: readonly (bigint | undefined)[],
   clientFor: (chainId: number) => PublicClient,
+  /** Steps whose value someone else pays: the sender's balance covers every step's value. */
+  funded?: (index: number) => boolean,
 ): Promise<ReviewSimulation> {
   const chains = [...new Set(sent.map((call) => call.chainId))];
   const perChain = chains.map(async (chainId): Promise<ReviewSimulation> => {
     const steps = sent.flatMap((call, index) =>
       call.chainId === chainId ? [index] : [],
     );
+    const balance = steps.some(
+      (index) => funded?.(index) && (sent[index].value ?? 0n) > 0n,
+    )
+      ? {
+          balance: steps.reduce(
+            (sum, index) => sum + (sent[index].value ?? 0n),
+            0n,
+          ),
+        }
+      : {};
     let chainName = `chain ${chainId}`;
     try {
       const client = clientFor(chainId);
@@ -463,6 +476,7 @@ async function reviewSimulation(
             label: labelOf(calls[index], index),
             dependsOnPrior: calls[index].dependsOnPrior,
           })),
+          ...balance,
         });
       } else if (!(calls[steps[0]].dependsOnPrior && steps[0] > 0)) {
         const minimum = blocks[steps[0]];
@@ -472,6 +486,7 @@ async function reviewSimulation(
           data: sent[steps[0]].data,
           value: sent[steps[0]].value,
           gas: sent[steps[0]].gas,
+          ...balance,
           ...(minimum === undefined
             ? {}
             : { blockNumber: await notBefore(client, minimum) }),
@@ -531,8 +546,16 @@ async function promptSimulated(
   blocks: readonly (bigint | undefined)[],
   clientFor: (chainId: number) => PublicClient,
   signal: AbortSignal | undefined,
+  funded?: (index: number) => boolean,
 ): Promise<void> {
-  const simulation = reviewSimulation(fromOf, calls, run, blocks, clientFor);
+  const simulation = reviewSimulation(
+    fromOf,
+    calls,
+    run,
+    blocks,
+    clientFor,
+    funded,
+  );
   const enriched = Promise.all([
     enrichReviewModel(model, clientFor).catch(() => model),
     simulation,
@@ -555,11 +578,13 @@ export type ReviewedPlanAction = Pick<
      * The Relayr round this call goes in, by the app's key: a
      * `runRelayrReviewed` run, or a quote paid by `payRelayrReviewed` with
      * this `relayrRound`. The review shows each round's fee bound (Relayr's
-     * stand-in quote plus `RELAYR_FEE_MARGIN_BPS`, paid on the round's first
-     * chain); a round whose quote is within it pays with no prompt.
+     * stand-in quote plus `RELAYR_FEE_MARGIN_BPS`, paid on the round's
+     * payment chain); a round whose quote is within it pays with no prompt.
      */
     relayrRound?: string;
   })[];
+  /** Each Relayr round's payment chain, by its key: by default, the round's first call's chain. */
+  relayrRounds?: Readonly<Record<string, { paymentChainId: number }>>;
 };
 
 /**
@@ -596,7 +621,16 @@ export async function reviewPlan(
       throw new ReviewLineError(
         "A relayed call needs the gas limit its request signs.",
       );
-    const chainId = members[0].chainId;
+    const chainId =
+      action.relayrRounds?.[round]?.paymentChainId ?? members[0].chainId;
+    if (
+      !relayrPaymentChains(members.map((member) => member.chainId)).includes(
+        chainId,
+      )
+    )
+      throw new ReviewLineError(
+        "Choose a Relayr funding chain in the same network family as these destinations.",
+      );
     fees.set(round, {
       chainId,
       cap: await relayrFeeCap(
@@ -642,6 +676,8 @@ export async function reviewPlan(
     calls.map((call) => call.simulationBlockNumber),
     deps.clientFor,
     action.signal,
+    // Relayr pays a relayed call's value: its signer needs none of its own.
+    (index) => roundOf[index] !== undefined && froms[index] !== "relayr",
   );
   return mintPlan(
     account,

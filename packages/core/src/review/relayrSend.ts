@@ -73,7 +73,7 @@ import {
 } from "./relayr.js";
 import type { SafeRelayrOptions } from "./safeRelayr.js";
 import type { ReviewedSendDeps } from "./send.js";
-import { ReviewLineError } from "./lineError.js";
+import { ReviewedCallRevertedError, ReviewLineError } from "./lineError.js";
 import {
   plannedCallsOf,
   prepareSignature,
@@ -788,8 +788,12 @@ async function sendPayment(
   }
   // A proposal: its hold follows it to the Safe's execution.
   if (safe) return hash;
+  const receipt = await waitForTrackedReceipt(client, hash);
+  // The hold checks the receipt itself and settles, so a reverted payment can
+  // be reviewed and sent again without waiting on a view.
+  await handle.state(client).catch(() => undefined);
   // A wallet that sped the payment up mined it under another hash.
-  const mined = (await waitForTrackedReceipt(client, hash)).transactionHash;
+  const mined = receipt.transactionHash;
   if (mined.toLowerCase() !== hash.toLowerCase()) {
     try {
       await hooks.onSent?.(mined);
@@ -797,6 +801,8 @@ async function sendPayment(
       throw new SubmittedContractWriteError(mined, error);
     }
   }
+  if (receipt.status === "reverted")
+    throw new ReviewedCallRevertedError(0, mined, receipt);
   await verifyRelayrPayment(client, {
     hash: mined,
     from: account,

@@ -28,6 +28,7 @@ export async function simulateStateChangingTransaction(
     gas = TRANSACTION_SIMULATION_GAS,
     blockNumber,
     maxReturnBytes = TRANSACTION_SIMULATION_MAX_RETURN_BYTES,
+    balance,
   }: {
     from: Address;
     to: Address;
@@ -36,6 +37,8 @@ export async function simulateStateChangingTransaction(
     gas?: bigint;
     blockNumber?: bigint;
     maxReturnBytes?: number;
+    /** `from`'s balance for the simulation, in place of its own. */
+    balance?: bigint;
   },
 ): Promise<Hex> {
   if (gas <= 0n) {
@@ -48,18 +51,20 @@ export async function simulateStateChangingTransaction(
   }
   // A raw request bypasses call()/simulateContract(), whose behavior can
   // inherit a client-level CCIP-read policy.
+  const call = {
+    from,
+    to,
+    data,
+    value: numberToHex(value),
+    gas: numberToHex(gas),
+  };
+  const block = blockNumber === undefined ? "latest" : numberToHex(blockNumber);
   const result: unknown = await client.request({
     method: "eth_call",
-    params: [
-      {
-        from,
-        to,
-        data,
-        value: numberToHex(value),
-        gas: numberToHex(gas),
-      },
-      blockNumber === undefined ? "latest" : numberToHex(blockNumber),
-    ],
+    params:
+      balance === undefined
+        ? [call, block]
+        : [call, block, { [from]: { balance: numberToHex(balance) } }],
   });
   if (typeof result !== "string" || !/^0x(?:[0-9a-f]{2})*$/iu.test(result)) {
     throw new ReviewLineError(
@@ -236,10 +241,13 @@ export async function simulateCallSequence(
     from,
     calls,
     chainName,
+    balance,
   }: {
     from: Address;
     calls: readonly SimulatedSequenceCall[];
     chainName: string;
+    /** `from`'s balance for the simulation, in place of its own. */
+    balance?: bigint;
   },
 ): Promise<void> {
   let sequence: { status: string; error?: unknown }[] | null;
@@ -252,6 +260,9 @@ export async function simulateCallSequence(
         value,
         ...(gas === undefined ? {} : { gas }),
       })),
+      ...(balance === undefined
+        ? {}
+        : { stateOverrides: [{ address: from, balance }] }),
     });
     sequence = simulated.results.map((result) =>
       result.status === "failure"
@@ -288,6 +299,7 @@ export async function simulateCallSequence(
         data: call.data,
         value: call.value,
         gas: call.gas,
+        ...(balance === undefined ? {} : { balance }),
       });
     } catch (error) {
       throw simulationFailure(

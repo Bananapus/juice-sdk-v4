@@ -50,6 +50,7 @@ import { signReviewed } from "./sign.js";
 import { selfReviewingAdapter } from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
 import { SubmittedContractWriteError } from "./contractWrite.js";
+import { ReviewedCallRevertedError } from "./lineError.js";
 
 const FORWARDER = jbV6ContractAddress.ERC2771Forwarder[10] as Address;
 const PROJECTS = jbV6ContractAddress.JBProjects[10] as Address;
@@ -833,6 +834,38 @@ describe("a plan's Relayr rounds", () => {
     return { prompts, wallet };
   }
 
+  it("simulates a relayed call's value as Relayr's, not the signer's", async () => {
+    const { deps, chain } = relayrSetup();
+    fakeRelayr(() => 1_000n);
+    // The signer holds no ETH: only a call with its balance overridden runs.
+    chain.state.ethCall = (params) => {
+      const override = params[2] as Record<string, { balance: Hex }>;
+      if (BigInt(override?.[ACCOUNT]?.balance ?? 0) >= 5n) return "0x";
+      throw Object.assign(new Error("reverted"), {
+        code: 3,
+        details: "insufficient funds for transfer",
+      });
+    };
+    const prompts = reviewUi();
+    await reviewPlan(
+      {
+        account: ACCOUNT,
+        calls: [
+          {
+            chainId: 10,
+            to: TERMINAL,
+            data: CALL.data,
+            gas: CALL.gas,
+            value: 5n,
+            relayrRound: "a",
+          },
+        ],
+      },
+      deps,
+    );
+    await expect(prompts[0].simulation).resolves.toEqual({ status: "passed" });
+  });
+
   it("pays every round within its reviewed bound with one prompt in all", async () => {
     const { prompts, wallet } = await twoRounds(900n);
     expect(prompts).toHaveLength(1);
@@ -987,7 +1020,9 @@ describe("payRelayrReviewed", () => {
     const bound = withMargin(1_000n);
 
     /** Rounds "a" (the quote's call) and "b" (another call), each with a reviewed bound on OP Mainnet. */
-    async function plannedRounds() {
+    async function plannedRounds(
+      relayrRounds?: Record<string, { paymentChainId: number }>,
+    ) {
       const setup = relayrSetup();
       const relayr = fakeRelayr(() => 1_000n);
       vi.stubGlobal(
@@ -1027,6 +1062,7 @@ describe("payRelayrReviewed", () => {
               relayrRound: "b",
             },
           ],
+          ...(relayrRounds ? { relayrRounds } : {}),
         },
         setup.deps,
       );
@@ -1178,6 +1214,44 @@ describe("payRelayrReviewed", () => {
       expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
     });
 
+    it("pays with no prompt on the round's payment chain, though not a destination", async () => {
+      const { deps, chain, wallet, prompts, plan } = await plannedRounds({
+        a: { paymentChainId: 8453 },
+      });
+      expect(prompts[0].model.context[0].value).toContain(
+        `Up to ${formatEther(bound)} ETH`,
+      );
+      const client = chain.client as unknown as {
+        getTransaction: (args: { hash: Hex }) => Promise<object>;
+      };
+      const read = client.getTransaction;
+      client.getTransaction = async (args) => ({
+        ...(await read(args)),
+        chainId: 8453,
+      });
+      await payRelayrReviewed(
+        quoteFor({ chain: 8453 }),
+        8453,
+        { account: ACCOUNT, plan, relayrRound: "a" },
+        deps,
+      );
+      expect(prompts).toHaveLength(1);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it("asks on another chain than the round's payment chain", async () => {
+      const { deps, prompts, plan } = await plannedRounds({
+        a: { paymentChainId: 8453 },
+      });
+      await payRelayrReviewed(
+        quoteFor(),
+        10,
+        { account: ACCOUNT, plan, relayrRound: "a" },
+        deps,
+      );
+      expect(prompts).toHaveLength(2);
+    });
+
     it("asks for a zero fee with no bound", async () => {
       const { deps, prompts, plan } = await plannedRounds();
       await payRelayrReviewed(
@@ -1203,6 +1277,19 @@ describe("payRelayrReviewed", () => {
       ).rejects.toThrow("stop");
       expect(prompts).toHaveLength(2);
     });
+  });
+
+  it("lets a reverted payment be reviewed and paid again", async () => {
+    const { deps, chain, wallet } = relayrSetup();
+    const prompts = reviewUi();
+    chain.state.status = "reverted";
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).rejects.toBeInstanceOf(ReviewedCallRevertedError);
+    chain.state.status = "success";
+    await payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps);
+    expect(prompts).toHaveLength(2);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 
   it("tells the site before the wallet opens and each hash after", async () => {
