@@ -17,6 +17,7 @@ import {
 } from "../generated/juicebox.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import { isDefiniteWalletRejection } from "./contractWrite.js";
+import { REVIEW_LINE } from "./lineError.js";
 import { simulateStateChangingTransaction } from "./simulation.js";
 
 // Relayr runs a bundle of transactions on several chains for one prepaid
@@ -291,11 +292,19 @@ export type RelayrProofClient = {
  */
 export class RelayrProofError extends Error {
   readonly name: string = "RelayrProofError";
+
+  get [REVIEW_LINE](): string {
+    return "This payment's result contradicts what was reviewed. Keep the action pending and do not pay again.";
+  }
 }
 
 /** The transaction or its canonical receipt is not yet readable. Retain the bundle and retry its proof. */
 export class RelayrProofUnavailableError extends Error {
   readonly name = "RelayrProofUnavailableError";
+
+  get [REVIEW_LINE](): string {
+    return "This payment's result is not readable yet. Keep the action pending and check it later.";
+  }
 }
 
 /**
@@ -305,6 +314,10 @@ export class RelayrProofUnavailableError extends Error {
  */
 export class RelayrPaymentNotSentError extends Error {
   readonly name = "RelayrPaymentNotSentError";
+
+  get [REVIEW_LINE](): string {
+    return "The payment was not sent. Review the payment again.";
+  }
 
   constructor(cause: unknown) {
     super(
@@ -338,6 +351,10 @@ export function relayrWalletPaymentError(error: unknown): unknown {
 export class RelayrPaymentRevertedError extends RelayrProofError {
   readonly name = "RelayrPaymentRevertedError";
 
+  get [REVIEW_LINE](): string {
+    return "The payment transaction reverted onchain. Check it before you pay again.";
+  }
+
   constructor(
     message: string,
     readonly hash: Hex,
@@ -354,6 +371,10 @@ export class RelayrPaymentRevertedError extends RelayrProofError {
  */
 export class RelayrDestinationRevertedError extends RelayrProofError {
   readonly name = "RelayrDestinationRevertedError";
+
+  get [REVIEW_LINE](): string {
+    return "The action's transaction reverted onchain. Keep the original bundle pending; do not pay again.";
+  }
 
   constructor(
     message: string,
@@ -383,6 +404,17 @@ export type RelayrPaymentRetryRefusal =
   | "running"
   | "unknown";
 
+/** The line for each refusal to pay again: its text can quote a service. */
+const RETRY_LINES: Readonly<Record<RelayrPaymentRetryRefusal, string>> = {
+  invalid:
+    "This payment could not be checked. Do not pay again; review the action again.",
+  expired: "This quote expired. Review the action again for a new quote.",
+  paid: "This bundle is already paid. Do not pay again.",
+  running: "This bundle is already running. Do not pay again.",
+  unknown:
+    "Whether this bundle is paid is not known yet. Do not pay again yet; check it later.",
+};
+
 /**
  * A refusal to pay a Relayr quote again, with its `reason`. Never pay on one:
  * `paid` and `running` mean the bundle is funded, `unknown` may clear on a
@@ -390,6 +422,12 @@ export type RelayrPaymentRetryRefusal =
  */
 export class RelayrPaymentRetryError extends Error {
   readonly name = "RelayrPaymentRetryError";
+
+  get [REVIEW_LINE](): string {
+    return Object.prototype.hasOwnProperty.call(RETRY_LINES, this.reason)
+      ? RETRY_LINES[this.reason]
+      : RETRY_LINES.unknown;
+  }
 
   constructor(
     message: string,

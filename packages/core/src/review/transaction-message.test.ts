@@ -6,6 +6,7 @@ import {
   RelayrProofError,
   type RelayrPaymentRetryRefusal,
 } from "./relayr.js";
+import { SafeRelayrRecoveryError } from "./safeRelayr.js";
 import {
   errorLine,
   NETWORK_ERROR_LINE,
@@ -139,6 +140,17 @@ describe("errorLine", () => {
     expect(
       errorLine(Object.assign(new Error("raw"), { name: "toString" })),
     ).toBe(NETWORK_ERROR_LINE);
+    // A name alone is not an SDK error: only its class carries a line.
+    expect(
+      errorLine(Object.assign(new Error("raw"), { name: "RelayrProofError" })),
+    ).toBe(NETWORK_ERROR_LINE);
+    expect(
+      errorLine(
+        new SafeRelayrRecoveryError({} as never, "https://relayr.example/key"),
+      ),
+    ).toBe(
+      "This Safe action already has a payment in progress. Check it before paying again.",
+    );
     expect(errorLine(new WriteHoldBusyError())).toBe(
       "This transaction is already open in another window.",
     );

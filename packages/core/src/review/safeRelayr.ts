@@ -56,6 +56,7 @@ import {
   type RelayrProofClient,
   type RelayrVerifiedDestination,
 } from "./relayr.js";
+import { REVIEW_LINE } from "./lineError.js";
 import { TAB, tabShared } from "./tabState.js";
 
 /** Exact frozen calldata plus the Safe intent it executes. Context belongs to the app. */
@@ -338,6 +339,11 @@ const STATUS_RETRY_MS = 250;
 
 export class SafeRelayrRecoveryError extends Error {
   readonly name = "SafeRelayrRecoveryError";
+
+  get [REVIEW_LINE](): string {
+    return "This Safe action already has a payment in progress. Check it before paying again.";
+  }
+
   constructor(
     readonly session: SafeRelayrSession,
     message = "This Safe action already has a payment in progress. Check it before paying again.",
