@@ -306,10 +306,10 @@ describe("a plan's Relayr fee bounds", () => {
 
   it("gives no bound to part of a round, another chain, or a round once part of it is spent", () => {
     const partial = plan();
-    expect(spendPlan(partial, ACCOUNT, [Y], 10)).toBe(0n);
+    expect(spendPlan(partial, ACCOUNT, [Y], 10)).toBeUndefined();
     // Round b lost Y, so its X never carries b's bound; a's X still has a's.
     expect(spendPlan(partial, ACCOUNT, [X], 10)).toBe(110n);
-    expect(spendPlan(partial, ACCOUNT, [X], 10)).toBe(0n);
-    expect(spendPlan(plan(), ACCOUNT, [X], 8453)).toBe(0n);
+    expect(spendPlan(partial, ACCOUNT, [X], 10)).toBeUndefined();
+    expect(spendPlan(plan(), ACCOUNT, [X], 8453)).toBeUndefined();
   });
 });

@@ -1178,6 +1178,17 @@ describe("payRelayrReviewed", () => {
       expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
     });
 
+    it("asks for a zero fee with no bound", async () => {
+      const { deps, prompts, plan } = await plannedRounds();
+      await payRelayrReviewed(
+        quoteFor({ amount: "0" }),
+        10,
+        { account: ACCOUNT, plan, relayrRound: "b" },
+        deps,
+      );
+      expect(prompts).toHaveLength(2);
+    });
+
     it("asks when paying on a chain the bound was not reviewed for", async () => {
       const { deps, wallet, prompts, plan } = await plannedRounds();
       // The fixture mines on OP Mainnet only: the wallet stops at the send.

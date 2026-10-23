@@ -894,7 +894,7 @@ export async function payRelayrReviewed(
       quotedCalls(quote),
       details.chainId,
     );
-    if (details.amount > cap)
+    if (cap === undefined || details.amount > cap)
       await reviewPayment(
         details,
         account,
@@ -1021,9 +1021,10 @@ export async function runRelayrReviewed(
   const prepared = signatures.map((signature) =>
     prepareSignature(signature, account),
   );
-  let cap = 0n;
+  /** The fee the person reviewed, if any: a payment above it, or with none, is asked. */
+  let cap: bigint | undefined;
   if (plan) {
-    // The round's fee bound its review showed, or 0: then the payment is asked.
+    // The round's fee bound its review showed, or none: then the payment is asked.
     cap = spendPlan(
       plan,
       account,
@@ -1109,7 +1110,7 @@ export async function runRelayrReviewed(
     try {
       const quote = await postBundle(entries);
       const details = paymentOn(quote, paymentChainId);
-      if (details.amount > cap) {
+      if (cap === undefined || details.amount > cap) {
         await reviewPayment(details, account, {
           title: cap ? "The network fee went up" : "Review network fee",
           ...(action.context ? { context: action.context } : {}),

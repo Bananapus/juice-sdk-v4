@@ -184,14 +184,14 @@ export function plannedRelayrFee(
  * a plan core did not mint, another account's, an expired one, and any call
  * that is not exactly an unspent plan call. When `calls` are one Relayr
  * round, whole, with an unused fee bound reviewed for paying on `feeChainId`,
- * that round is spent and its bound returned; else 0.
+ * that round is spent and its bound returned; else undefined: no bound.
  */
 export function spendPlan(
   plan: ReviewedPlan,
   account: Address,
   calls: readonly ReviewedPlanCall[],
   feeChainId?: number,
-): bigint {
+): bigint | undefined {
   const state = stateOf(plan, account);
   if (!calls.length) throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
   const round = wholeRound(plan, calls);
@@ -200,7 +200,7 @@ export function spendPlan(
   const at = match(plan, state.used, calls);
   if (!at) throw new ReviewLineError(REVIEWED_PLAN_REFUSED_LINE);
   for (const index of at) state.used[index] = true;
-  return 0n;
+  return undefined;
 }
 
 /**
@@ -208,7 +208,8 @@ export function spendPlan(
  * on `feeChainId`: when its fee bound is unused and was reviewed for that
  * chain, and `calls` are exactly the round's calls (spent by their
  * signatures or not), every call of the round and the bound are spent and
- * the bound returned. Else nothing is spent: 0. Refuses as `spendPlan` does.
+ * the bound returned. Else nothing is spent: undefined, no bound. Refuses as
+ * `spendPlan` does.
  */
 export function spendPlannedRelayrRound(
   plan: ReviewedPlan,
@@ -216,11 +217,11 @@ export function spendPlannedRelayrRound(
   round: string,
   calls: readonly ReviewedPlanCall[],
   feeChainId: number,
-): bigint {
+): bigint | undefined {
   const state = stateOf(plan, account);
   const fee = state.fees.get(round);
   const at = roundCalls(state, round);
   if (!fee || keysOf(at.map((index) => plan.calls[index])) !== keysOf(calls))
-    return 0n;
-  return spendRound(state, { fee, at }, feeChainId) ?? 0n;
+    return undefined;
+  return spendRound(state, { fee, at }, feeChainId);
 }
