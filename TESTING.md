@@ -2,7 +2,7 @@
 
 The SDK is the shared contract boundary for the frontends. Pull requests therefore run the same checks consumers rely on:
 
-- `npm run protocol:check` validates every exported V6 address and normalized public ABI against an independently reviewed deployment fixture. CI and release additionally compare that fixture with an exact sparse checkout of `Bananapus/deploy-all-v6` commit `a6ab40c5806b52ff4cb21f9eaefe275e621796f9`, which records the executed production rollout, and of `mejango/sticky` commit `b3835db805786e680f5cc27e700d7be660fdba1f` for the five Sticky contracts deploy-all-v6 does not carry.
+- `npm run protocol:check` validates every exported V6 address and normalized public ABI against an independently reviewed deployment fixture. CI and release additionally compare that fixture with an exact sparse checkout of `Bananapus/deploy-all-v6` commit `a6ab40c5806b52ff4cb21f9eaefe275e621796f9`, which records the executed production rollout, and of `mejango/sticky` commit `fce29cca5c20330c0db4494e5cfc1af2e5de7174` for the five Sticky contracts deploy-all-v6 does not carry.
 - `npm run wallet:check` rejects a production wallet sign/send API unless its exact source site and focused test are reviewed in `test/wallet-boundaries.json`.
 - `npm run deps:check` requires the dependency graph shipped to SDK consumers
   to be internally valid. Historical contract-generation packages remain
@@ -22,7 +22,7 @@ The SDK is the shared contract boundary for the frontends. Pull requests therefo
 - `npm run check:package` dry-runs both npm tarballs, rejects compiled tests/build caches, and caps packed size, unpacked size, and file count so generated growth is visible before it reaches every frontend consumer.
 - `npm run check` runs protocol parity, the wallet and formatting-debt inventories, deterministic type/coverage checks, both builds, package budgets, and generated-binding checks from a locked install. Run `npm run audit:prod` separately because advisory data is registry-backed and changes independently of the lockfile.
 
-Use Node 22.23.1 from `.nvmrc` and npm 10.9.8 from `packageManager` for the release-equivalent result.
+Use Node 22.23.4 from `.nvmrc` and npm 10.9.9 from `packageManager` for the release-equivalent result.
 
 CI and release use Ubuntu 24.04 and pin every reusable GitHub Action to a full
 commit SHA. Every checkout disables persisted credentials; the release action
