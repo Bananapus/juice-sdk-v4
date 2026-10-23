@@ -11,6 +11,7 @@ import {
   requestTransactionReview,
   TransactionReviewCancelledError,
 } from "./reviewQueue.js";
+import type { ReviewContextRow } from "./model.js";
 
 export type { FundingChainOption } from "./reviewQueue.js";
 export {
@@ -60,6 +61,8 @@ export type TransactionReviewRequest = {
   kind?: "transaction" | "authorization";
   /** Exact typed data committed by a Safe/relayer signature, when applicable. */
   authorization?: unknown;
+  /** The site's summary rows, shown first. Display only: never part of a call. */
+  context?: readonly ReviewContextRow[];
 };
 
 export type ContractTransactionReviewCall = {

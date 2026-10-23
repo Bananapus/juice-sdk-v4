@@ -284,9 +284,11 @@ const budgets = {
     // The pay quote's retry and the router's quoted mint minimum change
     // existing artifacts only: 1,591,639 B packed, 22,990,003 B unpacked,
     // 1,722 files.
-    packed: 1_595_000,
-    unpacked: 23_000_000,
-    entries: 1_722,
+    // The plain-data review model, a module of its own, adds eight
+    // artifacts: 1,598,614 B packed, 23,035,984 B unpacked, 1,730 files.
+    packed: 1_602_000,
+    unpacked: 23_045_000,
+    entries: 1_730,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

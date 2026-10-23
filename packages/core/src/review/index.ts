@@ -11,3 +11,4 @@ export * from "./writeIntent.js";
 export * from "./intents.js";
 export * from "./heldWrite.js";
 export * from "./savedAttempt.js";
+export * from "./model.js";
