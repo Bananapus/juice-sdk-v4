@@ -3,7 +3,9 @@ import {
   RelayrDestinationRevertedError,
   RelayrPaymentRetryError,
   RelayrPaymentRevertedError,
+  RelayrPaymentNotSentError,
   RelayrProofError,
+  RelayrProofUnavailableError,
   type RelayrPaymentRetryRefusal,
 } from "./relayr.js";
 import { SafeRelayrRecoveryError } from "./safeRelayr.js";
@@ -140,6 +142,12 @@ describe("errorLine", () => {
     expect(
       errorLine(Object.assign(new Error("raw"), { name: "toString" })),
     ).toBe(NETWORK_ERROR_LINE);
+    expect(errorLine(new RelayrProofUnavailableError("raw"))).toMatch(
+      /^This payment's result is not readable yet\./,
+    );
+    expect(errorLine(new RelayrPaymentNotSentError(new Error("raw")))).toBe(
+      "The payment was not sent. Review the payment again.",
+    );
     // A name alone is not an SDK error: only its class carries a line.
     expect(
       errorLine(Object.assign(new Error("raw"), { name: "RelayrProofError" })),
