@@ -1160,6 +1160,90 @@ export function buildToRemoteTx({
   };
 }
 
+/** Why a sucker address could not be confirmed against the registry. */
+export type UnverifiedSuckerReason = "unregistered" | "unreadable";
+
+/**
+ * A sucker address the JBSuckerRegistry did not confirm. `message` is one line
+ * an app can show; an `unreadable` read is worth retrying.
+ */
+export class UnverifiedSuckerError extends Error {
+  readonly code = "SUCKER_UNVERIFIED";
+  declare readonly cause: unknown;
+
+  constructor(
+    readonly reason: UnverifiedSuckerReason,
+    cause?: unknown,
+  ) {
+    super(
+      reason === "unregistered"
+        ? "This bridge isn't registered to the project onchain."
+        : "Couldn't confirm this bridge belongs to the project onchain.",
+    );
+    this.name = "UnverifiedSuckerError";
+    if (cause !== undefined) {
+      Object.defineProperty(this, "cause", {
+        value: cause,
+        configurable: true,
+      });
+    }
+  }
+}
+
+/**
+ * The project's sucker at `sucker`, as the JBSuckerRegistry on `chainId` lists
+ * it (active or deprecated), bridging to `remoteChainId`. Use the returned
+ * address for `toRemote` and its fee reads: an indexer's sucker address only
+ * says which registered sucker a movement sits in. This confirms identity, not
+ * that the sucker still sends: once a deprecated sucker stops sending, its
+ * `toRemote` reverts in simulation.
+ *
+ * @throws UnverifiedSuckerError `unregistered` when the registry does not list
+ * the address for the project or the sucker bridges to another chain,
+ * `unreadable` when a read fails.
+ */
+export async function getRegisteredSucker(
+  client: PublicClient,
+  {
+    chainId,
+    projectId,
+    remoteChainId,
+    sucker,
+  }: {
+    chainId: JBChainId;
+    projectId: bigint;
+    remoteChainId: JBChainId;
+    sucker: Address;
+  },
+): Promise<Address> {
+  try {
+    if ((await client.getChainId()) !== chainId) {
+      throw new Error(`The client is not connected to chain ${chainId}.`);
+    }
+    const suckers = await getContract({
+      address: v6Address("JBSuckerRegistry", chainId),
+      abi: jbSuckerRegistryAbi,
+      client,
+    }).read.allSuckersOf([projectId]);
+    const registered = suckers.find(
+      (local) => local.toLowerCase() === sucker.toLowerCase(),
+    );
+    if (!registered) throw new UnverifiedSuckerError("unregistered");
+    const peerChainId = await getContract({
+      address: registered,
+      abi: jbSuckerV6ViewAbi,
+      client,
+    }).read.peerChainId();
+    if (peerChainId !== BigInt(remoteChainId)) {
+      throw new UnverifiedSuckerError("unregistered");
+    }
+    return registered;
+  } catch (error) {
+    if (error instanceof UnverifiedSuckerError) throw error;
+    throw new UnverifiedSuckerError("unreadable", error);
+  }
+}
+
 /**
  * Reads a project's v6 sucker pairs from the JBSuckerRegistry on the given chain.
  *
