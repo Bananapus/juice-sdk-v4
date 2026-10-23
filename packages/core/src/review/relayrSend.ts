@@ -26,7 +26,12 @@ import {
 } from "./contractWrite.js";
 import { decodeReviewCall } from "./decodeCall.js";
 import { buildReviewModel, type ReviewContextRow } from "./model.js";
-import { relayrStandInSender, spendPlan, type ReviewedPlan } from "./plan.js";
+import {
+  plannedRelayrFee,
+  relayrStandInSender,
+  spendPlan,
+  type ReviewedPlan,
+} from "./plan.js";
 import { waitForTrackedReceipt } from "./receipt.js";
 import {
   bindRelayrQuote,
@@ -92,7 +97,9 @@ import { timeout } from "../pause.js";
 /**
  * One destination call Relayr runs through the chain's forwarder, with the
  * gas its request signs. `raw`: Relayr runs it from its own account, unsigned
- * (a permissionless call), `gas` bounding only the fee.
+ * (a permissionless call), `gas` bounding only the fee. A raw call carries
+ * no ETH: Relayr's executor is unknown before it quotes, so one with `value`
+ * is refused.
  */
 export type RelayrReviewedCall = {
   chainId: number;
@@ -468,7 +475,7 @@ async function standInFee(
  * fee is bounded locally: each call's gas estimate through the forwarder as
  * `account`, at the chain's gas price, times {@link RELAYR_FEE_MARKUP_BPS}.
  */
-async function relayrFeeCap(
+export async function relayrFeeCap(
   calls: readonly RelayrReviewedCall[],
   account: Address,
   paymentChainId: number,
@@ -934,8 +941,19 @@ export async function runRelayrReviewed(
     : [];
   const funding = relayrPaymentChains(chainIds);
   const walletChain = adapter.chainId();
+  /** What the plan holds for these calls: forward requests by their call and gas, raw calls as Relayr's. */
+  const planned = read.map(({ chainId, target, data, value, gas, raw }) => ({
+    chainId,
+    from: raw ? ("relayr" as const) : account,
+    to: target,
+    data,
+    value,
+    ...(raw ? {} : { gas }),
+  }));
   const paymentChainId =
     action.paymentChainId ??
+    // Under a plan, the chain its fee bound was reviewed for.
+    (plan && plannedRelayrFee(plan, planned)?.chainId) ??
     (walletChain !== undefined && funding.includes(walletChain)
       ? walletChain
       : chainIds[0]);
@@ -960,17 +978,18 @@ export async function runRelayrReviewed(
   const prepared = signatures.map((signature) =>
     prepareSignature(signature, account),
   );
-  // Under a plan no fee was reviewed: the payment is always asked.
   let cap = 0n;
   if (plan) {
-    spendPlan(plan, account, [
-      ...read.flatMap(({ chainId, target, data, value, raw }) =>
-        raw
-          ? [{ chainId, from: "relayr" as const, to: target, data, value }]
-          : [],
-      ),
-      ...prepared.flatMap(plannedCallsOf),
-    ]);
+    // The round's fee bound its review showed, or 0: then the payment is asked.
+    cap = spendPlan(
+      plan,
+      account,
+      [
+        ...planned.filter(({ from }) => from === "relayr"),
+        ...prepared.flatMap(plannedCallsOf),
+      ],
+      paymentChainId,
+    );
   } else {
     cap = await relayrFeeCap(read, account, paymentChainId, clientFor);
     const model = buildReviewModel({
@@ -1049,7 +1068,7 @@ export async function runRelayrReviewed(
       const details = paymentOn(quote, paymentChainId);
       if (details.amount > cap) {
         await reviewPayment(details, account, {
-          title: plan ? "Review network fee" : "The network fee went up",
+          title: cap ? "The network fee went up" : "Review network fee",
           ...(action.context ? { context: action.context } : {}),
         });
         cap = details.amount;

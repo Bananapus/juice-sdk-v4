@@ -766,6 +766,93 @@ describe("runRelayrReviewed raw calls and plans", () => {
   });
 });
 
+describe("a plan's Relayr rounds", () => {
+  const RAW: RelayrReviewedCall = {
+    chainId: 10,
+    target: OTHER,
+    data: "0x12345678",
+    gas: 400_000n,
+    raw: true,
+  };
+
+  /** Two rounds, each with its fee bound shown once; the raw round's real quote is `rawFee`. */
+  async function twoRounds(rawFee: bigint) {
+    const { deps, wallet } = relayrSetup();
+    let rawQuotes = 0;
+    fakeRelayr((from) => {
+      if (from === ACCOUNT) return 900n;
+      if (from === OTHER) return rawQuotes++ === 0 ? 1_000n : rawFee;
+      return 1_000n;
+    });
+    const prompts = reviewUi();
+    const plan = await reviewPlan(
+      {
+        account: ACCOUNT,
+        calls: [
+          {
+            chainId: CALL.chainId,
+            to: CALL.target,
+            data: CALL.data,
+            gas: CALL.gas,
+            relayrRound: "a",
+          },
+          {
+            chainId: RAW.chainId,
+            to: RAW.target,
+            data: RAW.data,
+            from: "relayr",
+            relayrRound: "b",
+          },
+        ],
+      },
+      deps,
+    );
+    expect(prompts[0].model.context).toEqual([
+      {
+        label: "Network fee 1",
+        value: `Up to ${formatEther(withMargin(1_000n))} ETH on OP Mainnet`,
+        strong: true,
+      },
+      {
+        label: "Network fee 2",
+        value: `Up to ${formatEther(withMargin(1_000n))} ETH on OP Mainnet`,
+        strong: true,
+      },
+    ]);
+    await runRelayrReviewed(
+      [CALL],
+      { account: ACCOUNT, scope: "round-a", plan },
+      deps,
+    );
+    await runRelayrReviewed(
+      [RAW],
+      { account: ACCOUNT, scope: "round-b", plan },
+      deps,
+    );
+    return { prompts, wallet };
+  }
+
+  it("pays every round within its reviewed bound with one prompt in all", async () => {
+    const { prompts, wallet } = await twoRounds(900n);
+    expect(prompts).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    // Each round pays on the chain its bound was reviewed for.
+    expect(
+      wallet.adapter.sendTransaction.mock.calls.map(([tx]) => tx.chainId),
+    ).toEqual([10, 10]);
+  });
+
+  it("asks once more only for a round quoted above its bound", async () => {
+    const { prompts, wallet } = await twoRounds(2_000n);
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1].model.calls[0]).toMatchObject({
+      functionName: "prepayment",
+      value: 2_000n,
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("payRelayrReviewed", () => {
   const quoteFor = (overrides: Record<string, unknown> = {}): RelayrQuote => {
     const uuid = UUIDS[0];

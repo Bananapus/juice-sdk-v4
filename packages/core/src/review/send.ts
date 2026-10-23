@@ -1,6 +1,7 @@
 import { ReviewedCallRevertedError, ReviewLineError } from "./lineError.js";
 import {
   encodeFunctionData,
+  formatEther,
   type Abi,
   type Address,
   type Hex,
@@ -36,12 +37,13 @@ import {
 import {
   mintPlan,
   relayrStandInSender,
+  type PlannedRelayrFee,
   REVIEWED_PLAN_REFUSED_LINE,
   spendPlan,
   type ReviewedPlan,
-  type ReviewedPlanCall,
 } from "./plan.js";
 import { waitForTrackedReceipt } from "./receipt.js";
+import { relayrFeeCap } from "./relayrSend.js";
 import {
   assertSavableCalls,
   readReviewedSequence,
@@ -549,6 +551,13 @@ export type ReviewedPlanAction = Pick<
   calls: readonly (ReviewedCall & {
     /** Who sends the call: a Safe `account` owns, say, or "relayr" for one Relayr's own account runs. */
     from?: Address | "relayr";
+    /**
+     * The `runRelayrReviewed` run this call goes in, by the app's key. The
+     * review shows each run's fee bound (Relayr's stand-in quote plus
+     * `RELAYR_FEE_MARGIN_BPS`, paid on the run's first chain); a run
+     * whose quote is within it pays with no prompt.
+     */
+    relayrRound?: string;
   })[];
 };
 
@@ -571,6 +580,43 @@ export async function reviewPlan(
     throw new ReviewLineError("There is no transaction to review.");
   const froms = calls.map(({ from }) => from ?? account);
   const snapshots = calls.map(exact);
+  const roundOf = calls.map(({ relayrRound }) => relayrRound);
+  const fees = new Map<string, PlannedRelayrFee>();
+  for (const round of new Set(roundOf)) {
+    if (round === undefined) continue;
+    const members = snapshots.flatMap(({ sent }, index) =>
+      roundOf[index] === round
+        ? [{ ...sent, raw: froms[index] === "relayr" }]
+        : [],
+    );
+    if (members.some(({ raw, gas }) => !raw && gas === undefined))
+      throw new ReviewLineError(
+        "A relayed call needs the gas limit its request signs.",
+      );
+    const chainId = members[0].chainId;
+    fees.set(round, {
+      chainId,
+      cap: await relayrFeeCap(
+        members.map(({ chainId, to, data, value, gas, raw }) => ({
+          chainId,
+          target: to,
+          data,
+          value,
+          gas: gas ?? 0n,
+          raw,
+        })),
+        account,
+        chainId,
+        deps.clientFor,
+      ),
+    });
+  }
+  const feeRows = [...fees.values()].map(({ chainId, cap }, index) => ({
+    label: fees.size > 1 ? `Network fee ${index + 1}` : "Network fee",
+    value: `Up to ${formatEther(cap)} ETH on ${chainNameOf(deps.clientFor(chainId), chainId)}`,
+    strong: true,
+  }));
+  const context = [...(action.context ?? []), ...feeRows];
   const model = buildReviewModel({
     calls: snapshots.map((snapshot, index) =>
       shownCall(
@@ -582,7 +628,7 @@ export async function reviewPlan(
     ...(action.title ? { title: action.title } : {}),
     ...(action.description ? { description: action.description } : {}),
     ...(action.confirmLabel ? { confirmLabel: action.confirmLabel } : {}),
-    ...(action.context ? { context: action.context } : {}),
+    ...(context.length ? { context } : {}),
   });
   const relayr = relayrStandInSender();
   await promptSimulated(
@@ -596,20 +642,17 @@ export async function reviewPlan(
   );
   return mintPlan(
     account,
-    snapshots.map(
-      (
-        { sent: { chainId, to, data, value, gas } },
-        index,
-      ): ReviewedPlanCall => ({
-        chainId,
-        from: froms[index],
-        to,
-        data,
-        value,
-        // Relayr's own call: its gas bounds only the fee.
-        ...(gas === undefined || froms[index] === "relayr" ? {} : { gas }),
-      }),
-    ),
+    snapshots.map(({ sent: { chainId, to, data, value, gas } }, index) => ({
+      chainId,
+      from: froms[index],
+      to,
+      data,
+      value,
+      // Relayr's own call: its gas bounds only the fee.
+      ...(gas === undefined || froms[index] === "relayr" ? {} : { gas }),
+      ...(roundOf[index] === undefined ? {} : { relayrRound: roundOf[index] }),
+    })),
+    fees,
   );
 }
 
