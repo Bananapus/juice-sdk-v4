@@ -20,7 +20,6 @@ import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
 import {
   findReviewedSequence,
   REVIEWED_SEQUENCE_HELD_LINE,
-  REVIEWED_SEQUENCE_UNCERTAIN_LINE,
   REVIEWED_SEQUENCE_UNFINISHED_LINE,
 } from "../sequence.js";
 import {
@@ -420,11 +419,7 @@ describe("useReviewedRun", () => {
     await act(async () => {
       await seen.current!.exitAction!.run();
     });
-    // Released: its outcome can't be known, so the same action is refused.
-    await expect(run(action)).resolves.toMatchObject({
-      status: "failed",
-      error: REVIEWED_SEQUENCE_UNCERTAIN_LINE,
-    });
+    expect(findReviewedSequence(scope, ACCOUNT, { storage })).not.toBeNull();
     // The sending account's sequence, whichever account is connected now.
     act(() => root?.unmount());
     const other = harness({ ...deps, account: OTHER });
@@ -447,6 +442,37 @@ describe("useReviewedRun", () => {
       );
     });
     expect(prompts.length).toBeGreaterThan(0);
+  });
+
+  test("a step the user released by its exit is reviewed once more and sent alone", async () => {
+    const prompts = reviewUi();
+    const { wallet, deps } = setup();
+    const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+    // A WalletConnect drop: the pay step's wallet call ends with no hash.
+    wallet.adapter.sendTransaction.mockImplementation(async (tx) => {
+      if (wallet.adapter.sendTransaction.mock.calls.length === 2)
+        throw new Error("The request took too long to respond.");
+      return send(tx);
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const action = {
+      calls: [approveCall(), payCall()],
+      scope: "pay:project-1",
+    };
+    await expect(run(action)).resolves.toMatchObject({ status: "failed" });
+    expect(prompts).toHaveLength(1);
+    await vi.waitFor(() => expect(seen.current!.exitAction).not.toBeNull());
+    await act(async () => {
+      await expect(seen.current!.exitAction!.run()).resolves.toBe(true);
+    });
+    // The next attempt: one review, of the pay step only, and only it is sent.
+    await expect(run(action)).resolves.toMatchObject({ status: "done" });
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1].model.calls).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(3);
+    expect(wallet.adapter.sendTransaction.mock.calls[2][0].data).toBe(
+      payCall().data,
+    );
   });
 
   test("refuses a run for another account before the review", async () => {

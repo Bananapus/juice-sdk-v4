@@ -555,21 +555,22 @@ export async function resumeReviewed(
     // the same call or intent hides it.
     if (state.reservation !== reservation)
       throw new ReviewLineError(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
-    // Clear with no settlement: released by the user's exit, or a
-    // settlement that could not be saved. Either may have run.
-    if (!state.settled)
+    // Clear with no settlement: a settlement that could not be saved, which
+    // may have run, unless the user released it by its exit ("I checked my
+    // wallet") or nothing was sent: then the step is reviewed and sent again.
+    if (!state.settled && !handle.released(reservation))
       throw new ReviewLineError(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
     delete saved.sending;
     delete saved.proposed;
     const { settled } = state;
-    if (settled.result === "success") {
+    if (settled?.result === "success") {
       // This sequence's own step: it is recorded, never offered again.
       await handle.acknowledge(settled);
       saved.completed.push(settled.hash);
     }
     /** Tells the site of the step that went through while away, once saved and when its receipt reads. */
     const told = async () => {
-      if (settled.result !== "success" || !action.onConfirmed) return;
+      if (settled?.result !== "success" || !action.onConfirmed) return;
       try {
         const receipt = await deps
           .clientFor(call.chainId)

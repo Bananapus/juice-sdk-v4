@@ -1328,6 +1328,15 @@ export function createBrowserWriteRecovery(
         return undefined;
       }
     },
+    /** Whether the record `id` was released: by the user's exit, or because nothing was sent. */
+    released(id: string): boolean {
+      try {
+        const store = storage();
+        return store.getItem(releasedKey(locate(store).at, id)) !== null;
+      } catch {
+        return false;
+      }
+    },
     /**
      * The call's latest reservation id: the record saved at the key (held,
      * or released by its exit), or else the saved latest marker.

@@ -1659,6 +1659,10 @@ export function createWriteHold(
             }
           : undefined;
       },
+      /** Whether `reservation` was released (the user's exit, or nothing sent), never settled. */
+      released(reservation: string): boolean {
+        return recovery.released(reservation);
+      },
       /** How `reservation` settled, if it is this key's latest and settled. */
       settlementOf(reservation: string): WriteHoldSettled | undefined {
         const now = peek();
@@ -2193,6 +2197,11 @@ export function createWriteHold(
        * How a reservation this intent stood for settled, on its own key or a
        * legacy one, whichever hold is shown now.
        */
+      released(reservation: string): boolean {
+        return [own, ...delegates].some((handle) =>
+          handle.released(reservation),
+        );
+      },
       settlementOf(reservation: string): WriteHoldSettled | undefined {
         for (const handle of [own, ...delegates]) {
           const settled = handle.settlementOf(reservation);
