@@ -95,6 +95,12 @@ export type UseReviewedRunResult = {
    */
   receipt: TransactionReceipt | null;
   /**
+   * When a followed step settled successfully: which step of the action it
+   * was, and whether that finished the whole action. A step before the last
+   * (an approval) leaves `phase` idle: running the action again resumes it.
+   */
+  settled: { step: number; finished: boolean } | null;
+  /**
    * After a run that did not finish: the hold of its step still in flight
    * (the saved sequence's, or the first of its calls held), followed as it
    * changes, here or in another window. Null once that hold is clear or
@@ -109,12 +115,13 @@ export type UseReviewedRunResult = {
    */
   preload: () => void;
   /**
-   * Drops the unfinished sequence saved under `scope` for the connected
-   * account (one whose step was released, say), so the action is reviewed
-   * fresh, every step again. Refused while one of its steps is still held,
-   * and while a run of this hook is open. Nothing saved is a no-op.
+   * Drops the unfinished sequence saved under `scope` for `account` (the one
+   * that sent it, as `run` took it; the connected one when omitted), say one
+   * whose step was released, so the action is reviewed fresh, every step
+   * again. Refused while one of its steps is still held, and while a run of
+   * this hook is open. Nothing saved is a no-op.
    */
-  discard: (scope: string) => Promise<void>;
+  discard: (scope: string, account?: Address) => Promise<void>;
 } & HeldViewActions;
 
 type RunState = Omit<
@@ -131,6 +138,7 @@ const IDLE: RunState = {
   hash: null,
   safeTxHash: null,
   receipt: null,
+  settled: null,
 };
 
 /** The bytes a call sends, for comparing two actions. */
@@ -163,6 +171,9 @@ export function useReviewedRun(
     client: WriteHoldClient;
     /** The run that followed it: a reset or a later run ignores its end. */
     run: number;
+    /** The followed step's index in the action, and the action's step count. */
+    step: number;
+    total: number;
   } | null>(null);
   /** The latest run: an earlier one's late answers change nothing. */
   const latest = useRef(0);
@@ -176,20 +187,33 @@ export function useReviewedRun(
         ? createHeldWriteView(watched.handle, {
             client: watched.client,
             // The followed step's end ends the run: a proposal never stays proposed.
-            onSettled: (settled, receipt) =>
-              latest.current === watched.run &&
+            onSettled: (settled, receipt) => {
+              if (latest.current !== watched.run) return;
+              const { step, total } = watched;
+              const finished = step === total - 1;
               setState((now) =>
-                settled.result === "success"
-                  ? {
-                      ...now,
-                      phase: "done",
-                      hash: settled.hash,
-                      receipt,
-                      error: null,
-                      failure: null,
-                    }
-                  : { ...IDLE, error: settledLine(settled), receipt },
-              ),
+                settled.result !== "success"
+                  ? { ...IDLE, error: settledLine(settled), receipt }
+                  : finished
+                    ? {
+                        ...now,
+                        phase: "done",
+                        hash: settled.hash,
+                        receipt,
+                        error: null,
+                        failure: null,
+                        settled: { step, finished },
+                      }
+                    : {
+                        ...IDLE,
+                        step,
+                        total,
+                        hash: settled.hash,
+                        receipt,
+                        settled: { step, finished },
+                      },
+              );
+            },
             onReleased: () => latest.current === watched.run && setState(IDLE),
           })
         : undefined,
@@ -233,11 +257,12 @@ export function useReviewedRun(
       setWatched(null);
     },
     preload,
-    discard: async (scope) => {
+    discard: async (scope, account = deps?.account) => {
       if (open.current) throw new ReviewLineError(REVIEWED_RUN_BUSY_LINE);
-      if (!deps?.account) throw new ReviewLineError("Connect a wallet first.");
+      if (!deps || !account)
+        throw new ReviewLineError("Connect a wallet first.");
       const { storage } = deps;
-      const saved = findReviewedSequence(scope, deps.account, { storage });
+      const saved = findReviewedSequence(scope, account, { storage });
       if (saved) await discardReviewedSequence(saved, { storage });
       if (open.current) return;
       latest.current += 1;
@@ -264,15 +289,27 @@ export function useReviewedRun(
           const saved = !action.scope
             ? null
             : findReviewedSequence(action.scope, account, { storage });
-          // A Safe app's batch is held as its one MultiSend proposal.
-          const calls = saved?.sending
-            ? [saved.calls[saved.sending.step]]
+          const total = saved?.calls.length ?? action.calls.length;
+          // A Safe app's batch is held as its one MultiSend proposal, its last step.
+          const steps = saved?.sending
+            ? [
+                {
+                  call: saved.calls[saved.sending.step],
+                  step: saved.sending.step,
+                },
+              ]
             : !saved && action.batch && safe && action.calls.length > 1
-              ? [safeBatchCall(account, action.calls)]
-              : action.calls;
-          const found = calls
-            .map((call) => ({
+              ? [
+                  {
+                    call: safeBatchCall(account, action.calls),
+                    step: total - 1,
+                  },
+                ]
+              : action.calls.map((call, step) => ({ call, step }));
+          const found = steps
+            .map(({ call, step }) => ({
               call,
+              step,
               handle: openStepHold(hold, account, safe, call),
             }))
             .find(({ handle }) => handle.peek().status !== "clear");
@@ -282,6 +319,8 @@ export function useReviewedRun(
                   handle: found.handle,
                   client: deps.clientFor(found.call.chainId),
                   run: id,
+                  step: found.step,
+                  total,
                 }
               : null,
           );

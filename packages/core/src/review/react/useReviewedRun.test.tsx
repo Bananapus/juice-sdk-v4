@@ -425,19 +425,24 @@ describe("useReviewedRun", () => {
       status: "failed",
       error: REVIEWED_SEQUENCE_UNCERTAIN_LINE,
     });
+    // The sending account's sequence, whichever account is connected now.
+    act(() => root?.unmount());
+    const other = harness({ ...deps, account: OTHER });
     await act(async () => {
-      await seen.current!.discard(scope);
+      await other.seen.current!.discard(scope, ACCOUNT);
     });
     expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
-    expect(seen.current).toMatchObject({ phase: "idle", error: null });
+    expect(other.seen.current).toMatchObject({ phase: "idle", error: null });
 
     // While a run's review is open, nothing is discarded under it.
     reviewUi(() => new Promise(() => {}));
+    act(() => root?.unmount());
+    const busy = harness({ ...deps, account: ACCOUNT });
     await act(async () => {
-      void seen.current!.run({ calls: [payCall(8n)], scope });
+      void busy.seen.current!.run({ calls: [payCall(8n)], scope });
     });
     await act(async () => {
-      await expect(seen.current!.discard(scope)).rejects.toThrow(
+      await expect(busy.seen.current!.discard(scope)).rejects.toThrow(
         REVIEWED_RUN_BUSY_LINE,
       );
     });
@@ -497,15 +502,6 @@ describe("useReviewedRun", () => {
         receipt,
       ),
     );
-    expect(seen.current).toMatchObject({
-      phase: "done",
-      step: 0,
-      total: 2,
-      hash: receipt.transactionHash,
-      receipt,
-      error: null,
-    });
-
     /** A fresh Safe's proposal, followed. */
     const proposed = async () => {
       act(() => root?.unmount());
@@ -516,6 +512,31 @@ describe("useReviewedRun", () => {
       expect(next.seen.current!.phase).toBe("proposed");
       return next.seen;
     };
+    // The approval settling is not the action done: running it again resumes.
+    expect(seen.current).toMatchObject({
+      phase: "idle",
+      step: 0,
+      total: 2,
+      hash: receipt.transactionHash,
+      receipt,
+      error: null,
+      settled: { step: 0, finished: false },
+    });
+
+    // The last step settling finishes it.
+    const last = await proposed();
+    act(() =>
+      (views.last!.onSettled! as (s: unknown, r: unknown) => void)(
+        { result: "success", hash: receipt.transactionHash },
+        receipt,
+      ),
+    );
+    expect(last.current).toMatchObject({
+      phase: "done",
+      receipt,
+      settled: { step: 0, finished: true },
+    });
+
     for (const [settled, line] of [
       [{ result: "failed", hash: receipt.transactionHash }, HELD_FAILED_LINE],
       [{ result: "expired" }, HELD_EXPIRED_LINE],
