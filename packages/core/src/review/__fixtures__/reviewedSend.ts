@@ -218,7 +218,7 @@ function fakeWallet(chain: ReturnType<typeof fakeChain>) {
     signTypedData: vi.fn(async () => {
       throw new Error("unused");
     }),
-    signMessage: vi.fn(async () => {
+    signMessage: vi.fn(async (_message: string): Promise<Hex> => {
       throw new Error("unused");
     }),
   } satisfies WalletAdapter;

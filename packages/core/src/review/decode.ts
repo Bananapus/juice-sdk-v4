@@ -263,10 +263,16 @@ export function functionFromCall(
  * empty banner.
  */
 export function reviewDescription(
-  request: Pick<TransactionReviewRequest, "calls" | "description" | "kind">,
+  request: Pick<
+    TransactionReviewRequest,
+    "calls" | "description" | "kind" | "signatures"
+  >,
 ): string {
   const description = request.description?.trim();
   if (description) return description;
+  if (!request.calls.length && request.signatures?.length) {
+    return "This is the exact data your wallet signs. Nothing is sent from your wallet now.";
+  }
   if (request.kind === "authorization") {
     return "This authorization commits to the exact destination, native value, and calldata below. A Safe or relayer can submit that call onchain after you continue.";
   }
@@ -532,6 +538,32 @@ export function unixTime(seconds: bigint | number): string {
   return `${time.replace(".000Z", " UTC").replace("T", " ")} (${value})`;
 }
 
+/** The rows of a Permit2 `PermitSingle`: token, amount, spender, expiry and signature deadline. */
+export function permit2Rows(
+  chainId: number,
+  permit: {
+    token: string;
+    amount: bigint;
+    expiration: number;
+    spender: string;
+    sigDeadline: bigint;
+  },
+): [string, string][] {
+  return [
+    ["Token", addressLabel(chainId, permit.token)],
+    ["Amount", permit.amount.toString()],
+    ["Spender", addressLabel(chainId, permit.spender)],
+    [
+      "Expires",
+      // Permit2 stores an expiration of 0 as the current block's timestamp.
+      permit.expiration === 0
+        ? "0 (this block only)"
+        : unixTime(permit.expiration),
+    ],
+    ["Signature deadline", unixTime(permit.sigDeadline)],
+  ];
+}
+
 /** A packed V3 path: 20-byte token, 3-byte fee, 20-byte token, … */
 function urV3Path(chainId: number, path: string): string | null {
   const raw = path.slice(2);
@@ -722,17 +754,13 @@ export function describeUniversalRouterExecute(
           );
           steps.push({
             title: "Apply your signed Permit2 authorization",
-            rows: [
-              ["Token", addressLabel(chainId, details[0])],
-              ["Amount", details[1].toString()],
-              ["Spender", addressLabel(chainId, spender)],
-              [
-                "Expires",
-                // Permit2 stores an expiration of 0 as the current block's timestamp.
-                details[2] === 0 ? "0 (this block only)" : unixTime(details[2]),
-              ],
-              ["Signature deadline", unixTime(sigDeadline)],
-            ],
+            rows: permit2Rows(chainId, {
+              token: details[0],
+              amount: details[1],
+              expiration: details[2],
+              spender,
+              sigDeadline,
+            }),
           });
           break;
         }

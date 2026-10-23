@@ -11,6 +11,7 @@ import {
   requestTransactionReview,
   TransactionReviewCancelledError,
 } from "./reviewQueue.js";
+import type { PrettyStep } from "./decode.js";
 import type { ReviewContextRow } from "./model.js";
 
 export type { FundingChainOption } from "./reviewQueue.js";
@@ -52,8 +53,27 @@ export type TransactionReviewCall = {
   calls?: readonly TransactionReviewCall[];
 };
 
+/**
+ * A signature the action asks for: the exact typed data or text the wallet
+ * signs, and what it lets run.
+ */
+export type TransactionReviewSignature = {
+  kind: "safe-tx" | "forward-request" | "permit2" | "message";
+  chainId: number;
+  /** The exact EIP-712 typed data, for every kind but a message. */
+  typedData?: unknown;
+  /** The exact text, for a message. */
+  message?: string;
+  /** The calls the signature lets someone run, decoded. */
+  calls?: readonly TransactionReviewCall[];
+  /** What it authorizes, in rows (Permit2's token, amount, spender and expiry). */
+  steps?: readonly PrettyStep[];
+};
+
 export type TransactionReviewRequest = {
   calls: readonly TransactionReviewCall[];
+  /** Signed after confirm, before the first call is sent. */
+  signatures?: readonly TransactionReviewSignature[];
   title?: string;
   description?: string;
   confirmLabel?: string;
@@ -175,11 +195,20 @@ export function transactionReviewJson(
     data: call.data,
   }));
   const calls = transactions.length === 1 ? transactions[0] : { transactions };
-  const payload = request.authorization
+  const signatures = request.signatures?.map((signature) =>
+    signature.typedData === undefined
+      ? { message: signature.message }
+      : { typedData: signature.typedData },
+  );
+  const payload = signatures?.length
     ? transactions.length > 0
-      ? { authorization: request.authorization, resultingCall: calls }
-      : { authorization: request.authorization }
-    : calls;
+      ? { signatures, calls }
+      : { signatures }
+    : request.authorization
+      ? transactions.length > 0
+        ? { authorization: request.authorization, resultingCall: calls }
+        : { authorization: request.authorization }
+      : calls;
   return JSON.stringify(
     payload,
     (_, value) => (typeof value === "bigint" ? value.toString() : value),

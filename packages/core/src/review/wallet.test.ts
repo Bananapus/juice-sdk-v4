@@ -96,6 +96,14 @@ describe("wallet adapters", () => {
       ...typedData,
       account: ACCOUNT,
     });
+    // Typed data for another chain than the wallet's is refused.
+    await expect(
+      adapter.signTypedData({
+        ...typedData,
+        domain: { ...typedData.domain, chainId: 8453 },
+      }),
+    ).rejects.toThrow("Your wallet changed networks");
+    expect(client.signTypedData).toHaveBeenCalledTimes(1);
     await expect(adapter.signMessage("Sign in")).resolves.toBe(SIGNATURE);
     expect(client.signMessage).toHaveBeenLastCalledWith({
       account: ACCOUNT,
@@ -134,6 +142,50 @@ describe("wallet adapters", () => {
       "Connect a wallet first.",
     );
     expect(client.sendTransaction.mock.calls.length).toBe(sends);
+  });
+
+  it("viemWalletAdapter refuses to sign once the account moved after connecting", async () => {
+    const client = walletClient();
+    for (const sign of [
+      (adapter: ReturnType<typeof viemWalletAdapter>) =>
+        adapter.signMessage("hi"),
+      (adapter: ReturnType<typeof viemWalletAdapter>) =>
+        adapter.signTypedData({
+          domain: { chainId: 10 },
+          types: { Note: [{ name: "text", type: "string" }] },
+          primaryType: "Note",
+          message: { text: "hi" },
+        }),
+    ]) {
+      let reads = 0;
+      const adapter = viemWalletAdapter({
+        walletClient: async () => client as unknown as WalletClient,
+        // The connection's two reads see ACCOUNT; the next sees another.
+        account: () => (reads++ < 2 ? ACCOUNT : TARGET),
+        chainId: () => 10,
+        isSafe: () => false,
+        switchChain: async () => undefined,
+      });
+      await expect(sign(adapter)).rejects.toThrow(
+        "The connected account changed",
+      );
+    }
+    expect(client.signMessage).not.toHaveBeenCalled();
+    expect(client.signTypedData).not.toHaveBeenCalled();
+
+    // So does a wallet that turned into a Safe connection meanwhile.
+    let reads = 0;
+    const adapter = viemWalletAdapter({
+      walletClient: async () => client as unknown as WalletClient,
+      account: () => ACCOUNT,
+      chainId: () => 10,
+      isSafe: () => reads++ >= 2,
+      switchChain: async () => undefined,
+    });
+    await expect(adapter.signMessage("hi")).rejects.toThrow(
+      "Wallet connection changed",
+    );
+    expect(client.signMessage).not.toHaveBeenCalled();
   });
 
   it("selfReviewingAdapter refuses every other method with 4200", async () => {
