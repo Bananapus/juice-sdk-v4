@@ -811,6 +811,70 @@ describe("useReviewedRun", () => {
     expect(onConfirmed).toHaveBeenCalledTimes(4);
   });
 
+  test("the view's receipt completes a late step when completion's own reread fails, telling onConfirmed once", async () => {
+    reviewUi();
+    const { chain, deps, storage } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const payment = `0x${"2".padStart(64, "0")}`;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (args.hash === payment) throw new Error("lagging node");
+      return read(args);
+    });
+    // Completion's own client can never read a receipt.
+    const unreadable = {
+      ...chain.client,
+      getTransactionReceipt: async () => {
+        throw new Error("lagging node");
+      },
+    };
+    const engine = async () => {
+      const real = await import("../send.js");
+      return {
+        ...real,
+        completeReviewedStep: ((unverified, action, given, receipt) =>
+          real.completeReviewedStep(
+            unverified,
+            action,
+            { ...given, clientFor: () => unreadable as never },
+            receipt,
+          )) as typeof real.completeReviewedStep,
+      };
+    };
+    const onConfirmed = vi.fn();
+    const scope = "pay:view-receipt";
+    const action = { calls: [approveCall(), payCall()], scope, onConfirmed };
+    const { seen, run } = harness({ ...deps, engine, account: ACCOUNT });
+    await expect(run(action)).resolves.toMatchObject({ status: "receipt" });
+    await vi.waitFor(() =>
+      expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
+    );
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await rendered(() => expect(seen.current!.phase).toBe("done"));
+    expect(onConfirmed.mock.calls.map(([, step]) => step)).toEqual([0, 1]);
+    expect(onConfirmed.mock.calls[1][2]).toMatchObject({
+      transactionHash: payment,
+    });
+    expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+  });
+
+  test("a run left at its receipt resolves with the signatures it signed", async () => {
+    reviewUi();
+    const { wallet, chain, deps } = setup();
+    const signature = `0x${"5e".repeat(65)}` as const;
+    wallet.adapter.signMessage.mockImplementation(async () => signature);
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const { run } = harness({ ...deps, account: ACCOUNT });
+    await expect(
+      run({
+        calls: [payCall()],
+        signatures: [{ kind: "message", chainId: 10, message: "List it" }],
+      }),
+    ).resolves.toMatchObject({ status: "receipt", signatures: [signature] });
+  });
+
   test("a receipt settled before the hook follows it ends done, never stuck at receipt", async () => {
     reviewUi();
     const { wallet, chain, deps, hold } = setup();

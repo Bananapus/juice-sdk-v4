@@ -46,8 +46,14 @@ import {
 } from "./sequence.js";
 import { encodeMultiSend, MULTI_SEND_CALL_ONLY } from "../safe.js";
 import { safeBatchIntent } from "./intents.js";
-import { ReviewedCallRevertedError, ReviewLineError } from "./lineError.js";
 import {
+  ReviewedCallRevertedError,
+  ReviewedReceiptUnverifiedError,
+  ReviewLineError,
+} from "./lineError.js";
+import {
+  completeReviewedStep,
+  followReviewedStep,
   SAFE_BATCH_UNFOLLOWABLE_LINE,
   SAFE_BATCH_UNSUPPORTED_LINE,
   sendReviewed,
@@ -1692,6 +1698,178 @@ describe("sendReviewed and its hold's evidence", () => {
     ).resolves.toMatchObject({
       status: "clear",
       settled: { result: "success", hash: FIRST },
+    });
+  });
+
+  /** A two-step run left at its second step's receipt, which the hold verifies once `read` is back. */
+  async function leftAtReceipt(
+    extra: Partial<Parameters<typeof action>[1]> = {},
+  ) {
+    const { deps, chain, hold, storage, wallet } = setup();
+    reviewUi();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const payment = `0x${"2".padStart(64, "0")}`;
+    let lagging = true;
+    // The approval verifies; the payment's receipt lags.
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (lagging && args.hash === payment) throw new Error("lagging node");
+      return read(args);
+    });
+    const calls = [approveCall(), payCall()];
+    const onConfirmed = vi.fn();
+    const scope = "pay:late";
+    const failure = await sendReviewed(
+      action(calls, { scope, onConfirmed, ...extra }),
+      deps,
+    ).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(ReviewedReceiptUnverifiedError);
+    const unverified = failure as ReviewedReceiptUnverifiedError;
+    const recover = () => (lagging = false);
+    return {
+      deps,
+      chain,
+      hold,
+      storage,
+      wallet,
+      calls,
+      read,
+      scope,
+      onConfirmed,
+      unverified,
+      recover,
+      relag: () => (lagging = true),
+    };
+  }
+
+  it("completes a verified step with the receipt it is given when a reread fails, telling onConfirmed once", async () => {
+    const {
+      deps,
+      chain,
+      hold,
+      storage,
+      calls,
+      scope,
+      onConfirmed,
+      unverified,
+      recover,
+      relag,
+    } = await leftAtReceipt();
+    expect(onConfirmed).toHaveBeenCalledTimes(1);
+    // The hold verifies it, and the view reads its receipt.
+    recover();
+    const handle = openStepHold(hold, ACCOUNT, false, calls[1]);
+    await expect(
+      handle.state(chain.client as unknown as PublicClient),
+    ).resolves.toMatchObject({
+      status: "clear",
+      settled: { result: "success" },
+    });
+    const receipt = await chain.client.getTransactionReceipt({
+      hash: unverified.hash,
+    });
+    // Every reread fails from here.
+    relag();
+    const action$ = { account: ACCOUNT, scope, onConfirmed };
+    await expect(
+      completeReviewedStep(unverified, action$, deps, receipt as never),
+    ).resolves.toMatchObject({ result: "success", hash: unverified.hash });
+    expect(onConfirmed).toHaveBeenCalledTimes(2);
+    expect(onConfirmed.mock.calls[1]).toEqual([calls[1], 1, receipt]);
+    expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+  });
+
+  it("keeps completion pending, nothing advanced, until the receipt it needs reads", async () => {
+    const {
+      deps,
+      chain,
+      hold,
+      storage,
+      calls,
+      scope,
+      onConfirmed,
+      unverified,
+      recover,
+      relag,
+    } = await leftAtReceipt();
+    recover();
+    const handle = openStepHold(hold, ACCOUNT, false, calls[1]);
+    await handle.state(chain.client as unknown as PublicClient);
+    relag();
+    const action$ = { account: ACCOUNT, scope, onConfirmed };
+    await expect(
+      completeReviewedStep(unverified, action$, deps),
+    ).rejects.toThrow("lagging node");
+    // Nothing advanced: the journal still has the step sending, its success unacknowledged.
+    expect(
+      findReviewedSequence(scope, ACCOUNT, { storage })?.sending,
+    ).toMatchObject({ step: 1 });
+    expect(handle.unacknowledgedSuccess()).not.toBeNull();
+    expect(onConfirmed).toHaveBeenCalledTimes(1);
+    recover();
+    await expect(
+      completeReviewedStep(unverified, action$, deps),
+    ).resolves.toMatchObject({ result: "success" });
+    expect(onConfirmed).toHaveBeenCalledTimes(2);
+    expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+  });
+
+  it("follows a step left at its receipt to its completion, once its receipt reads", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, storage, scope, onConfirmed, unverified, recover } =
+        await leftAtReceipt();
+      const followed = followReviewedStep(
+        unverified,
+        { account: ACCOUNT, scope, onConfirmed },
+        deps,
+        { signal: new AbortController().signal },
+      );
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(onConfirmed).toHaveBeenCalledTimes(1);
+      recover();
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(followed).resolves.toMatchObject({
+        result: "success",
+        hash: unverified.hash,
+      });
+      expect(onConfirmed).toHaveBeenCalledTimes(2);
+      expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops following a step left at its receipt once its signal aborts", async () => {
+    const { deps, scope, onConfirmed, unverified } = await leftAtReceipt();
+    const stop = new AbortController();
+    const followed = followReviewedStep(
+      unverified,
+      { account: ACCOUNT, scope, onConfirmed },
+      deps,
+      { signal: stop.signal },
+    );
+    stop.abort();
+    await expect(followed).resolves.toBeNull();
+    expect(onConfirmed).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a run's signatures on the step it left at its receipt", async () => {
+    const { wallet, deps, chain } = setup();
+    reviewUi();
+    const signature = `0x${"5e".repeat(65)}` as Hex;
+    wallet.adapter.signMessage.mockImplementation(async () => signature);
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const failure = await sendReviewed(
+      action([payCall()], {
+        signatures: [{ kind: "message", chainId: 10, message: "List it" }],
+      }),
+      deps,
+    ).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(ReviewedReceiptUnverifiedError);
+    expect((failure as ReviewedReceiptUnverifiedError).held).toMatchObject({
+      signatures: [signature],
     });
   });
 

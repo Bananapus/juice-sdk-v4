@@ -155,6 +155,10 @@ async function withConnection<T>(
     if (current() === connector) wallet = fetched;
   }
   if (!wallet) throw new WalletNotInvokedError(CONNECTION_CHANGED);
+  // A composite transport (viem's fallback) can pass one send to a second
+  // provider, so a later 4001 would not prove the first never sent it.
+  if (!ONE_PROVIDER.has(wallet.transport.type))
+    throw new WalletNotInvokedError(COMPOSITE);
   const inner = wallet;
   let forwarded = false;
   let refusal: unknown;
@@ -206,6 +210,11 @@ async function withConnection<T>(
     throw error;
   }
 }
+
+/** viem transports that hand each request to exactly one provider. */
+const ONE_PROVIDER = new Set(["custom", "http", "webSocket", "ipc"]);
+const COMPOSITE =
+  "This wallet connection uses more than one provider. Connect through one wallet provider; nothing was sent.";
 
 /**
  * The chain a write is sent on: the client's own when it is that chain, so

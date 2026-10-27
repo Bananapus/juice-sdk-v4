@@ -81,6 +81,8 @@ const MAX_POLL_MS = 60_000;
 /** A follower's first looks, a few seconds apart, before it slows to the poll. */
 const FAST_MS = 4_000;
 const FAST_LOOKS = 15;
+/** How long a settled step waits before its completion reads its receipt again. */
+export const RECEIPT_RETRY_MS = 4_000;
 /** A direct write's confirming line gives way to the wallet's pending line after this long. */
 const CONFIRMING_MS = 120_000;
 

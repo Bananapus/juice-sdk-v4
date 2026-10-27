@@ -54,8 +54,15 @@ export class ReviewedReceiptUnverifiedError extends ReviewLineError {
     readonly step: number,
     readonly hash: Hex,
     line: string = HELD_CONFIRMING_LINE,
-    /** The step's call and its hold reservation, which `completeReviewedStep` reads. */
-    readonly held?: { call: ReviewedCall; reservation: string | undefined },
+    /**
+     * The step's call and its hold reservation, which `completeReviewedStep`
+     * reads, and the run's signatures when it signed any.
+     */
+    readonly held?: {
+      call: ReviewedCall;
+      reservation: string | undefined;
+      signatures?: Hex[];
+    },
   ) {
     super(line);
   }

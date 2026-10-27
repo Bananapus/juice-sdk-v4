@@ -1,6 +1,7 @@
 import {
   createWalletClient,
   custom,
+  fallback,
   numberToHex,
   toHex,
   type Address,
@@ -351,6 +352,59 @@ describe("wallet adapters", () => {
     expect(refused).toBeInstanceOf(WalletNotInvokedError);
     expect(refused).toMatchObject({
       message: "Your wallet could not be reached. Nothing was sent; try again.",
+    });
+  });
+
+  describe("viemWalletAdapter over a composite transport", () => {
+    /** viem's fallback over two providers: the first errors ambiguously, the second rejects. */
+    function twoProviders() {
+      const asked: string[] = [];
+      const provider = (
+        name: string,
+        fail: { code: number; message: string },
+      ) =>
+        custom(
+          {
+            request: async ({ method }: { method: string }) => {
+              if (method === "eth_chainId") return numberToHex(10);
+              asked.push(`${method}:${name}`);
+              throw Object.assign(new Error(fail.message), fail);
+            },
+          },
+          { retryCount: 0 },
+        );
+      const client = createWalletClient({
+        chain: optimism,
+        transport: fallback([
+          provider("first", { code: -32603, message: "Internal error" }),
+          provider("second", { code: 4001, message: "User rejected" }),
+        ]),
+      }) as WalletClient;
+      return { client, asked };
+    }
+
+    it("refuses a fallback wallet client before any provider is asked", async () => {
+      const { client, asked } = twoProviders();
+      const refused = await send(adapterOver(client).adapter).catch(
+        (error: unknown) => error,
+      );
+      expect(refused).toBeInstanceOf(WalletNotInvokedError);
+      expect((refused as Error).message).toMatch(/one wallet provider/);
+      expect(asked).toEqual([]);
+    });
+
+    it("never reads an ambiguous error then a 4001 from the next provider as a rejection", async () => {
+      const { client, asked } = twoProviders();
+      const { adapter } = adapterOver(client);
+      for (const attempt of [
+        () => send(adapter),
+        () => adapter.signMessage("x"),
+      ]) {
+        const error = await attempt().catch((e: unknown) => e);
+        expect(isDefiniteWalletRejection(error)).toBe(false);
+      }
+      // Nothing reached a provider, so no -32603 was followed by a 4001.
+      expect(asked).toEqual([]);
     });
   });
 

@@ -6,6 +6,7 @@ import {
   findReviewedSequence,
   isDefiniteWalletRejection,
   openStepHold,
+  RECEIPT_RETRY_MS,
   REVIEWED_ACCOUNT_CHANGED_LINE,
   REVIEWED_ENGINE_LOAD_LINE,
   ReviewedReceiptUnverifiedError,
@@ -76,6 +77,8 @@ export type ReviewedRunReceipt = {
   status: "receipt";
   step: number;
   hash: Hex;
+  /** The action's signatures, signed before the send, when it had any. */
+  signatures?: Hex[];
 };
 
 export type UseReviewedRunResult = {
@@ -483,13 +486,25 @@ export function useReviewedRun(
             seen?: WriteHoldSettled,
             receipt: TransactionReceipt | null = null,
           ) => {
+            let unread = false;
             completed = completed.then(
               (prior) =>
-                prior ?? complete(error, action$, deps!).catch(() => null),
+                prior ??
+                complete(error, action$, deps!, receipt).catch(() => {
+                  unread = true;
+                  return null;
+                }),
             );
             void completed.then((settled) => {
+              if (shown || latest.current !== id) return;
+              // Its receipt could not be read: nothing advanced, so it is tried again.
+              if (unread) {
+                if (mounted.current)
+                  setTimeout(() => finish(seen, receipt), RECEIPT_RETRY_MS);
+                return;
+              }
               const ended = settled ?? seen;
-              if (!ended || shown || latest.current !== id) return;
+              if (!ended) return;
               shown = true;
               showSettled(id, error.step, action.calls.length, ended, receipt);
               setWatched(null);
@@ -497,7 +512,14 @@ export function useReviewedRun(
           };
           // Followed for a later settlement; one already there is read once it attaches.
           void follow(finish).then(() => finish());
-          return { status: "receipt", step: error.step, hash: error.hash };
+          return {
+            status: "receipt",
+            step: error.step,
+            hash: error.hash,
+            ...(error.held?.signatures
+              ? { signatures: error.held.signatures }
+              : {}),
+          };
         }
         const cancelled =
           error instanceof TransactionReviewCancelledError ||
