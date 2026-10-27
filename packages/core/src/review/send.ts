@@ -97,6 +97,7 @@ import {
   WriteHoldUnacknowledgedSuccessError,
   type WriteHold,
   type WriteHoldLegacySource,
+  type WriteHoldHandle,
   type WriteHoldSettled,
 } from "./writeHold.js";
 import {
@@ -246,6 +247,19 @@ export type ReviewedAction = {
    * is spent from it, or nothing is sent.
    */
   plan?: ReviewedPlan;
+  /**
+   * Follows a sent step whose receipt its hold has not verified yet, in the
+   * run: `onConfirming(step)` tells the site, the hold is followed until it
+   * settles the step, and the run goes on to the next step or resolves.
+   * After `timeoutMs` (2 minutes by default) or `signal`, the run throws
+   * {@link ReviewedReceiptUnverifiedError} with the step still held, as it
+   * does at once without `follow`.
+   */
+  follow?: {
+    onConfirming?: (step: number) => void;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+  };
 };
 
 export type ReviewedSendDeps = {
@@ -772,6 +786,7 @@ export async function resumeReviewed(
     | "onSubmitted"
     | "onConfirmed"
     | "signal"
+    | "follow"
   >,
   deps: ReviewedSendDeps,
 ): Promise<ReviewedResult> {
@@ -894,33 +909,52 @@ async function tellConfirmed(
   }
 }
 
+/** How long `follow` follows a step by default. */
+const FOLLOW_MS = 120_000;
+
 /**
- * Follows the step a run left at its receipt
- * ({@link ReviewedReceiptUnverifiedError}) until its hold settles it, then
- * completes it as {@link completeReviewedStep} does, reading again until its
- * receipt reads. Null when the hold cleared without settling it (its exit)
- * or `signal` aborted.
+ * A sent step's settlement by its own reservation, and the receipt of the
+ * transaction that settled it, read again until it reads. Null on `follow`'s
+ * timeout or signal, or when the hold cleared without settling it (its exit).
  */
-export async function followReviewedStep(
-  unverified: ReviewedReceiptUnverifiedError,
-  action: Pick<ReviewedAction, "account" | "scope" | "onConfirmed">,
-  deps: ReviewedSendDeps,
-  { signal }: { signal: AbortSignal },
-): Promise<WriteHoldSettled | null> {
-  const { held } = unverified;
-  if (!held) return null;
-  const client = deps.clientFor(held.call.chainId);
-  const handle = openStepHold(deps.hold, action.account, false, held.call);
-  while (!signal.aborted) {
-    if (!(await followHeldWrite(handle, client as never, { signal })))
-      return null;
-    try {
-      return await completeReviewedStep(unverified, action, deps);
-    } catch {
-      await pause(RECEIPT_RETRY_MS, signal, () => null).catch(() => null);
+async function followSent(
+  handle: WriteHoldHandle,
+  client: PublicClient,
+  reserved: string | undefined,
+  follow: NonNullable<ReviewedAction["follow"]>,
+): Promise<{
+  settled: WriteHoldSettled & { hash: Hex };
+  receipt: TransactionReceipt;
+} | null> {
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), follow.timeoutMs ?? FOLLOW_MS);
+  const signal = follow.signal
+    ? AbortSignal.any([stop.signal, follow.signal])
+    : stop.signal;
+  try {
+    while (!signal.aborted) {
+      const state = await followHeldWrite(handle, client as never, { signal });
+      if (
+        state?.status !== "clear" ||
+        state.reservation !== reserved ||
+        !state.settled ||
+        !("hash" in state.settled)
+      )
+        return null;
+      const { settled } = state;
+      try {
+        const receipt = await client.getTransactionReceipt({
+          hash: settled.hash,
+        });
+        return { settled, receipt };
+      } catch {
+        await pause(RECEIPT_RETRY_MS, signal, () => null).catch(() => null);
+      }
     }
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
-  return null;
 }
 
 /**
@@ -1564,12 +1598,12 @@ async function send(
       return { status: "proposed", step: at, safeTxHash: hash, ...signed };
     }
     progress("receipt", hash);
-    const receipt = await waitForTrackedReceipt(client, hash);
+    let receipt = await waitForTrackedReceipt(client, hash);
     // The hold checks the receipt itself and settles, so the same call (or
     // intent) can be reviewed and sent again without waiting on a view.
     // Only this send's own reservation's settlement speaks for it: a later
     // send of the same call or intent may have settled since.
-    const settled = await handles[step]
+    let settled = await handles[step]
       .state(client)
       .then((state) =>
         state.status === "clear" &&
@@ -1589,10 +1623,20 @@ async function send(
     }
     // Done, or reverted, only once its hold verified the receipt (a Safe's
     // execTransaction, the Safe's own success); until then it stays held and
-    // journaled, as the hook follows it to completeReviewedStep.
-    if (
-      settled?.result !== (receipt.status === "success" ? "success" : "failed")
-    ) {
+    // journaled, as `follow` or the hook follows it to its settlement.
+    const verified = () =>
+      settled?.result === (receipt.status === "success" ? "success" : "failed");
+    if (!verified() && action.follow) {
+      action.follow.onConfirming?.(at);
+      const ended = await followSent(
+        handles[step],
+        client,
+        reserved,
+        action.follow,
+      );
+      if (ended) ({ settled, receipt } = ended);
+    }
+    if (!verified()) {
       throw new ReviewedReceiptUnverifiedError(
         at,
         hash,

@@ -53,7 +53,6 @@ import {
 } from "./lineError.js";
 import {
   completeReviewedStep,
-  followReviewedStep,
   SAFE_BATCH_UNFOLLOWABLE_LINE,
   SAFE_BATCH_UNSUPPORTED_LINE,
   sendReviewed,
@@ -1813,46 +1812,6 @@ describe("sendReviewed and its hold's evidence", () => {
     expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
   });
 
-  it("follows a step left at its receipt to its completion, once its receipt reads", async () => {
-    vi.useFakeTimers();
-    try {
-      const { deps, storage, scope, onConfirmed, unverified, recover } =
-        await leftAtReceipt();
-      const followed = followReviewedStep(
-        unverified,
-        { account: ACCOUNT, scope, onConfirmed },
-        deps,
-        { signal: new AbortController().signal },
-      );
-      await vi.advanceTimersByTimeAsync(10_000);
-      expect(onConfirmed).toHaveBeenCalledTimes(1);
-      recover();
-      await vi.advanceTimersByTimeAsync(10_000);
-      await expect(followed).resolves.toMatchObject({
-        result: "success",
-        hash: unverified.hash,
-      });
-      expect(onConfirmed).toHaveBeenCalledTimes(2);
-      expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("stops following a step left at its receipt once its signal aborts", async () => {
-    const { deps, scope, onConfirmed, unverified } = await leftAtReceipt();
-    const stop = new AbortController();
-    const followed = followReviewedStep(
-      unverified,
-      { account: ACCOUNT, scope, onConfirmed },
-      deps,
-      { signal: stop.signal },
-    );
-    stop.abort();
-    await expect(followed).resolves.toBeNull();
-    expect(onConfirmed).toHaveBeenCalledTimes(1);
-  });
-
   it("keeps a run's signatures on the step it left at its receipt", async () => {
     const { wallet, deps, chain } = setup();
     reviewUi();
@@ -1935,5 +1894,143 @@ describe("sendReviewed and its hold's evidence", () => {
       adjustable: "minimum",
     });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendReviewed with follow", () => {
+  const FIRST = `0x${"1".padStart(64, "0")}` as Hex;
+  const SECOND = `0x${"2".padStart(64, "0")}` as Hex;
+
+  /** A run whose `lagging` hash's receipt the hold can't read until `recover`. */
+  function lagging(hash: Hex) {
+    const ran = setup();
+    const prompts = reviewUi();
+    const read =
+      ran.chain.client.getTransactionReceipt.getMockImplementation()!;
+    let lag = true;
+    ran.chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (lag && args.hash === hash) throw new Error("lagging node");
+      return read(args);
+    });
+    return { ...ran, prompts, recover: () => (lag = false) };
+  }
+
+  const later = async (ms: number) => vi.advanceTimersByTimeAsync(ms);
+
+  it("continues a no-scope run past a step that confirms late, in the same review, with its step indexes", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, prompts, recover } = lagging(FIRST);
+      const onConfirming = vi.fn();
+      const reverified: number[] = [];
+      const opened: number[] = [];
+      const submitted: number[] = [];
+      const run = sendReviewed(
+        action([approveCall(), payCall()], {
+          reverify: async (_call, index) => void reverified.push(index),
+          beforeWallet: (_call, step) => void opened.push(step),
+          onSubmitted: (_call, step) => void submitted.push(step),
+          follow: { onConfirming },
+        }),
+        deps,
+      );
+      await later(10_000);
+      expect(onConfirming).toHaveBeenCalledWith(0);
+      expect(submitted).toEqual([0]);
+      recover();
+      await later(10_000);
+      await expect(run).resolves.toMatchObject({
+        status: "done",
+        hashes: [FIRST, SECOND],
+        receipts: [{ transactionHash: FIRST }, { transactionHash: SECOND }],
+      });
+      expect(prompts).toHaveLength(1);
+      expect(reverified).toEqual([0, 1]);
+      expect(opened).toEqual([0, 1]);
+      expect(submitted).toEqual([0, 1]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("resolves a last step that confirms late with its settling receipt", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, recover } = lagging(FIRST);
+      const run = sendReviewed(action([payCall()], { follow: {} }), deps);
+      await later(10_000);
+      recover();
+      await later(10_000);
+      await expect(run).resolves.toMatchObject({
+        status: "done",
+        hashes: [FIRST],
+        receipts: [{ transactionHash: FIRST, status: "success" }],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("throws a revert its hold verified after following it", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, chain, recover } = lagging(FIRST);
+      chain.state.status = "reverted";
+      const run = sendReviewed(action([payCall()], { follow: {} }), deps);
+      const ended = run.catch((error: unknown) => error);
+      await later(10_000);
+      recover();
+      await later(10_000);
+      expect(await ended).toBeInstanceOf(ReviewedCallRevertedError);
+      expect(await ended).toMatchObject({ step: 0, hash: FIRST });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(["timeout", "abort"] as const)(
+    "on a %s throws the step still confirming, its signatures kept and its hold still sent",
+    async (end) => {
+      vi.useFakeTimers();
+      try {
+        const { deps, hold, wallet } = lagging(FIRST);
+        const signature = `0x${"5e".repeat(65)}` as Hex;
+        wallet.adapter.signMessage.mockImplementation(async () => signature);
+        const stop = new AbortController();
+        const call = payCall();
+        const ended = sendReviewed(
+          action([call], {
+            signatures: [{ kind: "message", chainId: 10, message: "List it" }],
+            follow:
+              end === "timeout"
+                ? { timeoutMs: 30_000 }
+                : { signal: stop.signal },
+          }),
+          deps,
+        ).catch((error: unknown) => error);
+        await later(10_000);
+        if (end === "abort") stop.abort();
+        await later(30_000);
+        const error = await ended;
+        expect(error).toBeInstanceOf(ReviewedReceiptUnverifiedError);
+        expect(error).toMatchObject({
+          step: 0,
+          hash: FIRST,
+          held: { signatures: [signature] },
+        });
+        expect(openStepHold(hold, ACCOUNT, false, call).peek().status).toBe(
+          "pending-known-hash",
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("without follow, still throws at once for a step confirming late", async () => {
+    const { deps } = lagging(FIRST);
+    await expect(
+      sendReviewed(action([approveCall(), payCall()]), deps),
+    ).rejects.toBeInstanceOf(ReviewedReceiptUnverifiedError);
   });
 });
