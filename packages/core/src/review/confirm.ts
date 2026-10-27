@@ -49,6 +49,17 @@ export type ReviewPrompt = {
   signal: AbortSignal;
 };
 
+const simulationErrors = new WeakMap<ReviewSimulation, unknown>();
+
+/** A failed simulation whose refusal keeps `error`, with its revert data, as its cause. */
+export function failedSimulation(
+  result: Extract<ReviewSimulation, { status: "failed" }>,
+  error: unknown,
+): ReviewSimulation {
+  simulationErrors.set(result, error);
+  return result;
+}
+
 /** Every confirmation core minted: the model id it is for, and whether its prompt has ended. */
 const minted = new WeakMap<object, { id: Hex; used: boolean }>();
 
@@ -96,8 +107,12 @@ export async function promptReview(
     );
   }
   let simulated: ReviewSimulation | undefined;
+  let error: unknown;
   // Core keeps its own frozen copy: the handler cannot rewrite the result core enforces.
-  const settled = simulation.then((result) => frozen({ ...result }));
+  const settled = simulation.then((result) => {
+    error = simulationErrors.get(result);
+    return frozen({ ...result });
+  });
   void settled.then((result) => {
     simulated = result;
   });
@@ -133,7 +148,7 @@ export async function promptReview(
     entry.used = true;
     signal.removeEventListener("abort", withdraw);
   }
-  // The node's own words stay the cause: the review already showed them.
+  // The simulation's error stays the cause, its revert data for a site's retry.
   if (simulated?.status === "failed")
     throw Object.defineProperty(
       new ReviewLineError(
@@ -142,6 +157,6 @@ export async function promptReview(
           : REVIEWED_SIMULATION_UNEXPLAINED_LINE,
       ),
       "cause",
-      { value: simulated.message, configurable: true, writable: true },
+      { value: error ?? simulated.message, configurable: true, writable: true },
     );
 }

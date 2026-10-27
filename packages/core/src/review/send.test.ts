@@ -3,11 +3,13 @@ import {
   REVIEWED_SIMULATION_UNEXPLAINED_LINE,
 } from "./messages.js";
 import {
+  encodeAbiParameters,
   encodeFunctionData,
   numberToHex,
   type Address,
   type Hex,
   type PublicClient,
+  type WalletClient,
 } from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -31,7 +33,11 @@ import {
 } from "./__fixtures__/reviewedSend.js";
 import type { ReviewConfirmation } from "./confirm.js";
 import { SubmittedContractWriteError } from "./contractWrite.js";
-import { WRITE_HOLD_REVERTED_LINE } from "./messages.js";
+import {
+  HELD_AWAY_SUCCESS_LINE,
+  WRITE_HOLD_REVERTED_LINE,
+} from "./messages.js";
+import { decodePayFailure } from "../v6/executionErrors.js";
 import { buildReviewModel } from "./model.js";
 import {
   discardReviewedSequence,
@@ -48,8 +54,17 @@ import {
   type ReviewedCall,
 } from "./send.js";
 import { REVERT_UNKNOWN_LINE } from "./simulation.js";
-import { selfReviewingAdapter, WALLET_NOT_READY_LINE } from "./wallet.js";
-import { WriteHeldError, WriteHoldStaleReviewError } from "./writeHold.js";
+import {
+  selfReviewingAdapter,
+  viemWalletAdapter,
+  WALLET_NOT_READY_LINE,
+} from "./wallet.js";
+import { TransactionReviewCancelledError } from "./reviewQueue.js";
+import {
+  openStepHold,
+  WriteHeldError,
+  WriteHoldStaleReviewError,
+} from "./writeHold.js";
 
 afterEach(resetReviewUi);
 
@@ -510,9 +525,11 @@ describe("sendReviewed", () => {
       sendReviewed(action([payCall(6n)]), deps),
     ).rejects.toMatchObject({
       message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
-      cause: expect.stringContaining(
-        `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
-      ),
+      cause: expect.objectContaining({
+        message: expect.stringContaining(
+          `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
+        ),
+      }),
     });
 
     // A sequence whose step reverts in eth_simulateV1 is refused the same way.
@@ -537,7 +554,9 @@ describe("sendReviewed", () => {
     ).rejects.toMatchObject({
       // Viem's text is never the reason: no revert data, no reason shown.
       message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
-      cause: `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
+      cause: expect.objectContaining({
+        message: `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
+      }),
     });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
   });
@@ -1231,7 +1250,7 @@ describe("sendReviewed", () => {
   });
 
   it("refuses a second prompt of the same action once the first one sent", async () => {
-    const { wallet, deps } = setup();
+    const { wallet, deps, hold } = setup();
     const answers: (() => void)[] = [];
     reviewUi(
       (prompt) =>
@@ -1248,7 +1267,9 @@ describe("sendReviewed", () => {
     answers[1]();
     await expect(second).rejects.toBeInstanceOf(WriteHoldStaleReviewError);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
-    // Sent and settled, the same action reviewed afresh sends normally.
+    // Sent, settled and its success shown, the same action reviewed afresh sends normally.
+    const handle = openStepHold(hold, ACCOUNT, false, call);
+    await handle.acknowledge(handle.unacknowledgedSuccess()!);
     answers.length = 0;
     const again = sendReviewed(action([call]), deps);
     await vi.waitFor(() => expect(answers).toHaveLength(1));
@@ -1286,7 +1307,9 @@ describe("sendReviewed", () => {
       ),
     ).rejects.toMatchObject({
       message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
-      cause: expect.stringContaining("Pay cannot run on OP Mainnet"),
+      cause: expect.objectContaining({
+        message: expect.stringContaining("Pay cannot run on OP Mainnet"),
+      }),
     });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
@@ -1313,9 +1336,11 @@ describe("sendReviewed", () => {
       }),
     ).rejects.toMatchObject({
       message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
-      cause: expect.stringContaining(
-        `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
-      ),
+      cause: expect.objectContaining({
+        message: expect.stringContaining(
+          `Pay cannot run on OP Mainnet: ${REVERT_UNKNOWN_LINE}`,
+        ),
+      }),
     });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
@@ -1352,7 +1377,9 @@ describe("sendReviewed", () => {
     await expect(sendReviewed(action([payCall()]), deps)).rejects.toMatchObject(
       {
         message: REVIEWED_SIMULATION_UNEXPLAINED_LINE,
-        cause: expect.stringContaining("Pay cannot run on OP Mainnet"),
+        cause: expect.objectContaining({
+          message: expect.stringContaining("Pay cannot run on OP Mainnet"),
+        }),
       },
     );
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
@@ -1554,5 +1581,148 @@ describe("a Safe app batch", () => {
     );
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
     expect(result).toMatchObject({ status: "done" });
+  });
+});
+
+describe("sendReviewed and its hold's evidence", () => {
+  const FIRST = `0x${"1".padStart(64, "0")}`;
+
+  it("refuses a run while the call's last success is unacknowledged, until it is acknowledged", async () => {
+    const { wallet, deps, hold } = setup();
+    const prompts = reviewUi();
+    const call = payCall();
+    await expect(sendReviewed(action([call]), deps)).resolves.toMatchObject({
+      status: "done",
+    });
+    // Nothing showed that success (a remount lost it): a second run sends nothing.
+    const refused = await sendReviewed(action([call]), deps).catch(
+      (error: unknown) => error,
+    );
+    expect(refused).toMatchObject({
+      message: HELD_AWAY_SUCCESS_LINE,
+      success: { result: "success", hash: FIRST },
+    });
+    expect(prompts).toHaveLength(1);
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+    // "Send it again": one acknowledgement lets the next run through.
+    await openStepHold(hold, ACCOUNT, false, call).acknowledge(
+      (refused as { success: { result: "success"; hash: Hex } }).success,
+    );
+    await expect(sendReviewed(action([call]), deps)).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  it("a refusal before the wallet is called releases the held step and keeps its message", async () => {
+    const { wallet, deps, hold } = setup();
+    reviewUi();
+    let safe = false;
+    const sendTransaction = vi.fn();
+    const adapter = viemWalletAdapter({
+      // The wallet turns into a Safe connection while its client loads.
+      walletClient: async () => {
+        safe = true;
+        return { sendTransaction } as unknown as WalletClient;
+      },
+      account: () => ACCOUNT,
+      chainId: () => 10,
+      isSafe: () => safe,
+      switchChain: async () => undefined,
+    });
+    const call = payCall();
+    const onUnsent = vi.fn();
+    const refused = await sendReviewed(action([call], { onUnsent }), {
+      ...deps,
+      adapter: { ...adapter, isSafe: () => false },
+    }).catch((error: unknown) => error);
+    expect(refused).toMatchObject({
+      message: "Wallet connection changed. Review the transaction again.",
+    });
+    expect(refused).not.toBeInstanceOf(TransactionReviewCancelledError);
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(onUnsent).toHaveBeenCalledTimes(1);
+    expect(openStepHold(hold, ACCOUNT, false, call).peek().status).toBe(
+      "clear",
+    );
+    // Released, so the same call reviewed again sends.
+    await expect(sendReviewed(action([call]), deps)).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+
+    // A provider error that only looks like the refusal keeps the step held.
+    wallet.adapter.sendTransaction.mockRejectedValueOnce(
+      Object.assign(new Error("Wallet connection changed."), {
+        name: "WalletNotInvokedError",
+        walletNotInvoked: true,
+      }),
+    );
+    const other = payCall(9n);
+    await expect(sendReviewed(action([other]), deps)).rejects.toThrow();
+    expect(openStepHold(hold, ACCOUNT, false, other).peek().status).not.toBe(
+      "clear",
+    );
+  });
+
+  it("reports done only once the hold verified the receipt", async () => {
+    const { deps, chain, hold, progress } = setup();
+    reviewUi();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    // The wallet's receipt arrives, but the hold's own read of it fails: it can't verify it yet.
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const call = payCall();
+    const failure = await sendReviewed(action([call]), deps).catch(
+      (error: unknown) => error,
+    );
+    expect(failure).toMatchObject({
+      name: "ReviewedReceiptUnverifiedError",
+      step: 0,
+      hash: FIRST,
+    });
+    expect(progress.map(({ phase }) => phase)).not.toContain("done");
+    const handle = openStepHold(hold, ACCOUNT, false, call);
+    expect(handle.peek().status).toBe("pending-known-hash");
+    // Once the hold can read it, the hold settles it.
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    await expect(
+      handle.state(chain.client as unknown as PublicClient),
+    ).resolves.toMatchObject({
+      status: "clear",
+      settled: { result: "success", hash: FIRST },
+    });
+  });
+
+  it("keeps the review-time revert's data, so a payment's allowed-decrease retry can read it", async () => {
+    const { wallet, deps, chain } = setup();
+    const underMin = `0x6b2bb382${encodeAbiParameters(
+      [{ type: "uint256" }, { type: "uint256" }],
+      [98n, 99n],
+    ).slice(2)}`;
+    chain.state.ethCall = () => {
+      throw Object.assign(new Error("execution reverted"), {
+        code: 3,
+        data: underMin,
+        details: "execution reverted",
+        shortMessage: "Execution reverted",
+      });
+    };
+    reviewUi(async (prompt) => {
+      expect(await prompt.simulation).toMatchObject({ status: "failed" });
+      return prompt.confirmation;
+    });
+    const failure = await sendReviewed(action([payCall()]), deps).catch(
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(ReviewLineError);
+    expect(decodePayFailure(failure)).toMatchObject({
+      reason: "TERMINAL_UNDER_MIN",
+      received: 98n,
+      minimum: 99n,
+      adjustable: "minimum",
+    });
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 });

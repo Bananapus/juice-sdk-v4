@@ -193,7 +193,13 @@ function calleeOf(expression, aliases) {
   if (member === null) return null;
   if (["call", "apply", "bind"].includes(member)) {
     const inner = calleeOf(callee.expression, aliases);
-    if (inner && (inner.member || directApis.has(inner.name))) return inner;
+    if (
+      inner &&
+      (inner.member ||
+        directApis.has(inner.name) ||
+        guardedNames.has(inner.name))
+    )
+      return inner;
   }
   return { name: member, member: true };
 }

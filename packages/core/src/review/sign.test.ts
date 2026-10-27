@@ -16,7 +16,7 @@ import {
   safeTransactionHash,
   type SafeQueuedTransaction,
 } from "../safeService.js";
-import { PERMIT2_ADDRESS } from "../v6/permit2.js";
+import { PERMIT2_ADDRESS, permit2TypedData } from "../v6/permit2.js";
 import {
   ACCOUNT,
   OTHER,
@@ -530,6 +530,59 @@ describe("signReviewed", () => {
     ).rejects.toMatchObject({ code: 4200 });
     expect(prompts).toHaveLength(0);
     expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("hands a self-reviewing wallet the raw request to review on its own page, never a model", async () => {
+    const prompts = reviewUi();
+    const signTypedData = vi.fn(
+      async (_: TypedDataDefinition) => "0xaa" as Hex,
+    );
+    const signMessage = vi.fn(async (_: string) => "0xbb" as Hex);
+    const submit = vi.fn();
+    const adapter = selfReviewingAdapter({
+      account: () => ACCOUNT,
+      submit,
+      signTypedData,
+      signMessage,
+    });
+    const authorization = {
+      chainId: 10 as const,
+      token: USDC,
+      spender: SPENDER,
+      amount: 5_000_000n,
+      expiration: 1_800_000_000,
+      nonce: 0,
+      sigDeadline: 1_700_000_000n,
+    };
+    const onPreview = vi.fn();
+    await expect(
+      signReviewed(
+        [
+          { kind: "permit2", authorization },
+          { kind: "message", chainId: 10, message: "hi" },
+        ],
+        { account: ACCOUNT },
+        { adapter, onPreview },
+      ),
+    ).resolves.toEqual(["0xaa", "0xbb"]);
+    // Its own page is the one confirmation: core asks nothing.
+    expect(prompts).toHaveLength(0);
+    expect(signTypedData).toHaveBeenCalledWith(permit2TypedData(authorization));
+    expect(signMessage).toHaveBeenCalledWith("hi");
+    expect(submit).not.toHaveBeenCalled();
+    expect(onPreview.mock.calls[0][0].signatures).toHaveLength(2);
+
+    // Its user's rejection is a cancel, nothing signed.
+    signMessage.mockRejectedValueOnce(
+      Object.assign(new Error("rejected"), { code: 4001 }),
+    );
+    await expect(
+      signReviewed(
+        [{ kind: "message", chainId: 10, message: "hi" }],
+        { account: ACCOUNT },
+        { adapter },
+      ),
+    ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
   });
 
   it("refuses what it cannot review before the prompt", async () => {

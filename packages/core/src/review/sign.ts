@@ -27,7 +27,11 @@ import {
 } from "./contractWrite.js";
 import { permit2Rows } from "./decode.js";
 import { decodeReviewCall } from "./decodeCall.js";
-import { buildReviewModel, type ReviewContextRow } from "./model.js";
+import {
+  buildReviewModel,
+  type ReviewContextRow,
+  type ReviewModel,
+} from "./model.js";
 import {
   REVIEWED_PLAN_REFUSED_LINE,
   spendPlan,
@@ -42,11 +46,7 @@ import {
 } from "./relayr.js";
 import { TransactionReviewCancelledError } from "./reviewQueue.js";
 import type { TransactionReviewSignature } from "./transactionReview.js";
-import {
-  unsupportedWalletRequest,
-  walletReady,
-  type WalletAdapter,
-} from "./wallet.js";
+import { walletReady, type WalletAdapter } from "./wallet.js";
 
 /** An ERC-2771 request to sign: what `execute` carries, with the signer's forwarder nonce in place of the signature. */
 export type ReviewedForwardRequest = Omit<RelayrForwardRequest, "signature"> & {
@@ -390,7 +390,8 @@ export function prepareSignature(
  * account and chain checks as {@link submitReviewedContractWrite}: the
  * connected account must stay `account`, and typed data is signed on its
  * domain's chain. A message is chain-free, so the wallet is not asked to
- * switch for one. A definite wallet rejection (EIP-1193 4001) returns no
+ * switch for one, nor is a self-reviewing wallet. A definite wallet
+ * rejection (EIP-1193 4001) returns no
  * signature and throws {@link TransactionReviewCancelledError}.
  */
 export async function signPrepared(
@@ -403,6 +404,7 @@ export async function signPrepared(
   reverify?: () => Promise<void>,
 ): Promise<Hex[]> {
   const signatures: Hex[] = [];
+  const chained = adapter.kind !== "self-reviewing";
   for (const { chainId, typedData, message } of prepared) {
     signatures.push(
       await submitReviewedContractWrite({
@@ -410,7 +412,7 @@ export async function signPrepared(
         expectedAccount: account,
         review: () => Promise.resolve(),
         switchChain: async (id) => {
-          if (typedData && adapter.chainId() !== id) {
+          if (chained && typedData && adapter.chainId() !== id) {
             await adapter.switchChain(id);
           }
         },
@@ -419,7 +421,7 @@ export async function signPrepared(
         simulate: async () => undefined,
         beforeSend: () => {
           beforeSign?.();
-          if (typedData && adapter.chainId() !== chainId) {
+          if (chained && typedData && adapter.chainId() !== chainId) {
             throw new ReviewLineError(
               "Your wallet changed networks. Review the signature again.",
             );
@@ -504,8 +506,8 @@ export function plannedCallsOf({
  * Nothing is signed unless the review handler returns core's confirmation
  * ({@link registerReviewHandler}). The signatures come back in order.
  *
- * A self-reviewing adapter (Signa) is refused with EIP-1193 4200: it has no
- * reviewed-signature path yet.
+ * A self-reviewing adapter (Signa) is never prompted: `onPreview` gets the
+ * model, and the adapter the raw typed data or text to review on its own page.
  */
 export async function signReviewed(
   signatures: readonly ReviewedSignature[],
@@ -525,12 +527,14 @@ export async function signReviewed(
      */
     plan?: ReviewedPlan;
   },
-  deps: { adapter: WalletAdapter },
+  deps: {
+    adapter: WalletAdapter;
+    onPreview?: (model: ReviewModel) => void;
+  },
 ): Promise<Hex[]> {
   const { adapter } = deps;
   const { account } = action;
   await walletReady(adapter);
-  if (adapter.kind === "self-reviewing") throw unsupportedWalletRequest();
   const connected = adapter.account();
   if (!connected) throw new ReviewLineError("Connect a wallet first.");
   if (connected.toLowerCase() !== account.toLowerCase()) {
@@ -540,23 +544,26 @@ export async function signReviewed(
     prepareSignature(signature, account),
   );
   if (!prepared.length) throw new ReviewLineError("There is nothing to sign.");
-  if (action.plan) {
+  const own = adapter.kind === "self-reviewing";
+  if (action.plan)
     spendPlan(action.plan, account, prepared.flatMap(plannedCallsOf));
-    return signPrepared(prepared, account, adapter, undefined, action.reverify);
+  if (own || !action.plan) {
+    const model = buildReviewModel({
+      calls: [],
+      signatures: prepared.map(({ review }) => review),
+      ...(action.title ? { title: action.title } : {}),
+      ...(action.description ? { description: action.description } : {}),
+      ...(action.context ? { context: action.context } : {}),
+    });
+    if (own) deps.onPreview?.(model);
+    // Nothing is sent, so there is nothing to simulate.
+    else
+      await promptReview(
+        model,
+        Promise.resolve({ status: "passed" }),
+        Promise.resolve(model),
+        action.signal,
+      );
   }
-  const model = buildReviewModel({
-    calls: [],
-    signatures: prepared.map(({ review }) => review),
-    ...(action.title ? { title: action.title } : {}),
-    ...(action.description ? { description: action.description } : {}),
-    ...(action.context ? { context: action.context } : {}),
-  });
-  // Nothing is sent, so there is nothing to simulate.
-  await promptReview(
-    model,
-    Promise.resolve({ status: "passed" }),
-    Promise.resolve(model),
-    action.signal,
-  );
   return signPrepared(prepared, account, adapter, undefined, action.reverify);
 }

@@ -10,8 +10,10 @@ import {
   resetReviewUi,
   reviewUi,
   setup,
+  unregister,
 } from "../__fixtures__/reviewedSend.js";
 import {
+  HELD_AWAY_SUCCESS_LINE,
   HELD_EXPIRED_LINE,
   HELD_FAILED_LINE,
   REVIEWED_ENGINE_LOAD_LINE,
@@ -675,5 +677,92 @@ describe("useReviewedRun", () => {
       safeTxHash: proposal,
     });
     await vi.waitFor(() => expect(seen.current!.held).not.toBeNull());
+  });
+
+  test("a done it shows lets the next run through; one nothing showed is offered as Send it again", async () => {
+    const prompts = reviewUi();
+    const { wallet, deps } = setup();
+    const call = payCall();
+    const { run } = harness({ ...deps, account: ACCOUNT });
+    await expect(run({ calls: [call] })).resolves.toMatchObject({
+      status: "done",
+    });
+    // Shown, so the same payment again is a new one.
+    await expect(run({ calls: [call] })).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+
+    // A run whose page unmounted before it ended showed nothing.
+    unregister.pop()!();
+    let answer!: () => void;
+    reviewUi(
+      (prompt) =>
+        new Promise((resolve) => (answer = () => resolve(prompt.confirmation))),
+    );
+    const gone = harness({ ...deps, account: ACCOUNT });
+    let pending!: ReturnType<UseReviewedRunResult["run"]>;
+    act(() => {
+      pending = gone.seen.current!.run({ calls: [call] });
+    });
+    await vi.waitFor(() => expect(answer).toBeDefined());
+    act(() => root?.unmount());
+    answer();
+    await expect(pending).resolves.toMatchObject({ status: "done" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(3);
+
+    // Remounted, the same payment is refused before its review, with "Send it again".
+    resetReviewUi();
+    reviewUi();
+    const { seen, run: again } = harness({ ...deps, account: ACCOUNT });
+    await expect(again({ calls: [call] })).resolves.toMatchObject({
+      status: "failed",
+      error: HELD_AWAY_SUCCESS_LINE,
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(3);
+    await vi.waitFor(() =>
+      expect(seen.current!.sendAgainAction).not.toBeNull(),
+    );
+    await act(async () => {
+      await seen.current!.sendAgainAction!.run();
+    });
+    await expect(again({ calls: [call] })).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(4);
+    expect(prompts).toHaveLength(2);
+  });
+
+  test("a receipt its hold has not verified stays confirming, and ends done once the hold settles it", async () => {
+    reviewUi();
+    const { wallet, chain, deps } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const call = payCall();
+    await expect(run({ calls: [call] })).resolves.toMatchObject({
+      status: "failed",
+      failure: { name: "ReviewedReceiptUnverifiedError" },
+    });
+    expect(seen.current).toMatchObject({ phase: "receipt", error: null });
+    await vi.waitFor(() =>
+      expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
+    );
+    // The hold can read it now: the run ends done, its success shown.
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    await act(async () => {
+      globalThis.dispatchEvent(new Event("focus"));
+      await vi.waitFor(() => expect(seen.current!.phase).toBe("done"));
+    });
+    expect(seen.current).toMatchObject({
+      hash: `0x${"1".padStart(64, "0")}`,
+      error: null,
+    });
+    await expect(run({ calls: [call] })).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 });

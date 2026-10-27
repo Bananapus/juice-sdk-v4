@@ -307,4 +307,107 @@ describe("wallet adapters", () => {
     expect(client.sendTransaction).not.toHaveBeenCalled();
     expect(client.signMessage).not.toHaveBeenCalled();
   });
+
+  describe("viemWalletAdapter's connector", () => {
+    /** Two connectors on one account, each with its own wallet client. */
+    function connectors() {
+      const state = { current: "old" };
+      const events: string[] = [];
+      const clients = Object.fromEntries(
+        ["old", "current"].map((id) => [
+          id,
+          {
+            ...walletClient(),
+            sendTransaction: vi.fn(async () => {
+              events.push(`invoked:${id}`);
+              return HASH;
+            }),
+          },
+        ]),
+      );
+      return { state, events, clients };
+    }
+    const send = (adapter: ReturnType<typeof viemWalletAdapter>) =>
+      adapter.sendTransaction({
+        chainId: 10,
+        to: TARGET,
+        data: "0x",
+        value: 0n,
+      });
+
+    it("fetches the wallet again when the connector changes while it loads, never invoking the old one", async () => {
+      const { state, events, clients } = connectors();
+      let fetches = 0;
+      const adapter = viemWalletAdapter({
+        walletClient: async () => {
+          fetches += 1;
+          const client = clients[state.current];
+          // Same account, same chain: only the connector moves, right after the fetch returns.
+          if (fetches === 1)
+            queueMicrotask(() => {
+              state.current = "current";
+              events.push("connector-switch:current");
+            });
+          return client as unknown as WalletClient;
+        },
+        account: () => ACCOUNT,
+        chainId: () => 10,
+        isSafe: () => false,
+        switchChain: async () => undefined,
+        connector: () => state.current,
+      });
+      await expect(send(adapter)).resolves.toBe(HASH);
+      expect(events).toEqual(["connector-switch:current", "invoked:current"]);
+      expect(clients.old.sendTransaction).not.toHaveBeenCalled();
+    });
+
+    it("refuses after three fetches that each saw the connector change", async () => {
+      const { state, clients } = connectors();
+      const walletClient = vi.fn(async () => {
+        const client = clients[state.current];
+        state.current = state.current === "old" ? "current" : "old";
+        return client as unknown as WalletClient;
+      });
+      const adapter = viemWalletAdapter({
+        walletClient,
+        account: () => ACCOUNT,
+        chainId: () => 10,
+        isSafe: () => false,
+        switchChain: async () => undefined,
+        connector: () => state.current,
+      });
+      await expect(send(adapter)).rejects.toThrow(
+        "Wallet connection changed. Review the transaction again.",
+      );
+      expect(walletClient).toHaveBeenCalledTimes(3);
+      expect(clients.old.sendTransaction).not.toHaveBeenCalled();
+      expect(clients.current.sendTransaction).not.toHaveBeenCalled();
+    });
+
+    it("invokes the wallet in the same continuation as its last check", async () => {
+      const { state, events, clients } = connectors();
+      let checked = false;
+      const adapter = viemWalletAdapter({
+        walletClient: async () => {
+          checked = true;
+          return clients.old as unknown as WalletClient;
+        },
+        // The check after the fetch queues a connector switch: it must land after the wallet call.
+        account: () => {
+          if (checked)
+            queueMicrotask(() => {
+              state.current = "current";
+              events.push("connector-switch:current");
+            });
+          return ACCOUNT;
+        },
+        chainId: () => 10,
+        isSafe: () => false,
+        switchChain: async () => undefined,
+        connector: () => state.current,
+      });
+      await expect(send(adapter)).resolves.toBe(HASH);
+      expect(events[0]).toBe("invoked:old");
+    });
+  });
 });

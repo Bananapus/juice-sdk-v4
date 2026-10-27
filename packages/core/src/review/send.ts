@@ -1,4 +1,8 @@
-import { ReviewedCallRevertedError, ReviewLineError } from "./lineError.js";
+import {
+  ReviewedCallRevertedError,
+  ReviewedReceiptUnverifiedError,
+  ReviewLineError,
+} from "./lineError.js";
 import {
   encodeFunctionData,
   formatEther,
@@ -8,7 +12,11 @@ import {
   type PublicClient,
   type TransactionReceipt,
 } from "viem";
-import { promptReview, type ReviewSimulation } from "./confirm.js";
+import {
+  failedSimulation,
+  promptReview,
+  type ReviewSimulation,
+} from "./confirm.js";
 import {
   isDefiniteWalletRejection,
   SubmittedContractWriteError,
@@ -84,6 +92,7 @@ import {
   safeBatchCall,
   WriteHeldError,
   WriteHoldStaleReviewError,
+  WriteHoldUnacknowledgedSuccessError,
   type WriteHold,
   type WriteHoldLegacySource,
 } from "./writeHold.js";
@@ -495,15 +504,22 @@ async function reviewSimulation(
       if (!isRevert(error))
         return { status: "unavailable", message: SIMULATION_UNAVAILABLE };
       const reason = revertReason(error);
-      return {
-        status: "failed",
-        // A sequence's failure is the SDK's line naming its call.
-        message:
-          error instanceof ReviewLineError
-            ? error.message
-            : `${labelOf(calls[steps[0]], steps[0])} cannot run on ${chainName}: ${reason ?? REVERT_UNKNOWN_LINE}`,
-        explained: reason !== null,
-      };
+      // A sequence's failure is the SDK's line naming its call.
+      const failure =
+        error instanceof ReviewLineError
+          ? error
+          : simulationFailure(
+              `${labelOf(calls[steps[0]], steps[0])} cannot run on ${chainName}: ${reason ?? REVERT_UNKNOWN_LINE}`,
+              error,
+            );
+      return failedSimulation(
+        {
+          status: "failed",
+          message: failure.message,
+          explained: reason !== null,
+        },
+        failure,
+      );
     }
   });
   // A revert on one chain is reported at once, whatever the others still wait on.
@@ -982,6 +998,9 @@ async function send(
     const state = handle.peek();
     if (state.status !== "clear") throw new WriteHeldError(state);
   }
+  // So is one whose last success nothing showed: a resend may pay twice.
+  const away = handles[handles.length - 1].unacknowledgedSuccess();
+  if (away) throw new WriteHoldUnacknowledgedSuccessError(away);
   /**
    * Each step's latest reservation as the review opened. Another prompt of
    * the same action that reserved meanwhile, whether or not it has settled,
@@ -1448,14 +1467,16 @@ async function send(
       }
       throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
     }
-    // A Safe's execTransaction is done only once its hold proved the Safe's
-    // own success; until then the step stays in flight, held and journaled.
-    if (
-      receipt.status === "success" &&
-      isSafeExecTransaction(reviewed.data) &&
-      settled?.result !== "success"
-    ) {
-      throw new ReviewLineError(WRITE_HOLD_SAFE_UNCONFIRMED_LINE);
+    // Done only once its hold verified the receipt (a Safe's execTransaction,
+    // the Safe's own success); until then it stays held and journaled.
+    if (receipt.status === "success" && settled?.result !== "success") {
+      throw new ReviewedReceiptUnverifiedError(
+        at,
+        hash,
+        isSafeExecTransaction(reviewed.data)
+          ? WRITE_HOLD_SAFE_UNCONFIRMED_LINE
+          : undefined,
+      );
     }
     if (receipt.status !== "success") {
       // It ran and reverted: nothing of it to resume.

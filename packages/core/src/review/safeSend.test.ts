@@ -788,9 +788,10 @@ describe("executeReviewedSafeTransaction", () => {
         }),
       } as never;
     });
+    // Not its failure, and not done either: its own settlement is unproven.
     await expect(
       sendReviewed({ account: ACCOUNT, calls: [payCall()] }, deps),
-    ).resolves.toMatchObject({ status: "done" });
+    ).rejects.toMatchObject({ name: "ReviewedReceiptUnverifiedError" });
   });
 
   it("binds the execution to its nonce with another owner's signature", async () => {

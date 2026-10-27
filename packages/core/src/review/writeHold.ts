@@ -18,6 +18,7 @@ import {
   type SafeServiceOptions,
 } from "../safeService.js";
 import {
+  HELD_AWAY_SUCCESS_LINE,
   SAFE_PROPOSAL_EXECUTED_LINE,
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
@@ -229,6 +230,14 @@ export class WriteHeldError extends ReviewLineError {
   readonly name = "WriteHeldError";
   constructor(readonly state: WriteHeldState) {
     super(state.line);
+  }
+}
+
+/** A run refused while the action's last success is unacknowledged; "Send it again" acknowledges `success`. */
+export class WriteHoldUnacknowledgedSuccessError extends ReviewLineError {
+  readonly name = "WriteHoldUnacknowledgedSuccessError";
+  constructor(readonly success: UnacknowledgedSuccess) {
+    super(HELD_AWAY_SUCCESS_LINE);
   }
 }
 

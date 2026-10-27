@@ -8,6 +8,7 @@ import {
   openStepHold,
   REVIEWED_ACCOUNT_CHANGED_LINE,
   REVIEWED_ENGINE_LOAD_LINE,
+  ReviewedReceiptUnverifiedError,
   safeBatchCall,
   settledLine,
   TransactionReviewCancelledError,
@@ -72,7 +73,10 @@ export type UseReviewedRunResult = {
    * it is resumed or discarded. Null when the user cancelled; `failed`, with
    * the same `error` and `failure` the hook shows, when it failed. An
    * `account` (the one the calls were built for) refuses the run before its
-   * review unless it is the connected one.
+   * review unless it is the connected one. A `done` it shows is
+   * acknowledged; one it could not show refuses the next run, with
+   * `sendAgainAction`. An unverified receipt stays `receipt` until its hold
+   * settles.
    */
   run: (
     action: Omit<ReviewedAction, "account" | "guard"> & { account?: Address },
@@ -179,6 +183,13 @@ export function useReviewedRun(
   const latest = useRef(0);
   /** How many runs are open: a discard waits for none. */
   const open = useRef(0);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   /** The engine's load, shared by every preload and run until one fails. */
   const loading = useRef<Promise<ReviewedEngine> | null>(null);
   const view = useMemo(
@@ -306,13 +317,18 @@ export function useReviewedRun(
                   },
                 ]
               : action.calls.map((call, step) => ({ call, step }));
+          // A held step, or the last step's success nothing showed.
           const found = steps
             .map(({ call, step }) => ({
               call,
               step,
               handle: openStepHold(hold, account, safe, call),
             }))
-            .find(({ handle }) => handle.peek().status !== "clear");
+            .find(
+              ({ handle, step }) =>
+                handle.peek().status !== "clear" ||
+                (step === total - 1 && handle.unacknowledgedSuccess()),
+            );
           setWatched(
             found
               ? {
@@ -388,8 +404,36 @@ export function useReviewedRun(
           ? await resumeReviewed(saved, { ...action, guard }, tracked)
           : await sendReviewed({ ...action, account, guard }, tracked);
         if (result.status === "proposed") void follow();
+        else if (mounted.current && latest.current === id) {
+          // Shown: its success blocks no later run.
+          const calls = saved?.calls ?? action.calls;
+          const handle = openStepHold(
+            deps.hold,
+            account,
+            false,
+            calls[calls.length - 1],
+          );
+          const success = handle.unacknowledgedSuccess();
+          if (
+            success &&
+            result.hashes.some((h) => h.toLowerCase() === success.hash)
+          )
+            await handle.acknowledge(success).catch(() => undefined);
+        }
         return result;
       } catch (error) {
+        if (error instanceof ReviewedReceiptUnverifiedError) {
+          // Still confirming: followed until its hold settles it.
+          update({
+            phase: "receipt",
+            step: error.step,
+            hash: error.hash,
+            error: null,
+            failure: null,
+          });
+          void follow();
+          return { status: "failed", error: errorLine(error), failure: error };
+        }
         const cancelled =
           error instanceof TransactionReviewCancelledError ||
           isDefiniteWalletRejection(error);
