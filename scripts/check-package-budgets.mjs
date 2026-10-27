@@ -329,7 +329,9 @@ const budgets = {
     // The send-again boundary, verified receipts, kept revert data, the
     // dispatch-time wallet guard and self-reviewing signatures add no files:
     // 1,787,447 B packed, 24,079,865 B unpacked.
-    packed: 1_790_000,
+    // The 5.0.0 receipt status and settled follow: 1,790,848 B packed,
+    // 24,098,818 B unpacked.
+    packed: 1_795_000,
     unpacked: 24_100_000,
     entries: 1_827,
   },
