@@ -331,8 +331,10 @@ const budgets = {
     // 1,787,447 B packed, 24,079,865 B unpacked.
     // The 5.0.0 receipt status and settled follow: 1,790,848 B packed,
     // 24,098,818 B unpacked.
+    // Followed steps, kept signatures and ended(): 1,794,029 B packed,
+    // 24,121,132 B unpacked.
     packed: 1_795_000,
-    unpacked: 24_100_000,
+    unpacked: 24_125_000,
     entries: 1_827,
   },
   "@bananapus/nana-sdk-react": {
