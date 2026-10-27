@@ -1,4 +1,6 @@
 import {
+  createWalletClient,
+  custom,
   decodeFunctionData,
   encodeFunctionData,
   formatEther,
@@ -28,6 +30,7 @@ import {
   RELAYR_PAYMENT_SELECTOR,
   RelayrPaymentNotSentError,
   relayrForwardRequest,
+  relayrPaymentAttemptOutcome,
   type RelayrEntry,
   type RelayrQuote,
 } from "./relayr.js";
@@ -47,10 +50,13 @@ import { openStepHold } from "./writeHold.js";
 import { REVIEWED_PLAN_REFUSED_LINE } from "./plan.js";
 import { reviewPlan } from "./send.js";
 import { signReviewed } from "./sign.js";
-import { selfReviewingAdapter } from "./wallet.js";
+import { selfReviewingAdapter, viemWalletAdapter } from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
 import { SubmittedContractWriteError } from "./contractWrite.js";
-import { ReviewedCallRevertedError } from "./lineError.js";
+import {
+  ReviewedCallRevertedError,
+  WalletNotInvokedError,
+} from "./lineError.js";
 
 const FORWARDER = jbV6ContractAddress.ERC2771Forwarder[10] as Address;
 const PROJECTS = jbV6ContractAddress.JBProjects[10] as Address;
@@ -985,6 +991,61 @@ describe("payRelayrReviewed", () => {
     expect(sent.data.slice(0, 10)).toBe(RELAYR_PAYMENT_SELECTOR);
     expect(sent.value).toBe(500n);
     expect(hash).toMatch(/^0x/);
+  });
+
+  it("keeps a refusal at the wallet request unsent, so the payment journal frees its quote", async () => {
+    const { deps, wallet } = relayrSetup();
+    reviewUi();
+    let viewAs = false;
+    const provider = vi.fn(async ({ method }: { method: string }) => {
+      if (method !== "eth_chainId") throw new Error(`Unexpected ${method}`);
+      // Inside viem's own await, after every check before the viem call.
+      viewAs = true;
+      return "0xa";
+    });
+    const real = viemWalletAdapter({
+      walletClient: async () =>
+        createWalletClient({
+          chain: { id: 10 } as never,
+          transport: custom({ request: provider }, { retryCount: 0 }),
+        }),
+      account: () => ACCOUNT,
+      chainId: () => 10,
+      isSafe: () => false,
+      switchChain: async () => undefined,
+      check: () => {
+        if (viewAs) throw new Error("You are viewing as another account.");
+      },
+    });
+    let sending = false;
+    const error = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      {
+        account: ACCOUNT,
+        onSending: async () => {
+          sending = true;
+        },
+      },
+      {
+        ...deps,
+        adapter: { ...wallet.adapter, sendTransaction: real.sendTransaction },
+      },
+    ).catch((caught: unknown) => caught);
+    expect(provider.mock.calls.map(([{ method }]) => method)).toEqual([
+      "eth_chainId",
+    ]);
+    expect(error).toBeInstanceOf(WalletNotInvokedError);
+    expect(error).toMatchObject({
+      message: "You are viewing as another account.",
+    });
+    expect(relayrPaymentAttemptOutcome(error, { sending, paid: false })).toBe(
+      "unpaid",
+    );
+    // Released: the same quote reviewed again pays.
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
   });
 
   it("pays a planned payment with no prompt, and refuses another", async () => {

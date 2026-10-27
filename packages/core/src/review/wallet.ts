@@ -1,10 +1,12 @@
 import { ReviewLineError, WalletNotInvokedError } from "./lineError.js";
-import type {
-  Address,
-  Chain,
-  Hex,
-  TypedDataDefinition,
-  WalletClient,
+import {
+  createWalletClient,
+  custom,
+  type Address,
+  type Chain,
+  type Hex,
+  type TypedDataDefinition,
+  type WalletClient,
 } from "viem";
 import { timeout } from "../pause.js";
 
@@ -85,27 +87,35 @@ export async function walletReady(adapter: WalletAdapter): Promise<void> {
 const CONNECTION_CHANGED =
   "Wallet connection changed. Review the transaction again.";
 
+/** The provider requests that send or sign: each is checked again as it is forwarded. */
+const DISPATCHED = new Set([
+  "eth_sendTransaction",
+  "wallet_sendTransaction",
+  "eth_sendRawTransaction",
+  "wallet_sendCalls",
+  "eth_signTypedData_v4",
+  "personal_sign",
+]);
+
 /**
- * Calls `invoke` with the client once the account, chain, Safe mode and
- * connector read the same after its fetch as before (a new connector is
- * fetched again, three times at most), in the same continuation as that check.
+ * Calls `invoke` with a client over the connected wallet whose every sending
+ * or signing request first checks, synchronously, that the account, chain,
+ * Safe mode, connector and the site's `check` read as they did when asked:
+ * viem awaits its own reads before it sends, so no earlier check is the last.
+ * A refusal before any such request went out is a {@link WalletNotInvokedError}.
+ * A connector that changes while the client loads is fetched again, three
+ * times at most.
  */
 async function withConnection<T>(
   options: Parameters<typeof viemWalletAdapter>[0],
-  invoke: (connected: {
-    account: Address;
-    client: WalletClient;
-    safe: boolean;
-  }) => Promise<T>,
+  invoke: (connected: { account: Address; client: WalletClient }) => Promise<T>,
 ): Promise<T> {
-  const asked = options.account();
-  if (!asked) throw new WalletNotInvokedError("Connect a wallet first.");
+  const account = options.account();
+  if (!account) throw new WalletNotInvokedError("Connect a wallet first.");
   const chainId = options.chainId();
   const safe = options.isSafe();
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const connector = options.connector?.();
-    const client = await options.walletClient();
-    if (options.account()?.toLowerCase() !== asked.toLowerCase()) {
+  const current = () => {
+    if (options.account()?.toLowerCase() !== account.toLowerCase()) {
       throw new WalletNotInvokedError(
         "The connected account changed. Review again.",
       );
@@ -113,24 +123,69 @@ async function withConnection<T>(
     if (options.chainId() !== chainId || options.isSafe() !== safe) {
       throw new WalletNotInvokedError(CONNECTION_CHANGED);
     }
-    if (options.connector?.() !== connector) continue;
-    return invoke({ account: asked, client, safe });
+    try {
+      options.check?.();
+    } catch (error) {
+      throw Object.assign(
+        new WalletNotInvokedError(
+          error instanceof Error ? error.message : CONNECTION_CHANGED,
+        ),
+        { cause: error },
+      );
+    }
+    return options.connector?.();
+  };
+  let wallet: WalletClient | undefined;
+  let connector: unknown;
+  for (let attempt = 0; attempt < 3 && !wallet; attempt += 1) {
+    connector = current();
+    let fetched: WalletClient;
+    try {
+      fetched = await options.walletClient();
+    } catch (error) {
+      throw Object.assign(
+        new WalletNotInvokedError(
+          "Your wallet could not be reached. Nothing was sent; try again.",
+        ),
+        { cause: error },
+      );
+    }
+    if (current() === connector) wallet = fetched;
   }
-  throw new WalletNotInvokedError(CONNECTION_CHANGED);
-}
-
-/** Refuses a signature once the account or Safe mode has changed since `withConnection` read them. */
-function unchanged(
-  options: { account: () => Address | undefined; isSafe: () => boolean },
-  { account, safe }: { account: Address; safe: boolean },
-): void {
-  if (options.account()?.toLowerCase() !== account.toLowerCase()) {
-    throw new WalletNotInvokedError(
-      "The connected account changed. Review again.",
-    );
-  }
-  if (options.isSafe() !== safe) {
-    throw new WalletNotInvokedError(CONNECTION_CHANGED);
+  if (!wallet) throw new WalletNotInvokedError(CONNECTION_CHANGED);
+  const inner = wallet;
+  let forwarded = false;
+  let refusal: unknown;
+  const client = createWalletClient({
+    account: inner.account,
+    chain: inner.chain,
+    transport: custom(
+      {
+        request: (args: { method: string; params?: unknown }) => {
+          if (DISPATCHED.has(args.method)) {
+            try {
+              if (current() !== connector)
+                throw new WalletNotInvokedError(CONNECTION_CHANGED);
+            } catch (error) {
+              // Unsent only while none of this call's requests went out.
+              if (forwarded)
+                return Promise.reject(new ReviewLineError(CONNECTION_CHANGED));
+              refusal = error;
+              return Promise.reject(error);
+            }
+            forwarded = true;
+          }
+          return inner.request(args as never);
+        },
+      },
+      { retryCount: 0 },
+    ),
+  }) as WalletClient;
+  try {
+    return await invoke({ account, client });
+  } catch (error) {
+    // viem wraps what its transport threw; the refusal is this one, by identity.
+    throw refusal ?? error;
   }
 }
 
@@ -159,6 +214,12 @@ export function viemWalletAdapter(options: {
   ready?: () => Promise<unknown>;
   /** The connector's identity (wagmi's `connector?.uid`): a change fetches the client again. */
   connector?: () => unknown;
+  /**
+   * The site's own synchronous check (view-as, say), run with the others as
+   * each request is forwarded to the wallet. Its throw refuses, unsent, with
+   * its message.
+   */
+  check?: () => void;
 }): WalletAdapter {
   const { ready } = options;
   return {
@@ -187,25 +248,22 @@ export function viemWalletAdapter(options: {
           ...(gas === undefined ? {} : { gas }),
         }),
       ),
-    signTypedData: (typedData) =>
-      withConnection(options, (connected) => {
-        unchanged(options, connected);
-        const { account, client } = connected;
-        // viem does not check the wallet's chain against the domain's.
-        const chainId = typedData.domain?.chainId;
-        if (chainId !== undefined && options.chainId() !== Number(chainId)) {
-          throw new WalletNotInvokedError(
-            "Your wallet changed networks. Review again.",
-          );
-        }
-        return client.signTypedData({ ...typedData, account });
-      }),
+    signTypedData: async (typedData) => {
+      // viem does not check the wallet's chain against the domain's.
+      const chainId = typedData.domain?.chainId;
+      if (chainId !== undefined && options.chainId() !== Number(chainId)) {
+        throw new WalletNotInvokedError(
+          "Your wallet changed networks. Review again.",
+        );
+      }
+      return withConnection(options, ({ account, client }) =>
+        client.signTypedData({ ...typedData, account }),
+      );
+    },
     signMessage: (message) =>
-      withConnection(options, (connected) => {
-        unchanged(options, connected);
-        const { account, client } = connected;
-        return client.signMessage({ account, message });
-      }),
+      withConnection(options, ({ account, client }) =>
+        client.signMessage({ account, message }),
+      ),
     sendCalls: (chainId, calls) =>
       withConnection(options, async ({ account, client }) => {
         const { id } = await client.sendCalls({
