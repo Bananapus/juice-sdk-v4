@@ -733,7 +733,8 @@ describe("useReviewedRun", () => {
     expect(prompts).toHaveLength(2);
   });
 
-  test("a receipt its hold has not verified stays confirming, and ends done once the hold settles it", async () => {
+  /** A run whose receipt the hold can't read yet: the node lags. */
+  async function unverified() {
     reviewUi();
     const { wallet, chain, deps } = setup();
     const read = chain.client.getTransactionReceipt.getMockImplementation()!;
@@ -742,11 +743,29 @@ describe("useReviewedRun", () => {
     });
     const { seen, run } = harness({ ...deps, account: ACCOUNT });
     const call = payCall();
-    await expect(run({ calls: [call] })).resolves.toMatchObject({
-      status: "failed",
-      failure: { name: "ReviewedReceiptUnverifiedError" },
+    const result = await run({ calls: [call] });
+    return { wallet, chain, read, seen, run, call, result };
+  }
+
+  test("run resolves as verifying, not failed, while the hold verifies the receipt", async () => {
+    const { seen, result } = await unverified();
+    const hash = `0x${"1".padStart(64, "0")}`;
+    expect(result).toEqual({ status: "receipt", step: 0, hash });
+    // The hook says the same thing the return value does.
+    expect(seen.current).toMatchObject({
+      phase: "receipt",
+      step: 0,
+      hash,
+      error: null,
+      failure: null,
     });
-    expect(seen.current).toMatchObject({ phase: "receipt", error: null });
+    await vi.waitFor(() =>
+      expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
+    );
+  });
+
+  test("done once verification completes", async () => {
+    const { wallet, chain, read, seen, run, call } = await unverified();
     await vi.waitFor(() =>
       expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
     );

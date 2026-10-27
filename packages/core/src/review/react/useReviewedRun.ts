@@ -65,6 +65,16 @@ export type ReviewedRunFailed = {
   failure: unknown;
 };
 
+/**
+ * A run whose step was sent and is still confirming: its hold has not yet
+ * verified the receipt. Never failed; the hook follows the hold to `done`.
+ */
+export type ReviewedRunReceipt = {
+  status: "receipt";
+  step: number;
+  hash: Hex;
+};
+
 export type UseReviewedRunResult = {
   /**
    * Review and send `action` once. A `scope` with an unfinished sequence
@@ -75,12 +85,13 @@ export type UseReviewedRunResult = {
    * `account` (the one the calls were built for) refuses the run before its
    * review unless it is the connected one. A `done` it shows is
    * acknowledged; one it could not show refuses the next run, with
-   * `sendAgainAction`. An unverified receipt stays `receipt` until its hold
-   * settles.
+   * `sendAgainAction`. A sent step whose receipt its hold has not verified
+   * resolves `receipt`, as the hook's `phase` shows, and the hook follows
+   * the hold until it settles.
    */
   run: (
     action: Omit<ReviewedAction, "account" | "guard"> & { account?: Address },
-  ) => Promise<ReviewedResult | ReviewedRunFailed | null>;
+  ) => Promise<ReviewedResult | ReviewedRunReceipt | ReviewedRunFailed | null>;
   phase: ReviewedProgress["phase"] | "idle";
   step: number;
   total: number;
@@ -432,7 +443,7 @@ export function useReviewedRun(
             failure: null,
           });
           void follow();
-          return { status: "failed", error: errorLine(error), failure: error };
+          return { status: "receipt", step: error.step, hash: error.hash };
         }
         const cancelled =
           error instanceof TransactionReviewCancelledError ||
