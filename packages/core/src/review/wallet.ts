@@ -1,5 +1,7 @@
 import { ReviewLineError, WalletNotInvokedError } from "./lineError.js";
 import {
+  BaseError,
+  ChainMismatchError,
   createWalletClient,
   custom,
   type Address,
@@ -86,6 +88,9 @@ export async function walletReady(adapter: WalletAdapter): Promise<void> {
 
 const CONNECTION_CHANGED =
   "Wallet connection changed. Review the transaction again.";
+const NETWORK_CHANGED = "Your wallet changed networks. Review again.";
+const UNREACHABLE =
+  "Your wallet could not be reached. Nothing was sent; try again.";
 
 /** The provider requests that send or sign: each is checked again as it is forwarded. */
 const DISPATCHED = new Set([
@@ -143,12 +148,9 @@ async function withConnection<T>(
     try {
       fetched = await options.walletClient();
     } catch (error) {
-      throw Object.assign(
-        new WalletNotInvokedError(
-          "Your wallet could not be reached. Nothing was sent; try again.",
-        ),
-        { cause: error },
-      );
+      throw Object.assign(new WalletNotInvokedError(UNREACHABLE), {
+        cause: error,
+      });
     }
     if (current() === connector) wallet = fetched;
   }
@@ -162,7 +164,8 @@ async function withConnection<T>(
     transport: custom(
       {
         request: (args: { method: string; params?: unknown }) => {
-          if (DISPATCHED.has(args.method)) {
+          const forwardedNow = DISPATCHED.has(args.method);
+          if (forwardedNow) {
             try {
               if (current() !== connector)
                 throw new WalletNotInvokedError(CONNECTION_CHANGED);
@@ -175,7 +178,10 @@ async function withConnection<T>(
             }
             forwarded = true;
           }
-          return inner.request(args as never);
+          // A send or signature reaches the wallet once, never retried past this check.
+          return forwardedNow
+            ? inner.request(args as never, { retryCount: 0 })
+            : inner.request(args as never);
         },
       },
       { retryCount: 0 },
@@ -185,7 +191,19 @@ async function withConnection<T>(
     return await invoke({ account, client });
   } catch (error) {
     // viem wraps what its transport threw; the refusal is this one, by identity.
-    throw refusal ?? error;
+    if (refusal) throw refusal;
+    // viem failed before asking the wallet anything (a chain read, another chain).
+    if (!forwarded)
+      throw Object.assign(
+        new WalletNotInvokedError(
+          error instanceof BaseError &&
+          error.walk((e) => e instanceof ChainMismatchError)
+            ? NETWORK_CHANGED
+            : UNREACHABLE,
+        ),
+        { cause: error },
+      );
+    throw error;
   }
 }
 
@@ -252,9 +270,7 @@ export function viemWalletAdapter(options: {
       // viem does not check the wallet's chain against the domain's.
       const chainId = typedData.domain?.chainId;
       if (chainId !== undefined && options.chainId() !== Number(chainId)) {
-        throw new WalletNotInvokedError(
-          "Your wallet changed networks. Review again.",
-        );
+        throw new WalletNotInvokedError(NETWORK_CHANGED);
       }
       return withConnection(options, ({ account, client }) =>
         client.signTypedData({ ...typedData, account }),

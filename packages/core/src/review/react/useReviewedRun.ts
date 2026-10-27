@@ -19,10 +19,12 @@ import {
   type ReviewedProgress,
   type ReviewedResult,
   type ReviewedSendDeps,
+  type completeReviewedStep,
   type resumeReviewed,
   type sendReviewed,
   type WriteHoldClient,
   type WriteHoldHandle,
+  type WriteHoldSettled,
 } from "../index.js";
 import {
   useEffect,
@@ -44,6 +46,7 @@ import type { Address, Hex, TransactionReceipt } from "viem";
 export type ReviewedEngine = {
   sendReviewed: typeof sendReviewed;
   resumeReviewed: typeof resumeReviewed;
+  completeReviewedStep: typeof completeReviewedStep;
 };
 
 export type UseReviewedRunDeps = ReviewedSendDeps & {
@@ -189,6 +192,11 @@ export function useReviewedRun(
     /** The followed step's index in the action, and the action's step count. */
     step: number;
     total: number;
+    /** A run left at its receipt: its settlement completes the step before it shows. */
+    finish?: (
+      settled: WriteHoldSettled,
+      receipt: TransactionReceipt | null,
+    ) => void;
   } | null>(null);
   /** The latest run: an earlier one's late answers change nothing. */
   const latest = useRef(0);
@@ -201,6 +209,39 @@ export function useReviewedRun(
       mounted.current = false;
     };
   }, []);
+  /** How a followed step ended, as the run that followed it shows it. */
+  const showSettled = (
+    run: number,
+    step: number,
+    total: number,
+    settled: WriteHoldSettled,
+    receipt: TransactionReceipt | null,
+  ) => {
+    if (latest.current !== run) return;
+    const finished = step === total - 1;
+    setState((now) =>
+      settled.result !== "success"
+        ? { ...IDLE, error: settledLine(settled), receipt }
+        : finished
+          ? {
+              ...now,
+              phase: "done",
+              hash: settled.hash,
+              receipt,
+              error: null,
+              failure: null,
+              settled: { step, finished },
+            }
+          : {
+              ...IDLE,
+              step,
+              total,
+              hash: settled.hash,
+              receipt,
+              settled: { step, finished },
+            },
+    );
+  };
   /** The engine's load, shared by every preload and run until one fails. */
   const loading = useRef<Promise<ReviewedEngine> | null>(null);
   const view = useMemo(
@@ -209,33 +250,16 @@ export function useReviewedRun(
         ? createHeldWriteView(watched.handle, {
             client: watched.client,
             // The followed step's end ends the run: a proposal never stays proposed.
-            onSettled: (settled, receipt) => {
-              if (latest.current !== watched.run) return;
-              const { step, total } = watched;
-              const finished = step === total - 1;
-              setState((now) =>
-                settled.result !== "success"
-                  ? { ...IDLE, error: settledLine(settled), receipt }
-                  : finished
-                    ? {
-                        ...now,
-                        phase: "done",
-                        hash: settled.hash,
-                        receipt,
-                        error: null,
-                        failure: null,
-                        settled: { step, finished },
-                      }
-                    : {
-                        ...IDLE,
-                        step,
-                        total,
-                        hash: settled.hash,
-                        receipt,
-                        settled: { step, finished },
-                      },
-              );
-            },
+            onSettled: (settled, receipt) =>
+              watched.finish
+                ? watched.finish(settled, receipt)
+                : showSettled(
+                    watched.run,
+                    watched.step,
+                    watched.total,
+                    settled,
+                    receipt,
+                  ),
             onReleased: () => latest.current === watched.run && setState(IDLE),
           })
         : undefined,
@@ -298,9 +322,10 @@ export function useReviewedRun(
         if (latest.current === id) setState((now) => ({ ...now, ...next }));
       };
       setState({ ...IDLE, phase: "review", total: action.calls.length });
+      let loaded: ReviewedEngine | undefined;
       setWatched(null);
       /** The step a run that did not finish leaves held, if any. */
-      const follow = async () => {
+      const follow = async (finish?: (typeof watched & {})["finish"]) => {
         if (latest.current !== id || !deps?.account) return;
         try {
           const { account, adapter, hold, storage } = deps;
@@ -348,6 +373,7 @@ export function useReviewedRun(
                   run: id,
                   step: found.step,
                   total,
+                  ...(finish ? { finish } : {}),
                 }
               : null,
           );
@@ -368,7 +394,7 @@ export function useReviewedRun(
         const { signal } = action;
         if (signal?.aborted) throw new TransactionReviewCancelledError();
         let withdraw = () => {};
-        const { resumeReviewed, sendReviewed } = await Promise.race([
+        loaded = await Promise.race([
           load(deps.engine).catch((cause: unknown) => {
             throw Object.assign(
               new ReviewLineError(REVIEWED_ENGINE_LOAD_LINE),
@@ -381,6 +407,7 @@ export function useReviewedRun(
             signal?.addEventListener("abort", withdraw, { once: true });
           }),
         ]).finally(() => signal?.removeEventListener("abort", withdraw));
+        const { resumeReviewed, sendReviewed } = loaded;
         const { account, guard } = deps;
         const tracked: ReviewedSendDeps = {
           ...deps,
@@ -442,7 +469,34 @@ export function useReviewedRun(
             error: null,
             failure: null,
           });
-          void follow();
+          const complete = loaded!.completeReviewedStep;
+          const action$ = {
+            account: deps!.account!,
+            scope: action.scope,
+            onConfirmed: action.onConfirmed,
+          };
+          let completed: Promise<WriteHoldSettled | null> =
+            Promise.resolve(null);
+          let shown = false;
+          // Completes the step once its hold settled it, then shows how it ended, once.
+          const finish = (
+            seen?: WriteHoldSettled,
+            receipt: TransactionReceipt | null = null,
+          ) => {
+            completed = completed.then(
+              (prior) =>
+                prior ?? complete(error, action$, deps!).catch(() => null),
+            );
+            void completed.then((settled) => {
+              const ended = settled ?? seen;
+              if (!ended || shown || latest.current !== id) return;
+              shown = true;
+              showSettled(id, error.step, action.calls.length, ended, receipt);
+              setWatched(null);
+            });
+          };
+          // Followed for a later settlement; one already there is read once it attaches.
+          void follow(finish).then(() => finish());
           return { status: "receipt", step: error.step, hash: error.hash };
         }
         const cancelled =

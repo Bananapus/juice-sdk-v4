@@ -95,6 +95,7 @@ import {
   WriteHoldUnacknowledgedSuccessError,
   type WriteHold,
   type WriteHoldLegacySource,
+  type WriteHoldSettled,
 } from "./writeHold.js";
 import {
   createHeldWriteStorage,
@@ -807,35 +808,19 @@ export async function resumeReviewed(
     // wallet") or nothing was sent: then the step is reviewed and sent again.
     if (!state.settled && !handle.released(reservation))
       throw new ReviewLineError(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
-    delete saved.sending;
-    delete saved.proposed;
     const { settled } = state;
-    if (settled?.result === "success") {
-      // This sequence's own step: it is recorded, never offered again.
-      await handle.acknowledge(settled);
-      saved.completed.push(settled.hash);
-    }
-    /** Tells the site of the step that went through while away, once saved and when its receipt reads. */
-    const told = async () => {
-      if (settled?.result !== "success" || !action.onConfirmed) return;
-      try {
-        const receipt = await deps
-          .clientFor(call.chainId)
-          .getTransactionReceipt({ hash: settled.hash });
-        if (receipt.status === "success")
-          await action.onConfirmed(call, step, receipt);
-      } catch {
-        /* The step went through whatever the read or the site's callback does. */
-      }
-    };
-    if (saved.completed.length === saved.calls.length) {
-      await removeReviewedSequence(saved, storage, expected);
+    // This sequence's own step: it is recorded, never offered again.
+    if (settled?.result === "success") await handle.acknowledge(settled);
+    const kept = await recordSending(saved, settled, storage, expected);
+    const told = () =>
+      tellConfirmed(action, call, step, settled, deps.clientFor(call.chainId));
+    if (kept === null) {
       await told();
       const total = saved.calls.length;
       deps.onProgress?.({ step: total - 1, total, phase: "done" });
       return { status: "done", hashes: saved.completed, receipts: [] };
     }
-    expected = await saveReviewedSequence(saved, storage, expected);
+    expected = kept;
     await told();
   }
   return send(
@@ -848,6 +833,87 @@ export async function resumeReviewed(
     deps,
     { record: saved, storage, raw: expected },
   );
+}
+
+/**
+ * Ends `saved`'s step in flight as its hold settled it: a success is
+ * recorded as completed. Removes a finished sequence (null) or saves it over
+ * `expected`, returning the value written.
+ */
+async function recordSending(
+  saved: ReviewedSequenceRecord,
+  settled: WriteHoldSettled | undefined,
+  storage: HeldWriteStorage,
+  expected: string | null,
+): Promise<string | null> {
+  delete saved.sending;
+  delete saved.proposed;
+  if (settled?.result === "success") saved.completed.push(settled.hash);
+  if (saved.completed.length < saved.calls.length)
+    return saveReviewedSequence(saved, storage, expected);
+  await removeReviewedSequence(saved, storage, expected);
+  return null;
+}
+
+/** Tells the site of a step its hold settled after the send returned, when its receipt reads. */
+async function tellConfirmed(
+  action: Pick<ReviewedAction, "onConfirmed">,
+  call: ReviewedCall,
+  step: number,
+  settled: WriteHoldSettled | undefined,
+  client: PublicClient,
+): Promise<void> {
+  if (settled?.result !== "success" || !action.onConfirmed) return;
+  try {
+    const receipt = await client.getTransactionReceipt({ hash: settled.hash });
+    if (receipt.status === "success")
+      await action.onConfirmed(call, step, receipt);
+  } catch {
+    /* The step went through whatever the read or the site's callback does. */
+  }
+}
+
+/**
+ * Completes the step a run left at its receipt
+ * ({@link ReviewedReceiptUnverifiedError}) once its hold settled that send,
+ * as the run itself would have: the saved sequence under `scope` records it,
+ * a success is acknowledged and told to `onConfirmed`. Null until then.
+ * Call it once per settlement: `onConfirmed` is told each time.
+ */
+export async function completeReviewedStep(
+  unverified: ReviewedReceiptUnverifiedError,
+  action: Pick<ReviewedAction, "account" | "scope" | "onConfirmed">,
+  deps: ReviewedSendDeps,
+): Promise<WriteHoldSettled | null> {
+  const { step, held } = unverified;
+  if (!held) return null;
+  const { call, reservation } = held;
+  const client = deps.clientFor(call.chainId);
+  const handle = openStepHold(deps.hold, action.account, false, call);
+  const state = await handle.state(client);
+  if (
+    state.status !== "clear" ||
+    state.reservation !== reservation ||
+    !state.settled
+  )
+    return null;
+  const { settled } = state;
+  if (action.scope !== undefined) {
+    const storage = deps.storage ?? createHeldWriteStorage();
+    const { raw, record } = readReviewedSequence(
+      action.scope,
+      action.account,
+      storage,
+    );
+    if (
+      record?.sending?.step === step &&
+      record.sending.reservation === reservation
+    )
+      await recordSending(record, settled, storage, raw);
+  }
+  if (settled.result === "success") await handle.acknowledge(settled);
+  await tellConfirmed(action, call, step, settled, client);
+  return settled;
 }
 
 async function send(
@@ -1467,15 +1533,19 @@ async function send(
       }
       throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
     }
-    // Done only once its hold verified the receipt (a Safe's execTransaction,
-    // the Safe's own success); until then it stays held and journaled.
-    if (receipt.status === "success" && settled?.result !== "success") {
+    // Done, or reverted, only once its hold verified the receipt (a Safe's
+    // execTransaction, the Safe's own success); until then it stays held and
+    // journaled, as the hook follows it to completeReviewedStep.
+    if (
+      settled?.result !== (receipt.status === "success" ? "success" : "failed")
+    ) {
       throw new ReviewedReceiptUnverifiedError(
         at,
         hash,
         isSafeExecTransaction(reviewed.data)
           ? WRITE_HOLD_SAFE_UNCONFIRMED_LINE
           : undefined,
+        { call, reservation: reserved },
       );
     }
     if (receipt.status !== "success") {

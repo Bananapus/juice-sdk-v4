@@ -1695,6 +1695,39 @@ describe("sendReviewed and its hold's evidence", () => {
     });
   });
 
+  it("reports a reverted receipt only once the hold verified it, keeping its sending checkpoint", async () => {
+    const { deps, chain, hold, storage } = setup();
+    reviewUi();
+    chain.state.status = "reverted";
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const call = payCall();
+    const failure = await sendReviewed(
+      action([call], { scope: "pay:1" }),
+      deps,
+    ).catch((error: unknown) => error);
+    expect(failure).not.toBeInstanceOf(ReviewedCallRevertedError);
+    expect(failure).toMatchObject({
+      name: "ReviewedReceiptUnverifiedError",
+      step: 0,
+      hash: FIRST,
+    });
+    expect(
+      findReviewedSequence("pay:1", ACCOUNT, { storage })?.sending,
+    ).toMatchObject({ step: 0 });
+    const handle = openStepHold(hold, ACCOUNT, false, call);
+    expect(handle.peek().status).toBe("pending-known-hash");
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    await expect(
+      handle.state(chain.client as unknown as PublicClient),
+    ).resolves.toMatchObject({
+      status: "clear",
+      settled: { result: "failed", hash: FIRST },
+    });
+  });
+
   it("keeps the review-time revert's data, so a payment's allowed-decrease retry can read it", async () => {
     const { wallet, deps, chain } = setup();
     const underMin = `0x6b2bb382${encodeAbiParameters(

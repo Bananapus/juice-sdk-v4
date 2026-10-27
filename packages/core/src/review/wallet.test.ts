@@ -9,6 +9,7 @@ import {
 } from "viem";
 import { optimism } from "viem/chains";
 import { describe, expect, it, vi } from "vitest";
+import { isDefiniteWalletRejection } from "./contractWrite.js";
 import { WalletNotInvokedError } from "./lineError.js";
 import { selfReviewingAdapter, viemWalletAdapter } from "./wallet.js";
 
@@ -28,6 +29,8 @@ function walletClient(id = "wallet", events: string[] = []) {
     chainId: 10,
     onChainId: () => {},
     fail: undefined as unknown,
+    /** Runs as each request other than the chain read reaches the wallet; a throw is its answer. */
+    respond: (_method: string) => {},
   };
   const requests: { method: string; params?: unknown }[] = [];
   const request = vi.fn(
@@ -38,6 +41,7 @@ function walletClient(id = "wallet", events: string[] = []) {
         return numberToHex(wallet.chainId);
       }
       if (wallet.fail) throw wallet.fail;
+      wallet.respond(method);
       events.push(`${method}:${id}`);
       if (method === "eth_sendTransaction") return HASH;
       if (method === "wallet_sendCalls") return { id: "bundle-1" };
@@ -48,7 +52,8 @@ function walletClient(id = "wallet", events: string[] = []) {
   );
   const client = createWalletClient({
     chain: optimism,
-    transport: custom({ request }, { retryCount: 0 }),
+    // viem's default: the transport retries an internal or unknown error.
+    transport: custom({ request }),
   }) as WalletClient;
   /** The params of every `method` request the provider received. */
   const sent = (method: string) =>
@@ -516,6 +521,77 @@ describe("wallet adapters", () => {
       const failed = await send(adapter).catch((error: unknown) => error);
       expect(wallet.sent("eth_sendTransaction")).toHaveLength(1);
       expect(failed).not.toBeInstanceOf(WalletNotInvokedError);
+    });
+
+    /** A provider error with an EIP-1193 code. */
+    const rpcError = (code: number) =>
+      Object.assign(new Error(`Provider error ${code}`), { code });
+
+    it("never lets the wallet's transport retry a send past the guard", async () => {
+      const { wallet, state, adapter } = connected();
+      // The send fails with an error viem retries; the connector changes before any retry.
+      wallet.wallet.respond = (method) => {
+        if (method !== "eth_sendTransaction") return;
+        state.connector = "current";
+        throw rpcError(-32603);
+      };
+      const failed = await send(adapter).catch((error: unknown) => error);
+      expect(wallet.sent("eth_sendTransaction")).toHaveLength(1);
+      // It reached the wallet: never unsent.
+      expect(failed).not.toBeInstanceOf(WalletNotInvokedError);
+    });
+
+    it("never releases an ambiguous send as unsent when a retry would have answered 4001", async () => {
+      const { wallet, adapter } = connected();
+      let sends = 0;
+      wallet.wallet.respond = (method) => {
+        if (method !== "eth_sendTransaction") return;
+        sends += 1;
+        throw rpcError(sends === 1 ? -32603 : 4001);
+      };
+      const failed = await send(adapter).catch((error: unknown) => error);
+      expect(sends).toBe(1);
+      expect(isDefiniteWalletRejection(failed)).toBe(false);
+      expect(failed).not.toBeInstanceOf(WalletNotInvokedError);
+    });
+
+    it("guards viem's wallet_sendTransaction fallback too, as a plain refusal once a send went out", async () => {
+      const { wallet, state, adapter } = connected();
+      wallet.wallet.respond = (method) => {
+        if (method !== "eth_sendTransaction") return;
+        // The wallet says it lacks the method; viem tries wallet_sendTransaction.
+        state.connector = "current";
+        throw rpcError(-32601);
+      };
+      const failed = await send(adapter).catch((error: unknown) => error);
+      expect(wallet.sent("eth_sendTransaction")).toHaveLength(1);
+      expect(wallet.sent("wallet_sendTransaction")).toEqual([]);
+      expect(failed).toBeInstanceOf(Error);
+      expect(failed).not.toBeInstanceOf(WalletNotInvokedError);
+    });
+
+    it("refuses as unsent when viem fails before any send went out", async () => {
+      // The chain read fails.
+      const unreadable = connected();
+      unreadable.wallet.wallet.onChainId = () => {
+        throw rpcError(4100);
+      };
+      const failed = await send(unreadable.adapter).catch((e: unknown) => e);
+      expect(failed).toBeInstanceOf(WalletNotInvokedError);
+      expect(failed).toMatchObject({
+        message:
+          "Your wallet could not be reached. Nothing was sent; try again.",
+      });
+      // The wallet answers another chain than the one the call names.
+      const elsewhere = connected();
+      elsewhere.wallet.wallet.chainId = 8453;
+      const mismatched = await send(elsewhere.adapter).catch((e: unknown) => e);
+      expect(mismatched).toBeInstanceOf(WalletNotInvokedError);
+      expect(mismatched).toMatchObject({
+        message: "Your wallet changed networks. Review again.",
+      });
+      expect(unreadable.wallet.sent("eth_sendTransaction")).toEqual([]);
+      expect(elsewhere.wallet.sent("eth_sendTransaction")).toEqual([]);
     });
   });
 });

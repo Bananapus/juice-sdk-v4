@@ -1,4 +1,5 @@
 import type { Hex, TransactionReceipt } from "viem";
+import type { ReviewedCall } from "./send.js";
 import { HELD_CONFIRMING_LINE, WRITE_HOLD_REVERTED_LINE } from "./messages.js";
 
 /**
@@ -53,6 +54,8 @@ export class ReviewedReceiptUnverifiedError extends ReviewLineError {
     readonly step: number,
     readonly hash: Hex,
     line: string = HELD_CONFIRMING_LINE,
+    /** The step's call and its hold reservation, which `completeReviewedStep` reads. */
+    readonly held?: { call: ReviewedCall; reservation: string | undefined },
   ) {
     super(line);
   }
