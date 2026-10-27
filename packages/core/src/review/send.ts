@@ -1602,7 +1602,8 @@ async function send(
         {
           call,
           reservation: reserved,
-          hashes: journal ? [...journal.completed] : [...hashes],
+          // This run's sends, its own last: only the steps before it completed.
+          hashes: journal ? [...journal.completed] : hashes.slice(0, -1),
           ...signed,
         },
       );

@@ -890,6 +890,18 @@ describe("useReviewedRun", () => {
     expect(prompts).toHaveLength(1);
   });
 
+  test("a one-step run left at its receipt ends done with its one hash", async () => {
+    const { chain, read, result } = await unverified();
+    const ended = (result as ReviewedRunReceipt).ended();
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await expect(ended).resolves.toMatchObject({
+      status: "done",
+      hashes: [`0x${"1".padStart(64, "0")}`],
+    });
+    expect(((await ended) as { hashes: unknown[] }).hashes).toHaveLength(1);
+  });
+
   test("a run whose earlier step was left at its receipt continues once it settles, when its end is awaited", async () => {
     const prompts = reviewUi();
     const { chain, deps, wallet } = setup();
