@@ -326,7 +326,10 @@ const budgets = {
     // calls: 1,766,660 B packed, 24,002,871 B unpacked, 1,827 files.
     // Paying a planned Relayr round's bound and the Safe hash check:
     // 1,779,547 B packed, 24,044,707 B unpacked.
-    packed: 1_785_000,
+    // The send-again boundary, verified receipts, kept revert data, the
+    // dispatch-time wallet guard and self-reviewing signatures add no files:
+    // 1,787,447 B packed, 24,079,865 B unpacked.
+    packed: 1_790_000,
     unpacked: 24_100_000,
     entries: 1_827,
   },
