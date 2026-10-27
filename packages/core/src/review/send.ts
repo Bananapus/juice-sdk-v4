@@ -1599,7 +1599,12 @@ async function send(
         isSafeExecTransaction(reviewed.data)
           ? WRITE_HOLD_SAFE_UNCONFIRMED_LINE
           : undefined,
-        { call, reservation: reserved, ...signed },
+        {
+          call,
+          reservation: reserved,
+          hashes: journal ? [...journal.completed] : [...hashes],
+          ...signed,
+        },
       );
     }
     if (receipt.status !== "success") {
