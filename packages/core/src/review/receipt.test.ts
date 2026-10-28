@@ -1,7 +1,8 @@
-import type { Hex, PublicClient } from "viem";
+import type { Hex, PublicClient, TransactionReceipt } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import { errorLine } from "./transaction-message.js";
 import {
+  heldReceipt,
   isTransactionReceiptUnavailableError,
   TRANSACTION_TRACKING_UNAVAILABLE_LINE,
   TransactionReceiptUnavailableError,
@@ -142,5 +143,37 @@ describe("transaction receipt tracking", () => {
     expect(isTransactionReceiptUnavailableError(new Error("other"))).toBe(
       false,
     );
+  });
+});
+
+describe("heldReceipt", () => {
+  const verified = `0x${"0b".repeat(32)}` as Hex;
+  const other = `0x${"0c".repeat(32)}` as Hex;
+  const at = (blockHash: Hex) =>
+    ({ ...receipt, blockHash }) as unknown as TransactionReceipt;
+  const reads = (blockHash: Hex) => ({
+    getTransactionReceipt: vi.fn(async () => at(blockHash)),
+  });
+
+  it("keeps a seen receipt only in the block the hold verified, else reads it", async () => {
+    const seen = at(verified);
+    const node = reads(verified);
+    await expect(
+      heldReceipt({ hash: HASH, blockHash: verified }, node, seen),
+    ).resolves.toBe(seen);
+    expect(node.getTransactionReceipt).not.toHaveBeenCalled();
+    await expect(
+      heldReceipt({ hash: HASH, blockHash: verified }, node, at(other)),
+    ).resolves.toMatchObject({ blockHash: verified });
+    // A hold with no block (a log proved it) reads the hash's receipt.
+    await expect(heldReceipt({ hash: HASH }, node, seen)).resolves.not.toBe(
+      seen,
+    );
+  });
+
+  it("refuses a read in another block than the one the hold verified", async () => {
+    await expect(
+      heldReceipt({ hash: HASH, blockHash: verified }, reads(other)),
+    ).rejects.toThrow("no longer in the block its hold verified");
   });
 });

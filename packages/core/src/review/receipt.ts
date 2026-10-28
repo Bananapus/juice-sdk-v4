@@ -74,3 +74,27 @@ export async function waitForTrackedReceipt(
     });
   }
 }
+
+/**
+ * The receipt a hold verified for `settled`, the only one a sent step's
+ * outcome is told by: `seen` (a watcher's, say) when it is that transaction
+ * in the verified block, else read. One in another block, or any receipt
+ * when the hold kept no block, is read; a read in another block throws.
+ */
+export async function heldReceipt(
+  settled: { hash: Hex; blockHash?: Hex },
+  client: Pick<PublicClient, "getTransactionReceipt">,
+  seen?: TransactionReceipt | null,
+): Promise<TransactionReceipt> {
+  const verified = (receipt: TransactionReceipt) =>
+    receipt.transactionHash.toLowerCase() === settled.hash.toLowerCase() &&
+    (!settled.blockHash ||
+      receipt.blockHash?.toLowerCase() === settled.blockHash.toLowerCase());
+  if (seen && settled.blockHash && verified(seen)) return seen;
+  const receipt = await client.getTransactionReceipt({ hash: settled.hash });
+  if (!verified(receipt))
+    throw new Error(
+      `Transaction ${settled.hash} is no longer in the block its hold verified.`,
+    );
+  return receipt;
+}

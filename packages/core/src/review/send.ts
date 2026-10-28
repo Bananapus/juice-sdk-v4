@@ -54,7 +54,7 @@ import {
   spendPlan,
   type ReviewedPlan,
 } from "./plan.js";
-import { waitForTrackedReceipt } from "./receipt.js";
+import { heldReceipt, waitForTrackedReceipt } from "./receipt.js";
 import { relayrPaymentChains } from "./relayr.js";
 import { relayrFeeCap } from "./relayrSend.js";
 import {
@@ -881,9 +881,9 @@ async function recordSending(
 }
 
 /**
- * The receipt `onConfirmed` gets for a step its hold settled a success:
- * `given` when it is that send's, else read. Null when there is nothing to
- * tell. A failed read throws.
+ * The receipt `onConfirmed` gets for a step its hold settled a success: the
+ * hold's ({@link heldReceipt}). Null when there is nothing to tell. A failed
+ * read throws.
  */
 async function confirmedReceipt(
   action: Pick<ReviewedAction, "onConfirmed">,
@@ -892,9 +892,7 @@ async function confirmedReceipt(
   given?: TransactionReceipt | null,
 ): Promise<TransactionReceipt | null> {
   if (settled?.result !== "success" || !action.onConfirmed) return null;
-  if (given?.transactionHash.toLowerCase() === settled.hash.toLowerCase())
-    return given;
-  return client.getTransactionReceipt({ hash: settled.hash });
+  return heldReceipt(settled, client, given);
 }
 
 /** Tells the site of a step its hold settled after the send returned. */
@@ -913,8 +911,8 @@ async function tellConfirmed(
 }
 
 /**
- * A sent step's settlement by its own reservation, and the receipt of the
- * transaction that settled it, read again until it reads. Null on `follow`'s
+ * A sent step's settlement by its own reservation, and the receipt its hold
+ * verified ({@link heldReceipt}), read again until it reads. Null on `follow`'s
  * timeout or signal, or when the hold cleared without settling it (its exit).
  */
 async function followSent(
@@ -951,9 +949,7 @@ async function followSent(
         return null;
       const { settled } = state;
       try {
-        const receipt = await read(
-          client.getTransactionReceipt({ hash: settled.hash }),
-        );
+        const receipt = await read(heldReceipt(settled, client));
         return signal.aborted || !receipt ? null : { settled, receipt };
       } catch {
         await pause(RECEIPT_RETRY_MS, signal, () => null).catch(() => null);
@@ -1668,21 +1664,15 @@ async function send(
       );
     // The site could not record the hash: held as sent, for it to resume.
     if (unrecorded !== undefined) throw unverified(unrecorded);
-    let receipt!: TransactionReceipt;
-    let settled: WriteHoldSettled | undefined;
-    // It ran, and the hold proved it failed: a Safe's call that failed.
-    const callFailed = () =>
-      receipt.status === "success" && settled?.result === "failed";
-    // Done, or reverted, only once its hold verified the receipt (a Safe's
-    // execTransaction, the Safe's own success); until then it stays held and
-    // journaled, as `follow` or the hook follows it to its settlement.
-    const verified = () =>
-      settled?.result === (receipt.status === "success" ? "success" : "failed");
+    // Its hold's verified settlement is the only word on how it ended: its
+    // result, its transaction (a speed-up's, when the wallet replaced the
+    // send) and that transaction's receipt in the block the hold verified.
+    // A watcher's receipt only says when to ask.
+    let receipt: TransactionReceipt | undefined;
+    let settled: (WriteHoldSettled & { hash: Hex }) | undefined;
     try {
       progress("receipt", hash);
-      receipt = await waitForTrackedReceipt(client, hash);
-      // The hold checks the receipt itself and settles, so the same call (or
-      // intent) can be reviewed and sent again without waiting on a view.
+      const seen = await waitForTrackedReceipt(client, hash);
       // Only this send's own reservation's settlement speaks for it: a later
       // send of the same call or intent may have settled since.
       settled = await handles[step]
@@ -1690,12 +1680,17 @@ async function send(
         .then((state) =>
           state.status === "clear" &&
           reserved !== undefined &&
-          state.reservation === reserved
+          state.reservation === reserved &&
+          state.settled &&
+          "hash" in state.settled
             ? state.settled
             : undefined,
         )
         .catch(() => undefined);
-      if (!callFailed() && !verified() && action.follow) {
+      receipt = settled
+        ? await heldReceipt(settled, client, seen).catch(() => undefined)
+        : undefined;
+      if (!receipt && action.follow) {
         try {
           action.follow.onConfirming?.(at);
         } catch {
@@ -1707,21 +1702,23 @@ async function send(
           reserved,
           action.follow,
         );
-        if (ended) ({ settled, receipt } = ended);
+        ({ settled, receipt } = ended ?? { settled, receipt });
       }
     } catch (error) {
       throw unverified(error);
     }
-    if (callFailed()) {
+    if (!settled || !receipt) throw unverified();
+    if (settled.result === "failed" && receipt.status === "success") {
+      // It ran, and the hold proved it failed: a Safe's call that failed.
       if (journal) {
         delete journal.sending;
         await keep();
       }
       throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
     }
-    if (!verified()) throw unverified();
-    // The transaction its hold verified: a speed-up's, when the wallet replaced the send.
-    const mined = settled && "hash" in settled ? settled.hash : hash;
+    if (settled.result === "success" && receipt.status !== "success")
+      throw unverified();
+    const mined = settled.hash;
     hashes[hashes.length - 1] = mined;
     if (receipt.status !== "success") {
       // It ran and reverted: nothing of it to resume.

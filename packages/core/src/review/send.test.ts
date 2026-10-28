@@ -1863,6 +1863,74 @@ describe("sendReviewed and its hold's evidence", () => {
     expect(done.hashes[0]).toBe(replacement);
   });
 
+  describe("a sent step's outcome is its hold's verified settlement, never the watcher's receipt", () => {
+    it("an original the watcher saw mined, orphaned, its replacement settled: the replacement's receipt everywhere", async () => {
+      const { wallet, deps, chain } = setup();
+      reviewUi();
+      const { original, replacement } = speedUpNextSend(chain, wallet);
+      const watch =
+        chain.client.waitForTransactionReceipt.getMockImplementation()!;
+      chain.client.waitForTransactionReceipt.mockImplementation(async (args) =>
+        args.hash === original
+          ? ({
+              ...(await watch({ hash: replacement })),
+              transactionHash: original,
+              blockHash: `0x${"0d".repeat(32)}`,
+            } as never)
+          : watch(args),
+      );
+      const onConfirmed = vi.fn();
+      const result = await sendReviewed(
+        action([payCall()], { follow: {}, onConfirmed }),
+        deps,
+      );
+      expect(result).toMatchObject({ status: "done", hashes: [replacement] });
+      const done = result as Extract<typeof result, { status: "done" }>;
+      expect(done.receipts[0].transactionHash).toBe(replacement);
+      expect(onConfirmed.mock.calls[0][2].transactionHash).toBe(replacement);
+    });
+
+    it("an approval re-mined after the watcher saw it: the payment is simulated on the block its hold verified", async () => {
+      const { wallet, deps, chain } = setup();
+      reviewUi();
+      const watch =
+        chain.client.waitForTransactionReceipt.getMockImplementation()!;
+      chain.client.waitForTransactionReceipt.mockImplementationOnce(
+        async (args) => {
+          const seen = await watch(args);
+          // Reorged out of block 101 and mined again in 102.
+          chain.state.head = 102n;
+          chain.state.mined.set(args.hash, 102n);
+          return seen;
+        },
+      );
+      // The payment needs the approval's state: before block 102 it reverts.
+      chain.state.ethCall = (params) => {
+        const tag = (params as unknown[])[1];
+        if (
+          typeof tag === "string" &&
+          tag.startsWith("0x") &&
+          BigInt(tag) < 102n
+        )
+          throw reverted();
+        return "0x";
+      };
+      const onConfirmed = vi.fn();
+      const result = await sendReviewed(
+        action([approveCall(), payCall(5n, { dependsOnPrior: true })], {
+          follow: {},
+          onConfirmed,
+        }),
+        deps,
+      );
+      expect(result).toMatchObject({ status: "done" });
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+      const done = result as Extract<typeof result, { status: "done" }>;
+      expect(done.receipts[0].blockNumber).toBe(102n);
+      expect(onConfirmed.mock.calls[0][2].blockNumber).toBe(102n);
+    });
+  });
+
   describe("a sent step ends done, verified failed, or unverified with what resumes it", () => {
     it("an exhausted receipt watcher is unverified, keeping the hold, the hash and the signatures", async () => {
       const { wallet, deps, chain } = setup();

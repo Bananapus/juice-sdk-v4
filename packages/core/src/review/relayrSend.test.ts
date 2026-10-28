@@ -21,6 +21,7 @@ import {
   resetReviewUi,
   reviewUi,
   setup,
+  speedUpNextSend,
   TERMINAL,
 } from "./__fixtures__/reviewedSend.js";
 import {
@@ -781,6 +782,45 @@ describe("payRelayrReviewed", () => {
     }
   });
 
+  it("ends a payment the watcher saw revert, its hold unverified, unreadable with its hash; the hold settles it later", async () => {
+    const { deps, chain, wallet } = relayrSetup();
+    reviewUi();
+    const watch =
+      chain.client.waitForTransactionReceipt.getMockImplementation()!;
+    chain.client.waitForTransactionReceipt.mockImplementation(
+      async (args) => ({ ...(await watch(args)), status: "reverted" }) as never,
+    );
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    let outcome: unknown = "pending";
+    try {
+      void payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps).then(
+        (hash) => (outcome = { hash }),
+        (error: unknown) => (outcome = error),
+      );
+      await vi.advanceTimersByTimeAsync(200_000);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(outcome).toBeInstanceOf(RelayrProofUnavailableError);
+    const hash: string =
+      await wallet.adapter.sendTransaction.mock.results[0].value;
+    expect((outcome as Error).message).toContain(hash);
+    // The node recovers: the payment ran, and its hold settles it a success.
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    const state = await openStepHold(deps.hold, ACCOUNT, false, {
+      chainId: 10,
+      to: RELAYR_PAYMENT_ADDRESS,
+      data: "0x",
+      intent: `relayr:${UUIDS[0]}`,
+    }).state(chain.client as unknown as PublicClient);
+    expect(state.status === "clear" && state.settled?.result).toBe("success");
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
   it("tells the site before the wallet opens and each hash after", async () => {
     const { deps, wallet } = relayrSetup();
     reviewUi();
@@ -903,15 +943,9 @@ describe("payRelayrReviewed", () => {
   });
 
   it("proves the payment under the hash it was mined", async () => {
-    const { deps, chain } = relayrSetup();
+    const { deps, chain, wallet } = relayrSetup();
     reviewUi();
-    const replacement = `0x${"99".repeat(32)}` as Hex;
-    const original = chain.client.waitForTransactionReceipt;
-    chain.client.waitForTransactionReceipt = vi.fn(async ({ hash }) => {
-      const tx = chain.state.sent.get(hash)!;
-      chain.mine(replacement, tx);
-      return original({ hash: replacement });
-    }) as typeof original;
+    const { replacement } = speedUpNextSend(chain, wallet);
     const { hash } = (await payRelayrReviewed(
       quoteFor(),
       10,
@@ -924,13 +958,7 @@ describe("payRelayrReviewed", () => {
   it("never reads a site's failure to record the mined hash as a refusal", async () => {
     const { deps, wallet, chain } = relayrSetup();
     reviewUi();
-    const replacement = `0x${"99".repeat(32)}` as Hex;
-    const original = chain.client.waitForTransactionReceipt;
-    chain.client.waitForTransactionReceipt = vi.fn(async ({ hash }) => {
-      const tx = chain.state.sent.get(hash)!;
-      chain.mine(replacement, tx);
-      return original({ hash: replacement });
-    }) as typeof original;
+    const { replacement } = speedUpNextSend(chain, wallet);
     await expect(
       payRelayrReviewed(
         quoteFor(),

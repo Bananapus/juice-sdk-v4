@@ -1,5 +1,6 @@
 import { ReviewLineError } from "./lineError.js";
 import type { Hex, TransactionReceipt } from "viem";
+import { heldReceipt } from "./receipt.js";
 import {
   hasSafeService,
   SAFE_PROPOSAL_AWAITING,
@@ -375,8 +376,9 @@ export function createHeldWriteView(
       done(null);
       return;
     }
-    void client.getTransactionReceipt({ hash: settled.hash }).then(
-      (receipt) => done(receipt as TransactionReceipt),
+    // The receipt the hold verified, never another block's.
+    void heldReceipt(settled, client).then(
+      (receipt) => done(receipt),
       () => done(null),
     );
   }

@@ -119,8 +119,17 @@ export type WriteHoldClient = Pick<
 
 /** How a held write ended, when the hold saw it end. */
 export type WriteHoldSettled =
-  /** Its verified receipt in a canonical block (a Safe failure only once final); `acknowledged` once the user saw it. */
-  | { result: "success" | "failed"; hash: Hex; acknowledged?: true }
+  /**
+   * Its verified receipt in a canonical block (a Safe failure only once
+   * final), `blockHash` that block's (none when a finalized log proved it);
+   * `acknowledged` once the user saw it.
+   */
+  | {
+      result: "success" | "failed";
+      hash: Hex;
+      blockHash?: Hex;
+      acknowledged?: true;
+    }
   /** A Safe proposal's expiry before it ran is proven. */
   | { result: "expired" };
 
@@ -674,6 +683,7 @@ export function createWriteHold(
         const settled = {
           result: verdict,
           hash: receipt.transactionHash.toLowerCase() as Hex,
+          blockHash: receipt.blockHash.toLowerCase() as Hex,
         };
         // Saved before the hold ends, so no reader sees it clear without its
         // result: another tab, a reload, a follow timer.

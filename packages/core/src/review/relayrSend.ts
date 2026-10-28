@@ -31,7 +31,7 @@ import {
   type ReviewedPlan,
   type ReviewedPlanCall,
 } from "./plan.js";
-import { waitForTrackedReceipt } from "./receipt.js";
+import { heldReceipt, waitForTrackedReceipt } from "./receipt.js";
 import {
   bindRelayrQuote,
   FORWARD_REQUEST_TYPES,
@@ -605,6 +605,8 @@ async function sendPayment(
   /** The attempt is saved (`onSending`), and the wallet not yet asked. */
   let saved = false;
   let invoked = false;
+  /** The reservation this payment's send took. */
+  let reserved: string | undefined;
   /** A proposal of exactly this payment its Safe already queued, sent in its place. */
   let queued: Awaited<ReturnType<typeof findPendingSafeAppProposal>> = null;
   const attempt = () => {
@@ -664,6 +666,7 @@ async function sendPayment(
                 },
               )
             : gate.beforeSend());
+          reserved = handle.peek().reservation;
           try {
             await hooks.onSending?.();
           } catch (error) {
@@ -747,12 +750,22 @@ async function sendPayment(
   // contradicted as the chain shows it, or unreadable with its hash, never
   // as a bare read failure.
   try {
-    const receipt = await waitForTrackedReceipt(client, hash);
-    // The hold checks the receipt itself and settles, so a reverted payment can
-    // be reviewed and sent again without waiting on a view.
-    await handle.state(client).catch(() => undefined);
+    // The watcher's receipt only says when to ask the hold: the hold checks
+    // the receipt itself and settles, so a reverted payment can be reviewed
+    // and sent again without waiting on a view. Its settlement is the only
+    // word on a revert; a success is proven below either way.
+    const seen = await waitForTrackedReceipt(client, hash);
+    const state = await handle.state(client).catch(() => undefined);
+    const settled =
+      state?.status === "clear" &&
+      reserved !== undefined &&
+      state.reservation === reserved &&
+      state.settled &&
+      "hash" in state.settled
+        ? state.settled
+        : undefined;
     // A wallet that sped the payment up mined it under another hash.
-    const mined = receipt.transactionHash;
+    const mined = settled?.hash ?? seen.transactionHash;
     if (mined.toLowerCase() !== hash.toLowerCase()) {
       try {
         await hooks.onSent?.(mined);
@@ -760,8 +773,16 @@ async function sendPayment(
         throw new SubmittedContractWriteError(mined, error);
       }
     }
-    if (receipt.status === "reverted")
-      throw new ReviewedCallRevertedError(0, mined, receipt);
+    if (settled?.result === "failed")
+      throw new ReviewedCallRevertedError(
+        0,
+        mined,
+        await heldReceipt(settled, client, seen),
+      );
+    if (!settled && seen.status === "reverted")
+      throw new RelayrProofUnavailableError(
+        `Could not read Relayr payment ${mined} on chain ${details.chainId}. Do not pay again; check it later.`,
+      );
     // A proof the node can't read yet is read again, as long as `follow` would
     // follow a step, a read that stalls included; a contradicting proof is
     // never retried. Past that, it is unreadable, its hash kept in the line.

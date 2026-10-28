@@ -117,6 +117,8 @@ export type ReviewedWriteRecoveryRecord = Omit<
 export type ReviewedWriteSettlement = {
   result: "success" | "failed";
   hash: Hex;
+  /** The block of the receipt it was verified on; none when a log proved it. */
+  blockHash?: Hex;
   /**
    * The user saw it (or a view that saw it settle told the app): it blocks
    * nothing, but every reader still learns the result. One per call key,
@@ -1426,6 +1428,9 @@ export function createBrowserWriteRecovery(
             id: expected.id,
             result: settlement.result,
             hash: settlement.hash.toLowerCase(),
+            ...(settlement.blockHash
+              ? { blockHash: settlement.blockHash.toLowerCase() }
+              : {}),
             at: Date.now(),
           }),
         );
@@ -1470,6 +1475,7 @@ export function createBrowserWriteRecovery(
           id?: unknown;
           result?: unknown;
           hash?: unknown;
+          blockHash?: unknown;
           acknowledged?: unknown;
         } | null;
         // A record saved at the key (held, or released by the user's exit)
@@ -1485,6 +1491,9 @@ export function createBrowserWriteRecovery(
           ? {
               result: saved.result,
               hash: saved.hash as Hex,
+              ...(isBytes32(saved.blockHash)
+                ? { blockHash: saved.blockHash as Hex }
+                : {}),
               // Saved before 2.39 (a latest marker with no time): the user
               // saw it then, so it reads as acknowledged.
               ...(saved.acknowledged === true || typeof latest.at !== "number"
