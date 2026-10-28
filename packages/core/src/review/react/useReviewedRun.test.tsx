@@ -22,7 +22,15 @@ import {
 import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
 import { openStepHold } from "../writeHold.js";
 import { viemWalletAdapter } from "../wallet.js";
-import { createWalletClient, custom, type Hex as ViemHex } from "viem";
+import {
+  createWalletClient,
+  custom,
+  encodeAbiParameters,
+  encodeEventTopics,
+  numberToHex,
+  parseAbi,
+  type Hex as ViemHex,
+} from "viem";
 import {
   findReviewedSequence,
   REVIEWED_SEQUENCE_HELD_LINE,
@@ -526,71 +534,173 @@ describe("useReviewedRun", () => {
     expect(seen.current!.exitAction).toBeNull();
   });
 
-  test("ends a followed Safe proposal's run when its hold settles it", async () => {
+  /**
+   * A Safe app's proposal of `call`, sent through the hook, that its Safe
+   * then runs in EXECUTION: mined with the Safe's ExecutionSuccess for it, so
+   * the real hold settles it from its receipt. `readable` is how many of
+   * EXECUTION's receipt reads answer (all, by default).
+   */
+  async function proposedThenExecuted(
+    readable = Infinity,
+    {
+      calls = [payCall()],
+      event = "ExecutionSuccess",
+    }: { calls?: ReturnType<typeof payCall>[]; event?: string } = {},
+  ) {
     reviewUi();
-    const { wallet, deps } = setup();
+    const context = setup();
+    const { wallet, deps, chain } = context;
     wallet.state.safe = true;
-    const { seen, run } = harness({ ...deps, account: ACCOUNT });
-    await run({ calls: [approveCall(), payCall()], scope: "pay:1" });
-    expect(seen.current).toMatchObject({ phase: "proposed", step: 0 });
-    const receipt = {
-      status: "success",
-      transactionHash: `0x${"e".repeat(64)}`,
-    };
-    act(() =>
-      (views.last!.onSettled! as (s: unknown, r: unknown) => void)(
-        { result: "success", hash: receipt.transactionHash },
-        receipt,
-      ),
+    const onConfirmed = vi.fn();
+    const scope = "pay:safe";
+    const call = calls[0];
+    const hook = harness({ ...deps, account: ACCOUNT });
+    const result = await hook.run({ calls, scope, onConfirmed });
+    expect(result).toMatchObject({ status: "proposed" });
+    const proposal = (result as { safeTxHash: ViemHex }).safeTxHash;
+    const EXECUTION = `0x${"ee".repeat(32)}` as ViemHex;
+    chain.mine(EXECUTION, { to: ACCOUNT, data: "0x", value: 0n });
+    const block = chain.state.mined.get(EXECUTION)!;
+    chain.state.logs = [
+      {
+        address: ACCOUNT,
+        topics: encodeEventTopics({
+          abi: parseAbi([`event ${event}(bytes32 txHash, uint256 payment)`]),
+        }),
+        data: encodeAbiParameters(
+          [{ type: "bytes32" }, { type: "uint256" }],
+          [proposal, 0n],
+        ),
+        removed: false,
+        transactionHash: EXECUTION,
+        blockHash: numberToHex(block, { size: 32 }),
+        blockNumber: block,
+        transactionIndex: 0,
+        logIndex: 0,
+      },
+    ];
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    let reads = 0;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (args.hash === EXECUTION && ++reads > readable)
+        throw new Error("lagging node");
+      return read(args);
+    });
+    await act(async () => {
+      await openStepHold(deps.hold, ACCOUNT, true, call).onExecuted(
+        chain.client as never,
+        EXECUTION,
+      );
+    });
+    return { ...context, ...hook, onConfirmed, scope, EXECUTION };
+  }
+
+  test("a Safe proposal its hold settles completes once its execution's receipt is verified: onConfirmed once, the checkpoint cleared", async () => {
+    const { seen, onConfirmed, scope, storage, EXECUTION } =
+      await proposedThenExecuted();
+    await rendered(() => expect(seen.current!.phase).toBe("done"));
+    expect(onConfirmed).toHaveBeenCalledOnce();
+    expect(onConfirmed.mock.calls[0][2]).toMatchObject({
+      transactionHash: EXECUTION,
+    });
+    expect(seen.current!.receipt).toMatchObject({
+      transactionHash: EXECUTION,
+    });
+    expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+  });
+
+  test("a Safe proposal whose execution's receipt can't be read stays confirming, never done", async () => {
+    const { seen, onConfirmed, scope, storage } = await proposedThenExecuted(2);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(seen.current!.phase).not.toBe("done");
+    expect(onConfirmed).not.toHaveBeenCalled();
+    expect(
+      findReviewedSequence(scope, ACCOUNT, { storage })?.sending,
+    ).toMatchObject({ step: 0 });
+  });
+
+  test("ends a followed Safe proposal's run when its hold settles it", async () => {
+    // The approval settling is not the action done: running it again resumes.
+    const approval = await proposedThenExecuted(Infinity, {
+      calls: [approveCall(), payCall()],
+    });
+    await rendered(() =>
+      expect(approval.seen.current).toMatchObject({
+        phase: "idle",
+        step: 0,
+        total: 2,
+        hash: approval.EXECUTION,
+        receipt: expect.objectContaining({
+          transactionHash: approval.EXECUTION,
+        }),
+        error: null,
+        settled: { step: 0, finished: false },
+      }),
     );
+    expect(approval.onConfirmed).toHaveBeenCalledOnce();
+    act(() => root?.unmount());
+
+    // A Safe that ran it and failed shows the failure.
+    const failed = await proposedThenExecuted(Infinity, {
+      event: "ExecutionFailure",
+    });
+    await rendered(() =>
+      expect(failed.seen.current).toMatchObject({
+        phase: "idle",
+        error: HELD_FAILED_LINE,
+      }),
+    );
+    expect(failed.onConfirmed).not.toHaveBeenCalled();
+    act(() => root?.unmount());
+
     /** A fresh Safe's proposal, followed. */
-    const proposed = async () => {
+    const proposed = async (expire = false) => {
       act(() => root?.unmount());
       const fresh = setup();
       fresh.wallet.state.safe = true;
-      const next = harness({ ...fresh.deps, account: ACCOUNT });
+      /** Once proposed, its hold reads the proposal proven expired. */
+      let lapsed = false;
+      const hold = {
+        ...fresh.deps.hold,
+        open: ((...args: Parameters<typeof fresh.deps.hold.open>) => {
+          const handle = fresh.deps.hold.open(...args);
+          const { reservation } = handle.peek();
+          return {
+            ...handle,
+            state: async (...state: Parameters<typeof handle.state>) =>
+              lapsed
+                ? ({
+                    status: "clear",
+                    reservation,
+                    settled: { result: "expired" },
+                  } as const)
+                : handle.state(...state),
+          };
+        }) as typeof fresh.deps.hold.open,
+      };
+      const next = harness({ ...fresh.deps, hold, account: ACCOUNT });
       await next.run({ calls: [payCall()] });
       expect(next.seen.current!.phase).toBe("proposed");
+      lapsed = expire;
       return next.seen;
     };
-    // The approval settling is not the action done: running it again resumes.
-    expect(seen.current).toMatchObject({
-      phase: "idle",
-      step: 0,
-      total: 2,
-      hash: receipt.transactionHash,
-      receipt,
-      error: null,
-      settled: { step: 0, finished: false },
-    });
-
-    // The last step settling finishes it.
-    const last = await proposed();
+    // A proposal its hold proved expired shows that.
+    const expired = await proposed(true);
+    await rendered(() => expect(views.last).toBeDefined());
     act(() =>
       (views.last!.onSettled! as (s: unknown, r: unknown) => void)(
-        { result: "success", hash: receipt.transactionHash },
-        receipt,
+        { result: "expired" },
+        null,
       ),
     );
-    expect(last.current).toMatchObject({
-      phase: "done",
-      receipt,
-      settled: { step: 0, finished: true },
-    });
-
-    for (const [settled, line] of [
-      [{ result: "failed", hash: receipt.transactionHash }, HELD_FAILED_LINE],
-      [{ result: "expired" }, HELD_EXPIRED_LINE],
-    ] as const) {
-      const next = await proposed();
-      act(() =>
-        (views.last!.onSettled! as (s: unknown, r: unknown) => void)(
-          settled,
-          null,
-        ),
-      );
-      expect(next.current).toMatchObject({ phase: "idle", error: line });
-    }
+    await rendered(() =>
+      expect(expired.current).toMatchObject({
+        phase: "idle",
+        error: HELD_EXPIRED_LINE,
+      }),
+    );
 
     // A reset run ignores its followed step's late end.
     const stale = await proposed();
@@ -598,8 +708,8 @@ describe("useReviewedRun", () => {
     act(() => stale.current!.reset());
     act(() =>
       (late.onSettled! as (s: unknown, r: unknown) => void)(
-        { result: "success", hash: receipt.transactionHash },
-        receipt,
+        { result: "success", hash: approval.EXECUTION },
+        null,
       ),
     );
     act(() => late.onReleased!("user"));
@@ -1358,5 +1468,183 @@ describe("useReviewedRun", () => {
       },
     );
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  describe("a sent step reaches done only with the receipt its hold verified and onConfirmed once; otherwise it stays uncertain, its checkpoint kept", () => {
+    type Ended = {
+      /** How the hook ended the step: done, or anything else. */
+      done: boolean;
+      /** The receipt the hook ended it with (its last step's). */
+      receipt: { transactionHash: string; blockHash: string } | null;
+      onConfirmed: ReturnType<typeof vi.fn>;
+      /** The step it is about, and what it sent: the hash its hold settles. */
+      step: number;
+      hash: ViemHex;
+      chain: ReturnType<typeof setup>["chain"];
+      sending: () => unknown;
+    };
+    const scope = "pay:rows";
+    /** A wallet send of `calls`; `lagging` keeps the hold's own reads of `hash` failing. */
+    async function sent(
+      calls: ReturnType<typeof payCall>[],
+      lagging: (hash: string) => boolean,
+      after?: (left: unknown) => Promise<boolean>,
+    ) {
+      reviewUi();
+      const { chain, deps, storage } = setup();
+      const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+      chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+        if (lagging(args.hash)) throw new Error("lagging node");
+        return read(args);
+      });
+      const onConfirmed = vi.fn();
+      const { seen, run } = harness({ ...deps, account: ACCOUNT });
+      const left = await run({
+        calls,
+        scope,
+        onConfirmed,
+        follow: { timeoutMs: 1 },
+      });
+      const done = after
+        ? await after(left)
+        : (left as { status: string }).status === "done";
+      const step = calls.length - 1;
+      const hash = `0x${(step + 1).toString(16).padStart(64, "0")}` as ViemHex;
+      return {
+        done,
+        receipt: seen.current!.receipt ?? null,
+        onConfirmed,
+        step,
+        hash,
+        chain,
+        sending: () =>
+          findReviewedSequence(scope, ACCOUNT, { storage })?.sending,
+      } as Ended;
+    }
+    /** Its hold settles once the node reads again; ended() reports it. */
+    const recovers = (gate: { lagging: boolean }) => async (left: unknown) => {
+      expect(left).toMatchObject({ status: "receipt" });
+      const ended = (left as ReviewedRunReceipt).ended();
+      gate.lagging = false;
+      act(() => void globalThis.dispatchEvent(new Event("focus")));
+      return (await ended)?.status === "done";
+    };
+    /** Never reads: after a while, still not done. */
+    const neverReads = async (left: unknown) => {
+      expect(left).toMatchObject({ status: "receipt" });
+      let ended = false;
+      void (left as ReviewedRunReceipt).ended().then(() => (ended = true));
+      act(() => void globalThis.dispatchEvent(new Event("focus")));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      return ended;
+    };
+    const safeRow = (readable: number) => async (): Promise<Ended> => {
+      const row = await proposedThenExecuted(readable);
+      let done = false;
+      try {
+        await rendered(() => expect(row.seen.current!.phase).toBe("done"));
+        done = true;
+      } catch {
+        /* Not done: checked below. */
+      }
+      return {
+        done,
+        receipt: row.seen.current!.receipt ?? null,
+        onConfirmed: row.onConfirmed,
+        step: 0,
+        hash: row.EXECUTION,
+        chain: row.chain,
+        sending: () =>
+          findReviewedSequence(row.scope, ACCOUNT, { storage: row.storage })
+            ?.sending,
+      };
+    };
+    const rows: [string, boolean, () => Promise<Ended>][] = [
+      [
+        "wallet send, its receipt verified",
+        true,
+        () => sent([payCall()], () => false),
+      ],
+      [
+        "wallet send left at its receipt, verified later (ended())",
+        true,
+        () => {
+          const gate = { lagging: true };
+          return sent(
+            [approveCall(), payCall()],
+            (hash) => gate.lagging && hash.endsWith("2"),
+            recovers(gate),
+          );
+        },
+      ],
+      [
+        "wallet send whose receipt never verifies",
+        false,
+        () => sent([payCall()], () => true, neverReads),
+      ],
+      [
+        "Safe proposal, its execution's receipt verified",
+        true,
+        safeRow(Infinity),
+      ],
+      ["Safe proposal, its execution's receipt unreadable", false, safeRow(2)],
+      [
+        "resumed sequence",
+        true,
+        async () => {
+          reviewUi();
+          const { chain, deps, storage, wallet } = setup();
+          const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+          wallet.adapter.sendTransaction
+            .mockImplementationOnce(send)
+            .mockRejectedValueOnce(
+              Object.assign(new Error("User rejected"), { code: 4001 }),
+            );
+          const calls = [approveCall(), payCall()];
+          const onConfirmed = vi.fn();
+          const { seen, run } = harness({ ...deps, account: ACCOUNT });
+          await run({ calls, scope, onConfirmed });
+          onConfirmed.mockClear();
+          const left = await run({ calls, scope, onConfirmed });
+          return {
+            done: (left as { status: string }).status === "done",
+            receipt: seen.current!.receipt ?? null,
+            onConfirmed,
+            step: 1,
+            hash: `0x${"2".padStart(64, "0")}` as ViemHex,
+            chain,
+            sending: () =>
+              findReviewedSequence(scope, ACCOUNT, { storage })?.sending,
+          };
+        },
+      ],
+    ];
+
+    test.each(rows)("%s", async (_name, done, drive) => {
+      const ended = await drive();
+      expect(ended.done).toBe(done);
+      const told = ended.onConfirmed.mock.calls.filter(
+        ([, step]) => step === ended.step,
+      );
+      if (ended.done) {
+        const block =
+          ended.chain.state.mined.get(ended.hash.toLowerCase()) ??
+          ended.chain.state.mined.get(ended.hash);
+        const verified = {
+          transactionHash: ended.hash,
+          blockHash: numberToHex(block!, { size: 32 }),
+          status: "success",
+        };
+        expect(told).toHaveLength(1);
+        expect(told[0][2]).toMatchObject(verified);
+        if (ended.receipt) expect(ended.receipt).toMatchObject(verified);
+        expect(ended.sending()).toBeUndefined();
+      } else {
+        expect(told).toHaveLength(0);
+        expect(ended.sending()).toMatchObject({ step: ended.step });
+      }
+    });
   });
 });

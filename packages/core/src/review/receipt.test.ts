@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { Hex, PublicClient, TransactionReceipt } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import { errorLine } from "./transaction-message.js";
@@ -255,13 +256,14 @@ describe("every receipt a sent step is told by is its hold's", () => {
 
   it("leaves no other receipt read in the review modules", () => {
     const found: Record<string, number> = {};
-    for (const file of readdirSync("src/review", {
+    const dir = fileURLToPath(new URL(".", import.meta.url));
+    for (const file of readdirSync(dir, {
       recursive: true,
       encoding: "utf8",
     })) {
       if (!/\.tsx?$/u.test(file) || /\.test\.|__fixtures__/u.test(file))
         continue;
-      const code = readFileSync(`src/review/${file}`, "utf8")
+      const code = readFileSync(`${dir}${file}`, "utf8")
         .replace(/\/\*[\s\S]*?\*\//gu, "")
         .replace(/\/\/[^\n]*/gu, "");
       const reads = code.match(

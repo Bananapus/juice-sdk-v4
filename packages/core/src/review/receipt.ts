@@ -76,7 +76,12 @@ export async function waitForTrackedReceipt(
 }
 
 /** How a held write settled, as {@link heldReceipt} checks a receipt against it. */
-type Settled = { result: "success" | "failed"; hash: Hex; blockHash?: Hex };
+type Settled = {
+  result: "success" | "failed";
+  hash: Hex;
+  blockHash?: Hex;
+  safe?: true;
+};
 type HeldClient = Pick<PublicClient, "getTransactionReceipt" | "getBlock">;
 
 const unverified = (hash: Hex) =>
@@ -87,7 +92,8 @@ const unverified = (hash: Hex) =>
  * outcome is told by: `seen` (a watcher's, say) when it is that transaction,
  * else read. It must be in the block the hold verified; with none kept (a
  * Safe log proved it, or it was saved by 4.x), in a block still canonical
- * and final. A success must read a success. Anything else throws: the step
+ * and final. A success must read a success, and a failure a revert unless
+ * it is a Safe's (`safe`: its own failure). Anything else throws: the step
  * stays unverified until the chain agrees with its hold.
  */
 export async function heldReceipt(
@@ -106,7 +112,10 @@ export async function heldReceipt(
       : await client.getTransactionReceipt({ hash: settled.hash });
   if (
     !inBlock(receipt) ||
-    (settled.result === "success" && receipt.status !== "success")
+    (settled.result === "success"
+      ? receipt.status !== "success"
+      : // Only a Safe's own failure runs under an outer success.
+        !settled.safe && receipt.status !== "reverted")
   )
     throw unverified(settled.hash);
   if (!settled.blockHash) {

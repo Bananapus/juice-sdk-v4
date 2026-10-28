@@ -205,8 +205,8 @@ export function useReviewedRun(
     /** The followed step's index in the action, and the action's step count. */
     step: number;
     total: number;
-    /** A run left at its receipt: its settlement completes the step before it shows. */
-    finish?: (
+    /** Its settlement completes the step, checked, before it shows. */
+    finish: (
       settled: WriteHoldSettled,
       receipt: TransactionReceipt | null,
     ) => void;
@@ -280,17 +280,9 @@ export function useReviewedRun(
       watched
         ? createHeldWriteView(watched.handle, {
             client: watched.client,
-            // The followed step's end ends the run: a proposal never stays proposed.
-            onSettled: (settled, receipt) =>
-              watched.finish
-                ? watched.finish(settled, receipt)
-                : showSettled(
-                    watched.run,
-                    watched.step,
-                    watched.total,
-                    settled,
-                    receipt,
-                  ),
+            // The followed step's end ends the run once checked: a proposal
+            // never stays proposed, and never shows done unverified.
+            onSettled: (settled, receipt) => watched.finish(settled, receipt),
             onReleased: () => {
               watched.released?.();
               if (latest.current === watched.run) setState(IDLE);
@@ -363,6 +355,73 @@ export function useReviewedRun(
       setState({ ...IDLE, phase: "review", total: action.calls.length });
       let loaded: ReviewedEngine | undefined;
       setWatched(null);
+      /**
+       * Completes a sent step once its hold settled it, as the run would
+       * have (`completeReviewedStep`: the journal, `onConfirmed` once with
+       * the receipt its hold verified, the acknowledgement), then shows how
+       * it ended, once. Until it can (the receipt unread, or the hold not yet
+       * settled for this send), it is tried again, never shown.
+       */
+      const completing = (
+        target: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
+        total: number,
+        end?: (outcome: {
+          settled: WriteHoldSettled;
+          receipt: TransactionReceipt | null;
+        }) => void,
+      ) => {
+        let completed: Promise<WriteHoldSettled | null> = Promise.resolve(null);
+        let shown = false;
+        /** The receipt completion told `onConfirmed`: the one its hold verified. */
+        let confirmed: TransactionReceipt | null = null;
+        const action$ = {
+          account: deps!.account!,
+          scope: action.scope,
+          onConfirmed: async (
+            call: ReviewedCall,
+            step: number,
+            receipt: TransactionReceipt,
+          ) => {
+            confirmed = receipt;
+            await action.onConfirmed?.(call, step, receipt);
+          },
+        };
+        const finish = (
+          seen?: WriteHoldSettled,
+          receipt: TransactionReceipt | null = null,
+        ) => {
+          let unread = false;
+          completed = completed.then(
+            (prior) =>
+              prior ??
+              (loaded ? Promise.resolve(loaded) : load(deps!.engine))
+                .then((engine) =>
+                  engine.completeReviewedStep(target, action$, deps!, receipt),
+                )
+                .catch(() => {
+                  unread = true;
+                  return null;
+                }),
+          );
+          void completed.then((settled) => {
+            if (shown || latest.current !== id) return;
+            // Nothing advanced (its receipt unread, or its hold not settled
+            // for this send yet): it is tried again.
+            if (unread || (!settled && seen)) {
+              if (mounted.current)
+                setTimeout(() => finish(seen, receipt), RECEIPT_RETRY_MS);
+              return;
+            }
+            if (!settled) return;
+            shown = true;
+            const verified = settled.result === "success" ? confirmed : null;
+            showSettled(id, target.step, total, settled, verified);
+            setWatched(null);
+            end?.({ settled, receipt: verified });
+          });
+        };
+        return finish;
+      };
       /** The step a run that did not finish leaves held, if any. */
       const follow = async (
         finish?: (typeof watched & {})["finish"],
@@ -407,6 +466,10 @@ export function useReviewedRun(
                 handle.peek().status !== "clear" ||
                 (step === total - 1 && handle.unacknowledgedSuccess()),
             );
+          // Its settlement completes it as a send's would: a proposal too.
+          const reservation =
+            found?.handle.peek().reservation ??
+            found?.handle.unacknowledgedSuccess()?.reservation;
           setWatched(
             found
               ? {
@@ -415,7 +478,16 @@ export function useReviewedRun(
                   run: id,
                   step: found.step,
                   total,
-                  ...(finish ? { finish, released } : {}),
+                  finish:
+                    finish ??
+                    completing(
+                      {
+                        step: found.step,
+                        held: { call: found.call as ReviewedCall, reservation },
+                      },
+                      total,
+                    ),
+                  ...(released ? { released } : {}),
                 }
               : null,
           );
@@ -529,15 +601,6 @@ export function useReviewedRun(
             error: null,
             failure: null,
           });
-          const complete = loaded!.completeReviewedStep;
-          const action$ = {
-            account: deps!.account!,
-            scope: action.scope,
-            onConfirmed: action.onConfirmed,
-          };
-          let completed: Promise<WriteHoldSettled | null> =
-            Promise.resolve(null);
-          let shown = false;
           let end!: (
             outcome: {
               settled: WriteHoldSettled;
@@ -558,36 +621,7 @@ export function useReviewedRun(
               once: true,
             });
           }
-          // Completes the step once its hold settled it, then shows how it ended, once.
-          const finish = (
-            seen?: WriteHoldSettled,
-            receipt: TransactionReceipt | null = null,
-          ) => {
-            let unread = false;
-            completed = completed.then(
-              (prior) =>
-                prior ??
-                complete(error, action$, deps!, receipt).catch(() => {
-                  unread = true;
-                  return null;
-                }),
-            );
-            void completed.then((settled) => {
-              if (shown || latest.current !== id) return;
-              // Its receipt could not be read: nothing advanced, so it is tried again.
-              if (unread) {
-                if (mounted.current)
-                  setTimeout(() => finish(seen, receipt), RECEIPT_RETRY_MS);
-                return;
-              }
-              const ended = settled ?? seen;
-              if (!ended) return;
-              shown = true;
-              showSettled(id, error.step, action.calls.length, ended, receipt);
-              setWatched(null);
-              end({ settled: ended, receipt });
-            });
-          };
+          const finish = completing(error, action.calls.length, end);
           // Followed for a later settlement; one already there is read once it attaches.
           void follow(finish, () => end(null)).then(() => finish());
           const before = error.held?.hashes ?? [];

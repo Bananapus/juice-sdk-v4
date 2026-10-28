@@ -11,6 +11,7 @@ import {
   canonicalSafeTxHash,
   lookAtSafeProposalEnd,
   provenSafeProposalEnd,
+  isSafeExecTransaction,
   readSafeTransaction,
   SAFE_PROPOSAL_AWAITING,
   safeTransactionMessage,
@@ -122,12 +123,14 @@ export type WriteHoldSettled =
   /**
    * Its verified receipt in a canonical block (a Safe failure only once
    * final), `blockHash` that block's (none when a finalized log proved it);
-   * `acknowledged` once the user saw it.
+   * `safe` when it is a Safe's execution, whose failure is the Safe's own
+   * (its outer transaction may succeed); `acknowledged` once the user saw it.
    */
   | {
       result: "success" | "failed";
       hash: Hex;
       blockHash?: Hex;
+      safe?: true;
       acknowledged?: true;
     }
   /** A Safe proposal's expiry before it ran is proven. */
@@ -684,6 +687,10 @@ export function createWriteHold(
           result: verdict,
           hash: receipt.transactionHash.toLowerCase() as Hex,
           blockHash: receipt.blockHash.toLowerCase() as Hex,
+          // A Safe's execution, proposed or sent by an owner: its failure is its own.
+          ...(record.safe || isSafeExecTransaction(record.call.data)
+            ? { safe: true as const }
+            : {}),
         };
         // Saved before the hold ends, so no reader sees it clear without its
         // result: another tab, a reload, a follow timer.
@@ -1097,6 +1104,7 @@ export function createWriteHold(
           const settled = {
             result: end.execution.status,
             hash: end.execution.executionHash,
+            safe: true as const,
           };
           recovery.markSettled(record, settled);
           if (release(record)) return clear(settled, record.id);

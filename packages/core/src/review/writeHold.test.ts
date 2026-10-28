@@ -3929,7 +3929,7 @@ describe("a held Safe proposal", () => {
       const settled = {
         status: "clear",
         reservation: expect.any(String),
-        settled: { result, hash: EXECUTION, blockHash: pad(96n) },
+        settled: { result, hash: EXECUTION, blockHash: pad(96n), safe: true },
       };
       await expect(handle.state(fixture.client)).resolves.toEqual({
         ...settled,
@@ -3993,7 +3993,12 @@ describe("a held Safe proposal", () => {
     ).resolves.toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: EXECUTION, blockHash: pad(96n) },
+      settled: {
+        result: "success",
+        hash: EXECUTION,
+        blockHash: pad(96n),
+        safe: true,
+      },
     });
     hold.dispose();
   });
@@ -4012,7 +4017,7 @@ describe("a held Safe proposal", () => {
       checked: true,
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: EXECUTION },
+      settled: { result: "success", hash: EXECUTION, safe: true },
     });
     // With no readable proof, a receipt that doesn't verify settles nothing.
     const again = safeSetup();
@@ -4385,7 +4390,12 @@ describe("a held Safe proposal", () => {
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "failed", hash: EXECUTION, blockHash: pad(96n) },
+      settled: {
+        result: "failed",
+        hash: EXECUTION,
+        blockHash: pad(96n),
+        safe: true,
+      },
     });
     // A retry is allowed.
     const retry = vi.fn();
@@ -4428,7 +4438,12 @@ describe("a held Safe proposal", () => {
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "failed", hash: EXECUTION, blockHash: pad(96n) },
+      settled: {
+        result: "failed",
+        hash: EXECUTION,
+        blockHash: pad(96n),
+        safe: true,
+      },
     });
     hold.dispose();
   });
@@ -4453,7 +4468,12 @@ describe("a held Safe proposal", () => {
     await expect(handle.onExecuted(fixture.client)).resolves.toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: EXECUTION, blockHash: pad(96n) },
+      settled: {
+        result: "success",
+        hash: EXECUTION,
+        blockHash: pad(96n),
+        safe: true,
+      },
     });
   });
 
@@ -4578,7 +4598,12 @@ describe("a held Safe proposal", () => {
           checked: true,
           status: "clear",
           reservation: expect.any(String),
-          settled: { result: "failed", hash: second, blockHash: pad(98n) },
+          settled: {
+            result: "failed",
+            hash: second,
+            blockHash: pad(98n),
+            safe: true,
+          },
         });
       hold.dispose();
     }
@@ -4775,7 +4800,12 @@ describe("a held Safe proposal", () => {
         checked: true,
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: EXECUTION, blockHash: pad(96n) },
+        settled: {
+          result: "success",
+          hash: EXECUTION,
+          blockHash: pad(96n),
+          safe: true,
+        },
       });
     });
 
@@ -4836,7 +4866,12 @@ describe("a held Safe proposal", () => {
       ).resolves.toEqual({
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: EXECUTION, blockHash: pad(96n) },
+        settled: {
+          result: "success",
+          hash: EXECUTION,
+          blockHash: pad(96n),
+          safe: true,
+        },
       });
     });
 
@@ -4877,7 +4912,12 @@ describe("a held Safe proposal", () => {
           checked: true,
           status: "clear",
           reservation: expect.any(String),
-          settled: { result: "success", hash: CAND, blockHash: pad(96n) },
+          settled: {
+            result: "success",
+            hash: CAND,
+            blockHash: pad(96n),
+            safe: true,
+          },
         });
       }
     });
@@ -4950,7 +4990,7 @@ describe("a held Safe proposal", () => {
         checked: true,
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: EXECUTION },
+        settled: { result: "success", hash: EXECUTION, safe: true },
       });
     });
 
@@ -4967,6 +5007,7 @@ describe("a held Safe proposal", () => {
           settled: {
             result: topic === SUCCESS ? "success" : "failed",
             hash: EXECUTION,
+            safe: true,
           },
         });
       }
@@ -5045,7 +5086,12 @@ describe("a held Safe proposal", () => {
         checked: true,
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: CAND, blockHash: pad(96n) },
+        settled: {
+          result: "success",
+          hash: CAND,
+          blockHash: pad(96n),
+          safe: true,
+        },
       });
     });
 
@@ -5321,6 +5367,7 @@ describe("a held Safe proposal", () => {
             result: topic === SUCCESS ? "success" : "failed",
             hash: EXECUTION,
             blockHash: pad(96n),
+            safe: true,
           },
         });
       }
@@ -5330,7 +5377,12 @@ describe("a held Safe proposal", () => {
       await expect(handle.onUnproven(fixture.client)).resolves.toEqual({
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: EXECUTION, blockHash: pad(96n) },
+        settled: {
+          result: "success",
+          hash: EXECUTION,
+          blockHash: pad(96n),
+          safe: true,
+        },
       });
     });
 
@@ -5367,7 +5419,12 @@ describe("a held Safe proposal", () => {
         checked: true,
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "failed", hash: EXECUTION, blockHash: pad(96n) },
+        settled: {
+          result: "failed",
+          hash: EXECUTION,
+          blockHash: pad(96n),
+          safe: true,
+        },
       });
       hold.dispose();
     });
@@ -5497,7 +5554,12 @@ describe("a held Safe proposal", () => {
       checked: true,
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: EXECUTION, blockHash: pad(96n) },
+      settled: {
+        result: "success",
+        hash: EXECUTION,
+        blockHash: pad(96n),
+        safe: true,
+      },
     });
   });
 });

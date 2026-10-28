@@ -962,16 +962,18 @@ async function followSent(
 }
 
 /**
- * Completes the step a run left at its receipt
- * ({@link ReviewedReceiptUnverifiedError}) once its hold settled that send,
- * as the run itself would have: the saved sequence under `scope` records it,
- * a success is acknowledged and told to `onConfirmed` with `receipt` (the
- * hold view's, say), or the one it reads. Null until then. A failed read
- * throws with nothing advanced: call it again. Call it once per settlement:
+ * Completes a sent step (one a run left at its receipt,
+ * {@link ReviewedReceiptUnverifiedError}, or a proposal: its step and its
+ * `held` call and reservation) once its hold settled that send, as the run
+ * itself would have: the saved sequence under `scope` records it, a success
+ * is acknowledged and told to `onConfirmed` with the receipt its hold
+ * verified (`receipt`, the hold view's, say, when it is that one). Null
+ * until then. A read that fails or disagrees with the hold throws with
+ * nothing advanced: call it again. Call it once per settlement:
  * `onConfirmed` is told each time.
  */
 export async function completeReviewedStep(
-  unverified: ReviewedReceiptUnverifiedError,
+  unverified: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
   action: Pick<ReviewedAction, "account" | "scope" | "onConfirmed">,
   deps: ReviewedSendDeps,
   receipt?: TransactionReceipt | null,

@@ -54,6 +54,7 @@ import {
 } from "./lineError.js";
 import {
   completeReviewedStep,
+  resumeReviewed,
   SAFE_BATCH_UNFOLLOWABLE_LINE,
   SAFE_BATCH_UNSUPPORTED_LINE,
   sendReviewed,
@@ -1757,6 +1758,55 @@ describe("sendReviewed and its hold's evidence", () => {
       payment: payment as Hex,
     };
   }
+
+  it("never completes a saved ordinary failure with no block whose transaction now reads a success, nor sends it again", async () => {
+    const {
+      deps,
+      chain,
+      hold,
+      storage,
+      wallet,
+      calls,
+      scope,
+      unverified,
+      recover,
+      memory,
+      payment,
+    } = await leftAtReceipt();
+    // It reverted, and its hold verified that.
+    chain.state.status = "reverted";
+    recover();
+    const handle = openStepHold(hold, ACCOUNT, false, calls[1]);
+    await expect(
+      handle.state(chain.client as unknown as PublicClient),
+    ).resolves.toMatchObject({ settled: { result: "failed" } });
+    // Saved by 4.x: no block, no provenance.
+    for (const [key, value] of memory) {
+      const saved = JSON.parse(value) as Record<string, unknown> | null;
+      if (saved?.result === "failed") {
+        delete saved.blockHash;
+        delete saved.safe;
+        memory.set(key, JSON.stringify(saved));
+      }
+    }
+    // Reorged out and mined again, a success.
+    chain.state.status = "success";
+    chain.state.head += 1n;
+    chain.state.mined.set(payment, chain.state.head);
+    const onConfirmed = vi.fn();
+    await expect(
+      completeReviewedStep(
+        unverified,
+        { account: ACCOUNT, scope, onConfirmed },
+        deps,
+      ),
+    ).rejects.toThrow();
+    const saved = findReviewedSequence(scope, ACCOUNT, { storage })!;
+    expect(saved.sending).toMatchObject({ step: 1 });
+    await expect(resumeReviewed(saved, {}, deps)).rejects.toThrow();
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    expect(onConfirmed).not.toHaveBeenCalled();
+  });
 
   it("never completes a saved success with no block whose transaction now reads reverted", async () => {
     const {

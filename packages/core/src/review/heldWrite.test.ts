@@ -129,11 +129,11 @@ function fakeHandle(start: WriteHoldState = clear({ reservation: undefined })) {
 const blockHashOf = (n: bigint) =>
   `0x${n.toString(16).padStart(64, "0")}` as Hex;
 /** `hash`'s receipt in block 5, canonical and final. */
-const receiptOf = (hash: Hex) => ({
+const receiptOf = (hash: Hex, status = "success") => ({
   transactionHash: hash,
   blockNumber: 5n,
   blockHash: blockHashOf(5n),
-  status: "success",
+  status,
 });
 const client = {
   getTransactionReceipt: vi.fn(async ({ hash }: { hash: Hex }) =>
@@ -1118,20 +1118,20 @@ describe("one held write's view", () => {
     });
     await view.check();
     expect(reads).toHaveLength(2);
-    reads[0](receiptOf(HASH));
+    reads[0](receiptOf(HASH, "reverted"));
     await flush();
     expect(onSettled).toHaveBeenCalledOnce();
     stop();
-    reads[1](receiptOf(EXECUTION));
+    reads[1](receiptOf(EXECUTION, "reverted"));
     await flush();
     client.getTransactionReceipt.mockImplementation(
-      async ({ hash }: { hash: Hex }) => receiptOf(hash),
+      async ({ hash }: { hash: Hex }) => receiptOf(hash, "reverted"),
     );
     stop = view.start();
     await vi.waitFor(() => expect(onSettled).toHaveBeenCalledTimes(2));
     expect(onSettled).toHaveBeenLastCalledWith(
       { result: "failed", hash: EXECUTION },
-      receiptOf(EXECUTION),
+      receiptOf(EXECUTION, "reverted"),
     );
     stop();
   });
