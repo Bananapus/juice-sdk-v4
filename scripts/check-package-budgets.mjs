@@ -333,8 +333,10 @@ const budgets = {
     // 24,098,818 B unpacked.
     // Followed steps, kept signatures and ended(): 1,794,029 B packed,
     // 24,121,132 B unpacked.
-    packed: 1_795_000,
-    unpacked: 24_125_000,
+    // In-place follow, Safe failure after follow and the Relayr proof retry:
+    // 1,796,152 B packed, 24,135,145 B unpacked.
+    packed: 1_800_000,
+    unpacked: 24_140_000,
     entries: 1_827,
   },
   "@bananapus/nana-sdk-react": {
