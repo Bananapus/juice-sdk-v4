@@ -955,6 +955,24 @@ export function createBrowserWriteRecovery(
   function scopeAt(at: string) {
     return at === key ? keyOf : legacyScope;
   }
+  /**
+   * Set `flag` on the saved settlement with this (lowercase) hash: false when
+   * it was already set, true otherwise (another settlement stays as it is).
+   */
+  function flagSettled(
+    store: RecoveryStorage,
+    hash: string,
+    flag: "acknowledged" | "confirmed",
+  ): boolean {
+    const saved = JSON.parse(store.getItem(settledKey) ?? "null") as Record<
+      string,
+      unknown
+    > | null;
+    if (saved?.hash !== hash) return true;
+    if (saved[flag] === true) return false;
+    store.setItem(settledKey, JSON.stringify({ ...saved, [flag]: true }));
+    return true;
+  }
   function storage(): RecoveryStorage {
     const store = recoveryStorage(options.storage);
     lastStorage = store;
@@ -1449,17 +1467,8 @@ export function createBrowserWriteRecovery(
      */
     acknowledgeSettled(settled: ReviewedWriteSettlement): void {
       requireLock();
-      const store = storage();
       try {
-        const raw = store.getItem(settledKey);
-        const saved = JSON.parse(raw ?? "null") as {
-          hash?: unknown;
-        } | null;
-        if (saved?.hash === settled.hash.toLowerCase())
-          store.setItem(
-            settledKey,
-            JSON.stringify({ ...saved, acknowledged: true }),
-          );
+        flagSettled(storage(), settled.hash.toLowerCase(), "acknowledged");
       } catch {
         /* An unreadable settlement names none; a refused write keeps it unacknowledged. */
       }
@@ -1482,21 +1491,11 @@ export function createBrowserWriteRecovery(
       if (here.has(claim)) return false;
       here.add(claim);
       try {
-        const saved = JSON.parse(store.getItem(settledKey) ?? "null") as {
-          hash?: unknown;
-          confirmed?: unknown;
-        } | null;
-        if (saved?.hash === hash) {
-          if (saved.confirmed === true) return false;
-          store.setItem(
-            settledKey,
-            JSON.stringify({ ...saved, confirmed: true }),
-          );
-        }
+        return flagSettled(store, hash, "confirmed");
       } catch {
-        /* Claimed in this tab's memory. */
+        // Claimed in this tab's memory.
+        return true;
       }
-      return true;
     },
     /**
      * How the call's last write ended, if {@link markSettled} saved it for
