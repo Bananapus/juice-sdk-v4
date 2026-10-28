@@ -1005,6 +1005,77 @@ describe("useReviewedRun", () => {
     expect(prompts).toHaveLength(1);
   }, 20_000);
 
+  test("an unmount while an approval is followed in place ends the run: one write, its end null", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const approval = `0x${"1".padStart(64, "0")}`;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (args.hash === approval) throw new Error("lagging node");
+      return read(args);
+    });
+    const { seen } = harness({ ...deps, account: ACCOUNT });
+    let pending!: ReturnType<UseReviewedRunResult["run"]>;
+    act(() => {
+      pending = seen.current!.run({
+        calls: [approveCall(), payCall()],
+        scope: "pay:unmounted",
+      });
+    });
+    await rendered(() =>
+      expect(seen.current).toMatchObject({ phase: "receipt", step: 0 }),
+    );
+    act(() => root!.unmount());
+    root = undefined;
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    const result = await pending;
+    expect(result).toMatchObject({ status: "receipt", step: 0 });
+    await expect((result as ReviewedRunReceipt).ended()).resolves.toBeNull();
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
+  test("a reset while the approval's first verification is read sends nothing more", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const approval = `0x${"1".padStart(64, "0")}`;
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let reading = false;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (args.hash === approval) {
+        reading = true;
+        await held;
+      }
+      return read(args);
+    });
+    const { seen } = harness({ ...deps, account: ACCOUNT });
+    let pending!: ReturnType<UseReviewedRunResult["run"]>;
+    act(() => {
+      pending = seen.current!.run({
+        calls: [approveCall(), payCall()],
+        scope: "pay:reset-verifying",
+      });
+    });
+    await vi.waitFor(() => expect(reading).toBe(true));
+    act(() => seen.current!.reset());
+    release();
+    let result: unknown = "pending";
+    await act(async () => {
+      result = await pending;
+    });
+    expect(result).toBeNull();
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
+  test("an unmount after the run handed its step back resolves its end with null", async () => {
+    const { result } = await unverified();
+    const ended = (result as ReviewedRunReceipt).ended();
+    act(() => root!.unmount());
+    root = undefined;
+    await expect(ended).resolves.toBeNull();
+  });
+
   test("a reset resolves an awaited end with null, the step still held", async () => {
     const { seen, result, call, hold } = await unverified();
     let ended: unknown = "pending";

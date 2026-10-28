@@ -1403,6 +1403,39 @@ describe("payRelayrReviewed", () => {
     }
   });
 
+  it("ends a payment whose proof reads stall within the follow's bound, unreadable with its hash", async () => {
+    const { deps, chain, wallet } = relayrSetup();
+    reviewUi();
+    const read = chain.client.getTransaction.getMockImplementation()!;
+    chain.client.getTransaction.mockImplementation(async (args) => {
+      // Each proof read, once the hold read the payment settled, answers only after 30 s.
+      if (
+        wallet.adapter.sendTransaction.mock.calls.length &&
+        new Error().stack!.includes("readTransaction")
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 30_000));
+        throw new Error("RPC timed out");
+      }
+      return read(args);
+    });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      let outcome: unknown = "pending";
+      void payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps).then(
+        (hash) => (outcome = { hash }),
+        (error: unknown) => (outcome = error),
+      );
+      await vi.advanceTimersByTimeAsync(121_000);
+      expect(outcome).toBeInstanceOf(RelayrProofUnavailableError);
+      const hash: string =
+        await wallet.adapter.sendTransaction.mock.results[0].value;
+      expect((outcome as Error).message).toContain(hash);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("tells the site before the wallet opens and each hash after", async () => {
     const { deps, wallet } = relayrSetup();
     reviewUi();

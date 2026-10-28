@@ -806,23 +806,45 @@ async function sendPayment(
   if (receipt.status === "reverted")
     throw new ReviewedCallRevertedError(0, mined, receipt);
   // A proof the node can't read yet is read again, as long as `follow` would
-  // follow a step; a contradicting proof is never retried.
+  // follow a step, a read that stalls included; a contradicting proof is
+  // never retried. Past that, it is unreadable, its hash kept in the line.
   const deadline = Date.now() + FOLLOW_MS;
+  let unread: unknown;
   for (;;) {
+    const left = deadline - Date.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await verifyRelayrPayment(client, {
-        hash: mined,
-        from: account,
-        payment: details,
-      });
-      return mined;
+      const proven = await Promise.race([
+        verifyRelayrPayment(client, {
+          hash: mined,
+          from: account,
+          payment: details,
+        }).then(() => true),
+        new Promise<false>((resolve) => {
+          timer = setTimeout(() => resolve(false), Math.max(left, 0));
+        }),
+      ]);
+      if (proven) return mined;
+      throw Object.assign(
+        new RelayrProofUnavailableError(
+          `Could not read Relayr payment ${mined} on chain ${details.chainId}. Do not pay again; check it later.`,
+        ),
+        { cause: unread },
+      );
     } catch (error) {
       if (
         !(error instanceof RelayrProofUnavailableError) ||
-        Date.now() + RECEIPT_RETRY_MS > deadline
+        deadline - Date.now() <= 0
       )
         throw error;
-      await pause(RECEIPT_RETRY_MS, undefined, () => null);
+      unread = error;
+      await pause(
+        Math.min(RECEIPT_RETRY_MS, deadline - Date.now()),
+        undefined,
+        () => null,
+      );
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

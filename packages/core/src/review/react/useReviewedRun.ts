@@ -235,6 +235,8 @@ export function useReviewedRun(
     mounted.current = true;
     return () => {
       mounted.current = false;
+      // Unmounted: the run ends as on a reset.
+      replaced();
     };
   }, []);
   /** How a followed step ended, as the run that followed it shows it. */

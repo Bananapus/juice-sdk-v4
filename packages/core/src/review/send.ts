@@ -26,6 +26,7 @@ import {
 import { JB_CHAINS } from "../constants.js";
 import { gasWithHeadroom } from "./gas.js";
 import { FOLLOW_MS, followHeldWrite, RECEIPT_RETRY_MS } from "./heldWrite.js";
+import { TransactionReviewCancelledError } from "./reviewQueue.js";
 import { pause } from "../pause.js";
 import {
   findPendingSafeAppProposal,
@@ -253,7 +254,9 @@ export type ReviewedAction = {
    * settles the step, and the run goes on to the next step or resolves.
    * After `timeoutMs` (2 minutes by default) or `signal`, the run throws
    * {@link ReviewedReceiptUnverifiedError} with the step still held, as it
-   * does at once without `follow`.
+   * does at once without `follow`. Once `signal` aborts after a step was
+   * sent, the run sends nothing more: a later step is refused at its last
+   * gate as cancelled.
    */
   follow?: {
     onConfirming?: (step: number) => void;
@@ -1548,6 +1551,10 @@ async function send(
           }
         },
         beforeSend: () => {
+          // The caller ended the run (a reset, an unmount) after it sent a
+          // step: nothing more is sent.
+          if (hashes.length && action.follow?.signal?.aborted)
+            throw new TransactionReviewCancelledError();
           action.assertWriteState?.();
           unchanged();
           if (adapter.isSafe() !== safe) {
