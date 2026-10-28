@@ -54,7 +54,12 @@ import {
   spendPlan,
   type ReviewedPlan,
 } from "./plan.js";
-import { heldBlock, heldReceipt, waitForTrackedReceipt } from "./receipt.js";
+import {
+  heldBlock,
+  heldReceipt,
+  tell,
+  waitForTrackedReceipt,
+} from "./receipt.js";
 import { relayrPaymentChains } from "./relayr.js";
 import { relayrFeeCap } from "./relayrSend.js";
 import {
@@ -834,18 +839,17 @@ export async function resumeReviewed(
       settled,
       deps.clientFor(call.chainId),
     );
-    // This sequence's own step: it is recorded, never offered again.
-    if (settled?.result === "success") await handle.acknowledge(settled);
+    // This sequence's own step: it is recorded, told, and only then
+    // acknowledged, so it is never offered again.
     const kept = await recordSending(saved, settled, storage, expected);
-    const told = () => tellConfirmed(action, call, step, settled, receipt);
+    await tellConfirmed(action, call, step, settled, receipt);
+    if (settled?.result === "success") await handle.acknowledge(settled);
     if (kept === null) {
-      await told();
       const total = saved.calls.length;
-      deps.onProgress?.({ step: total - 1, total, phase: "done" });
+      tell(deps.onProgress, { step: total - 1, total, phase: "done" });
       return { status: "done", hashes: saved.completed, receipts: [] };
     }
     expected = kept;
-    await told();
   }
   return send(
     {
@@ -902,12 +906,8 @@ async function tellConfirmed(
   settled: WriteHoldSettled | undefined,
   receipt: TransactionReceipt | null,
 ): Promise<void> {
-  if (settled?.result !== "success" || !receipt) return;
-  try {
-    await action.onConfirmed?.(call, step, receipt);
-  } catch {
-    /* The step went through whatever the site's callback does. */
-  }
+  if (settled?.result === "success" && receipt)
+    await tell(action.onConfirmed, call, step, receipt);
 }
 
 /**
@@ -966,9 +966,10 @@ async function followSent(
  * {@link ReviewedReceiptUnverifiedError}, or a proposal: its step and its
  * `held` call and reservation) once its hold settled that send, as the run
  * itself would have: the saved sequence under `scope` records it, a success
- * is acknowledged and told to `onConfirmed` with the receipt its hold
- * verified (`receipt`, the hold view's, say, when it is that one). Null
- * until then. A read that fails or disagrees with the hold throws with
+ * is told to `onConfirmed` with the receipt its hold verified (`receipt`,
+ * the hold view's, say, when it is that one) and only then acknowledged, the
+ * one acknowledgement of a followed step. Returns the settlement and that
+ * checked receipt (a failure's too); null until then. A read that fails or disagrees with the hold throws with
  * nothing advanced: call it again. Call it once per settlement:
  * `onConfirmed` is told each time.
  */
@@ -977,7 +978,10 @@ export async function completeReviewedStep(
   action: Pick<ReviewedAction, "account" | "scope" | "onConfirmed">,
   deps: ReviewedSendDeps,
   receipt?: TransactionReceipt | null,
-): Promise<WriteHoldSettled | null> {
+): Promise<{
+  settled: WriteHoldSettled;
+  receipt: TransactionReceipt | null;
+} | null> {
   const { step, held } = unverified;
   if (!held) return null;
   const { call, reservation } = held;
@@ -1005,9 +1009,9 @@ export async function completeReviewedStep(
     )
       await recordSending(record, settled, storage, raw);
   }
-  if (settled.result === "success") await handle.acknowledge(settled);
   await tellConfirmed(action, call, step, settled, confirmed);
-  return settled;
+  if (settled.result === "success") await handle.acknowledge(settled);
+  return { settled, receipt: confirmed };
 }
 
 /**
@@ -1030,14 +1034,8 @@ async function send(
   },
 ): Promise<ReviewedResult> {
   const { adapter, clientFor, hold } = deps;
-  /** The site's view of the run: a view that throws never changes what was sent. */
-  const onProgress = (progress: ReviewedProgress) => {
-    try {
-      deps.onProgress?.(progress);
-    } catch {
-      /* What was sent stands, whatever the view does. */
-    }
-  };
+  const onProgress = (progress: ReviewedProgress) =>
+    tell(deps.onProgress, progress);
   action.guard?.();
   const { account } = action;
   const calls = [...action.calls];
@@ -1115,14 +1113,10 @@ async function send(
     }
     // Every step is told; a site's failure to record it never changes what was sent.
     for (const [step, call] of calls.entries())
-      try {
-        await action.onSubmitted?.(call, step, hash, {
-          safe: false,
-          adopted: false,
-        });
-      } catch {
-        /* Sent, whatever the site's record of it did. */
-      }
+      await tell(action.onSubmitted, call, step, hash, {
+        safe: false,
+        adopted: false,
+      });
     return { status: "done", hashes: [hash], receipts: [] };
   }
 
@@ -1256,7 +1250,7 @@ async function send(
         if (!sameCall(now, sent[step])) throw new ReviewLineError(CHANGED);
       });
     const progress = (phase: ReviewedProgress["phase"], hash?: Hex) =>
-      onProgress?.({
+      onProgress({
         step: 0,
         total: calls.length,
         phase,
@@ -1331,17 +1325,11 @@ async function send(
           onWriteSubmitted: async (submitted) => {
             gate.afterSubmit(submitted);
             // Every step went: each is told, whatever an earlier callback does.
-            const failures: unknown[] = [];
             for (const [step, call] of calls.entries())
-              try {
-                await action.onSubmitted?.(call, step, submitted, {
-                  safe: true,
-                  adopted: false,
-                });
-              } catch (error) {
-                failures.push(error);
-              }
-            if (failures.length) throw failures[0];
+              await tell(action.onSubmitted, call, step, submitted, {
+                safe: true,
+                adopted: false,
+              });
           },
           write: async () => {
             const id = await adapter.sendCalls!(
@@ -1406,7 +1394,7 @@ async function send(
     /** This step's index in the whole action. */
     const at = offset + step;
     const progress = (phase: ReviewedProgress["phase"], hash?: Hex) =>
-      onProgress?.({ step: at, total, phase, ...(hash ? { hash } : {}) });
+      onProgress({ step: at, total, phase, ...(hash ? { hash } : {}) });
     const unchanged = () => {
       let now: ReturnType<typeof exact>;
       try {
@@ -1601,7 +1589,7 @@ async function send(
           // An adopted proposal's nonce lets the hold prove its execution onchain.
           onWriteSubmitted: async (submitted) => {
             gate.afterSubmit(submitted, queued?.tx);
-            await action.onSubmitted?.(call, at, submitted, {
+            await tell(action.onSubmitted, call, at, submitted, {
               safe,
               adopted: !!queued,
             });
@@ -1696,11 +1684,7 @@ async function send(
         ? await heldReceipt(settled, client, seen).catch(() => undefined)
         : undefined;
       if (!receipt && action.follow) {
-        try {
-          action.follow.onConfirming?.(at);
-        } catch {
-          /* The step is followed whatever the site's view does. */
-        }
+        tell(action.follow.onConfirming, at);
         const ended = await followSent(
           handles[step],
           client,
@@ -1737,13 +1721,9 @@ async function send(
       journal.completed.push(mined);
       await keep();
     }
-    try {
-      await action.onConfirmed?.(call, at, receipt);
-    } catch {
-      /* The step went through whatever the site's callback does. */
-    }
+    await tell(action.onConfirmed, call, at, receipt);
   }
-  onProgress?.({ step: total - 1, total, phase: "done" });
+  onProgress({ step: total - 1, total, phase: "done" });
   return {
     status: "done",
     hashes: journal ? [...journal.completed] : hashes,

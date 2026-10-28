@@ -1,6 +1,6 @@
 import { ReviewLineError } from "./lineError.js";
 import type { Hex, TransactionReceipt } from "viem";
-import { heldReceipt } from "./receipt.js";
+import { heldReceipt, tell } from "./receipt.js";
 import {
   hasSafeService,
   SAFE_PROPOSAL_AWAITING,
@@ -342,11 +342,12 @@ export function createHeldWriteView(
   const undelivered = new Map<string, WriteHoldSettled>();
 
   /**
-   * Tell the app of a settlement it saw held, once, while live. Only once its
-   * callback ran is it done, and a success acknowledged: a lifecycle change
-   * before then leaves it to the next start. A view without `onSettled` (a
-   * watcher) tells no one, so it never acknowledges a success: the gate
-   * keeps it, shown as `succeeded`, until the user acts.
+   * Tell the app of a settlement it saw held, once, while live: a lifecycle
+   * change before then leaves it to the next start. The view never
+   * acknowledges a success: only the app's checked completion does, so
+   * until then every send stays gated. A view without `onSettled` (a
+   * watcher) tells no one: the gate keeps it, shown as `succeeded`, until
+   * the user acts.
    */
   function deliver(settled: WriteHoldSettled, key: string) {
     undelivered.set(key, settled);
@@ -361,16 +362,8 @@ export function createHeldWriteView(
       // A send under way never saw it: it blocks that send, acknowledged or not.
       if (settled.result === "success")
         for (const during of sending) during.add(key);
-      options.onSettled?.(settled, receipt);
+      void tell(options.onSettled, settled, receipt);
       present();
-      // Told: the hold marks it acknowledged, so no later visit asks again.
-      if (
-        shown &&
-        "hash" in settled &&
-        settled.result === "success" &&
-        !settled.acknowledged
-      )
-        void handle.acknowledge(settled).catch(() => null);
     };
     if (!options.onSettled || !("hash" in settled)) {
       done(null);
@@ -521,26 +514,24 @@ export function createHeldWriteView(
 
   /**
    * The send gate, from current evidence alone: any unacknowledged success
-   * of the intent or an eligible legacy hold, but those `exempt`, or any
-   * success delivered `during` the send. It holds whatever is shown.
+   * of the intent or an eligible legacy hold, told or not, or any success
+   * delivered `during` the send. It holds whatever is shown.
    */
-  function unacknowledged(
-    exempt: ReadonlySet<string>,
-    during: ReadonlySet<string>,
-  ) {
-    if (during.size || gate(exempt))
-      throw new ReviewLineError(HELD_AWAY_SUCCESS_LINE);
+  function unacknowledged(during: ReadonlySet<string>) {
+    if (!during.size && !handle.unacknowledgedSuccess()) return;
+    // One told that the app never completed is shown now, with its send-again.
+    told.clear();
+    present();
+    throw new ReviewLineError(HELD_AWAY_SUCCESS_LINE);
   }
 
-  /** Successes this view told the app of: their acknowledgement is under way. */
+  /** Successes this view told the app of: its completion is under way, so they aren't shown `succeeded`. */
   const told = new Set<string>();
   /** Per send under way, the successes delivered since it started. */
   const sending = new Set<Set<string>>();
   /** The gate's success, but for one this view already told the app of. */
-  function gate(exempt: ReadonlySet<string> = told) {
-    return handle.unacknowledgedSuccess((hash) =>
-      exempt.has(hash.toLowerCase()),
-    );
+  function gate() {
+    return handle.unacknowledgedSuccess((hash) => told.has(hash.toLowerCase()));
   }
 
   /**
@@ -699,12 +690,10 @@ export function createHeldWriteView(
      * with the hold's checked state shown.
      */
     async send(run: (gate: WriteHoldGate) => Promise<Hex>): Promise<Hex> {
-      // Only a success told before this send is exempt, taken before any
-      // yield; one delivered after it starts was never seen, so it blocks.
-      const exempt = new Set(told);
+      // One delivered after it starts was never seen, so it blocks too.
       const during = new Set<string>();
       sending.add(during);
-      const guard = () => unacknowledged(exempt, during);
+      const guard = () => unacknowledged(during);
       try {
         if (!(await adopt()))
           throw new ReviewLineError(

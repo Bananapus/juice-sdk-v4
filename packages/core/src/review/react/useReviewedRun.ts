@@ -1,5 +1,5 @@
 import { ReviewLineError } from "../lineError.js";
-import { isSettledIn } from "../receipt.js";
+import { tell } from "../receipt.js";
 import {
   createHeldWriteView,
   discardReviewedSequence,
@@ -371,21 +371,14 @@ export function useReviewedRun(
           receipt: TransactionReceipt | null;
         }) => void,
       ) => {
-        let completed: Promise<WriteHoldSettled | null> = Promise.resolve(null);
+        let completed: Promise<
+          Awaited<ReturnType<ReviewedEngine["completeReviewedStep"]>>
+        > = Promise.resolve(null);
         let shown = false;
-        /** The receipt completion told `onConfirmed`: the one its hold verified. */
-        let confirmed: TransactionReceipt | null = null;
         const action$ = {
           account: deps!.account!,
           scope: action.scope,
-          onConfirmed: async (
-            call: ReviewedCall,
-            step: number,
-            receipt: TransactionReceipt,
-          ) => {
-            confirmed = receipt;
-            await action.onConfirmed?.(call, step, receipt);
-          },
+          onConfirmed: action.onConfirmed,
         };
         const finish = (
           seen?: WriteHoldSettled,
@@ -404,27 +397,21 @@ export function useReviewedRun(
                   return null;
                 }),
           );
-          void completed.then((settled) => {
+          void completed.then((ended) => {
             if (shown || latest.current !== id) return;
             // Nothing advanced (its receipt unread, or its hold not settled
             // for this send yet): it is tried again.
-            if (unread || (!settled && seen)) {
+            if (unread || (!ended && seen)) {
               if (mounted.current)
                 setTimeout(() => finish(seen, receipt), RECEIPT_RETRY_MS);
               return;
             }
-            if (!settled) return;
+            if (!ended) return;
             shown = true;
-            // A failure shows the receipt its check read: the one given, when it is that settlement's.
-            const verified =
-              settled.result === "success"
-                ? confirmed
-                : receipt && "hash" in settled && isSettledIn(settled, receipt)
-                  ? receipt
-                  : null;
-            showSettled(id, target.step, total, settled, verified);
+            // Shown with the receipt completion checked, a failure's too.
+            showSettled(id, target.step, total, ended.settled, ended.receipt);
             setWatched(null);
-            end?.({ settled, receipt: verified });
+            end?.(ended);
           });
         };
         return finish;
@@ -533,7 +520,7 @@ export function useReviewedRun(
         const tracked: ReviewedSendDeps = {
           ...deps,
           onProgress: (progress) => {
-            deps.onProgress?.(progress);
+            tell(deps.onProgress, progress);
             update({
               phase: progress.phase,
               step: progress.step,
@@ -567,7 +554,7 @@ export function useReviewedRun(
             : following.signal,
           onConfirming: (step) => {
             update({ phase: "receipt", step });
-            action.follow?.onConfirming?.(step);
+            tell(action.follow?.onConfirming, step);
           },
         };
         const result = saved

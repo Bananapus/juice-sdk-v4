@@ -46,6 +46,7 @@ import {
   type WriteHoldClient,
   type WriteHoldGate,
   type WriteHeldState,
+  type WriteHoldSettled,
   type WriteHoldState,
 } from "./writeHold.js";
 import {
@@ -6665,9 +6666,9 @@ describe("a legacy hold's success, through its intent", () => {
         await keys.settle(key, result);
         await view.check();
         await new Promise((resolve) => setTimeout(resolve, 0));
-        // A success this view saw settle live is told (to its screen) and acknowledged;
-        // one it never saw held stays unacknowledged.
-        if (result === "success" && !watched) anySuccess = true;
+        // Any success stays unacknowledged, told or not: the view never
+        // acknowledges one; only the app's checked completion does.
+        if (result === "success") anySuccess = true;
         const retry = wallet(async () => OTHER);
         const sent = await view.send(retry.send).then(
           () => true,
@@ -6807,7 +6808,10 @@ describe("a legacy hold's success, through its intent", () => {
     ).rejects.toThrow("rejected");
     // Then an older version sends its exact call.
     await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
-    const settled = vi.fn();
+    // The app's checked completion acknowledges what it is told.
+    const settled = vi.fn((done: WriteHoldSettled) => {
+      if ("hash" in done) void open().acknowledge(done);
+    });
     const released = vi.fn();
     const view = createHeldWriteView(open(), {
       client,
@@ -6898,7 +6902,10 @@ describe("a legacy hold's success, through its intent", () => {
     };
     const open = () =>
       next.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
-    const settled = vi.fn();
+    // The app's checked completion acknowledges what it is told.
+    const settled = vi.fn((done: WriteHoldSettled) => {
+      if ("hash" in done) void open().acknowledge(done);
+    });
     const released = vi.fn();
     const view = createHeldWriteView(open(), {
       client,
@@ -6918,7 +6925,7 @@ describe("a legacy hold's success, through its intent", () => {
       line: HELD_SUCCESS_LINE,
     });
     expect(released).not.toHaveBeenCalled();
-    // Seen settling, it was acknowledged: a reload blocks nothing.
+    // Seen settling and completed, it was acknowledged: a reload blocks nothing.
     await vi.waitFor(async () =>
       expect((await open().state(client)).status).toBe("clear"),
     );
@@ -6981,7 +6988,10 @@ describe("two tabs viewing one write that succeeds", () => {
     const viewA = createHeldWriteView(a, {
       client,
       follow: false,
-      onSettled: vi.fn(),
+      // Tab A's app completes it: its checked completion acknowledges it.
+      onSettled: (done) => {
+        if ("hash" in done) void a.acknowledge(done);
+      },
     });
     const viewB = createHeldWriteView(tabB.hold.open(ordinary), {
       client,
@@ -6992,7 +7002,7 @@ describe("two tabs viewing one write that succeeds", () => {
     await viewA.check();
     await viewB.check();
     expect(viewB.get().phase).toBe("confirming");
-    // It mines; tab A sees it settle live, and acknowledges it.
+    // It mines; tab A sees it settle live, and its app acknowledges it.
     chain.txs.push(sent(HASH, { block: 95n }));
     await a.onReceipt(receiptOf(chain.txs[0]), client);
     await viewA.check();

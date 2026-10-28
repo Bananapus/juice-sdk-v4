@@ -10,6 +10,7 @@ import {
   TRANSACTION_TRACKING_UNAVAILABLE_LINE,
   TransactionReceiptUnavailableError,
   waitForTrackedReceipt,
+  tell,
 } from "./receipt.js";
 
 const HASH = `0x${"ab".repeat(32)}` as Hex;
@@ -240,6 +241,21 @@ describe("heldReceipt", () => {
   });
 });
 
+/** Per review module (tests and fixtures aside, comments stripped), how often `pattern` appears. */
+function inSources(pattern: RegExp): Record<string, number> {
+  const found: Record<string, number> = {};
+  const dir = fileURLToPath(new URL(".", import.meta.url));
+  for (const file of readdirSync(dir, { recursive: true, encoding: "utf8" })) {
+    if (!/\.tsx?$/u.test(file) || /\.test\.|__fixtures__/u.test(file)) continue;
+    const code = readFileSync(`${dir}${file}`, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//gu, "")
+      .replace(/\/\/[^\n]*/gu, "");
+    const matches = code.match(pattern);
+    if (matches) found[file] = matches.length;
+  }
+  return found;
+}
+
 describe("every receipt a sent step is told by is its hold's", () => {
   /**
    * The modules that read a receipt themselves: receipt.ts (the watcher and
@@ -255,22 +271,55 @@ describe("every receipt a sent step is told by is its hold's", () => {
   };
 
   it("leaves no other receipt read in the review modules", () => {
-    const found: Record<string, number> = {};
-    const dir = fileURLToPath(new URL(".", import.meta.url));
-    for (const file of readdirSync(dir, {
-      recursive: true,
-      encoding: "utf8",
-    })) {
-      if (!/\.tsx?$/u.test(file) || /\.test\.|__fixtures__/u.test(file))
-        continue;
-      const code = readFileSync(`${dir}${file}`, "utf8")
-        .replace(/\/\*[\s\S]*?\*\//gu, "")
-        .replace(/\/\/[^\n]*/gu, "");
-      const reads = code.match(
+    expect(
+      inSources(
         /\b(?:getTransactionReceipt|waitForTransactionReceipt|eth_getTransactionReceipt)\b/gu,
-      );
-      if (reads) found[file] = reads.length;
-    }
-    expect(found).toEqual(READERS);
+      ),
+    ).toEqual(READERS);
+  });
+});
+
+describe("every site callback goes through tell", () => {
+  /**
+   * Direct calls left, each inside a function that is itself only called
+   * through `tell`: the hold hooks' pass-through of `onSettled`, safeSend's
+   * progress filter and the Safe Relayr's copy of its progress.
+   */
+  const INSIDE_TELL: Record<string, number> = {
+    "react/useHeldSend.ts": 1,
+    "react/useHeldWrite.ts": 1,
+    "safeRelayr.ts": 1,
+    "safeSend.ts": 1,
+  };
+
+  it("leaves no other direct call to onProgress, onConfirming, onSubmitted, onConfirmed or onSettled", () => {
+    expect(
+      inSources(
+        /\b(?:onProgress|onConfirming|onSubmitted|onConfirmed|onSettled)\?\.\(/gu,
+      ),
+    ).toEqual(INSIDE_TELL);
+  });
+});
+
+describe("tell", () => {
+  it("calls a site's callback, logging one that throws or rejects, and never throws itself", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failure = new Error("the site's callback failed");
+    const told = vi.fn();
+    expect(tell(told, 1, "a")).toBeUndefined();
+    expect(told).toHaveBeenCalledWith(1, "a");
+    expect(tell(undefined)).toBeUndefined();
+    expect(
+      tell(() => {
+        throw failure;
+      }),
+    ).toBeUndefined();
+    await expect(tell(async () => "done")).resolves.toBeUndefined();
+    await expect(tell(() => Promise.reject(failure))).resolves.toBeUndefined();
+    expect(logged).toHaveBeenCalledTimes(2);
+    expect(logged.mock.calls.every(([, error]) => error === failure)).toBe(
+      true,
+    );
+    logged.mockRestore();
   });
 });

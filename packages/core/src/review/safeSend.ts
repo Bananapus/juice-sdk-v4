@@ -35,7 +35,7 @@ import {
 import { safeExecutionIntent } from "./intents.js";
 import type { ReviewContextRow } from "./model.js";
 import type { ReviewedPlan } from "./plan.js";
-import { waitForTrackedReceipt } from "./receipt.js";
+import { tell, waitForTrackedReceipt } from "./receipt.js";
 import {
   sendReviewed,
   type ReviewedCall,
@@ -484,6 +484,6 @@ export async function executeReviewedSafeTransaction(
     result.receipts[0] ??
     (await waitForTrackedReceipt(client, result.hashes[0]));
   requireSafeExecutionSuccess(receipt, safe, safeTxHash);
-  deps.onProgress?.({ step: 0, total: 1, phase: "done" });
+  tell(deps.onProgress, { step: 0, total: 1, phase: "done" });
   return result;
 }

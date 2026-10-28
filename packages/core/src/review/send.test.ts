@@ -1875,7 +1875,10 @@ describe("sendReviewed and its hold's evidence", () => {
     const action$ = { account: ACCOUNT, scope, onConfirmed };
     await expect(
       completeReviewedStep(unverified, action$, deps, receipt as never),
-    ).resolves.toMatchObject({ result: "success", hash: unverified.hash });
+    ).resolves.toMatchObject({
+      settled: { result: "success", hash: unverified.hash },
+      receipt,
+    });
     expect(onConfirmed).toHaveBeenCalledTimes(2);
     expect(onConfirmed.mock.calls[1]).toEqual([calls[1], 1, receipt]);
     expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
@@ -1911,7 +1914,7 @@ describe("sendReviewed and its hold's evidence", () => {
     recover();
     await expect(
       completeReviewedStep(unverified, action$, deps),
-    ).resolves.toMatchObject({ result: "success" });
+    ).resolves.toMatchObject({ settled: { result: "success" } });
     expect(onConfirmed).toHaveBeenCalledTimes(2);
     expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
   });
@@ -2060,11 +2063,12 @@ describe("sendReviewed and its hold's evidence", () => {
       expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
     });
 
-    it("a site's failed record of the hash ends the run unverified, with the hash, its hold and the cause", async () => {
-      const { wallet, deps, chain } = setup();
+    it("a site's failed record of the hash never changes the outcome: the run ends done as its hold verified", async () => {
+      const { wallet, deps } = setup();
       reviewUi();
       const onConfirmed = vi.fn();
-      const failure = await sendReviewed(
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      const result = await sendReviewed(
         action([payCall(), payCall(5n)], {
           onSubmitted: () => {
             throw new Error("the site's record failed");
@@ -2072,18 +2076,12 @@ describe("sendReviewed and its hold's evidence", () => {
           onConfirmed,
         }),
         deps,
-      ).catch((error: unknown) => error);
-      expect(failure).toBeInstanceOf(ReviewedReceiptUnverifiedError);
-      expect(failure).toMatchObject({
-        step: 0,
-        held: { call: expect.anything(), reservation: expect.any(String) },
-      });
-      expect((failure as { cause?: unknown }).cause).toMatchObject({
-        name: "SubmittedContractWriteError",
-      });
-      expect(onConfirmed).not.toHaveBeenCalled();
-      expect(chain.client.waitForTransactionReceipt).not.toHaveBeenCalled();
-      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+      );
+      expect(result).toMatchObject({ status: "done" });
+      expect(onConfirmed).toHaveBeenCalledTimes(2);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+      expect(logged).toHaveBeenCalled();
+      logged.mockRestore();
     });
 
     it("a progress or confirming callback that throws never ends the send", async () => {

@@ -87,15 +87,6 @@ type HeldClient = Pick<PublicClient, "getTransactionReceipt" | "getBlock">;
 const unverified = (hash: Hex) =>
   new Error(`Transaction ${hash}'s receipt is not the one its hold verified.`);
 
-/** Whether `receipt` is `settled`'s transaction, in the block its hold verified if it kept one. */
-export const isSettledIn = (
-  settled: Pick<Settled, "hash" | "blockHash">,
-  receipt: TransactionReceipt,
-) =>
-  receipt.transactionHash.toLowerCase() === settled.hash.toLowerCase() &&
-  (!settled.blockHash ||
-    receipt.blockHash?.toLowerCase() === settled.blockHash.toLowerCase());
-
 /**
  * The receipt a hold verified for `settled`, the only one a sent step's
  * outcome is told by: `seen` (a watcher's, say) when it is that transaction,
@@ -110,8 +101,11 @@ export async function heldReceipt(
   client: HeldClient,
   seen?: TransactionReceipt | null,
 ): Promise<TransactionReceipt> {
+  const hash = settled.hash.toLowerCase();
   const inBlock = (receipt: TransactionReceipt) =>
-    isSettledIn(settled, receipt);
+    receipt.transactionHash.toLowerCase() === hash &&
+    (!settled.blockHash ||
+      receipt.blockHash?.toLowerCase() === settled.blockHash.toLowerCase());
   const receipt =
     seen && inBlock(seen)
       ? seen
@@ -156,3 +150,23 @@ export async function heldBlock(
     throw unverified(settled.hash);
   return { blockNumber: number, blockHash: canonical.hash };
 }
+
+/**
+ * Calls a site's callback (`onProgress`, `onConfirming`, `onSubmitted`,
+ * `onConfirmed`, `onSettled`). One that throws or rejects is logged, and
+ * never changes what was sent or how it settled.
+ */
+export function tell<Args extends unknown[]>(
+  callback: ((...args: Args) => unknown) | undefined,
+  ...args: Args
+): void | Promise<void> {
+  try {
+    const told = callback?.(...args);
+    if (told instanceof Promise) return told.then(() => undefined, logged);
+  } catch (error) {
+    logged(error);
+  }
+}
+
+const logged = (error: unknown) =>
+  console.error("A site callback failed; the write stands.", error);

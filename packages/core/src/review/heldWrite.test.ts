@@ -389,11 +389,8 @@ describe("one held write's view", () => {
       { result: "success", hash: HASH },
       expect.objectContaining({ transactionHash: HASH }),
     );
-    // Seen settling here: the hold forgets it, so no later visit asks.
-    expect(handle.acknowledge).toHaveBeenCalledWith({
-      result: "success",
-      hash: HASH,
-    });
+    // Told, never acknowledged here: only the app's checked completion does.
+    expect(handle.acknowledge).not.toHaveBeenCalled();
     // A success from an earlier visit waits for the user, never delivered.
     const earlier = started(
       clear({ settled: { result: "success", hash: HASH } }),
@@ -1028,7 +1025,7 @@ describe("one held write's view", () => {
     stop();
   });
 
-  it("acknowledges a success only once its callback ran, and delivers it after a restart", async () => {
+  it("never acknowledges a success itself, and delivers it after a restart", async () => {
     const onSettled = vi.fn();
     const { fake, handle } = fakeHandle(pending({ id: "r40" }));
     fake.answer = pending({ id: "r40" });
@@ -1057,13 +1054,10 @@ describe("one held write's view", () => {
     // A read after the stop is kept for the next start too.
     await view.check();
     expect(onSettled).not.toHaveBeenCalled();
-    // The same controller starts again: the success is delivered, then acknowledged.
+    // The same controller starts again: the success is delivered, still unacknowledged.
     stop = view.start();
     await vi.waitFor(() => expect(onSettled).toHaveBeenCalledOnce());
-    expect(handle.acknowledge).toHaveBeenCalledWith({
-      result: "success",
-      hash: HASH,
-    });
+    expect(handle.acknowledge).not.toHaveBeenCalled();
     stop();
     // A settlement first read after a stop waits for the next start.
     const later = fakeHandle(pending({ id: "r41" }));
@@ -1254,7 +1248,7 @@ describe("one held write's view", () => {
     stop();
   });
 
-  it("refuses a send whose delivered success is acknowledged before a later guard", async () => {
+  it("refuses a send whose success is delivered before a later guard", async () => {
     const { fake, handle } = fakeHandle(pending({ id: "r82" }));
     fake.answer = pending({ id: "r82" });
     handle.acknowledge.mockImplementation(async () => {
@@ -1292,8 +1286,26 @@ describe("one held write's view", () => {
     await expect(view.send(wallet as never)).rejects.toThrow(
       HELD_AWAY_SUCCESS_LINE,
     );
-    expect(handle.acknowledge).toHaveBeenCalled();
+    expect(handle.acknowledge).not.toHaveBeenCalled();
     expect(wallet).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("keeps every send refused after telling a success the app never completed, then shows its send-again", async () => {
+    const onSettled = vi.fn();
+    const { view, fake, handle, stop } = started(pending(), { onSettled });
+    await flush();
+    fake.answer = clear({ settled: { result: "success", hash: HASH } });
+    await view.check();
+    await flush();
+    expect(onSettled).toHaveBeenCalledOnce();
+    const wallet = vi.fn(async () => HASH);
+    await expect(view.send(wallet as never)).rejects.toThrow(
+      HELD_AWAY_SUCCESS_LINE,
+    );
+    expect(wallet).not.toHaveBeenCalled();
+    expect(handle.acknowledge).not.toHaveBeenCalled();
+    expect(view.get()).toMatchObject({ phase: "succeeded" });
     stop();
   });
 });
