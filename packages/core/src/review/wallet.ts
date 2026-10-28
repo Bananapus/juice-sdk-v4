@@ -50,6 +50,11 @@ export type WalletAdapter = {
     data: Hex;
     value: bigint;
     gas?: bigint;
+    /**
+     * The run's end: once it aborts, the send is refused, unsent, at the
+     * adapter's last check before the wallet ({@link WalletNotInvokedError}).
+     */
+    signal?: AbortSignal;
   }): Promise<Hex>;
   signTypedData(typedData: TypedDataDefinition): Promise<Hex>;
   signMessage(message: string): Promise<Hex>;
@@ -91,6 +96,7 @@ const CONNECTION_CHANGED =
 const NETWORK_CHANGED = "Your wallet changed networks. Review again.";
 const UNREACHABLE =
   "Your wallet could not be reached. Nothing was sent; try again.";
+const RUN_ENDED = "This action was closed. Nothing more was sent.";
 
 /** The provider requests that send or sign: each is checked again as it is forwarded. */
 const DISPATCHED = new Set([
@@ -114,12 +120,14 @@ const DISPATCHED = new Set([
 async function withConnection<T>(
   options: Parameters<typeof viemWalletAdapter>[0],
   invoke: (connected: { account: Address; client: WalletClient }) => Promise<T>,
+  signal?: AbortSignal,
 ): Promise<T> {
   const account = options.account();
   if (!account) throw new WalletNotInvokedError("Connect a wallet first.");
   const chainId = options.chainId();
   const safe = options.isSafe();
   const current = () => {
+    if (signal?.aborted) throw new WalletNotInvokedError(RUN_ENDED);
     if (options.account()?.toLowerCase() !== account.toLowerCase()) {
       throw new WalletNotInvokedError(
         "The connected account changed. Review again.",
@@ -264,16 +272,19 @@ export function viemWalletAdapter(options: {
     switchChain: async (chainId) => {
       await options.switchChain(chainId);
     },
-    sendTransaction: ({ chainId, to, data, value, gas }) =>
-      withConnection(options, ({ account, client }) =>
-        client.sendTransaction({
-          account,
-          chain: chainOf(client, chainId),
-          to,
-          data,
-          value,
-          ...(gas === undefined ? {} : { gas }),
-        }),
+    sendTransaction: ({ chainId, to, data, value, gas, signal }) =>
+      withConnection(
+        options,
+        ({ account, client }) =>
+          client.sendTransaction({
+            account,
+            chain: chainOf(client, chainId),
+            to,
+            data,
+            value,
+            ...(gas === undefined ? {} : { gas }),
+          }),
+        signal,
       ),
     signTypedData: async (typedData) => {
       // viem does not check the wallet's chain against the domain's.

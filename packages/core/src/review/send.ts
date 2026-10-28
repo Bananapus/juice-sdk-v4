@@ -2,6 +2,7 @@ import {
   ReviewedCallRevertedError,
   ReviewedReceiptUnverifiedError,
   ReviewLineError,
+  WalletNotInvokedError,
 } from "./lineError.js";
 import {
   encodeFunctionData,
@@ -1447,148 +1448,167 @@ async function send(
     let queued:
       | Awaited<ReturnType<typeof findPendingSafeAppProposal>>
       | undefined;
-    const hash = await handles[step].send<Hex>(client, (gate) => {
-      // Under the hold's own check of the call, before anything reserves.
-      if (generation(handles[step]) !== reviewedGenerations[step]) {
-        throw new WriteHoldStaleReviewError();
-      }
-      /** Nothing was sent: the hold lets go, and the step is no longer in flight. */
-      const released = async () => {
-        gate.onRejected();
-        if (journal) {
-          delete journal.sending;
-          await keep();
+    /** The caller's end of the run, once this run sent a step. */
+    const runEnd = hashes.length ? action.follow?.signal : undefined;
+    const hash = await handles[step]
+      .send<Hex>(client, (gate) => {
+        // Under the hold's own check of the call, before anything reserves.
+        if (generation(handles[step]) !== reviewedGenerations[step]) {
+          throw new WriteHoldStaleReviewError();
         }
-        await tellUnsent(call, at);
-      };
-      return submitReviewedContractWrite({
-        request: reviewed,
-        expectedAccount: account,
-        // Confirmed once, above, for every step.
-        review: () => Promise.resolve(),
-        switchChain: async (chainId) => {
-          if (adapter.chainId() !== chainId) await adapter.switchChain(chainId);
-        },
-        currentAccount: () => adapter.account(),
-        reverify: async () => {
-          if (action.reverify)
-            await action.reverify(call, at, await confirmedBefore());
-          unchanged();
-        },
-        simulate: async (sending) => {
-          const blockNumber =
-            priorBlock ??
-            (blocks[step] === undefined
-              ? undefined
-              : await notBefore(client, blocks[step]));
-          const tx = {
-            to: sending.to,
-            data: sending.data,
-            value: sending.value,
-            ...(blockNumber === undefined ? {} : { blockNumber }),
-          };
-          const { gas } = run[step];
-          const [, estimate, found] = await Promise.all([
-            simulateStateChangingTransaction(client, {
-              from: account,
-              ...tx,
-              gas,
-            }).catch((error: unknown) => {
-              throw simulationFailure(
-                `${labelOf(call, at)} cannot run on ${chainNameOf(client, sending.chainId)}: ${revertDetail(error)}`,
-                error,
-              );
-            }),
-            // A Safe app signs the sent gas as safeTxGas; 0 makes a failed call revert.
-            safe || gas !== undefined
-              ? undefined
-              : client.estimateGas({ account, ...tx }),
-            // A Safe app never proposes again a call its Safe already queued exactly.
-            safe && hasSafeService(sending.chainId)
-              ? findPendingSafeAppProposal(
-                  client,
-                  sending.chainId,
-                  account,
-                  sending,
-                  hold.safeService,
-                  true,
-                  adopting(snapshots[step].shown),
-                )
-              : null,
-          ]);
-          queued = found;
-          return {
-            ...sending,
-            gas: safe ? 0n : (gas ?? gasWithHeadroom(estimate!)),
-          };
-        },
-        beforeWrite: async () => {
-          // An adopted proposal is held as the call it runs.
-          await gate.beforeSend(queued?.call);
-          reserved = handles[step].peek().reservation;
-          if (journal)
+        /** Nothing was sent: the hold lets go, and the step is no longer in flight. */
+        const released = async () => {
+          gate.onRejected();
+          if (journal) {
+            delete journal.sending;
+            await keep();
+          }
+          await tellUnsent(call, at);
+        };
+        return submitReviewedContractWrite({
+          request: reviewed,
+          expectedAccount: account,
+          // Confirmed once, above, for every step.
+          review: () => Promise.resolve(),
+          switchChain: async (chainId) => {
+            if (adapter.chainId() !== chainId)
+              await adapter.switchChain(chainId);
+          },
+          currentAccount: () => adapter.account(),
+          reverify: async () => {
+            if (action.reverify)
+              await action.reverify(call, at, await confirmedBefore());
+            unchanged();
+          },
+          simulate: async (sending) => {
+            const blockNumber =
+              priorBlock ??
+              (blocks[step] === undefined
+                ? undefined
+                : await notBefore(client, blocks[step]));
+            const tx = {
+              to: sending.to,
+              data: sending.data,
+              value: sending.value,
+              ...(blockNumber === undefined ? {} : { blockNumber }),
+            };
+            const { gas } = run[step];
+            const [, estimate, found] = await Promise.all([
+              simulateStateChangingTransaction(client, {
+                from: account,
+                ...tx,
+                gas,
+              }).catch((error: unknown) => {
+                throw simulationFailure(
+                  `${labelOf(call, at)} cannot run on ${chainNameOf(client, sending.chainId)}: ${revertDetail(error)}`,
+                  error,
+                );
+              }),
+              // A Safe app signs the sent gas as safeTxGas; 0 makes a failed call revert.
+              safe || gas !== undefined
+                ? undefined
+                : client.estimateGas({ account, ...tx }),
+              // A Safe app never proposes again a call its Safe already queued exactly.
+              safe && hasSafeService(sending.chainId)
+                ? findPendingSafeAppProposal(
+                    client,
+                    sending.chainId,
+                    account,
+                    sending,
+                    hold.safeService,
+                    true,
+                    adopting(snapshots[step].shown),
+                  )
+                : null,
+            ]);
+            queued = found;
+            return {
+              ...sending,
+              gas: safe ? 0n : (gas ?? gasWithHeadroom(estimate!)),
+            };
+          },
+          beforeWrite: async () => {
+            // An adopted proposal is held as the call it runs.
+            await gate.beforeSend(queued?.call);
+            reserved = handles[step].peek().reservation;
+            if (journal)
+              try {
+                const { reservation } = handles[step].peek();
+                if (reservation === undefined)
+                  throw new ReviewLineError(NOT_SAVED);
+                journal.sending = { step: at, reservation };
+                expected = await saveReviewedSequence(
+                  journal,
+                  storage!,
+                  expected,
+                );
+              } catch (error) {
+                // Reserved, and the wallet never opened.
+                delete journal.sending;
+                gate.onRejected();
+                throw error;
+              }
             try {
-              const { reservation } = handles[step].peek();
-              if (reservation === undefined)
-                throw new ReviewLineError(NOT_SAVED);
-              journal.sending = { step: at, reservation };
-              expected = await saveReviewedSequence(
-                journal,
-                storage!,
-                expected,
-              );
+              await action.beforeWallet?.(call, at);
             } catch (error) {
-              // Reserved, and the wallet never opened.
-              delete journal.sending;
-              gate.onRejected();
+              await released();
               throw error;
             }
-          try {
-            await action.beforeWallet?.(call, at);
-          } catch (error) {
-            await released();
-            throw error;
-          }
-        },
-        beforeSend: () => {
-          // The caller ended the run (a reset, an unmount) after it sent a
-          // step: nothing more is sent.
-          if (hashes.length && action.follow?.signal?.aborted)
-            throw new TransactionReviewCancelledError();
-          action.assertWriteState?.();
-          unchanged();
-          if (adapter.isSafe() !== safe) {
-            throw new ReviewLineError(
-              "Wallet connection changed. Review the transaction again.",
-            );
-          }
-          if (adapter.chainId() !== reviewed.chainId) {
-            throw new ReviewLineError(
-              "Your wallet changed networks. Review the transaction again.",
-            );
-          }
-          // Last, after every callback and getter above could have run.
-          if (adapter.account()?.toLowerCase() !== account.toLowerCase()) {
-            throw new ReviewLineError(ACCOUNT_CHANGED);
-          }
-        },
-        onBeforeWriteAborted: released,
-        onWriteRejected: released,
-        // An adopted proposal's nonce lets the hold prove its execution onchain.
-        onWriteSubmitted: async (submitted) => {
-          gate.afterSubmit(submitted, queued?.tx);
-          await action.onSubmitted?.(call, at, submitted, {
-            safe,
-            adopted: !!queued,
-          });
-        },
-        write: async ({ chainId, to, data, value, gas }) =>
-          queued?.proposalHash ??
-          adapter.sendTransaction({ chainId, to, data, value, gas }),
-        onPhase: (phase) => progress(phase),
-        guard: action.guard,
+          },
+          beforeSend: () => {
+            // The caller ended the run (a reset, an unmount) after it sent a
+            // step: nothing more is sent.
+            if (hashes.length && action.follow?.signal?.aborted)
+              throw new TransactionReviewCancelledError();
+            action.assertWriteState?.();
+            unchanged();
+            if (adapter.isSafe() !== safe) {
+              throw new ReviewLineError(
+                "Wallet connection changed. Review the transaction again.",
+              );
+            }
+            if (adapter.chainId() !== reviewed.chainId) {
+              throw new ReviewLineError(
+                "Your wallet changed networks. Review the transaction again.",
+              );
+            }
+            // Last, after every callback and getter above could have run.
+            if (adapter.account()?.toLowerCase() !== account.toLowerCase()) {
+              throw new ReviewLineError(ACCOUNT_CHANGED);
+            }
+          },
+          onBeforeWriteAborted: released,
+          onWriteRejected: released,
+          // An adopted proposal's nonce lets the hold prove its execution onchain.
+          onWriteSubmitted: async (submitted) => {
+            gate.afterSubmit(submitted, queued?.tx);
+            await action.onSubmitted?.(call, at, submitted, {
+              safe,
+              adopted: !!queued,
+            });
+          },
+          write: async ({ chainId, to, data, value, gas }) =>
+            queued?.proposalHash ??
+            adapter.sendTransaction({
+              chainId,
+              to,
+              data,
+              value,
+              gas,
+              // After a step was sent, the run's end refuses this one, unsent,
+              // as late as the wallet's own last check.
+              ...(runEnd ? { signal: runEnd } : {}),
+            }),
+          onPhase: (phase) => progress(phase),
+          guard: action.guard,
+        });
+      })
+      .catch((error: unknown) => {
+        // Refused unsent because the caller ended the run: a cancel, not a failure.
+        if (runEnd?.aborted && error instanceof WalletNotInvokedError)
+          throw new TransactionReviewCancelledError();
+        throw error;
       });
-    });
     hashes.push(hash);
     // A later step held under this step's key (the same call, or the same
     // intent) was reserved by this send, not by another prompt.

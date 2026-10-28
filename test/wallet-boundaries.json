@@ -59,98 +59,98 @@
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 269,
+      "line": 279,
       "api": "sendTransaction",
       "boundary": "The WalletAdapter boundary: send exactly the reviewed target, calldata, value and gas from the connected account, naming the call's chain so viem refuses a wallet on another one. Reached only from sendReviewed after the core-minted confirmation.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 285,
+      "line": 296,
       "api": "signTypedData",
       "boundary": "The WalletAdapter boundary: sign the exact typed data from the connected account.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 290,
+      "line": 301,
       "api": "signMessage",
       "boundary": "The WalletAdapter boundary: sign the exact message from the connected account.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 294,
+      "line": 305,
       "api": "sendCalls",
       "boundary": "The WalletAdapter boundary: send the exact calls as one wallet batch from the connected account on the named chain.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 97,
+      "line": 103,
       "api": "rpc:eth_sendTransaction",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 98,
+      "line": 104,
       "api": "rpc:wallet_sendTransaction",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 99,
+      "line": 105,
       "api": "rpc:eth_sendRawTransaction",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 100,
+      "line": 106,
       "api": "rpc:wallet_sendCalls",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 101,
+      "line": 107,
       "api": "rpc:eth_signTypedData_v4",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 102,
+      "line": 108,
       "api": "rpc:personal_sign",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 187,
+      "line": 195,
       "api": "request",
       "boundary": "viemWalletAdapter's dispatch guard: forwards a sending or signing request once (retries off) to the connected wallet, after checking the account, chain, Safe mode, connector and the site's check again.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 188,
+      "line": 196,
       "api": "request",
       "boundary": "viemWalletAdapter's dispatch guard: forwards a read viem makes before it sends (eth_chainId, say); it never sends or signs.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 1333,
+      "line": 1334,
       "api": "sendCalls",
       "boundary": "sendReviewed with batch, through a Safe app only, hands every reviewed call's exact bytes to the WalletAdapter's sendCalls as one Safe proposal, inside submitReviewedContractWrite under the batch's one MultiSend write hold and only after core's own confirmation for the model of the whole action. A reviewPlan plan core minted after its own confirmation stands for that confirmation only for calls identical to its unspent calls, each spent once. Only a 4001 releases the hold; an answer that is not a safeTxHash keeps it held.",
       "test": "packages/core/src/review/send.test.ts"
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 1587,
+      "line": 1592,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the app's exact gas or else the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action. A reviewPlan plan core minted after its own confirmation stands for that confirmation only for calls identical to its unspent calls, each spent once. A Safe app whose Safe already queued that call (exact bytes, or the same target, value, operation and function with every arg equal but those its adoptIgnoringArgs lists) returns that proposal's hash instead and opens no wallet.",
       "test": "packages/core/src/review/send.test.ts"

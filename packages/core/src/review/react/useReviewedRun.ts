@@ -82,9 +82,10 @@ export type ReviewedRunReceipt = {
   /**
    * How the run ends once the step's hold settles it: `done` with every
    * step's hash (and the signatures), `failed`, or null when its hold was
-   * released, or a reset or a later run replaced this one (the step stays
-   * held). A step before the last continues the action first, its remaining
-   * steps reviewed again, as a resumed run is.
+   * released, a reset, an unmount or a later run replaced this one, or the
+   * action's own `follow.signal` aborted (the step stays held). A step
+   * before the last continues the action first, its remaining steps
+   * reviewed again, as a resumed run is.
    */
   ended: () => Promise<ReviewedResult | ReviewedRunFailed | null>;
 };
@@ -546,9 +547,17 @@ export function useReviewedRun(
           const outcome = new Promise<Parameters<typeof end>[0]>(
             (resolve) => (end = resolve),
           );
-          // Replaced already, or when it is: its end is null, the step still held.
-          if (latest.current !== id) end(null);
-          else leave.current = () => end(null);
+          // Replaced, or the caller's follow ended (a cancel, unlike its
+          // timeout), already or later: its end is null, the step still held,
+          // and nothing continues the action.
+          const cancelled = action.follow?.signal;
+          if (latest.current !== id || cancelled?.aborted) end(null);
+          else {
+            leave.current = () => end(null);
+            cancelled?.addEventListener("abort", () => end(null), {
+              once: true,
+            });
+          }
           // Completes the step once its hold settled it, then shows how it ended, once.
           const finish = (
             seen?: WriteHoldSettled,

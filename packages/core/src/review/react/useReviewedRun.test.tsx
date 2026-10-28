@@ -20,6 +20,8 @@ import {
 } from "../messages.js";
 import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
 import { openStepHold } from "../writeHold.js";
+import { viemWalletAdapter } from "../wallet.js";
+import { createWalletClient, custom, type Hex as ViemHex } from "viem";
 import {
   findReviewedSequence,
   REVIEWED_SEQUENCE_HELD_LINE,
@@ -1074,6 +1076,121 @@ describe("useReviewedRun", () => {
     act(() => root!.unmount());
     root = undefined;
     await expect(ended).resolves.toBeNull();
+  });
+
+  test.each(["reset", "unmount"] as const)(
+    "a %s while the payment's wallet loads sends nothing more: one write",
+    async (end) => {
+      const prompts = reviewUi();
+      const { deps, wallet } = setup();
+      let resume!: () => void;
+      let acquiring = false;
+      let loads = 0;
+      // The wallet's provider: each send reaches the fake chain through the fixture's wallet.
+      const provider = async ({
+        method,
+        params,
+      }: {
+        method: string;
+        params?: unknown;
+      }) => {
+        if (method === "eth_chainId") return "0xa";
+        if (method === "eth_sendTransaction") {
+          const [tx] = params as [
+            { to: ViemHex; data: ViemHex; value?: ViemHex; gas?: ViemHex },
+          ];
+          return wallet.adapter.sendTransaction({
+            chainId: 10,
+            to: tx.to,
+            data: tx.data,
+            value: BigInt(tx.value ?? 0),
+            ...(tx.gas ? { gas: BigInt(tx.gas) } : {}),
+          });
+        }
+        throw new Error(`unexpected ${method}`);
+      };
+      const real = viemWalletAdapter({
+        walletClient: async () => {
+          loads += 1;
+          // The payment's wallet loads slowly.
+          if (loads === 2) {
+            acquiring = true;
+            await new Promise<void>((resolve) => (resume = resolve));
+          }
+          return createWalletClient({
+            chain: { id: 10 } as never,
+            transport: custom({ request: provider }, { retryCount: 0 }),
+          });
+        },
+        account: wallet.adapter.account,
+        chainId: wallet.adapter.chainId,
+        isSafe: wallet.adapter.isSafe,
+        switchChain: async () => undefined,
+      });
+      const adapter = {
+        ...wallet.adapter,
+        sendTransaction: real.sendTransaction,
+      };
+      const { seen } = harness({ ...deps, adapter, account: ACCOUNT });
+      let pending!: ReturnType<UseReviewedRunResult["run"]>;
+      act(() => {
+        pending = seen.current!.run({
+          calls: [approveCall(), payCall()],
+          scope: `pay:${end}-acquiring`,
+        });
+      });
+      await vi.waitFor(() => expect(acquiring).toBe(true));
+      if (end === "reset") act(() => seen.current!.reset());
+      else {
+        act(() => root!.unmount());
+        root = undefined;
+      }
+      resume();
+      let result: unknown = "pending";
+      await act(async () => {
+        result = await pending;
+      });
+      expect(result).toBeNull();
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+      expect(prompts).toHaveLength(1);
+    },
+  );
+
+  test("a caller's abort while the approval is followed is a cancel: its end is null, nothing continues", async () => {
+    const prompts = reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const approval = `0x${"1".padStart(64, "0")}`;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (args.hash === approval) throw new Error("lagging node");
+      return read(args);
+    });
+    const stop = new AbortController();
+    const { seen } = harness({ ...deps, account: ACCOUNT });
+    let pending!: ReturnType<UseReviewedRunResult["run"]>;
+    act(() => {
+      pending = seen.current!.run({
+        calls: [approveCall(), payCall()],
+        scope: "pay:aborted",
+        follow: { signal: stop.signal },
+      });
+    });
+    await rendered(() =>
+      expect(seen.current).toMatchObject({ phase: "receipt", step: 0 }),
+    );
+    stop.abort();
+    let result: unknown;
+    await act(async () => {
+      result = await pending;
+    });
+    expect(result).toMatchObject({ status: "receipt", step: 0 });
+    const ended = (result as ReviewedRunReceipt).ended();
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await expect(ended).resolves.toBeNull();
+    await act(async () => {});
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    expect(prompts).toHaveLength(1);
   });
 
   test("a reset resolves an awaited end with null, the step still held", async () => {
