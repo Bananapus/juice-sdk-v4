@@ -1,4 +1,5 @@
 import { ReviewLineError } from "../lineError.js";
+import { isSettledIn } from "../receipt.js";
 import {
   createHeldWriteView,
   discardReviewedSequence,
@@ -414,7 +415,13 @@ export function useReviewedRun(
             }
             if (!settled) return;
             shown = true;
-            const verified = settled.result === "success" ? confirmed : null;
+            // A failure shows the receipt its check read: the one given, when it is that settlement's.
+            const verified =
+              settled.result === "success"
+                ? confirmed
+                : receipt && "hash" in settled && isSettledIn(settled, receipt)
+                  ? receipt
+                  : null;
             showSettled(id, target.step, total, settled, verified);
             setWatched(null);
             end?.({ settled, receipt: verified });

@@ -87,6 +87,15 @@ type HeldClient = Pick<PublicClient, "getTransactionReceipt" | "getBlock">;
 const unverified = (hash: Hex) =>
   new Error(`Transaction ${hash}'s receipt is not the one its hold verified.`);
 
+/** Whether `receipt` is `settled`'s transaction, in the block its hold verified if it kept one. */
+export const isSettledIn = (
+  settled: Pick<Settled, "hash" | "blockHash">,
+  receipt: TransactionReceipt,
+) =>
+  receipt.transactionHash.toLowerCase() === settled.hash.toLowerCase() &&
+  (!settled.blockHash ||
+    receipt.blockHash?.toLowerCase() === settled.blockHash.toLowerCase());
+
 /**
  * The receipt a hold verified for `settled`, the only one a sent step's
  * outcome is told by: `seen` (a watcher's, say) when it is that transaction,
@@ -101,11 +110,8 @@ export async function heldReceipt(
   client: HeldClient,
   seen?: TransactionReceipt | null,
 ): Promise<TransactionReceipt> {
-  const hash = settled.hash.toLowerCase();
   const inBlock = (receipt: TransactionReceipt) =>
-    receipt.transactionHash.toLowerCase() === hash &&
-    (!settled.blockHash ||
-      receipt.blockHash?.toLowerCase() === settled.blockHash.toLowerCase());
+    isSettledIn(settled, receipt);
   const receipt =
     seen && inBlock(seen)
       ? seen

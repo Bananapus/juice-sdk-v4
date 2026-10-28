@@ -650,6 +650,10 @@ describe("useReviewedRun", () => {
       expect(failed.seen.current).toMatchObject({
         phase: "idle",
         error: HELD_FAILED_LINE,
+        // Its execution's receipt, so a site can say it ran and failed.
+        receipt: expect.objectContaining({
+          transactionHash: failed.EXECUTION,
+        }),
       }),
     );
     expect(failed.onConfirmed).not.toHaveBeenCalled();
