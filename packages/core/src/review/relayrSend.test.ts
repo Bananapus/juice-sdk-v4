@@ -53,6 +53,7 @@ import { signReviewed } from "./sign.js";
 import { selfReviewingAdapter, viemWalletAdapter } from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
 import { SubmittedContractWriteError } from "./contractWrite.js";
+import { RelayrProofUnavailableError } from "./relayr.js";
 import {
   ReviewedCallRevertedError,
   WalletNotInvokedError,
@@ -1354,6 +1355,52 @@ describe("payRelayrReviewed", () => {
     await payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps);
     expect(prompts).toHaveLength(2);
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["reads on a retry", 1, "resolves"],
+    ["stays unreadable past the follow's bound", Infinity, "rejects"],
+  ] as const)("a payment whose proof %s", async (_name, failures, outcome) => {
+    const { deps, chain, wallet } = relayrSetup();
+    reviewUi();
+    const read = chain.client.getTransaction.getMockImplementation()!;
+    let failed = 0;
+    chain.client.getTransaction.mockImplementation(async (args) => {
+      // The proof's read, once the hold read the payment settled.
+      if (
+        wallet.adapter.sendTransaction.mock.calls.length &&
+        new Error().stack!.includes("readTransaction") &&
+        failed < failures
+      ) {
+        failed += 1;
+        throw new Error("RPC temporarily unavailable");
+      }
+      return read(args);
+    });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      const paid = payRelayrReviewed(
+        quoteFor(),
+        10,
+        { account: ACCOUNT },
+        deps,
+      );
+      const settled = paid.then(
+        (hash) => ({ hash }),
+        (error: unknown) => ({ error }),
+      );
+      await vi.advanceTimersByTimeAsync(130_000);
+      const result = await settled;
+      if (outcome === "resolves") expect(result).toHaveProperty("hash");
+      else
+        expect((result as { error: unknown }).error).toBeInstanceOf(
+          RelayrProofUnavailableError,
+        );
+      if (outcome === "rejects") expect(failed).toBeGreaterThan(1);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("tells the site before the wallet opens and each hash after", async () => {

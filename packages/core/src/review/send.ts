@@ -25,7 +25,7 @@ import {
 } from "./contractWrite.js";
 import { JB_CHAINS } from "../constants.js";
 import { gasWithHeadroom } from "./gas.js";
-import { followHeldWrite, RECEIPT_RETRY_MS } from "./heldWrite.js";
+import { FOLLOW_MS, followHeldWrite, RECEIPT_RETRY_MS } from "./heldWrite.js";
 import { pause } from "../pause.js";
 import {
   findPendingSafeAppProposal,
@@ -909,9 +909,6 @@ async function tellConfirmed(
   }
 }
 
-/** How long `follow` follows a step by default. */
-const FOLLOW_MS = 120_000;
-
 /**
  * A sent step's settlement by its own reservation, and the receipt of the
  * transaction that settled it, read again until it reads. Null on `follow`'s
@@ -931,9 +928,17 @@ async function followSent(
   const signal = follow.signal
     ? AbortSignal.any([stop.signal, follow.signal])
     : stop.signal;
+  // Every read races the follow's end: a read that answers after it is ignored.
+  const ended = new Promise<null>((resolve) => {
+    signal.addEventListener("abort", () => resolve(null), { once: true });
+  });
+  const read = <T>(work: Promise<T>) => Promise.race([work, ended]);
   try {
     while (!signal.aborted) {
-      const state = await followHeldWrite(handle, client as never, { signal });
+      const state = await read(
+        followHeldWrite(handle, client as never, { signal }),
+      );
+      if (signal.aborted) return null;
       if (
         state?.status !== "clear" ||
         state.reservation !== reserved ||
@@ -943,10 +948,10 @@ async function followSent(
         return null;
       const { settled } = state;
       try {
-        const receipt = await client.getTransactionReceipt({
-          hash: settled.hash,
-        });
-        return { settled, receipt };
+        const receipt = await read(
+          client.getTransactionReceipt({ hash: settled.hash }),
+        );
+        return signal.aborted || !receipt ? null : { settled, receipt };
       } catch {
         await pause(RECEIPT_RETRY_MS, signal, () => null).catch(() => null);
       }
@@ -1613,20 +1618,15 @@ async function send(
           : undefined,
       )
       .catch(() => undefined);
-    if (receipt.status === "success" && settled?.result === "failed") {
-      // It ran, and the hold proved it failed: a Safe's call that failed.
-      if (journal) {
-        delete journal.sending;
-        await keep();
-      }
-      throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
-    }
+    // It ran, and the hold proved it failed: a Safe's call that failed.
+    const callFailed = () =>
+      receipt.status === "success" && settled?.result === "failed";
     // Done, or reverted, only once its hold verified the receipt (a Safe's
     // execTransaction, the Safe's own success); until then it stays held and
     // journaled, as `follow` or the hook follows it to its settlement.
     const verified = () =>
       settled?.result === (receipt.status === "success" ? "success" : "failed");
-    if (!verified() && action.follow) {
+    if (!callFailed() && !verified() && action.follow) {
       action.follow.onConfirming?.(at);
       const ended = await followSent(
         handles[step],
@@ -1635,6 +1635,13 @@ async function send(
         action.follow,
       );
       if (ended) ({ settled, receipt } = ended);
+    }
+    if (callFailed()) {
+      if (journal) {
+        delete journal.sending;
+        await keep();
+      }
+      throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
     }
     if (!verified()) {
       throw new ReviewedReceiptUnverifiedError(

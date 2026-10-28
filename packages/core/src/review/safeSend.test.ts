@@ -677,6 +677,64 @@ describe("executeReviewedSafeTransaction", () => {
     }
   });
 
+  it("reports a Safe failure its hold verified while following it as that failure", async () => {
+    const tx = signedTx();
+    const safeTxHash = safeTransactionHash(10, SAFE, tx);
+    // The exact execution call, as a run sends it.
+    const first = signing();
+    reviewUi();
+    first.chain.state.ethCall = executes;
+    first.chain.state.logs = [executionLog(EXECUTION_SUCCESS, safeTxHash)];
+    await executeReviewedSafeTransaction(
+      { chainId: 10, safe: SAFE, tx },
+      first.deps,
+    );
+    const [sent] = first.wallet.adapter.sendTransaction.mock.calls[0];
+    resetReviewUi();
+    vi.useFakeTimers();
+    try {
+      const { deps, chain } = signing();
+      reviewUi();
+      chain.state.ethCall = executes;
+      chain.state.logs = [executionLog(EXECUTION_FAILURE, safeTxHash)];
+      const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+      let lag = true;
+      chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+        if (lag) throw new Error("lagging node");
+        return read(args);
+      });
+      const ended = sendReviewed(
+        {
+          account: ACCOUNT,
+          title: "Review Safe execution",
+          calls: [
+            {
+              chainId: 10,
+              to: SAFE,
+              data: sent.data,
+              label: "Execute",
+              intent: safeExecutionIntent({
+                chainId: 10,
+                safe: SAFE,
+                safeTxHash,
+              }),
+            },
+          ],
+          follow: {},
+        },
+        deps,
+      ).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(10_000);
+      lag = false;
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(String(await ended)).toContain(
+        "but its call failed, so nothing changed",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("decides a call that only shares execTransaction's selector as any other, and keeps an unknown target held", async () => {
     const data = encodeFunctionData({
       abi: SAFE_EXEC_ABI,

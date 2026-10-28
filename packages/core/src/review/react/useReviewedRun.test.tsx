@@ -742,18 +742,21 @@ describe("useReviewedRun", () => {
     expect(prompts).toHaveLength(2);
   });
 
+  /** A run that hands a step still confirming back at once, as one whose follow timed out. */
+  const HANDED_BACK = { follow: { timeoutMs: 0 } };
+
   /** A run whose receipt the hold can't read yet: the node lags. */
   async function unverified() {
     reviewUi();
-    const { wallet, chain, deps } = setup();
+    const { wallet, chain, deps, hold } = setup();
     const read = chain.client.getTransactionReceipt.getMockImplementation()!;
     chain.client.getTransactionReceipt.mockImplementation(async () => {
       throw new Error("lagging node");
     });
     const { seen, run } = harness({ ...deps, account: ACCOUNT });
     const call = payCall();
-    const result = await run({ calls: [call] });
-    return { wallet, chain, read, seen, run, call, result };
+    const result = await run({ ...HANDED_BACK, calls: [call] });
+    return { wallet, chain, read, seen, run, call, result, hold };
   }
 
   test("run resolves as verifying, not failed, while the hold verifies the receipt", async () => {
@@ -785,7 +788,12 @@ describe("useReviewedRun", () => {
     });
     const onConfirmed = vi.fn();
     const scope = "pay:project-1";
-    const action = { calls: [approveCall(), payCall()], scope, onConfirmed };
+    const action = {
+      ...HANDED_BACK,
+      calls: [approveCall(), payCall()],
+      scope,
+      onConfirmed,
+    };
     const { seen, run } = harness({ ...deps, account: ACCOUNT });
     await expect(run(action)).resolves.toMatchObject({
       status: "receipt",
@@ -843,7 +851,12 @@ describe("useReviewedRun", () => {
     };
     const onConfirmed = vi.fn();
     const scope = "pay:view-receipt";
-    const action = { calls: [approveCall(), payCall()], scope, onConfirmed };
+    const action = {
+      ...HANDED_BACK,
+      calls: [approveCall(), payCall()],
+      scope,
+      onConfirmed,
+    };
     const { seen, run } = harness({ ...deps, engine, account: ACCOUNT });
     await expect(run(action)).resolves.toMatchObject({ status: "receipt" });
     await vi.waitFor(() =>
@@ -871,6 +884,7 @@ describe("useReviewedRun", () => {
     });
     const { run } = harness({ ...deps, account: ACCOUNT });
     const left = await run({
+      ...HANDED_BACK,
       calls: [approveCall(), payCall()],
       scope: "pay:ended",
     });
@@ -913,6 +927,7 @@ describe("useReviewedRun", () => {
     });
     const { run } = harness({ ...deps, account: ACCOUNT });
     const left = await run({
+      ...HANDED_BACK,
       calls: [approveCall(), payCall()],
       scope: "pay:continued",
     });
@@ -935,7 +950,7 @@ describe("useReviewedRun", () => {
     });
     chain.state.status = "reverted";
     const { run } = harness({ ...deps, account: ACCOUNT });
-    const left = await run({ calls: [payCall()] });
+    const left = await run({ ...HANDED_BACK, calls: [payCall()] });
     const ended = (left as ReviewedRunReceipt).ended();
     chain.client.getTransactionReceipt.mockImplementation(read);
     act(() => void globalThis.dispatchEvent(new Event("focus")));
@@ -953,10 +968,79 @@ describe("useReviewedRun", () => {
     const { run } = harness({ ...deps, account: ACCOUNT });
     await expect(
       run({
+        ...HANDED_BACK,
         calls: [payCall()],
         signatures: [{ kind: "message", chainId: 10, message: "List it" }],
       }),
     ).resolves.toMatchObject({ status: "receipt", signatures: [signature] });
+  });
+
+  test("an approval confirming late is followed in place: two writes, one review", async () => {
+    const prompts = reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const approval = `0x${"1".padStart(64, "0")}`;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (args.hash === approval) throw new Error("lagging node");
+      return read(args);
+    });
+    const { seen } = harness({ ...deps, account: ACCOUNT });
+    let pending!: ReturnType<UseReviewedRunResult["run"]>;
+    act(() => {
+      pending = seen.current!.run({
+        calls: [approveCall(), payCall()],
+        scope: "pay:in-place",
+      });
+    });
+    await rendered(() =>
+      expect(seen.current).toMatchObject({ phase: "receipt", step: 0 }),
+    );
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    let result: unknown;
+    await act(async () => {
+      result = await pending;
+    });
+    expect(result).toMatchObject({ status: "done" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    expect(prompts).toHaveLength(1);
+  }, 20_000);
+
+  test("a reset resolves an awaited end with null, the step still held", async () => {
+    const { seen, result, call, hold } = await unverified();
+    let ended: unknown = "pending";
+    void (result as ReviewedRunReceipt)
+      .ended()
+      .then((value) => (ended = value));
+    act(() => seen.current!.reset());
+    await rendered(() => expect(ended).toBeNull());
+    expect(seen.current!.phase).toBe("idle");
+    expect(openStepHold(hold, ACCOUNT, false, call).peek().status).not.toBe(
+      "clear",
+    );
+  });
+
+  test("a run left at its receipt ends done with the signatures it signed", async () => {
+    reviewUi();
+    const { wallet, chain, deps } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const signature = `0x${"5e".repeat(65)}` as const;
+    wallet.adapter.signMessage.mockImplementation(async () => signature);
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const { run } = harness({ ...deps, account: ACCOUNT });
+    const left = await run({
+      ...HANDED_BACK,
+      calls: [payCall()],
+      signatures: [{ kind: "message", chainId: 10, message: "List it" }],
+    });
+    const ended = (left as ReviewedRunReceipt).ended();
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await expect(ended).resolves.toMatchObject({
+      status: "done",
+      signatures: [signature],
+    });
   });
 
   test("a receipt settled before the hook follows it ends done, never stuck at receipt", async () => {
@@ -987,9 +1071,11 @@ describe("useReviewedRun", () => {
       adapter: { ...deps.adapter, ready },
       account: ACCOUNT,
     });
-    await expect(run({ calls: [call] })).resolves.toMatchObject({
-      status: "receipt",
-    });
+    await expect(run({ ...HANDED_BACK, calls: [call] })).resolves.toMatchObject(
+      {
+        status: "receipt",
+      },
+    );
     await vi.waitFor(() =>
       expect(openStepHold(hold, ACCOUNT, false, call).peek().status).toBe(
         "clear",
@@ -1014,9 +1100,11 @@ describe("useReviewedRun", () => {
       hash: `0x${"1".padStart(64, "0")}`,
       error: null,
     });
-    await expect(run({ calls: [call] })).resolves.toMatchObject({
-      status: "done",
-    });
+    await expect(run({ ...HANDED_BACK, calls: [call] })).resolves.toMatchObject(
+      {
+        status: "done",
+      },
+    );
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 });

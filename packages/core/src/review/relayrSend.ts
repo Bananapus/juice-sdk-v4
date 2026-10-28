@@ -53,6 +53,7 @@ import {
   relayrPaymentDetails,
   relayrPaymentOptions,
   RelayrPaymentNotSentError,
+  RelayrProofUnavailableError,
   relayrWalletPaymentError,
   relayrStateIsFailed,
   relayrStateIsSuccess,
@@ -90,7 +91,8 @@ import {
 } from "./wallet.js";
 import { openStepHold, WriteHeldError } from "./writeHold.js";
 import { browserLocks } from "./writeRecovery.js";
-import { timeout } from "../pause.js";
+import { pause, timeout } from "../pause.js";
+import { FOLLOW_MS, RECEIPT_RETRY_MS } from "./heldWrite.js";
 
 // Relayr runs ERC-2771 forward requests for one prepaid payment. Everything
 // here asks the person once through core's review, then signs and pays only
@@ -803,12 +805,26 @@ async function sendPayment(
   }
   if (receipt.status === "reverted")
     throw new ReviewedCallRevertedError(0, mined, receipt);
-  await verifyRelayrPayment(client, {
-    hash: mined,
-    from: account,
-    payment: details,
-  });
-  return mined;
+  // A proof the node can't read yet is read again, as long as `follow` would
+  // follow a step; a contradicting proof is never retried.
+  const deadline = Date.now() + FOLLOW_MS;
+  for (;;) {
+    try {
+      await verifyRelayrPayment(client, {
+        hash: mined,
+        from: account,
+        payment: details,
+      });
+      return mined;
+    } catch (error) {
+      if (
+        !(error instanceof RelayrProofUnavailableError) ||
+        Date.now() + RECEIPT_RETRY_MS > deadline
+      )
+        throw error;
+      await pause(RECEIPT_RETRY_MS, undefined, () => null);
+    }
+  }
 }
 
 /**

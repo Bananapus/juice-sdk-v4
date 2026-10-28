@@ -81,9 +81,10 @@ export type ReviewedRunReceipt = {
   signatures?: Hex[];
   /**
    * How the run ends once the step's hold settles it: `done` with every
-   * step's hash, `failed`, or null when its hold was released. A step before
-   * the last continues the action first, its remaining steps reviewed again,
-   * as a resumed run is. A later run or a reset leaves it pending.
+   * step's hash (and the signatures), `failed`, or null when its hold was
+   * released, or a reset or a later run replaced this one (the step stays
+   * held). A step before the last continues the action first, its remaining
+   * steps reviewed again, as a resumed run is.
    */
   ended: () => Promise<ReviewedResult | ReviewedRunFailed | null>;
 };
@@ -99,8 +100,9 @@ export type UseReviewedRunResult = {
    * review unless it is the connected one. A `done` it shows is
    * acknowledged; one it could not show refuses the next run, with
    * `sendAgainAction`. A sent step whose receipt its hold has not verified
-   * resolves `receipt`, as the hook's `phase` shows, and the hook follows
-   * the hold until it settles.
+   * is followed in place (`phase` "receipt"), in the same review, for
+   * `follow.timeoutMs` (2 minutes by default); only then does the run resolve
+   * `receipt`, and the hook follows the hold until it settles.
    */
   run: (
     action: Omit<ReviewedAction, "account" | "guard"> & { account?: Address },
@@ -217,6 +219,18 @@ export function useReviewedRun(
   const mounted = useRef(false);
   /** This render's `run`: a run's end that continues the action runs it. */
   const runLatest = useRef<UseReviewedRunResult["run"]>(async () => null);
+  /**
+   * Ends the latest run's in-place follow, and resolves an `ended()` it left
+   * pending with null (released): a reset or a later run replaced it. Its
+   * hold keeps the sent step.
+   */
+  const leave = useRef(() => {});
+  const replaced = () => {
+    latest.current += 1;
+    const left = leave.current;
+    leave.current = () => {};
+    left();
+  };
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -315,7 +329,7 @@ export function useReviewedRun(
     held,
     ...actionsOf(shown, held ? view : undefined),
     reset: () => {
-      latest.current += 1;
+      replaced();
       setState(IDLE);
       setWatched(null);
     },
@@ -328,12 +342,17 @@ export function useReviewedRun(
       const saved = findReviewedSequence(scope, account, { storage });
       if (saved) await discardReviewedSequence(saved, { storage });
       if (open.current) return;
-      latest.current += 1;
+      replaced();
       setState(IDLE);
       setWatched(null);
     },
     run: async (action) => {
-      const id = ++latest.current;
+      replaced();
+      const id = latest.current;
+      // A step still confirming is followed in place, in the same review,
+      // until a reset or a later run ends it.
+      const following = new AbortController();
+      leave.current = () => following.abort();
       open.current += 1;
       const update = (next: Partial<RunState>) => {
         if (latest.current === id) setState((now) => ({ ...now, ...next }));
@@ -458,9 +477,27 @@ export function useReviewedRun(
           keyOf(unfinished.calls.map(sent)) === keyOf(action.calls.map(sent))
             ? unfinished
             : null;
+        const given = action.follow?.signal;
+        const inPlace: ReviewedAction["follow"] = {
+          ...action.follow,
+          signal: given
+            ? AbortSignal.any([following.signal, given])
+            : following.signal,
+          onConfirming: (step) => {
+            update({ phase: "receipt", step });
+            action.follow?.onConfirming?.(step);
+          },
+        };
         const result = saved
-          ? await resumeReviewed(saved, { ...action, guard }, tracked)
-          : await sendReviewed({ ...action, account, guard }, tracked);
+          ? await resumeReviewed(
+              saved,
+              { ...action, guard, follow: inPlace },
+              tracked,
+            )
+          : await sendReviewed(
+              { ...action, account, guard, follow: inPlace },
+              tracked,
+            );
         if (result.status === "proposed") void follow();
         else if (mounted.current && latest.current === id) {
           // Shown: its success blocks no later run.
@@ -507,6 +544,9 @@ export function useReviewedRun(
           const outcome = new Promise<Parameters<typeof end>[0]>(
             (resolve) => (end = resolve),
           );
+          // Replaced already, or when it is: its end is null, the step still held.
+          if (latest.current !== id) end(null);
+          else leave.current = () => end(null);
           // Completes the step once its hold settled it, then shows how it ended, once.
           const finish = (
             seen?: WriteHoldSettled,
@@ -559,14 +599,24 @@ export function useReviewedRun(
                     failure: new ReviewLineError(line),
                   };
                 }
+                const signatures = error.held?.signatures;
                 if (error.step < action.calls.length - 1) {
-                  const next = await runLatest.current(action);
-                  return next?.status === "receipt" ? next.ended() : next;
+                  const started = await runLatest.current(action);
+                  const next =
+                    started?.status === "receipt"
+                      ? await started.ended()
+                      : started;
+                  return next?.status === "done" &&
+                    signatures &&
+                    !next.signatures
+                    ? { ...next, signatures }
+                    : next;
                 }
                 return {
                   status: "done" as const,
                   hashes: [...before, settled.hash],
                   receipts: receipt ? [receipt] : [],
+                  ...(signatures ? { signatures } : {}),
                 };
               }),
           };

@@ -83,6 +83,9 @@ const FAST_MS = 4_000;
 const FAST_LOOKS = 15;
 /** How long a settled step waits before its completion reads its receipt again. */
 export const RECEIPT_RETRY_MS = 4_000;
+
+/** How long a sent step still confirming is followed before it is handed back. */
+export const FOLLOW_MS = 120_000;
 /** A direct write's confirming line gives way to the wallet's pending line after this long. */
 const CONFIRMING_MS = 120_000;
 

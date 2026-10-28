@@ -2027,6 +2027,46 @@ describe("sendReviewed with follow", () => {
     },
   );
 
+  it.each(["timeout", "abort"] as const)(
+    "lets a %s that ends the follow during a read win over the read's late answer",
+    async (end) => {
+      vi.useFakeTimers();
+      try {
+        const { deps, chain, wallet, recover } = lagging(FIRST);
+        const stop = new AbortController();
+        const run = sendReviewed(
+          action([approveCall(), payCall()], {
+            follow:
+              end === "timeout"
+                ? { timeoutMs: 30_000 }
+                : { signal: stop.signal },
+          }),
+          deps,
+        ).catch((error: unknown) => error);
+        await later(10_000);
+        // The next read of the step hangs until after the follow ended, then reads it settled.
+        const lagged =
+          chain.client.getTransactionReceipt.getMockImplementation()!;
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => (release = resolve));
+        chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+          if (args.hash === FIRST) await held;
+          return lagged(args);
+        });
+        await later(10_000);
+        if (end === "abort") stop.abort();
+        await later(20_000);
+        recover();
+        release();
+        await later(10_000);
+        expect(await run).toBeInstanceOf(ReviewedReceiptUnverifiedError);
+        expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
   it("without follow, still throws at once for a step confirming late", async () => {
     const { deps } = lagging(FIRST);
     await expect(
