@@ -43,6 +43,9 @@
     "packages/*"
   ],
   "overrides": {
-    "ws": "8.21.3"
+    "ws": "8.21.3",
+    "abitype": {
+      "zod": "4.6.7"
+    }
   }
 }
