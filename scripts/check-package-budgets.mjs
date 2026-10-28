@@ -335,8 +335,10 @@ const budgets = {
     // 24,121,132 B unpacked.
     // In-place follow, Safe failure after follow and the Relayr proof retry:
     // 1,796,152 B packed, 24,135,145 B unpacked.
+    // A run's cancellation at the adapter's last check: 1,797,510 B packed,
+    // 24,144,501 B unpacked.
     packed: 1_800_000,
-    unpacked: 24_140_000,
+    unpacked: 24_145_000,
     entries: 1_827,
   },
   "@bananapus/nana-sdk-react": {
