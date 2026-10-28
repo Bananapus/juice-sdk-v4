@@ -474,9 +474,9 @@ export async function executeReviewedSafeTransaction(
     {
       ...deps,
       // Done only once the Safe's own event says so, below.
-      onProgress: (progress) => {
-        if (progress.phase !== "done") deps.onProgress?.(progress);
-      },
+      // Its promise is returned, so the guard that calls it sees a rejection.
+      onProgress: (progress) =>
+        progress.phase === "done" ? undefined : deps.onProgress?.(progress),
     },
   );
   if (result.status !== "done") return result;

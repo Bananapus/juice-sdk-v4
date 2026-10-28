@@ -842,7 +842,7 @@ export async function resumeReviewed(
     // This sequence's own step: it is recorded, told, and only then
     // acknowledged, so it is never offered again.
     const kept = await recordSending(saved, settled, storage, expected);
-    await tellConfirmed(action, call, step, settled, receipt);
+    await tellConfirmed(action, handle, call, step, settled, receipt);
     if (settled?.result === "success") await handle.acknowledge(settled);
     if (kept === null) {
       const total = saved.calls.length;
@@ -898,15 +898,24 @@ async function confirmedReceipt(
     : null;
 }
 
-/** Tells the site of a step its hold settled after the send returned. */
+/**
+ * Tells `onConfirmed` of a step's verified success, once per settlement:
+ * only the completion (a run, `completeReviewedStep`, `resumeReviewed`, in
+ * any tab) that claims its notice on the hold tells it.
+ */
 async function tellConfirmed(
   action: Pick<ReviewedAction, "onConfirmed">,
+  handle: Pick<WriteHoldHandle, "claimConfirmed">,
   call: ReviewedCall,
   step: number,
   settled: WriteHoldSettled | undefined,
   receipt: TransactionReceipt | null,
 ): Promise<void> {
-  if (settled?.result === "success" && receipt)
+  if (
+    settled?.result === "success" &&
+    receipt &&
+    (await handle.claimConfirmed(settled))
+  )
     await tell(action.onConfirmed, call, step, receipt);
 }
 
@@ -1009,7 +1018,7 @@ export async function completeReviewedStep(
     )
       await recordSending(record, settled, storage, raw);
   }
-  await tellConfirmed(action, call, step, settled, confirmed);
+  await tellConfirmed(action, handle, call, step, settled, confirmed);
   if (settled.result === "success") await handle.acknowledge(settled);
   return { settled, receipt: confirmed };
 }
@@ -1048,13 +1057,8 @@ async function send(
     resuming ? undefined : call.simulationBlockNumber,
   );
   /** A site's release callback never stops core's own release. */
-  const tellUnsent = async (call: ReviewedCall, step: number) => {
-    try {
-      await action.onUnsent?.(call, step);
-    } catch {
-      /* The step is released whatever the site's callback does. */
-    }
-  };
+  const tellUnsent = (call: ReviewedCall, step: number) =>
+    tell(action.onUnsent, call, step);
   const connected = adapter.account();
   if (!connected) throw new ReviewLineError("Connect a wallet first.");
   if (connected.toLowerCase() !== account.toLowerCase()) {
@@ -1721,7 +1725,7 @@ async function send(
       journal.completed.push(mined);
       await keep();
     }
-    await tell(action.onConfirmed, call, at, receipt);
+    await tellConfirmed(action, handles[step], call, at, settled, receipt);
   }
   onProgress({ step: total - 1, total, phase: "done" });
   return {

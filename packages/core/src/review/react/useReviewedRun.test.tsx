@@ -20,7 +20,7 @@ import {
   REVIEWED_ENGINE_LOAD_LINE,
 } from "../messages.js";
 import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
-import { openStepHold } from "../writeHold.js";
+import { openStepHold, safeBatchCall } from "../writeHold.js";
 import { viemWalletAdapter } from "../wallet.js";
 import {
   createWalletClient,
@@ -105,17 +105,27 @@ function harness(
 }
 
 /** A site callback that fails. */
-const boom = () => {
-  throw new Error("the site's callback failed");
-};
-/** An `onConfirmed` spy, failing when `throwing`. */
-const confirmer = (throwing: boolean) =>
-  vi.fn((..._told: unknown[]) => {
-    if (throwing) boom();
-  });
-/** An action's own site callbacks, every one failing when `throwing`. */
-const siteCallbacks = (throwing: boolean) =>
-  throwing ? { onSubmitted: boom, follow: { onConfirming: boom } } : {};
+/** How a site's callbacks fail: none, by throwing, or by rejecting asynchronously. */
+type Failing = false | "throws" | "rejects";
+const CALLBACK_FAILURE = new Error("the site's callback failed");
+const failing = (mode: Failing) =>
+  mode === "throws"
+    ? () => {
+        throw CALLBACK_FAILURE;
+      }
+    : mode === "rejects"
+      ? async () => {
+          throw CALLBACK_FAILURE;
+        }
+      : undefined;
+/** An `onConfirmed` spy, failing as `mode` says. */
+const confirmer = (mode: Failing) =>
+  vi.fn((..._told: unknown[]) => failing(mode)?.());
+/** An action's own site callbacks, every one failing as `mode` says. */
+const siteCallbacks = (mode: Failing) =>
+  mode
+    ? { onSubmitted: failing(mode), follow: { onConfirming: failing(mode) } }
+    : {};
 
 /** Waits until `check` passes, rendering what each wait queued. */
 const rendered = (check: () => void) =>
@@ -559,14 +569,17 @@ describe("useReviewedRun", () => {
       calls = [payCall()],
       event = "ExecutionSuccess",
       journal = true,
-      throwing = false,
+      throwing = false as Failing,
+      batch = false,
     }: {
       calls?: ReturnType<typeof payCall>[];
       event?: string;
       /** False: a lone call run with no scope, so no journal. */
       journal?: boolean;
-      /** Every site callback throws. */
-      throwing?: boolean;
+      /** How every site callback fails. */
+      throwing?: Failing;
+      /** A Safe app's batch: one MultiSend proposal of every call. */
+      batch?: boolean;
     } = {},
   ) {
     reviewUi();
@@ -575,15 +588,25 @@ describe("useReviewedRun", () => {
     wallet.state.safe = true;
     const onConfirmed = confirmer(throwing);
     const scope = "pay:safe";
-    const call = calls[0];
+    const call = batch ? safeBatchCall(ACCOUNT, calls) : calls[0];
     const hook = harness({
       ...deps,
+      // A Safe app takes a batch as one proposal (wallet_sendCalls).
+      ...(batch
+        ? {
+            adapter: {
+              ...wallet.adapter,
+              sendCalls: vi.fn(async () => `0x${"ab".repeat(32)}`),
+            },
+          }
+        : {}),
       account: ACCOUNT,
-      ...(throwing ? { onProgress: boom } : {}),
+      ...(throwing ? { onProgress: failing(throwing) } : {}),
     });
     const result = await hook.run({
       calls,
       ...(journal ? { scope } : {}),
+      ...(batch ? { batch } : {}),
       onConfirmed,
       ...siteCallbacks(throwing),
     });
@@ -1507,10 +1530,10 @@ describe("useReviewedRun", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 
-  describe("a sent step reaches done only with the receipt its hold verified and onConfirmed once; otherwise it stays uncertain, its checkpoint kept and every send refused; a failure shows its checked receipt; a throwing site callback changes none of it", () => {
+  describe("a sent step reaches done only with the receipt its hold verified and onConfirmed once; otherwise it stays uncertain, its checkpoint kept and every send refused; a failure shows its checked receipt; a released step is sent again only once reviewed; a site callback that throws or rejects is logged and changes none of it", () => {
     type Ended = {
       /** How the hook ended the step. */
-      outcome: "done" | "uncertain" | "failed";
+      outcome: "done" | "uncertain" | "failed" | "released";
       /** The receipt the hook ended it with (its last step's). */
       receipt: { transactionHash: string; blockHash: string } | null;
       onConfirmed: ReturnType<typeof vi.fn>;
@@ -1530,7 +1553,7 @@ describe("useReviewedRun", () => {
       (left as { status: string }).status === "done" ? "done" : "uncertain";
     /** A wallet send of `calls`; `lagging` keeps the hold's own reads of `hash` failing. */
     async function sent(
-      throwing: boolean,
+      throwing: Failing,
       calls: ReturnType<typeof payCall>[],
       lagging: (hash: string) => boolean,
       after?: (left: unknown) => Promise<Ended["outcome"]>,
@@ -1546,7 +1569,7 @@ describe("useReviewedRun", () => {
       const { seen, run } = harness({
         ...deps,
         account: ACCOUNT,
-        ...(throwing ? { onProgress: boom } : {}),
+        ...(throwing ? { onProgress: failing(throwing) } : {}),
       });
       const action = {
         calls,
@@ -1555,7 +1578,7 @@ describe("useReviewedRun", () => {
         ...siteCallbacks(throwing),
         follow: {
           timeoutMs: 1,
-          ...(throwing ? { onConfirming: boom } : {}),
+          ...(throwing ? { onConfirming: failing(throwing) } : {}),
         },
       };
       const left = await run(action);
@@ -1601,7 +1624,7 @@ describe("useReviewedRun", () => {
         readable: number,
         options: { journal?: boolean; event?: string; recovers?: boolean } = {},
       ) =>
-      async (throwing: boolean): Promise<Ended> => {
+      async (throwing: Failing): Promise<Ended> => {
         const row = await proposedThenExecuted(readable, {
           ...options,
           throwing,
@@ -1657,7 +1680,7 @@ describe("useReviewedRun", () => {
     const rows: [
       string,
       Ended["outcome"],
-      (throwing: boolean) => Promise<Ended>,
+      (throwing: Failing) => Promise<Ended>,
     ][] = [
       [
         "wallet send, its receipt verified",
@@ -1719,7 +1742,7 @@ describe("useReviewedRun", () => {
           const { seen, run } = harness({
             ...deps,
             account: ACCOUNT,
-            ...(throwing ? { onProgress: boom } : {}),
+            ...(throwing ? { onProgress: failing(throwing) } : {}),
           });
           const action = {
             calls,
@@ -1767,7 +1790,7 @@ describe("useReviewedRun", () => {
           const { seen, run } = harness({
             ...first.deps,
             account: ACCOUNT,
-            ...(throwing ? { onProgress: boom } : {}),
+            ...(throwing ? { onProgress: failing(throwing) } : {}),
           });
           const action = {
             calls: [payCall()],
@@ -1785,61 +1808,254 @@ describe("useReviewedRun", () => {
           };
         },
       ],
+      [
+        "completion and resumption overlapping (closed and reopened while completion reads the receipt)",
+        "done",
+        async (throwing) => {
+          // Its receipt reads fail at first, so completion reads it again.
+          const row = await proposedThenExecuted(2, { throwing });
+          let release!: () => void;
+          const paused = new Promise<void>((resolve) => (release = resolve));
+          let entered = false;
+          const read =
+            row.chain.client.getTransactionReceipt.getMockImplementation()!;
+          row.chain.client.getTransactionReceipt.mockImplementation(
+            async (args) => {
+              if (!entered && args.hash === row.EXECUTION) {
+                entered = true;
+                await paused;
+              }
+              return read(args);
+            },
+          );
+          await vi.waitFor(() => expect(entered).toBe(true), {
+            timeout: 6_000,
+          });
+          // The node reads again, but the first completion's read is still out.
+          row.recover();
+          act(() => root?.unmount());
+          const reopened = harness({
+            ...row.deps,
+            account: ACCOUNT,
+            ...(throwing ? { onProgress: failing(throwing) } : {}),
+          });
+          const action = {
+            calls: [payCall()],
+            scope: row.scope,
+            onConfirmed: row.onConfirmed,
+            ...siteCallbacks(throwing),
+          };
+          const left = await reopened.run(action);
+          // The first completion's read answers only now: it must stay silent.
+          await act(async () => {
+            release();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+          });
+          return {
+            outcome: outcomeOf(left),
+            receipt: reopened.seen.current!.receipt ?? null,
+            onConfirmed: row.onConfirmed,
+            step: 0,
+            hash: row.EXECUTION,
+            chain: row.chain,
+            sending: () =>
+              findReviewedSequence(row.scope, ACCOUNT, {
+                storage: row.storage,
+              })?.sending,
+            writes: () => row.wallet.adapter.sendTransaction.mock.calls.length,
+            again: () => reopened.run(action),
+          };
+        },
+      ],
+      [
+        "Safe batch proposal, its execution's receipt verified",
+        "done",
+        async (throwing) => {
+          const row = await proposedThenExecuted(Infinity, {
+            calls: [approveCall(), payCall()],
+            batch: true,
+            throwing,
+          });
+          await rendered(() => expect(row.seen.current!.phase).toBe("done"));
+          return {
+            outcome: "done",
+            receipt: row.seen.current!.receipt ?? null,
+            onConfirmed: row.onConfirmed,
+            step: 1,
+            hash: row.EXECUTION,
+            chain: row.chain,
+            sending: () =>
+              findReviewedSequence(row.scope, ACCOUNT, {
+                storage: row.storage,
+              })?.sending,
+            writes: () => row.wallet.adapter.sendTransaction.mock.calls.length,
+            again: async () => undefined,
+          };
+        },
+      ],
+      [
+        "wallet send that reverted (an ordinary failure)",
+        "failed",
+        async (throwing) => {
+          reviewUi();
+          const { chain, deps, storage, wallet } = setup();
+          chain.state.status = "reverted";
+          const onConfirmed = confirmer(throwing);
+          const { seen, run } = harness({
+            ...deps,
+            account: ACCOUNT,
+            ...(throwing ? { onProgress: failing(throwing) } : {}),
+          });
+          const action = {
+            calls: [payCall()],
+            scope,
+            onConfirmed,
+            ...siteCallbacks(throwing),
+          };
+          const left = await run(action);
+          expect(left).toMatchObject({ status: "failed" });
+          return {
+            outcome: "failed",
+            // The revert its hold verified, carried by the failure.
+            receipt:
+              (seen.current!.failure as { receipt?: Ended["receipt"] })
+                ?.receipt ?? null,
+            onConfirmed,
+            step: 0,
+            hash: `0x${"1".padStart(64, "0")}` as ViemHex,
+            chain,
+            sending: () =>
+              findReviewedSequence(scope, ACCOUNT, { storage })?.sending,
+            writes: () => wallet.adapter.sendTransaction.mock.calls.length,
+            again: () => run(action),
+          };
+        },
+      ],
+      [
+        "wallet reply lost, released by the user's exit",
+        "released",
+        async (throwing) => {
+          reviewUi();
+          const { chain, deps, storage, wallet } = setup();
+          wallet.adapter.sendTransaction.mockRejectedValueOnce(
+            new Error("The request took too long to respond."),
+          );
+          const onConfirmed = confirmer(throwing);
+          const { seen, run } = harness({
+            ...deps,
+            account: ACCOUNT,
+            ...(throwing ? { onProgress: failing(throwing) } : {}),
+          });
+          const action = {
+            calls: [payCall()],
+            scope,
+            onConfirmed,
+            ...siteCallbacks(throwing),
+          };
+          await expect(run(action)).resolves.toMatchObject({
+            status: "failed",
+          });
+          await vi.waitFor(() =>
+            expect(seen.current!.exitAction).not.toBeNull(),
+          );
+          await act(async () => {
+            await expect(seen.current!.exitAction!.run()).resolves.toBe(true);
+          });
+          return {
+            outcome: "released",
+            receipt: null,
+            onConfirmed,
+            step: 0,
+            hash: `0x${"1".padStart(64, "0")}` as ViemHex,
+            chain,
+            sending: () =>
+              findReviewedSequence(scope, ACCOUNT, { storage })?.sending,
+            writes: () => wallet.adapter.sendTransaction.mock.calls.length,
+            again: () => run(action),
+          };
+        },
+      ],
     ];
 
     test.each(
-      rows.flatMap(([name, outcome, drive]) => [
-        [name, outcome, drive, false] as const,
-        [
-          `${name}, every site callback throwing`,
-          outcome,
-          drive,
-          true,
-        ] as const,
-      ]),
-    )("%s", async (_name, outcome, drive, throwing) => {
-      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-      try {
-        const ended = await drive(throwing);
-        expect(ended.outcome).toBe(outcome);
-        const told = ended.onConfirmed.mock.calls.filter(
-          ([, step]) => step === ended.step,
-        );
-        const block =
-          ended.chain.state.mined.get(ended.hash.toLowerCase()) ??
-          ended.chain.state.mined.get(ended.hash);
-        const verified = {
-          transactionHash: ended.hash,
-          blockHash: numberToHex(block ?? 0n, { size: 32 }),
-        };
-        if (outcome === "done") {
-          expect(told).toHaveLength(1);
-          expect(told[0][2]).toMatchObject({ ...verified, status: "success" });
-          if (ended.receipt) expect(ended.receipt).toMatchObject(verified);
-          expect(ended.sending() ?? undefined).toBeUndefined();
-        } else if (outcome === "failed") {
-          expect(told).toHaveLength(0);
-          // The receipt completion checked, though the first reads failed.
-          expect(ended.receipt).toMatchObject(verified);
-          expect(ended.sending() ?? undefined).toBeUndefined();
-        } else {
-          expect(told).toHaveLength(0);
-          const sending = ended.sending();
-          if (sending !== null)
-            expect(sending).toMatchObject({ step: ended.step });
-          // Closed and opened again: still uncertain, nothing sent twice.
-          const writes = ended.writes();
-          await ended.again().catch(() => undefined);
-          expect(ended.writes()).toBe(writes);
-          expect(
-            ended.onConfirmed.mock.calls.filter(
-              ([, step]) => step === ended.step,
-            ),
-          ).toHaveLength(0);
+      rows.flatMap(([name, outcome, drive]) =>
+        (
+          [
+            [name, false],
+            [`${name}, every site callback throwing`, "throws"],
+            [`${name}, every site callback rejecting`, "rejects"],
+          ] as const
+        ).map(([title, mode]) => [title, outcome, drive, mode] as const),
+      ),
+    )(
+      "%s",
+      async (_name, outcome, drive, throwing) => {
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+        const unhandled: unknown[] = [];
+        const onUnhandled = (reason: unknown) => unhandled.push(reason);
+        process.on("unhandledRejection", onUnhandled);
+        try {
+          const ended = await drive(throwing);
+          expect(ended.outcome).toBe(outcome);
+          const told = ended.onConfirmed.mock.calls.filter(
+            ([, step]) => step === ended.step,
+          );
+          const block =
+            ended.chain.state.mined.get(ended.hash.toLowerCase()) ??
+            ended.chain.state.mined.get(ended.hash);
+          const verified = {
+            transactionHash: ended.hash,
+            blockHash: numberToHex(block ?? 0n, { size: 32 }),
+          };
+          if (outcome === "done") {
+            expect(told).toHaveLength(1);
+            expect(told[0][2]).toMatchObject({
+              ...verified,
+              status: "success",
+            });
+            if (ended.receipt) expect(ended.receipt).toMatchObject(verified);
+            expect(ended.sending() ?? undefined).toBeUndefined();
+          } else if (outcome === "failed") {
+            expect(told).toHaveLength(0);
+            // The receipt completion checked, though the first reads failed.
+            expect(ended.receipt).toMatchObject(verified);
+            expect(ended.sending() ?? undefined).toBeUndefined();
+          } else if (outcome === "released") {
+            expect(told).toHaveLength(0);
+            // Released by the user: reviewed and sent once more, never twice.
+            const writes = ended.writes();
+            await expect(ended.again()).resolves.toMatchObject({
+              status: "done",
+            });
+            expect(ended.writes()).toBe(writes + 1);
+          } else {
+            expect(told).toHaveLength(0);
+            const sending = ended.sending();
+            if (sending !== null)
+              expect(sending).toMatchObject({ step: ended.step });
+            // Closed and opened again: still uncertain, nothing sent twice.
+            const writes = ended.writes();
+            await ended.again().catch(() => undefined);
+            expect(ended.writes()).toBe(writes);
+            expect(
+              ended.onConfirmed.mock.calls.filter(
+                ([, step]) => step === ended.step,
+              ),
+            ).toHaveLength(0);
+          }
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          // Every failing callback was logged by the guard, none left unhandled.
+          if (throwing)
+            expect(
+              logged.mock.calls.some(([, error]) => error === CALLBACK_FAILURE),
+            ).toBe(true);
+          expect(unhandled).toEqual([]);
+        } finally {
+          process.off("unhandledRejection", onUnhandled);
+          logged.mockRestore();
         }
-      } finally {
-        logged.mockRestore();
-      }
-    });
+      },
+      20_000,
+    );
   });
 });

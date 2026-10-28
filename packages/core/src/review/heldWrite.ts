@@ -466,7 +466,7 @@ export function createHeldWriteView(
           settled: undefined,
           releasedBy: by,
         });
-        options.onReleased?.(by);
+        void tell(options.onReleased, by);
       } else if (view.phase === "settled" || view.phase === "released") {
         // Already shown: kept, unless the gate below has another success.
       } else
@@ -605,7 +605,7 @@ export function createHeldWriteView(
             throw new ReviewLineError("The saved write couldn't be checked.");
           apply(state);
           if (state.status !== "clear" || state.settled)
-            options.onAdopted?.(state);
+            void tell(options.onAdopted, state);
         }
       }
       set({ adopting: false });

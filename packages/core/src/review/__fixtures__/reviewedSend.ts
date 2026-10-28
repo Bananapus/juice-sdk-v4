@@ -454,3 +454,23 @@ export const action = (
   calls,
   ...extra,
 });
+
+/**
+ * Watches the site-callback guard: what it logged, and any rejection nothing
+ * handled. `settled()` waits a moment, then returns both and stops watching.
+ */
+export function watchGuard() {
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on("unhandledRejection", onUnhandled);
+  return {
+    async settled() {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      process.off("unhandledRejection", onUnhandled);
+      const errors = logged.mock.calls.map(([, error]) => error);
+      logged.mockRestore();
+      return { errors, unhandled };
+    },
+  };
+}

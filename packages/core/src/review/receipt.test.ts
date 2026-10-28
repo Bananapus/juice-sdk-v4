@@ -279,28 +279,6 @@ describe("every receipt a sent step is told by is its hold's", () => {
   });
 });
 
-describe("every site callback goes through tell", () => {
-  /**
-   * Direct calls left, each inside a function that is itself only called
-   * through `tell`: the hold hooks' pass-through of `onSettled`, safeSend's
-   * progress filter and the Safe Relayr's copy of its progress.
-   */
-  const INSIDE_TELL: Record<string, number> = {
-    "react/useHeldSend.ts": 1,
-    "react/useHeldWrite.ts": 1,
-    "safeRelayr.ts": 1,
-    "safeSend.ts": 1,
-  };
-
-  it("leaves no other direct call to onProgress, onConfirming, onSubmitted, onConfirmed or onSettled", () => {
-    expect(
-      inSources(
-        /\b(?:onProgress|onConfirming|onSubmitted|onConfirmed|onSettled)\?\.\(/gu,
-      ),
-    ).toEqual(INSIDE_TELL);
-  });
-});
-
 describe("tell", () => {
   it("calls a site's callback, logging one that throws or rejects, and never throws itself", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});

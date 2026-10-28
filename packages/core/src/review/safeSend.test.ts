@@ -28,6 +28,7 @@ import {
   setup,
   TERMINAL,
   unregister,
+  watchGuard,
 } from "./__fixtures__/reviewedSend.js";
 import { safeExecutionIntent } from "./intents.js";
 import { TransactionReviewCancelledError } from "./reviewQueue.js";
@@ -594,6 +595,33 @@ describe("executeReviewedSafeTransaction", () => {
       confirmations: [{ owner: OTHER, signature: OTHER_SIGNATURE }],
       ...extra,
     });
+
+  it("logs a progress callback that rejects asynchronously through the guard, leaving no rejection unhandled", async () => {
+    const { wallet, deps, chain } = signing();
+    reviewUi();
+    const tx = signedTx();
+    chain.state.ethCall = executes;
+    chain.state.logs = [
+      executionLog(EXECUTION_SUCCESS, safeTransactionHash(10, SAFE, tx)),
+    ];
+    const guard = watchGuard();
+    const failure = new Error("saving receipt progress failed");
+    const result = await executeReviewedSafeTransaction(
+      { chainId: 10, safe: SAFE, tx },
+      {
+        ...deps,
+        onProgress: async () => {
+          throw failure;
+        },
+      },
+    );
+    expect(result.status).toBe("done");
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    const { errors, unhandled } = await guard.settled();
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.every((error) => error === failure)).toBe(true);
+    expect(unhandled).toEqual([]);
+  });
 
   it("execution goes through the hold and settles from the Safe event", async () => {
     const { wallet, deps, chain, hold, progress } = signing();

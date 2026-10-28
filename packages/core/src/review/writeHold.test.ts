@@ -2610,7 +2610,7 @@ describe("a write held under an intent", () => {
   });
 
   it("follows the legacy hold's evidence through the intent handle", async () => {
-    const { handle, client, chain, receiptOf, legacy } = await delegated();
+    const { handle, client, chain, receiptOf, legacy, old } = await delegated();
     // The legacy write's hash turns up: attach it, and its receipt settles it.
     chain.txs.push(sent(HASH));
     await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
@@ -2631,6 +2631,12 @@ describe("a write held under an intent", () => {
     await expect(handle.onExecuted(client)).resolves.toMatchObject({
       status: "clear",
     });
+    // Its one confirmed notice is claimed where the legacy hold saved it.
+    await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(true);
+    await expect(
+      old.hold.open(ordinary).claimConfirmed({ hash: HASH }),
+    ).resolves.toBe(false);
+    await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
   });
 
   it("rechecks the legacy keys right before reserving, and routes every method to the hold in charge", async () => {

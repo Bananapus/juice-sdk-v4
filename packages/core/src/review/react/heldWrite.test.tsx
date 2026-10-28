@@ -22,6 +22,7 @@ import {
   type WriteHoldState,
 } from "../index.js";
 import { resetWriteHoldsForTests } from "../../testing.js";
+import { watchGuard } from "../__fixtures__/reviewedSend.js";
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Address, Hex } from "viem";
@@ -172,6 +173,41 @@ describe("useHeldWrite", () => {
     props.out.current = useHeldWrite(props.options);
     return null;
   }
+
+  test("logs a settlement callback that rejects asynchronously through the guard, leaving no rejection unhandled", async () => {
+    const fake = fakeHold();
+    fake.set("exact", unproven());
+    const guard = watchGuard();
+    const failure = new Error("recording the recovered write failed");
+    const onSettled = vi.fn(async () => {
+      throw failure;
+    });
+    const out: { current?: UseHeldWriteResult } = {};
+    await mount(
+      <Probe
+        out={out}
+        options={{
+          hold: fake.hold,
+          chainId: 10,
+          account: ACCOUNT,
+          call: { to: ACCOUNT, data: "0x" },
+          client,
+          onSettled,
+        }}
+      />,
+    );
+    fake.set("exact", {
+      status: "clear",
+      reservation: "r1",
+      settled: { result: "success", hash: HASH },
+    } as WriteHoldState);
+    await act(async () => {
+      await out.current!.check();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(onSettled).toHaveBeenCalledOnce();
+    expect(await guard.settled()).toEqual({ errors: [failure], unhandled: [] });
+  });
 
   test("shows the hold's line and exit, and the exit only releases: the app reopens its review", async () => {
     const fake = fakeHold();

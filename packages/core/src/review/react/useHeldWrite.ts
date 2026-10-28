@@ -121,9 +121,10 @@ export function useHeldWrite(options: UseHeldWriteOptions): UseHeldWriteResult {
     if (!handle || !client) return undefined;
     /** Only while this view is the app's: an earlier one's late answers reach no callback. */
     const own =
-      <A extends unknown[]>(callback: (...args: A) => void) =>
+      <A extends unknown[]>(callback: (...args: A) => unknown) =>
       (...args: A) => {
-        if (active.current === created) callback(...args);
+        // Its promise is returned, so the guard that calls it sees a rejection.
+        if (active.current === created) return callback(...args);
       };
     const created: HeldWriteViewController = createHeldWriteView(handle, {
       client,

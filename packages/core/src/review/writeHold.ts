@@ -1713,6 +1713,18 @@ export function createWriteHold(
         }, true);
         return shown(result?.value ?? peek());
       },
+      /**
+       * Claim the one `onConfirmed` notice of the settlement `settled` names,
+       * under the call's lock: true for the first completion in any tab or
+       * run; a completion that loses it stays silent.
+       */
+      async claimConfirmed(settled: { hash: Hex }): Promise<boolean> {
+        const result = await locked(
+          async () => recovery.claimConfirmedSettled(settled),
+          true,
+        );
+        return result?.value === true;
+      },
       async attachHash(
         client: WriteHoldClient,
         hash: Hex,
@@ -1946,6 +1958,16 @@ export function createWriteHold(
         }
       }
       return null;
+    }
+    /** The legacy hold that saved the settlement with this hash, if any. */
+    function legacySaving(hash: Hex) {
+      const lower = hash.toLowerCase();
+      return eligibleLegacy().find(
+        ({ state }) =>
+          state.settled !== undefined &&
+          "hash" in state.settled &&
+          state.settled.hash === lower,
+      );
     }
     /**
      * How a legacy hold this intent stood for ended, while the intent itself
@@ -2240,16 +2262,16 @@ export function createWriteHold(
       async acknowledge(
         settled: Parameters<typeof own.acknowledge>[0],
       ): Promise<WriteHoldState> {
-        const hash = settled.hash.toLowerCase();
-        const legacy = eligibleLegacy().find(
-          ({ state }) =>
-            state.settled !== undefined &&
-            "hash" in state.settled &&
-            state.settled.hash === hash,
-        );
+        const legacy = legacySaving(settled.hash);
         return legacy
           ? withLegacy(await legacy.handle.acknowledge(settled))
           : own.acknowledge(settled);
+      },
+      /** A settlement's notice is claimed where it was saved, found by its hash. */
+      claimConfirmed(settled: { hash: Hex }): Promise<boolean> {
+        return (legacySaving(settled.hash)?.handle ?? own).claimConfirmed(
+          settled,
+        );
       },
       async send<T>(
         client: WriteHoldClient,
