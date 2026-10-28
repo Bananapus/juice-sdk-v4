@@ -10,6 +10,7 @@ import {
   resetReviewUi,
   reviewUi,
   setup,
+  speedUpNextSend,
   unregister,
 } from "../__fixtures__/reviewedSend.js";
 import {
@@ -820,6 +821,22 @@ describe("useReviewedRun", () => {
     await expect(run(action)).resolves.toMatchObject({ status: "done" });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(4);
     expect(onConfirmed).toHaveBeenCalledTimes(4);
+  });
+
+  test("a sped-up send the hold verified is acknowledged by its mined hash, so the next run sends", async () => {
+    reviewUi();
+    const { wallet, chain, deps } = setup();
+    const { replacement } = speedUpNextSend(chain, wallet);
+    const { run } = harness({ ...deps, account: ACCOUNT });
+    const first = await run({ calls: [payCall()] });
+    expect(first).toMatchObject({ status: "done", hashes: [replacement] });
+    const done = first as Extract<typeof first, { status: "done" }>;
+    expect(done.hashes[0]).toBe(done.receipts[0].transactionHash);
+    // Acknowledged: the next run is not refused as "went through while you were away".
+    await expect(run({ calls: [payCall()] })).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 
   test("a send whose receipt watcher is exhausted completes once the node recovers: onConfirmed once, its signature kept", async () => {

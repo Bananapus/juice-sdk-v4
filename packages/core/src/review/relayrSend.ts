@@ -3,7 +3,6 @@ import {
   decodeFunctionData,
   decodeFunctionResult,
   encodeFunctionData,
-  formatEther,
   type Address,
   type Hex,
   type PublicClient,
@@ -27,8 +26,6 @@ import {
 import { decodeReviewCall } from "./decodeCall.js";
 import { buildReviewModel, type ReviewContextRow } from "./model.js";
 import {
-  plannedRelayrFee,
-  relayrStandInSender,
   spendPlan,
   spendPlannedRelayrRound,
   type ReviewedPlan,
@@ -75,13 +72,11 @@ import {
 } from "./relayr.js";
 import type { SafeRelayrOptions } from "./safeRelayr.js";
 import type { ReviewedSendDeps } from "./send.js";
-import { ReviewedCallRevertedError, ReviewLineError } from "./lineError.js";
+import { ReviewedCallRevertedError } from "./lineError.js";
 import {
-  plannedCallsOf,
   prepareSignature,
   signPrepared,
   type ReviewedForwardRequest,
-  type ReviewedSignature,
 } from "./sign.js";
 import { simulateStateChangingTransaction } from "./simulation.js";
 import type { TransactionReviewCall } from "./transactionReview.js";
@@ -138,8 +133,6 @@ const QUOTE_TIMEOUT_MS = 45_000;
 const STAND_IN_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 2_500;
 const POLL_TIMEOUT_MS = 5 * 60_000;
-/** How many times an expired quote is replaced before the action stops. */
-const QUOTE_ATTEMPTS = 3;
 const BALANCE_OF_ABI = [
   {
     type: "function",
@@ -165,8 +158,6 @@ const RELAYR_PAYMENT_ABI = [
 const ACCOUNT_CHANGED = "The connected account changed. Review again.";
 const ORDINARY_WALLET =
   "Pay for relayed transactions from an ordinary wallet. Nothing was sent.";
-const CHANGED_REQUEST =
-  "The relay authorization or trusted forwarder changed. Review the original action again.";
 
 /** The quote's payment deadline passed before the wallet opened. */
 class QuoteExpiredError extends Error {
@@ -307,45 +298,6 @@ function entryOf(
     }),
     value: value.toString(),
   };
-}
-
-/**
- * Before posting or paying, each signed entry must still be what was
- * signed: from `account`, executable for two more minutes, to a destination
- * that trusts the forwarder, accepted by the forwarder's `verify`, and
- * simulating from `account` without a revert.
- */
-async function verifyForwardedEntries(
-  entries: readonly RelayrEntry[],
-  account: Address,
-  clientFor: (chainId: number) => PublicClient,
-): Promise<void> {
-  for (const entry of entries) {
-    const request = relayrForwardRequest(entry);
-    if (!request) throw new Error("Invalid relay authorization.");
-    const client = clientFor(entry.chain);
-    if (
-      request.from.toLowerCase() !== account.toLowerCase() ||
-      request.value !== BigInt(entry.value) ||
-      request.deadline <= Math.floor(Date.now() / 1_000) + 120 ||
-      !(await trustsForwarder(client, entry.chain, request.to)) ||
-      !(await client.readContract({
-        address: entry.target,
-        abi: erc2771ForwarderAbi,
-        functionName: "verify",
-        args: [request],
-      }))
-    ) {
-      throw new Error(CHANGED_REQUEST);
-    }
-    await simulateStateChangingTransaction(client, {
-      from: account,
-      to: entry.target,
-      data: entry.data,
-      value: request.value,
-      gas: request.gas + request.gas / 63n + FORWARDER_OVERHEAD_GAS,
-    });
-  }
 }
 
 /** Post `entries` to Relayr and bind its quote to them (see {@link bindRelayrQuote}). */
@@ -918,9 +870,9 @@ export async function signReviewedForwardRequests(
  * until the Safe runs it. `onSending` runs after the hold reserves, right
  * before the wallet opens (a throw sends nothing); `onSent` gets every hash
  * the payment is known by. With `plan` and `relayrRound`, a quote of exactly
- * that round's calls spends the round's reviewed fee bound once, as
- * {@link runRelayrReviewed} does: at most the bound pays with no prompt, and
- * a higher fee, a spent round or another chain is asked.
+ * that round's calls spends the round's reviewed fee bound once: at most
+ * the bound pays with no prompt, and a higher fee, a spent round or another
+ * chain is asked.
  */
 export async function payRelayrReviewed(
   quote: RelayrQuote,
@@ -988,216 +940,6 @@ export async function payRelayrReviewed(
     safe,
   });
   return safe ? { safeTxHash: hash } : { hash };
-}
-
-/**
- * Runs `calls` through Relayr under one review. Before the review it quotes
- * stand-ins of the calls ({@link relayrFeeCap}), and the review shows the
- * forward requests, decoded, with the fee cap as a row; a `raw` call shows as
- * sent by Relayr, unsigned. After confirm it signs the requests, posts them
- * for the quote that binds them, and pays it without asking again when its
- * fee is at most the cap. A higher fee opens one fresh review of the payment
- * first. A quote that expires before the wallet opens is replaced the same
- * way. `scope`, the site's stable key for the action, is required: it holds
- * the payment on every funding chain, so the action is never paid twice,
- * even after a paid run. With `plan` (`reviewPlan`), the calls are spent from
- * it instead of reviewed, and the payment is reviewed on its own.
- */
-export async function runRelayrReviewed(
-  calls: readonly RelayrReviewedCall[],
-  action: {
-    account: Address;
-    scope: string;
-    context?: readonly ReviewContextRow[];
-    title?: string;
-    /** Further signatures for the same review, signed after the requests. */
-    signatures?: readonly ReviewedSignature[];
-    /** The chain the fee is paid on: the wallet's, by default, when it can pay there. */
-    paymentChainId?: number;
-    plan?: ReviewedPlan;
-  },
-  deps: ReviewedSendDeps,
-): Promise<{ uuid: string; paymentHash: Hex; signatures?: Hex[] }> {
-  const { adapter, clientFor } = deps;
-  const { account, scope, plan } = action;
-  if (typeof scope !== "string" || !scope.trim()) {
-    throw new Error("A relayed action needs its scope. Nothing was sent.");
-  }
-  await requireOrdinaryWallet(adapter, account);
-  /** Each call as reviewed, read once. */
-  const read = [...calls].map(({ chainId, target, data, value, gas, raw }) => ({
-    chainId,
-    target,
-    data,
-    value: value ?? 0n,
-    gas,
-    raw: raw === true,
-  }));
-  const chainIds = read.map(({ chainId }) => chainId);
-  if (!relayrSupportsChains(chainIds)) {
-    throw new Error(
-      "Relayr runs one call per supported destination, all mainnets or all testnets.",
-    );
-  }
-  // Relayr's executor is not known before it quotes, so a raw call can't be simulated carrying ETH.
-  if (read.some(({ raw, value }) => raw && value !== 0n))
-    throw new Error("A call Relayr sends on its own can't carry ETH.");
-  const forwarded = read.filter(({ raw }) => !raw);
-  const requests = forwarded.length
-    ? await forwardRequests(forwarded, account, clientFor)
-    : [];
-  const funding = relayrPaymentChains(chainIds);
-  const walletChain = adapter.chainId();
-  /** What the plan holds for these calls: forward requests by their call and gas, raw calls as Relayr's. */
-  const planned = read.map(({ chainId, target, data, value, gas, raw }) => ({
-    chainId,
-    from: raw ? ("relayr" as const) : account,
-    to: target,
-    data,
-    value,
-    ...(raw ? {} : { gas }),
-  }));
-  const paymentChainId =
-    action.paymentChainId ??
-    // Under a plan, the chain its fee bound was reviewed for.
-    (plan && plannedRelayrFee(plan, planned)?.chainId) ??
-    (walletChain !== undefined && funding.includes(walletChain)
-      ? walletChain
-      : chainIds[0]);
-  if (!funding.includes(paymentChainId)) {
-    throw new Error(
-      "Choose a Relayr funding chain in the same network family as these destinations.",
-    );
-  }
-  const intent = { key: scope, funding, paidOnce: true };
-  // An earlier payment of this action may still land, or landed: nothing is asked.
-  requireIntentClear(deps, account, intent);
-  const signatures = [
-    ...requests.map(
-      ({ chainId, request }): ReviewedSignature => ({
-        kind: "forward-request",
-        chainId,
-        request,
-      }),
-    ),
-    ...(action.signatures ?? []),
-  ];
-  const prepared = signatures.map((signature) =>
-    prepareSignature(signature, account),
-  );
-  /** The fee the person reviewed, if any: a payment above it, or with none, is asked. */
-  let cap: bigint | undefined;
-  if (plan) {
-    // The round's fee bound its review showed, or none: then the payment is asked.
-    cap = spendPlan(
-      plan,
-      account,
-      [
-        ...planned.filter(({ from }) => from === "relayr"),
-        ...prepared.flatMap(plannedCallsOf),
-      ],
-      paymentChainId,
-    );
-  } else {
-    cap = await relayrFeeCap(read, account, paymentChainId, clientFor);
-    const model = buildReviewModel({
-      calls: read.flatMap(({ chainId, target, data, value, gas, raw }) =>
-        raw
-          ? [
-              {
-                ...decodeReviewCall({ chainId, to: target, data, value, gas }),
-                label: "Sent by Relayr",
-              },
-            ]
-          : [],
-      ),
-      signatures: prepared.map(({ review }) => review),
-      title: action.title ?? "Review relayed transactions",
-      context: [
-        ...(action.context ?? []),
-        {
-          label: "Network fee",
-          value: `Up to ${formatEther(cap)} ETH`,
-          strong: true,
-        },
-        { label: "Fee paid on", value: `Chain ${paymentChainId}` },
-        { label: "Fee paid to", value: RELAYR_PAYMENT_ADDRESS, mono: true },
-      ],
-    });
-    await promptReview(
-      model,
-      Promise.resolve({ status: "passed" }),
-      Promise.resolve(model),
-    );
-  }
-  const signed = await signPrepared(prepared, account, adapter);
-  let next = 0;
-  const entries = read.map(({ chainId, target, data, value, raw }) => {
-    if (raw) return { chain: chainId, target, data, value: value.toString() };
-    const { request } = requests[next];
-    return entryOf(chainId, request, signed[next++]);
-  });
-  const extra = signed.slice(requests.length);
-  /** Every call still as reviewed, each signed entry still valid, each raw call still running. */
-  const recheck = async () => {
-    const now = [...calls];
-    if (
-      now.length !== read.length ||
-      now.some(
-        (call, index) =>
-          call.chainId !== read[index].chainId ||
-          call.target.toLowerCase() !== read[index].target.toLowerCase() ||
-          call.data.toLowerCase() !== read[index].data.toLowerCase() ||
-          (call.value ?? 0n) !== read[index].value ||
-          (call.raw === true) !== read[index].raw,
-      )
-    )
-      throw new ReviewLineError(
-        "Transaction data changed after review. Nothing was sent; review it again.",
-      );
-    await verifyForwardedEntries(
-      entries.filter((_entry, index) => !read[index].raw),
-      account,
-      clientFor,
-    );
-    for (const { chainId, target, data, value, raw } of read)
-      if (raw)
-        await simulateStateChangingTransaction(clientFor(chainId), {
-          from: relayrStandInSender(),
-          to: target,
-          data,
-          value,
-        });
-  };
-  await recheck();
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      const quote = await postBundle(entries);
-      const details = paymentOn(quote, paymentChainId);
-      if (cap === undefined || details.amount > cap) {
-        await reviewPayment(details, account, {
-          title: cap ? "The network fee went up" : "Review network fee",
-          ...(action.context ? { context: action.context } : {}),
-        });
-        cap = details.amount;
-      }
-      const paymentHash = await sendPayment(details, account, deps, {
-        intent,
-        recheck,
-      });
-      return {
-        uuid: quote.bundle_uuid,
-        paymentHash,
-        ...(extra.length ? { signatures: extra } : {}),
-      };
-    } catch (error) {
-      const expired =
-        error instanceof QuoteExpiredError ||
-        (error instanceof RelayrPaymentNotSentError &&
-          (error as { cause?: unknown }).cause instanceof QuoteExpiredError);
-      if (!expired || attempt >= QUOTE_ATTEMPTS) throw error;
-    }
-  }
 }
 
 /**

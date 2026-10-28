@@ -304,6 +304,67 @@ function fakeWallet(chain: ReturnType<typeof fakeChain>) {
   return { state, adapter };
 }
 
+/**
+ * The wallet's next send of the reviewed call (its hash `original`, at the
+ * account's nonce) is replaced by a speed-up of exactly that call, which mines:
+ * the node keeps `original` pending, finds the speed-up at its nonce in a
+ * finalized block, and viem's watcher follows it to the speed-up's receipt.
+ */
+export function speedUpNextSend(
+  chain: ReturnType<typeof fakeChain>,
+  wallet: ReturnType<typeof fakeWallet>,
+) {
+  const original = `0x${"aa".repeat(32)}` as Hex;
+  const replacement = `0x${"bb".repeat(32)}` as Hex;
+  const { client, state } = chain;
+  wallet.adapter.sendTransaction.mockImplementationOnce(async (tx) => {
+    chain.mine(replacement, tx);
+    return original;
+  });
+  const read = client.getTransaction.getMockImplementation()!;
+  client.getTransaction.mockImplementation(async (args) => {
+    if (args.hash !== original) return read(args);
+    const tx = state.sent.get(replacement)!;
+    return {
+      ...(await read({ hash: replacement })),
+      hash: original,
+      nonce: tx.nonce,
+      blockNumber: null,
+      blockHash: null,
+      transactionIndex: null,
+    } as never;
+  });
+  const count = client.getTransactionCount.getMockImplementation()!;
+  client.getTransactionCount.mockImplementation((async (args: {
+    blockNumber?: bigint;
+  }) => {
+    const mined = state.mined.get(replacement);
+    if (mined === undefined) return count();
+    return args?.blockNumber === undefined || args.blockNumber >= mined
+      ? state.sent.get(replacement)!.nonce + 1
+      : state.sent.get(replacement)!.nonce;
+  }) as never);
+  client.getBlock.mockImplementation((async ({
+    blockNumber,
+  }: { blockNumber?: bigint } = {}) => {
+    const number = blockNumber ?? state.head;
+    return {
+      number,
+      hash: numberToHex(number, { size: 32 }),
+      timestamp: 1_000n,
+      transactions:
+        state.mined.get(replacement) === number
+          ? [await read({ hash: replacement })]
+          : [],
+    };
+  }) as never);
+  const watch = client.waitForTransactionReceipt.getMockImplementation()!;
+  client.waitForTransactionReceipt.mockImplementation(async (args) =>
+    watch({ ...args, hash: args.hash === original ? replacement : args.hash }),
+  );
+  return { original, replacement };
+}
+
 export function setup() {
   const chain = fakeChain();
   const wallet = fakeWallet(chain);

@@ -5,8 +5,8 @@ import { ChainPayment } from "../types";
 /**
  * Submit a relayr-given transaction onchain.
  *
- * @deprecated Sends without the SDK's review. Use `payRelayrReviewed` (or
- * `runRelayrReviewed` for the whole flow) from `@bananapus/nana-sdk-core/review`.
+ * @deprecated Sends without the SDK's review. Use `payRelayrReviewed` from
+ * `@bananapus/nana-sdk-core/review`.
  */
 export function useSendRelayrTx() {
   const chainId = useChainId();

@@ -170,15 +170,6 @@ function spendRound(
   return fee.cap;
 }
 
-/** The unused fee bound of the Relayr round `calls` make up whole, if any; nothing is spent. */
-export function plannedRelayrFee(
-  plan: ReviewedPlan,
-  calls: readonly ReviewedPlanCall[],
-): PlannedRelayrFee | undefined {
-  const round = wholeRound(plan, calls);
-  return round && { chainId: round.fee.chainId, cap: round.fee.cap };
-}
-
 /**
  * Spends one unspent call of `plan` for each of `calls`, all or none. Refuses
  * a plan core did not mint, another account's, an expired one, and any call

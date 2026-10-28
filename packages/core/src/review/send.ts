@@ -610,9 +610,8 @@ export type ReviewedPlanAction = Pick<
     /** Who sends the call: a Safe `account` owns, say, or "relayr" for one Relayr's own account runs. */
     from?: Address | "relayr";
     /**
-     * The Relayr round this call goes in, by the app's key: a
-     * `runRelayrReviewed` run, or a quote paid by `payRelayrReviewed` with
-     * this `relayrRound`. The review shows each round's fee bound (Relayr's
+     * The Relayr round this call goes in, by the app's key: a quote paid by
+     * `payRelayrReviewed` with this `relayrRound`. The review shows each round's fee bound (Relayr's
      * stand-in quote plus `RELAYR_FEE_MARGIN_BPS`, paid on the round's
      * payment chain); a round whose quote is within it pays with no prompt.
      */
@@ -626,8 +625,8 @@ export type ReviewedPlanAction = Pick<
  * One review of calls an app then sends one by one, across chains and
  * paths: core's prompt over exactly `action.calls`, simulated as their
  * senders, and nothing else. The plan it returns lets {@link sendReviewed},
- * `signReviewed`, `proposeReviewedSafeTransaction`, `payRelayrReviewed` and
- * `runRelayrReviewed` skip their prompt for a call identical to one of its
+ * `signReviewed`, `proposeReviewedSafeTransaction` and `payRelayrReviewed`
+ * skip their prompt for a call identical to one of its
  * calls (account, chain, sender, target, data, value and gas: a call's
  * exact gas limit, or a forward request's signed gas, is set before the
  * review), each spent once, for {@link REVIEWED_PLAN_TTL_MS} after confirm.
@@ -1721,18 +1720,21 @@ async function send(
       throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
     }
     if (!verified()) throw unverified();
+    // The transaction its hold verified: a speed-up's, when the wallet replaced the send.
+    const mined = settled && "hash" in settled ? settled.hash : hash;
+    hashes[hashes.length - 1] = mined;
     if (receipt.status !== "success") {
       // It ran and reverted: nothing of it to resume.
       if (journal) {
         delete journal.sending;
         await keep();
       }
-      throw new ReviewedCallRevertedError(at, hash, receipt);
+      throw new ReviewedCallRevertedError(at, mined, receipt);
     }
     receipts.push(receipt);
     if (journal) {
       delete journal.sending;
-      journal.completed.push(hash);
+      journal.completed.push(mined);
       await keep();
     }
     try {

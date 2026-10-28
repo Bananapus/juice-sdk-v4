@@ -28,6 +28,7 @@ import {
   reverted,
   reviewUi,
   setup,
+  speedUpNextSend,
   unreachable,
   unregister,
 } from "./__fixtures__/reviewedSend.js";
@@ -1845,6 +1846,21 @@ describe("sendReviewed and its hold's evidence", () => {
     expect((failure as ReviewedReceiptUnverifiedError).held).toMatchObject({
       signatures: [signature],
     });
+  });
+
+  it("a sped-up send that the hold verified reports and journals the mined hash, so its success is acknowledged", async () => {
+    const { wallet, deps, chain } = setup();
+    reviewUi();
+    const { replacement } = speedUpNextSend(chain, wallet);
+    const scope = "pay:sped-up";
+    const result = await sendReviewed(
+      action([payCall()], { scope, follow: {} }),
+      deps,
+    );
+    expect(result).toMatchObject({ status: "done" });
+    const done = result as Extract<typeof result, { status: "done" }>;
+    expect(done.hashes[0]).toBe(done.receipts[0].transactionHash);
+    expect(done.hashes[0]).toBe(replacement);
   });
 
   describe("a sent step ends done, verified failed, or unverified with what resumes it", () => {
