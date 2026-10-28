@@ -140,8 +140,6 @@ type RecoveryLocks = Pick<LockManager, "request">;
 const TAB_MEMORY = TAB.memory;
 const TAB_QUEUES = TAB.queues;
 const TAB_SEEN = TAB.seen;
-/** Per storage, settlement keys and hashes whose `onConfirmed` notice this tab claimed. */
-const confirmedHere = new WeakMap<object, Set<string>>();
 // A returned hash must survive a component remount even when its durable update
 // failed. It is visible only while the exact durable reservation still exists.
 const unpersistedSubmissions = new WeakMap<
@@ -1474,26 +1472,19 @@ export function createBrowserWriteRecovery(
       }
     },
     /**
-     * Claim the one `onConfirmed` notice of the settlement `settled` names
-     * (its hash): true for the first claim in any tab, false after. The claim
-     * is saved on the settlement; one this storage can't mark is claimed in
-     * this tab's memory only.
+     * Claim the one `onConfirmed` notice of the saved settlement `settled`
+     * names (its hash): true for the first claim in any tab or run, false
+     * after. A settlement no longer saved there can't be marked, so every
+     * claim of it is true: a repeated notice over a lost one.
      */
     claimConfirmedSettled(
       settled: Pick<ReviewedWriteSettlement, "hash">,
     ): boolean {
       requireLock();
-      const store = storage();
-      const hash = settled.hash.toLowerCase();
-      const here = confirmedHere.get(store) ?? new Set<string>();
-      confirmedHere.set(store, here);
-      const claim = `${settledKey}:${hash}`;
-      if (here.has(claim)) return false;
-      here.add(claim);
       try {
-        return flagSettled(store, hash, "confirmed");
+        return flagSettled(storage(), settled.hash.toLowerCase(), "confirmed");
       } catch {
-        // Claimed in this tab's memory.
+        // Storage unavailable: told rather than lost.
         return true;
       }
     },
