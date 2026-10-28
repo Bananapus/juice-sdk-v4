@@ -337,8 +337,9 @@ const budgets = {
     // 1,796,152 B packed, 24,135,145 B unpacked.
     // A run's cancellation at the adapter's last check: 1,797,510 B packed,
     // 24,144,501 B unpacked.
+    // One ending for a sent step: 1,798,864 B packed, 24,152,624 B unpacked.
     packed: 1_800_000,
-    unpacked: 24_145_000,
+    unpacked: 24_155_000,
     entries: 1_827,
   },
   "@bananapus/nana-sdk-react": {
