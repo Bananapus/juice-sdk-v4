@@ -1013,6 +1013,15 @@ export async function completeReviewedStep(
   return settled;
 }
 
+/**
+ * The hash a wallet returned, even when the site's record of it failed
+ * afterwards: the step was sent.
+ */
+function sentHash(error: unknown): Hex {
+  if (error instanceof SubmittedContractWriteError) return error.hash as Hex;
+  throw error;
+}
+
 async function send(
   action: ReviewedAction,
   deps: ReviewedSendDeps,
@@ -1023,7 +1032,15 @@ async function send(
     raw: string | null;
   },
 ): Promise<ReviewedResult> {
-  const { adapter, clientFor, hold, onProgress } = deps;
+  const { adapter, clientFor, hold } = deps;
+  /** The site's view of the run: a view that throws never changes what was sent. */
+  const onProgress = (progress: ReviewedProgress) => {
+    try {
+      deps.onProgress?.(progress);
+    } catch {
+      /* What was sent stands, whatever the view does. */
+    }
+  };
   action.guard?.();
   const { account } = action;
   const calls = [...action.calls];
@@ -1099,19 +1116,16 @@ async function send(
           await tellUnsent(call, step);
       throw error;
     }
-    // Every step is told; a site's failure to record it never reads as unsent.
-    const failures: unknown[] = [];
+    // Every step is told; a site's failure to record it never changes what was sent.
     for (const [step, call] of calls.entries())
       try {
         await action.onSubmitted?.(call, step, hash, {
           safe: false,
           adopted: false,
         });
-      } catch (error) {
-        failures.push(error);
+      } catch {
+        /* Sent, whatever the site's record of it did. */
       }
-    if (failures.length)
-      throw new SubmittedContractWriteError(hash, failures[0]);
     return { status: "done", hashes: [hash], receipts: [] };
   }
 
@@ -1253,97 +1267,100 @@ async function send(
       });
     /** The steps whose `beforeWallet` began. */
     let began = 0;
-    const hash = await handles[0].send<Hex>(client, (gate) => {
-      if (generation(handles[0]) !== reviewedGenerations[0]) {
-        throw new WriteHoldStaleReviewError();
-      }
-      const released = async () => {
-        gate.onRejected();
-        for (const [step, call] of calls.slice(0, began).entries())
-          await tellUnsent(call, step);
-      };
-      return submitReviewedContractWrite({
-        request: batched,
-        expectedAccount: account,
-        review: () => Promise.resolve(),
-        switchChain: async (chainId) => {
-          if (adapter.chainId() !== chainId) await adapter.switchChain(chainId);
-        },
-        currentAccount: () => adapter.account(),
-        reverify: async () => {
-          for (const [step, call] of calls.entries())
-            await action.reverify?.(call, step, undefined);
-          unchanged();
-        },
-        simulate: async (sending) => {
-          await simulateCallSequence(client, {
-            from: account,
-            chainName: chainNameOf(client, batched.chainId),
-            calls: run.map((call, step) => ({
-              ...call,
-              label: labelOf(calls[step], step),
-              dependsOnPrior: calls[step].dependsOnPrior,
-            })),
-          });
-          return sending;
-        },
-        beforeWrite: async () => {
-          await gate.beforeSend();
-          try {
-            for (const [step, call] of calls.entries()) {
-              began = step + 1;
-              await action.beforeWallet?.(call, step);
-            }
-          } catch (error) {
-            await released();
-            throw error;
-          }
-        },
-        beforeSend: () => {
-          action.assertWriteState?.();
-          unchanged();
-          if (!adapter.isSafe())
-            throw new ReviewLineError(
-              "Wallet connection changed. Review the transaction again.",
-            );
-          if (adapter.chainId() !== batched.chainId)
-            throw new ReviewLineError(
-              "Your wallet changed networks. Review the transaction again.",
-            );
-          if (adapter.account()?.toLowerCase() !== account.toLowerCase())
-            throw new ReviewLineError(ACCOUNT_CHANGED);
-        },
-        onBeforeWriteAborted: released,
-        onWriteRejected: released,
-        onWriteSubmitted: async (submitted) => {
-          gate.afterSubmit(submitted);
-          // Every step went: each is told, whatever an earlier callback does.
-          const failures: unknown[] = [];
-          for (const [step, call] of calls.entries())
+    const hash = await handles[0]
+      .send<Hex>(client, (gate) => {
+        if (generation(handles[0]) !== reviewedGenerations[0]) {
+          throw new WriteHoldStaleReviewError();
+        }
+        const released = async () => {
+          gate.onRejected();
+          for (const [step, call] of calls.slice(0, began).entries())
+            await tellUnsent(call, step);
+        };
+        return submitReviewedContractWrite({
+          request: batched,
+          expectedAccount: account,
+          review: () => Promise.resolve(),
+          switchChain: async (chainId) => {
+            if (adapter.chainId() !== chainId)
+              await adapter.switchChain(chainId);
+          },
+          currentAccount: () => adapter.account(),
+          reverify: async () => {
+            for (const [step, call] of calls.entries())
+              await action.reverify?.(call, step, undefined);
+            unchanged();
+          },
+          simulate: async (sending) => {
+            await simulateCallSequence(client, {
+              from: account,
+              chainName: chainNameOf(client, batched.chainId),
+              calls: run.map((call, step) => ({
+                ...call,
+                label: labelOf(calls[step], step),
+                dependsOnPrior: calls[step].dependsOnPrior,
+              })),
+            });
+            return sending;
+          },
+          beforeWrite: async () => {
+            await gate.beforeSend();
             try {
-              await action.onSubmitted?.(call, step, submitted, {
-                safe: true,
-                adopted: false,
-              });
+              for (const [step, call] of calls.entries()) {
+                began = step + 1;
+                await action.beforeWallet?.(call, step);
+              }
             } catch (error) {
-              failures.push(error);
+              await released();
+              throw error;
             }
-          if (failures.length) throw failures[0];
-        },
-        write: async () => {
-          const id = await adapter.sendCalls!(
-            batched.chainId,
-            sent.map(({ to, data, value }) => ({ to, data, value })),
-          );
-          // A Safe app answers with the proposal's safeTxHash; anything else can't be followed.
-          if (typeof id !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(id))
-            throw new ReviewLineError(SAFE_BATCH_UNFOLLOWABLE_LINE);
-          return id as Hex;
-        },
-        onPhase: (phase) => progress(phase),
-        guard: action.guard,
-      });
-    });
+          },
+          beforeSend: () => {
+            action.assertWriteState?.();
+            unchanged();
+            if (!adapter.isSafe())
+              throw new ReviewLineError(
+                "Wallet connection changed. Review the transaction again.",
+              );
+            if (adapter.chainId() !== batched.chainId)
+              throw new ReviewLineError(
+                "Your wallet changed networks. Review the transaction again.",
+              );
+            if (adapter.account()?.toLowerCase() !== account.toLowerCase())
+              throw new ReviewLineError(ACCOUNT_CHANGED);
+          },
+          onBeforeWriteAborted: released,
+          onWriteRejected: released,
+          onWriteSubmitted: async (submitted) => {
+            gate.afterSubmit(submitted);
+            // Every step went: each is told, whatever an earlier callback does.
+            const failures: unknown[] = [];
+            for (const [step, call] of calls.entries())
+              try {
+                await action.onSubmitted?.(call, step, submitted, {
+                  safe: true,
+                  adopted: false,
+                });
+              } catch (error) {
+                failures.push(error);
+              }
+            if (failures.length) throw failures[0];
+          },
+          write: async () => {
+            const id = await adapter.sendCalls!(
+              batched.chainId,
+              sent.map(({ to, data, value }) => ({ to, data, value })),
+            );
+            // A Safe app answers with the proposal's safeTxHash; anything else can't be followed.
+            if (typeof id !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(id))
+              throw new ReviewLineError(SAFE_BATCH_UNFOLLOWABLE_LINE);
+            return id as Hex;
+          },
+          onPhase: (phase) => progress(phase),
+          guard: action.guard,
+        });
+      })
+      .catch(sentHash);
     progress("proposed", hash);
     return { status: "proposed", step: 0, safeTxHash: hash, ...signed };
   }
@@ -1450,6 +1467,8 @@ async function send(
       | undefined;
     /** The caller's end of the run, once this run sent a step. */
     const runEnd = hashes.length ? action.follow?.signal : undefined;
+    /** The site's failed record of this step's hash: the step was sent, and is held unverified. */
+    let unrecorded: unknown;
     const hash = await handles[step]
       .send<Hex>(client, (gate) => {
         // Under the hold's own check of the call, before anything reserves.
@@ -1607,7 +1626,8 @@ async function send(
         // Refused unsent because the caller ended the run: a cancel, not a failure.
         if (runEnd?.aborted && error instanceof WalletNotInvokedError)
           throw new TransactionReviewCancelledError();
-        throw error;
+        unrecorded = error;
+        return sentHash(error);
       });
     hashes.push(hash);
     // A later step held under this step's key (the same call, or the same
@@ -1629,49 +1649,10 @@ async function send(
       progress("proposed", hash);
       return { status: "proposed", step: at, safeTxHash: hash, ...signed };
     }
-    progress("receipt", hash);
-    let receipt = await waitForTrackedReceipt(client, hash);
-    // The hold checks the receipt itself and settles, so the same call (or
-    // intent) can be reviewed and sent again without waiting on a view.
-    // Only this send's own reservation's settlement speaks for it: a later
-    // send of the same call or intent may have settled since.
-    let settled = await handles[step]
-      .state(client)
-      .then((state) =>
-        state.status === "clear" &&
-        reserved !== undefined &&
-        state.reservation === reserved
-          ? state.settled
-          : undefined,
-      )
-      .catch(() => undefined);
-    // It ran, and the hold proved it failed: a Safe's call that failed.
-    const callFailed = () =>
-      receipt.status === "success" && settled?.result === "failed";
-    // Done, or reverted, only once its hold verified the receipt (a Safe's
-    // execTransaction, the Safe's own success); until then it stays held and
-    // journaled, as `follow` or the hook follows it to its settlement.
-    const verified = () =>
-      settled?.result === (receipt.status === "success" ? "success" : "failed");
-    if (!callFailed() && !verified() && action.follow) {
-      action.follow.onConfirming?.(at);
-      const ended = await followSent(
-        handles[step],
-        client,
-        reserved,
-        action.follow,
-      );
-      if (ended) ({ settled, receipt } = ended);
-    }
-    if (callFailed()) {
-      if (journal) {
-        delete journal.sending;
-        await keep();
-      }
-      throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
-    }
-    if (!verified()) {
-      throw new ReviewedReceiptUnverifiedError(
+    // From here the step was sent: it ends done, failed as its hold
+    // verified, or unverified with what resumes it, never any other way.
+    const unverified = (cause?: unknown) =>
+      new ReviewedReceiptUnverifiedError(
         at,
         hash,
         isSafeExecTransaction(reviewed.data)
@@ -1684,8 +1665,62 @@ async function send(
           hashes: journal ? [...journal.completed] : hashes.slice(0, -1),
           ...signed,
         },
+        cause === undefined ? {} : { cause },
       );
+    // The site could not record the hash: held as sent, for it to resume.
+    if (unrecorded !== undefined) throw unverified(unrecorded);
+    let receipt!: TransactionReceipt;
+    let settled: WriteHoldSettled | undefined;
+    // It ran, and the hold proved it failed: a Safe's call that failed.
+    const callFailed = () =>
+      receipt.status === "success" && settled?.result === "failed";
+    // Done, or reverted, only once its hold verified the receipt (a Safe's
+    // execTransaction, the Safe's own success); until then it stays held and
+    // journaled, as `follow` or the hook follows it to its settlement.
+    const verified = () =>
+      settled?.result === (receipt.status === "success" ? "success" : "failed");
+    try {
+      progress("receipt", hash);
+      receipt = await waitForTrackedReceipt(client, hash);
+      // The hold checks the receipt itself and settles, so the same call (or
+      // intent) can be reviewed and sent again without waiting on a view.
+      // Only this send's own reservation's settlement speaks for it: a later
+      // send of the same call or intent may have settled since.
+      settled = await handles[step]
+        .state(client)
+        .then((state) =>
+          state.status === "clear" &&
+          reserved !== undefined &&
+          state.reservation === reserved
+            ? state.settled
+            : undefined,
+        )
+        .catch(() => undefined);
+      if (!callFailed() && !verified() && action.follow) {
+        try {
+          action.follow.onConfirming?.(at);
+        } catch {
+          /* The step is followed whatever the site's view does. */
+        }
+        const ended = await followSent(
+          handles[step],
+          client,
+          reserved,
+          action.follow,
+        );
+        if (ended) ({ settled, receipt } = ended);
+      }
+    } catch (error) {
+      throw unverified(error);
     }
+    if (callFailed()) {
+      if (journal) {
+        delete journal.sending;
+        await keep();
+      }
+      throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
+    }
+    if (!verified()) throw unverified();
     if (receipt.status !== "success") {
       // It ran and reverted: nothing of it to resume.
       if (journal) {

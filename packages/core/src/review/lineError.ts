@@ -65,7 +65,16 @@ export class ReviewedReceiptUnverifiedError extends ReviewLineError {
       hashes?: Hex[];
       signatures?: Hex[];
     },
+    /** What ended the run before the hold verified the step: a read that failed, say. */
+    options: { cause?: unknown } = {},
   ) {
     super(line);
+    // Not enumerable, like a native cause: serializing leaves out an RPC error and its URL.
+    Object.defineProperty(this, "cause", {
+      value: options.cause,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
   }
 }

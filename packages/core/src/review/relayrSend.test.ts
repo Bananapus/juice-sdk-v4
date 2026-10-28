@@ -1436,6 +1436,33 @@ describe("payRelayrReviewed", () => {
     }
   });
 
+  it("ends a payment whose receipt watcher is exhausted unreadable with its hash, never as a bare read failure", async () => {
+    const { deps, chain, wallet } = relayrSetup();
+    reviewUi();
+    chain.client.waitForTransactionReceipt.mockRejectedValue(
+      new Error("watcher dropped"),
+    );
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      let outcome: unknown = "pending";
+      void payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps).then(
+        (hash) => (outcome = { hash }),
+        (error: unknown) => (outcome = error),
+      );
+      await vi.advanceTimersByTimeAsync(200_000);
+      expect(outcome).toBeInstanceOf(RelayrProofUnavailableError);
+      const hash: string =
+        await wallet.adapter.sendTransaction.mock.results[0].value;
+      expect((outcome as Error).message).toContain(hash);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("tells the site before the wallet opens and each hash after", async () => {
     const { deps, wallet } = relayrSetup();
     reviewUi();

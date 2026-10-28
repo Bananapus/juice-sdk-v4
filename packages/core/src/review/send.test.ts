@@ -32,7 +32,7 @@ import {
   unregister,
 } from "./__fixtures__/reviewedSend.js";
 import type { ReviewConfirmation } from "./confirm.js";
-import { SubmittedContractWriteError } from "./contractWrite.js";
+import { TransactionReceiptUnavailableError } from "./receipt.js";
 import {
   HELD_AWAY_SUCCESS_LINE,
   WRITE_HOLD_REVERTED_LINE,
@@ -1136,8 +1136,8 @@ describe("sendReviewed", () => {
     ).rejects.toThrow();
     expect(events).toEqual(["before 0", "released 0"]);
 
-    // A site's failure to record a submitted step never reads as unsent, and
-    // every step is still told.
+    // A site's failure to record a submitted step never changes what was
+    // sent, and every step is still told.
     events.length = 0;
     const told: number[] = [];
     await expect(
@@ -1152,7 +1152,7 @@ describe("sendReviewed", () => {
         }),
         signa,
       ),
-    ).rejects.toBeInstanceOf(SubmittedContractWriteError);
+    ).resolves.toMatchObject({ status: "done" });
     expect(told).toEqual([0, 1]);
     expect(events).toEqual(["before 0", "before 1"]);
 
@@ -1573,8 +1573,23 @@ describe("a Safe app batch", () => {
         action([approveCall(), payCall(5n)], { batch: true, onSubmitted }),
         deps,
       ),
-    ).rejects.toBeInstanceOf(SubmittedContractWriteError);
+    ).resolves.toMatchObject({ status: "proposed" });
     expect(onSubmitted.mock.calls.map(([, step]) => step)).toEqual([0, 1]);
+  });
+
+  it("a Safe proposal whose site record failed is still a proposal", async () => {
+    reviewUi();
+    const { deps } = safeApp();
+    await expect(
+      sendReviewed(
+        action([payCall(5n)], {
+          onSubmitted: () => {
+            throw new Error("the site's record failed");
+          },
+        }),
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: "proposed" });
   });
 
   it("an ordinary wallet sends a batch's calls one by one", async () => {
@@ -1830,6 +1845,106 @@ describe("sendReviewed and its hold's evidence", () => {
     expect((failure as ReviewedReceiptUnverifiedError).held).toMatchObject({
       signatures: [signature],
     });
+  });
+
+  describe("a sent step ends done, verified failed, or unverified with what resumes it", () => {
+    it("an exhausted receipt watcher is unverified, keeping the hold, the hash and the signatures", async () => {
+      const { wallet, deps, chain } = setup();
+      reviewUi();
+      const signature = `0x${"5e".repeat(65)}` as Hex;
+      wallet.adapter.signMessage.mockImplementation(async () => signature);
+      chain.client.waitForTransactionReceipt.mockRejectedValue(
+        new Error("watcher dropped"),
+      );
+      chain.client.getTransactionReceipt.mockRejectedValue(
+        new Error("lagging node"),
+      );
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        const sending = sendReviewed(
+          action([payCall()], {
+            signatures: [{ kind: "message", chainId: 10, message: "List it" }],
+          }),
+          deps,
+        ).catch((error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(200_000);
+        const failure = await sending;
+        expect(failure).toBeInstanceOf(ReviewedReceiptUnverifiedError);
+        expect(failure).toMatchObject({
+          step: 0,
+          hash: expect.stringMatching(/^0x/),
+          held: {
+            call: expect.anything(),
+            reservation: expect.any(String),
+            signatures: [signature],
+          },
+        });
+        expect((failure as { cause?: unknown }).cause).toBeInstanceOf(
+          TransactionReceiptUnavailableError,
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    });
+
+    it("a site's failed record of the hash ends the run unverified, with the hash, its hold and the cause", async () => {
+      const { wallet, deps, chain } = setup();
+      reviewUi();
+      const onConfirmed = vi.fn();
+      const failure = await sendReviewed(
+        action([payCall(), payCall(5n)], {
+          onSubmitted: () => {
+            throw new Error("the site's record failed");
+          },
+          onConfirmed,
+        }),
+        deps,
+      ).catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(ReviewedReceiptUnverifiedError);
+      expect(failure).toMatchObject({
+        step: 0,
+        held: { call: expect.anything(), reservation: expect.any(String) },
+      });
+      expect((failure as { cause?: unknown }).cause).toMatchObject({
+        name: "SubmittedContractWriteError",
+      });
+      expect(onConfirmed).not.toHaveBeenCalled();
+      expect(chain.client.waitForTransactionReceipt).not.toHaveBeenCalled();
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    });
+
+    it("a progress or confirming callback that throws never ends the send", async () => {
+      const { wallet, deps, chain } = setup();
+      reviewUi();
+      const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+      let lagged = false;
+      chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+        if (!lagged) {
+          lagged = true;
+          throw new Error("lagging node");
+        }
+        return read(args);
+      });
+      const result = await sendReviewed(
+        action([payCall()], {
+          follow: {
+            onConfirming: () => {
+              throw new Error("the site's view failed");
+            },
+          },
+        }),
+        {
+          ...deps,
+          onProgress: ({ phase }) => {
+            if (phase === "receipt" || phase === "done")
+              throw new Error("the site's view failed");
+          },
+        },
+      );
+      expect(result).toMatchObject({ status: "done" });
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    }, 20_000);
   });
 
   it("reports a reverted receipt only once the hold verified it, keeping its sending checkpoint", async () => {

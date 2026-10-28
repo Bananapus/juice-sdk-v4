@@ -53,6 +53,7 @@ import {
   relayrPaymentDetails,
   relayrPaymentOptions,
   RelayrPaymentNotSentError,
+  RelayrProofError,
   RelayrProofUnavailableError,
   relayrWalletPaymentError,
   relayrStateIsFailed,
@@ -790,62 +791,81 @@ async function sendPayment(
   }
   // A proposal: its hold follows it to the Safe's execution.
   if (safe) return hash;
-  const receipt = await waitForTrackedReceipt(client, hash);
-  // The hold checks the receipt itself and settles, so a reverted payment can
-  // be reviewed and sent again without waiting on a view.
-  await handle.state(client).catch(() => undefined);
-  // A wallet that sped the payment up mined it under another hash.
-  const mined = receipt.transactionHash;
-  if (mined.toLowerCase() !== hash.toLowerCase()) {
-    try {
-      await hooks.onSent?.(mined);
-    } catch (error) {
-      throw new SubmittedContractWriteError(mined, error);
+  // From here the payment was sent: it ends proven, reverted or
+  // contradicted as the chain shows it, or unreadable with its hash, never
+  // as a bare read failure.
+  try {
+    const receipt = await waitForTrackedReceipt(client, hash);
+    // The hold checks the receipt itself and settles, so a reverted payment can
+    // be reviewed and sent again without waiting on a view.
+    await handle.state(client).catch(() => undefined);
+    // A wallet that sped the payment up mined it under another hash.
+    const mined = receipt.transactionHash;
+    if (mined.toLowerCase() !== hash.toLowerCase()) {
+      try {
+        await hooks.onSent?.(mined);
+      } catch (error) {
+        throw new SubmittedContractWriteError(mined, error);
+      }
     }
-  }
-  if (receipt.status === "reverted")
-    throw new ReviewedCallRevertedError(0, mined, receipt);
-  // A proof the node can't read yet is read again, as long as `follow` would
-  // follow a step, a read that stalls included; a contradicting proof is
-  // never retried. Past that, it is unreadable, its hash kept in the line.
-  const deadline = Date.now() + FOLLOW_MS;
-  let unread: unknown;
-  for (;;) {
-    const left = deadline - Date.now();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const proven = await Promise.race([
-        verifyRelayrPayment(client, {
-          hash: mined,
-          from: account,
-          payment: details,
-        }).then(() => true),
-        new Promise<false>((resolve) => {
-          timer = setTimeout(() => resolve(false), Math.max(left, 0));
-        }),
-      ]);
-      if (proven) return mined;
-      throw Object.assign(
-        new RelayrProofUnavailableError(
-          `Could not read Relayr payment ${mined} on chain ${details.chainId}. Do not pay again; check it later.`,
-        ),
-        { cause: unread },
-      );
-    } catch (error) {
-      if (
-        !(error instanceof RelayrProofUnavailableError) ||
-        deadline - Date.now() <= 0
-      )
-        throw error;
-      unread = error;
-      await pause(
-        Math.min(RECEIPT_RETRY_MS, deadline - Date.now()),
-        undefined,
-        () => null,
-      );
-    } finally {
-      clearTimeout(timer);
+    if (receipt.status === "reverted")
+      throw new ReviewedCallRevertedError(0, mined, receipt);
+    // A proof the node can't read yet is read again, as long as `follow` would
+    // follow a step, a read that stalls included; a contradicting proof is
+    // never retried. Past that, it is unreadable, its hash kept in the line.
+    const deadline = Date.now() + FOLLOW_MS;
+    let unread: unknown;
+    for (;;) {
+      const left = deadline - Date.now();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const proven = await Promise.race([
+          verifyRelayrPayment(client, {
+            hash: mined,
+            from: account,
+            payment: details,
+          }).then(() => true),
+          new Promise<false>((resolve) => {
+            timer = setTimeout(() => resolve(false), Math.max(left, 0));
+          }),
+        ]);
+        if (proven) return mined;
+        throw Object.assign(
+          new RelayrProofUnavailableError(
+            `Could not read Relayr payment ${mined} on chain ${details.chainId}. Do not pay again; check it later.`,
+          ),
+          { cause: unread },
+        );
+      } catch (error) {
+        if (
+          !(error instanceof RelayrProofUnavailableError) ||
+          deadline - Date.now() <= 0
+        )
+          throw error;
+        unread = error;
+        await pause(
+          Math.min(RECEIPT_RETRY_MS, deadline - Date.now()),
+          undefined,
+          () => null,
+        );
+      } finally {
+        clearTimeout(timer);
+      }
     }
+  } catch (error) {
+    if (
+      error instanceof ReviewedCallRevertedError ||
+      error instanceof RelayrProofError ||
+      error instanceof RelayrProofUnavailableError ||
+      error instanceof SubmittedContractWriteError
+    )
+      throw error;
+    throw Object.assign(
+      new RelayrProofUnavailableError(
+        `Could not read Relayr payment ${hash} on chain ${details.chainId}. Do not pay again; check it later.`,
+      ),
+      { cause: error },
+    );
   }
 }
 

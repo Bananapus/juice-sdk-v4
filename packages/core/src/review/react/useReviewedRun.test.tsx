@@ -822,6 +822,53 @@ describe("useReviewedRun", () => {
     expect(onConfirmed).toHaveBeenCalledTimes(4);
   });
 
+  test("a send whose receipt watcher is exhausted completes once the node recovers: onConfirmed once, its signature kept", async () => {
+    reviewUi();
+    const { wallet, chain, deps } = setup();
+    const signature = `0x${"5e".repeat(65)}` as const;
+    wallet.adapter.signMessage.mockImplementation(async () => signature);
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const watch =
+      chain.client.waitForTransactionReceipt.getMockImplementation()!;
+    chain.client.waitForTransactionReceipt.mockRejectedValue(
+      new Error("watcher dropped"),
+    );
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    const onConfirmed = vi.fn();
+    const { seen } = harness({ ...deps, account: ACCOUNT });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let left!: Awaited<ReturnType<UseReviewedRunResult["run"]>>;
+    try {
+      let pending!: ReturnType<UseReviewedRunResult["run"]>;
+      act(() => {
+        pending = seen.current!.run({
+          calls: [payCall()],
+          signatures: [{ kind: "message", chainId: 10, message: "List it" }],
+          onConfirmed,
+        });
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(400_000);
+      });
+      left = await pending;
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(left).toMatchObject({ status: "receipt", signatures: [signature] });
+    const ended = (left as ReviewedRunReceipt).ended();
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    chain.client.waitForTransactionReceipt.mockImplementation(watch);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await expect(ended).resolves.toMatchObject({
+      status: "done",
+      signatures: [signature],
+    });
+    expect(onConfirmed).toHaveBeenCalledOnce();
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
   test("the view's receipt completes a late step when completion's own reread fails, telling onConfirmed once", async () => {
     reviewUi();
     const { chain, deps, storage } = setup();
