@@ -155,8 +155,15 @@ describe("reviewed sequences", () => {
     const context = setup();
     const { wallet, storage } = context;
     wallet.state.safe = true;
-    /** The Safe's executions, by proposal: what the hold proves once signers run it. */
-    const executed = new Map<Hex, Hex>();
+    /** The Safe's executions, by proposal: what the hold proves once signers run it, mined. */
+    const executed = {
+      map: new Map<Hex, Hex>(),
+      get: (proposal: Hex) => executed.map.get(proposal),
+      set: (proposal: Hex, execution: Hex) => {
+        context.chain.mine(execution, { to: ACCOUNT, data: "0x", value: 0n });
+        executed.map.set(proposal, execution);
+      },
+    };
     /** A settlement the hold could not save: the step reads clear with nothing to show. */
     let lost = false;
     const hold: WriteHold = {
@@ -653,12 +660,16 @@ describe("reviewed sequences", () => {
       ],
     ]);
 
-    // A prior receipt that can't be read is no block, at once: the check reads the latest.
+    // A prior block that can't be read is no block, at once: the check reads the latest.
     const second = await interrupted(
       [approveCall(), payCall(5n), payCall(6n)],
       1,
     );
-    second.chain.state.mined.delete(hashOf(1));
+    const blocks = second.chain.client.getBlock.getMockImplementation()!;
+    second.chain.client.getBlock.mockImplementation(async (args) => {
+      if (args?.blockHash) throw new Error("lagging node");
+      return blocks(args);
+    });
     const unread = vi.fn(
       async (_call: ReviewedCall, _index: number, _prior?: unknown) => {},
     );
@@ -674,6 +685,48 @@ describe("reviewed sequences", () => {
       fresh.deps,
     );
     expect(first.mock.calls[0][2]).toBeUndefined();
+  });
+
+  it("reverify on resume gets the block the prior step's hold verified, never an orphaned receipt's", async () => {
+    reviewUi();
+    const context = setup();
+    const { chain } = context;
+    const watch =
+      chain.client.waitForTransactionReceipt.getMockImplementation()!;
+    chain.client.waitForTransactionReceipt.mockImplementationOnce(
+      async (args) => {
+        const seen = await watch(args);
+        // Reorged out of block 101 and mined again in 102, where its hold verifies it.
+        chain.state.head = 102n;
+        chain.state.mined.set(args.hash, 102n);
+        return seen;
+      },
+    );
+    const { deps, record } = await interrupted(
+      [approveCall(), payCall(5n)],
+      1,
+      context,
+    );
+    // A node that still serves the orphaned block 101 receipt.
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) =>
+      args.hash === hashOf(1)
+        ? ({
+            ...(await read(args)),
+            blockNumber: 101n,
+            blockHash: `0x${"0d".repeat(32)}`,
+          } as never)
+        : read(args),
+    );
+    const reverify = vi.fn(
+      async (_call: ReviewedCall, _index: number, _prior?: unknown) => {},
+    );
+    await resumeReviewed(record, { reverify }, deps);
+    expect(reverify.mock.calls[0][2]).toEqual({
+      chainId: 10,
+      blockNumber: 102n,
+      blockHash: numberToHex(102n, { size: 32 }),
+    });
   });
 
   it("tells the site each step it confirmed, even when a later step stops", async () => {
@@ -758,6 +811,7 @@ describe("reviewed sequences", () => {
     })!;
     executed = true;
     context.chain.state.mined.set(hashOf(0xe1), 105n);
+    context.chain.state.head = 105n;
     context.progress.length = 0;
     const onConfirmed = vi.fn();
     await expect(

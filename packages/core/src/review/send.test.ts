@@ -1720,7 +1720,7 @@ describe("sendReviewed and its hold's evidence", () => {
   async function leftAtReceipt(
     extra: Partial<Parameters<typeof action>[1]> = {},
   ) {
-    const { deps, chain, hold, storage, wallet } = setup();
+    const { deps, chain, hold, storage, wallet, memory } = setup();
     reviewUi();
     const read = chain.client.getTransactionReceipt.getMockImplementation()!;
     const payment = `0x${"2".padStart(64, "0")}`;
@@ -1753,8 +1753,46 @@ describe("sendReviewed and its hold's evidence", () => {
       unverified,
       recover,
       relag: () => (lagging = true),
+      memory,
+      payment: payment as Hex,
     };
   }
+
+  it("never completes a saved success with no block whose transaction now reads reverted", async () => {
+    const {
+      deps,
+      chain,
+      hold,
+      storage,
+      calls,
+      scope,
+      unverified,
+      recover,
+      memory,
+      payment,
+    } = await leftAtReceipt();
+    recover();
+    const handle = openStepHold(hold, ACCOUNT, false, calls[1]);
+    await handle.state(chain.client as unknown as PublicClient);
+    // A settlement saved before it kept its block (4.x).
+    for (const [key, value] of memory) {
+      const saved = JSON.parse(value) as { result?: unknown };
+      if (saved?.result === "success" && "blockHash" in saved) {
+        delete (saved as { blockHash?: unknown }).blockHash;
+        memory.set(key, JSON.stringify(saved));
+      }
+    }
+    // Reorged out and mined again, reverted.
+    chain.state.head += 1n;
+    chain.state.mined.set(payment, chain.state.head);
+    chain.state.status = "reverted";
+    await expect(
+      completeReviewedStep(unverified, { account: ACCOUNT, scope }, deps),
+    ).rejects.toThrow();
+    expect(
+      findReviewedSequence(scope, ACCOUNT, { storage })?.sending,
+    ).toMatchObject({ step: 1 });
+  });
 
   it("completes a verified step with the receipt it is given when a reread fails, telling onConfirmed once", async () => {
     const {

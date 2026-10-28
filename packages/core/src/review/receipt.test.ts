@@ -1,7 +1,9 @@
+import { readdirSync, readFileSync } from "node:fs";
 import type { Hex, PublicClient, TransactionReceipt } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import { errorLine } from "./transaction-message.js";
 import {
+  heldBlock,
   heldReceipt,
   isTransactionReceiptUnavailableError,
   TRANSACTION_TRACKING_UNAVAILABLE_LINE,
@@ -149,31 +151,124 @@ describe("transaction receipt tracking", () => {
 describe("heldReceipt", () => {
   const verified = `0x${"0b".repeat(32)}` as Hex;
   const other = `0x${"0c".repeat(32)}` as Hex;
-  const at = (blockHash: Hex) =>
-    ({ ...receipt, blockHash }) as unknown as TransactionReceipt;
-  const reads = (blockHash: Hex) => ({
-    getTransactionReceipt: vi.fn(async () => at(blockHash)),
-  });
+  const at = (blockHash: Hex, status: "success" | "reverted" = "success") =>
+    ({ ...receipt, blockHash, status }) as unknown as TransactionReceipt;
+  /** A node whose receipt of HASH is in `blockHash`, block 12 being `canonical`, final through `final`. */
+  const node = (
+    blockHash: Hex,
+    {
+      canonical = blockHash,
+      final = 20n,
+      status = "success" as "success" | "reverted",
+    } = {},
+  ) =>
+    ({
+      getTransactionReceipt: vi.fn(async () => at(blockHash, status)),
+      getBlock: vi.fn(
+        async ({ blockNumber, blockHash: byHash }: Record<string, unknown>) =>
+          byHash
+            ? { number: 12n, hash: byHash }
+            : blockNumber === undefined
+              ? { number: final, hash: other }
+              : { number: blockNumber, hash: canonical },
+      ),
+    }) as unknown as Parameters<typeof heldReceipt>[1] & {
+      getTransactionReceipt: ReturnType<typeof vi.fn>;
+    };
+  const success = { result: "success" as const, hash: HASH };
 
-  it("keeps a seen receipt only in the block the hold verified, else reads it", async () => {
+  it("keeps a seen receipt in the block the hold verified, else reads it", async () => {
     const seen = at(verified);
-    const node = reads(verified);
+    const chain = node(verified);
     await expect(
-      heldReceipt({ hash: HASH, blockHash: verified }, node, seen),
+      heldReceipt({ ...success, blockHash: verified }, chain, seen),
     ).resolves.toBe(seen);
-    expect(node.getTransactionReceipt).not.toHaveBeenCalled();
+    expect(chain.getTransactionReceipt).not.toHaveBeenCalled();
     await expect(
-      heldReceipt({ hash: HASH, blockHash: verified }, node, at(other)),
+      heldReceipt({ ...success, blockHash: verified }, chain, at(other)),
     ).resolves.toMatchObject({ blockHash: verified });
-    // A hold with no block (a log proved it) reads the hash's receipt.
-    await expect(heldReceipt({ hash: HASH }, node, seen)).resolves.not.toBe(
-      seen,
-    );
   });
 
-  it("refuses a read in another block than the one the hold verified", async () => {
+  it("refuses a read in another block than the one the hold verified, or a success that reads reverted", async () => {
     await expect(
-      heldReceipt({ hash: HASH, blockHash: verified }, reads(other)),
-    ).rejects.toThrow("no longer in the block its hold verified");
+      heldReceipt({ ...success, blockHash: verified }, node(other)),
+    ).rejects.toThrow("not the one its hold verified");
+    await expect(
+      heldReceipt(
+        { ...success, blockHash: verified },
+        node(verified, { status: "reverted" }),
+      ),
+    ).rejects.toThrow("not the one its hold verified");
+    await expect(
+      heldReceipt(
+        { result: "failed", hash: HASH, blockHash: verified },
+        node(verified, { status: "reverted" }),
+      ),
+    ).resolves.toMatchObject({ status: "reverted" });
+  });
+
+  it("with no block kept, takes only a receipt in a canonical, final block", async () => {
+    await expect(heldReceipt(success, node(verified))).resolves.toMatchObject({
+      blockHash: verified,
+    });
+    await expect(
+      heldReceipt(success, node(verified, { canonical: other })),
+    ).rejects.toThrow("not the one its hold verified");
+    await expect(
+      heldReceipt(success, node(verified, { final: 11n })),
+    ).rejects.toThrow("not the one its hold verified");
+  });
+
+  it("finds the block a hold verified while it is canonical", async () => {
+    await expect(
+      heldBlock(
+        { ...success, blockHash: verified },
+        node(other, { canonical: verified }),
+      ),
+    ).resolves.toEqual({ blockNumber: 12n, blockHash: verified });
+    await expect(
+      heldBlock(
+        { ...success, blockHash: verified },
+        node(other, { canonical: other }),
+      ),
+    ).rejects.toThrow("not the one its hold verified");
+    await expect(heldBlock(success, node(verified))).resolves.toEqual({
+      blockNumber: 12n,
+      blockHash: verified,
+    });
+  });
+});
+
+describe("every receipt a sent step is told by is its hold's", () => {
+  /**
+   * The modules that read a receipt themselves: receipt.ts (the watcher and
+   * heldReceipt), and the verifiers whose reads are the authority itself,
+   * the hold's and Relayr's proofs. Any other read, or another read in them,
+   * goes through heldReceipt or is added here deliberately.
+   */
+  const READERS: Record<string, number> = {
+    "receipt.ts": 6,
+    "relayr.ts": 3,
+    "writeHold.ts": 6,
+    "writeRecovery.ts": 2,
+  };
+
+  it("leaves no other receipt read in the review modules", () => {
+    const found: Record<string, number> = {};
+    for (const file of readdirSync("src/review", {
+      recursive: true,
+      encoding: "utf8",
+    })) {
+      if (!/\.tsx?$/u.test(file) || /\.test\.|__fixtures__/u.test(file))
+        continue;
+      const code = readFileSync(`src/review/${file}`, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//gu, "")
+        .replace(/\/\/[^\n]*/gu, "");
+      const reads = code.match(
+        /\b(?:getTransactionReceipt|waitForTransactionReceipt|eth_getTransactionReceipt)\b/gu,
+      );
+      if (reads) found[file] = reads.length;
+    }
+    expect(found).toEqual(READERS);
   });
 });

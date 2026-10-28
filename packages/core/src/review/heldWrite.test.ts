@@ -125,10 +125,26 @@ function fakeHandle(start: WriteHoldState = clear({ reservation: undefined })) {
   };
   return { fake, handle: handle as unknown as WriteHoldHandle & typeof handle };
 }
+/** Block `n`'s hash on the fake chain. */
+const blockHashOf = (n: bigint) =>
+  `0x${n.toString(16).padStart(64, "0")}` as Hex;
+/** `hash`'s receipt in block 5, canonical and final. */
+const receiptOf = (hash: Hex) => ({
+  transactionHash: hash,
+  blockNumber: 5n,
+  blockHash: blockHashOf(5n),
+  status: "success",
+});
 const client = {
-  getTransactionReceipt: vi.fn(async ({ hash }: { hash: Hex }) => ({
-    transactionHash: hash,
-  })),
+  getTransactionReceipt: vi.fn(async ({ hash }: { hash: Hex }) =>
+    receiptOf(hash),
+  ),
+  getBlock: vi.fn(
+    async ({ blockNumber }: { blockNumber?: bigint; blockTag?: string }) =>
+      blockNumber === undefined
+        ? { number: 10n, hash: blockHashOf(10n) }
+        : { number: blockNumber, hash: blockHashOf(blockNumber) },
+  ),
 } as unknown as WriteHoldClient & {
   getTransactionReceipt: ReturnType<typeof vi.fn>;
 };
@@ -371,7 +387,7 @@ describe("one held write's view", () => {
     expect(onSettled).toHaveBeenCalledOnce();
     expect(onSettled).toHaveBeenCalledWith(
       { result: "success", hash: HASH },
-      { transactionHash: HASH },
+      expect.objectContaining({ transactionHash: HASH }),
     );
     // Seen settling here: the hold forgets it, so no later visit asks.
     expect(handle.acknowledge).toHaveBeenCalledWith({
@@ -413,6 +429,26 @@ describe("one held write's view", () => {
       null,
     );
     for (const s of [stop, earlier.stop, expired.stop, failed.stop]) s();
+  });
+
+  it("never hands onSettled a receipt from a block no longer canonical when its settlement kept none (a Safe log's)", async () => {
+    const onSettled = vi.fn();
+    const { view, fake, stop } = started(pending(), { onSettled });
+    await flush();
+    client.getTransactionReceipt.mockResolvedValueOnce({
+      transactionHash: HASH,
+      blockNumber: 5n,
+      blockHash: `0x${"0d".repeat(32)}`,
+      status: "success",
+    });
+    fake.answer = clear({ settled: { result: "success", hash: HASH } });
+    await view.check();
+    await flush();
+    expect(onSettled).toHaveBeenCalledWith(
+      { result: "success", hash: HASH },
+      null,
+    );
+    stop();
   });
 
   it("says released after the user's exit, never that it was sent again (jbm, revnet, Sticky)", async () => {
@@ -1082,22 +1118,20 @@ describe("one held write's view", () => {
     });
     await view.check();
     expect(reads).toHaveLength(2);
-    reads[0]({ transactionHash: HASH });
+    reads[0](receiptOf(HASH));
     await flush();
     expect(onSettled).toHaveBeenCalledOnce();
     stop();
-    reads[1]({ transactionHash: EXECUTION });
+    reads[1](receiptOf(EXECUTION));
     await flush();
     client.getTransactionReceipt.mockImplementation(
-      async ({ hash }: { hash: Hex }) => ({
-        transactionHash: hash,
-      }),
+      async ({ hash }: { hash: Hex }) => receiptOf(hash),
     );
     stop = view.start();
     await vi.waitFor(() => expect(onSettled).toHaveBeenCalledTimes(2));
     expect(onSettled).toHaveBeenLastCalledWith(
       { result: "failed", hash: EXECUTION },
-      { transactionHash: EXECUTION },
+      receiptOf(EXECUTION),
     );
     stop();
   });

@@ -211,12 +211,21 @@ export function fakeChain() {
     getChainId: vi.fn(async () => 10),
     getBlockNumber: vi.fn(async () => state.head),
     getTransactionCount: vi.fn(async () => state.nonce),
-    getBlock: vi.fn(async ({ blockNumber }: { blockNumber?: bigint } = {}) => ({
-      number: blockNumber ?? state.head,
-      hash: numberToHex(blockNumber ?? state.head, { size: 32 }),
-      timestamp: 1_000n,
-      transactions: [],
-    })),
+    getBlock: vi.fn(
+      async ({
+        blockNumber,
+        blockHash,
+      }: { blockNumber?: bigint; blockHash?: Hex } = {}) => {
+        const number =
+          blockNumber ?? (blockHash ? BigInt(blockHash) : state.head);
+        return {
+          number,
+          hash: numberToHex(number, { size: 32 }),
+          timestamp: 1_000n,
+          transactions: [],
+        };
+      },
+    ),
     getTransaction: vi.fn(async ({ hash }: { hash: Hex }) => {
       const tx = state.sent.get(hash);
       if (!tx) throw notFound("TransactionNotFoundError");
@@ -346,8 +355,9 @@ export function speedUpNextSend(
   }) as never);
   client.getBlock.mockImplementation((async ({
     blockNumber,
-  }: { blockNumber?: bigint } = {}) => {
-    const number = blockNumber ?? state.head;
+    blockHash,
+  }: { blockNumber?: bigint; blockHash?: Hex } = {}) => {
+    const number = blockNumber ?? (blockHash ? BigInt(blockHash) : state.head);
     return {
       number,
       hash: numberToHex(number, { size: 32 }),
@@ -368,9 +378,11 @@ export function speedUpNextSend(
 export function setup() {
   const chain = fakeChain();
   const wallet = fakeWallet(chain);
+  /** What the browser saved, by key. */
+  const memory = new Map<string, string>();
   const storage = createHeldWriteStorage({
     durable: () => undefined,
-    memory: new Map(),
+    memory,
   });
   const hold = createWriteHold({
     storage,
@@ -405,7 +417,7 @@ export function setup() {
     safe: false,
     call: { to: call.to, data: call.data, value: call.value ?? 0n },
   });
-  return { chain, wallet, hold, deps, progress, holdOf, storage };
+  return { chain, wallet, hold, deps, progress, holdOf, storage, memory };
 }
 
 /** Each registered review UI's unregister, latest last. */

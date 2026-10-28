@@ -2,7 +2,12 @@ export * from "./lineError.js";
 export * from "./contractWrite.js";
 export * from "./gas.js";
 export * from "./messages.js";
-export * from "./receipt.js";
+export {
+  isTransactionReceiptUnavailableError,
+  TRANSACTION_TRACKING_UNAVAILABLE_LINE,
+  TransactionReceiptUnavailableError,
+  waitForTrackedReceipt,
+} from "./receipt.js";
 export * from "./simulation.js";
 export * from "./transactionReview.js";
 export * from "./transaction-message.js";

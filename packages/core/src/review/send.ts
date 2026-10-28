@@ -54,7 +54,7 @@ import {
   spendPlan,
   type ReviewedPlan,
 } from "./plan.js";
-import { heldReceipt, waitForTrackedReceipt } from "./receipt.js";
+import { heldBlock, heldReceipt, waitForTrackedReceipt } from "./receipt.js";
 import { relayrPaymentChains } from "./relayr.js";
 import { relayrFeeCap } from "./relayrSend.js";
 import {
@@ -831,14 +831,13 @@ export async function resumeReviewed(
     const { settled } = state;
     // Read before anything advances: a failed read leaves the step to resume again.
     const receipt = await confirmedReceipt(
-      action,
       settled,
       deps.clientFor(call.chainId),
     );
     // This sequence's own step: it is recorded, never offered again.
     if (settled?.result === "success") await handle.acknowledge(settled);
     const kept = await recordSending(saved, settled, storage, expected);
-    const told = () => tellConfirmed(action, call, step, receipt);
+    const told = () => tellConfirmed(action, call, step, settled, receipt);
     if (kept === null) {
       await told();
       const total = saved.calls.length;
@@ -881,18 +880,18 @@ async function recordSending(
 }
 
 /**
- * The receipt `onConfirmed` gets for a step its hold settled a success: the
- * hold's ({@link heldReceipt}). Null when there is nothing to tell. A failed
- * read throws.
+ * The receipt of a step its hold settled ({@link heldReceipt}), checked
+ * before anything advances: a read that fails or disagrees with the hold
+ * throws. Null when the settlement has no transaction (an expiry).
  */
 async function confirmedReceipt(
-  action: Pick<ReviewedAction, "onConfirmed">,
   settled: WriteHoldSettled | undefined,
   client: PublicClient,
   given?: TransactionReceipt | null,
 ): Promise<TransactionReceipt | null> {
-  if (settled?.result !== "success" || !action.onConfirmed) return null;
-  return heldReceipt(settled, client, given);
+  return settled && "hash" in settled
+    ? heldReceipt(settled, client, given)
+    : null;
 }
 
 /** Tells the site of a step its hold settled after the send returned. */
@@ -900,9 +899,10 @@ async function tellConfirmed(
   action: Pick<ReviewedAction, "onConfirmed">,
   call: ReviewedCall,
   step: number,
+  settled: WriteHoldSettled | undefined,
   receipt: TransactionReceipt | null,
 ): Promise<void> {
-  if (receipt?.status !== "success") return;
+  if (settled?.result !== "success" || !receipt) return;
   try {
     await action.onConfirmed?.(call, step, receipt);
   } catch {
@@ -989,7 +989,7 @@ export async function completeReviewedStep(
   )
     return null;
   const { settled } = state;
-  const confirmed = await confirmedReceipt(action, settled, client, receipt);
+  const confirmed = await confirmedReceipt(settled, client, receipt);
   if (action.scope !== undefined) {
     const storage = deps.storage ?? createHeldWriteStorage();
     const { raw, record } = readReviewedSequence(
@@ -1004,7 +1004,7 @@ export async function completeReviewedStep(
       await recordSending(record, settled, storage, raw);
   }
   if (settled.result === "success") await handle.acknowledge(settled);
-  await tellConfirmed(action, call, step, confirmed);
+  await tellConfirmed(action, call, step, settled, confirmed);
   return settled;
 }
 
@@ -1433,20 +1433,23 @@ async function send(
         };
       const done = resuming?.record;
       if (step > 0 || !done?.completed.length) return undefined;
-      const { chainId } = done.calls[done.completed.length - 1];
-      // One read: a receipt that can't be read now (a repriced original) is no block.
-      const receipt = await clientFor(chainId)
-        .getTransactionReceipt({
-          hash: done.completed[done.completed.length - 1],
-        })
-        .catch(() => undefined);
-      return receipt
-        ? {
-            chainId,
-            blockNumber: receipt.blockNumber,
-            blockHash: receipt.blockHash,
-          }
-        : undefined;
+      const last = done.calls[done.completed.length - 1];
+      const hash = done.completed[done.completed.length - 1];
+      // Its hold's settlement, while it is still the call's latest, kept
+      // the block it verified; else the hash's receipt, canonical and final.
+      const held = openStepHold(hold, account, adapter.isSafe(), last).peek();
+      const settled =
+        held.status === "clear" &&
+        held.settled &&
+        "hash" in held.settled &&
+        held.settled.hash.toLowerCase() === hash.toLowerCase()
+          ? held.settled
+          : { result: "success" as const, hash };
+      // One try: a block that can't be read or verified now is no block.
+      const block = await heldBlock(settled, clientFor(last.chainId)).catch(
+        () => undefined,
+      );
+      return block && { chainId: last.chainId, ...block };
     };
     const priorBlock =
       call.dependsOnPrior &&
@@ -1716,8 +1719,6 @@ async function send(
       }
       throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
     }
-    if (settled.result === "success" && receipt.status !== "success")
-      throw unverified();
     const mined = settled.hash;
     hashes[hashes.length - 1] = mined;
     if (receipt.status !== "success") {

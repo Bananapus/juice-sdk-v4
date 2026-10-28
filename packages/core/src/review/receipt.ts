@@ -75,26 +75,69 @@ export async function waitForTrackedReceipt(
   }
 }
 
+/** How a held write settled, as {@link heldReceipt} checks a receipt against it. */
+type Settled = { result: "success" | "failed"; hash: Hex; blockHash?: Hex };
+type HeldClient = Pick<PublicClient, "getTransactionReceipt" | "getBlock">;
+
+const unverified = (hash: Hex) =>
+  new Error(`Transaction ${hash}'s receipt is not the one its hold verified.`);
+
 /**
  * The receipt a hold verified for `settled`, the only one a sent step's
- * outcome is told by: `seen` (a watcher's, say) when it is that transaction
- * in the verified block, else read. One in another block, or any receipt
- * when the hold kept no block, is read; a read in another block throws.
+ * outcome is told by: `seen` (a watcher's, say) when it is that transaction,
+ * else read. It must be in the block the hold verified; with none kept (a
+ * Safe log proved it, or it was saved by 4.x), in a block still canonical
+ * and final. A success must read a success. Anything else throws: the step
+ * stays unverified until the chain agrees with its hold.
  */
 export async function heldReceipt(
-  settled: { hash: Hex; blockHash?: Hex },
-  client: Pick<PublicClient, "getTransactionReceipt">,
+  settled: Settled,
+  client: HeldClient,
   seen?: TransactionReceipt | null,
 ): Promise<TransactionReceipt> {
-  const verified = (receipt: TransactionReceipt) =>
-    receipt.transactionHash.toLowerCase() === settled.hash.toLowerCase() &&
+  const hash = settled.hash.toLowerCase();
+  const inBlock = (receipt: TransactionReceipt) =>
+    receipt.transactionHash.toLowerCase() === hash &&
     (!settled.blockHash ||
       receipt.blockHash?.toLowerCase() === settled.blockHash.toLowerCase());
-  if (seen && settled.blockHash && verified(seen)) return seen;
-  const receipt = await client.getTransactionReceipt({ hash: settled.hash });
-  if (!verified(receipt))
-    throw new Error(
-      `Transaction ${settled.hash} is no longer in the block its hold verified.`,
-    );
+  const receipt =
+    seen && inBlock(seen)
+      ? seen
+      : await client.getTransactionReceipt({ hash: settled.hash });
+  if (
+    !inBlock(receipt) ||
+    (settled.result === "success" && receipt.status !== "success")
+  )
+    throw unverified(settled.hash);
+  if (!settled.blockHash) {
+    const [block, final] = await Promise.all([
+      client.getBlock({ blockNumber: receipt.blockNumber }),
+      client.getBlock({ blockTag: "finalized" }),
+    ]);
+    if (
+      block.hash?.toLowerCase() !== receipt.blockHash?.toLowerCase() ||
+      final.number < receipt.blockNumber
+    )
+      throw unverified(settled.hash);
+  }
   return receipt;
+}
+
+/**
+ * Where `settled` confirmed: the block its hold verified, while still
+ * canonical, or with none kept, its {@link heldReceipt}'s. Throws otherwise.
+ */
+export async function heldBlock(
+  settled: Settled,
+  client: HeldClient,
+): Promise<{ blockNumber: bigint; blockHash: Hex }> {
+  if (!settled.blockHash) {
+    const { blockNumber, blockHash } = await heldReceipt(settled, client);
+    return { blockNumber, blockHash };
+  }
+  const { number } = await client.getBlock({ blockHash: settled.blockHash });
+  const canonical = await client.getBlock({ blockNumber: number });
+  if (canonical.hash?.toLowerCase() !== settled.blockHash.toLowerCase())
+    throw unverified(settled.hash);
+  return { blockNumber: number, blockHash: canonical.hash };
 }
