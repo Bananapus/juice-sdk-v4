@@ -17,7 +17,11 @@ import {
 } from "../generated/juicebox.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import { isDefiniteWalletRejection } from "./contractWrite.js";
-import { ReviewFixedLineError, ReviewLineError } from "./lineError.js";
+import {
+  ReviewFixedLineError,
+  ReviewLineError,
+  WalletNotInvokedError,
+} from "./lineError.js";
 import { simulateStateChangingTransaction } from "./simulation.js";
 
 // Relayr runs a bundle of transactions on several chains for one prepaid
@@ -2578,6 +2582,7 @@ export function relayrPaymentAttemptOutcome(
   if (
     sending &&
     (error instanceof RelayrPaymentNotSentError ||
+      error instanceof WalletNotInvokedError ||
       isDefiniteWalletRejection(error))
   ) {
     return paid ? "reverted" : "unpaid";

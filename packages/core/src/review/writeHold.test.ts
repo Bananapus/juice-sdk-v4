@@ -46,6 +46,7 @@ import {
   type WriteHoldClient,
   type WriteHoldGate,
   type WriteHeldState,
+  type WriteHoldSettled,
   type WriteHoldState,
 } from "./writeHold.js";
 import {
@@ -846,7 +847,7 @@ describe("a held write", () => {
       checked: true,
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: HASH },
+      settled: { result: "success", hash: HASH, blockHash: pad(96n) },
     });
     browser.storage.removeItem = remove;
     expect(savedAtEnd).not.toHaveLength(0);
@@ -938,12 +939,12 @@ describe("a held write", () => {
     ).resolves.toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: HASH },
+      settled: { result: "success", hash: HASH, blockHash: pad(96n) },
     });
     expect(handle.peek()).toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: HASH },
+      settled: { result: "success", hash: HASH, blockHash: pad(96n) },
     });
     expect(seen).toEqual([
       "clear",
@@ -1289,7 +1290,7 @@ describe("a held write", () => {
           checked: true,
           status: "clear",
           reservation: expect.any(String),
-          settled: { result: "success", hash: HASH },
+          settled: { result: "success", hash: HASH, blockHash: pad(106n) },
         });
       } else {
         vi.setSystemTime(1_000_000 + 31 * 60_000);
@@ -1970,7 +1971,7 @@ describe("a held write", () => {
         checked: true,
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: HASH },
+        settled: { result: "success", hash: HASH, blockHash: pad(106n) },
       },
     });
     expect(receipt).toEqual({
@@ -2009,13 +2010,13 @@ describe("a held write", () => {
     await expect(landed).resolves.toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: HASH },
+      settled: { result: "success", hash: HASH, blockHash: pad(102n) },
     });
     await expect(handle.state(client)).resolves.toEqual({
       checked: true,
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: HASH },
+      settled: { result: "success", hash: HASH, blockHash: pad(102n) },
     });
   });
 
@@ -2037,7 +2038,7 @@ describe("a held write", () => {
     const failed = {
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "failed", hash: HASH },
+      settled: { result: "failed", hash: HASH, blockHash: pad(96n) },
     };
     await expect(
       handle.onReceipt(receiptOf(chain.txs[0]), client),
@@ -2084,7 +2085,7 @@ describe("a held write", () => {
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: HASH },
+      settled: { result: "success", hash: HASH, blockHash: pad(98n) },
     });
     // Only one send ever went out.
     expect(handle.peek().status).toBe("clear");
@@ -2609,7 +2610,7 @@ describe("a write held under an intent", () => {
   });
 
   it("follows the legacy hold's evidence through the intent handle", async () => {
-    const { handle, client, chain, receiptOf, legacy } = await delegated();
+    const { handle, client, chain, receiptOf, legacy, old } = await delegated();
     // The legacy write's hash turns up: attach it, and its receipt settles it.
     chain.txs.push(sent(HASH));
     await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
@@ -2630,6 +2631,12 @@ describe("a write held under an intent", () => {
     await expect(handle.onExecuted(client)).resolves.toMatchObject({
       status: "clear",
     });
+    // Its one confirmed notice is claimed where the legacy hold saved it.
+    await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(true);
+    await expect(
+      old.hold.open(ordinary).claimConfirmed({ hash: HASH }),
+    ).resolves.toBe(false);
+    await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
   });
 
   it("rechecks the legacy keys right before reserving, and routes every method to the hold in charge", async () => {
@@ -3079,7 +3086,11 @@ describe("a write held under an intent", () => {
     const refused = await stale;
     expect(refused).toBeInstanceOf(WriteHoldStaleReviewError);
     expect(refused.message).toBe(WRITE_HOLD_STALE_REVIEW_LINE);
-    expect(refused.settled).toEqual({ result: "success", hash: HASH });
+    expect(refused.settled).toEqual({
+      result: "success",
+      hash: HASH,
+      blockHash: pad(96n),
+    });
     expect(staleWrite).not.toHaveBeenCalled();
     // A fresh review sends normally: a deliberate repeat is never blocked.
     const again = wallet(async () => OTHER);
@@ -3280,7 +3291,7 @@ describe("a held write's settlement", () => {
   const success = {
     status: "clear",
     reservation: expect.any(String),
-    settled: { result: "success", hash: HASH },
+    settled: { result: "success", hash: HASH, blockHash: pad(96n) },
   };
 
   it("is read by another controller on the same storage, as after a reload or in another tab", async () => {
@@ -3454,7 +3465,7 @@ describe("a held write's settlement", () => {
     const settledB = {
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: OTHER },
+      settled: { result: "success", hash: OTHER, blockHash: pad(97n) },
     };
     await expect(
       tabB.hold.open(ordinary).onReceipt(receiptOf(chain.txs[1]), client),
@@ -3925,7 +3936,7 @@ describe("a held Safe proposal", () => {
       const settled = {
         status: "clear",
         reservation: expect.any(String),
-        settled: { result, hash: EXECUTION },
+        settled: { result, hash: EXECUTION, blockHash: pad(96n), safe: true },
       };
       await expect(handle.state(fixture.client)).resolves.toEqual({
         ...settled,
@@ -3989,7 +4000,12 @@ describe("a held Safe proposal", () => {
     ).resolves.toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: EXECUTION },
+      settled: {
+        result: "success",
+        hash: EXECUTION,
+        blockHash: pad(96n),
+        safe: true,
+      },
     });
     hold.dispose();
   });
@@ -4008,7 +4024,7 @@ describe("a held Safe proposal", () => {
       checked: true,
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: EXECUTION },
+      settled: { result: "success", hash: EXECUTION, safe: true },
     });
     // With no readable proof, a receipt that doesn't verify settles nothing.
     const again = safeSetup();
@@ -4381,7 +4397,12 @@ describe("a held Safe proposal", () => {
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "failed", hash: EXECUTION },
+      settled: {
+        result: "failed",
+        hash: EXECUTION,
+        blockHash: pad(96n),
+        safe: true,
+      },
     });
     // A retry is allowed.
     const retry = vi.fn();
@@ -4424,7 +4445,12 @@ describe("a held Safe proposal", () => {
     expect(seen[seen.length - 1]).toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "failed", hash: EXECUTION },
+      settled: {
+        result: "failed",
+        hash: EXECUTION,
+        blockHash: pad(96n),
+        safe: true,
+      },
     });
     hold.dispose();
   });
@@ -4449,7 +4475,12 @@ describe("a held Safe proposal", () => {
     await expect(handle.onExecuted(fixture.client)).resolves.toEqual({
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: EXECUTION },
+      settled: {
+        result: "success",
+        hash: EXECUTION,
+        blockHash: pad(96n),
+        safe: true,
+      },
     });
   });
 
@@ -4574,7 +4605,12 @@ describe("a held Safe proposal", () => {
           checked: true,
           status: "clear",
           reservation: expect.any(String),
-          settled: { result: "failed", hash: second },
+          settled: {
+            result: "failed",
+            hash: second,
+            blockHash: pad(98n),
+            safe: true,
+          },
         });
       hold.dispose();
     }
@@ -4771,7 +4807,12 @@ describe("a held Safe proposal", () => {
         checked: true,
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: EXECUTION },
+        settled: {
+          result: "success",
+          hash: EXECUTION,
+          blockHash: pad(96n),
+          safe: true,
+        },
       });
     });
 
@@ -4832,7 +4873,12 @@ describe("a held Safe proposal", () => {
       ).resolves.toEqual({
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: EXECUTION },
+        settled: {
+          result: "success",
+          hash: EXECUTION,
+          blockHash: pad(96n),
+          safe: true,
+        },
       });
     });
 
@@ -4873,7 +4919,12 @@ describe("a held Safe proposal", () => {
           checked: true,
           status: "clear",
           reservation: expect.any(String),
-          settled: { result: "success", hash: CAND },
+          settled: {
+            result: "success",
+            hash: CAND,
+            blockHash: pad(96n),
+            safe: true,
+          },
         });
       }
     });
@@ -4946,7 +4997,7 @@ describe("a held Safe proposal", () => {
         checked: true,
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: EXECUTION },
+        settled: { result: "success", hash: EXECUTION, safe: true },
       });
     });
 
@@ -4963,6 +5014,7 @@ describe("a held Safe proposal", () => {
           settled: {
             result: topic === SUCCESS ? "success" : "failed",
             hash: EXECUTION,
+            safe: true,
           },
         });
       }
@@ -5041,7 +5093,12 @@ describe("a held Safe proposal", () => {
         checked: true,
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: CAND },
+        settled: {
+          result: "success",
+          hash: CAND,
+          blockHash: pad(96n),
+          safe: true,
+        },
       });
     });
 
@@ -5316,6 +5373,8 @@ describe("a held Safe proposal", () => {
           settled: {
             result: topic === SUCCESS ? "success" : "failed",
             hash: EXECUTION,
+            blockHash: pad(96n),
+            safe: true,
           },
         });
       }
@@ -5325,7 +5384,12 @@ describe("a held Safe proposal", () => {
       await expect(handle.onUnproven(fixture.client)).resolves.toEqual({
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "success", hash: EXECUTION },
+        settled: {
+          result: "success",
+          hash: EXECUTION,
+          blockHash: pad(96n),
+          safe: true,
+        },
       });
     });
 
@@ -5362,7 +5426,12 @@ describe("a held Safe proposal", () => {
         checked: true,
         status: "clear",
         reservation: expect.any(String),
-        settled: { result: "failed", hash: EXECUTION },
+        settled: {
+          result: "failed",
+          hash: EXECUTION,
+          blockHash: pad(96n),
+          safe: true,
+        },
       });
       hold.dispose();
     });
@@ -5492,7 +5561,12 @@ describe("a held Safe proposal", () => {
       checked: true,
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: EXECUTION },
+      settled: {
+        result: "success",
+        hash: EXECUTION,
+        blockHash: pad(96n),
+        safe: true,
+      },
     });
   });
 });
@@ -6062,7 +6136,12 @@ describe("acknowledging a success that settled while away", () => {
     const acknowledged = {
       status: "clear",
       reservation: expect.any(String),
-      settled: { result: "success", hash: HASH, acknowledged: true },
+      settled: {
+        result: "success",
+        hash: HASH,
+        blockHash: pad(96n),
+        acknowledged: true,
+      },
     };
     await expect(
       handle.acknowledge({ result: "success", hash: HASH }),
@@ -6419,7 +6498,7 @@ describe("a legacy hold's success, through its intent", () => {
     await view.check();
     await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
     expect(settled).toHaveBeenCalledWith(
-      { result: "failed", hash: keys.hashes.A },
+      { result: "failed", hash: keys.hashes.A, blockHash: pad(102n) },
       expect.anything(),
     );
     // Then B's unacknowledged success shows, and gates the send.
@@ -6504,7 +6583,7 @@ describe("a legacy hold's success, through its intent", () => {
     await view.check();
     await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
     expect(settled).toHaveBeenCalledWith(
-      { result: "failed", hash: keys.hashes.A },
+      { result: "failed", hash: keys.hashes.A, blockHash: pad(101n) },
       expect.anything(),
     );
     await keys.settle("B", "failed");
@@ -6593,9 +6672,9 @@ describe("a legacy hold's success, through its intent", () => {
         await keys.settle(key, result);
         await view.check();
         await new Promise((resolve) => setTimeout(resolve, 0));
-        // A success this view saw settle live is told (to its screen) and acknowledged;
-        // one it never saw held stays unacknowledged.
-        if (result === "success" && !watched) anySuccess = true;
+        // Any success stays unacknowledged, told or not: the view never
+        // acknowledges one; only the app's checked completion does.
+        if (result === "success") anySuccess = true;
         const retry = wallet(async () => OTHER);
         const sent = await view.send(retry.send).then(
           () => true,
@@ -6735,7 +6814,10 @@ describe("a legacy hold's success, through its intent", () => {
     ).rejects.toThrow("rejected");
     // Then an older version sends its exact call.
     await old.hold.open(ordinary).send(client, wallet(async () => HASH).send);
-    const settled = vi.fn();
+    // The app's checked completion acknowledges what it is told.
+    const settled = vi.fn((done: WriteHoldSettled) => {
+      if ("hash" in done) void open().acknowledge(done);
+    });
     const released = vi.fn();
     const view = createHeldWriteView(open(), {
       client,
@@ -6826,7 +6908,10 @@ describe("a legacy hold's success, through its intent", () => {
     };
     const open = () =>
       next.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
-    const settled = vi.fn();
+    // The app's checked completion acknowledges what it is told.
+    const settled = vi.fn((done: WriteHoldSettled) => {
+      if ("hash" in done) void open().acknowledge(done);
+    });
     const released = vi.fn();
     const view = createHeldWriteView(open(), {
       client,
@@ -6846,7 +6931,7 @@ describe("a legacy hold's success, through its intent", () => {
       line: HELD_SUCCESS_LINE,
     });
     expect(released).not.toHaveBeenCalled();
-    // Seen settling, it was acknowledged: a reload blocks nothing.
+    // Seen settling and completed, it was acknowledged: a reload blocks nothing.
     await vi.waitFor(async () =>
       expect((await open().state(client)).status).toBe("clear"),
     );
@@ -6909,7 +6994,10 @@ describe("two tabs viewing one write that succeeds", () => {
     const viewA = createHeldWriteView(a, {
       client,
       follow: false,
-      onSettled: vi.fn(),
+      // Tab A's app completes it: its checked completion acknowledges it.
+      onSettled: (done) => {
+        if ("hash" in done) void a.acknowledge(done);
+      },
     });
     const viewB = createHeldWriteView(tabB.hold.open(ordinary), {
       client,
@@ -6920,7 +7008,7 @@ describe("two tabs viewing one write that succeeds", () => {
     await viewA.check();
     await viewB.check();
     expect(viewB.get().phase).toBe("confirming");
-    // It mines; tab A sees it settle live, and acknowledges it.
+    // It mines; tab A sees it settle live, and its app acknowledges it.
     chain.txs.push(sent(HASH, { block: 95n }));
     await a.onReceipt(receiptOf(chain.txs[0]), client);
     await viewA.check();

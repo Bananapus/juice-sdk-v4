@@ -31,6 +31,7 @@ import {
 import { reviewPlan, sendReviewed } from "./send.js";
 import { signReviewed } from "./sign.js";
 import type { WalletAdapter } from "./wallet.js";
+import { openStepHold } from "./writeHold.js";
 
 afterEach(() => {
   resetReviewUi();
@@ -108,6 +109,9 @@ describe("reviewPlan", () => {
     const pay = payCall();
     const plan = await reviewPlan({ account: ACCOUNT, calls: [pay] }, deps);
     await sendReviewed(action([pay], { plan }), deps);
+    // Its success shown, so only the spent plan refuses the second run.
+    const handle = openStepHold(deps.hold, ACCOUNT, false, pay);
+    await handle.acknowledge(handle.unacknowledgedSuccess()!);
     await expect(sendReviewed(action([pay], { plan }), deps)).rejects.toThrow(
       REVIEWED_PLAN_REFUSED_LINE,
     );

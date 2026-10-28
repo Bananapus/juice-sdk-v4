@@ -1,4 +1,4 @@
-import { ReviewLineError } from "./lineError.js";
+import { ReviewLineError, WalletNotInvokedError } from "./lineError.js";
 import type { Address } from "viem";
 
 export type ReviewedWritePhase = "review" | "simulating" | "signing";
@@ -157,7 +157,11 @@ export async function submitReviewedContractWrite<
   } catch (error) {
     // The same-looking error from review/simulation never reaches this catch.
     // An RPC timeout or ambiguous submission must preserve the recovery lock.
-    if (isDefiniteWalletRejection(error)) await onWriteRejected?.();
+    if (
+      isDefiniteWalletRejection(error) ||
+      error instanceof WalletNotInvokedError
+    )
+      await onWriteRejected?.();
     else await onWriteUncertain?.(error);
     throw error;
   }

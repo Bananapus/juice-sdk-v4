@@ -134,10 +134,10 @@ export function useHeldSend(options: UseHeldSendOptions): UseHeldSendResult {
           // A stopped view tells no settlement; a late release is dropped here.
           onSettled: (settled, receipt) =>
             latest.current.onSettled?.(settled, receipt),
-          onReleased: (by) => {
-            if (running.current?.view === created)
-              latest.current.onReleased?.(by);
-          },
+          onReleased: (by) =>
+            running.current?.view === created
+              ? latest.current.onReleased?.(by)
+              : undefined,
         });
         next = { handle, view: created };
         views.set(key, next);

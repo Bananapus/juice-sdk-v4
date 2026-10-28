@@ -22,6 +22,7 @@ import {
   type WriteHoldState,
 } from "../index.js";
 import { resetWriteHoldsForTests } from "../../testing.js";
+import { watchGuard } from "../__fixtures__/reviewedSend.js";
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Address, Hex } from "viem";
@@ -172,6 +173,41 @@ describe("useHeldWrite", () => {
     props.out.current = useHeldWrite(props.options);
     return null;
   }
+
+  test("logs a settlement callback that rejects asynchronously through the guard, leaving no rejection unhandled", async () => {
+    const fake = fakeHold();
+    fake.set("exact", unproven());
+    const guard = watchGuard();
+    const failure = new Error("recording the recovered write failed");
+    const onSettled = vi.fn(async () => {
+      throw failure;
+    });
+    const out: { current?: UseHeldWriteResult } = {};
+    await mount(
+      <Probe
+        out={out}
+        options={{
+          hold: fake.hold,
+          chainId: 10,
+          account: ACCOUNT,
+          call: { to: ACCOUNT, data: "0x" },
+          client,
+          onSettled,
+        }}
+      />,
+    );
+    fake.set("exact", {
+      status: "clear",
+      reservation: "r1",
+      settled: { result: "success", hash: HASH },
+    } as WriteHoldState);
+    await act(async () => {
+      await out.current!.check();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(onSettled).toHaveBeenCalledOnce();
+    expect(await guard.settled()).toEqual({ errors: [failure], unhandled: [] });
+  });
 
   test("shows the hold's line and exit, and the exit only releases: the app reopens its review", async () => {
     const fake = fakeHold();
@@ -807,7 +843,8 @@ describe("useHeldSend", () => {
       ),
     );
     expect(onSettled).toHaveBeenCalledTimes(1);
-    expect(fake.handle("intent:a").acknowledge).toHaveBeenCalledTimes(1);
+    // Told, never acknowledged by the view: the app's checked completion does.
+    expect(fake.handle("intent:a").acknowledge).not.toHaveBeenCalled();
   });
 
   /** A real hold over this tab's own memory, and a chain where nothing is mined unless told. */
@@ -935,7 +972,7 @@ describe("useHeldSend", () => {
         createWriteHold({ storage }),
     ],
   ] as const)
-    test(`a receipt reported on a handle opened by ${name} reaches the sending view at once (revnet)`, async () => {
+    test(`a receipt reported on a handle opened by ${name} reaches the sending view at once, and gates the same send until it is acknowledged`, async () => {
       const { hold, chain, mined, storage } = realHold();
       const out: { current?: UseHeldSendResult } = {};
       await mount(
@@ -962,14 +999,22 @@ describe("useHeldSend", () => {
       });
       await act(async () => {});
       expect(out.current!.phase).toBe("settled");
-      // The same payment again, right away: never "went through while away".
+      // The same payment again, right away: the view never acknowledged its
+      // success, so it is refused and offered as "Send it again".
       mined.clear();
+      await act(async () => {
+        await expect(send()).rejects.toThrow(HELD_AWAY_SUCCESS_LINE);
+      });
+      expect(out.current!.sendAgainAction).not.toBeNull();
+      await act(async () => {
+        await out.current!.sendAgainAction!.run();
+      });
       await act(async () => {
         await expect(send()).resolves.toBe(HASH);
       });
     });
 
-  test("a root follower's view delivers a success the sending view saw held: each tells it once, one acknowledgement clears both", async () => {
+  test("a root follower's view delivers a success the sending view saw held: each tells it once, and the app's one acknowledgement clears both", async () => {
     const { hold, chain, mined, storage } = realHold();
     const onSettled = vi.fn();
     const out: { current?: UseHeldSendResult } = {};
@@ -1006,6 +1051,11 @@ describe("useHeldSend", () => {
     expect(onSettled).toHaveBeenCalledTimes(1);
     expect(out.current!.phase).toBe("settled");
     expect(root.get().phase).toBe("settled");
+    // Neither view acknowledges it: the app's checked completion does, once.
+    expect(hold.open(exactOf).unacknowledgedSuccess()).toMatchObject({
+      hash: HASH,
+    });
+    await hold.open(exactOf).acknowledge({ result: "success", hash: HASH });
     expect(hold.open(exactOf).unacknowledgedSuccess()).toBeUndefined();
     // A view made after shows nothing, and the next send goes.
     const later = createHeldWriteView(hold.open(exactOf), {

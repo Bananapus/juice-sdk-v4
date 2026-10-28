@@ -117,6 +117,10 @@ export type ReviewedWriteRecoveryRecord = Omit<
 export type ReviewedWriteSettlement = {
   result: "success" | "failed";
   hash: Hex;
+  /** The block of the receipt it was verified on; none when a log proved it. */
+  blockHash?: Hex;
+  /** A Safe's execution: its failure is the Safe's own, under an outer transaction that may succeed. */
+  safe?: true;
   /**
    * The user saw it (or a view that saw it settle told the app): it blocks
    * nothing, but every reader still learns the result. One per call key,
@@ -949,6 +953,24 @@ export function createBrowserWriteRecovery(
   function scopeAt(at: string) {
     return at === key ? keyOf : legacyScope;
   }
+  /**
+   * Set `flag` on the saved settlement with this (lowercase) hash: false when
+   * it was already set, true otherwise (another settlement stays as it is).
+   */
+  function flagSettled(
+    store: RecoveryStorage,
+    hash: string,
+    flag: "acknowledged" | "confirmed",
+  ): boolean {
+    const saved = JSON.parse(store.getItem(settledKey) ?? "null") as Record<
+      string,
+      unknown
+    > | null;
+    if (saved?.hash !== hash) return true;
+    if (saved[flag] === true) return false;
+    store.setItem(settledKey, JSON.stringify({ ...saved, [flag]: true }));
+    return true;
+  }
   function storage(): RecoveryStorage {
     const store = recoveryStorage(options.storage);
     lastStorage = store;
@@ -1426,6 +1448,10 @@ export function createBrowserWriteRecovery(
             id: expected.id,
             result: settlement.result,
             hash: settlement.hash.toLowerCase(),
+            ...(settlement.blockHash
+              ? { blockHash: settlement.blockHash.toLowerCase() }
+              : {}),
+            ...(settlement.safe ? { safe: true } : {}),
             at: Date.now(),
           }),
         );
@@ -1439,19 +1465,27 @@ export function createBrowserWriteRecovery(
      */
     acknowledgeSettled(settled: ReviewedWriteSettlement): void {
       requireLock();
-      const store = storage();
       try {
-        const raw = store.getItem(settledKey);
-        const saved = JSON.parse(raw ?? "null") as {
-          hash?: unknown;
-        } | null;
-        if (saved?.hash === settled.hash.toLowerCase())
-          store.setItem(
-            settledKey,
-            JSON.stringify({ ...saved, acknowledged: true }),
-          );
+        flagSettled(storage(), settled.hash.toLowerCase(), "acknowledged");
       } catch {
         /* An unreadable settlement names none; a refused write keeps it unacknowledged. */
+      }
+    },
+    /**
+     * Claim the one `onConfirmed` notice of the saved settlement `settled`
+     * names (its hash): true for the first claim in any tab or run, false
+     * after. A settlement no longer saved there can't be marked, so every
+     * claim of it is true: a repeated notice over a lost one.
+     */
+    claimConfirmedSettled(
+      settled: Pick<ReviewedWriteSettlement, "hash">,
+    ): boolean {
+      requireLock();
+      try {
+        return flagSettled(storage(), settled.hash.toLowerCase(), "confirmed");
+      } catch {
+        // Storage unavailable: told rather than lost.
+        return true;
       }
     },
     /**
@@ -1470,6 +1504,8 @@ export function createBrowserWriteRecovery(
           id?: unknown;
           result?: unknown;
           hash?: unknown;
+          blockHash?: unknown;
+          safe?: unknown;
           acknowledged?: unknown;
         } | null;
         // A record saved at the key (held, or released by the user's exit)
@@ -1485,6 +1521,10 @@ export function createBrowserWriteRecovery(
           ? {
               result: saved.result,
               hash: saved.hash as Hex,
+              ...(isBytes32(saved.blockHash)
+                ? { blockHash: saved.blockHash as Hex }
+                : {}),
+              ...(saved.safe === true ? { safe: true as const } : {}),
               // Saved before 2.39 (a latest marker with no time): the user
               // saw it then, so it reads as acknowledged.
               ...(saved.acknowledged === true || typeof latest.at !== "number"

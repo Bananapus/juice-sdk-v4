@@ -1,4 +1,9 @@
-import { ReviewedCallRevertedError, ReviewLineError } from "./lineError.js";
+import {
+  ReviewedCallRevertedError,
+  ReviewedReceiptUnverifiedError,
+  ReviewLineError,
+  WalletNotInvokedError,
+} from "./lineError.js";
 import {
   encodeFunctionData,
   formatEther,
@@ -8,7 +13,11 @@ import {
   type PublicClient,
   type TransactionReceipt,
 } from "viem";
-import { promptReview, type ReviewSimulation } from "./confirm.js";
+import {
+  failedSimulation,
+  promptReview,
+  type ReviewSimulation,
+} from "./confirm.js";
 import {
   isDefiniteWalletRejection,
   SubmittedContractWriteError,
@@ -17,6 +26,9 @@ import {
 } from "./contractWrite.js";
 import { JB_CHAINS } from "../constants.js";
 import { gasWithHeadroom } from "./gas.js";
+import { FOLLOW_MS, followHeldWrite, RECEIPT_RETRY_MS } from "./heldWrite.js";
+import { TransactionReviewCancelledError } from "./reviewQueue.js";
+import { pause } from "../pause.js";
 import {
   findPendingSafeAppProposal,
   hasSafeService,
@@ -42,7 +54,12 @@ import {
   spendPlan,
   type ReviewedPlan,
 } from "./plan.js";
-import { waitForTrackedReceipt } from "./receipt.js";
+import {
+  heldBlock,
+  heldReceipt,
+  tell,
+  waitForTrackedReceipt,
+} from "./receipt.js";
 import { relayrPaymentChains } from "./relayr.js";
 import { relayrFeeCap } from "./relayrSend.js";
 import {
@@ -84,8 +101,11 @@ import {
   safeBatchCall,
   WriteHeldError,
   WriteHoldStaleReviewError,
+  WriteHoldUnacknowledgedSuccessError,
   type WriteHold,
   type WriteHoldLegacySource,
+  type WriteHoldHandle,
+  type WriteHoldSettled,
 } from "./writeHold.js";
 import {
   createHeldWriteStorage,
@@ -234,6 +254,21 @@ export type ReviewedAction = {
    * is spent from it, or nothing is sent.
    */
   plan?: ReviewedPlan;
+  /**
+   * Follows a sent step whose receipt its hold has not verified yet, in the
+   * run: `onConfirming(step)` tells the site, the hold is followed until it
+   * settles the step, and the run goes on to the next step or resolves.
+   * After `timeoutMs` (2 minutes by default) or `signal`, the run throws
+   * {@link ReviewedReceiptUnverifiedError} with the step still held, as it
+   * does at once without `follow`. Once `signal` aborts after a step was
+   * sent, the run sends nothing more: a later step is refused at its last
+   * gate as cancelled.
+   */
+  follow?: {
+    onConfirming?: (step: number) => void;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+  };
 };
 
 export type ReviewedSendDeps = {
@@ -495,15 +530,22 @@ async function reviewSimulation(
       if (!isRevert(error))
         return { status: "unavailable", message: SIMULATION_UNAVAILABLE };
       const reason = revertReason(error);
-      return {
-        status: "failed",
-        // A sequence's failure is the SDK's line naming its call.
-        message:
-          error instanceof ReviewLineError
-            ? error.message
-            : `${labelOf(calls[steps[0]], steps[0])} cannot run on ${chainName}: ${reason ?? REVERT_UNKNOWN_LINE}`,
-        explained: reason !== null,
-      };
+      // A sequence's failure is the SDK's line naming its call.
+      const failure =
+        error instanceof ReviewLineError
+          ? error
+          : simulationFailure(
+              `${labelOf(calls[steps[0]], steps[0])} cannot run on ${chainName}: ${reason ?? REVERT_UNKNOWN_LINE}`,
+              error,
+            );
+      return failedSimulation(
+        {
+          status: "failed",
+          message: failure.message,
+          explained: reason !== null,
+        },
+        failure,
+      );
     }
   });
   // A revert on one chain is reported at once, whatever the others still wait on.
@@ -573,9 +615,8 @@ export type ReviewedPlanAction = Pick<
     /** Who sends the call: a Safe `account` owns, say, or "relayr" for one Relayr's own account runs. */
     from?: Address | "relayr";
     /**
-     * The Relayr round this call goes in, by the app's key: a
-     * `runRelayrReviewed` run, or a quote paid by `payRelayrReviewed` with
-     * this `relayrRound`. The review shows each round's fee bound (Relayr's
+     * The Relayr round this call goes in, by the app's key: a quote paid by
+     * `payRelayrReviewed` with this `relayrRound`. The review shows each round's fee bound (Relayr's
      * stand-in quote plus `RELAYR_FEE_MARGIN_BPS`, paid on the round's
      * payment chain); a round whose quote is within it pays with no prompt.
      */
@@ -589,8 +630,8 @@ export type ReviewedPlanAction = Pick<
  * One review of calls an app then sends one by one, across chains and
  * paths: core's prompt over exactly `action.calls`, simulated as their
  * senders, and nothing else. The plan it returns lets {@link sendReviewed},
- * `signReviewed`, `proposeReviewedSafeTransaction`, `payRelayrReviewed` and
- * `runRelayrReviewed` skip their prompt for a call identical to one of its
+ * `signReviewed`, `proposeReviewedSafeTransaction` and `payRelayrReviewed`
+ * skip their prompt for a call identical to one of its
  * calls (account, chain, sender, target, data, value and gas: a call's
  * exact gas limit, or a forward request's signed gas, is set before the
  * review), each spent once, for {@link REVIEWED_PLAN_TTL_MS} after confirm.
@@ -753,6 +794,7 @@ export async function resumeReviewed(
     | "onSubmitted"
     | "onConfirmed"
     | "signal"
+    | "follow"
   >,
   deps: ReviewedSendDeps,
 ): Promise<ReviewedResult> {
@@ -791,36 +833,23 @@ export async function resumeReviewed(
     // wallet") or nothing was sent: then the step is reviewed and sent again.
     if (!state.settled && !handle.released(reservation))
       throw new ReviewLineError(REVIEWED_SEQUENCE_UNCERTAIN_LINE);
-    delete saved.sending;
-    delete saved.proposed;
     const { settled } = state;
-    if (settled?.result === "success") {
-      // This sequence's own step: it is recorded, never offered again.
-      await handle.acknowledge(settled);
-      saved.completed.push(settled.hash);
-    }
-    /** Tells the site of the step that went through while away, once saved and when its receipt reads. */
-    const told = async () => {
-      if (settled?.result !== "success" || !action.onConfirmed) return;
-      try {
-        const receipt = await deps
-          .clientFor(call.chainId)
-          .getTransactionReceipt({ hash: settled.hash });
-        if (receipt.status === "success")
-          await action.onConfirmed(call, step, receipt);
-      } catch {
-        /* The step went through whatever the read or the site's callback does. */
-      }
-    };
-    if (saved.completed.length === saved.calls.length) {
-      await removeReviewedSequence(saved, storage, expected);
-      await told();
+    // Read before anything advances: a failed read leaves the step to resume again.
+    const receipt = await confirmedReceipt(
+      settled,
+      deps.clientFor(call.chainId),
+    );
+    // This sequence's own step: it is recorded, told, and only then
+    // acknowledged, so it is never offered again.
+    const kept = await recordSending(saved, settled, storage, expected);
+    await tellConfirmed(action, handle, call, step, settled, receipt);
+    if (settled?.result === "success") await handle.acknowledge(settled);
+    if (kept === null) {
       const total = saved.calls.length;
-      deps.onProgress?.({ step: total - 1, total, phase: "done" });
+      tell(deps.onProgress, { step: total - 1, total, phase: "done" });
       return { status: "done", hashes: saved.completed, receipts: [] };
     }
-    expected = await saveReviewedSequence(saved, storage, expected);
-    await told();
+    expected = kept;
   }
   return send(
     {
@@ -834,6 +863,175 @@ export async function resumeReviewed(
   );
 }
 
+/**
+ * Ends `saved`'s step in flight as its hold settled it: a success is
+ * recorded as completed. Removes a finished sequence (null) or saves it over
+ * `expected`, returning the value written.
+ */
+async function recordSending(
+  saved: ReviewedSequenceRecord,
+  settled: WriteHoldSettled | undefined,
+  storage: HeldWriteStorage,
+  expected: string | null,
+): Promise<string | null> {
+  delete saved.sending;
+  delete saved.proposed;
+  if (settled?.result === "success") saved.completed.push(settled.hash);
+  if (saved.completed.length < saved.calls.length)
+    return saveReviewedSequence(saved, storage, expected);
+  await removeReviewedSequence(saved, storage, expected);
+  return null;
+}
+
+/**
+ * The receipt of a step its hold settled ({@link heldReceipt}), checked
+ * before anything advances: a read that fails or disagrees with the hold
+ * throws. Null when the settlement has no transaction (an expiry).
+ */
+async function confirmedReceipt(
+  settled: WriteHoldSettled | undefined,
+  client: PublicClient,
+  given?: TransactionReceipt | null,
+): Promise<TransactionReceipt | null> {
+  return settled && "hash" in settled
+    ? heldReceipt(settled, client, given)
+    : null;
+}
+
+/**
+ * Tells `onConfirmed` of a step's verified success, once per settlement:
+ * only the completion (a run, `completeReviewedStep`, `resumeReviewed`, in
+ * any tab) that claims its notice on the hold tells it.
+ */
+async function tellConfirmed(
+  action: Pick<ReviewedAction, "onConfirmed">,
+  handle: Pick<WriteHoldHandle, "claimConfirmed">,
+  call: ReviewedCall,
+  step: number,
+  settled: WriteHoldSettled | undefined,
+  receipt: TransactionReceipt | null,
+): Promise<void> {
+  if (
+    settled?.result === "success" &&
+    receipt &&
+    (await handle.claimConfirmed(settled))
+  )
+    await tell(action.onConfirmed, call, step, receipt);
+}
+
+/**
+ * A sent step's settlement by its own reservation, and the receipt its hold
+ * verified ({@link heldReceipt}), read again until it reads. Null on `follow`'s
+ * timeout or signal, or when the hold cleared without settling it (its exit).
+ */
+async function followSent(
+  handle: WriteHoldHandle,
+  client: PublicClient,
+  reserved: string | undefined,
+  follow: NonNullable<ReviewedAction["follow"]>,
+): Promise<{
+  settled: WriteHoldSettled & { hash: Hex };
+  receipt: TransactionReceipt;
+} | null> {
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), follow.timeoutMs ?? FOLLOW_MS);
+  const signal = follow.signal
+    ? AbortSignal.any([stop.signal, follow.signal])
+    : stop.signal;
+  // Every read races the follow's end: a read that answers after it is ignored.
+  const ended = new Promise<null>((resolve) => {
+    signal.addEventListener("abort", () => resolve(null), { once: true });
+  });
+  const read = <T>(work: Promise<T>) => Promise.race([work, ended]);
+  try {
+    while (!signal.aborted) {
+      const state = await read(
+        followHeldWrite(handle, client as never, { signal }),
+      );
+      if (signal.aborted) return null;
+      if (
+        state?.status !== "clear" ||
+        state.reservation !== reserved ||
+        !state.settled ||
+        !("hash" in state.settled)
+      )
+        return null;
+      const { settled } = state;
+      try {
+        const receipt = await read(heldReceipt(settled, client));
+        return signal.aborted || !receipt ? null : { settled, receipt };
+      } catch {
+        await pause(RECEIPT_RETRY_MS, signal, () => null).catch(() => null);
+      }
+    }
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Completes a sent step (one a run left at its receipt,
+ * {@link ReviewedReceiptUnverifiedError}, or a proposal: its step and its
+ * `held` call and reservation) once its hold settled that send, as the run
+ * itself would have: the saved sequence under `scope` records it, a success
+ * is told to `onConfirmed` with the receipt its hold verified (`receipt`,
+ * the hold view's, say, when it is that one) and only then acknowledged, the
+ * one acknowledgement of a followed step. Returns the settlement and that
+ * checked receipt (a failure's too); null until then. A read that fails or disagrees with the hold throws with
+ * nothing advanced: call it again. Call it once per settlement:
+ * `onConfirmed` is told each time.
+ */
+export async function completeReviewedStep(
+  unverified: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
+  action: Pick<ReviewedAction, "account" | "scope" | "onConfirmed">,
+  deps: ReviewedSendDeps,
+  receipt?: TransactionReceipt | null,
+): Promise<{
+  settled: WriteHoldSettled;
+  receipt: TransactionReceipt | null;
+} | null> {
+  const { step, held } = unverified;
+  if (!held) return null;
+  const { call, reservation } = held;
+  const client = deps.clientFor(call.chainId);
+  const handle = openStepHold(deps.hold, action.account, false, call);
+  const state = await handle.state(client);
+  if (
+    state.status !== "clear" ||
+    state.reservation !== reservation ||
+    !state.settled
+  )
+    return null;
+  const { settled } = state;
+  const confirmed = await confirmedReceipt(settled, client, receipt);
+  if (action.scope !== undefined) {
+    const storage = deps.storage ?? createHeldWriteStorage();
+    const { raw, record } = readReviewedSequence(
+      action.scope,
+      action.account,
+      storage,
+    );
+    if (
+      record?.sending?.step === step &&
+      record.sending.reservation === reservation
+    )
+      await recordSending(record, settled, storage, raw);
+  }
+  await tellConfirmed(action, handle, call, step, settled, confirmed);
+  if (settled.result === "success") await handle.acknowledge(settled);
+  return { settled, receipt: confirmed };
+}
+
+/**
+ * The hash a wallet returned, even when the site's record of it failed
+ * afterwards: the step was sent.
+ */
+function sentHash(error: unknown): Hex {
+  if (error instanceof SubmittedContractWriteError) return error.hash as Hex;
+  throw error;
+}
+
 async function send(
   action: ReviewedAction,
   deps: ReviewedSendDeps,
@@ -844,7 +1042,9 @@ async function send(
     raw: string | null;
   },
 ): Promise<ReviewedResult> {
-  const { adapter, clientFor, hold, onProgress } = deps;
+  const { adapter, clientFor, hold } = deps;
+  const onProgress = (progress: ReviewedProgress) =>
+    tell(deps.onProgress, progress);
   action.guard?.();
   const { account } = action;
   const calls = [...action.calls];
@@ -857,13 +1057,8 @@ async function send(
     resuming ? undefined : call.simulationBlockNumber,
   );
   /** A site's release callback never stops core's own release. */
-  const tellUnsent = async (call: ReviewedCall, step: number) => {
-    try {
-      await action.onUnsent?.(call, step);
-    } catch {
-      /* The step is released whatever the site's callback does. */
-    }
-  };
+  const tellUnsent = (call: ReviewedCall, step: number) =>
+    tell(action.onUnsent, call, step);
   const connected = adapter.account();
   if (!connected) throw new ReviewLineError("Connect a wallet first.");
   if (connected.toLowerCase() !== account.toLowerCase()) {
@@ -920,19 +1115,12 @@ async function send(
           await tellUnsent(call, step);
       throw error;
     }
-    // Every step is told; a site's failure to record it never reads as unsent.
-    const failures: unknown[] = [];
+    // Every step is told; a site's failure to record it never changes what was sent.
     for (const [step, call] of calls.entries())
-      try {
-        await action.onSubmitted?.(call, step, hash, {
-          safe: false,
-          adopted: false,
-        });
-      } catch (error) {
-        failures.push(error);
-      }
-    if (failures.length)
-      throw new SubmittedContractWriteError(hash, failures[0]);
+      await tell(action.onSubmitted, call, step, hash, {
+        safe: false,
+        adopted: false,
+      });
     return { status: "done", hashes: [hash], receipts: [] };
   }
 
@@ -982,6 +1170,9 @@ async function send(
     const state = handle.peek();
     if (state.status !== "clear") throw new WriteHeldError(state);
   }
+  // So is one whose last success nothing showed: a resend may pay twice.
+  const away = handles[handles.length - 1].unacknowledgedSuccess();
+  if (away) throw new WriteHoldUnacknowledgedSuccessError(away);
   /**
    * Each step's latest reservation as the review opened. Another prompt of
    * the same action that reserved meanwhile, whether or not it has settled,
@@ -1063,7 +1254,7 @@ async function send(
         if (!sameCall(now, sent[step])) throw new ReviewLineError(CHANGED);
       });
     const progress = (phase: ReviewedProgress["phase"], hash?: Hex) =>
-      onProgress?.({
+      onProgress({
         step: 0,
         total: calls.length,
         phase,
@@ -1071,97 +1262,94 @@ async function send(
       });
     /** The steps whose `beforeWallet` began. */
     let began = 0;
-    const hash = await handles[0].send<Hex>(client, (gate) => {
-      if (generation(handles[0]) !== reviewedGenerations[0]) {
-        throw new WriteHoldStaleReviewError();
-      }
-      const released = async () => {
-        gate.onRejected();
-        for (const [step, call] of calls.slice(0, began).entries())
-          await tellUnsent(call, step);
-      };
-      return submitReviewedContractWrite({
-        request: batched,
-        expectedAccount: account,
-        review: () => Promise.resolve(),
-        switchChain: async (chainId) => {
-          if (adapter.chainId() !== chainId) await adapter.switchChain(chainId);
-        },
-        currentAccount: () => adapter.account(),
-        reverify: async () => {
-          for (const [step, call] of calls.entries())
-            await action.reverify?.(call, step, undefined);
-          unchanged();
-        },
-        simulate: async (sending) => {
-          await simulateCallSequence(client, {
-            from: account,
-            chainName: chainNameOf(client, batched.chainId),
-            calls: run.map((call, step) => ({
-              ...call,
-              label: labelOf(calls[step], step),
-              dependsOnPrior: calls[step].dependsOnPrior,
-            })),
-          });
-          return sending;
-        },
-        beforeWrite: async () => {
-          await gate.beforeSend();
-          try {
-            for (const [step, call] of calls.entries()) {
-              began = step + 1;
-              await action.beforeWallet?.(call, step);
-            }
-          } catch (error) {
-            await released();
-            throw error;
-          }
-        },
-        beforeSend: () => {
-          action.assertWriteState?.();
-          unchanged();
-          if (!adapter.isSafe())
-            throw new ReviewLineError(
-              "Wallet connection changed. Review the transaction again.",
-            );
-          if (adapter.chainId() !== batched.chainId)
-            throw new ReviewLineError(
-              "Your wallet changed networks. Review the transaction again.",
-            );
-          if (adapter.account()?.toLowerCase() !== account.toLowerCase())
-            throw new ReviewLineError(ACCOUNT_CHANGED);
-        },
-        onBeforeWriteAborted: released,
-        onWriteRejected: released,
-        onWriteSubmitted: async (submitted) => {
-          gate.afterSubmit(submitted);
-          // Every step went: each is told, whatever an earlier callback does.
-          const failures: unknown[] = [];
-          for (const [step, call] of calls.entries())
+    const hash = await handles[0]
+      .send<Hex>(client, (gate) => {
+        if (generation(handles[0]) !== reviewedGenerations[0]) {
+          throw new WriteHoldStaleReviewError();
+        }
+        const released = async () => {
+          gate.onRejected();
+          for (const [step, call] of calls.slice(0, began).entries())
+            await tellUnsent(call, step);
+        };
+        return submitReviewedContractWrite({
+          request: batched,
+          expectedAccount: account,
+          review: () => Promise.resolve(),
+          switchChain: async (chainId) => {
+            if (adapter.chainId() !== chainId)
+              await adapter.switchChain(chainId);
+          },
+          currentAccount: () => adapter.account(),
+          reverify: async () => {
+            for (const [step, call] of calls.entries())
+              await action.reverify?.(call, step, undefined);
+            unchanged();
+          },
+          simulate: async (sending) => {
+            await simulateCallSequence(client, {
+              from: account,
+              chainName: chainNameOf(client, batched.chainId),
+              calls: run.map((call, step) => ({
+                ...call,
+                label: labelOf(calls[step], step),
+                dependsOnPrior: calls[step].dependsOnPrior,
+              })),
+            });
+            return sending;
+          },
+          beforeWrite: async () => {
+            await gate.beforeSend();
             try {
-              await action.onSubmitted?.(call, step, submitted, {
+              for (const [step, call] of calls.entries()) {
+                began = step + 1;
+                await action.beforeWallet?.(call, step);
+              }
+            } catch (error) {
+              await released();
+              throw error;
+            }
+          },
+          beforeSend: () => {
+            action.assertWriteState?.();
+            unchanged();
+            if (!adapter.isSafe())
+              throw new ReviewLineError(
+                "Wallet connection changed. Review the transaction again.",
+              );
+            if (adapter.chainId() !== batched.chainId)
+              throw new ReviewLineError(
+                "Your wallet changed networks. Review the transaction again.",
+              );
+            if (adapter.account()?.toLowerCase() !== account.toLowerCase())
+              throw new ReviewLineError(ACCOUNT_CHANGED);
+          },
+          onBeforeWriteAborted: released,
+          onWriteRejected: released,
+          onWriteSubmitted: async (submitted) => {
+            gate.afterSubmit(submitted);
+            // Every step went: each is told, whatever an earlier callback does.
+            for (const [step, call] of calls.entries())
+              await tell(action.onSubmitted, call, step, submitted, {
                 safe: true,
                 adopted: false,
               });
-            } catch (error) {
-              failures.push(error);
-            }
-          if (failures.length) throw failures[0];
-        },
-        write: async () => {
-          const id = await adapter.sendCalls!(
-            batched.chainId,
-            sent.map(({ to, data, value }) => ({ to, data, value })),
-          );
-          // A Safe app answers with the proposal's safeTxHash; anything else can't be followed.
-          if (typeof id !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(id))
-            throw new ReviewLineError(SAFE_BATCH_UNFOLLOWABLE_LINE);
-          return id as Hex;
-        },
-        onPhase: (phase) => progress(phase),
-        guard: action.guard,
-      });
-    });
+          },
+          write: async () => {
+            const id = await adapter.sendCalls!(
+              batched.chainId,
+              sent.map(({ to, data, value }) => ({ to, data, value })),
+            );
+            // A Safe app answers with the proposal's safeTxHash; anything else can't be followed.
+            if (typeof id !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(id))
+              throw new ReviewLineError(SAFE_BATCH_UNFOLLOWABLE_LINE);
+            return id as Hex;
+          },
+          onPhase: (phase) => progress(phase),
+          guard: action.guard,
+        });
+      })
+      .catch(sentHash);
     progress("proposed", hash);
     return { status: "proposed", step: 0, safeTxHash: hash, ...signed };
   }
@@ -1210,7 +1398,7 @@ async function send(
     /** This step's index in the whole action. */
     const at = offset + step;
     const progress = (phase: ReviewedProgress["phase"], hash?: Hex) =>
-      onProgress?.({ step: at, total, phase, ...(hash ? { hash } : {}) });
+      onProgress({ step: at, total, phase, ...(hash ? { hash } : {}) });
     const unchanged = () => {
       let now: ReturnType<typeof exact>;
       try {
@@ -1239,20 +1427,23 @@ async function send(
         };
       const done = resuming?.record;
       if (step > 0 || !done?.completed.length) return undefined;
-      const { chainId } = done.calls[done.completed.length - 1];
-      // One read: a receipt that can't be read now (a repriced original) is no block.
-      const receipt = await clientFor(chainId)
-        .getTransactionReceipt({
-          hash: done.completed[done.completed.length - 1],
-        })
-        .catch(() => undefined);
-      return receipt
-        ? {
-            chainId,
-            blockNumber: receipt.blockNumber,
-            blockHash: receipt.blockHash,
-          }
-        : undefined;
+      const last = done.calls[done.completed.length - 1];
+      const hash = done.completed[done.completed.length - 1];
+      // Its hold's settlement, while it is still the call's latest, kept
+      // the block it verified; else the hash's receipt, canonical and final.
+      const held = openStepHold(hold, account, adapter.isSafe(), last).peek();
+      const settled =
+        held.status === "clear" &&
+        held.settled &&
+        "hash" in held.settled &&
+        held.settled.hash.toLowerCase() === hash.toLowerCase()
+          ? held.settled
+          : { result: "success" as const, hash };
+      // One try: a block that can't be read or verified now is no block.
+      const block = await heldBlock(settled, clientFor(last.chainId)).catch(
+        () => undefined,
+      );
+      return block && { chainId: last.chainId, ...block };
     };
     const priorBlock =
       call.dependsOnPrior &&
@@ -1266,144 +1457,170 @@ async function send(
     let queued:
       | Awaited<ReturnType<typeof findPendingSafeAppProposal>>
       | undefined;
-    const hash = await handles[step].send<Hex>(client, (gate) => {
-      // Under the hold's own check of the call, before anything reserves.
-      if (generation(handles[step]) !== reviewedGenerations[step]) {
-        throw new WriteHoldStaleReviewError();
-      }
-      /** Nothing was sent: the hold lets go, and the step is no longer in flight. */
-      const released = async () => {
-        gate.onRejected();
-        if (journal) {
-          delete journal.sending;
-          await keep();
+    /** The caller's end of the run, once this run sent a step. */
+    const runEnd = hashes.length ? action.follow?.signal : undefined;
+    /** The site's failed record of this step's hash: the step was sent, and is held unverified. */
+    let unrecorded: unknown;
+    const hash = await handles[step]
+      .send<Hex>(client, (gate) => {
+        // Under the hold's own check of the call, before anything reserves.
+        if (generation(handles[step]) !== reviewedGenerations[step]) {
+          throw new WriteHoldStaleReviewError();
         }
-        await tellUnsent(call, at);
-      };
-      return submitReviewedContractWrite({
-        request: reviewed,
-        expectedAccount: account,
-        // Confirmed once, above, for every step.
-        review: () => Promise.resolve(),
-        switchChain: async (chainId) => {
-          if (adapter.chainId() !== chainId) await adapter.switchChain(chainId);
-        },
-        currentAccount: () => adapter.account(),
-        reverify: async () => {
-          if (action.reverify)
-            await action.reverify(call, at, await confirmedBefore());
-          unchanged();
-        },
-        simulate: async (sending) => {
-          const blockNumber =
-            priorBlock ??
-            (blocks[step] === undefined
-              ? undefined
-              : await notBefore(client, blocks[step]));
-          const tx = {
-            to: sending.to,
-            data: sending.data,
-            value: sending.value,
-            ...(blockNumber === undefined ? {} : { blockNumber }),
-          };
-          const { gas } = run[step];
-          const [, estimate, found] = await Promise.all([
-            simulateStateChangingTransaction(client, {
-              from: account,
-              ...tx,
-              gas,
-            }).catch((error: unknown) => {
-              throw simulationFailure(
-                `${labelOf(call, at)} cannot run on ${chainNameOf(client, sending.chainId)}: ${revertDetail(error)}`,
-                error,
-              );
-            }),
-            // A Safe app signs the sent gas as safeTxGas; 0 makes a failed call revert.
-            safe || gas !== undefined
-              ? undefined
-              : client.estimateGas({ account, ...tx }),
-            // A Safe app never proposes again a call its Safe already queued exactly.
-            safe && hasSafeService(sending.chainId)
-              ? findPendingSafeAppProposal(
-                  client,
-                  sending.chainId,
-                  account,
-                  sending,
-                  hold.safeService,
-                  true,
-                  adopting(snapshots[step].shown),
-                )
-              : null,
-          ]);
-          queued = found;
-          return {
-            ...sending,
-            gas: safe ? 0n : (gas ?? gasWithHeadroom(estimate!)),
-          };
-        },
-        beforeWrite: async () => {
-          // An adopted proposal is held as the call it runs.
-          await gate.beforeSend(queued?.call);
-          reserved = handles[step].peek().reservation;
-          if (journal)
+        /** Nothing was sent: the hold lets go, and the step is no longer in flight. */
+        const released = async () => {
+          gate.onRejected();
+          if (journal) {
+            delete journal.sending;
+            await keep();
+          }
+          await tellUnsent(call, at);
+        };
+        return submitReviewedContractWrite({
+          request: reviewed,
+          expectedAccount: account,
+          // Confirmed once, above, for every step.
+          review: () => Promise.resolve(),
+          switchChain: async (chainId) => {
+            if (adapter.chainId() !== chainId)
+              await adapter.switchChain(chainId);
+          },
+          currentAccount: () => adapter.account(),
+          reverify: async () => {
+            if (action.reverify)
+              await action.reverify(call, at, await confirmedBefore());
+            unchanged();
+          },
+          simulate: async (sending) => {
+            const blockNumber =
+              priorBlock ??
+              (blocks[step] === undefined
+                ? undefined
+                : await notBefore(client, blocks[step]));
+            const tx = {
+              to: sending.to,
+              data: sending.data,
+              value: sending.value,
+              ...(blockNumber === undefined ? {} : { blockNumber }),
+            };
+            const { gas } = run[step];
+            const [, estimate, found] = await Promise.all([
+              simulateStateChangingTransaction(client, {
+                from: account,
+                ...tx,
+                gas,
+              }).catch((error: unknown) => {
+                throw simulationFailure(
+                  `${labelOf(call, at)} cannot run on ${chainNameOf(client, sending.chainId)}: ${revertDetail(error)}`,
+                  error,
+                );
+              }),
+              // A Safe app signs the sent gas as safeTxGas; 0 makes a failed call revert.
+              safe || gas !== undefined
+                ? undefined
+                : client.estimateGas({ account, ...tx }),
+              // A Safe app never proposes again a call its Safe already queued exactly.
+              safe && hasSafeService(sending.chainId)
+                ? findPendingSafeAppProposal(
+                    client,
+                    sending.chainId,
+                    account,
+                    sending,
+                    hold.safeService,
+                    true,
+                    adopting(snapshots[step].shown),
+                  )
+                : null,
+            ]);
+            queued = found;
+            return {
+              ...sending,
+              gas: safe ? 0n : (gas ?? gasWithHeadroom(estimate!)),
+            };
+          },
+          beforeWrite: async () => {
+            // An adopted proposal is held as the call it runs.
+            await gate.beforeSend(queued?.call);
+            reserved = handles[step].peek().reservation;
+            if (journal)
+              try {
+                const { reservation } = handles[step].peek();
+                if (reservation === undefined)
+                  throw new ReviewLineError(NOT_SAVED);
+                journal.sending = { step: at, reservation };
+                expected = await saveReviewedSequence(
+                  journal,
+                  storage!,
+                  expected,
+                );
+              } catch (error) {
+                // Reserved, and the wallet never opened.
+                delete journal.sending;
+                gate.onRejected();
+                throw error;
+              }
             try {
-              const { reservation } = handles[step].peek();
-              if (reservation === undefined)
-                throw new ReviewLineError(NOT_SAVED);
-              journal.sending = { step: at, reservation };
-              expected = await saveReviewedSequence(
-                journal,
-                storage!,
-                expected,
-              );
+              await action.beforeWallet?.(call, at);
             } catch (error) {
-              // Reserved, and the wallet never opened.
-              delete journal.sending;
-              gate.onRejected();
+              await released();
               throw error;
             }
-          try {
-            await action.beforeWallet?.(call, at);
-          } catch (error) {
-            await released();
-            throw error;
-          }
-        },
-        beforeSend: () => {
-          action.assertWriteState?.();
-          unchanged();
-          if (adapter.isSafe() !== safe) {
-            throw new ReviewLineError(
-              "Wallet connection changed. Review the transaction again.",
-            );
-          }
-          if (adapter.chainId() !== reviewed.chainId) {
-            throw new ReviewLineError(
-              "Your wallet changed networks. Review the transaction again.",
-            );
-          }
-          // Last, after every callback and getter above could have run.
-          if (adapter.account()?.toLowerCase() !== account.toLowerCase()) {
-            throw new ReviewLineError(ACCOUNT_CHANGED);
-          }
-        },
-        onBeforeWriteAborted: released,
-        onWriteRejected: released,
-        // An adopted proposal's nonce lets the hold prove its execution onchain.
-        onWriteSubmitted: async (submitted) => {
-          gate.afterSubmit(submitted, queued?.tx);
-          await action.onSubmitted?.(call, at, submitted, {
-            safe,
-            adopted: !!queued,
-          });
-        },
-        write: async ({ chainId, to, data, value, gas }) =>
-          queued?.proposalHash ??
-          adapter.sendTransaction({ chainId, to, data, value, gas }),
-        onPhase: (phase) => progress(phase),
-        guard: action.guard,
+          },
+          beforeSend: () => {
+            // The caller ended the run (a reset, an unmount) after it sent a
+            // step: nothing more is sent.
+            if (hashes.length && action.follow?.signal?.aborted)
+              throw new TransactionReviewCancelledError();
+            action.assertWriteState?.();
+            unchanged();
+            if (adapter.isSafe() !== safe) {
+              throw new ReviewLineError(
+                "Wallet connection changed. Review the transaction again.",
+              );
+            }
+            if (adapter.chainId() !== reviewed.chainId) {
+              throw new ReviewLineError(
+                "Your wallet changed networks. Review the transaction again.",
+              );
+            }
+            // Last, after every callback and getter above could have run.
+            if (adapter.account()?.toLowerCase() !== account.toLowerCase()) {
+              throw new ReviewLineError(ACCOUNT_CHANGED);
+            }
+          },
+          onBeforeWriteAborted: released,
+          onWriteRejected: released,
+          // An adopted proposal's nonce lets the hold prove its execution onchain.
+          onWriteSubmitted: async (submitted) => {
+            gate.afterSubmit(submitted, queued?.tx);
+            await tell(action.onSubmitted, call, at, submitted, {
+              safe,
+              adopted: !!queued,
+            });
+          },
+          write: async ({ chainId, to, data, value, gas }) =>
+            queued?.proposalHash ??
+            adapter.sendTransaction({
+              chainId,
+              to,
+              data,
+              value,
+              gas,
+              // After a step was sent, the run's end refuses this one, unsent,
+              // as late as the wallet's own last check.
+              ...(runEnd ? { signal: runEnd } : {}),
+            }),
+          onPhase: (phase) => progress(phase),
+          guard: action.guard,
+        });
+      })
+      .catch((error: unknown) => {
+        // Refused unsent because the caller ended the run: a cancel, not a failure.
+        if (runEnd?.aborted && error instanceof WalletNotInvokedError)
+          throw new TransactionReviewCancelledError();
+        unrecorded = error;
+        return sentHash(error);
       });
-    });
     hashes.push(hash);
     // A later step held under this step's key (the same call, or the same
     // intent) was reserved by this send, not by another prompt.
@@ -1424,23 +1641,67 @@ async function send(
       progress("proposed", hash);
       return { status: "proposed", step: at, safeTxHash: hash, ...signed };
     }
-    progress("receipt", hash);
-    const receipt = await waitForTrackedReceipt(client, hash);
-    // The hold checks the receipt itself and settles, so the same call (or
-    // intent) can be reviewed and sent again without waiting on a view.
-    // Only this send's own reservation's settlement speaks for it: a later
-    // send of the same call or intent may have settled since.
-    const settled = await handles[step]
-      .state(client)
-      .then((state) =>
-        state.status === "clear" &&
-        reserved !== undefined &&
-        state.reservation === reserved
-          ? state.settled
+    // From here the step was sent: it ends done, failed as its hold
+    // verified, or unverified with what resumes it, never any other way.
+    const unverified = (cause?: unknown) =>
+      new ReviewedReceiptUnverifiedError(
+        at,
+        hash,
+        isSafeExecTransaction(reviewed.data)
+          ? WRITE_HOLD_SAFE_UNCONFIRMED_LINE
           : undefined,
-      )
-      .catch(() => undefined);
-    if (receipt.status === "success" && settled?.result === "failed") {
+        {
+          call,
+          reservation: reserved,
+          // This run's sends, its own last: only the steps before it completed.
+          hashes: journal ? [...journal.completed] : hashes.slice(0, -1),
+          ...signed,
+        },
+        cause === undefined ? {} : { cause },
+      );
+    // The site could not record the hash: held as sent, for it to resume.
+    if (unrecorded !== undefined) throw unverified(unrecorded);
+    // Its hold's verified settlement is the only word on how it ended: its
+    // result, its transaction (a speed-up's, when the wallet replaced the
+    // send) and that transaction's receipt in the block the hold verified.
+    // A watcher's receipt only says when to ask.
+    let receipt: TransactionReceipt | undefined;
+    let settled: (WriteHoldSettled & { hash: Hex }) | undefined;
+    try {
+      progress("receipt", hash);
+      const seen = await waitForTrackedReceipt(client, hash);
+      // Only this send's own reservation's settlement speaks for it: a later
+      // send of the same call or intent may have settled since.
+      settled = await handles[step]
+        .state(client)
+        .then((state) =>
+          state.status === "clear" &&
+          reserved !== undefined &&
+          state.reservation === reserved &&
+          state.settled &&
+          "hash" in state.settled
+            ? state.settled
+            : undefined,
+        )
+        .catch(() => undefined);
+      receipt = settled
+        ? await heldReceipt(settled, client, seen).catch(() => undefined)
+        : undefined;
+      if (!receipt && action.follow) {
+        tell(action.follow.onConfirming, at);
+        const ended = await followSent(
+          handles[step],
+          client,
+          reserved,
+          action.follow,
+        );
+        ({ settled, receipt } = ended ?? { settled, receipt });
+      }
+    } catch (error) {
+      throw unverified(error);
+    }
+    if (!settled || !receipt) throw unverified();
+    if (settled.result === "failed" && receipt.status === "success") {
       // It ran, and the hold proved it failed: a Safe's call that failed.
       if (journal) {
         delete journal.sending;
@@ -1448,36 +1709,25 @@ async function send(
       }
       throw new ReviewLineError(WRITE_HOLD_CALL_FAILED_LINE);
     }
-    // A Safe's execTransaction is done only once its hold proved the Safe's
-    // own success; until then the step stays in flight, held and journaled.
-    if (
-      receipt.status === "success" &&
-      isSafeExecTransaction(reviewed.data) &&
-      settled?.result !== "success"
-    ) {
-      throw new ReviewLineError(WRITE_HOLD_SAFE_UNCONFIRMED_LINE);
-    }
+    const mined = settled.hash;
+    hashes[hashes.length - 1] = mined;
     if (receipt.status !== "success") {
       // It ran and reverted: nothing of it to resume.
       if (journal) {
         delete journal.sending;
         await keep();
       }
-      throw new ReviewedCallRevertedError(at, hash, receipt);
+      throw new ReviewedCallRevertedError(at, mined, receipt);
     }
     receipts.push(receipt);
     if (journal) {
       delete journal.sending;
-      journal.completed.push(hash);
+      journal.completed.push(mined);
       await keep();
     }
-    try {
-      await action.onConfirmed?.(call, at, receipt);
-    } catch {
-      /* The step went through whatever the site's callback does. */
-    }
+    await tellConfirmed(action, handles[step], call, at, settled, receipt);
   }
-  onProgress?.({ step: total - 1, total, phase: "done" });
+  onProgress({ step: total - 1, total, phase: "done" });
   return {
     status: "done",
     hashes: journal ? [...journal.completed] : hashes,

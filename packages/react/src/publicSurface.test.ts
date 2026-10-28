@@ -61,7 +61,7 @@ describe("published React SDK surface", () => {
   test("relayr hooks carry @deprecated naming the core replacement", () => {
     const hooks: [string, string][] = [
       ["useSendRelayrTx", "payRelayrReviewed"],
-      ["useGetRelayrTxQuote", "runRelayrReviewed"],
+      ["useGetRelayrTxQuote", "signReviewedForwardRequests"],
       ["useSignErc2771ForwardRequest", "signReviewedForwardRequests"],
     ];
     for (const [hook, replacement] of hooks) {

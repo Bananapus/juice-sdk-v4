@@ -140,6 +140,32 @@ describe("nana-wallet-check", () => {
     expect(run(listed).status).toBe(0);
   });
 
+  it("treats signaWalletAdapter like selfReviewingAdapter, however it is called", () => {
+    const files = {
+      "aliased.ts":
+        'import { signaWalletAdapter as signa } from "@me.jango/signa";\nexport const a = signa({});\n',
+      "member.ts":
+        'import * as signa from "@me.jango/signa";\nexport const a = signa.signaWalletAdapter({});\n',
+      "call.ts":
+        'import { signaWalletAdapter } from "@me.jango/signa";\nexport const a = signaWalletAdapter.call(null, {});\n',
+      "apply.ts":
+        'import { selfReviewingAdapter } from "@bananapus/nana-sdk-core/review";\nexport const a = selfReviewingAdapter.apply(null, [{}]);\n',
+    };
+    const { status, out } = run(project(files));
+    expect(status).toBe(1);
+    for (const site of [
+      "src/aliased.ts:2:signaWalletAdapter",
+      "src/member.ts:2:signaWalletAdapter",
+      "src/call.ts:2:signaWalletAdapter",
+      "src/apply.ts:2:selfReviewingAdapter",
+    ])
+      expect(out).toContain(`${site} outside selfReviewing`);
+    const listed = project(files, [], {
+      selfReviewing: Object.keys(files).map((name) => `src/${name}`),
+    });
+    expect(run(listed).status).toBe(0);
+  });
+
   it("passes occurrences that have inventory rows", () => {
     const dir = project(
       {

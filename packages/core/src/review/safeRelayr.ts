@@ -9,6 +9,7 @@ import {
   type Hex,
   type PublicClient,
 } from "viem";
+import { tell } from "./receipt.js";
 import { readBoundedSafeNonce } from "../safe.js";
 import {
   SAFE_EXEC_ABI,
@@ -725,15 +726,12 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         return;
       displayedExecutions.set(key, display);
     }
-    try {
-      // A view must not mutate frozen calls or turn a submitted payment into a
-      // rejected operation. Also consume rejection from an async UI callback.
-      void Promise.resolve(
-        options.onProgress?.(structuredClone(progress)),
-      ).catch(() => undefined);
-    } catch {
-      // Display observers cannot change the durable execution lifecycle.
-    }
+    // A view must not mutate frozen calls or turn a submitted payment into a
+    // rejected operation: it gets a copy, and its failure is only logged.
+    void tell(
+      (shown: typeof progress) => options.onProgress?.(structuredClone(shown)),
+      progress,
+    );
   };
   const phase = (
     phase: SafeRelayrPhase,

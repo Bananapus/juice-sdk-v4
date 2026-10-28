@@ -1,5 +1,6 @@
 import type { Hex, TransactionReceipt } from "viem";
-import { WRITE_HOLD_REVERTED_LINE } from "./messages.js";
+import type { ReviewedCall } from "./send.js";
+import { HELD_CONFIRMING_LINE, WRITE_HOLD_REVERTED_LINE } from "./messages.js";
 
 /**
  * An error with its own one-line message, which `errorLine` shows: the
@@ -37,5 +38,43 @@ export class ReviewedCallRevertedError extends ReviewLineError {
     readonly receipt: TransactionReceipt,
   ) {
     super(WRITE_HOLD_REVERTED_LINE);
+  }
+}
+
+/** A wallet adapter's refusal before it called the wallet: proven unsent, so its step is released. */
+export class WalletNotInvokedError extends ReviewLineError {
+  readonly name = "WalletNotInvokedError";
+}
+
+/** A step mined whose receipt its hold has not verified yet: it stays held until the hold settles it. */
+export class ReviewedReceiptUnverifiedError extends ReviewLineError {
+  readonly name = "ReviewedReceiptUnverifiedError";
+
+  constructor(
+    readonly step: number,
+    readonly hash: Hex,
+    line: string = HELD_CONFIRMING_LINE,
+    /**
+     * The step's call and its hold reservation, which `completeReviewedStep`
+     * reads, the hashes of the steps completed before it, and the run's
+     * signatures when it signed any.
+     */
+    readonly held?: {
+      call: ReviewedCall;
+      reservation: string | undefined;
+      hashes?: Hex[];
+      signatures?: Hex[];
+    },
+    /** What ended the run before the hold verified the step: a read that failed, say. */
+    options: { cause?: unknown } = {},
+  ) {
+    super(line);
+    // Not enumerable, like a native cause: serializing leaves out an RPC error and its URL.
+    Object.defineProperty(this, "cause", {
+      value: options.cause,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
   }
 }

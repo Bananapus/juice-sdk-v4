@@ -326,8 +326,20 @@ const budgets = {
     // calls: 1,766,660 B packed, 24,002,871 B unpacked, 1,827 files.
     // Paying a planned Relayr round's bound and the Safe hash check:
     // 1,779,547 B packed, 24,044,707 B unpacked.
-    packed: 1_785_000,
-    unpacked: 24_100_000,
+    // The send-again boundary, verified receipts, kept revert data, the
+    // dispatch-time wallet guard and self-reviewing signatures add no files:
+    // 1,787,447 B packed, 24,079,865 B unpacked.
+    // The 5.0.0 receipt status and settled follow: 1,790,848 B packed,
+    // 24,098,818 B unpacked.
+    // Followed steps, kept signatures and ended(): 1,794,029 B packed,
+    // 24,121,132 B unpacked.
+    // In-place follow, Safe failure after follow and the Relayr proof retry:
+    // 1,796,152 B packed, 24,135,145 B unpacked.
+    // A run's cancellation at the adapter's last check: 1,797,510 B packed,
+    // 24,144,501 B unpacked.
+    // One ending for a sent step: 1,798,864 B packed, 24,152,624 B unpacked.
+    packed: 1_800_000,
+    unpacked: 24_155_000,
     entries: 1_827,
   },
   "@bananapus/nana-sdk-react": {

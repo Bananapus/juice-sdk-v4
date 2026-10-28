@@ -1,4 +1,6 @@
 import {
+  createWalletClient,
+  custom,
   decodeFunctionData,
   encodeFunctionData,
   formatEther,
@@ -19,15 +21,16 @@ import {
   resetReviewUi,
   reviewUi,
   setup,
+  speedUpNextSend,
   TERMINAL,
 } from "./__fixtures__/reviewedSend.js";
 import {
   RELAYR_NATIVE_TOKEN,
   RELAYR_PAYMENT_ADDRESS,
-  RELAYR_PAYMENT_GAS,
   RELAYR_PAYMENT_SELECTOR,
   RelayrPaymentNotSentError,
   relayrForwardRequest,
+  relayrPaymentAttemptOutcome,
   type RelayrEntry,
   type RelayrQuote,
 } from "./relayr.js";
@@ -35,25 +38,25 @@ import {
   payRelayrReviewed,
   pollRelayrBundle,
   RELAYR_FEE_MARGIN_BPS,
-  RELAYR_FEE_MARKUP_BPS,
-  runRelayrReviewed,
   safeRelayrWalletDeps,
   signReviewedForwardRequests,
   type RelayrReviewedCall,
 } from "./relayrSend.js";
-import { TransactionReviewCancelledError } from "./reviewQueue.js";
 import type { SafeRelayrSession } from "./safeRelayr.js";
 import { openStepHold } from "./writeHold.js";
 import { REVIEWED_PLAN_REFUSED_LINE } from "./plan.js";
 import { reviewPlan } from "./send.js";
 import { signReviewed } from "./sign.js";
-import { selfReviewingAdapter } from "./wallet.js";
+import { viemWalletAdapter } from "./wallet.js";
 import { WriteHeldError } from "./writeHold.js";
 import { SubmittedContractWriteError } from "./contractWrite.js";
-import { ReviewedCallRevertedError } from "./lineError.js";
+import { RelayrProofUnavailableError } from "./relayr.js";
+import {
+  ReviewedCallRevertedError,
+  WalletNotInvokedError,
+} from "./lineError.js";
 
 const FORWARDER = jbV6ContractAddress.ERC2771Forwarder[10] as Address;
-const PROJECTS = jbV6ContractAddress.JBProjects[10] as Address;
 const TRUSTED = toFunctionSelector("isTrustedForwarder(address)");
 const SIGNATURE = `0x${"11".repeat(65)}` as Hex;
 const UUIDS = [
@@ -176,664 +179,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("runRelayrReviewed", () => {
-  it("refuses a destination that does not trust the forwarder", async () => {
-    const { deps, wallet, signTypedData } = relayrSetup({ trusted: false });
-    const relayr = fakeRelayr(() => 100n);
-    const prompts = reviewUi();
-    await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
-    ).rejects.toThrow("does not trust the canonical forwarder");
-    expect(prompts).toHaveLength(0);
-    expect(relayr.fetch).not.toHaveBeenCalled();
-    expect(signTypedData).not.toHaveBeenCalled();
-    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
-  });
-
-  it("asks nothing of a wallet whose ready fails", async () => {
-    const { deps, wallet, signTypedData } = relayrSetup();
-    const relayr = fakeRelayr(() => 100n);
-    const prompts = reviewUi();
-    const adapter = {
-      ...wallet.adapter,
-      ready: () => Promise.reject(new Error("peer")),
-    };
-    await expect(
-      runRelayrReviewed(
-        [CALL],
-        { account: ACCOUNT, scope: "action" },
-        { ...deps, adapter },
-      ),
-    ).rejects.toThrow("Your wallet's connection could not be confirmed.");
-    expect(prompts).toHaveLength(0);
-    expect(relayr.fetch).not.toHaveBeenCalled();
-    expect(signTypedData).not.toHaveBeenCalled();
-  });
-
-  it("one prompt covers the forward requests, the quoted fee and the payment", async () => {
-    const { deps, wallet, signTypedData } = relayrSetup();
-    const relayr = fakeRelayr((from) => (from === ACCOUNT ? 900n : 1_000n));
-    const prompts = reviewUi();
-    const result = await runRelayrReviewed(
-      [CALL],
-      {
-        account: ACCOUNT,
-        scope: "action",
-        context: [{ label: "Project", value: "#1" }],
-      },
-      deps,
-    );
-    expect(prompts).toHaveLength(1);
-    const { model } = prompts[0];
-    expect(model.signatures).toHaveLength(1);
-    expect(model.signatures[0].kind).toBe("forward-request");
-    expect(model.signatures[0].calls[0].to).toBe(TERMINAL);
-    expect(model.context).toEqual([
-      { label: "Project", value: "#1" },
-      {
-        label: "Network fee",
-        value: `Up to ${formatEther(withMargin(1_000n))} ETH`,
-        strong: true,
-      },
-      { label: "Fee paid on", value: "Chain 10" },
-      { label: "Fee paid to", value: RELAYR_PAYMENT_ADDRESS, mono: true },
-    ]);
-    // The stand-in and then the signed requests.
-    expect(relayr.posts.map(({ from }) => from === ACCOUNT)).toEqual([
-      false,
-      true,
-    ]);
-    expect(signTypedData).toHaveBeenCalledTimes(1);
-    const typed = signTypedData.mock.calls[0] as unknown as [
-      { domain: { verifyingContract: Address }; message: { nonce: bigint } },
-    ];
-    expect(typed[0].domain.verifyingContract).toBe(FORWARDER);
-    expect(typed[0].message.nonce).toBe(4n);
-    const posted = relayrForwardRequest(relayr.posts[1].entries[0])!;
-    expect(posted.signature).toBe(SIGNATURE);
-    expect(posted.to).toBe(TERMINAL);
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: RELAYR_PAYMENT_ADDRESS,
-        value: 900n,
-        gas: RELAYR_PAYMENT_GAS,
-      }),
-    );
-    expect(result.uuid).toBe(relayr.posts[1].uuid);
-    expect(result.paymentHash).toMatch(/^0x/);
-    expect(result.signatures).toBeUndefined();
-  });
-
-  it("the fee row shows the quoted amount before confirm", async () => {
-    const { deps, signTypedData } = relayrSetup();
-    const relayr = fakeRelayr((from) => (from === ACCOUNT ? 10n : 4_000n));
-    let shown: string | undefined;
-    reviewUi(async (prompt) => {
-      shown = prompt.model.context.find(
-        (row) => row.label === "Network fee",
-      )?.value;
-      // Only the stand-in was quoted, and nothing was signed yet.
-      expect(relayr.fetch).toHaveBeenCalledTimes(1);
-      expect(signTypedData).not.toHaveBeenCalled();
-      return null;
-    });
-    await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
-    ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
-    expect(shown).toBe(`Up to ${formatEther(withMargin(4_000n))} ETH`);
-    expect(signTypedData).not.toHaveBeenCalled();
-  });
-
-  it("quotes a public call with the same gas when the calls need the real sender", async () => {
-    const { deps } = relayrSetup();
-    const relayr = fakeRelayr((from, data) =>
-      from === ACCOUNT ? 10n : data === CALL.data ? null : 3_000n,
-    );
-    let shown: string | undefined;
-    reviewUi(async (prompt) => {
-      shown = prompt.model.context[0].value;
-      return null;
-    });
-    await expect(
-      runRelayrReviewed(
-        [{ ...CALL, value: 5n }],
-        { account: ACCOUNT, scope: "action" },
-        deps,
-      ),
-    ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
-    const probe = relayrForwardRequest(relayr.posts[1].entries[0])!;
-    expect(probe.to.toLowerCase()).toBe(PROJECTS.toLowerCase());
-    expect(probe.gas).toBe(CALL.gas);
-    expect(probe.value).toBe(0n);
-    expect(shown).toBe(`Up to ${formatEther(withMargin(3_005n))} ETH`);
-  });
-
-  it("bounds the fee locally when no stand-in can be quoted", async () => {
-    const { deps, chain } = relayrSetup();
-    fakeRelayr(() => null);
-    chain.client.estimateGas.mockResolvedValue(400_000n);
-    let shown: string | undefined;
-    reviewUi(async (prompt) => {
-      shown = prompt.model.context[0].value;
-      return null;
-    });
-    await expect(
-      runRelayrReviewed(
-        [{ ...CALL, value: 5n }],
-        { account: ACCOUNT, scope: "action" },
-        deps,
-      ),
-    ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
-    // Estimated through the forwarder as the real sender.
-    expect(chain.client.estimateGas).toHaveBeenCalledWith(
-      expect.objectContaining({
-        account: FORWARDER,
-        to: TERMINAL,
-        data: `${CALL.data}${ACCOUNT.slice(2)}`,
-      }),
-    );
-    const bound =
-      ((400_000n + 100_000n) * 2_000_000n * RELAYR_FEE_MARKUP_BPS) / 10_000n +
-      5n;
-    expect(shown).toBe(`Up to ${formatEther(withMargin(bound))} ETH`);
-  });
-
-  it("an expired quote re-quotes silently when the fee did not rise", async () => {
-    const { deps, wallet, chain } = relayrSetup();
-    const relayr = fakeRelayr((from) => (from === ACCOUNT ? 900n : 1_000n));
-    const real = Date.now();
-    let now = real;
-    vi.spyOn(Date, "now").mockImplementation(() => now);
-    const ethCall = chain.state.ethCall;
-    let simulated = 0;
-    chain.state.ethCall = (params) => {
-      const [tx] = params as [{ to: Address }];
-      // The first payment's quote runs out while its simulation runs.
-      if (tx.to.toLowerCase() === RELAYR_PAYMENT_ADDRESS && !simulated++) {
-        now = real + 590_000;
-      }
-      return ethCall(params);
-    };
-    const prompts = reviewUi();
-    const result = await runRelayrReviewed(
-      [CALL],
-      { account: ACCOUNT, scope: "action" },
-      deps,
-    );
-    expect(prompts).toHaveLength(1);
-    expect(relayr.posts.filter(({ from }) => from === ACCOUNT)).toHaveLength(2);
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
-    const [sent] = wallet.adapter.sendTransaction.mock.calls[0];
-    expect(sent.data).toBe(
-      paymentCalldata(relayr.posts[2].uuid!, Math.floor(now / 1_000) + 600),
-    );
-    expect(result.uuid).toBe(relayr.posts[2].uuid);
-  });
-
-  it("a higher re-quoted fee opens one fresh review and sends nothing before it", async () => {
-    const { deps, wallet } = relayrSetup();
-    fakeRelayr((from) => (from === ACCOUNT ? 2_000n : 1_000n));
-    const prompts = reviewUi(async (prompt) => {
-      if (prompts.length === 1) return prompt.confirmation;
-      expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
-      return null;
-    });
-    await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
-    ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
-    expect(prompts).toHaveLength(2);
-    const fresh = prompts[1].model;
-    expect(fresh.calls).toHaveLength(1);
-    expect(fresh.calls[0].to).toBe(RELAYR_PAYMENT_ADDRESS);
-    expect(fresh.calls[0].value).toBe(2_000n);
-    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
-  });
-
-  it("pays the higher fee once the fresh review is confirmed", async () => {
-    const { deps, wallet } = relayrSetup();
-    fakeRelayr((from) => (from === ACCOUNT ? 2_000n : 1_000n));
-    const prompts = reviewUi();
-    await runRelayrReviewed(
-      [CALL],
-      { account: ACCOUNT, scope: "action" },
-      deps,
-    );
-    expect(prompts).toHaveLength(2);
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({ value: 2_000n }),
-    );
-  });
-
-  it("signs further signatures in the same review and returns them", async () => {
-    const { deps, wallet } = relayrSetup();
-    fakeRelayr(() => 100n);
-    wallet.adapter.signMessage = vi.fn(async () => `0x${"22".repeat(65)}`);
-    const prompts = reviewUi();
-    const result = await runRelayrReviewed(
-      [CALL],
-      {
-        account: ACCOUNT,
-        scope: "action",
-        signatures: [{ kind: "message", chainId: 10, message: "List it" }],
-      },
-      deps,
-    );
-    expect(prompts).toHaveLength(1);
-    expect(prompts[0].model.signatures).toHaveLength(2);
-    expect(result.signatures).toEqual([`0x${"22".repeat(65)}`]);
-  });
-
-  it("posts nothing and pays nothing when the wallet rejects a signature", async () => {
-    const { deps, wallet, signTypedData } = relayrSetup();
-    const relayr = fakeRelayr(() => 100n);
-    signTypedData.mockRejectedValue(
-      Object.assign(new Error("User rejected"), { code: 4001 }),
-    );
-    reviewUi();
-    await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
-    ).rejects.toBeInstanceOf(TransactionReviewCancelledError);
-    expect(relayr.posts.filter(({ from }) => from === ACCOUNT)).toHaveLength(0);
-    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
-  });
-
-  it("refuses a signed request the forwarder no longer verifies, before posting it", async () => {
-    const { deps, chain } = relayrSetup();
-    const relayr = fakeRelayr(() => 100n);
-    (
-      chain.client as unknown as { readContract: ReturnType<typeof vi.fn> }
-    ).readContract.mockImplementation(
-      async ({ functionName }: { functionName: string }) =>
-        functionName === "nonces" ? 4n : false,
-    );
-    reviewUi();
-    await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
-    ).rejects.toThrow("trusted forwarder changed");
-    expect(relayr.posts.filter(({ from }) => from === ACCOUNT)).toHaveLength(0);
-  });
-
-  it("refuses two calls on one chain, a Safe wallet and a self-reviewing wallet", async () => {
-    const { deps, wallet } = relayrSetup();
-    fakeRelayr(() => 100n);
-    const prompts = reviewUi();
-    await expect(
-      runRelayrReviewed(
-        [CALL, CALL],
-        { account: ACCOUNT, scope: "action" },
-        deps,
-      ),
-    ).rejects.toThrow("one call per supported destination");
-    wallet.state.safe = true;
-    await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "action" }, deps),
-    ).rejects.toThrow("ordinary wallet");
-    const signa = selfReviewingAdapter({
-      account: () => ACCOUNT,
-      submit: async () => "0x",
-    });
-    await expect(
-      runRelayrReviewed(
-        [CALL],
-        { account: ACCOUNT, scope: "action" },
-        { ...deps, adapter: signa },
-      ),
-    ).rejects.toMatchObject({ code: 4200 });
-    expect(prompts).toHaveLength(0);
-  });
-
-  it("holds the payment by scope, so the same action is not paid twice", async () => {
-    const { deps, wallet, signTypedData } = relayrSetup();
-    fakeRelayr(() => 100n);
-    const prompts = reviewUi();
-    wallet.adapter.sendTransaction.mockRejectedValueOnce(new Error("timeout"));
-    await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "launch:1" }, deps),
-    ).rejects.toThrow("timeout");
-    await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "launch:1" }, deps),
-    ).rejects.toBeInstanceOf(WriteHeldError);
-    expect(prompts).toHaveLength(1);
-    expect(signTypedData).toHaveBeenCalledTimes(1);
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
-  });
-  it("requires a scope", async () => {
-    const { deps, signTypedData } = relayrSetup();
-    const relayr = fakeRelayr(() => 100n);
-    const prompts = reviewUi();
-    for (const scope of [undefined, "", "  "]) {
-      await expect(
-        runRelayrReviewed(
-          [CALL],
-          { account: ACCOUNT, scope } as unknown as Parameters<
-            typeof runRelayrReviewed
-          >[1],
-          deps,
-        ),
-      ).rejects.toThrow("needs its scope");
-    }
-    expect(prompts).toHaveLength(0);
-    expect(relayr.fetch).not.toHaveBeenCalled();
-    expect(signTypedData).not.toHaveBeenCalled();
-  });
-
-  it("never pays a scope again after its bundle was paid", async () => {
-    const { deps, wallet, chain, signTypedData } = relayrSetup();
-    fakeRelayr(() => 100n);
-    const prompts = reviewUi();
-    const action = { account: ACCOUNT, scope: "launch:paid" };
-    await runRelayrReviewed([CALL], action, deps);
-    // Recovery reads the hold, which settles the proven payment.
-    const state = await openStepHold(deps.hold, ACCOUNT, false, {
-      chainId: 10,
-      to: RELAYR_PAYMENT_ADDRESS,
-      data: "0x",
-      intent: action.scope,
-    }).state(chain.client as unknown as PublicClient);
-    expect(state.status === "clear" && state.settled?.result).toBe("success");
-    for (const paymentChainId of [10, 8453]) {
-      await expect(
-        runRelayrReviewed([CALL], { ...action, paymentChainId }, deps),
-      ).rejects.toThrow("already succeeded");
-    }
-    expect(prompts).toHaveLength(1);
-    expect(signTypedData).toHaveBeenCalledTimes(1);
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
-  });
-
-  it("holds the scope on every funding chain, so another chain cannot pay it again", async () => {
-    const { deps, wallet, signTypedData } = relayrSetup();
-    fakeRelayr(() => 100n);
-    const prompts = reviewUi();
-    wallet.adapter.sendTransaction.mockRejectedValueOnce(new Error("timeout"));
-    await expect(
-      runRelayrReviewed([CALL], { account: ACCOUNT, scope: "launch:2" }, deps),
-    ).rejects.toThrow("timeout");
-    await expect(
-      runRelayrReviewed(
-        [CALL],
-        { account: ACCOUNT, scope: "launch:2", paymentChainId: 8453 },
-        deps,
-      ),
-    ).rejects.toBeInstanceOf(WriteHeldError);
-    expect(prompts).toHaveLength(1);
-    expect(signTypedData).toHaveBeenCalledTimes(1);
-  });
-
-  it("pays one funding chain at a time for a scope, across concurrent runs", async () => {
-    const { deps, wallet } = relayrSetup();
-    fakeRelayr(() => 100n);
-    reviewUi();
-    let fail: (error: Error) => void = () => {};
-    wallet.adapter.sendTransaction.mockImplementationOnce(
-      () =>
-        new Promise((_, reject) => {
-          fail = reject;
-        }),
-    );
-    const action = { account: ACCOUNT, scope: "launch:3" };
-    const outcome = (run: Promise<unknown>) =>
-      run.then(
-        () => "paid",
-        (error: unknown) =>
-          error instanceof WriteHeldError ? "held" : (error as Error).message,
-      );
-    const first = outcome(
-      runRelayrReviewed([CALL], { ...action, paymentChainId: 10 }, deps),
-    );
-    // Another window's wallet, with its own network.
-    let baseChain = 8453;
-    const base = {
-      ...deps,
-      adapter: {
-        ...deps.adapter,
-        chainId: () => baseChain,
-        switchChain: async (chainId: number) => {
-          baseChain = chainId;
-        },
-      },
-    };
-    const second = outcome(
-      runRelayrReviewed([CALL], { ...action, paymentChainId: 8453 }, base),
-    );
-    await vi.waitFor(() =>
-      expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1),
-    );
-    fail(new Error("timeout"));
-    // Whichever reserved first reached the wallet; the other was held.
-    expect((await Promise.all([first, second])).sort()).toEqual([
-      "held",
-      "timeout",
-    ]);
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
-  });
-
-  it("re-quotes a quote that is offered already too close to its deadline", async () => {
-    const { deps, wallet } = relayrSetup();
-    const relayr = fakeRelayr(
-      () => 100n,
-      (quote) => (quote === 1 ? 10 : 600),
-    );
-    const prompts = reviewUi();
-    const result = await runRelayrReviewed(
-      [CALL],
-      { account: ACCOUNT, scope: "action" },
-      deps,
-    );
-    expect(prompts).toHaveLength(1);
-    expect(result.uuid).toBe(relayr.posts[2].uuid);
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
-  });
-
-  it("re-quotes when the quote lapses while the fresh review is open", async () => {
-    const { deps, wallet } = relayrSetup();
-    const relayr = fakeRelayr((from) => (from === ACCOUNT ? 2_000n : 1_000n));
-    const real = Date.now();
-    let now = real;
-    vi.spyOn(Date, "now").mockImplementation(() => now);
-    const prompts = reviewUi(async (prompt) => {
-      if (prompts.length === 2) now = real + 590_000;
-      return prompt.confirmation;
-    });
-    const result = await runRelayrReviewed(
-      [CALL],
-      { account: ACCOUNT, scope: "action" },
-      deps,
-    );
-    expect(prompts).toHaveLength(2);
-    const signed = relayr.posts.filter(({ from }) => from === ACCOUNT);
-    expect(signed).toHaveLength(2);
-    expect(result.uuid).toBe(signed[1].uuid);
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("runRelayrReviewed raw calls and plans", () => {
-  const RAW: RelayrReviewedCall = {
-    chainId: 8453,
-    target: OTHER,
-    data: "0x12345678",
-    gas: 400_000n,
-    raw: true,
-  };
-
-  it("shows a raw call as sent by Relayr and posts it unsigned beside the signed one", async () => {
-    const { deps, signTypedData } = relayrSetup();
-    const relayr = fakeRelayr(() => 900n);
-    const prompts = reviewUi();
-    await runRelayrReviewed(
-      [CALL, RAW],
-      { account: ACCOUNT, scope: "raw" },
-      deps,
-    );
-    expect(prompts).toHaveLength(1);
-    expect(prompts[0].model.calls).toHaveLength(1);
-    expect(prompts[0].model.calls[0]).toMatchObject({
-      to: OTHER,
-      label: "Sent by Relayr",
-    });
-    expect(prompts[0].model.signatures).toHaveLength(1);
-    expect(signTypedData).toHaveBeenCalledTimes(1);
-    const posted = relayr.posts[relayr.posts.length - 1].entries;
-    expect(relayrForwardRequest(posted[0])?.to).toBe(TERMINAL);
-    expect(posted[1]).toMatchObject({
-      chain: 8453,
-      target: OTHER,
-      data: "0x12345678",
-      value: "0",
-    });
-  });
-
-  it("refuses a raw call that carries ETH before anything is asked", async () => {
-    const { deps } = relayrSetup();
-    const relayr = fakeRelayr(() => 900n);
-    const prompts = reviewUi();
-    await expect(
-      runRelayrReviewed(
-        [{ ...RAW, value: 1n }],
-        { account: ACCOUNT, scope: "raw" },
-        deps,
-      ),
-    ).rejects.toThrow("can't carry ETH");
-    expect(prompts).toHaveLength(0);
-    expect(relayr.posts).toHaveLength(0);
-  });
-
-  it("refuses a raw call changed after review, posting and paying nothing", async () => {
-    const { deps, wallet } = relayrSetup();
-    const relayr = fakeRelayr(() => 900n);
-    const raw = { ...RAW };
-    reviewUi(async (prompt) => {
-      raw.data = "0x87654321";
-      return prompt.confirmation;
-    });
-    await expect(
-      runRelayrReviewed([raw], { account: ACCOUNT, scope: "raw" }, deps),
-    ).rejects.toThrow("Transaction data changed after review");
-    // Only the review's own stand-in quote was posted.
-    expect(relayr.posts).toHaveLength(1);
-    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
-  });
-
-  it("under a plan, spends the planned calls without asking and reviews only the fee", async () => {
-    const { deps, wallet } = relayrSetup();
-    fakeRelayr(() => 900n);
-    const prompts = reviewUi();
-    const plan = await reviewPlan(
-      {
-        account: ACCOUNT,
-        calls: [
-          {
-            chainId: CALL.chainId,
-            to: CALL.target,
-            data: CALL.data,
-            gas: CALL.gas,
-          },
-          {
-            chainId: RAW.chainId,
-            to: RAW.target,
-            data: RAW.data,
-            from: "relayr",
-          },
-        ],
-      },
-      deps,
-    );
-    expect(prompts).toHaveLength(1);
-    expect(prompts[0].model.calls[1].label).toBe("Sent by Relayr");
-    // A forward request signing more gas than reviewed is refused.
-    await expect(
-      runRelayrReviewed(
-        [{ ...CALL, gas: 900_000n }, RAW],
-        { account: ACCOUNT, scope: "planned", plan },
-        deps,
-      ),
-    ).rejects.toThrow(REVIEWED_PLAN_REFUSED_LINE);
-    await runRelayrReviewed(
-      [CALL, RAW],
-      { account: ACCOUNT, scope: "planned", plan },
-      deps,
-    );
-    expect(prompts).toHaveLength(2);
-    expect(prompts[1].model.calls[0].functionName).toBe("prepayment");
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
-    await expect(
-      runRelayrReviewed(
-        [CALL],
-        { account: ACCOUNT, scope: "again", plan },
-        deps,
-      ),
-    ).rejects.toThrow(REVIEWED_PLAN_REFUSED_LINE);
-  });
-});
-
 describe("a plan's Relayr rounds", () => {
-  const RAW: RelayrReviewedCall = {
-    chainId: 10,
-    target: OTHER,
-    data: "0x12345678",
-    gas: 400_000n,
-    raw: true,
-  };
-
-  /** Two rounds, each with its fee bound shown once; the raw round's real quote is `rawFee`. */
-  async function twoRounds(rawFee: bigint) {
-    const { deps, wallet } = relayrSetup();
-    let rawQuotes = 0;
-    fakeRelayr((from) => {
-      if (from === ACCOUNT) return 900n;
-      if (from === OTHER) return rawQuotes++ === 0 ? 1_000n : rawFee;
-      return 1_000n;
-    });
-    const prompts = reviewUi();
-    const plan = await reviewPlan(
-      {
-        account: ACCOUNT,
-        calls: [
-          {
-            chainId: CALL.chainId,
-            to: CALL.target,
-            data: CALL.data,
-            gas: CALL.gas,
-            relayrRound: "a",
-          },
-          {
-            chainId: RAW.chainId,
-            to: RAW.target,
-            data: RAW.data,
-            from: "relayr",
-            relayrRound: "b",
-          },
-        ],
-      },
-      deps,
-    );
-    expect(prompts[0].model.context).toEqual([
-      {
-        label: "Network fee 1",
-        value: `Up to ${formatEther(withMargin(1_000n))} ETH on OP Mainnet`,
-        strong: true,
-      },
-      {
-        label: "Network fee 2",
-        value: `Up to ${formatEther(withMargin(1_000n))} ETH on OP Mainnet`,
-        strong: true,
-      },
-    ]);
-    await runRelayrReviewed(
-      [CALL],
-      { account: ACCOUNT, scope: "round-a", plan },
-      deps,
-    );
-    await runRelayrReviewed(
-      [RAW],
-      { account: ACCOUNT, scope: "round-b", plan },
-      deps,
-    );
-    return { prompts, wallet };
-  }
-
   it("simulates a relayed call's value as Relayr's, not the signer's", async () => {
     const { deps, chain } = relayrSetup();
     fakeRelayr(() => 1_000n);
@@ -867,26 +213,6 @@ describe("a plan's Relayr rounds", () => {
       deps,
     );
     await expect(prompts[0].simulation).resolves.toEqual({ status: "passed" });
-  });
-
-  it("pays every round within its reviewed bound with one prompt in all", async () => {
-    const { prompts, wallet } = await twoRounds(900n);
-    expect(prompts).toHaveLength(1);
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
-    // Each round pays on the chain its bound was reviewed for.
-    expect(
-      wallet.adapter.sendTransaction.mock.calls.map(([tx]) => tx.chainId),
-    ).toEqual([10, 10]);
-  });
-
-  it("asks once more only for a round quoted above its bound", async () => {
-    const { prompts, wallet } = await twoRounds(2_000n);
-    expect(prompts).toHaveLength(2);
-    expect(prompts[1].model.calls[0]).toMatchObject({
-      functionName: "prepayment",
-      value: 2_000n,
-    });
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -985,6 +311,61 @@ describe("payRelayrReviewed", () => {
     expect(sent.data.slice(0, 10)).toBe(RELAYR_PAYMENT_SELECTOR);
     expect(sent.value).toBe(500n);
     expect(hash).toMatch(/^0x/);
+  });
+
+  it("keeps a refusal at the wallet request unsent, so the payment journal frees its quote", async () => {
+    const { deps, wallet } = relayrSetup();
+    reviewUi();
+    let viewAs = false;
+    const provider = vi.fn(async ({ method }: { method: string }) => {
+      if (method !== "eth_chainId") throw new Error(`Unexpected ${method}`);
+      // Inside viem's own await, after every check before the viem call.
+      viewAs = true;
+      return "0xa";
+    });
+    const real = viemWalletAdapter({
+      walletClient: async () =>
+        createWalletClient({
+          chain: { id: 10 } as never,
+          transport: custom({ request: provider }, { retryCount: 0 }),
+        }),
+      account: () => ACCOUNT,
+      chainId: () => 10,
+      isSafe: () => false,
+      switchChain: async () => undefined,
+      check: () => {
+        if (viewAs) throw new Error("You are viewing as another account.");
+      },
+    });
+    let sending = false;
+    const error = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      {
+        account: ACCOUNT,
+        onSending: async () => {
+          sending = true;
+        },
+      },
+      {
+        ...deps,
+        adapter: { ...wallet.adapter, sendTransaction: real.sendTransaction },
+      },
+    ).catch((caught: unknown) => caught);
+    expect(provider.mock.calls.map(([{ method }]) => method)).toEqual([
+      "eth_chainId",
+    ]);
+    expect(error).toBeInstanceOf(WalletNotInvokedError);
+    expect(error).toMatchObject({
+      message: "You are viewing as another account.",
+    });
+    expect(relayrPaymentAttemptOutcome(error, { sending, paid: false })).toBe(
+      "unpaid",
+    );
+    // Released: the same quote reviewed again pays.
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
   });
 
   it("pays a planned payment with no prompt, and refuses another", async () => {
@@ -1295,6 +676,151 @@ describe("payRelayrReviewed", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ["reads on a retry", 1, "resolves"],
+    ["stays unreadable past the follow's bound", Infinity, "rejects"],
+  ] as const)("a payment whose proof %s", async (_name, failures, outcome) => {
+    const { deps, chain, wallet } = relayrSetup();
+    reviewUi();
+    const read = chain.client.getTransaction.getMockImplementation()!;
+    let failed = 0;
+    chain.client.getTransaction.mockImplementation(async (args) => {
+      // The proof's read, once the hold read the payment settled.
+      if (
+        wallet.adapter.sendTransaction.mock.calls.length &&
+        new Error().stack!.includes("readTransaction") &&
+        failed < failures
+      ) {
+        failed += 1;
+        throw new Error("RPC temporarily unavailable");
+      }
+      return read(args);
+    });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      const paid = payRelayrReviewed(
+        quoteFor(),
+        10,
+        { account: ACCOUNT },
+        deps,
+      );
+      const settled = paid.then(
+        (hash) => ({ hash }),
+        (error: unknown) => ({ error }),
+      );
+      await vi.advanceTimersByTimeAsync(130_000);
+      const result = await settled;
+      if (outcome === "resolves") expect(result).toHaveProperty("hash");
+      else
+        expect((result as { error: unknown }).error).toBeInstanceOf(
+          RelayrProofUnavailableError,
+        );
+      if (outcome === "rejects") expect(failed).toBeGreaterThan(1);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ends a payment whose proof reads stall within the follow's bound, unreadable with its hash", async () => {
+    const { deps, chain, wallet } = relayrSetup();
+    reviewUi();
+    const read = chain.client.getTransaction.getMockImplementation()!;
+    chain.client.getTransaction.mockImplementation(async (args) => {
+      // Each proof read, once the hold read the payment settled, answers only after 30 s.
+      if (
+        wallet.adapter.sendTransaction.mock.calls.length &&
+        new Error().stack!.includes("readTransaction")
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 30_000));
+        throw new Error("RPC timed out");
+      }
+      return read(args);
+    });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      let outcome: unknown = "pending";
+      void payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps).then(
+        (hash) => (outcome = { hash }),
+        (error: unknown) => (outcome = error),
+      );
+      await vi.advanceTimersByTimeAsync(121_000);
+      expect(outcome).toBeInstanceOf(RelayrProofUnavailableError);
+      const hash: string =
+        await wallet.adapter.sendTransaction.mock.results[0].value;
+      expect((outcome as Error).message).toContain(hash);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ends a payment whose receipt watcher is exhausted unreadable with its hash, never as a bare read failure", async () => {
+    const { deps, chain, wallet } = relayrSetup();
+    reviewUi();
+    chain.client.waitForTransactionReceipt.mockRejectedValue(
+      new Error("watcher dropped"),
+    );
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      let outcome: unknown = "pending";
+      void payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps).then(
+        (hash) => (outcome = { hash }),
+        (error: unknown) => (outcome = error),
+      );
+      await vi.advanceTimersByTimeAsync(200_000);
+      expect(outcome).toBeInstanceOf(RelayrProofUnavailableError);
+      const hash: string =
+        await wallet.adapter.sendTransaction.mock.results[0].value;
+      expect((outcome as Error).message).toContain(hash);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ends a payment the watcher saw revert, its hold unverified, unreadable with its hash; the hold settles it later", async () => {
+    const { deps, chain, wallet } = relayrSetup();
+    reviewUi();
+    const watch =
+      chain.client.waitForTransactionReceipt.getMockImplementation()!;
+    chain.client.waitForTransactionReceipt.mockImplementation(
+      async (args) => ({ ...(await watch(args)), status: "reverted" }) as never,
+    );
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    let outcome: unknown = "pending";
+    try {
+      void payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps).then(
+        (hash) => (outcome = { hash }),
+        (error: unknown) => (outcome = error),
+      );
+      await vi.advanceTimersByTimeAsync(200_000);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(outcome).toBeInstanceOf(RelayrProofUnavailableError);
+    const hash: string =
+      await wallet.adapter.sendTransaction.mock.results[0].value;
+    expect((outcome as Error).message).toContain(hash);
+    // The node recovers: the payment ran, and its hold settles it a success.
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    const state = await openStepHold(deps.hold, ACCOUNT, false, {
+      chainId: 10,
+      to: RELAYR_PAYMENT_ADDRESS,
+      data: "0x",
+      intent: `relayr:${UUIDS[0]}`,
+    }).state(chain.client as unknown as PublicClient);
+    expect(state.status === "clear" && state.settled?.result).toBe("success");
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
   it("tells the site before the wallet opens and each hash after", async () => {
     const { deps, wallet } = relayrSetup();
     reviewUi();
@@ -1417,15 +943,9 @@ describe("payRelayrReviewed", () => {
   });
 
   it("proves the payment under the hash it was mined", async () => {
-    const { deps, chain } = relayrSetup();
+    const { deps, chain, wallet } = relayrSetup();
     reviewUi();
-    const replacement = `0x${"99".repeat(32)}` as Hex;
-    const original = chain.client.waitForTransactionReceipt;
-    chain.client.waitForTransactionReceipt = vi.fn(async ({ hash }) => {
-      const tx = chain.state.sent.get(hash)!;
-      chain.mine(replacement, tx);
-      return original({ hash: replacement });
-    }) as typeof original;
+    const { replacement } = speedUpNextSend(chain, wallet);
     const { hash } = (await payRelayrReviewed(
       quoteFor(),
       10,
@@ -1438,13 +958,7 @@ describe("payRelayrReviewed", () => {
   it("never reads a site's failure to record the mined hash as a refusal", async () => {
     const { deps, wallet, chain } = relayrSetup();
     reviewUi();
-    const replacement = `0x${"99".repeat(32)}` as Hex;
-    const original = chain.client.waitForTransactionReceipt;
-    chain.client.waitForTransactionReceipt = vi.fn(async ({ hash }) => {
-      const tx = chain.state.sent.get(hash)!;
-      chain.mine(replacement, tx);
-      return original({ hash: replacement });
-    }) as typeof original;
+    const { replacement } = speedUpNextSend(chain, wallet);
     await expect(
       payRelayrReviewed(
         quoteFor(),

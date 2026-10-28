@@ -11,6 +11,7 @@ import {
   canonicalSafeTxHash,
   lookAtSafeProposalEnd,
   provenSafeProposalEnd,
+  isSafeExecTransaction,
   readSafeTransaction,
   SAFE_PROPOSAL_AWAITING,
   safeTransactionMessage,
@@ -18,6 +19,7 @@ import {
   type SafeServiceOptions,
 } from "../safeService.js";
 import {
+  HELD_AWAY_SUCCESS_LINE,
   SAFE_PROPOSAL_EXECUTED_LINE,
   WRITE_HOLD_HASHED_EXIT_LINE,
   WRITE_HOLD_IN_TAB_LINE,
@@ -118,8 +120,19 @@ export type WriteHoldClient = Pick<
 
 /** How a held write ended, when the hold saw it end. */
 export type WriteHoldSettled =
-  /** Its verified receipt in a canonical block (a Safe failure only once final); `acknowledged` once the user saw it. */
-  | { result: "success" | "failed"; hash: Hex; acknowledged?: true }
+  /**
+   * Its verified receipt in a canonical block (a Safe failure only once
+   * final), `blockHash` that block's (none when a finalized log proved it);
+   * `safe` when it is a Safe's execution, whose failure is the Safe's own
+   * (its outer transaction may succeed); `acknowledged` once the user saw it.
+   */
+  | {
+      result: "success" | "failed";
+      hash: Hex;
+      blockHash?: Hex;
+      safe?: true;
+      acknowledged?: true;
+    }
   /** A Safe proposal's expiry before it ran is proven. */
   | { result: "expired" };
 
@@ -229,6 +242,14 @@ export class WriteHeldError extends ReviewLineError {
   readonly name = "WriteHeldError";
   constructor(readonly state: WriteHeldState) {
     super(state.line);
+  }
+}
+
+/** A run refused while the action's last success is unacknowledged; "Send it again" acknowledges `success`. */
+export class WriteHoldUnacknowledgedSuccessError extends ReviewLineError {
+  readonly name = "WriteHoldUnacknowledgedSuccessError";
+  constructor(readonly success: UnacknowledgedSuccess) {
+    super(HELD_AWAY_SUCCESS_LINE);
   }
 }
 
@@ -665,6 +686,11 @@ export function createWriteHold(
         const settled = {
           result: verdict,
           hash: receipt.transactionHash.toLowerCase() as Hex,
+          blockHash: receipt.blockHash.toLowerCase() as Hex,
+          // A Safe's execution, proposed or sent by an owner: its failure is its own.
+          ...(record.safe || isSafeExecTransaction(record.call.data)
+            ? { safe: true as const }
+            : {}),
         };
         // Saved before the hold ends, so no reader sees it clear without its
         // result: another tab, a reload, a follow timer.
@@ -1078,6 +1104,7 @@ export function createWriteHold(
           const settled = {
             result: end.execution.status,
             hash: end.execution.executionHash,
+            safe: true as const,
           };
           recovery.markSettled(record, settled);
           if (release(record)) return clear(settled, record.id);
@@ -1686,6 +1713,18 @@ export function createWriteHold(
         }, true);
         return shown(result?.value ?? peek());
       },
+      /**
+       * Claim the one `onConfirmed` notice of the settlement `settled` names,
+       * under the call's lock: true for the first completion in any tab or
+       * run; a completion that loses it stays silent.
+       */
+      async claimConfirmed(settled: { hash: Hex }): Promise<boolean> {
+        const result = await locked(
+          async () => recovery.claimConfirmedSettled(settled),
+          true,
+        );
+        return result?.value === true;
+      },
       async attachHash(
         client: WriteHoldClient,
         hash: Hex,
@@ -1919,6 +1958,16 @@ export function createWriteHold(
         }
       }
       return null;
+    }
+    /** The legacy hold that saved the settlement with this hash, if any. */
+    function legacySaving(hash: Hex) {
+      const lower = hash.toLowerCase();
+      return eligibleLegacy().find(
+        ({ state }) =>
+          state.settled !== undefined &&
+          "hash" in state.settled &&
+          state.settled.hash === lower,
+      );
     }
     /**
      * How a legacy hold this intent stood for ended, while the intent itself
@@ -2213,16 +2262,16 @@ export function createWriteHold(
       async acknowledge(
         settled: Parameters<typeof own.acknowledge>[0],
       ): Promise<WriteHoldState> {
-        const hash = settled.hash.toLowerCase();
-        const legacy = eligibleLegacy().find(
-          ({ state }) =>
-            state.settled !== undefined &&
-            "hash" in state.settled &&
-            state.settled.hash === hash,
-        );
+        const legacy = legacySaving(settled.hash);
         return legacy
           ? withLegacy(await legacy.handle.acknowledge(settled))
           : own.acknowledge(settled);
+      },
+      /** A settlement's notice is claimed where it was saved, found by its hash. */
+      claimConfirmed(settled: { hash: Hex }): Promise<boolean> {
+        return (legacySaving(settled.hash)?.handle ?? own).claimConfirmed(
+          settled,
+        );
       },
       async send<T>(
         client: WriteHoldClient,

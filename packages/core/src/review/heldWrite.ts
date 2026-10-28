@@ -1,5 +1,6 @@
 import { ReviewLineError } from "./lineError.js";
 import type { Hex, TransactionReceipt } from "viem";
+import { heldReceipt, tell } from "./receipt.js";
 import {
   hasSafeService,
   SAFE_PROPOSAL_AWAITING,
@@ -81,6 +82,11 @@ const MAX_POLL_MS = 60_000;
 /** A follower's first looks, a few seconds apart, before it slows to the poll. */
 const FAST_MS = 4_000;
 const FAST_LOOKS = 15;
+/** How long a settled step waits before its completion reads its receipt again. */
+export const RECEIPT_RETRY_MS = 4_000;
+
+/** How long a sent step still confirming is followed before it is handed back. */
+export const FOLLOW_MS = 120_000;
 /** A direct write's confirming line gives way to the wallet's pending line after this long. */
 const CONFIRMING_MS = 120_000;
 
@@ -336,11 +342,12 @@ export function createHeldWriteView(
   const undelivered = new Map<string, WriteHoldSettled>();
 
   /**
-   * Tell the app of a settlement it saw held, once, while live. Only once its
-   * callback ran is it done, and a success acknowledged: a lifecycle change
-   * before then leaves it to the next start. A view without `onSettled` (a
-   * watcher) tells no one, so it never acknowledges a success: the gate
-   * keeps it, shown as `succeeded`, until the user acts.
+   * Tell the app of a settlement it saw held, once, while live: a lifecycle
+   * change before then leaves it to the next start. The view never
+   * acknowledges a success: only the app's checked completion does, so
+   * until then every send stays gated. A view without `onSettled` (a
+   * watcher) tells no one: the gate keeps it, shown as `succeeded`, until
+   * the user acts.
    */
   function deliver(settled: WriteHoldSettled, key: string) {
     undelivered.set(key, settled);
@@ -355,23 +362,16 @@ export function createHeldWriteView(
       // A send under way never saw it: it blocks that send, acknowledged or not.
       if (settled.result === "success")
         for (const during of sending) during.add(key);
-      options.onSettled?.(settled, receipt);
+      void tell(options.onSettled, settled, receipt);
       present();
-      // Told: the hold marks it acknowledged, so no later visit asks again.
-      if (
-        shown &&
-        "hash" in settled &&
-        settled.result === "success" &&
-        !settled.acknowledged
-      )
-        void handle.acknowledge(settled).catch(() => null);
     };
     if (!options.onSettled || !("hash" in settled)) {
       done(null);
       return;
     }
-    void client.getTransactionReceipt({ hash: settled.hash }).then(
-      (receipt) => done(receipt as TransactionReceipt),
+    // The receipt the hold verified, never another block's.
+    void heldReceipt(settled, client).then(
+      (receipt) => done(receipt),
       () => done(null),
     );
   }
@@ -466,7 +466,7 @@ export function createHeldWriteView(
           settled: undefined,
           releasedBy: by,
         });
-        options.onReleased?.(by);
+        void tell(options.onReleased, by);
       } else if (view.phase === "settled" || view.phase === "released") {
         // Already shown: kept, unless the gate below has another success.
       } else
@@ -514,26 +514,24 @@ export function createHeldWriteView(
 
   /**
    * The send gate, from current evidence alone: any unacknowledged success
-   * of the intent or an eligible legacy hold, but those `exempt`, or any
-   * success delivered `during` the send. It holds whatever is shown.
+   * of the intent or an eligible legacy hold, told or not, or any success
+   * delivered `during` the send. It holds whatever is shown.
    */
-  function unacknowledged(
-    exempt: ReadonlySet<string>,
-    during: ReadonlySet<string>,
-  ) {
-    if (during.size || gate(exempt))
-      throw new ReviewLineError(HELD_AWAY_SUCCESS_LINE);
+  function unacknowledged(during: ReadonlySet<string>) {
+    if (!during.size && !handle.unacknowledgedSuccess()) return;
+    // One told that the app never completed is shown now, with its send-again.
+    told.clear();
+    present();
+    throw new ReviewLineError(HELD_AWAY_SUCCESS_LINE);
   }
 
-  /** Successes this view told the app of: their acknowledgement is under way. */
+  /** Successes this view told the app of: its completion is under way, so they aren't shown `succeeded`. */
   const told = new Set<string>();
   /** Per send under way, the successes delivered since it started. */
   const sending = new Set<Set<string>>();
   /** The gate's success, but for one this view already told the app of. */
-  function gate(exempt: ReadonlySet<string> = told) {
-    return handle.unacknowledgedSuccess((hash) =>
-      exempt.has(hash.toLowerCase()),
-    );
+  function gate() {
+    return handle.unacknowledgedSuccess((hash) => told.has(hash.toLowerCase()));
   }
 
   /**
@@ -607,7 +605,7 @@ export function createHeldWriteView(
             throw new ReviewLineError("The saved write couldn't be checked.");
           apply(state);
           if (state.status !== "clear" || state.settled)
-            options.onAdopted?.(state);
+            void tell(options.onAdopted, state);
         }
       }
       set({ adopting: false });
@@ -692,12 +690,10 @@ export function createHeldWriteView(
      * with the hold's checked state shown.
      */
     async send(run: (gate: WriteHoldGate) => Promise<Hex>): Promise<Hex> {
-      // Only a success told before this send is exempt, taken before any
-      // yield; one delivered after it starts was never seen, so it blocks.
-      const exempt = new Set(told);
+      // One delivered after it starts was never seen, so it blocks too.
       const during = new Set<string>();
       sending.add(during);
-      const guard = () => unacknowledged(exempt, during);
+      const guard = () => unacknowledged(during);
       try {
         if (!(await adopt()))
           throw new ReviewLineError(
