@@ -727,6 +727,14 @@ export const jbBuybackHookPreviousAbi = [
   {
     type: 'error',
     inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBBuybackHook_DerivedFloorNotMet',
+  },
+  {
+    type: 'error',
+    inputs: [
       { name: 'swapAmount', internalType: 'uint256', type: 'uint256' },
       { name: 'totalPaid', internalType: 'uint256', type: 'uint256' },
     ],

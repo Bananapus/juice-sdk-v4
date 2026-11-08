@@ -60,7 +60,7 @@ export const jbUniswapV4LpSplitHookDeployerAbi = [
     name: 'hookImplementation',
     outputs: [
       {
-        name: '',
+        name: 'implementation',
         internalType: 'contract JBUniswapV4LPSplitHook',
         type: 'address',
       },

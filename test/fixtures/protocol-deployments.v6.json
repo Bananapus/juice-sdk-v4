@@ -2,7 +2,7 @@
   "format": "juice-sdk-v6-deployments-2",
   "source": {
     "repository": "Bananapus/deploy-all-v6",
-    "commit": "a6ab40c5806b52ff4cb21f9eaefe275e621796f9"
+    "commit": "8ff50c28f7f4e4a8f98fdd8f680a6e2ddd2323d1"
   },
   "extensions": {
     "mejango/sticky": {
@@ -120,19 +120,19 @@
       "abiSha256": "0501cc46db03513e7b3e963052dae82f73ae2a2bc39946b602292baf072a5264"
     },
     "JBBuybackHook": {
-      "address": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91",
-      "abiSha256": "7e164bcfab57f67d50090de468d6f536e0fad66c03695ed4dc1cbecbf506161e"
+      "address": "0x80717f09461a3fb08364fe8c5259220f7d06e0af",
+      "abiSha256": "ef880b3714b8ebefd4b940ce9c301c09c2dd963f05e7e73211d5beaad68608ed"
     },
     "JBBuybackHookRegistry": {
       "address": "0x72f55a54cd53410a5ff175508a5a384227081788",
       "abiSha256": "0d36f5baa0ba8b65e51a06178b85354337fd3bc1841995307c9f17d4d229e955"
     },
     "JBRouterTerminal": {
-      "address": "0x62e2fe718ca3008a6a322deec9903286463f1add",
+      "address": "0xa0b7b55e87c781f47bda8d40f8381cb746eb0e37",
       "abiSha256": "04a30db77b9bbbf790e40df7af6d770e7e3ec224fb43496ba512e3870c0952ed"
     },
     "JBRouterTerminalGateway": {
-      "address": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901",
+      "address": "0xe2c259b2fcfd2d57ebcda9b3d2d10bdb1b2cd977",
       "abiSha256": "25b36165fc7da556bab2c7d314628c3b600052ad9626532f0c0576f9617e4f0c"
     },
     "JBRouterTerminalRegistry": {
@@ -140,16 +140,16 @@
       "abiSha256": "4a2b24484f9353821501ddd7b2e84216e8263f42a9d80f78596505155a918d7e"
     },
     "JBUniswapV4LPSplitHook": {
-      "address": "0xfcdbabd7b8de07c6e4ca7d79790e235848edc251",
-      "abiSha256": "85264c1d57b6e54b22badcedb7f9bab99386f40a36d0e7692ca1cedbc39db374"
+      "address": "0x5b54156b4a68ba5f9fa7706b913045e597e45e74",
+      "abiSha256": "a27ef2bb3fbdff20c7d5ff238d6513f079f86b93946e7867ff6cfe411164fb2d"
     },
     "JBUniswapV4LPSplitHookDeployer": {
-      "address": "0xee49b9c6938c31c223e49272bb0a3810bc39f3da",
-      "abiSha256": "e619e63a46a3092b2112718b279c1149adb0651e22e6193ca5db9f37960b8749"
+      "address": "0xad2ed0024647ccc2eda4e42dc616d6fe886ed028",
+      "abiSha256": "b3f27f465295162f7b58d753e916d4d42ef6f46b3083984857a1f323542efe90"
     },
     "JBP6FeeLPSplitHook": {
-      "address": "0xe9493bc776699714a89aa982cf828d843f040d2a",
-      "abiSha256": "85264c1d57b6e54b22badcedb7f9bab99386f40a36d0e7692ca1cedbc39db374"
+      "address": "0xef8993f50363461007bed2f54e98bbef9854148a",
+      "abiSha256": "a27ef2bb3fbdff20c7d5ff238d6513f079f86b93946e7867ff6cfe411164fb2d"
     },
     "JBOmnichainDeployer": {
       "address": "0xb853758a70a6b4216c09f1d071ea2344aba0a34f",
@@ -475,6 +475,39 @@
   "history": {
     "JBBuybackHook": {
       "previous": {
+        "abiSha256": "7e164bcfab57f67d50090de468d6f536e0fad66c03695ed4dc1cbecbf506161e",
+        "deployments": {
+          "1": {
+            "artifact": "JBBuybackHook_deprecated2",
+            "address": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91"
+          },
+          "10": {
+            "artifact": "JBBuybackHook_deprecated2",
+            "address": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91"
+          },
+          "8453": {
+            "artifact": "JBBuybackHook_deprecated2",
+            "address": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91"
+          },
+          "42161": {
+            "artifact": "JBBuybackHook_deprecated2",
+            "address": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91"
+          },
+          "84532": {
+            "artifact": "JBBuybackHook_deprecated2",
+            "address": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91"
+          },
+          "421614": {
+            "artifact": "JBBuybackHook_deprecated2",
+            "address": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91"
+          },
+          "11155111": {
+            "artifact": "JBBuybackHook_deprecated2",
+            "address": "0xb222da5a71e8fb89a5a38b7c920eab5dfbc74b91"
+          }
+        }
+      },
+      "v2": {
         "abiSha256": "5c5204b13ef6aaa41d0d177145113016f9261474239125fb380c6c53f03a41d0",
         "deployments": {
           "1": {
@@ -546,6 +579,39 @@
         "abiSha256": "04a30db77b9bbbf790e40df7af6d770e7e3ec224fb43496ba512e3870c0952ed",
         "deployments": {
           "1": {
+            "artifact": "JBRouterTerminal_deprecated2",
+            "address": "0x62e2fe718ca3008a6a322deec9903286463f1add"
+          },
+          "10": {
+            "artifact": "JBRouterTerminal_deprecated2",
+            "address": "0x62e2fe718ca3008a6a322deec9903286463f1add"
+          },
+          "8453": {
+            "artifact": "JBRouterTerminal_deprecated2",
+            "address": "0x62e2fe718ca3008a6a322deec9903286463f1add"
+          },
+          "42161": {
+            "artifact": "JBRouterTerminal_deprecated2",
+            "address": "0x62e2fe718ca3008a6a322deec9903286463f1add"
+          },
+          "84532": {
+            "artifact": "JBRouterTerminal_deprecated2",
+            "address": "0x62e2fe718ca3008a6a322deec9903286463f1add"
+          },
+          "421614": {
+            "artifact": "JBRouterTerminal_deprecated2",
+            "address": "0x62e2fe718ca3008a6a322deec9903286463f1add"
+          },
+          "11155111": {
+            "artifact": "JBRouterTerminal_deprecated2",
+            "address": "0x62e2fe718ca3008a6a322deec9903286463f1add"
+          }
+        }
+      },
+      "v2": {
+        "abiSha256": "04a30db77b9bbbf790e40df7af6d770e7e3ec224fb43496ba512e3870c0952ed",
+        "deployments": {
+          "1": {
             "artifact": "JBRouterTerminal_deprecated1",
             "address": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
           },
@@ -605,6 +671,41 @@
           "11155111": {
             "artifact": "JBRouterTerminal_deprecated",
             "address": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61"
+          }
+        }
+      }
+    },
+    "JBRouterTerminalGateway": {
+      "previous": {
+        "abiSha256": "25b36165fc7da556bab2c7d314628c3b600052ad9626532f0c0576f9617e4f0c",
+        "deployments": {
+          "1": {
+            "artifact": "JBRouterTerminalGateway_deprecated",
+            "address": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901"
+          },
+          "10": {
+            "artifact": "JBRouterTerminalGateway_deprecated",
+            "address": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901"
+          },
+          "8453": {
+            "artifact": "JBRouterTerminalGateway_deprecated",
+            "address": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901"
+          },
+          "42161": {
+            "artifact": "JBRouterTerminalGateway_deprecated",
+            "address": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901"
+          },
+          "84532": {
+            "artifact": "JBRouterTerminalGateway_deprecated",
+            "address": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901"
+          },
+          "421614": {
+            "artifact": "JBRouterTerminalGateway_deprecated",
+            "address": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901"
+          },
+          "11155111": {
+            "artifact": "JBRouterTerminalGateway_deprecated",
+            "address": "0x4a56aef5b6a5b9742abb02ca67c5a85ba183d901"
           }
         }
       }

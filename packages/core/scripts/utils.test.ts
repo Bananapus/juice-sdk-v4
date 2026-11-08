@@ -12,6 +12,7 @@ import {
   deploymentFilePath,
   getAllContractNames,
   getContractAddress,
+  generationsOf,
   getHistoricalContract,
   isMissingDeployment,
 } from "./utils.js";
@@ -81,7 +82,7 @@ describe("executed v6 deployment sources", () => {
     expect(isMissingDeployment(new SyntaxError("invalid JSON"))).toBe(false);
   });
   test("preserves the previous generation on a synthetic chain that still records it as canonical", async () => {
-    artifact("sepolia", "JBBuybackHook_deprecated1");
+    artifact("sepolia", "JBBuybackHook_deprecated2");
     artifact("ethereum", "JBBuybackHook");
     expect(
       (
@@ -94,7 +95,7 @@ describe("executed v6 deployment sources", () => {
     ).toBe(address);
   });
   test("a mismatched canonical address is not assigned to a historical generation", async () => {
-    artifact("sepolia", "JBBuybackHook_deprecated1");
+    artifact("sepolia", "JBBuybackHook_deprecated2");
     artifact("ethereum", "JBBuybackHook", {
       address: "0x2222222222222222222222222222222222222222",
       abi: [],
@@ -106,6 +107,34 @@ describe("executed v6 deployment sources", () => {
         1,
       ),
     ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+
+describe("retired generations", () => {
+  test("name deploy-all's suffixes newest first, and the gateway has only a previous one", async () => {
+    artifact("sepolia", "JBBuybackHook_deprecated2");
+    artifact("sepolia", "JBBuybackHook_deprecated1", {
+      address: "0x2222222222222222222222222222222222222222",
+    });
+    artifact("sepolia", "JBBuybackHook_deprecated", {
+      address: "0x3333333333333333333333333333333333333333",
+    });
+    const of = async (generation: "previous" | "v2" | "v1") =>
+      (
+        await getHistoricalContract(
+          JBBuybackHookContracts.JBBuybackHook,
+          generation,
+          11155111,
+        )
+      ).address;
+    expect([await of("previous"), await of("v2"), await of("v1")]).toEqual([
+      address,
+      "0x2222222222222222222222222222222222222222",
+      "0x3333333333333333333333333333333333333333",
+    ]);
+    expect(
+      generationsOf(JBRouterTerminalContracts.JBRouterTerminalGateway),
+    ).toEqual(["previous"]);
   });
 });
 
@@ -157,7 +186,7 @@ describe("rollout receipt evidence", () => {
     );
   });
   test("a retired filename cannot bypass receipt validation", async () => {
-    artifact("sepolia", "JBBuybackHook_deprecated1", {
+    artifact("sepolia", "JBBuybackHook_deprecated2", {
       receipt: { ...validReceipt, status: "0x0" },
     });
     await expect(

@@ -1,14 +1,12 @@
 import { Address, PublicClient, zeroAddress } from "viem";
 import {
-  jbV6ContractAddress,
-  jbContractAddressHistory,
   jbDirectoryAbi,
   jbMultiTerminalAbi,
   jbRouterTerminalGatewayAbi,
   jbRouterTerminalRegistryAbi,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
-import { v6Address } from "./types.js";
+import { isV6Deployment, v6Address } from "./types.js";
 
 /**
  * A payment terminal resolved for a `(projectId, token)` pair.
@@ -187,12 +185,7 @@ export async function resolveRouterPath(
     };
   }
 
-  const deployedGateway = (
-    jbV6ContractAddress.JBRouterTerminalGateway as Partial<
-      Record<JBChainId, Address>
-    >
-  )[chainId];
-  if (deployedGateway?.toLowerCase() === terminal.toLowerCase()) {
+  if (isV6Deployment(terminal, "JBRouterTerminalGateway", chainId)) {
     const router = await client.readContract({
       address: terminal,
       abi: jbRouterTerminalGatewayAbi,
@@ -208,15 +201,7 @@ export async function resolveRouterPath(
     };
   }
 
-  const routerDeployments: Partial<Record<JBChainId, Address>>[] = [
-    jbV6ContractAddress.JBRouterTerminal,
-    ...Object.values(jbContractAddressHistory["6"].JBRouterTerminal),
-  ];
-  const isKnownRouter = routerDeployments.some(
-    (addresses) => addresses[chainId]?.toLowerCase() === terminal.toLowerCase(),
-  );
-
-  if (isKnownRouter) {
+  if (isV6Deployment(terminal, "JBRouterTerminal", chainId)) {
     return {
       status: "direct",
       registry,

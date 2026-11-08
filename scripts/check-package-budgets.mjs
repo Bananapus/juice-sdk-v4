@@ -338,9 +338,9 @@ const budgets = {
     // A run's cancellation at the adapter's last check: 1,797,510 B packed,
     // 24,144,501 B unpacked.
     // One ending for a sent step: 1,798,864 B packed, 24,152,624 B unpacked.
-    packed: 1_800_000,
-    unpacked: 24_155_000,
-    entries: 1_827,
+    packed: 1_802_000,
+    unpacked: 24_390_000,
+    entries: 1_843,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
@@ -380,8 +380,8 @@ const entryBudgets = [
   // accounting contexts): 11,553 B. The quote's retry and the router's
   // quoted mint minimum: 12,018 B. Refusing a swap whose quote failed:
   // 12,543 B.
-  ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 12_700],
-  ["@bananapus/nana-sdk-core/v6/fee-buyback", "feeBuybackOptions", 3_300],
+  ["@bananapus/nana-sdk-core/v6", "prepareUserPay", 13_250],
+  ["@bananapus/nana-sdk-core/v6/fee-buyback", "feeBuybackOptions", 3_350],
   // With every version's address table: 10,488 B. With the v6 table only:
   // 5,002 B.
   ["@bananapus/nana-sdk-core", "resolveSuckers", 5_250],

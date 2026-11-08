@@ -19,7 +19,7 @@ import { JBChainId } from "../types.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { slippageFloor } from "./cashOut.js";
 import { getAccountingContexts } from "./terminals.js";
-import { v6Address } from "./types.js";
+import { isV6Deployment, v6Address } from "./types.js";
 import { quoteUniswapV3ExactInputSingle } from "./uniswapV3.js";
 import {
   quoteUniswapV4ExactInputSingle,
@@ -376,8 +376,11 @@ async function readPay(
   };
 }
 
+/** Buyback generations whose pay specs this SDK reads; v1 is decode-only. */
+const QUOTABLE_BUYBACKS = ["current", "previous", "v2"] as const;
+
 /**
- * The buyback hook 1.4 when the ruleset's pay data hook is that hook itself, or
+ * A known buyback hook when the ruleset's pay data hook is that hook itself, or
  * the omnichain deployer forwarding to it, rather than the registry. The hook
  * then reads only metadata keyed to its own address.
  */
@@ -412,27 +415,27 @@ async function directBuybackHookOf(
   ruleset: { id: number | bigint; metadata: bigint },
 ): Promise<Address | null> {
   if (((ruleset.metadata >> 80n) & 1n) === 0n) return null;
-  let buyback: Address, omnichain: Address;
+  let omnichain: Address;
   try {
-    buyback = v6Address("JBBuybackHook", chainId);
     omnichain = v6Address("JBOmnichainDeployer", chainId);
   } catch {
     return null;
   }
-  const is = (a: Address, b: Address) => a.toLowerCase() === b.toLowerCase();
+  const isBuyback = (a: Address) =>
+    isV6Deployment(a, "JBBuybackHook", chainId, QUOTABLE_BUYBACKS);
   const dataHook = getAddress(
     `0x${(ruleset.metadata >> 82n).toString(16).padStart(40, "0").slice(-40)}`,
   );
-  if (is(dataHook, buyback)) return buyback;
-  if (!is(dataHook, omnichain)) return null;
+  if (isBuyback(dataHook)) return dataHook;
+  if (dataHook.toLowerCase() !== omnichain.toLowerCase()) return null;
   const extra = await client.readContract({
     address: omnichain,
     abi: extraDataHookOfAbi,
     functionName: "extraDataHookOf",
     args: [projectId, BigInt(ruleset.id)],
   });
-  return extra.useDataHookForPay && is(extra.dataHook, buyback)
-    ? buyback
+  return extra.useDataHookForPay && isBuyback(extra.dataHook)
+    ? extra.dataHook
     : null;
 }
 
@@ -743,45 +746,34 @@ const v3PoolFeeAbi = [
 ] as const;
 
 /**
- * Whether a payment to `terminal` reaches the current router: directly,
- * through the gateway, or through the registry's terminal for the project
- * (which may be the gateway). The conversion reads quote that router.
+ * The router a payment to `terminal` reaches, of any known generation:
+ * directly, through a gateway, or through the registry's terminal for the
+ * project (which may be a gateway). Null when it reaches no known router. The
+ * conversion reads quote that router.
  */
-async function reachesRouter(
+async function reachedRouter(
   client: PublicClient,
   chainId: JBChainId,
   projectId: bigint,
   terminal: Address,
-): Promise<boolean> {
-  const addressOf = (name: Parameters<typeof v6Address>[0]) => {
-    try {
-      return v6Address(name, chainId).toLowerCase();
-    } catch {
-      return null;
-    }
-  };
-  let reached = terminal.toLowerCase();
-  if (reached === addressOf("JBRouterTerminalRegistry")) {
-    reached = (
-      await client.readContract({
-        address: terminal,
-        abi: routerConversionAbi,
-        functionName: "terminalOf",
-        args: [projectId],
-      })
-    ).toLowerCase();
+): Promise<Address | null> {
+  let reached = terminal;
+  if (isV6Deployment(reached, "JBRouterTerminalRegistry", chainId)) {
+    reached = await client.readContract({
+      address: terminal,
+      abi: routerConversionAbi,
+      functionName: "terminalOf",
+      args: [projectId],
+    });
   }
-  if (reached === addressOf("JBRouterTerminalGateway")) {
-    reached = (
-      await client.readContract({
-        address: reached as Address,
-        abi: routerConversionAbi,
-        functionName: "ROUTER",
-      })
-    ).toLowerCase();
+  if (isV6Deployment(reached, "JBRouterTerminalGateway", chainId)) {
+    reached = await client.readContract({
+      address: reached,
+      abi: routerConversionAbi,
+      functionName: "ROUTER",
+    });
   }
-  const router = addressOf("JBRouterTerminal");
-  return router !== null && reached === router;
+  return isV6Deployment(reached, "JBRouterTerminal", chainId) ? reached : null;
 }
 
 /**
@@ -794,17 +786,18 @@ async function routerConversionOf(
   client: PublicClient,
   {
     chainId,
+    router,
     tokenIn,
     tokenOut,
     amount,
   }: {
     chainId: JBChainId;
+    router: Address;
     tokenIn: Address;
     tokenOut: Address;
     amount: bigint;
   },
 ): Promise<{ expected: bigint; floor: bigint } | null> {
-  const router = v6Address("JBRouterTerminal", chainId);
   const [sourceProjectId, wrapped] = await Promise.all([
     client.readContract({
       address: v6Address("JBTokens", chainId),
@@ -887,6 +880,7 @@ async function quotedRoutePreviewOf(
   client: PublicClient,
   {
     chainId,
+    router,
     projectId,
     tokenIn,
     tokenOut,
@@ -895,6 +889,8 @@ async function quotedRoutePreviewOf(
     metadata,
   }: {
     chainId: JBChainId;
+    /** The router the payment reaches, which quotes the conversion. */
+    router: Address;
     projectId: bigint;
     tokenIn: Address;
     tokenOut: Address;
@@ -905,6 +901,7 @@ async function quotedRoutePreviewOf(
 ) {
   const conversion = await routerConversionOf(client, {
     chainId,
+    router,
     tokenIn,
     tokenOut,
     amount,
@@ -918,7 +915,7 @@ async function quotedRoutePreviewOf(
   });
   const [, beneficiaryTokenCount, reservedTokenCount, specs] =
     await client.readContract({
-      address: v6Address("JBRouterTerminal", chainId),
+      address: router,
       abi: routerConversionAbi,
       functionName: "previewTerminalPayOf",
       args: [
@@ -1157,7 +1154,7 @@ export async function prepareUserPay(
     // ponytail: one accepted token only; multi-token projects need the
     // router's route pick exposed.
     return withRetry(async () => {
-      const [terminals, contexts, viaRouter] = await Promise.all([
+      const [terminals, contexts, router] = await Promise.all([
         client.readContract({
           address: v6Address("JBDirectory", chainId),
           abi: routerConversionAbi,
@@ -1165,11 +1162,11 @@ export async function prepareUserPay(
           args: [projectId],
         }),
         getAccountingContexts(client, { chainId, projectId }),
-        reachesRouter(client, chainId, projectId, args.terminal),
+        reachedRouter(client, chainId, projectId, args.terminal),
       ]);
       const tokenOut = contexts.length === 1 ? contexts[0].token : null;
       if (
-        !viaRouter ||
+        !router ||
         !tokenOut ||
         terminals.length !== 1 ||
         terminals[0].toLowerCase() !==
@@ -1179,6 +1176,7 @@ export async function prepareUserPay(
       }
       const routed = await quotedRoutePreviewOf(client, {
         chainId,
+        router,
         projectId,
         tokenIn: token,
         tokenOut,
@@ -1215,8 +1213,17 @@ export async function prepareUserPay(
       // conversion mint while the pool pays more, so quote what the hook
       // receives when the conversion returns its quote. A conversion well
       // below its quote then fails with a reason.
+      // A terminal that reaches no router we know gets no quote: another router's would not bind it.
+      const router = await reachedRouter(
+        watched,
+        chainId,
+        projectId,
+        args.terminal,
+      );
+      if (!router) return mintPath();
       const routed = await routedBuybackSpecOf(watched, {
         chainId,
+        router,
         projectId,
         tokenIn: token,
         tokenOut: pool.terminalToken,

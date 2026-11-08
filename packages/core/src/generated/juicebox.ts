@@ -125,6 +125,12 @@ export { jbBuybackHookRegistryV5Abi } from './abi/jbBuybackHookRegistryV5Abi.js'
 export { jbBuybackHookV1Abi } from './abi/jbBuybackHookV1Abi.js'
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBBuybackHookV2
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export { jbBuybackHookV2Abi } from './abi/jbBuybackHookV2Abi.js'
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBBuybackHookV4
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -383,6 +389,12 @@ export { jbRouterTerminalAbi } from './abi/jbRouterTerminalAbi.js'
 export { jbRouterTerminalGatewayAbi } from './abi/jbRouterTerminalGatewayAbi.js'
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBRouterTerminalGatewayPrevious
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export { jbRouterTerminalGatewayAbi as jbRouterTerminalGatewayPreviousAbi } from './abi/jbRouterTerminalGatewayAbi.js'
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBRouterTerminalPrevious
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -399,6 +411,12 @@ export { jbRouterTerminalRegistryAbi } from './abi/jbRouterTerminalRegistryAbi.j
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export { jbRouterTerminalAbi as jbRouterTerminalV1Abi } from './abi/jbRouterTerminalAbi.js'
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JBRouterTerminalV2
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export { jbRouterTerminalAbi as jbRouterTerminalV2Abi } from './abi/jbRouterTerminalAbi.js'
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JBRulesets
@@ -700,51 +718,7 @@ export { jbV6ContractAddress } from './addresses/jbV6ContractAddress.js'
   }
 } as const;
 
-  /** Historical v6 deployments retained for activity decoding and projects that have not migrated. */
-  export const jbContractAddressHistory = {
-  "6": {
-    "JBBuybackHook": {
-      "previous": {
-        "1": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-        "10": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-        "8453": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-        "42161": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-        "84532": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-        "421614": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948",
-        "11155111": "0x77bee1ad2ac0ace98a9b5b58d75685c8b4d94948"
-      },
-      "v1": {
-        "1": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
-        "10": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
-        "8453": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
-        "42161": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
-        "84532": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
-        "421614": "0xc7c8334b09e43a38c20b43cf0f824e074280b566",
-        "11155111": "0xc7c8334b09e43a38c20b43cf0f824e074280b566"
-      }
-    },
-    "JBRouterTerminal": {
-      "previous": {
-        "1": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-        "10": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-        "8453": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-        "42161": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-        "84532": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-        "421614": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7",
-        "11155111": "0x0fbcbb3d10c8f524840d74ef81c1a9f161c418d7"
-      },
-      "v1": {
-        "1": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
-        "10": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
-        "8453": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
-        "42161": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
-        "84532": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
-        "421614": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61",
-        "11155111": "0x90689f415c80d2bc0f690a08e9e2b8c9dbfbdf61"
-      }
-    }
-  }
-} as const;
+  export { jbContractAddressHistory } from './addresses/jbContractAddressHistory.js'
 
   /** ABI generation for each canonical v6 deployment during the phased rollout. */
   export const jbContractAbiGeneration = {
@@ -759,6 +733,15 @@ export { jbV6ContractAddress } from './addresses/jbV6ContractAddress.js'
       "11155111": "current"
     },
     "JBRouterTerminal": {
+      "1": "current",
+      "10": "current",
+      "8453": "current",
+      "42161": "current",
+      "84532": "current",
+      "421614": "current",
+      "11155111": "current"
+    },
+    "JBRouterTerminalGateway": {
       "1": "current",
       "10": "current",
       "8453": "current",

@@ -28,7 +28,7 @@ import {
   resolveCashOutRoute,
   slippageFloor,
 } from "./cashOut.js";
-import { v6Address } from "./types.js";
+import { v6Address, v6Deployments } from "./types.js";
 import { hookMetadataId } from "../utils/hook.js";
 
 const chainId = 11155111;
@@ -838,21 +838,26 @@ describe("hook-aware cash-out routing", () => {
     expect(previousRoute.route).toEqual("amm");
     expect(previousRoute.buyback?.hook).toEqual(previous);
 
-    // Any other hook's spec stays on the treasury path with a real minimum.
-    const treasuryRoute = await getHookAwareCashOutQuote(
-      clientFor("0x9999999999999999999999999999999999999999"),
-      {
+    const quote = (hook: string) =>
+      getHookAwareCashOutQuote(clientFor(hook), {
         chainId,
         projectId,
         holder,
         cashOutCount: ONE_ETHER,
         tokenToReclaim: NATIVE_TOKEN,
-      },
-    );
-    expect(treasuryRoute.route).toEqual("treasury");
-    expect(treasuryRoute.terminalMinimum).toEqual(965n);
-    expect(treasuryRoute.metadata).toEqual("0x");
-    expect(treasuryRoute.buyback).toBeNull();
+      });
+    const [v2] = v6Deployments("JBBuybackHook", chainId, ["v2"]);
+    expect((await quote(v2)).buyback?.hook).toEqual(v2);
+
+    // Any other hook's spec, v1's included, stays on the treasury path with a real minimum.
+    const [v1] = v6Deployments("JBBuybackHook", chainId, ["v1"]);
+    for (const other of [v1, "0x9999999999999999999999999999999999999999"]) {
+      const treasuryRoute = await quote(other);
+      expect(treasuryRoute.route).toEqual("treasury");
+      expect(treasuryRoute.terminalMinimum).toEqual(965n);
+      expect(treasuryRoute.metadata).toEqual("0x");
+      expect(treasuryRoute.buyback).toBeNull();
+    }
   });
 
   test("prepareHookAwareCashOut locks the pool route and builds its transaction", async () => {

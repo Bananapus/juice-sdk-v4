@@ -37,17 +37,37 @@ export function isMissingDeployment(error: unknown) {
   );
 }
 
-export const V6_HISTORY = {
-  JBBuybackHook: { previous: "_deprecated1", v1: "_deprecated" },
-  JBRouterTerminal: { previous: "_deprecated1", v1: "_deprecated" },
-} as const;
+// Retired v6 generations, newest first. `previous` is the one before current;
+// deploy-all names them by suffix in deployment order.
+export const V6_HISTORY: Partial<
+  Record<Contract, Partial<Record<Generation, string>>>
+> = {
+  JBBuybackHook: {
+    previous: "_deprecated2",
+    v2: "_deprecated1",
+    v1: "_deprecated",
+  },
+  JBRouterTerminal: {
+    previous: "_deprecated2",
+    v2: "_deprecated1",
+    v1: "_deprecated",
+  },
+  JBRouterTerminalGateway: { previous: "_deprecated" },
+};
+
+export type Generation = "previous" | "v2" | "v1";
+
+/** The generations `contract` has, newest first. */
+export function generationsOf(contract: Contract): Generation[] {
+  return Object.keys(V6_HISTORY[contract] ?? {}) as Generation[];
+}
 
 export async function getHistoricalContract(
   contract: Contract,
-  generation: "previous" | "v1",
+  generation: Generation,
   chainId: JBChainId,
 ) {
-  const suffix = V6_HISTORY[contract as keyof typeof V6_HISTORY]?.[generation];
+  const suffix = V6_HISTORY[contract]?.[generation];
   if (!suffix) throw new Error(`No historical generations for ${contract}`);
   try {
     return await getContract(contract, 6, chainId, suffix);
@@ -144,7 +164,7 @@ export async function getContractsList() {
   }
 
   for (const name of Object.keys(V6_HISTORY) as Contract[]) {
-    for (const generation of ["previous", "v1"] as const) {
+    for (const generation of generationsOf(name)) {
       for (const chainId of Object.keys(SUPPORTED_CHAINS).map(
         Number,
       ) as JBChainId[]) {
@@ -156,7 +176,7 @@ export async function getContractsList() {
           );
           allContracts.push({
             ...contract,
-            name: `${name}${generation === "previous" ? "Previous" : "V1"}`,
+            name: `${name}${generation === "previous" ? "Previous" : generation.toUpperCase()}`,
           });
           break;
         } catch (error) {
