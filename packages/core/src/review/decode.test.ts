@@ -108,7 +108,9 @@ const PROJECTS = v6.JBProjects[BASE];
 const DIRECTORY = v6.JBDirectory[BASE];
 const BUYBACK_HOOK = v6.JBBuybackHook[BASE];
 const PREVIOUS_HOOK = history.JBBuybackHook.previous[BASE];
+const V2_HOOK = history.JBBuybackHook.v2[BASE];
 const V1_HOOK = history.JBBuybackHook.v1[BASE];
+const PREVIOUS_GATEWAY = history.JBRouterTerminalGateway.previous[BASE];
 const PREVIOUS_ROUTER = history.JBRouterTerminal.previous[BASE];
 const TERMINAL_STORE = v6.JBTerminalStore[BASE];
 const USDC = USDC_ADDRESSES[BASE];
@@ -134,7 +136,13 @@ describe("known addresses", () => {
     expect(knownAddressName(BASE, PREVIOUS_ROUTER)).toBe(
       "JBRouterTerminal (previous)",
     );
-    expect(knownAddressName(BASE, GATEWAY)).toBe("JBRouterTerminalGateway");
+    expect(knownAddressName(BASE, V2_HOOK)).toBe("JBBuybackHook (v2)");
+    expect(knownAddressName(BASE, GATEWAY)).toBe(
+      "JBRouterTerminalGateway (current)",
+    );
+    expect(knownAddressName(BASE, PREVIOUS_GATEWAY)).toBe(
+      "JBRouterTerminalGateway (previous)",
+    );
     expect(knownAddressName(BASE, USDC)).toBe("USDC");
     expect(
       knownAddressName(BASE, UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES[BASE]),
@@ -1355,7 +1363,7 @@ describe("Safe inner call decoding", () => {
     expect(
       describeSafeInnerCall(BASE, GATEWAY, pay(jbRouterTerminalGatewayAbi))![0]
         .title,
-    ).toBe("Queued call — JBRouterTerminalGateway.pay(…)");
+    ).toBe("Queued call — JBRouterTerminalGateway (current).pay(…)");
     expect(
       describeSafeInnerCall(BASE, TERMINAL, pay(jbMultiTerminalAbi))![0].title,
     ).toBe("Queued call — JBMultiTerminal.pay(…)");

@@ -7,14 +7,13 @@ import {
 } from "viem";
 import {
   jbMultiTerminalAbi,
-  jbContractAddressHistory,
   jbTerminalStoreAbi,
 } from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { NATIVE_TOKEN_CURRENCY_ID } from "./currency.js";
 import { matchKnownRevert } from "./executionErrors.js";
-import { v6Address } from "./types.js";
+import { v6Address, v6Deployments } from "./types.js";
 import {
   buildUniswapV4ExactInputSwapTx,
   quoteUniswapV4ExactInputSingle,
@@ -1132,32 +1131,17 @@ function knownBuybackHook(
   chainId: JBChainId,
   preview: CashOutPreviewSnapshot,
 ): Address | undefined {
-  const canonical = optionalV6Address("JBBuybackHook", chainId);
-  const previous = (
-    jbContractAddressHistory["6"].JBBuybackHook.previous as Partial<
-      Record<JBChainId, Address>
-    >
-  )[chainId];
-  // Preserve the previously supported 1.1.1 route after the canonical rollout.
-  // V1 remains available for historical decoding, outside this quote parser.
-  const known = [canonical, previous].filter(
-    (address): address is Address => !!address,
-  );
+  // Projects move to a new buyback generation one by one, so every quotable
+  // one stays known. V1 remains available for historical decoding, outside
+  // this quote parser.
+  const known = v6Deployments("JBBuybackHook", chainId, [
+    "current",
+    "previous",
+    "v2",
+  ]);
   return preview.hookSpecifications.find((specification) =>
     known.some(
       (address) => address.toLowerCase() === specification.hook.toLowerCase(),
     ),
   )?.hook;
-}
-
-/** Like v6Address, but undefined when the chain has no deployment. */
-function optionalV6Address(
-  contract: Parameters<typeof v6Address>[0],
-  chainId: JBChainId,
-): Address | undefined {
-  try {
-    return v6Address(contract, chainId);
-  } catch {
-    return undefined;
-  }
 }

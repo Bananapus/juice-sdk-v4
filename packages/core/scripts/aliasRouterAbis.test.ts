@@ -29,6 +29,23 @@ describe("historical router ABI aliases", () => {
     expect(aliasRouterAbis(output)).toBe(output);
   });
 
+  it("aliases the V2 router and the previous gateway to their own canonical ABI", () => {
+    const gatewayAbi = abi.replace("Example", "Gateway");
+    const output = aliasRouterAbis(
+      [
+        declaration("jbRouterTerminalAbi"),
+        declaration("jbRouterTerminalV2Abi"),
+        declaration("jbRouterTerminalGatewayAbi", gatewayAbi),
+        declaration("jbRouterTerminalGatewayPreviousAbi", gatewayAbi),
+      ].join("\n\n"),
+    );
+
+    expect(output).toContain(alias("jbRouterTerminalV2Abi"));
+    expect(output).toContain(
+      "export { jbRouterTerminalGatewayAbi as jbRouterTerminalGatewayPreviousAbi }",
+    );
+  });
+
   it.each([
     ["indexed: true", "indexed: false"],
     ["type: 'address'", "type: 'uint256'"],

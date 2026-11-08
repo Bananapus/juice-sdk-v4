@@ -13,7 +13,7 @@ import {
 import { describe, expect, test } from "vitest";
 import type { Address, Hex } from "viem";
 import { NATIVE_TOKEN } from "../constants.js";
-import { v6Address } from "./types.js";
+import { v6Address, v6Deployments } from "./types.js";
 import { UNISWAP_V3_QUOTER_V2_ADDRESSES } from "./uniswapV3.js";
 import { hookMetadataId } from "../utils/hook.js";
 import { uniswapV4PoolId, type UniswapV4PoolKey } from "./uniswapV4.js";
@@ -1220,6 +1220,29 @@ describe("prepareUserPay", () => {
           ]);
         },
       );
+
+      test("quotes the previous router a project's previous gateway reaches", async () => {
+        const [previousGateway, previousRouter] = ["previous", "previous"].map(
+          (generation, i) =>
+            v6Deployments(
+              i ? "JBRouterTerminal" : "JBRouterTerminalGateway",
+              8453,
+              [generation as "previous"],
+            )[0],
+        );
+        const { client, calls } = mockClient({
+          ...minting,
+          registryTerminal: previousGateway,
+          gatewayRouter: previousRouter,
+        });
+        const prepared = await prepareUserPay(client, routerArgs);
+        expect(prepared.minReturnedTokens).toBe(792n);
+        expect(
+          calls
+            .filter((c) => c.functionName === "previewTerminalPayOf")
+            .map((c) => c.address),
+        ).toEqual([previousRouter]);
+      });
 
       test.each([
         [

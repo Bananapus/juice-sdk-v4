@@ -104,6 +104,19 @@ export const jbUniswapV4LpSplitHookAbi = [
   {
     type: 'function',
     inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'accumulatedProjectCredits',
+    outputs: [
+      {
+        name: 'accumulatedProjectCredits',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'accumulatedProjectTokens',
     outputs: [
       {
@@ -120,8 +133,8 @@ export const jbUniswapV4LpSplitHookAbi = [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'terminalToken', internalType: 'address', type: 'address' },
     ],
-    name: 'activeTickLowerOf',
-    outputs: [{ name: 'tickLower', internalType: 'int24', type: 'int24' }],
+    name: 'accumulatedTerminalTokens',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -129,19 +142,39 @@ export const jbUniswapV4LpSplitHookAbi = [
     inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'terminalToken', internalType: 'address', type: 'address' },
-    ],
-    name: 'activeTickUpperOf',
-    outputs: [{ name: 'tickUpper', internalType: 'int24', type: 'int24' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      { name: 'terminalToken', internalType: 'address', type: 'address' },
-      { name: 'minCashOutReturn', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'addLiquidity',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'askTokenIdOf',
+    outputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'bidTokenIdOf',
+    outputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'projectToken', internalType: 'address', type: 'address' },
+      { name: 'count', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'burnFeeRemainder',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -205,11 +238,24 @@ export const jbUniswapV4LpSplitHookAbi = [
   },
   {
     type: 'function',
-    inputs: [
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      { name: 'minCashOutReturn', internalType: 'uint256', type: 'uint256' },
-    ],
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
     name: 'deployPool',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'deployedTerminalTokenOf',
+    outputs: [
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'projectId', internalType: 'uint256', type: 'uint256' }],
+    name: 'executeAutomationFor',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -393,31 +439,28 @@ export const jbUniswapV4LpSplitHookAbi = [
   {
     type: 'function',
     inputs: [
+      { name: 'terminal', internalType: 'address', type: 'address' },
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      { name: 'terminalToken', internalType: 'address', type: 'address' },
-      { name: 'decreaseAmount0Min', internalType: 'uint256', type: 'uint256' },
-      { name: 'decreaseAmount1Min', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'shouldPay', internalType: 'bool', type: 'bool' },
     ],
-    name: 'rebalanceLiquidity',
-    outputs: [],
+    name: 'sendToTerminal',
+    outputs: [
+      {
+        name: 'beneficiaryTokenCount',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
     stateMutability: 'nonpayable',
   },
   {
     type: 'function',
     inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
     name: 'supportsInterface',
-    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    outputs: [{ name: 'supported', internalType: 'bool', type: 'bool' }],
     stateMutability: 'pure',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
-      { name: 'terminalToken', internalType: 'address', type: 'address' },
-    ],
-    name: 'tokenIdOf',
-    outputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -461,7 +504,7 @@ export const jbUniswapV4LpSplitHookAbi = [
         indexed: true,
       },
       {
-        name: 'terminalToken',
+        name: 'token',
         internalType: 'address',
         type: 'address',
         indexed: true,
@@ -516,15 +559,15 @@ export const jbUniswapV4LpSplitHookAbi = [
         indexed: true,
       },
       {
-        name: 'tokenId',
+        name: 'askTokenId',
         internalType: 'uint256',
         type: 'uint256',
-        indexed: true,
+        indexed: false,
       },
       {
-        name: 'isNewPosition',
-        internalType: 'bool',
-        type: 'bool',
+        name: 'bidTokenId',
+        internalType: 'uint256',
+        type: 'uint256',
         indexed: false,
       },
       {
@@ -535,6 +578,62 @@ export const jbUniswapV4LpSplitHookAbi = [
       },
     ],
     name: 'LiquidityAdded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'reasonSelector',
+        internalType: 'bytes4',
+        type: 'bytes4',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'LiquidityAutomationFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'projectId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'terminalToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'PayoutAccepted',
   },
   {
     type: 'event',
@@ -569,27 +668,6 @@ export const jbUniswapV4LpSplitHookAbi = [
   },
   {
     type: 'error',
-    inputs: [{ name: 'dataLength', internalType: 'uint256', type: 'uint256' }],
-    name: 'JBMetadataResolver_DataNotPadded',
-  },
-  {
-    type: 'error',
-    inputs: [
-      { name: 'offset', internalType: 'uint256', type: 'uint256' },
-      { name: 'maxOffset', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'JBMetadataResolver_MetadataTooLong',
-  },
-  {
-    type: 'error',
-    inputs: [
-      { name: 'metadataLength', internalType: 'uint256', type: 'uint256' },
-      { name: 'minMetadataLength', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'JBMetadataResolver_MetadataTooShort',
-  },
-  {
-    type: 'error',
     inputs: [
       { name: 'account', internalType: 'address', type: 'address' },
       { name: 'sender', internalType: 'address', type: 'address' },
@@ -605,12 +683,33 @@ export const jbUniswapV4LpSplitHookAbi = [
   },
   {
     type: 'error',
+    inputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBUniswapV4LPSplitHook_AmountExceedsUint128',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalToken', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_EmptyCorridor',
+  },
+  {
+    type: 'error',
     inputs: [
       { name: 'existingPrice', internalType: 'uint160', type: 'uint160' },
       { name: 'lowerBound', internalType: 'uint160', type: 'uint160' },
       { name: 'upperBound', internalType: 'uint160', type: 'uint160' },
     ],
     name: 'JBUniswapV4LPSplitHook_ExistingPoolPriceOutOfBounds',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
+      { name: 'count', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_FeeBurnNotExact',
   },
   {
     type: 'error',
@@ -627,11 +726,6 @@ export const jbUniswapV4LpSplitHookAbi = [
       { name: 'required', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'JBUniswapV4LPSplitHook_InsufficientBalance',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'liquidity', internalType: 'uint128', type: 'uint128' }],
-    name: 'JBUniswapV4LPSplitHook_InsufficientLiquidity',
   },
   {
     type: 'error',
@@ -653,6 +747,14 @@ export const jbUniswapV4LpSplitHookAbi = [
   {
     type: 'error',
     inputs: [
+      { name: 'groupId', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_InvalidSplitGroup',
+  },
+  {
+    type: 'error',
+    inputs: [
       { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'terminalToken', internalType: 'address', type: 'address' },
       { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
@@ -666,6 +768,16 @@ export const jbUniswapV4LpSplitHookAbi = [
       { name: 'terminalToken', internalType: 'address', type: 'address' },
     ],
     name: 'JBUniswapV4LPSplitHook_InvalidTerminalToken',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'spotTick', internalType: 'int24', type: 'int24' },
+      { name: 'ceilingTick', internalType: 'int24', type: 'int24' },
+      { name: 'projectAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'terminalAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'JBUniswapV4LPSplitHook_NoDeployableLiquidityAtSpot',
   },
   {
     type: 'error',
@@ -736,18 +848,10 @@ export const jbUniswapV4LpSplitHookAbi = [
   {
     type: 'error',
     inputs: [
-      { name: 'projectId', internalType: 'uint256', type: 'uint256' },
       { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
     ],
-    name: 'JBUniswapV4LPSplitHook_TerminalNotFound',
-  },
-  {
-    type: 'error',
-    inputs: [
-      { name: 'groupId', internalType: 'uint256', type: 'uint256' },
-      { name: 'requiredGroupId', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'JBUniswapV4LPSplitHook_TerminalTokensNotAllowed',
+    name: 'JBUniswapV4LPSplitHook_TransferNotExact',
   },
   {
     type: 'error',
@@ -757,6 +861,7 @@ export const jbUniswapV4LpSplitHookAbi = [
     ],
     name: 'JBUniswapV4LPSplitHook_TwapUnavailable',
   },
+  { type: 'error', inputs: [], name: 'JBUniswapV4LPSplitHook_Unauthorized' },
   {
     type: 'error',
     inputs: [
@@ -767,21 +872,10 @@ export const jbUniswapV4LpSplitHookAbi = [
   },
   {
     type: 'error',
-    inputs: [
-      { name: 'amount0', internalType: 'uint256', type: 'uint256' },
-      { name: 'amount1', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'JBUniswapV4LPSplitHook_ZeroLiquidity',
+    inputs: [{ name: 'value', internalType: 'uint256', type: 'uint256' }],
+    name: 'JBUniswapV4LPSplitHook_UnexpectedMsgValue',
   },
-  {
-    type: 'error',
-    inputs: [
-      { name: 'x', internalType: 'uint256', type: 'uint256' },
-      { name: 'y', internalType: 'uint256', type: 'uint256' },
-      { name: 'denominator', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'PRBMath_MulDiv_Overflow',
-  },
+  { type: 'error', inputs: [], name: 'Reentrancy' },
   {
     type: 'error',
     inputs: [{ name: 'token', internalType: 'address', type: 'address' }],

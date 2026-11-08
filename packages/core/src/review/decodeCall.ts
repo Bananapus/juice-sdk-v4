@@ -18,6 +18,7 @@ import { jbBuybackHookAbi } from "../generated/abi/jbBuybackHookAbi.js";
 import { jbBuybackHookPreviousAbi } from "../generated/abi/jbBuybackHookPreviousAbi.js";
 import { jbBuybackHookRegistryAbi } from "../generated/abi/jbBuybackHookRegistryAbi.js";
 import { jbBuybackHookV1Abi } from "../generated/abi/jbBuybackHookV1Abi.js";
+import { jbBuybackHookV2Abi } from "../generated/abi/jbBuybackHookV2Abi.js";
 import { jbControllerAbi } from "../generated/abi/jbControllerAbi.js";
 import { jbDeadline1DayAbi } from "../generated/abi/jbDeadline1DayAbi.js";
 import { jbDeadline3DaysAbi } from "../generated/abi/jbDeadline3DaysAbi.js";
@@ -79,6 +80,7 @@ function reviewAbis(): ReviewAbis {
     JBAddressRegistry: jbAddressRegistryAbi,
     JBBuybackHook: jbBuybackHookAbi,
     "JBBuybackHook (previous)": jbBuybackHookPreviousAbi,
+    "JBBuybackHook (v2)": jbBuybackHookV2Abi,
     "JBBuybackHook (v1)": jbBuybackHookV1Abi,
     JBBuybackHookRegistry: jbBuybackHookRegistryAbi,
     JBController: jbControllerAbi,

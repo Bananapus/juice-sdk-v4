@@ -756,6 +756,11 @@ export const jbBuybackHookAbi = [
   },
   {
     type: 'error',
+    inputs: [{ name: 'hooks', internalType: 'address', type: 'address' }],
+    name: 'JBBuybackHook_PoolHookMismatch',
+  },
+  {
+    type: 'error',
     inputs: [
       { name: 'actualSqrtPriceX96', internalType: 'uint160', type: 'uint160' },
       {

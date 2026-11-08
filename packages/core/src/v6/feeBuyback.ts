@@ -5,10 +5,8 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import {
-  jbV6ContractAddress,
-  jbContractAddressHistory,
-} from "../generated/juicebox.js";
+import type { JBChainId } from "../types.js";
+import { v6Deployments, type V6Contract } from "./types.js";
 
 // Shared by every Juicebox client. Simulation results are
 // advisory estimates only; the existing transaction simulation/authorization remains mandatory.
@@ -400,19 +398,8 @@ export function feeBuybackOptions(
   chainId: number,
   beneficiary: Address,
 ): Required<FeeOptions> {
-  const current = jbV6ContractAddress as Readonly<
-    Partial<Record<string, Readonly<Record<string, string>>>>
-  >;
-  const history = jbContractAddressHistory["6"] as Readonly<
-    Record<string, Readonly<Record<string, Readonly<Record<string, string>>>>>
-  >;
-  const deployed = (contract: string) =>
-    [
-      current[contract]?.[chainId],
-      ...Object.values(history[contract] ?? {}).map(
-        (generation) => generation[chainId],
-      ),
-    ].filter((address): address is string => !!address);
+  const deployed = (contract: V6Contract) =>
+    v6Deployments(contract, chainId as JBChainId);
   const terminals = deployed("JBMultiTerminal");
   return {
     beneficiary,

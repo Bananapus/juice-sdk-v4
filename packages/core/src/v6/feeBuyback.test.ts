@@ -704,6 +704,7 @@ describe("fee review helpers", () => {
       trustedHooks: [
         v6.JBBuybackHook[8453],
         hooks.previous[8453],
+        hooks.v2[8453],
         hooks.v1[8453],
       ],
       terminals: [v6.JBMultiTerminal[8453]],
@@ -723,11 +724,13 @@ describe("fee review helpers", () => {
 
   it("trusts nothing for a contract the address table lacks", async () => {
     vi.resetModules();
-    vi.doMock("../generated/juicebox.js", () => ({
+    vi.doMock("../generated/addresses/jbV6ContractAddress.js", () => ({
       jbV6ContractAddress: {
         JBMultiTerminal: { 8453: terminal },
         JBController: { 8453: controller },
       },
+    }));
+    vi.doMock("../generated/addresses/jbContractAddressHistory.js", () => ({
       jbContractAddressHistory: { "6": {} },
     }));
     try {
@@ -740,7 +743,8 @@ describe("fee review helpers", () => {
         feePayers: [terminal],
       });
     } finally {
-      vi.doUnmock("../generated/juicebox.js");
+      vi.doUnmock("../generated/addresses/jbContractAddressHistory.js");
+      vi.doUnmock("../generated/addresses/jbV6ContractAddress.js");
       vi.resetModules();
     }
   });

@@ -15,6 +15,7 @@ import {
   getHistoricalContract,
   isMissingDeployment,
   V6_HISTORY,
+  generationsOf,
   getContractAddress,
   getV6CcipDeployerAddress,
   getV6NativeDeployerAddress,
@@ -102,7 +103,7 @@ async function buildV6History() {
   const history = {};
   for (const name of Object.keys(V6_HISTORY) as Contract[]) {
     history[name] = {};
-    for (const generation of ["previous", "v1"] as const) {
+    for (const generation of generationsOf(name)) {
       history[name][generation] = {};
       for (const chainId of chainIds) {
         try {
@@ -139,6 +140,10 @@ async function buildAddressModules(): Promise<Record<string, string>> {
 export const ${name} = ${JSON.stringify(table, null, 2)} as const;
 `;
   }
+  modules.jbContractAddressHistory = `${ADDRESS_MODULE_HEADER}
+/** Historical v6 deployments retained for activity decoding and projects that have not migrated. */
+export const jbContractAddressHistory = ${JSON.stringify({ 6: await buildV6History() }, null, 2)} as const;
+`;
   modules.jbContractAddress = `${ADDRESS_MODULE_HEADER}
 import { jbV4ContractAddress } from './jbV4ContractAddress.js'
 import { jbV5ContractAddress } from './jbV5ContractAddress.js'
@@ -165,7 +170,7 @@ async function buildDefaultAddressContent() {
     generations[name] = {};
     for (const [chainId, address] of Object.entries(current[name])) {
       generations[name][chainId] =
-        ["previous", "v1"].find(
+        generationsOf(name as Contract).find(
           (generation) =>
             history[name][generation][chainId]?.toLowerCase() ===
             (address as string).toLowerCase(),
@@ -201,8 +206,7 @@ export { jbV6ContractAddress } from './addresses/jbV6ContractAddress.js'
     2,
   )} as const;
 
-  /** Historical v6 deployments retained for activity decoding and projects that have not migrated. */
-  export const jbContractAddressHistory = ${JSON.stringify({ 6: history }, null, 2)} as const;
+  export { jbContractAddressHistory } from './addresses/jbContractAddressHistory.js'
 
   /** ABI generation for each canonical v6 deployment during the phased rollout. */
   export const jbContractAbiGeneration = ${JSON.stringify({ 6: generations }, null, 2)} as const;`;

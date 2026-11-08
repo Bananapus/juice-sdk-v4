@@ -278,12 +278,24 @@ if (process.argv.includes("--update-fixture")) {
       }
     }
   }
-  for (const name of ["JBBuybackHook", "JBRouterTerminal"]) {
-    fixture.history[name] = {};
-    for (const [generation, suffix] of [
-      ["previous", "_deprecated1"],
+  // Retired generations by deploy-all suffix, newest first. Kept apart from
+  // the generator's table so this check stays independent of it.
+  const retired: Record<string, [string, string][]> = {
+    JBBuybackHook: [
+      ["previous", "_deprecated2"],
+      ["v2", "_deprecated1"],
       ["v1", "_deprecated"],
-    ]) {
+    ],
+    JBRouterTerminal: [
+      ["previous", "_deprecated2"],
+      ["v2", "_deprecated1"],
+      ["v1", "_deprecated"],
+    ],
+    JBRouterTerminalGateway: [["previous", "_deprecated"]],
+  };
+  for (const [name, generations] of Object.entries(retired)) {
+    fixture.history[name] = {};
+    for (const [generation, suffix] of generations) {
       const records = Object.fromEntries(
         Object.entries(fixture.chains).flatMap(([chainId, alias]) => {
           const artifact = `${name}${suffix}`;
@@ -597,7 +609,7 @@ for (const [name, generations] of Object.entries(fixture.history)) {
       `${name} ${generation} chains`,
     );
     const exportName = abiExportName(
-      `${name}${generation === "previous" ? "Previous" : "V1"}`,
+      `${name}${generation === "previous" ? "Previous" : generation.toUpperCase()}`,
     );
     const abi = bindings[exportName] as AbiItem[];
     invariant(
