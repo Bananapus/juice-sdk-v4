@@ -3,6 +3,7 @@ import {
   ContractFunctionRevertedError,
   PublicClient,
   RpcRequestError,
+  concatHex,
   decodeAbiParameters,
   decodeFunctionData,
   encodeAbiParameters,
@@ -1517,6 +1518,15 @@ describe("prepareUserPay", () => {
       },
     );
 
+    test("quotes no conversion through a gateway whose router it does not know", async () => {
+      const { client } = mockClient({
+        ...routed,
+        registryTerminal: v6Address("JBRouterTerminalGateway", 8453),
+        gatewayRouter: v3Pool,
+      });
+      fellBack(await prepareUserPay(client, routerArgs));
+    });
+
     test("falls back to the mint entitlement when no accepted token has the spec's pool", async () => {
       const { client, calls } = mockClient({
         ...routed,
@@ -1821,6 +1831,31 @@ describe("prepareUserPay", () => {
     expect(quotedArgs(calls)).toMatchObject({ exactAmount: 800n });
   });
 
+  test.each([
+    // 2.0.0 appends `floorCoversSettlement` to 1.4's 17 words.
+    [
+      "current",
+      (m: Hex) =>
+        concatHex([m, encodeAbiParameters([{ type: "bool" }], [true])]),
+    ],
+    ["previous", (m: Hex) => m],
+    ["v2", legacySpec],
+  ] as const)(
+    "quotes the %s buyback generation the registry holds",
+    async (generation, layout) => {
+      const [hook] = v6Deployments("JBBuybackHook", 8453, [generation]);
+      const { client, calls } = mockClient({
+        hook,
+        specHook: hook,
+        spec: layout(swapSpec()),
+        noop: true,
+      });
+      const prepared = await prepareUserPay(client, args);
+      expect(quotedArgs(calls)).toMatchObject({ exactAmount: 800n });
+      expect(explicitMinimumOf(prepared.metadata)).toBe(9_900n);
+    },
+  );
+
   test("hook 1.1.1 without a quote requires the beneficiary's split of a mint", async () => {
     const { client } = mockClient({
       spec: legacySpec(
@@ -1985,6 +2020,26 @@ describe("prepareUserPay", () => {
         terminalCounts: [0n, 0n] as const,
       };
     };
+
+  test.each([
+    ["current", false],
+    ["previous", false],
+    ["v2", false],
+    // v1's pay spec is not read: a ruleset calling it directly gets no direct quote.
+    ["v1", true],
+  ] as const)(
+    "a ruleset calling the %s buyback generation directly asks the registry: %s",
+    async (generation, asksRegistry) => {
+      const [hook] = v6Deployments("JBBuybackHook", 8453, [generation]);
+      const { client, calls } = mockClient({
+        spec: swapSpec(),
+        specHook: hook,
+        rulesetMetadata: dataHookMetadata(hook),
+      });
+      await prepareUserPay(client, args);
+      expect(calls.some((c) => c.functionName === "hookOf")).toBe(asksRegistry);
+    },
+  );
 
   test("keys the quote to buyback 1.4 when the ruleset calls it directly", async () => {
     const { client, calls } = mockClient({

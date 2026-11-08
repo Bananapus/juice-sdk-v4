@@ -1376,6 +1376,18 @@ describe("Safe inner call decoding", () => {
     expect(rowsOf(usdc)).toEqual([`spender="${BOB}"`, 'amount="5"']);
   });
 
+  it("reads a retired gateway with its own ABI only", () => {
+    expect(
+      describeSafeInnerCall(
+        BASE,
+        PREVIOUS_GATEWAY,
+        pay(jbRouterTerminalGatewayAbi),
+      )![0].title,
+    ).toBe("Queued call — JBRouterTerminalGateway (previous).pay(…)");
+    // The gateway has no `approve`: it stays raw.
+    expect(describeSafeInnerCall(BASE, PREVIOUS_GATEWAY, approve)).toBeNull();
+  });
+
   it("never claims a token standard for an unknown target", () => {
     const erc721 = parseAbi([
       "function transferFrom(address from, address to, uint256 tokenId)",

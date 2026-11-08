@@ -98,7 +98,12 @@ function reviewAbis(): ReviewAbis {
     JBProjects: jbProjectsAbi,
     JBRatioPriceFeed: jbRatioPriceFeedAbi,
     JBRouterTerminal: jbRouterTerminalAbi,
+    "JBRouterTerminal (previous)": jbRouterTerminalAbi,
+    "JBRouterTerminal (v2)": jbRouterTerminalAbi,
+    "JBRouterTerminal (v1)": jbRouterTerminalAbi,
     JBRouterTerminalGateway: jbRouterTerminalGatewayAbi,
+    // The SDK pins one ABI per router contract: every generation shares it.
+    "JBRouterTerminalGateway (previous)": jbRouterTerminalGatewayAbi,
     JBRouterTerminalRegistry: jbRouterTerminalRegistryAbi,
     JBRulesets: jbRulesetsAbi,
     JBSplits: jbSplitsAbi,

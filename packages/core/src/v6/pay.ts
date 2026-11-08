@@ -1213,12 +1213,17 @@ export async function prepareUserPay(
       // conversion mint while the pool pays more, so quote what the hook
       // receives when the conversion returns its quote. A conversion well
       // below its quote then fails with a reason.
+      // A terminal that reaches no router we know gets no quote: another router's would not bind it.
+      const router = await reachedRouter(
+        watched,
+        chainId,
+        projectId,
+        args.terminal,
+      );
+      if (!router) return mintPath();
       const routed = await routedBuybackSpecOf(watched, {
         chainId,
-        // ponytail: falls back to the current router when the terminal reaches none we know.
-        router:
-          (await reachedRouter(watched, chainId, projectId, args.terminal)) ??
-          v6Address("JBRouterTerminal", chainId),
+        router,
         projectId,
         tokenIn: token,
         tokenOut: pool.terminalToken,
