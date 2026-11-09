@@ -304,6 +304,8 @@ export type SafeRelayrView = {
   /** The call running now, the latest one started. */
   running: "prepare" | "check" | "fund" | "watch" | "exit" | null;
   error: unknown;
+  /** The latest session progress carried (its payment, funding and executions), a copy. */
+  session: SafeRelayrSession | null;
 };
 
 const SAFE_RELAYR_VIEW: SafeRelayrView = {
@@ -313,6 +315,7 @@ const SAFE_RELAYR_VIEW: SafeRelayrView = {
   result: null,
   running: null,
   error: null,
+  session: null,
 };
 
 export type SafeRelayrOptions = {
@@ -794,8 +797,11 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     // Progress names no call: with overlapping calls, or after a reset, it
     // could be another operation's, so it shows only from the latest call alone.
     if (flying.size === 1 && flying.has(calls))
-      show(
-        progress.type === "phase"
+      show({
+        ...(progress.session
+          ? { session: structuredClone(progress.session) }
+          : {}),
+        ...(progress.type === "phase"
           ? { phase: progress.phase }
           : {
               executions: {
@@ -806,8 +812,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
                   ...(progress.message ? { message: progress.message } : {}),
                 },
               },
-            },
-      );
+            }),
+      });
     // A view must not mutate frozen calls or turn a submitted payment into a
     // rejected operation: it gets a copy, and its failure is only logged.
     void tell(

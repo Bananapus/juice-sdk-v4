@@ -4613,6 +4613,7 @@ describe("Safe Relayr controller view", () => {
       result: null,
       running: null,
       error: null,
+      session: null,
     });
     const onStatus = vi.fn();
     const preparing = h.controller.prepare({
@@ -4627,7 +4628,11 @@ describe("Safe Relayr controller view", () => {
       result: ready,
       checks: { 0: "ready" },
       phase: expect.any(String),
+      session: { id: ready.session.id, paymentStatus: "unfunded" },
     });
+    expect(h.controller.getState().session?.executions[0]?.entry.chain).toBe(
+      ready.session.executions[0]!.entry.chain,
+    );
     expect(onStatus).toHaveBeenCalledWith(0, "ready", expect.anything());
     const call = execution();
     mineSafe(h, call, HASH);
@@ -4724,10 +4729,12 @@ describe("Safe Relayr controller view", () => {
       result: null,
       running: null,
       error: null,
+      session: null,
     });
     expect(h.controller.getState()).toMatchObject({
       running: null,
       error: null,
+      session: null,
     });
     // An earlier session's progress stays out of a newer call's view.
     const holdNext = () => {
