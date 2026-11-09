@@ -181,6 +181,7 @@ describe("published core SDK surfaces", () => {
       "SIMULATION_NO_ANSWER_LINE",
       "SubmittedContractWriteError",
       "SubmittedWritePersistenceError",
+      "TRANSACTION_GAS_CAP",
       "TRANSACTION_SIMULATION_GAS",
       "TRANSACTION_SIMULATION_MAX_RETURN_BYTES",
       "TRANSACTION_TRACKING_UNAVAILABLE_LINE",
