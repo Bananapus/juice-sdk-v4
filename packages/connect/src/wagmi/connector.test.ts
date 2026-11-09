@@ -27,7 +27,7 @@ describe("centerAccountConnector", () => {
   test("exposes the Base account read-only and names it an account", async () => {
     const { connector, read, wallet } = setup();
     expect(connector.id).toBe("juicebox-center");
-    expect(connector.name).toBe("Juicebox account");
+    expect(connector.name).toBe("Signa account");
     expect(await connector.isAuthorized()).toBe(true);
     expect(await connector.getAccounts()).toEqual([address]);
     expect(await connector.getChainId()).toBe(8453);
@@ -103,7 +103,7 @@ describe("centerAccountConnector", () => {
       };
       expect(await provider.request({ method: "eth_accounts" })).toEqual([]);
       await expect(connector.connect()).rejects.toThrow(
-        /Sign in with your Juicebox account/,
+        /Sign in with your Signa account/,
       );
     }
     await expect(
